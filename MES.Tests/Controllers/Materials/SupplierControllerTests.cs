@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.Materials;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Materials;
+using MES.Core.Interfaces.Materials;
 
 namespace MES.Tests.Controllers;
 

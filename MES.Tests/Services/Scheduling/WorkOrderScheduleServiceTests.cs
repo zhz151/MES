@@ -1,12 +1,13 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Scheduling;
 using MES.Services.Scheduling;
 using MES.Tests.Tests;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.WorkOrder;
 
 namespace MES.Tests.Services.Scheduling;
 

@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.Quality;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Quality;
+using MES.Core.Interfaces.Quality;
 
 namespace MES.Tests.Controllers;
 
@@ -28,7 +28,9 @@ public class FurnaceRegistrationControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<FurnaceRegistrationDto>
         {
             Items = new List<FurnaceRegistrationDto> { new() { Id = 1, RawMaterialUnit = "原料厂" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 

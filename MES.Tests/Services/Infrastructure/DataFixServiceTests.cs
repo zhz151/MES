@@ -1,11 +1,17 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.DataFix;
 using MES.Tests.Tests;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Quality;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.WorkOrder;
 using Moq;
 
 namespace MES.Tests.Services;

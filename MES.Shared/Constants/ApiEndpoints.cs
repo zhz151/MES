@@ -20,11 +20,13 @@ public static class ApiEndpoints
     // ===== Order 订单 =====
     public const string Order = "api/order";
     public const string OrderDemandAdjustment = "api/order-demand-adjustment";
+    public const string Customer = "api/customer";
 
     // ===== WorkOrder 工单 =====
     public const string WorkOrder = "api/workorder";
     public const string WorkOrderExecution = "api/workorder-execution";
     public const string MaterialPlan = "api/material-plan";
+    public const string Notification = "api/notification";
 
     // ===== Quality 质量 =====
     public const string MaterialReceiveCheck = "api/material-receive-check";
@@ -60,14 +62,8 @@ public static class ApiEndpoints
     public const string Inventory = "api/inventory";
 
     // ===== Other =====
-    public const string Customer = "api/customer";
     public const string DataExchange = "api/data-exchange";
-    public const string Notification = "api/notification";
-    public const string ProductionOverview = "api/production-overview";
-    public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
     public const string Scan = "api/scan";
-    public const string Workstation = "api/workstation";
-    public const string Employee = "api/employee";
 
     // ===== Scheduling 排程 =====
     public const string SectionProductionStatus = "api/section-production-status";
@@ -79,6 +75,8 @@ public static class ApiEndpoints
     public const string FinalInspectionPlan = "api/final-inspection-plan";
     public const string BatchPlanSchedule = "api/batch-plan-schedule";
     public const string BatchPlanTarget = "api/batch-plan-target";
+    public const string ProductionOverview = "api/production-overview";
+    public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
 
     // ===== Dashboard 看板 =====
     public const string DashboardIndex = "api/dashboard/index";
@@ -86,6 +84,10 @@ public static class ApiEndpoints
     public const string DashboardUrgency = "api/dashboard/urgency";
     public const string DashboardSectionLoad = "api/dashboard/section-load";
     public const string DashboardQuality = "api/dashboard/quality";
+
+    // ===== Report 报表 =====
+    public const string ReportDailyOutput = "api/report/daily-output";
+    public const string ReportDailyOutputPrint = "api/report/daily-output/print-file";
 
     // ===== User Management =====
     public const string Users = "api/users";
@@ -97,6 +99,8 @@ public static class ApiEndpoints
     public const string DailyOutputEstimate = "api/daily-output-estimate";
     public const string DailyProductionCapacity = "api/daily-production-capacity";
     public const string SectionFlowCategorySettings = "api/section-flow-category-settings";
+    public const string Workstation = "api/workstation";
+    public const string Employee = "api/employee";
 
     // ===== ProductionStandard 生产标准 =====
     public const string StandardRegister = "api/standard-register";

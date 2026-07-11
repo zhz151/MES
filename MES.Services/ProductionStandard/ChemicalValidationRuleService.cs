@@ -1,11 +1,45 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.ProductionStandard;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
@@ -109,21 +143,36 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
         var entities = requests.Select(r => new ChemicalValidationRule
         {
             PlantGrade = r.PlantGrade,
-            CMin = r.CMin, CMax = r.CMax,
-            SiMin = r.SiMin, SiMax = r.SiMax,
-            MnMin = r.MnMin, MnMax = r.MnMax,
-            PMin = r.PMin, PMax = r.PMax,
-            SMin = r.SMin, SMax = r.SMax,
-            NiMin = r.NiMin, NiMax = r.NiMax,
-            CrMin = r.CrMin, CrMax = r.CrMax,
-            MoMin = r.MoMin, MoMax = r.MoMax,
-            CuMin = r.CuMin, CuMax = r.CuMax,
-            NMin = r.NMin, NMax = r.NMax,
-            NbMin = r.NbMin, NbMax = r.NbMax,
-            TiMin = r.TiMin, TiMax = r.TiMax,
-            FeMin = r.FeMin, FeMax = r.FeMax,
-            AlMin = r.AlMin, AlMax = r.AlMax,
-            WMin = r.WMin, WMax = r.WMax,
+            CMin = r.CMin,
+            CMax = r.CMax,
+            SiMin = r.SiMin,
+            SiMax = r.SiMax,
+            MnMin = r.MnMin,
+            MnMax = r.MnMax,
+            PMin = r.PMin,
+            PMax = r.PMax,
+            SMin = r.SMin,
+            SMax = r.SMax,
+            NiMin = r.NiMin,
+            NiMax = r.NiMax,
+            CrMin = r.CrMin,
+            CrMax = r.CrMax,
+            MoMin = r.MoMin,
+            MoMax = r.MoMax,
+            CuMin = r.CuMin,
+            CuMax = r.CuMax,
+            NMin = r.NMin,
+            NMax = r.NMax,
+            NbMin = r.NbMin,
+            NbMax = r.NbMax,
+            TiMin = r.TiMin,
+            TiMax = r.TiMax,
+            FeMin = r.FeMin,
+            FeMax = r.FeMax,
+            AlMin = r.AlMin,
+            AlMax = r.AlMax,
+            WMin = r.WMin,
+            WMax = r.WMax,
             PRENMin = r.PRENMin,
         }).ToList();
 
@@ -188,21 +237,36 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
             {
                 Id = x.Id,
                 PlantGrade = x.PlantGrade,
-                CMin = x.CMin, CMax = x.CMax,
-                SiMin = x.SiMin, SiMax = x.SiMax,
-                MnMin = x.MnMin, MnMax = x.MnMax,
-                PMin = x.PMin, PMax = x.PMax,
-                SMin = x.SMin, SMax = x.SMax,
-                NiMin = x.NiMin, NiMax = x.NiMax,
-                CrMin = x.CrMin, CrMax = x.CrMax,
-                MoMin = x.MoMin, MoMax = x.MoMax,
-                CuMin = x.CuMin, CuMax = x.CuMax,
-                NMin = x.NMin, NMax = x.NMax,
-                NbMin = x.NbMin, NbMax = x.NbMax,
-                TiMin = x.TiMin, TiMax = x.TiMax,
-                FeMin = x.FeMin, FeMax = x.FeMax,
-                AlMin = x.AlMin, AlMax = x.AlMax,
-                WMin = x.WMin, WMax = x.WMax,
+                CMin = x.CMin,
+                CMax = x.CMax,
+                SiMin = x.SiMin,
+                SiMax = x.SiMax,
+                MnMin = x.MnMin,
+                MnMax = x.MnMax,
+                PMin = x.PMin,
+                PMax = x.PMax,
+                SMin = x.SMin,
+                SMax = x.SMax,
+                NiMin = x.NiMin,
+                NiMax = x.NiMax,
+                CrMin = x.CrMin,
+                CrMax = x.CrMax,
+                MoMin = x.MoMin,
+                MoMax = x.MoMax,
+                CuMin = x.CuMin,
+                CuMax = x.CuMax,
+                NMin = x.NMin,
+                NMax = x.NMax,
+                NbMin = x.NbMin,
+                NbMax = x.NbMax,
+                TiMin = x.TiMin,
+                TiMax = x.TiMax,
+                FeMin = x.FeMin,
+                FeMax = x.FeMax,
+                AlMin = x.AlMin,
+                AlMax = x.AlMax,
+                WMin = x.WMin,
+                WMax = x.WMax,
                 PRENMin = x.PRENMin,
                 CreatedTime = x.CreatedTime,
                 UpdatedTime = x.UpdatedTime
@@ -217,21 +281,36 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
             .Select(r => new
             {
                 r.PlantGrade,
-                r.CMin, r.CMax,
-                r.SiMin, r.SiMax,
-                r.MnMin, r.MnMax,
-                r.PMin, r.PMax,
-                r.SMin, r.SMax,
-                r.NiMin, r.NiMax,
-                r.CrMin, r.CrMax,
-                r.MoMin, r.MoMax,
-                r.CuMin, r.CuMax,
-                r.NMin, r.NMax,
-                r.NbMin, r.NbMax,
-                r.TiMin, r.TiMax,
-                r.FeMin, r.FeMax,
-                r.AlMin, r.AlMax,
-                r.WMin, r.WMax,
+                r.CMin,
+                r.CMax,
+                r.SiMin,
+                r.SiMax,
+                r.MnMin,
+                r.MnMax,
+                r.PMin,
+                r.PMax,
+                r.SMin,
+                r.SMax,
+                r.NiMin,
+                r.NiMax,
+                r.CrMin,
+                r.CrMax,
+                r.MoMin,
+                r.MoMax,
+                r.CuMin,
+                r.CuMax,
+                r.NMin,
+                r.NMax,
+                r.NbMin,
+                r.NbMax,
+                r.TiMin,
+                r.TiMax,
+                r.FeMin,
+                r.FeMax,
+                r.AlMin,
+                r.AlMax,
+                r.WMin,
+                r.WMax,
                 r.PRENMin
             })
             .ToListAsync();
@@ -286,21 +365,36 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
     {
         Id = r.Id,
         PlantGrade = r.PlantGrade,
-        CMin = r.CMin, CMax = r.CMax,
-        SiMin = r.SiMin, SiMax = r.SiMax,
-        MnMin = r.MnMin, MnMax = r.MnMax,
-        PMin = r.PMin, PMax = r.PMax,
-        SMin = r.SMin, SMax = r.SMax,
-        NiMin = r.NiMin, NiMax = r.NiMax,
-        CrMin = r.CrMin, CrMax = r.CrMax,
-        MoMin = r.MoMin, MoMax = r.MoMax,
-        CuMin = r.CuMin, CuMax = r.CuMax,
-        NMin = r.NMin, NMax = r.NMax,
-        NbMin = r.NbMin, NbMax = r.NbMax,
-        TiMin = r.TiMin, TiMax = r.TiMax,
-        FeMin = r.FeMin, FeMax = r.FeMax,
-        AlMin = r.AlMin, AlMax = r.AlMax,
-        WMin = r.WMin, WMax = r.WMax,
+        CMin = r.CMin,
+        CMax = r.CMax,
+        SiMin = r.SiMin,
+        SiMax = r.SiMax,
+        MnMin = r.MnMin,
+        MnMax = r.MnMax,
+        PMin = r.PMin,
+        PMax = r.PMax,
+        SMin = r.SMin,
+        SMax = r.SMax,
+        NiMin = r.NiMin,
+        NiMax = r.NiMax,
+        CrMin = r.CrMin,
+        CrMax = r.CrMax,
+        MoMin = r.MoMin,
+        MoMax = r.MoMax,
+        CuMin = r.CuMin,
+        CuMax = r.CuMax,
+        NMin = r.NMin,
+        NMax = r.NMax,
+        NbMin = r.NbMin,
+        NbMax = r.NbMax,
+        TiMin = r.TiMin,
+        TiMax = r.TiMax,
+        FeMin = r.FeMin,
+        FeMax = r.FeMax,
+        AlMin = r.AlMin,
+        AlMax = r.AlMax,
+        WMin = r.WMin,
+        WMax = r.WMax,
         PRENMin = r.PRENMin,
         CreatedTime = r.CreatedTime,
         UpdatedTime = r.UpdatedTime

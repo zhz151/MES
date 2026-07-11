@@ -2,8 +2,17 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Batch;
 using MES.Data.Entities.Configuration;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Quality;
 using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.WorkOrder;
 using MES.Shared.Constants;
 using Microsoft.Extensions.DependencyInjection;
 using MES.Core.Enums;
@@ -474,54 +483,54 @@ public static class DbInitializer
             AddItem(settingMap["E"], "全部", "检验", 1m, 1);
 
             // F 固溶
-            AddItem(settingMap["F"], "20冷轧",   "固溶", 1m, 1);
-            AddItem(settingMap["F"], "30冷轧",   "固溶", 1m, 2);
-            AddItem(settingMap["F"], "50冷轧",   "固溶", 1m, 3);
-            AddItem(settingMap["F"], "60冷轧",   "固溶", 1m, 4);
-            AddItem(settingMap["F"], "冷拔",     "固溶", 1m, 5);
+            AddItem(settingMap["F"], "20冷轧", "固溶", 1m, 1);
+            AddItem(settingMap["F"], "30冷轧", "固溶", 1m, 2);
+            AddItem(settingMap["F"], "50冷轧", "固溶", 1m, 3);
+            AddItem(settingMap["F"], "60冷轧", "固溶", 1m, 4);
+            AddItem(settingMap["F"], "冷拔", "固溶", 1m, 5);
             AddItem(settingMap["F"], "三辊冷轧", "固溶", 1m, 6);
             AddItem(settingMap["F"], "在制修检", "固溶", 1m, 7);
 
             // G 矫直
-            AddItem(settingMap["G"], "20冷轧",   "矫直", 1m,    1);
-            AddItem(settingMap["G"], "30冷轧",   "矫直", 1m,    2);
-            AddItem(settingMap["G"], "50冷轧",   "矫直", 0.5m,  3);
-            AddItem(settingMap["G"], "60冷轧",   "矫直", 0.5m,  4);
+            AddItem(settingMap["G"], "20冷轧", "矫直", 1m, 1);
+            AddItem(settingMap["G"], "30冷轧", "矫直", 1m, 2);
+            AddItem(settingMap["G"], "50冷轧", "矫直", 0.5m, 3);
+            AddItem(settingMap["G"], "60冷轧", "矫直", 0.5m, 4);
             AddItem(settingMap["G"], "荒管处理", "矫直", 0.25m, 5);
-            AddItem(settingMap["G"], "冷拔",     "矫直", 1m,    6);
-            AddItem(settingMap["G"], "三辊冷轧", "矫直", 1m,    7);
-            AddItem(settingMap["G"], "在制修检", "矫直", 1m,    8);
+            AddItem(settingMap["G"], "冷拔", "矫直", 1m, 6);
+            AddItem(settingMap["G"], "三辊冷轧", "矫直", 1m, 7);
+            AddItem(settingMap["G"], "在制修检", "矫直", 1m, 8);
 
             // H 切割
-            AddItem(settingMap["H"], "20冷轧",   "断切",   1m,    1);
-            AddItem(settingMap["H"], "30冷轧",   "断切",   1m,    2);
-            AddItem(settingMap["H"], "50冷轧",   "断切",   0.5m,  3);
-            AddItem(settingMap["H"], "60冷轧",   "断切",   0.5m,  4);
-            AddItem(settingMap["H"], "荒管处理", "断切",   0.25m, 5);
-            AddItem(settingMap["H"], "冷拔",     "断切",   1m,    6);
-            AddItem(settingMap["H"], "三辊冷轧", "断切",   1m,    7);
-            AddItem(settingMap["H"], "在制修检", "断切",   0.25m, 8);
-            AddItem(settingMap["H"], "20冷轧",   "油管断", 0.75m, 9);
-            AddItem(settingMap["H"], "30冷轧",   "油管断", 0.75m, 10);
-            AddItem(settingMap["H"], "50冷轧",   "油管断", 0.5m,  11);
-            AddItem(settingMap["H"], "60冷轧",   "油管断", 0.5m,  12);
+            AddItem(settingMap["H"], "20冷轧", "断切", 1m, 1);
+            AddItem(settingMap["H"], "30冷轧", "断切", 1m, 2);
+            AddItem(settingMap["H"], "50冷轧", "断切", 0.5m, 3);
+            AddItem(settingMap["H"], "60冷轧", "断切", 0.5m, 4);
+            AddItem(settingMap["H"], "荒管处理", "断切", 0.25m, 5);
+            AddItem(settingMap["H"], "冷拔", "断切", 1m, 6);
+            AddItem(settingMap["H"], "三辊冷轧", "断切", 1m, 7);
+            AddItem(settingMap["H"], "在制修检", "断切", 0.25m, 8);
+            AddItem(settingMap["H"], "20冷轧", "油管断", 0.75m, 9);
+            AddItem(settingMap["H"], "30冷轧", "油管断", 0.75m, 10);
+            AddItem(settingMap["H"], "50冷轧", "油管断", 0.5m, 11);
+            AddItem(settingMap["H"], "60冷轧", "油管断", 0.5m, 12);
             AddItem(settingMap["H"], "三辊冷轧", "油管断", 0.75m, 13);
 
             // I 去油
-            AddItem(settingMap["I"], "20冷轧",   "去油", 1m,   1);
-            AddItem(settingMap["I"], "30冷轧",   "去油", 1m,   2);
-            AddItem(settingMap["I"], "50冷轧",   "去油", 0.5m, 3);
-            AddItem(settingMap["I"], "60冷轧",   "去油", 0.5m, 4);
-            AddItem(settingMap["I"], "三辊冷轧", "去油", 1m,   5);
+            AddItem(settingMap["I"], "20冷轧", "去油", 1m, 1);
+            AddItem(settingMap["I"], "30冷轧", "去油", 1m, 2);
+            AddItem(settingMap["I"], "50冷轧", "去油", 0.5m, 3);
+            AddItem(settingMap["I"], "60冷轧", "去油", 0.5m, 4);
+            AddItem(settingMap["I"], "三辊冷轧", "去油", 1m, 5);
 
             // J 酸洗
-            AddItem(settingMap["J"], "20冷轧",   "酸洗", 1m,    1);
-            AddItem(settingMap["J"], "30冷轧",   "酸洗", 1m,    2);
-            AddItem(settingMap["J"], "50冷轧",   "酸洗", 0.5m,  3);
-            AddItem(settingMap["J"], "60冷轧",   "酸洗", 0.5m,  4);
+            AddItem(settingMap["J"], "20冷轧", "酸洗", 1m, 1);
+            AddItem(settingMap["J"], "30冷轧", "酸洗", 1m, 2);
+            AddItem(settingMap["J"], "50冷轧", "酸洗", 0.5m, 3);
+            AddItem(settingMap["J"], "60冷轧", "酸洗", 0.5m, 4);
             AddItem(settingMap["J"], "荒管处理", "酸洗", 0.25m, 5);
-            AddItem(settingMap["J"], "冷拔",     "酸洗", 1m,    6);
-            AddItem(settingMap["J"], "三辊冷轧", "酸洗", 1m,    7);
+            AddItem(settingMap["J"], "冷拔", "酸洗", 1m, 6);
+            AddItem(settingMap["J"], "三辊冷轧", "酸洗", 1m, 7);
             AddItem(settingMap["J"], "在制修检", "酸洗", 0.25m, 8);
 
             // K 大轧
@@ -529,8 +538,8 @@ public static class DbInitializer
             AddItem(settingMap["K"], "60冷轧", "冷轧拔", 1m, 2);
 
             // L 小轧
-            AddItem(settingMap["L"], "20冷轧",   "冷轧拔", 1m, 1);
-            AddItem(settingMap["L"], "30冷轧",   "冷轧拔", 1m, 2);
+            AddItem(settingMap["L"], "20冷轧", "冷轧拔", 1m, 1);
+            AddItem(settingMap["L"], "30冷轧", "冷轧拔", 1m, 2);
             AddItem(settingMap["L"], "三辊冷轧", "冷轧拔", 1m, 3);
 
             // M 冷拔

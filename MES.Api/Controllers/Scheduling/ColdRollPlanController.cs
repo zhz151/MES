@@ -1,6 +1,6 @@
+using MES.Core.Interfaces.Scheduling;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.Interfaces;
 
 namespace MES.Api.Controllers.Scheduling;
 

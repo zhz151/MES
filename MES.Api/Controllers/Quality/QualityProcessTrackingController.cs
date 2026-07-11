@@ -2,10 +2,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Quality;
+using MES.Core.Interfaces.Quality;
 
 namespace MES.Api.Controllers.Quality;
 

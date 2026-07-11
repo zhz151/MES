@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.Interfaces.Infrastructure;
 
 namespace MES.Api.Controllers.Infrastructure;
 

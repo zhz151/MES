@@ -1,12 +1,27 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
 using MES.Core.Models;
-using MES.Data.Entities;
-using MES.Data;
 using MES.Services.Materials;
 using MES.Tests.Tests;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Materials;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -15,7 +30,7 @@ namespace MES.Tests.Services;
 /// </summary>
 public class SupplierServiceTests : TestBase
 {
-    private SupplierService CreateService(AppDbContext ctx) => new(ctx, Mock.Of<IMemoryCache>());
+    private SupplierService CreateService(AppDbContext ctx) => new(ctx, new MemoryCache(new MemoryCacheOptions()));
 
     private async Task SeedSupplierAsync(AppDbContext ctx, string name = "测试供应商", string? code = null, string contact = "张三", string phone = "13800138000")
     {
@@ -175,7 +190,8 @@ public class SupplierServiceTests : TestBase
             SupplierName = "新供应商",
             ContactPerson = "王经理",
             ContactPhone = "13900009999",
-            Address = "上海市", IsActive = true
+            Address = "上海市",
+            IsActive = true
         });
 
         result.Should().NotBeNull();
@@ -299,7 +315,8 @@ public class SupplierServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "SupplierName", Operator = "contains", Value = "大明" }
@@ -320,7 +337,8 @@ public class SupplierServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "SupplierCode", Operator = "in", Values = new List<string> { "SU0002" } }
@@ -340,7 +358,8 @@ public class SupplierServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "SupplierName", Operator = "contains", Value = "NONEXISTENT" }
@@ -357,14 +376,17 @@ public class SupplierServiceTests : TestBase
         await SeedSupplierAsync(ctx, name: "激活供应商");
         ctx.SupplierProfiles.Add(new SupplierProfile
         {
-            SupplierCode = "SU9999", SupplierName = "停用供应商", IsActive = false
+            SupplierCode = "SU9999",
+            SupplierName = "停用供应商",
+            IsActive = false
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "IsActive", Operator = "in", Values = new List<string> { "True" } }
@@ -413,8 +435,11 @@ public class SupplierServiceTests : TestBase
         var ctx = CreateDbContext();
         ctx.SupplierProfiles.Add(new SupplierProfile
         {
-            SupplierCode = "SU0001", SupplierName = "测试供应商",
-            IsActive = true, ContactPerson = null, Remark = null
+            SupplierCode = "SU0001",
+            SupplierName = "测试供应商",
+            IsActive = true,
+            ContactPerson = null,
+            Remark = null
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

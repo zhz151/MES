@@ -1,15 +1,45 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
-using MES.Data;
-using MES.Data.Entities;
 using MES.Services.WorkOrder;
 using MES.Tests.Tests;
 using Moq;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.WorkOrder;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MES.Tests.Services;
 
@@ -27,7 +57,7 @@ public class WorkOrderExecutionServiceTests : TestBase
         var dailyOutputMock = new Mock<IDailyOutputEstimateService>();
         dailyOutputMock.Setup(x => x.GetAllAsync())
             .ReturnsAsync(new List<DailyOutputEstimateDto>());
-        return new WorkOrderExecutionService(ctx, loggerMock.Object, configMock.Object, dailyOutputMock.Object, Mock.Of<IMemoryCache>());
+        return new WorkOrderExecutionService(ctx, loggerMock.Object, configMock.Object, dailyOutputMock.Object, new MemoryCache(new MemoryCacheOptions()), Mock.Of<IServiceScopeFactory>());
     }
 
     // ==================== GetPagedAsync 测试 ====================
@@ -508,18 +538,32 @@ public class WorkOrderExecutionServiceTests : TestBase
         // 有效批次（在产）
         var validBatch = new ProductionBatch
         {
-            BatchNo = "B001", Status = BatchStatus.InProgress,
-            WorkOrderNo = "WO001", SalesOrderNo = "SO001", ProductionMainNo = "D01",
-            OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            BatchNo = "B001",
+            Status = BatchStatus.InProgress,
+            WorkOrderNo = "WO001",
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "业务员A",
             DeliveryDate = DateTime.Today.AddMonths(1),
-            MaterialName = "无缝管", SettlementMethod = "理算", StandardCode = "GB/T 8163",
-            DeliveryState = "固溶酸洗", LengthStatus = "Fixed",
+            MaterialName = "无缝管",
+            SettlementMethod = "理算",
+            StandardCode = "GB/T 8163",
+            DeliveryState = "固溶酸洗",
+            LengthStatus = "Fixed",
             ManufacturingItem = "OrderFinishedProduct",
-            PlantGrade = "304", Specification = "219*8",
-            TotalQuantity = 100, TotalMeters = 600, TotalWeight = 2500m,
-            TotalItemCount = 1, TechnicalRequirements = "NORMAL",
-            InputQuantity = 50, InputWeight = 1250m,
-            CurrentValidQty = 50, CurrentValidWeight = 1250m,
+            PlantGrade = "304",
+            Specification = "219*8",
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            TechnicalRequirements = "NORMAL",
+            InputQuantity = 50,
+            InputWeight = 1250m,
+            CurrentValidQty = 50,
+            CurrentValidWeight = 1250m,
             ProductionRatio = 1,
             RowVersion = new byte[8],
             ProcessGroups = new List<ProcessGroup>
@@ -530,18 +574,32 @@ public class WorkOrderExecutionServiceTests : TestBase
         // 作废批次
         var cancelledBatch = new ProductionBatch
         {
-            BatchNo = "B002", Status = BatchStatus.Cancelled,
-            WorkOrderNo = "WO001", SalesOrderNo = "SO001", ProductionMainNo = "D01",
-            OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            BatchNo = "B002",
+            Status = BatchStatus.Cancelled,
+            WorkOrderNo = "WO001",
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "业务员A",
             DeliveryDate = DateTime.Today.AddMonths(1),
-            MaterialName = "无缝管", SettlementMethod = "理算", StandardCode = "GB/T 8163",
-            DeliveryState = "固溶酸洗", LengthStatus = "Fixed",
+            MaterialName = "无缝管",
+            SettlementMethod = "理算",
+            StandardCode = "GB/T 8163",
+            DeliveryState = "固溶酸洗",
+            LengthStatus = "Fixed",
             ManufacturingItem = "OrderFinishedProduct",
-            PlantGrade = "304", Specification = "219*8",
-            TotalQuantity = 100, TotalMeters = 600, TotalWeight = 2500m,
-            TotalItemCount = 1, TechnicalRequirements = "NORMAL",
-            InputQuantity = 30, InputWeight = 750m,
-            CurrentValidQty = 0, CurrentValidWeight = 0,
+            PlantGrade = "304",
+            Specification = "219*8",
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            TechnicalRequirements = "NORMAL",
+            InputQuantity = 30,
+            InputWeight = 750m,
+            CurrentValidQty = 0,
+            CurrentValidWeight = 0,
             ProductionRatio = 1,
             RowVersion = new byte[8],
             ProcessGroups = new List<ProcessGroup>
@@ -779,16 +837,26 @@ public class WorkOrderExecutionServiceTests : TestBase
         // WO001 Fixed TotalQuantity=100 → 80%: RequiredPieces=40 × InputMultiple=2 = 80
         ctx.PurchaseSemiPlans.Add(new PurchaseSemiPlan
         {
-            WorkOrderId = wo1.Id, PlanDate = DateTime.Today,
-            RequiredPieces = 40, RequiredWeight = 1000m, InputMultiple = 2,
-            PlantGrade = "304", RawMaterialSpec = "219*8", RequiredDate = DateTime.Today
+            WorkOrderId = wo1.Id,
+            PlanDate = DateTime.Today,
+            RequiredPieces = 40,
+            RequiredWeight = 1000m,
+            InputMultiple = 2,
+            PlantGrade = "304",
+            RawMaterialSpec = "219*8",
+            RequiredDate = DateTime.Today
         });
         // WO002 Fixed TotalQuantity=200 → 90%: RequiredPieces=60 × InputMultiple=3 = 180
         ctx.PurchaseSemiPlans.Add(new PurchaseSemiPlan
         {
-            WorkOrderId = wo2.Id, PlanDate = DateTime.Today,
-            RequiredPieces = 60, RequiredWeight = 1500m, InputMultiple = 3,
-            PlantGrade = "304", RawMaterialSpec = "219*8", RequiredDate = DateTime.Today
+            WorkOrderId = wo2.Id,
+            PlanDate = DateTime.Today,
+            RequiredPieces = 60,
+            RequiredWeight = 1500m,
+            InputMultiple = 3,
+            PlantGrade = "304",
+            RawMaterialSpec = "219*8",
+            RequiredDate = DateTime.Today
         });
         await ctx.SaveChangesAsync();
 
@@ -1054,7 +1122,7 @@ public class WorkOrderExecutionServiceTests : TestBase
         });
     }
 
-    private WorkOrder CreateWorkOrder(
+    private MES.Data.Entities.WorkOrder.WorkOrder CreateWorkOrder(
         string workOrderNo,
         string salesOrderNo,
         WorkOrderStatus status,
@@ -1067,7 +1135,7 @@ public class WorkOrderExecutionServiceTests : TestBase
         decimal planRate = 0,
         MaterialPlanStatus planStatus = MaterialPlanStatus.NotPlanned)
     {
-        return new WorkOrder
+        return new MES.Data.Entities.WorkOrder.WorkOrder
         {
             WorkOrderNo = workOrderNo,
             SalesOrderNo = salesOrderNo,

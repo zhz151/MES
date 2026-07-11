@@ -4,10 +4,10 @@ public enum LengthStatus
 {
 
     Fixed,
-    
+
 
     Range,
-    
+
 
     NonFixed
 }

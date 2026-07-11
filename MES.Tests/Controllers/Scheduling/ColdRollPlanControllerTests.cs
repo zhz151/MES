@@ -2,9 +2,9 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using MES.Api.Controllers.Scheduling;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Tests.Tests;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.Interfaces.Scheduling;
 
 namespace MES.Tests.Controllers.Scheduling;
 

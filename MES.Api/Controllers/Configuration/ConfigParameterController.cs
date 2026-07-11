@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Configuration;
+using MES.Core.Interfaces.Configuration;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Configuration;

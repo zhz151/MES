@@ -4,9 +4,9 @@ using MudBlazor;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Configuration;
 
 namespace MES.Blazor.Pages.Configuration;
 

@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using MES.Api.Controllers.Quality;
-using MES.Core.DTOs;
 using MES.Core.Enums;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Quality;
+using MES.Core.Interfaces.Quality;
 
 namespace MES.Tests.Controllers;
 
@@ -26,7 +26,9 @@ public class NcrControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<NcrDto>
         {
             Items = new List<NcrDto> { new() { Id = 1, BatchNo = "BATCH001", PipeCategory = PipeCategory.OrderFinished } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 

@@ -1,13 +1,47 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
-using WoEntity = MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Materials;
+using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using Microsoft.Extensions.Caching.Memory;
@@ -261,53 +295,53 @@ public class SubcontractOrderService : ISubcontractOrderService
         {
             try
             {
-            var orderNo = await GenerateOrderNoAsync();
-            var supplierName = await _context.SupplierProfiles
-                .Where(s => s.Id == request.SupplierId)
-                .Select(s => s.SupplierName)
-                .FirstOrDefaultAsync();
+                var orderNo = await GenerateOrderNoAsync();
+                var supplierName = await _context.SupplierProfiles
+                    .Where(s => s.Id == request.SupplierId)
+                    .Select(s => s.SupplierName)
+                    .FirstOrDefaultAsync();
 
-            entity = new SubcontractOrder
-            {
-                OrderNo = orderNo,
-                SupplierId = request.SupplierId,
-                SupplierName = supplierName,
-                OrderDate = request.OrderDate,
-                ProcessType = request.ProcessType,
-                FurnaceNumber = request.FurnaceNumber,
-                OutMaterialCategory = request.OutMaterialCategory,
-                OutPlantGrade = request.OutPlantGrade,
-                OutSpecification = request.OutSpecification,
-                OutQuantity = request.OutQuantity,
-                OutWeight = request.OutWeight,
-                ReturnDeadline = request.ReturnDeadline,
-                Remark = request.Remark
-            };
-
-            int seq = 1;
-            foreach (var item in request.ReturnItems)
-            {
-                entity.ReturnItems.Add(new SubcontractReturnItem
+                entity = new SubcontractOrder
                 {
-                    Sequence = seq++,
-                    MaterialCategory = item.MaterialCategory,
-                    PlantGrade = item.PlantGrade,
-                    ProcessSpecification = item.ProcessSpecification,
-                    UnitWeight = item.UnitWeight,
-                    RequiredQuantity = item.RequiredQuantity,
-                    RequiredWeight = item.RequiredWeight,
-                    InputMultiple = item.InputMultiple,
-                    ProcessStatusRemark = item.ProcessStatusRemark,
-                    Remark = item.Remark,
-                    ProcessUnitPrice = item.ProcessUnitPrice,
-                    ProcessTotalAmount = item.ProcessTotalAmount,
-                    SourceWorkOrderNo = item.SourceWorkOrderNo
-                });
-            }
+                    OrderNo = orderNo,
+                    SupplierId = request.SupplierId,
+                    SupplierName = supplierName,
+                    OrderDate = request.OrderDate,
+                    ProcessType = request.ProcessType,
+                    FurnaceNumber = request.FurnaceNumber,
+                    OutMaterialCategory = request.OutMaterialCategory,
+                    OutPlantGrade = request.OutPlantGrade,
+                    OutSpecification = request.OutSpecification,
+                    OutQuantity = request.OutQuantity,
+                    OutWeight = request.OutWeight,
+                    ReturnDeadline = request.ReturnDeadline,
+                    Remark = request.Remark
+                };
 
-            _context.SubcontractOrders.Add(entity);
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+                int seq = 1;
+                foreach (var item in request.ReturnItems)
+                {
+                    entity.ReturnItems.Add(new SubcontractReturnItem
+                    {
+                        Sequence = seq++,
+                        MaterialCategory = item.MaterialCategory,
+                        PlantGrade = item.PlantGrade,
+                        ProcessSpecification = item.ProcessSpecification,
+                        UnitWeight = item.UnitWeight,
+                        RequiredQuantity = item.RequiredQuantity,
+                        RequiredWeight = item.RequiredWeight,
+                        InputMultiple = item.InputMultiple,
+                        ProcessStatusRemark = item.ProcessStatusRemark,
+                        Remark = item.Remark,
+                        ProcessUnitPrice = item.ProcessUnitPrice,
+                        ProcessTotalAmount = item.ProcessTotalAmount,
+                        SourceWorkOrderNo = item.SourceWorkOrderNo
+                    });
+                }
+
+                _context.SubcontractOrders.Add(entity);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -319,7 +353,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         var dto = ToDto(entity);
 
         foreach (var ri in entity.ReturnItems)
-            _ = TryRefreshExecutionSummaryAsync(ri.SourceWorkOrderNo);
+            await TryRefreshExecutionSummaryAsync(ri.SourceWorkOrderNo);
 
         dto.ReturnItems = entity.ReturnItems.Select(r => new SubcontractReturnItemDto
         {
@@ -435,7 +469,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         }).ToList();
 
         foreach (var ri in entity.ReturnItems)
-            _ = TryRefreshExecutionSummaryAsync(ri.SourceWorkOrderNo);
+            await TryRefreshExecutionSummaryAsync(ri.SourceWorkOrderNo);
 
         return dto;
     }
@@ -476,7 +510,7 @@ public class SubcontractOrderService : ISubcontractOrderService
 
         foreach (var order in orders)
             foreach (var item in order.ReturnItems)
-                _ = TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
+                await TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
     }
 
     public async Task SyncSingleAsync(int id)
@@ -509,7 +543,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         await _context.SaveChangesAsync();
 
         foreach (var item in order.ReturnItems)
-            _ = TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
+            await TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
     }
 
     private static void SyncReturnItemFromBatches(SubcontractReturnItem item, List<InventoryBatch> batches)
@@ -576,7 +610,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         await _context.SaveChangesAsync();
 
         foreach (var item in entity.ReturnItems)
-            _ = TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
+            await TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
     }
 
     private static void ForceCompleteAllReturnItems(SubcontractOrder order)
@@ -603,7 +637,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             .ToList();
         _context.SubcontractOrders.Remove(entity);
         await _context.SaveChangesAsync();
-        foreach (var woNo in woNos) _ = TryRefreshExecutionSummaryAsync(woNo);
+        foreach (var woNo in woNos) await TryRefreshExecutionSummaryAsync(woNo);
     }
 
     // ========== 用料计划执行状态 ==========
@@ -680,32 +714,32 @@ public class SubcontractOrderService : ISubcontractOrderService
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
 
-        var query = from s in _context.SubcontractOrders.AsNoTracking()
-                    select new
-                    {
-                        s.OrderNo,
-                        s.OrderDate,
-                        s.ProcessType,
-                        s.OutMaterialCategory,
-                        s.OutPlantGrade,
-                        s.OutSpecification,
-                        s.ReturnDeadline,
-                        s.SupplierName
-                    };
+            var query = from s in _context.SubcontractOrders.AsNoTracking()
+                        select new
+                        {
+                            s.OrderNo,
+                            s.OrderDate,
+                            s.ProcessType,
+                            s.OutMaterialCategory,
+                            s.OutPlantGrade,
+                            s.OutSpecification,
+                            s.ReturnDeadline,
+                            s.SupplierName
+                        };
 
-        var all = await query.ToListAsync();
+            var all = await query.ToListAsync();
 
-        return new Dictionary<string, List<string>>
-        {
-            ["OrderNo"] = all.Select(x => x.OrderNo).Distinct().OrderBy(x => x).ToList(),
-            ["OrderDate"] = all.Select(x => x.OrderDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["ProcessType"] = all.Select(x => x.ProcessType).Distinct().OrderBy(x => x).ToList(),
-            ["OutMaterialCategory"] = all.Select(x => x.OutMaterialCategory).Distinct().OrderBy(x => x).ToList(),
-            ["OutPlantGrade"] = all.Select(x => x.OutPlantGrade).Distinct().OrderBy(x => x).ToList(),
-            ["OutSpecification"] = all.Select(x => x.OutSpecification).Distinct().OrderBy(x => x).ToList(),
-            ["ReturnDeadline"] = all.Where(x => x.ReturnDeadline != null).Select(x => x.ReturnDeadline!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["SupplierName"] = all.Where(x => x.SupplierName != null).Select(x => x.SupplierName!).Distinct().OrderBy(x => x).ToList(),
-        };
+            return new Dictionary<string, List<string>>
+            {
+                ["OrderNo"] = all.Select(x => x.OrderNo).Distinct().OrderBy(x => x).ToList(),
+                ["OrderDate"] = all.Select(x => x.OrderDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["ProcessType"] = all.Select(x => x.ProcessType).Distinct().OrderBy(x => x).ToList(),
+                ["OutMaterialCategory"] = all.Select(x => x.OutMaterialCategory).Distinct().OrderBy(x => x).ToList(),
+                ["OutPlantGrade"] = all.Select(x => x.OutPlantGrade).Distinct().OrderBy(x => x).ToList(),
+                ["OutSpecification"] = all.Select(x => x.OutSpecification).Distinct().OrderBy(x => x).ToList(),
+                ["ReturnDeadline"] = all.Where(x => x.ReturnDeadline != null).Select(x => x.ReturnDeadline!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["SupplierName"] = all.Where(x => x.SupplierName != null).Select(x => x.SupplierName!).Distinct().OrderBy(x => x).ToList(),
+            };
 
         }) ?? new Dictionary<string, List<string>>();
     }

@@ -1,12 +1,46 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Quality;
 using MES.Core.Constants;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
@@ -26,7 +60,7 @@ public class ProductionRecordService : IProductionRecordService
     private readonly IStandardWorkDayDeliveryStateService _deliveryStateService;
     private readonly IConfigParameterService _configService;
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
-    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
+    private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IMemoryCache _cache;
 
     private sealed record SectionOutsourceInfo(
@@ -47,6 +81,7 @@ public class ProductionRecordService : IProductionRecordService
         IStandardWorkDayDeliveryStateService deliveryStateService,
         IConfigParameterService configService,
         IQualityProcessTrackingService qualityProcessTracking,
+        IWorkOrderExecutionService workOrderExecutionService,
         IMemoryCache cache)
     {
         _context = context;
@@ -55,14 +90,15 @@ public class ProductionRecordService : IProductionRecordService
         _deliveryStateService = deliveryStateService;
         _configService = configService;
         _qualityProcessTracking = qualityProcessTracking;
+        _workOrderExecutionService = workOrderExecutionService;
         _cache = cache;
     }
 
-    private void TryRefreshQualityProcessTrackingAsync(int productionBatchId)
+    private async Task TryRefreshQualityProcessTrackingAsync(int productionBatchId)
     {
         try
         {
-            _ = _qualityProcessTracking.RefreshByProductionBatchIdAsync(productionBatchId);
+            await _qualityProcessTracking.RefreshByProductionBatchIdAsync(productionBatchId);
         }
         catch (Exception ex)
         {
@@ -70,14 +106,53 @@ public class ProductionRecordService : IProductionRecordService
         }
     }
 
+    private async Task TryRefreshExecutionSummaryAsync(int batchId)
+    {
+        try
+        {
+            var workOrderNo = await _context.ProductionBatches
+                .AsNoTracking()
+                .Where(b => b.Id == batchId)
+                .Select(b => b.WorkOrderNo)
+                .FirstOrDefaultAsync();
+            if (!string.IsNullOrEmpty(workOrderNo))
+                await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { workOrderNo });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单执行摘要刷新失败（不影响主流程）: BatchId={BatchId}", batchId);
+        }
+    }
+
+    private async Task TryRefreshExecutionSummaryByBatchIdsAsync(IEnumerable<int> batchIds)
+    {
+        try
+        {
+            var workOrderNos = await _context.ProductionBatches
+                .AsNoTracking()
+                .Where(b => batchIds.Contains(b.Id))
+                .Select(b => b.WorkOrderNo)
+                .Distinct()
+                .Where(wo => wo != null)
+                .ToListAsync();
+            if (workOrderNos.Count > 0)
+                await _workOrderExecutionService.RefreshByWorkOrderNosAsync(workOrderNos!);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单执行摘要批量刷新失败（不影响主流程）");
+        }
+    }
+
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
     {
-        if (!_configMaps.TryGetValue(category, out var map))
+        var cacheKey = $"ProductionRecordService:ConfigMap:{category}";
+        var map = await _cache.GetOrCreateAsync(cacheKey, async entry =>
         {
-            map = await _configService.GetConfigMapAsync(category);
-            _configMaps[category] = map;
-        }
-        return map.GetValueOrDefault(key, defaultValue);
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            return await _configService.GetConfigMapAsync(category);
+        });
+        return map?.GetValueOrDefault(key, defaultValue) ?? defaultValue;
     }
 
     // ========== 内部生产记录 ==========
@@ -112,7 +187,7 @@ public class ProductionRecordService : IProductionRecordService
                 Weight = r.Weight,
                 SolutionTemperature = r.SolutionTemperature,
                 SoakTime = r.SoakTime,
-                IsFinished = r.IsFinished,
+                ProductStatus = r.ProductStatus,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
@@ -164,6 +239,11 @@ public class ProductionRecordService : IProductionRecordService
             }
         }
 
+        // 加载该批次所有工序组，用于自动计算产品状态
+        var batchProcessGroups = await _context.ProcessGroups
+            .Where(pg => pg.ProductionBatchId == batchId)
+            .ToListAsync();
+
         var entity = new ProductionRecord
         {
             ProductionBatchId = batchId,
@@ -180,7 +260,7 @@ public class ProductionRecordService : IProductionRecordService
             Weight = request.Weight,
             SolutionTemperature = request.SolutionTemperature,
             SoakTime = request.SoakTime,
-            IsFinished = request.IsFinished,
+            ProductStatus = CalculateProductStatus(request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem, batchProcessGroups),
             CuttingMultiple = request.CuttingMultiple,
             FinishedCutLength = request.FinishedCutLength,
             PostCutQuantity = request.PostCutQuantity,
@@ -194,8 +274,9 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Add(entity);
         await _context.SaveChangesAsync();
 
-        TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
+        await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
         await UpdateBatchTrackingFromRecordsAsync(batchId);
+        await TryRefreshExecutionSummaryAsync(batchId);
 
         return new ProductionRecordDto
         {
@@ -214,7 +295,7 @@ public class ProductionRecordService : IProductionRecordService
             Weight = entity.Weight,
             SolutionTemperature = entity.SolutionTemperature,
             SoakTime = entity.SoakTime,
-            IsFinished = entity.IsFinished,
+            ProductStatus = entity.ProductStatus,
             CuttingMultiple = entity.CuttingMultiple,
             FinishedCutLength = entity.FinishedCutLength,
             PostCutQuantity = entity.PostCutQuantity,
@@ -509,7 +590,7 @@ public class ProductionRecordService : IProductionRecordService
                 Weight = request.Weight,
                 SolutionTemperature = request.SolutionTemperature,
                 SoakTime = request.SoakTime,
-                IsFinished = request.IsFinished,
+                ProductStatus = CalculateProductStatus(request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem, pgByBatch.GetValueOrDefault(batchId) ?? new()),
                 CuttingMultiple = request.CuttingMultiple,
                 FinishedCutLength = request.FinishedCutLength,
                 PostCutQuantity = request.PostCutQuantity,
@@ -527,8 +608,9 @@ public class ProductionRecordService : IProductionRecordService
         // 批量刷新所有涉及批次的跟踪字段
         var distinctBatchIds = entities.Select(e => e.ProductionBatchId).Distinct().ToList();
         foreach (var id in distinctBatchIds)
-            TryRefreshQualityProcessTrackingAsync(id);
+            await TryRefreshQualityProcessTrackingAsync(id);
         await BatchUpdateTrackingFromRecordsAsync(distinctBatchIds);
+        await TryRefreshExecutionSummaryByBatchIdsAsync(distinctBatchIds);
 
         return entities.Select(e => new ProductionRecordDto
         {
@@ -547,7 +629,7 @@ public class ProductionRecordService : IProductionRecordService
             Weight = e.Weight,
             SolutionTemperature = e.SolutionTemperature,
             SoakTime = e.SoakTime,
-            IsFinished = e.IsFinished,
+            ProductStatus = e.ProductStatus,
             CuttingMultiple = e.CuttingMultiple,
             FinishedCutLength = e.FinishedCutLength,
             PostCutQuantity = e.PostCutQuantity,
@@ -563,6 +645,12 @@ public class ProductionRecordService : IProductionRecordService
         var entity = await _context.ProductionRecords.FindAsync(id)
             ?? throw new BusinessException("生产记录不存在");
 
+        // 加载批次及其工序组，用于重新计算产品状态
+        var batch = await _context.ProductionBatches.FindAsync(entity.ProductionBatchId);
+        var batchProcessGroups = await _context.ProcessGroups
+            .Where(pg => pg.ProductionBatchId == entity.ProductionBatchId)
+            .ToListAsync();
+
         entity.ExecDate = request.ExecDate;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
         entity.Operator = request.Operator ?? entity.Operator;
@@ -571,7 +659,9 @@ public class ProductionRecordService : IProductionRecordService
         entity.Weight = request.Weight ?? entity.Weight;
         entity.SolutionTemperature = request.SolutionTemperature ?? entity.SolutionTemperature;
         entity.SoakTime = request.SoakTime ?? entity.SoakTime;
-        entity.IsFinished = request.IsFinished;
+        entity.ProductStatus = batch != null
+            ? CalculateProductStatus(entity.ProcessName, entity.ManufacturingSpec, batch.ManufacturingItem, batchProcessGroups)
+            : entity.ProductStatus;
         entity.CuttingMultiple = request.CuttingMultiple ?? entity.CuttingMultiple;
         entity.FinishedCutLength = request.FinishedCutLength ?? entity.FinishedCutLength;
         entity.PostCutQuantity = request.PostCutQuantity ?? entity.PostCutQuantity;
@@ -583,8 +673,9 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Update(entity);
         await _context.SaveChangesAsync();
 
-        TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
+        await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
         await UpdateBatchTrackingFromRecordsAsync(entity.ProductionBatchId);
+        await TryRefreshExecutionSummaryAsync(entity.ProductionBatchId);
 
         return new ProductionRecordDto
         {
@@ -603,7 +694,7 @@ public class ProductionRecordService : IProductionRecordService
             Weight = entity.Weight,
             SolutionTemperature = entity.SolutionTemperature,
             SoakTime = entity.SoakTime,
-            IsFinished = entity.IsFinished,
+            ProductStatus = entity.ProductStatus,
             CuttingMultiple = entity.CuttingMultiple,
             FinishedCutLength = entity.FinishedCutLength,
             PostCutQuantity = entity.PostCutQuantity,
@@ -625,8 +716,9 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Remove(entity);
         await _context.SaveChangesAsync();
 
-        TryRefreshQualityProcessTrackingAsync(batchId);
+        await TryRefreshQualityProcessTrackingAsync(batchId);
         await UpdateBatchTrackingFromRecordsAsync(batchId);
+        await TryRefreshExecutionSummaryAsync(batchId);
     }
 
     // ========== 工段委外 ==========
@@ -717,6 +809,7 @@ public class ProductionRecordService : IProductionRecordService
         await _context.SaveChangesAsync();
 
         await UpdateBatchTrackingFromRecordsAsync(batch.Id);
+        await TryRefreshExecutionSummaryAsync(batch.Id);
 
         return ToSectionOutsourceDto(entity, batch.BatchNo);
     }
@@ -764,6 +857,7 @@ public class ProductionRecordService : IProductionRecordService
         await _context.SaveChangesAsync();
 
         await UpdateBatchTrackingFromRecordsAsync(batchId);
+        await TryRefreshExecutionSummaryAsync(batchId);
     }
 
     // ========== 委外回收 ==========
@@ -811,6 +905,7 @@ public class ProductionRecordService : IProductionRecordService
         await UpdateOutsourceStatusAsync(outsource);
 
         await UpdateBatchTrackingFromRecordsAsync(outsource.ProductionBatchId);
+        await TryRefreshExecutionSummaryAsync(outsource.ProductionBatchId);
 
         return new OutsourceRecoveryDto
         {
@@ -840,7 +935,10 @@ public class ProductionRecordService : IProductionRecordService
         {
             await UpdateOutsourceStatusAsync(outsource);
             if (batchId.HasValue)
+            {
                 await UpdateBatchTrackingFromRecordsAsync(batchId.Value);
+                await TryRefreshExecutionSummaryAsync(batchId.Value);
+            }
         }
     }
 
@@ -884,11 +982,13 @@ public class ProductionRecordService : IProductionRecordService
     public async Task RefreshBatchTrackingFieldsAsync(int batchId)
     {
         await UpdateBatchTrackingFromRecordsAsync(batchId);
+        await TryRefreshExecutionSummaryAsync(batchId);
     }
 
     public async Task BatchUpdateBatchTrackingAsync(ICollection<int> batchIds)
     {
         await BatchUpdateTrackingFromRecordsAsync(batchIds);
+        await TryRefreshExecutionSummaryByBatchIdsAsync(batchIds);
     }
 
     /// <summary>
@@ -916,6 +1016,7 @@ public class ProductionRecordService : IProductionRecordService
             .Select(b => b.Id)
             .ToListAsync();
         await BatchUpdateTrackingFromRecordsAsync(batchIds);
+        await TryRefreshExecutionSummaryByBatchIdsAsync(batchIds);
         return batchIds.Count;
     }
 
@@ -1218,104 +1319,104 @@ public class ProductionRecordService : IProductionRecordService
         try
         {
 
-        // 检验到料：截止执行日 = 到料日期，状态置为完成
-        var materialCheck = await _context.MaterialReceiveChecks
-            .Where(m => m.ProductionBatchId == batchId)
-            .FirstOrDefaultAsync();
-        bool hasMaterialCheck = materialCheck != null;
-        if (hasMaterialCheck)
-        {
-            batch.CurrentExecDate = materialCheck!.ReceiveDate;
-            if (batch.Status != BatchStatus.Completed)
-                batch.Status = BatchStatus.Completed;
-        }
-
-        // 收集该批次的所有生产记录
-        var productionRecords = await _context.ProductionRecords
-            .Where(r => r.ProductionBatchId == batchId)
-            .OrderBy(r => r.SequenceNumber)
-            .ThenBy(r => r.ExecDate)
-            .ToListAsync();
-
-        // 收集该批次的所有工段委外（含待回收和已回收）及各自的回收记录数
-        var sectionOutsources = await _context.SectionOutsources
-            .Where(s => s.ProductionBatchId == batchId)
-            .Select(s => new
+            // 检验到料：截止执行日 = 到料日期，状态置为完成
+            var materialCheck = await _context.MaterialReceiveChecks
+                .Where(m => m.ProductionBatchId == batchId)
+                .FirstOrDefaultAsync();
+            bool hasMaterialCheck = materialCheck != null;
+            if (hasMaterialCheck)
             {
-                s.Id,
-                s.ProcessGroupId,
-                s.SectionName,
-                s.SequenceNumber,
-                s.ProcessName,
-                s.OutsourceVendor,
-                s.SendOutDate,
-                RecoveryCount = s.OutsourceRecoveries.Count
-            })
-            .OrderBy(s => s.SequenceNumber)
-            .ToListAsync();
+                batch.CurrentExecDate = materialCheck!.ReceiveDate;
+                if (batch.Status != BatchStatus.Completed)
+                    batch.Status = BatchStatus.Completed;
+            }
 
-        // 收集该批次的所有过程检验记录
-        var processInspections = await _context.ProcessInspections
-            .Where(p => p.ProductionBatchId == batchId)
-            .OrderBy(p => p.SequenceNumber)
-            .ThenBy(p => p.InspectionDate)
-            .ToListAsync();
+            // 收集该批次的所有生产记录
+            var productionRecords = await _context.ProductionRecords
+                .Where(r => r.ProductionBatchId == batchId)
+                .OrderBy(r => r.SequenceNumber)
+                .ThenBy(r => r.ExecDate)
+                .ToListAsync();
 
-        // 收集该批次的所有去油/酸洗入缸记录
-        var picklingInRecords = await _context.PicklingInRecords
-            .Where(p => p.ProductionBatchId == batchId)
-            .OrderBy(p => p.SequenceNumber)
-            .ThenBy(p => p.InDate)
-            .ToListAsync();
+            // 收集该批次的所有工段委外（含待回收和已回收）及各自的回收记录数
+            var sectionOutsources = await _context.SectionOutsources
+                .Where(s => s.ProductionBatchId == batchId)
+                .Select(s => new
+                {
+                    s.Id,
+                    s.ProcessGroupId,
+                    s.SectionName,
+                    s.SequenceNumber,
+                    s.ProcessName,
+                    s.OutsourceVendor,
+                    s.SendOutDate,
+                    RecoveryCount = s.OutsourceRecoveries.Count
+                })
+                .OrderBy(s => s.SequenceNumber)
+                .ToListAsync();
 
-        var hasRecords = productionRecords.Count > 0 || sectionOutsources.Count > 0 || processInspections.Count > 0 || picklingInRecords.Count > 0;
+            // 收集该批次的所有过程检验记录
+            var processInspections = await _context.ProcessInspections
+                .Where(p => p.ProductionBatchId == batchId)
+                .OrderBy(p => p.SequenceNumber)
+                .ThenBy(p => p.InspectionDate)
+                .ToListAsync();
 
-        // ====== 1. 状态 ======
-        // 挂起/强制完成状态不自动覆盖；检验到料已完成的批次保持 Completed
-        if (batch.Status != BatchStatus.Suspended && !hasMaterialCheck)
-            batch.Status = hasRecords ? BatchStatus.InProgress : BatchStatus.None;
+            // 收集该批次的所有去油/酸洗入缸记录
+            var picklingInRecords = await _context.PicklingInRecords
+                .Where(p => p.ProductionBatchId == batchId)
+                .OrderBy(p => p.SequenceNumber)
+                .ThenBy(p => p.InDate)
+                .ToListAsync();
 
-        // ====== 3-5. 当前工段/工序/设备/委外/规格 + 截止执行日 ======
-        // 构建 ProcessGroup 查表（Id -> ManufacturingSpec）
-        var pgSpecLookup = batch.ProcessGroups
-            .ToDictionary(pg => pg.Id, pg => pg.ManufacturingSpec!);
+            var hasRecords = productionRecords.Count > 0 || sectionOutsources.Count > 0 || processInspections.Count > 0 || picklingInRecords.Count > 0;
 
-        // 检验到料：预匹配工序组
-        int materialCheckSeq = -1;
-        ProcessGroup? materialCheckPg = null;
-        if (hasMaterialCheck && !string.IsNullOrEmpty(materialCheck?.Specification))
-        {
-            materialCheckPg = batch.ProcessGroups
-                .FirstOrDefault(pg => pg.ManufacturingSpec == materialCheck.Specification
-                    && pg.Inspection.HasValue);
-            if (materialCheckPg != null)
-                materialCheckSeq = materialCheckPg.Inspection!.Value;
-        }
+            // ====== 1. 状态 ======
+            // 挂起/强制完成状态不自动覆盖；检验到料已完成的批次保持 Completed
+            if (batch.Status != BatchStatus.Suspended && !hasMaterialCheck)
+                batch.Status = hasRecords ? BatchStatus.InProgress : BatchStatus.None;
 
-        // 转换委外列表为命名类型
-        var outsourceInfos = sectionOutsources.Select(s => new SectionOutsourceInfo(
-            s.Id, 0, s.ProcessGroupId, s.SectionName, s.SequenceNumber,
-            s.ProcessName, s.OutsourceVendor, s.SendOutDate, s.RecoveryCount
-        )).ToList();
+            // ====== 3-5. 当前工段/工序/设备/委外/规格 + 截止执行日 ======
+            // 构建 ProcessGroup 查表（Id -> ManufacturingSpec）
+            var pgSpecLookup = batch.ProcessGroups
+                .ToDictionary(pg => pg.Id, pg => pg.ManufacturingSpec!);
 
-        // 公共跟踪计算（除有效投料疑问外）
-        var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(batch.PlantGrade);
-        var dsExtraDaysMap = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
-        ComputeBatchTrackingCore(batch, pgSpecLookup, productionRecords, outsourceInfos,
-            processInspections, picklingInRecords, hasMaterialCheck, materialCheck,
-            materialCheckSeq, materialCheckPg, coldRollCompleteRatio, dayMap, dsExtraDaysMap);
+            // 检验到料：预匹配工序组
+            int materialCheckSeq = -1;
+            ProcessGroup? materialCheckPg = null;
+            if (hasMaterialCheck && !string.IsNullOrEmpty(materialCheck?.Specification))
+            {
+                materialCheckPg = batch.ProcessGroups
+                    .FirstOrDefault(pg => pg.ManufacturingSpec == materialCheck.Specification
+                        && pg.Inspection.HasValue);
+                if (materialCheckPg != null)
+                    materialCheckSeq = materialCheckPg.Inspection!.Value;
+            }
 
-        // ====== 8. 有效投料疑问（与批量模式一致，基于投料对比）=====
-        // 对照现有效原料支数与投料支数，相差超过阈值 → 疑问
-        batch.ValidInputQuestion = false;
-        if (batch.InputQuantity.HasValue && batch.InputQuantity > 0 && batch.CurrentValidQty.HasValue)
-        {
-            var ratio = (decimal)batch.CurrentValidQty.Value / batch.InputQuantity.Value;
-            batch.ValidInputQuestion = ratio < validInputLower || ratio > validInputUpper;
-        }
+            // 转换委外列表为命名类型
+            var outsourceInfos = sectionOutsources.Select(s => new SectionOutsourceInfo(
+                s.Id, 0, s.ProcessGroupId, s.SectionName, s.SequenceNumber,
+                s.ProcessName, s.OutsourceVendor, s.SendOutDate, s.RecoveryCount
+            )).ToList();
 
-        _context.ProductionBatches.Update(batch);
-        await _context.SaveChangesAsync();
+            // 公共跟踪计算（除有效投料疑问外）
+            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(batch.PlantGrade);
+            var dsExtraDaysMap = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
+            ComputeBatchTrackingCore(batch, pgSpecLookup, productionRecords, outsourceInfos,
+                processInspections, picklingInRecords, hasMaterialCheck, materialCheck,
+                materialCheckSeq, materialCheckPg, coldRollCompleteRatio, dayMap, dsExtraDaysMap);
+
+            // ====== 8. 有效投料疑问（与批量模式一致，基于投料对比）=====
+            // 对照现有效原料支数与投料支数，相差超过阈值 → 疑问
+            batch.ValidInputQuestion = false;
+            if (batch.InputQuantity.HasValue && batch.InputQuantity > 0 && batch.CurrentValidQty.HasValue)
+            {
+                var ratio = (decimal)batch.CurrentValidQty.Value / batch.InputQuantity.Value;
+                batch.ValidInputQuestion = ratio < validInputLower || ratio > validInputUpper;
+            }
+
+            _context.ProductionBatches.Update(batch);
+            await _context.SaveChangesAsync();
         }
         catch (Exception ex)
         {
@@ -1800,7 +1901,7 @@ public class ProductionRecordService : IProductionRecordService
                 Weight = r.Weight,
                 SolutionTemperature = r.SolutionTemperature,
                 SoakTime = r.SoakTime,
-                IsFinished = r.IsFinished,
+                ProductStatus = r.ProductStatus,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
@@ -1847,7 +1948,7 @@ public class ProductionRecordService : IProductionRecordService
                 Weight = r.Weight,
                 SolutionTemperature = r.SolutionTemperature,
                 SoakTime = r.SoakTime,
-                IsFinished = r.IsFinished,
+                ProductStatus = r.ProductStatus,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
@@ -1908,8 +2009,8 @@ public class ProductionRecordService : IProductionRecordService
             ("solutiontemperature", true) => queryable.OrderByDescending(r => r.SolutionTemperature ?? 0),
             ("soaktime", false) => queryable.OrderBy(r => r.SoakTime ?? 0),
             ("soaktime", true) => queryable.OrderByDescending(r => r.SoakTime ?? 0),
-            ("isfinished", false) => queryable.OrderBy(r => r.IsFinished),
-            ("isfinished", true) => queryable.OrderByDescending(r => r.IsFinished),
+            ("productstatus", false) => queryable.OrderBy(r => r.ProductStatus ?? ""),
+            ("productstatus", true) => queryable.OrderByDescending(r => r.ProductStatus ?? ""),
             ("cuttingmultiple", false) => queryable.OrderBy(r => r.CuttingMultiple ?? 0),
             ("cuttingmultiple", true) => queryable.OrderByDescending(r => r.CuttingMultiple ?? 0),
             ("finishedcutlength", false) => queryable.OrderBy(r => r.FinishedCutLength ?? 0),
@@ -2215,7 +2316,7 @@ public class ProductionRecordService : IProductionRecordService
                 Weight = r.Weight,
                 SolutionTemperature = r.SolutionTemperature,
                 SoakTime = r.SoakTime,
-                IsFinished = r.IsFinished,
+                ProductStatus = r.ProductStatus,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
@@ -2271,7 +2372,8 @@ public class ProductionRecordService : IProductionRecordService
                             r.PlantGrade,
                             r.Remark,
                             r.ExecDate,
-                            r.DataSource
+                            r.DataSource,
+                            r.ProductStatus
                         };
 
             var results = await query.AsNoTracking().ToListAsync();
@@ -2289,7 +2391,8 @@ public class ProductionRecordService : IProductionRecordService
                 ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["ExecDate"] = results.Select(x => x.ExecDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-                ["DataSource"] = results.Select(x => x.DataSource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!
+                ["DataSource"] = results.Select(x => x.DataSource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["ProductStatus"] = results.Select(x => x.ProductStatus).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!
             };
         }) ?? new Dictionary<string, List<string>>();
     }
@@ -2385,4 +2488,22 @@ public class ProductionRecordService : IProductionRecordService
 
         return (int)Math.Round(totalDays, MidpointRounding.AwayFromZero);
     }
+
+    /// <summary>
+    /// 自动计算产品状态（荒管/在制/成品）
+    /// </summary>
+    private static string CalculateProductStatus(
+        string processName,
+        string? manufacturingSpec,
+        string? batchManufacturingItem,
+        List<ProcessGroup> processGroups)
+    {
+        return ProductStatusHelper.Calculate(processName, manufacturingSpec, batchManufacturingItem, processGroups);
+    }
+
+    /// <summary>
+    /// 判断制造物品是否属于"成品"类别（OrderFinishedProduct/PreparedMaterial/SpecialDeliveryStatus）
+    /// </summary>
+    private static bool IsFinishedManufacturingItem(string? manufacturingItem) =>
+        ProductStatusHelper.IsFinishedManufacturingItem(manufacturingItem);
 }

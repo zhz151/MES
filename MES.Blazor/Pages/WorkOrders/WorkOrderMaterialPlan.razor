@@ -1,9 +1,10 @@
 @page "/workorders/{WorkOrderId:int}/material-plan"
 @using MES.Blazor.Services
-@using MES.Core.DTOs
 @using MES.Core.Enums
 @using MES.Blazor.Shared
 @using MES.Blazor.Helpers
+@using MES.Core.DTOs.Materials
+@using MES.Core.DTOs.WorkOrder
 @using Microsoft.AspNetCore.Authorization
 @inject MaterialPlanService MaterialPlanService
 @inject WorkOrderService WorkOrderService

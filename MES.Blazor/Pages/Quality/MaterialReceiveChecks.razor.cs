@@ -6,9 +6,10 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Quality;

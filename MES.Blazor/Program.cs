@@ -129,4 +129,7 @@ builder.Services.AddScoped<DailyProductionCapacityService>();
 builder.Services.AddScoped<WorkstationService>();
 builder.Services.AddScoped<EmployeeService>();
 
+// ========== 报表 ==========
+builder.Services.AddScoped<ReportService>();
+
 await builder.Build().RunAsync();

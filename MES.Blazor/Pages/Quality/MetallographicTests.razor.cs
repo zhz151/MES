@@ -5,10 +5,11 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Quality;
@@ -209,12 +210,19 @@ public partial class MetallographicTests
         _editCache[item.Id] = new EditCache
         {
             InspectionDate = item.InspectionDate.ToString("yyyy-MM-dd"),
-            Inspector = item.Inspector, FurnaceNo = item.FurnaceNo, Grade = item.Grade,
-            Specification = item.Specification, SampleNo = item.SampleNo, SampleSize = item.SampleSize,
+            Inspector = item.Inspector,
+            FurnaceNo = item.FurnaceNo,
+            Grade = item.Grade,
+            Specification = item.Specification,
+            SampleNo = item.SampleNo,
+            SampleSize = item.SampleSize,
             InspectionStandard = item.InspectionStandard,
-            EtchingMethod = item.EtchingMethod, ElectrolyticVoltage = item.ElectrolyticVoltage,
-            ElectrolyticTime = item.ElectrolyticTime, Magnification = item.Magnification,
-            FerriteContent = item.FerriteContent, Judgment = item.Judgment
+            EtchingMethod = item.EtchingMethod,
+            ElectrolyticVoltage = item.ElectrolyticVoltage,
+            ElectrolyticTime = item.ElectrolyticTime,
+            Magnification = item.Magnification,
+            FerriteContent = item.FerriteContent,
+            Judgment = item.Judgment
         };
     }
 
@@ -230,12 +238,20 @@ public partial class MetallographicTests
         {
             var result = await MetallographicTestService.UpdateAsync(item.Id, new UpdateMetallographicTestRequest
             {
-                InspectionDate = date, Inspector = cache.Inspector, FurnaceNo = cache.FurnaceNo,
-                Grade = cache.Grade, Specification = cache.Specification, SampleNo = cache.SampleNo,
-                SampleSize = cache.SampleSize, InspectionStandard = cache.InspectionStandard,
-                EtchingMethod = cache.EtchingMethod, ElectrolyticVoltage = cache.ElectrolyticVoltage,
-                ElectrolyticTime = cache.ElectrolyticTime, Magnification = cache.Magnification,
-                FerriteContent = cache.FerriteContent, Judgment = cache.Judgment
+                InspectionDate = date,
+                Inspector = cache.Inspector,
+                FurnaceNo = cache.FurnaceNo,
+                Grade = cache.Grade,
+                Specification = cache.Specification,
+                SampleNo = cache.SampleNo,
+                SampleSize = cache.SampleSize,
+                InspectionStandard = cache.InspectionStandard,
+                EtchingMethod = cache.EtchingMethod,
+                ElectrolyticVoltage = cache.ElectrolyticVoltage,
+                ElectrolyticTime = cache.ElectrolyticTime,
+                Magnification = cache.Magnification,
+                FerriteContent = cache.FerriteContent,
+                Judgment = cache.Judgment
             });
             if (result.Success && result.Data != null)
             {
@@ -349,9 +365,11 @@ public partial class MetallographicTests
         if (!string.IsNullOrEmpty(_dateTo)) extras["dateTo"] = _dateTo;
         await PageState.SaveAsync("metallographic-test", new PageState
         {
-            SortBy = sortColumn, IsDescending = sortDescending,
+            SortBy = sortColumn,
+            IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPage, Extras = extras
+            PageIndex = _currentPage,
+            Extras = extras
         });
     }
 
@@ -362,7 +380,8 @@ public partial class MetallographicTests
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
             ["ContentText"] = $"确定要删除生产编号 \"{item.FurnaceNo}\" 的金相检验记录吗？\n\n删除后数据将不可恢复！",
-            ["ConfirmText"] = "确认删除", ["Color"] = Color.Error
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
         });
         var dr = await dialog.Result;
         if (!dr.Canceled)

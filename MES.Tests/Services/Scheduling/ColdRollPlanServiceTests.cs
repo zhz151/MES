@@ -1,10 +1,11 @@
 using FluentAssertions;
-using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Scheduling;
 using MES.Tests.Tests;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.WorkOrder;
 
 namespace MES.Tests.Services.Scheduling;
 

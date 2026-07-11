@@ -1,19 +1,53 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.WorkOrder;
 using MES.Services.Printing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
-using WoEntity = MES.Data.Entities.WorkOrder;
+using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 
 namespace MES.Services.WorkOrder;
 
@@ -186,74 +220,74 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            _context.PurchaseSemiPlans.Add(plan);
-            await _context.SaveChangesAsync();
-
-            // 保存工序组
-            if (request.ProcessGroups is { Count: > 0 })
-            {
-                int seq = 1;
-                foreach (var pg in request.ProcessGroups)
-                {
-                    _context.SemiPlanProcessGroups.Add(new SemiPlanProcessGroup
-                    {
-                        PurchaseSemiPlanId = plan.Id,
-                        SequenceNumber = seq++,
-                        ProcessName = pg.ProcessName,
-                        ManufacturingSpec = pg.ManufacturingSpec,
-                        OuterDiameterTolerance = pg.OuterDiameterTolerance,
-                        WallThicknessTolerance = pg.WallThicknessTolerance,
-                        ManufacturingLength = pg.ManufacturingLength,
-                        CuttingTreatment = pg.CuttingTreatment,
-                        ManufacturingMultiple = pg.ManufacturingMultiple,
-                        Remark = pg.Remark,
-                        ColdRollDraw = pg.ColdRollDraw,
-                        OilPipeCut = pg.OilPipeCut,
-                        Degrease = pg.Degrease,
-                        Solution = pg.Solution,
-                        Straighten = pg.Straighten,
-                        Cut = pg.Cut,
-                        ThicknessMeasure = pg.ThicknessMeasure,
-                        Pickle = pg.Pickle,
-                        OuterPolish = pg.OuterPolish,
-                        InnerGrinding = pg.InnerGrinding,
-                        OuterSpotGrinding = pg.OuterSpotGrinding,
-                        Inspection = pg.Inspection,
-                        WeldingHead = pg.WeldingHead,
-                        Lubrication = pg.Lubrication,
-                        Warehouse = pg.Warehouse
-                    });
-                }
+                _context.PurchaseSemiPlans.Add(plan);
                 await _context.SaveChangesAsync();
-            }
 
-            // 从工序组计算工艺周期
-            var semiGroups = await _context.SemiPlanProcessGroups
-                .Where(g => g.PurchaseSemiPlanId == plan.Id)
-                .ToListAsync();
-            var semiSections = new List<(string, int)>();
-            foreach (var pg in semiGroups)
-            {
-                semiSections.AddRange(ExtractSections(
-                    pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
-                    pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                    pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                    pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
-            }
-            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
-            var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
-            plan.StandardCycle = CalculateStandardCycleFromSections(
-                semiSections, dayMap, deliveryStateExtraDays,
-                workOrder.DeliveryState.ToString());
-            if (plan.StandardCycle == 0)
-                throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
-            _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
-            await _context.SaveChangesAsync();
+                // 保存工序组
+                if (request.ProcessGroups is { Count: > 0 })
+                {
+                    int seq = 1;
+                    foreach (var pg in request.ProcessGroups)
+                    {
+                        _context.SemiPlanProcessGroups.Add(new SemiPlanProcessGroup
+                        {
+                            PurchaseSemiPlanId = plan.Id,
+                            SequenceNumber = seq++,
+                            ProcessName = pg.ProcessName,
+                            ManufacturingSpec = pg.ManufacturingSpec,
+                            OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                            WallThicknessTolerance = pg.WallThicknessTolerance,
+                            ManufacturingLength = pg.ManufacturingLength,
+                            CuttingTreatment = pg.CuttingTreatment,
+                            ManufacturingMultiple = pg.ManufacturingMultiple,
+                            Remark = pg.Remark,
+                            ColdRollDraw = pg.ColdRollDraw,
+                            OilPipeCut = pg.OilPipeCut,
+                            Degrease = pg.Degrease,
+                            Solution = pg.Solution,
+                            Straighten = pg.Straighten,
+                            Cut = pg.Cut,
+                            ThicknessMeasure = pg.ThicknessMeasure,
+                            Pickle = pg.Pickle,
+                            OuterPolish = pg.OuterPolish,
+                            InnerGrinding = pg.InnerGrinding,
+                            OuterSpotGrinding = pg.OuterSpotGrinding,
+                            Inspection = pg.Inspection,
+                            WeldingHead = pg.WeldingHead,
+                            Lubrication = pg.Lubrication,
+                            Warehouse = pg.Warehouse
+                        });
+                    }
+                    await _context.SaveChangesAsync();
+                }
 
-            // 刷新工单状态（与创建在同一事务中）
-            await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+                // 从工序组计算工艺周期
+                var semiGroups = await _context.SemiPlanProcessGroups
+                    .Where(g => g.PurchaseSemiPlanId == plan.Id)
+                    .ToListAsync();
+                var semiSections = new List<(string, int)>();
+                foreach (var pg in semiGroups)
+                {
+                    semiSections.AddRange(ExtractSections(
+                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                        pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+                        pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                        pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+                }
+                var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
+                var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
+                plan.StandardCycle = CalculateStandardCycleFromSections(
+                    semiSections, dayMap, deliveryStateExtraDays,
+                    workOrder.DeliveryState.ToString());
+                if (plan.StandardCycle == 0)
+                    throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
+                _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
+                await _context.SaveChangesAsync();
 
-            await transaction.CommitAsync();
+                // 刷新工单状态（与创建在同一事务中）
+                await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -282,13 +316,13 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            _context.PurchaseSemiPlans.Remove(plan);
-            await _context.SaveChangesAsync();
+                _context.PurchaseSemiPlans.Remove(plan);
+                await _context.SaveChangesAsync();
 
-            // 刷新工单状态（与删除在同一事务中）
-            await UpdateMaterialPlanStatusAsync(workOrderId);
+                // 刷新工单状态（与删除在同一事务中）
+                await UpdateMaterialPlanStatusAsync(workOrderId);
 
-            await transaction.CommitAsync();
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -333,75 +367,75 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            // 全量替换工序组
-            var existingGroups = await _context.SemiPlanProcessGroups
-                .Where(g => g.PurchaseSemiPlanId == id)
-                .ToListAsync();
-            _context.SemiPlanProcessGroups.RemoveRange(existingGroups);
+                // 全量替换工序组
+                var existingGroups = await _context.SemiPlanProcessGroups
+                    .Where(g => g.PurchaseSemiPlanId == id)
+                    .ToListAsync();
+                _context.SemiPlanProcessGroups.RemoveRange(existingGroups);
 
-            if (request.ProcessGroups is { Count: > 0 })
-            {
-                int seq = 1;
-                foreach (var pg in request.ProcessGroups)
+                if (request.ProcessGroups is { Count: > 0 })
                 {
-                    _context.SemiPlanProcessGroups.Add(new SemiPlanProcessGroup
+                    int seq = 1;
+                    foreach (var pg in request.ProcessGroups)
                     {
-                        PurchaseSemiPlanId = id,
-                        SequenceNumber = seq++,
-                        ProcessName = pg.ProcessName,
-                        ManufacturingSpec = pg.ManufacturingSpec,
-                        OuterDiameterTolerance = pg.OuterDiameterTolerance,
-                        WallThicknessTolerance = pg.WallThicknessTolerance,
-                        ManufacturingLength = pg.ManufacturingLength,
-                        CuttingTreatment = pg.CuttingTreatment,
-                        ManufacturingMultiple = pg.ManufacturingMultiple,
-                        Remark = pg.Remark,
-                        ColdRollDraw = pg.ColdRollDraw,
-                        OilPipeCut = pg.OilPipeCut,
-                        Degrease = pg.Degrease,
-                        Solution = pg.Solution,
-                        Straighten = pg.Straighten,
-                        Cut = pg.Cut,
-                        ThicknessMeasure = pg.ThicknessMeasure,
-                        Pickle = pg.Pickle,
-                        OuterPolish = pg.OuterPolish,
-                        InnerGrinding = pg.InnerGrinding,
-                        OuterSpotGrinding = pg.OuterSpotGrinding,
-                        Inspection = pg.Inspection,
-                        WeldingHead = pg.WeldingHead,
-                        Lubrication = pg.Lubrication,
-                        Warehouse = pg.Warehouse
-                    });
+                        _context.SemiPlanProcessGroups.Add(new SemiPlanProcessGroup
+                        {
+                            PurchaseSemiPlanId = id,
+                            SequenceNumber = seq++,
+                            ProcessName = pg.ProcessName,
+                            ManufacturingSpec = pg.ManufacturingSpec,
+                            OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                            WallThicknessTolerance = pg.WallThicknessTolerance,
+                            ManufacturingLength = pg.ManufacturingLength,
+                            CuttingTreatment = pg.CuttingTreatment,
+                            ManufacturingMultiple = pg.ManufacturingMultiple,
+                            Remark = pg.Remark,
+                            ColdRollDraw = pg.ColdRollDraw,
+                            OilPipeCut = pg.OilPipeCut,
+                            Degrease = pg.Degrease,
+                            Solution = pg.Solution,
+                            Straighten = pg.Straighten,
+                            Cut = pg.Cut,
+                            ThicknessMeasure = pg.ThicknessMeasure,
+                            Pickle = pg.Pickle,
+                            OuterPolish = pg.OuterPolish,
+                            InnerGrinding = pg.InnerGrinding,
+                            OuterSpotGrinding = pg.OuterSpotGrinding,
+                            Inspection = pg.Inspection,
+                            WeldingHead = pg.WeldingHead,
+                            Lubrication = pg.Lubrication,
+                            Warehouse = pg.Warehouse
+                        });
+                    }
                 }
-            }
 
-            await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
 
-            // 从工序组重新计算工艺周期
-            var semiGroups = await _context.SemiPlanProcessGroups
-                .Where(g => g.PurchaseSemiPlanId == id)
-                .ToListAsync();
-            var semiSections = new List<(string, int)>();
-            foreach (var pg in semiGroups)
-            {
-                semiSections.AddRange(ExtractSections(
-                    pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
-                    pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                    pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                    pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
-            }
-            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
-            var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
-            plan.StandardCycle = CalculateStandardCycleFromSections(
-                semiSections, dayMap, deliveryStateExtraDays,
-                workOrder.DeliveryState.ToString());
-            if (plan.StandardCycle == 0)
-                throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
-            _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
-            await _context.SaveChangesAsync();
+                // 从工序组重新计算工艺周期
+                var semiGroups = await _context.SemiPlanProcessGroups
+                    .Where(g => g.PurchaseSemiPlanId == id)
+                    .ToListAsync();
+                var semiSections = new List<(string, int)>();
+                foreach (var pg in semiGroups)
+                {
+                    semiSections.AddRange(ExtractSections(
+                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                        pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+                        pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                        pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+                }
+                var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
+                var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
+                plan.StandardCycle = CalculateStandardCycleFromSections(
+                    semiSections, dayMap, deliveryStateExtraDays,
+                    workOrder.DeliveryState.ToString());
+                if (plan.StandardCycle == 0)
+                    throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
+                _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
+                await _context.SaveChangesAsync();
 
-            await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
-            await transaction.CommitAsync();
+                await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -483,13 +517,13 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            _context.PurchaseFinishedPlans.Add(plan);
-            await _context.SaveChangesAsync();
+                _context.PurchaseFinishedPlans.Add(plan);
+                await _context.SaveChangesAsync();
 
-            // 刷新工单状态（与创建在同一事务中）
-            await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+                // 刷新工单状态（与创建在同一事务中）
+                await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
 
-            await transaction.CommitAsync();
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -561,10 +595,10 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            _context.PurchaseFinishedPlans.AddRange(plans);
-            await _context.SaveChangesAsync();
-            await UpdateMaterialPlanStatusAsync(workOrderId);
-            await transaction.CommitAsync();
+                _context.PurchaseFinishedPlans.AddRange(plans);
+                await _context.SaveChangesAsync();
+                await UpdateMaterialPlanStatusAsync(workOrderId);
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -623,9 +657,9 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            await _context.SaveChangesAsync();
-            await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
-            await transaction.CommitAsync();
+                await _context.SaveChangesAsync();
+                await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -652,13 +686,13 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            _context.PurchaseFinishedPlans.Remove(plan);
-            await _context.SaveChangesAsync();
+                _context.PurchaseFinishedPlans.Remove(plan);
+                await _context.SaveChangesAsync();
 
-            // 刷新工单状态（与删除在同一事务中）
-            await UpdateMaterialPlanStatusAsync(workOrderId);
+                // 刷新工单状态（与删除在同一事务中）
+                await UpdateMaterialPlanStatusAsync(workOrderId);
 
-            await transaction.CommitAsync();
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -764,12 +798,12 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
 
-            // 刷新工单状态（与创建在同一事务中）
-            await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+                // 刷新工单状态（与创建在同一事务中）
+                await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
 
-            await transaction.CommitAsync();
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -875,9 +909,9 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            await _context.SaveChangesAsync();
-            await UpdateMaterialPlanStatusAsync(workOrderId);
-            await transaction.CommitAsync();
+                await _context.SaveChangesAsync();
+                await UpdateMaterialPlanStatusAsync(workOrderId);
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -905,12 +939,12 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
 
-            // 刷新工单状态（与删除在同一事务中）
-            await UpdateMaterialPlanStatusAsync(workOrderId);
+                // 刷新工单状态（与删除在同一事务中）
+                await UpdateMaterialPlanStatusAsync(workOrderId);
 
-            await transaction.CommitAsync();
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -1326,9 +1360,9 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            await _context.SaveChangesAsync();
-            await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
-            await transaction.CommitAsync();
+                await _context.SaveChangesAsync();
+                await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -1413,74 +1447,74 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            _context.RoundBarPiercingPlans.Add(plan);
-            await _context.SaveChangesAsync();
-
-            // 保存工序组
-            if (request.ProcessGroups is { Count: > 0 })
-            {
-                int seq = 1;
-                foreach (var pg in request.ProcessGroups)
-                {
-                    _context.PiercingPlanProcessGroups.Add(new PiercingPlanProcessGroup
-                    {
-                        RoundBarPiercingPlanId = plan.Id,
-                        SequenceNumber = seq++,
-                        ProcessName = pg.ProcessName,
-                        ManufacturingSpec = pg.ManufacturingSpec,
-                        OuterDiameterTolerance = pg.OuterDiameterTolerance,
-                        WallThicknessTolerance = pg.WallThicknessTolerance,
-                        ManufacturingLength = pg.ManufacturingLength,
-                        CuttingTreatment = pg.CuttingTreatment,
-                        ManufacturingMultiple = pg.ManufacturingMultiple,
-                        Remark = pg.Remark,
-                        ColdRollDraw = pg.ColdRollDraw,
-                        OilPipeCut = pg.OilPipeCut,
-                        Degrease = pg.Degrease,
-                        Solution = pg.Solution,
-                        Straighten = pg.Straighten,
-                        Cut = pg.Cut,
-                        ThicknessMeasure = pg.ThicknessMeasure,
-                        Pickle = pg.Pickle,
-                        OuterPolish = pg.OuterPolish,
-                        InnerGrinding = pg.InnerGrinding,
-                        OuterSpotGrinding = pg.OuterSpotGrinding,
-                        Inspection = pg.Inspection,
-                        WeldingHead = pg.WeldingHead,
-                        Lubrication = pg.Lubrication,
-                        Warehouse = pg.Warehouse
-                    });
-                }
+                _context.RoundBarPiercingPlans.Add(plan);
                 await _context.SaveChangesAsync();
-            }
 
-            // 从工序组计算工艺周期
-            var pierceGroups = await _context.PiercingPlanProcessGroups
-                .Where(g => g.RoundBarPiercingPlanId == plan.Id)
-                .ToListAsync();
-            var pierceSections = new List<(string, int)>();
-            foreach (var pg in pierceGroups)
-            {
-                pierceSections.AddRange(ExtractSections(
-                    pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
-                    pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                    pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                    pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
-            }
-            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
-            var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
-            plan.StandardCycle = CalculateStandardCycleFromSections(
-                pierceSections, dayMap, deliveryStateExtraDays,
-                workOrder.DeliveryState.ToString());
-            if (plan.StandardCycle == 0)
-                throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
-            _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
-            await _context.SaveChangesAsync();
+                // 保存工序组
+                if (request.ProcessGroups is { Count: > 0 })
+                {
+                    int seq = 1;
+                    foreach (var pg in request.ProcessGroups)
+                    {
+                        _context.PiercingPlanProcessGroups.Add(new PiercingPlanProcessGroup
+                        {
+                            RoundBarPiercingPlanId = plan.Id,
+                            SequenceNumber = seq++,
+                            ProcessName = pg.ProcessName,
+                            ManufacturingSpec = pg.ManufacturingSpec,
+                            OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                            WallThicknessTolerance = pg.WallThicknessTolerance,
+                            ManufacturingLength = pg.ManufacturingLength,
+                            CuttingTreatment = pg.CuttingTreatment,
+                            ManufacturingMultiple = pg.ManufacturingMultiple,
+                            Remark = pg.Remark,
+                            ColdRollDraw = pg.ColdRollDraw,
+                            OilPipeCut = pg.OilPipeCut,
+                            Degrease = pg.Degrease,
+                            Solution = pg.Solution,
+                            Straighten = pg.Straighten,
+                            Cut = pg.Cut,
+                            ThicknessMeasure = pg.ThicknessMeasure,
+                            Pickle = pg.Pickle,
+                            OuterPolish = pg.OuterPolish,
+                            InnerGrinding = pg.InnerGrinding,
+                            OuterSpotGrinding = pg.OuterSpotGrinding,
+                            Inspection = pg.Inspection,
+                            WeldingHead = pg.WeldingHead,
+                            Lubrication = pg.Lubrication,
+                            Warehouse = pg.Warehouse
+                        });
+                    }
+                    await _context.SaveChangesAsync();
+                }
 
-            // 刷新工单状态（与创建在同一事务中）
-            await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+                // 从工序组计算工艺周期
+                var pierceGroups = await _context.PiercingPlanProcessGroups
+                    .Where(g => g.RoundBarPiercingPlanId == plan.Id)
+                    .ToListAsync();
+                var pierceSections = new List<(string, int)>();
+                foreach (var pg in pierceGroups)
+                {
+                    pierceSections.AddRange(ExtractSections(
+                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                        pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+                        pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                        pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+                }
+                var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
+                var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
+                plan.StandardCycle = CalculateStandardCycleFromSections(
+                    pierceSections, dayMap, deliveryStateExtraDays,
+                    workOrder.DeliveryState.ToString());
+                if (plan.StandardCycle == 0)
+                    throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
+                _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
+                await _context.SaveChangesAsync();
 
-            await transaction.CommitAsync();
+                // 刷新工单状态（与创建在同一事务中）
+                await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
+
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -1546,75 +1580,75 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            // 全量替换工序组
-            var existingGroups = await _context.PiercingPlanProcessGroups
-                .Where(g => g.RoundBarPiercingPlanId == id)
-                .ToListAsync();
-            _context.PiercingPlanProcessGroups.RemoveRange(existingGroups);
+                // 全量替换工序组
+                var existingGroups = await _context.PiercingPlanProcessGroups
+                    .Where(g => g.RoundBarPiercingPlanId == id)
+                    .ToListAsync();
+                _context.PiercingPlanProcessGroups.RemoveRange(existingGroups);
 
-            if (request.ProcessGroups is { Count: > 0 })
-            {
-                int seq = 1;
-                foreach (var pg in request.ProcessGroups)
+                if (request.ProcessGroups is { Count: > 0 })
                 {
-                    _context.PiercingPlanProcessGroups.Add(new PiercingPlanProcessGroup
+                    int seq = 1;
+                    foreach (var pg in request.ProcessGroups)
                     {
-                        RoundBarPiercingPlanId = id,
-                        SequenceNumber = seq++,
-                        ProcessName = pg.ProcessName,
-                        ManufacturingSpec = pg.ManufacturingSpec,
-                        OuterDiameterTolerance = pg.OuterDiameterTolerance,
-                        WallThicknessTolerance = pg.WallThicknessTolerance,
-                        ManufacturingLength = pg.ManufacturingLength,
-                        CuttingTreatment = pg.CuttingTreatment,
-                        ManufacturingMultiple = pg.ManufacturingMultiple,
-                        Remark = pg.Remark,
-                        ColdRollDraw = pg.ColdRollDraw,
-                        OilPipeCut = pg.OilPipeCut,
-                        Degrease = pg.Degrease,
-                        Solution = pg.Solution,
-                        Straighten = pg.Straighten,
-                        Cut = pg.Cut,
-                        ThicknessMeasure = pg.ThicknessMeasure,
-                        Pickle = pg.Pickle,
-                        OuterPolish = pg.OuterPolish,
-                        InnerGrinding = pg.InnerGrinding,
-                        OuterSpotGrinding = pg.OuterSpotGrinding,
-                        Inspection = pg.Inspection,
-                        WeldingHead = pg.WeldingHead,
-                        Lubrication = pg.Lubrication,
-                        Warehouse = pg.Warehouse
-                    });
+                        _context.PiercingPlanProcessGroups.Add(new PiercingPlanProcessGroup
+                        {
+                            RoundBarPiercingPlanId = id,
+                            SequenceNumber = seq++,
+                            ProcessName = pg.ProcessName,
+                            ManufacturingSpec = pg.ManufacturingSpec,
+                            OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                            WallThicknessTolerance = pg.WallThicknessTolerance,
+                            ManufacturingLength = pg.ManufacturingLength,
+                            CuttingTreatment = pg.CuttingTreatment,
+                            ManufacturingMultiple = pg.ManufacturingMultiple,
+                            Remark = pg.Remark,
+                            ColdRollDraw = pg.ColdRollDraw,
+                            OilPipeCut = pg.OilPipeCut,
+                            Degrease = pg.Degrease,
+                            Solution = pg.Solution,
+                            Straighten = pg.Straighten,
+                            Cut = pg.Cut,
+                            ThicknessMeasure = pg.ThicknessMeasure,
+                            Pickle = pg.Pickle,
+                            OuterPolish = pg.OuterPolish,
+                            InnerGrinding = pg.InnerGrinding,
+                            OuterSpotGrinding = pg.OuterSpotGrinding,
+                            Inspection = pg.Inspection,
+                            WeldingHead = pg.WeldingHead,
+                            Lubrication = pg.Lubrication,
+                            Warehouse = pg.Warehouse
+                        });
+                    }
                 }
-            }
 
-            await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
 
-            // 从工序组重新计算工艺周期
-            var pierceGroups = await _context.PiercingPlanProcessGroups
-                .Where(g => g.RoundBarPiercingPlanId == id)
-                .ToListAsync();
-            var pierceSections = new List<(string, int)>();
-            foreach (var pg in pierceGroups)
-            {
-                pierceSections.AddRange(ExtractSections(
-                    pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
-                    pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                    pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                    pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
-            }
-            var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
-            var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
-            plan.StandardCycle = CalculateStandardCycleFromSections(
-                pierceSections, dayMap, deliveryStateExtraDays,
-                workOrder.DeliveryState.ToString());
-            if (plan.StandardCycle == 0)
-                throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
-            _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
-            await _context.SaveChangesAsync();
+                // 从工序组重新计算工艺周期
+                var pierceGroups = await _context.PiercingPlanProcessGroups
+                    .Where(g => g.RoundBarPiercingPlanId == id)
+                    .ToListAsync();
+                var pierceSections = new List<(string, int)>();
+                foreach (var pg in pierceGroups)
+                {
+                    pierceSections.AddRange(ExtractSections(
+                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                        pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+                        pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                        pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+                }
+                var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
+                var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
+                plan.StandardCycle = CalculateStandardCycleFromSections(
+                    pierceSections, dayMap, deliveryStateExtraDays,
+                    workOrder.DeliveryState.ToString());
+                if (plan.StandardCycle == 0)
+                    throw new BusinessException("工艺周期计算失败：工序组工段数据不完整，无法计算工艺周期");
+                _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
+                await _context.SaveChangesAsync();
 
-            await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
-            await transaction.CommitAsync();
+                await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -1643,13 +1677,13 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-            _context.RoundBarPiercingPlans.Remove(plan);
-            await _context.SaveChangesAsync();
+                _context.RoundBarPiercingPlans.Remove(plan);
+                await _context.SaveChangesAsync();
 
-            // 刷新工单状态（与删除在同一事务中）
-            await UpdateMaterialPlanStatusAsync(workOrderId);
+                // 刷新工单状态（与删除在同一事务中）
+                await UpdateMaterialPlanStatusAsync(workOrderId);
 
-            await transaction.CommitAsync();
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -2591,7 +2625,7 @@ public class MaterialPlanService : IMaterialPlanService
             if (wo != null && !string.IsNullOrEmpty(wo.SalesOrderNo))
             {
                 await _readModelRefreshService.RefreshBySalesOrderAsync(wo.SalesOrderNo);
-                _ = TryRefreshExecutionSummaryAsync(wo.WorkOrderNo);
+                await TryRefreshExecutionSummaryAsync(wo.WorkOrderNo);
             }
         }
         catch (Exception ex)
@@ -3059,6 +3093,7 @@ internal static class MaterialPlanMappingExtensions
             CreatedTime = entity.CreatedTime,
             CreatedBy = entity.CreatedBy
         };
-    }}
+    }
+}
 
 #endregion

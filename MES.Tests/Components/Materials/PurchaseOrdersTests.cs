@@ -1,9 +1,10 @@
 using FluentAssertions;
 using MES.Blazor.Pages.Materials;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Models;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
 
 namespace MES.Tests.Components;
 
@@ -114,7 +115,10 @@ public class PurchaseOrdersTests : TestBase
         };
         var response = new ApiResponse<PagedResult<PurchaseOrderDto>>
         {
-            Success = true, Code = 200, Message = "OK", Data = pagedResult
+            Success = true,
+            Code = 200,
+            Message = "OK",
+            Data = pagedResult
         };
         ConfigureResponse("/api/purchase-order/list", response);
     }

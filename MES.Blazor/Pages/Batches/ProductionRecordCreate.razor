@@ -1,9 +1,9 @@
 @page "/production-records/create"
-@using MES.Core.DTOs
 @using MES.Blazor.Services
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Core.Constants
+@using MES.Core.DTOs.Batch
 @inject ProductionRecordService ProdRecordService
 @inject BatchService BatchService
 @inject NavigationManager Navigation
@@ -162,7 +162,6 @@
         new() { Key = "Weight",            Label = "加工重量" },                 // → Entity.Weight
         new() { Key = "SolutionTemperature", Label = "固溶温度(℃)" },           // → Entity.SolutionTemperature
         new() { Key = "SoakTime",           Label = "保温时间(min)" },            // → Entity.SoakTime
-        new() { Key = "IsFinished",        Label = "是否成品" },                 // → Entity.IsFinished
         new() { Key = "CuttingMultiple",   Label = "断切倍数" },                 // → Entity.CuttingMultiple
         new() { Key = "FinishedCutLength", Label = "成品长度" },                 // → Entity.FinishedCutLength
         new() { Key = "PostCutQuantity",   Label = "切后支数" },                 // → Entity.PostCutQuantity
@@ -213,7 +212,6 @@
         public decimal? SolutionTemperature { get; set; }                                        // → Entity.SolutionTemperature
         public int? SoakTime { get; set; }                                                       // → Entity.SoakTime
         public int? FaceCutCount { get; set; }                                                   // → Entity.FaceCutCount
-        public bool IsFinished { get; set; }                                                    // → Entity.IsFinished
         public decimal? CuttingMultiple { get; set; }                                           // → Entity.CuttingMultiple
         public decimal? FinishedCutLength { get; set; }                                         // → Entity.FinishedCutLength
         public int? PostCutQuantity { get; set; }                                               // → Entity.PostCutQuantity
@@ -324,7 +322,6 @@
                 SolutionTemperature = r.SolutionTemperature,
                 SoakTime = r.SoakTime,
                 FaceCutCount = r.FaceCutCount,
-                IsFinished = r.IsFinished,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
@@ -548,13 +545,6 @@
                 builder.AddAttribute(6, "Value", r.FaceCutCount);
                 builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.FaceCutCount = v));
                 builder.AddAttribute(8, "Clearable", true);
-                builder.CloseComponent();
-                break;
-            case "IsFinished":
-                builder.OpenComponent<MudCheckBox<bool>>(0);
-                builder.AddAttribute(1, "Color", Color.Primary);
-                builder.AddAttribute(3, "Value", r.IsFinished);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => r.IsFinished = v));
                 builder.CloseComponent();
                 break;
             case "CuttingMultiple":

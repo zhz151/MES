@@ -1,12 +1,46 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Quality;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using Microsoft.Extensions.Caching.Memory;
@@ -58,11 +92,11 @@ public class FinalInspectionService : IFinalInspectionService
         }
     }
 
-    private void TryRefreshQualityProcessTrackingAsync(int productionBatchId)
+    private async Task TryRefreshQualityProcessTrackingAsync(int productionBatchId)
     {
         try
         {
-            _ = _qualityProcessTracking.RefreshByProductionBatchIdAsync(productionBatchId);
+            await _qualityProcessTracking.RefreshByProductionBatchIdAsync(productionBatchId);
         }
         catch (Exception ex)
         {
@@ -267,7 +301,8 @@ public class FinalInspectionService : IFinalInspectionService
             var batch = await _context.ProductionBatches
                 .AsNoTracking()
                 .Where(b => b.BatchNo == request.BatchNo)
-                .Select(b => new {
+                .Select(b => new
+                {
                     b.Id,
                     b.MaterialName,
                     b.TagNo,
@@ -347,8 +382,8 @@ public class FinalInspectionService : IFinalInspectionService
         _context.FinalInspections.Add(entity);
         await _context.SaveChangesAsync();
 
-        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
-        TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
+        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
 
         return new FinalInspectionDto
         {
@@ -420,8 +455,8 @@ public class FinalInspectionService : IFinalInspectionService
 
         await _context.SaveChangesAsync();
 
-        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
-        TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
+        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
 
         return new FinalInspectionDto
         {
@@ -475,8 +510,8 @@ public class FinalInspectionService : IFinalInspectionService
         _context.FinalInspections.Remove(entity);
         await _context.SaveChangesAsync();
 
-        _ = TryRefreshExecutionSummaryAsync(workOrderNo);
-        TryRefreshQualityProcessTrackingAsync(productionBatchId);
+        await TryRefreshExecutionSummaryAsync(workOrderNo);
+        await TryRefreshQualityProcessTrackingAsync(productionBatchId);
     }
 
     public async Task<List<FinalInspectionDto>> BatchCreateAsync(List<CreateFinalInspectionRequest> requests)
@@ -600,7 +635,7 @@ public class FinalInspectionService : IFinalInspectionService
 
         // 批量创建后触发增量刷新
         foreach (var e in entities)
-            TryRefreshQualityProcessTrackingAsync(e.ProductionBatchId);
+            await TryRefreshQualityProcessTrackingAsync(e.ProductionBatchId);
 
         var workOrderNos = entities
             .Select(e => e.WorkOrderNo)

@@ -1,11 +1,32 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.Enums;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
 using MES.Data.Entities.Configuration;
-using WoEntity = MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.WorkOrder;
+using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 
 namespace MES.Services.WorkOrder;
 

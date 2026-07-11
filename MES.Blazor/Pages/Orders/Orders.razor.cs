@@ -5,11 +5,11 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Order;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Orders;
@@ -23,31 +23,13 @@ public partial class Orders
     private int _totalCount;
     private HashSet<int> selectedOrderIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
-    private bool allSelected
-    {
-        get => _allSelected;
-        set
-        {
-            if (_allSelected == value) return;
-            _allSelected = value;
-            if (value)
-            {
-                foreach (var item in _pageItems)
-                    selectedOrderIds.Add(item.Id);
-            }
-            else
-            {
-                selectedOrderIds.Clear();
-            }
-            StateHasChanged();
-        }
-    }
     private int _currentPage = 1;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
+    private string _deliveryDateFrom = string.Empty;
+    private string _deliveryDateTo = string.Empty;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
 
@@ -64,23 +46,119 @@ public partial class Orders
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    // ========== B23 分组列标题栏 ==========
+    private int _totalTableWidth =>
+        40 + _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 150;
+
+    private List<GroupHeaderInfo> _groupHeaders => GetGroupHeaders();
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        int? lastKey = null; int totalWidth = 0;
+        var groupKey = 0; var groupName = ""; var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk; groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++; lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+
+        // 操作列占位（150px）
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 150,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", 4 => "col-g4", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "ordernumber",   Label = "订单号",   SortKey = "ordernumber",   FilterType = "string", Width = "120" },
-        new() { Key = "signdate",      Label = "签订日期", SortKey = "signdate",     FilterType = "date", Width = "120" },
-        new() { Key = "salesman",      Label = "业务员",   SortKey = "salesman",     FilterType = "string", Width = "120" },
-        new() { Key = "customername",  Label = "客户名称", SortKey = "customername", FilterType = "string", Width = "120" },
-        new() { Key = "endcustomer",   Label = "最终客户", SortKey = "endcustomer",  FilterType = "string", Width = "120" },
-        new() { Key = "deliverystart", Label = "交期起始", SortKey = "deliverystart", FilterType = "date", Width = "120" },
-        new() { Key = "deliveryend",   Label = "交期截止", SortKey = "deliveryend",  FilterType = "date", Width = "120" },
-        new() { Key = "hasdelaypenalty", Label = "延期罚款", SortKey = "hasdelaypenalty", FilterType = "boolean", Width = "60", BoolTrueLabel = "是", BoolFalseLabel = "否" },
-        new() { Key = "totalcontractweight", Label = "订单总重量", SortKey = "totalcontractweight", Width = "80" },
-        new() { Key = "itemcount", Label = "含项次数", SortKey = "itemcount", Width = "80" },
-        new() { Key = "notech",        Label = "技术要求", SortKey = "hastechnicalrequirement", FilterType = "boolean", Width = "120", BoolTrueLabel = "已编辑", BoolFalseLabel = "未编辑" },
-        new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120",
+        // ========== ① 基本信息 ==========
+        new() { Key = "ordernumber",   Label = "订单号",   SortKey = "ordernumber",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "signdate",      Label = "签订日期", SortKey = "signdate",     FilterType = "date", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "salesman",      Label = "业务员",   SortKey = "salesman",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "customername",  Label = "客户名称", SortKey = "customername", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "endcustomer",   Label = "最终客户", SortKey = "endcustomer",  FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
+        // ========== ② 合同交付 ==========
+        new() { Key = "deliverystart", Label = "交期起始", SortKey = "deliverystart", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "② 合同交付" },
+        new() { Key = "deliveryend",   Label = "交期截止", SortKey = "deliveryend",  FilterType = "date", Width = "120", GroupKey = 2, GroupName = "② 合同交付" },
+        new() { Key = "hasdelaypenalty", Label = "延期罚款", SortKey = "hasdelaypenalty", FilterType = "boolean", Width = "60", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 2, GroupName = "② 合同交付" },
+        new() { Key = "totalcontractweight", Label = "订单总重量", SortKey = "totalcontractweight", Width = "80", GroupKey = 2, GroupName = "② 合同交付" },
+        new() { Key = "itemcount", Label = "含项次数", SortKey = "itemcount", Width = "80", GroupKey = 2, GroupName = "② 合同交付" },
+        // ========== ③ 订单确认 ==========
+        new() { Key = "notech",        Label = "技术要求", SortKey = "hastechnicalrequirement", FilterType = "boolean", Width = "120", BoolTrueLabel = "已编辑", BoolFalseLabel = "未编辑", GroupKey = 3, GroupName = "③ 订单确认" },
+        new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "③ 订单确认",
                EnumOptions = new List<EnumOption> { new("Pending", "待处理"), new("Confirmed", "已确认") },
                DisplayConverter = v => v is SalesOrderStatus s ? DisplayHelper.GetSalesOrderStatusText(s) : "-" },
-        new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120" },
+        new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "③ 订单确认" },
+        // ========== ④ 工单执行 ==========
+        new() { Key = "schedulestage",     Label = "执行关注", SortKey = "schedulestage",     FilterType = "enum", Width = "100", GroupKey = 4, GroupName = "④ 工单执行",
+               EnumOptions = new List<EnumOption> { new("", "未排产"), new("0", "完成"), new("1", "原料锁定"), new("2", "生产执行"), new("3", "成品检验") },
+               DisplayConverter = v => v is SalesOrderListDto d ? d.ScheduleStageText : "-" },
+        new() { Key = "urgencylevel",      Label = "紧急性",   SortKey = "urgencylevel",      FilterType = "string", Width = "80", GroupKey = 4, GroupName = "④ 工单执行" },
+        new() { Key = "estimatedcompletiondate", Label = "预计完成", SortKey = "estimatedcompletiondate", FilterType = "date", Width = "100", GroupKey = 4, GroupName = "④ 工单执行" },
     };
 
     // ========== 分页汇总 ==========
@@ -164,7 +242,9 @@ public partial class Orders
             var result = await OrderService.GetPagedAsync(
                 query,
                 dateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
-                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null);
+                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null,
+                deliveryDateFrom: DateTime.TryParse(_deliveryDateFrom, out var ddFrom) ? ddFrom : null,
+                deliveryDateTo: DateTime.TryParse(_deliveryDateTo, out var ddTo) ? ddTo : null);
 
             if (result.Success && result.Data != null)
             {
@@ -342,6 +422,20 @@ public partial class Orders
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnDeliveryDateFromChanged(string value)
+    {
+        _deliveryDateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDeliveryDateToChanged(string value)
+    {
+        _deliveryDateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 列选择操作 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -409,6 +503,8 @@ public partial class Orders
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _dateFrom = savedState.Extras?.ContainsKey("dateFrom") == true ? savedState.Extras["dateFrom"] ?? string.Empty : string.Empty;
             _dateTo = savedState.Extras?.ContainsKey("dateTo") == true ? savedState.Extras["dateTo"] ?? string.Empty : string.Empty;
+            _deliveryDateFrom = savedState.Extras?.ContainsKey("deliveryDateFrom") == true ? savedState.Extras["deliveryDateFrom"] ?? string.Empty : string.Empty;
+            _deliveryDateTo = savedState.Extras?.ContainsKey("deliveryDateTo") == true ? savedState.Extras["deliveryDateTo"] ?? string.Empty : string.Empty;
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -434,6 +530,11 @@ public partial class Orders
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#orders-list-table");
+        }
+        catch { }
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
@@ -477,7 +578,7 @@ public partial class Orders
                 builder.AddContent(0, DisplayHelper.GetYesNoText(order.HasDelayPenalty));
                 break;
             case "totalcontractweight":
-                builder.AddContent(0, order.TotalContractWeight.ToString());
+                builder.AddContent(0, order.TotalContractWeight.ToString("G29"));
                 break;
             case "itemcount":
                 builder.AddContent(0, order.ItemCount);
@@ -519,6 +620,23 @@ public partial class Orders
             case "lastchangedate":
                 builder.AddContent(0, order.LastChangeDate?.ToString("yyyy-MM-dd HH:mm") ?? "-");
                 break;
+            case "schedulestage":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetScheduleStageColor(order.ScheduleStage));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, order.ScheduleStageText)));
+                builder.CloseComponent();
+                break;
+            case "urgencylevel":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetUrgencyColor(order.UrgencyLevel));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, order.UrgencyLevel ?? "-")));
+                builder.CloseComponent();
+                break;
+            case "estimatedcompletiondate":
+                builder.AddContent(0, order.EstimatedCompletionDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
         }
     };
 
@@ -539,6 +657,9 @@ public partial class Orders
         "notech" => item.HasTechnicalRequirement.ToString(),
         "status" => item.Status.ToString(),
         "lastchangedate" => item.LastChangeDate?.ToString("yyyy-MM-dd HH:mm"),
+        "schedulestage" => item.ScheduleStage?.ToString(),
+        "urgencylevel" => item.UrgencyLevel,
+        "estimatedcompletiondate" => item.EstimatedCompletionDate?.ToString("yyyy-MM-dd"),
         _ => null
     };
 
@@ -547,6 +668,7 @@ public partial class Orders
         "hasdelaypenalty" => DisplayHelper.GetYesNoText(item.HasDelayPenalty),
         "notech" => item.HasTechnicalRequirement ? "已编辑" : "未编辑",
         "status" => GetStatusText(item.Status),
+        "schedulestage" => item.ScheduleStageText,
         _ => GetCellRawValue(item, key)
     };
 
@@ -629,6 +751,25 @@ public partial class Orders
     private Color GetStatusColor(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusColor(status);
     private string GetStatusText(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusText(status);
 
+    private static Color GetScheduleStageColor(int? stage) => stage switch
+    {
+        null => Color.Default,
+        0 => Color.Success,
+        1 => Color.Error,
+        2 => Color.Warning,
+        3 => Color.Info,
+        _ => Color.Default
+    };
+
+    private static Color GetUrgencyColor(string? urgency) => urgency switch
+    {
+        "A+急" or "A急" => Color.Error,
+        "B顺" => Color.Warning,
+        "C缓" => Color.Info,
+        "D缓" => Color.Default,
+        _ => Color.Default
+    };
+
     // ========== 打印方法 ==========
 
     private async Task PrintAll()
@@ -699,6 +840,8 @@ public partial class Orders
         var extras = new Dictionary<string, string>();
         if (!string.IsNullOrWhiteSpace(_dateFrom)) extras["dateFrom"] = _dateFrom;
         if (!string.IsNullOrWhiteSpace(_dateTo)) extras["dateTo"] = _dateTo;
+        if (!string.IsNullOrWhiteSpace(_deliveryDateFrom)) extras["deliveryDateFrom"] = _deliveryDateFrom;
+        if (!string.IsNullOrWhiteSpace(_deliveryDateTo)) extras["deliveryDateTo"] = _deliveryDateTo;
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         var state = new PageState

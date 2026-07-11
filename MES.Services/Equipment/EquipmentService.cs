@@ -1,11 +1,44 @@
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
-using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Equipment;
 
 using MES.Services.Helpers;
 using MES.Services.Printing;
@@ -147,7 +180,7 @@ public class EquipmentService : IEquipmentService
             .AnyAsync(e => e.EquipmentCode == request.EquipmentCode);
         if (exists) throw new BusinessException($"设备编号 {request.EquipmentCode} 已存在");
 
-        var entity = new MES.Data.Entities.Equipment
+        var entity = new MES.Data.Entities.Equipment.Equipment
         {
             EquipmentCode = request.EquipmentCode,
             EquipmentName = request.EquipmentName,
@@ -252,7 +285,7 @@ public class EquipmentService : IEquipmentService
         return EquipmentPrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 
-    private static EquipmentListDto ToDto(MES.Data.Entities.Equipment e) => new()
+    private static EquipmentListDto ToDto(MES.Data.Entities.Equipment.Equipment e) => new()
     {
         Id = e.Id,
         EquipmentCode = e.EquipmentCode,

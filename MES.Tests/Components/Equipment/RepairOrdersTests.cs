@@ -1,10 +1,10 @@
 using Bunit;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components.Authorization;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Pages.Equipment;
 using MES.Blazor.Services;
+using MES.Core.DTOs.Equipment;
 
 namespace MES.Tests.Components;
 

@@ -4,6 +4,7 @@ using MES.Core.DTOs.Auth;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Auth;
 
 namespace MES.Auth.Services;
 

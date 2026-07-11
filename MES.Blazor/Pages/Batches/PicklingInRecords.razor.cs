@@ -6,9 +6,10 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -60,7 +61,6 @@ public partial class PicklingInRecords
         public string? Shift { get; set; }
         public int? Quantity { get; set; }
         public decimal? Weight { get; set; }
-        public bool IsFinished { get; set; }
         public string? Remark { get; set; }
 
         // 备份原始值用于取消
@@ -69,7 +69,6 @@ public partial class PicklingInRecords
         public string? OriginalShift { get; set; }
         public int? OriginalQuantity { get; set; }
         public decimal? OriginalWeight { get; set; }
-        public bool OriginalIsFinished { get; set; }
         public string? OriginalRemark { get; set; }
     }
 
@@ -106,7 +105,7 @@ public partial class PicklingInRecords
         new() { Key = "Shift",               Label = "班次",         SortKey = "shift",               FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "Quantity",            Label = "加工支数",     SortKey = "quantity",                                       Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "Weight",              Label = "加工重量",     SortKey = "weight",                                         Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
-        new() { Key = "IsFinished",          Label = "是否成品",     SortKey = "isfinished",          FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "80", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "ProductStatus",       Label = "制造状态",     SortKey = "productstatus",       FilterType = "string", Width = "80", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
@@ -180,14 +179,12 @@ public partial class PicklingInRecords
             Shift = item.Shift,
             Quantity = item.Quantity,
             Weight = item.Weight,
-            IsFinished = item.IsFinished,
             Remark = item.Remark,
             OriginalEquipmentName = item.EquipmentName,
             OriginalOperator = item.Operator,
             OriginalShift = item.Shift,
             OriginalQuantity = item.Quantity,
             OriginalWeight = item.Weight,
-            OriginalIsFinished = item.IsFinished,
             OriginalRemark = item.Remark
         };
     }
@@ -204,7 +201,6 @@ public partial class PicklingInRecords
             Shift = cache.Shift,
             Quantity = cache.Quantity,
             Weight = cache.Weight,
-            IsFinished = cache.IsFinished,
             Remark = cache.Remark
         };
 
@@ -232,7 +228,6 @@ public partial class PicklingInRecords
             item.Shift = cache.OriginalShift;
             item.Quantity = cache.OriginalQuantity;
             item.Weight = cache.OriginalWeight;
-            item.IsFinished = cache.OriginalIsFinished;
             item.Remark = cache.OriginalRemark;
         }
         _editingIds.Remove(item.Id);
@@ -658,40 +653,18 @@ public partial class PicklingInRecords
                     builder.AddContent(0, $"{(int)(item.Weight ?? 0)}");
                 }
                 break;
-            case "IsFinished":
-                if (isEditing && cache != null)
+            case "ProductStatus":
+                var psColor = item.ProductStatus switch
                 {
-                    builder.OpenComponent<MudSwitch<bool>>(0);
-                    builder.AddAttribute(1, "Value", cache.IsFinished);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
-                    {
-                        cache.IsFinished = v;
-                        var request = new UpdatePicklingInRecordRequest { IsFinished = v };
-                        var result = await PicklingService.UpdateAsync(item.Id, request);
-                        if (!result.Success)
-                            Snackbar.Add($"保存失败: {result.Message}", Severity.Error);
-                    }));
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    if (item.IsFinished)
-                    {
-                        builder.OpenComponent<MudChip>(0);
-                        builder.AddAttribute(1, "Size", Size.Small);
-                        builder.AddAttribute(2, "Color", Color.Success);
-                        builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
-                        builder.CloseComponent();
-                    }
-                    else
-                    {
-                        builder.OpenComponent<MudChip>(0);
-                        builder.AddAttribute(1, "Size", Size.Small);
-                        builder.AddAttribute(2, "Color", Color.Default);
-                        builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "否")));
-                        builder.CloseComponent();
-                    }
-                }
+                    "荒管" => Color.Primary,
+                    "成品" => Color.Success,
+                    _ => Color.Default
+                };
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", psColor);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ProductStatus ?? "在制")));
+                builder.CloseComponent();
                 break;
             case "TagNo":
                 builder.AddContent(0, item.TagNo);

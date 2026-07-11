@@ -1,16 +1,43 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
-using MES.Data;
-using MES.Data.Entities;
 using MES.Services.Quality;
 using MES.Tests.Tests;
 using System.Reflection;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Quality;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -42,7 +69,7 @@ public class ProcessInspectionServiceTests : TestBase
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ProcessInspectionService>.Instance,
             mockProductionRecordService.Object,
             configMock.Object,
-            Mock.Of<IMemoryCache>());
+            new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
@@ -167,7 +194,8 @@ public class ProcessInspectionServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             InspectionDateFrom = DateTime.Today.AddDays(-1),
             InspectionDateTo = DateTime.Today.AddDays(1)
         });
@@ -356,7 +384,8 @@ public class ProcessInspectionServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "BatchNo", Operator = "in", Values = new List<string> { "BATCH001" } }
@@ -376,7 +405,8 @@ public class ProcessInspectionServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "ProcessName", Operator = "contains", Value = "冷轧" }
@@ -395,7 +425,8 @@ public class ProcessInspectionServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "ProcessName", Operator = "contains", Value = "NONEXISTENT" }
@@ -446,10 +477,16 @@ public class ProcessInspectionServiceTests : TestBase
         var batch = await SeedBatchAsync(ctx, "BATCH001");
         ctx.ProcessInspections.Add(new ProcessInspection
         {
-            ProductionBatchId = batch.Id, ProcessName = "60冷轧", SectionName = "冷轧拔",
+            ProductionBatchId = batch.Id,
+            ProcessName = "60冷轧",
+            SectionName = "冷轧拔",
             BatchNo = "BATCH001",
-            SequenceNumber = 1, InspectionDate = DateTime.Today, Quantity = 10,
-            EquipmentName = null, Inspector = null, Remark = null
+            SequenceNumber = 1,
+            InspectionDate = DateTime.Today,
+            Quantity = 10,
+            EquipmentName = null,
+            Inspector = null,
+            Remark = null
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

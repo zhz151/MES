@@ -1,10 +1,12 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.Interfaces.Warehouse;
 
 namespace MES.Api.Controllers.Warehouse;
 
@@ -55,16 +57,30 @@ public class InventoryController : ControllerBase
         if (pageSize > 5000) pageSize = 5000;
         InventoryQueryParams query = new()
         {
-            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
-            WarehouseId = warehouseId, MaterialType = materialType, PlantGrade = plantGrade,
-            OnlyWithStock = onlyWithStock, WorkOrderNo = workOrderNo, BatchNo = batchNo,
-            InboundSource = inboundSource, SourceName = sourceName,
-            InboundDateFrom = inboundDateFrom, InboundDateTo = inboundDateTo,
-            HeatNo = heatNo, Specification = specification, LengthStatus = lengthStatus,
-            SurfaceCondition = surfaceCondition, DefectReason = defectReason,
-            LiabilityType = liabilityType, ProductionBatchNo = productionBatchNo,
-            ActualSpecification = actualSpecification, OriginalSupplier = originalSupplier
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
+            IsDescending = isDescending,
+            WarehouseId = warehouseId,
+            MaterialType = materialType,
+            PlantGrade = plantGrade,
+            OnlyWithStock = onlyWithStock,
+            WorkOrderNo = workOrderNo,
+            BatchNo = batchNo,
+            InboundSource = inboundSource,
+            SourceName = sourceName,
+            InboundDateFrom = inboundDateFrom,
+            InboundDateTo = inboundDateTo,
+            HeatNo = heatNo,
+            Specification = specification,
+            LengthStatus = lengthStatus,
+            SurfaceCondition = surfaceCondition,
+            DefectReason = defectReason,
+            LiabilityType = liabilityType,
+            ProductionBatchNo = productionBatchNo,
+            ActualSpecification = actualSpecification,
+            OriginalSupplier = originalSupplier
         };
         if (!string.IsNullOrEmpty(filters))
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
@@ -108,16 +124,30 @@ public class InventoryController : ControllerBase
         if (pageSize > 5000) pageSize = 5000;
         InventoryQueryParams query = new()
         {
-            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
-            WarehouseId = warehouseId, MaterialType = materialType, PlantGrade = plantGrade,
-            OnlyWithStock = onlyWithStock, WorkOrderNo = workOrderNo, BatchNo = batchNo,
-            InboundSource = inboundSource, SourceName = sourceName,
-            InboundDateFrom = inboundDateFrom, InboundDateTo = inboundDateTo,
-            HeatNo = heatNo, Specification = specification, LengthStatus = lengthStatus,
-            SurfaceCondition = surfaceCondition, DefectReason = defectReason,
-            LiabilityType = liabilityType, ProductionBatchNo = productionBatchNo,
-            ActualSpecification = actualSpecification, OriginalSupplier = originalSupplier
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
+            IsDescending = isDescending,
+            WarehouseId = warehouseId,
+            MaterialType = materialType,
+            PlantGrade = plantGrade,
+            OnlyWithStock = onlyWithStock,
+            WorkOrderNo = workOrderNo,
+            BatchNo = batchNo,
+            InboundSource = inboundSource,
+            SourceName = sourceName,
+            InboundDateFrom = inboundDateFrom,
+            InboundDateTo = inboundDateTo,
+            HeatNo = heatNo,
+            Specification = specification,
+            LengthStatus = lengthStatus,
+            SurfaceCondition = surfaceCondition,
+            DefectReason = defectReason,
+            LiabilityType = liabilityType,
+            ProductionBatchNo = productionBatchNo,
+            ActualSpecification = actualSpecification,
+            OriginalSupplier = originalSupplier
         };
         if (!string.IsNullOrEmpty(filters))
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
@@ -214,10 +244,16 @@ public class InventoryController : ControllerBase
         if (pageSize > 5000) pageSize = 5000;
         OutboundQueryParams query = new()
         {
-            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
-            InventoryBatchId = inventoryBatchId, WarehouseId = warehouseId,
-            OutboundType = outboundType, StartDate = startDate, EndDate = endDate
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
+            IsDescending = isDescending,
+            InventoryBatchId = inventoryBatchId,
+            WarehouseId = warehouseId,
+            OutboundType = outboundType,
+            StartDate = startDate,
+            EndDate = endDate
         };
         if (!string.IsNullOrEmpty(filters))
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }

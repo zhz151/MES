@@ -1,13 +1,13 @@
 @page "/workorders/{WorkOrderId:int}/in-process-rework-plan/create"
 @page "/workorders/{WorkOrderId:int}/in-process-rework-plan/edit/{PlanId:int}"
 @using MES.Blazor.Services
-@using MES.Core.DTOs
 @using MES.Core.Models
 @using MES.Core.Enums
 @using MES.Blazor.Shared
 @using MES.Core.Constants
 @using MES.Blazor.Helpers
 @using MES.Blazor.Models
+@using MES.Core.DTOs.WorkOrder
 @using Microsoft.AspNetCore.Authorization
 @inject MaterialPlanService MaterialPlanService
 @inject MaterialPlanProcessGroupService ProcessGroupService

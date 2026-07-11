@@ -1,8 +1,33 @@
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
+using MES.Data.Entities.WorkOrder;
 
 namespace MES.Services.WorkOrder;
 
@@ -75,6 +100,21 @@ public class NotificationService : INotificationService
         {
             n.IsRead = true;
         }
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task CreateAsync(string notificationType, string title, string content, int? targetId = null, string? receiver = null)
+    {
+        _context.Notifications.Add(new Notification
+        {
+            NotificationType = notificationType,
+            TargetId = targetId,
+            Title = title,
+            Content = content,
+            IsRead = false,
+            Receiver = receiver ?? string.Empty,
+            CreatedTime = DateTimeOffset.Now
+        });
         await _context.SaveChangesAsync();
     }
 

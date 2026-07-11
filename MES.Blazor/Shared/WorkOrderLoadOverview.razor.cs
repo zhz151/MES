@@ -1,7 +1,7 @@
+using MES.Core.DTOs.Scheduling;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
-using MES.Core.DTOs;
 
 namespace MES.Blazor.Shared;
 
@@ -10,7 +10,7 @@ public partial class WorkOrderLoadOverview : ComponentBase
     [Inject] private Services.ProductionOverviewService OverviewService { get; set; } = null!;
     [Inject] private IJSRuntime JS { get; set; } = null!;
 
-    [Parameter] public string Title { get; set; } = "工单总览";
+    [Parameter] public string Title { get; set; } = "负载总览";
 
     private ProductionOverviewDto? _data;
     private bool _loading;

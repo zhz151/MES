@@ -6,11 +6,16 @@ using Microsoft.Extensions.Logging;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
-using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.DataExchange;
 using MES.Tests.Tests;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Warehouse;
+using MES.Core.Interfaces.DataExchange;
 using Moq;
 using OfficeOpenXml;
 
@@ -239,8 +244,10 @@ public class DataExchangeServiceTests : TestBase
         var ctx = CreateDbContext();
         ctx.StandardGradeMappings.Add(new StandardGradeMapping
         {
-            StandardGrade = "Q345B", PlantGrade = "Q345B",
-            Density = 7.85m, SpecialMaterial = true
+            StandardGrade = "Q345B",
+            PlantGrade = "Q345B",
+            Density = 7.85m,
+            SpecialMaterial = true
         });
         await ctx.SaveChangesAsync();
 
@@ -264,8 +271,10 @@ public class DataExchangeServiceTests : TestBase
         var ctx = CreateDbContext();
         ctx.CustomerProfiles.Add(new CustomerProfile
         {
-            CustomerCode = "C001", CustomerUnit = "测试客户",
-            Salesman = "张三", Status = Core.Enums.CustomerStatus.Active
+            CustomerCode = "C001",
+            CustomerUnit = "测试客户",
+            Salesman = "张三",
+            Status = Core.Enums.CustomerStatus.Active
         });
         await ctx.SaveChangesAsync();
 
@@ -503,8 +512,10 @@ public class DataExchangeServiceTests : TestBase
         var ctx = CreateDbContext();
         ctx.SupplierProfiles.Add(new SupplierProfile
         {
-            SupplierCode = "SU0001", SupplierName = "已有供应商",
-            MaterialCategory = "钢管", IsActive = true
+            SupplierCode = "SU0001",
+            SupplierName = "已有供应商",
+            MaterialCategory = "钢管",
+            IsActive = true
         });
         await ctx.SaveChangesAsync();
 

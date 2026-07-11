@@ -1,15 +1,42 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Models;
-using MES.Data;
-using MES.Data.Entities;
 using MES.Services.Quality;
 using MES.Tests.Tests;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Quality;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -22,7 +49,7 @@ public class FinalInspectionServiceTests : TestBase
     {
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, Mock.Of<IMemoryCache>());
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
@@ -134,7 +161,8 @@ public class FinalInspectionServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             InspectionDateFrom = new DateTime(2024, 2, 1),
             InspectionDateTo = new DateTime(2024, 2, 28)
         });
@@ -415,20 +443,27 @@ public class FinalInspectionServiceTests : TestBase
         var batch2 = await SeedBatchAsync(ctx, "BATCH002");
         ctx.FinalInspections.Add(new FinalInspection
         {
-            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
-            BatchNo = "BATCH001", ProductionBatchId = batch1.Id, Quantity = 10
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            ProductionBatchId = batch1.Id,
+            Quantity = 10
         });
         ctx.FinalInspections.Add(new FinalInspection
         {
-            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
-            BatchNo = "BATCH002", ProductionBatchId = batch2.Id, Quantity = 20
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH002",
+            ProductionBatchId = batch2.Id,
+            Quantity = 20
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "BatchNo", Operator = "contains", Value = "BATCH001" }
@@ -447,20 +482,29 @@ public class FinalInspectionServiceTests : TestBase
         var batch2 = await SeedBatchAsync(ctx, "B002");
         ctx.FinalInspections.Add(new FinalInspection
         {
-            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
-            BatchNo = "B001", ProductionBatchId = batch1.Id, Quantity = 10, MaterialName = "不锈钢"
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "B001",
+            ProductionBatchId = batch1.Id,
+            Quantity = 10,
+            MaterialName = "不锈钢"
         });
         ctx.FinalInspections.Add(new FinalInspection
         {
-            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
-            BatchNo = "B002", ProductionBatchId = batch2.Id, Quantity = 20, MaterialName = "碳钢"
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "B002",
+            ProductionBatchId = batch2.Id,
+            Quantity = 20,
+            MaterialName = "碳钢"
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "MaterialName", Operator = "in", Values = new List<string> { "不锈钢" } }
@@ -480,7 +524,8 @@ public class FinalInspectionServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "BatchNo", Operator = "contains", Value = "NONEXISTENT" }
@@ -500,13 +545,21 @@ public class FinalInspectionServiceTests : TestBase
         var batch2 = await SeedBatchAsync(ctx, "BATCH002");
         ctx.FinalInspections.Add(new FinalInspection
         {
-            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
-            BatchNo = "BATCH001", ProductionBatchId = batch1.Id, Quantity = 10, PlantGrade = "304"
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            ProductionBatchId = batch1.Id,
+            Quantity = 10,
+            PlantGrade = "304"
         });
         ctx.FinalInspections.Add(new FinalInspection
         {
-            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
-            BatchNo = "BATCH002", ProductionBatchId = batch2.Id, Quantity = 20, PlantGrade = "316L"
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH002",
+            ProductionBatchId = batch2.Id,
+            Quantity = 20,
+            PlantGrade = "316L"
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -539,9 +592,13 @@ public class FinalInspectionServiceTests : TestBase
         var batch = await SeedBatchAsync(ctx);
         ctx.FinalInspections.Add(new FinalInspection
         {
-            InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today,
-            BatchNo = "BATCH001", ProductionBatchId = batch.Id, Quantity = 10,
-            MaterialName = null, TagNo = null
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            ProductionBatchId = batch.Id,
+            Quantity = 10,
+            MaterialName = null,
+            TagNo = null
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

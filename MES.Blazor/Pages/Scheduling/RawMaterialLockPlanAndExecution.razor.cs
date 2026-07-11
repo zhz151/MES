@@ -5,8 +5,9 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Scheduling;
@@ -192,13 +193,13 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
         };
 
-        // G13: 订单需求调整
+        // G13: 工单需求调整
         var g13 = new List<ColumnDef>
         {
-            new() { Key = "IsUrging",             Label = "催单",           SortKey = "IsUrging",             FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
-            new() { Key = "IsBatchDelivery",      Label = "分批交货",       SortKey = "IsBatchDelivery",      FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
-            new() { Key = "IsPaused",             Label = "工单暂停",       SortKey = "IsPaused",             FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
-            new() { Key = "AdjustmentRemark",     Label = "调整备注",       SortKey = "AdjustmentRemark",     FilterType = "string",  Width = "200", GroupKey = 13, GroupName = "订单需求调整" },
+            new() { Key = "IsUrging",             Label = "催单",           SortKey = "IsUrging",             FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsBatchDelivery",      Label = "分批交货",       SortKey = "IsBatchDelivery",      FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsPaused",             Label = "工单暂停",       SortKey = "IsPaused",             FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "AdjustmentRemark",     Label = "调整备注",       SortKey = "AdjustmentRemark",     FilterType = "string",  Width = "200", GroupKey = 13, GroupName = "工单需求调整" },
         };
 
         // G15: 预执行（页面操作标记）
@@ -324,10 +325,10 @@ public partial class RawMaterialLockPlanAndExecution
 
         // 成品在购按紧急性分类
         _outsourceWeight_AJ = _allItems.Where(x => x.UrgencyLevel == "A+急").Sum(x => x.PendingOutsourceFinishWeight);
-        _outsourceWeight_A  = _allItems.Where(x => x.UrgencyLevel == "A急").Sum(x => x.PendingOutsourceFinishWeight);
-        _outsourceWeight_B  = _allItems.Where(x => x.UrgencyLevel == "B顺").Sum(x => x.PendingOutsourceFinishWeight);
-        _outsourceWeight_C  = _allItems.Where(x => x.UrgencyLevel == "C缓").Sum(x => x.PendingOutsourceFinishWeight);
-        _outsourceWeight_D  = _allItems.Where(x => x.UrgencyLevel == "D缓").Sum(x => x.PendingOutsourceFinishWeight);
+        _outsourceWeight_A = _allItems.Where(x => x.UrgencyLevel == "A急").Sum(x => x.PendingOutsourceFinishWeight);
+        _outsourceWeight_B = _allItems.Where(x => x.UrgencyLevel == "B顺").Sum(x => x.PendingOutsourceFinishWeight);
+        _outsourceWeight_C = _allItems.Where(x => x.UrgencyLevel == "C缓").Sum(x => x.PendingOutsourceFinishWeight);
+        _outsourceWeight_D = _allItems.Where(x => x.UrgencyLevel == "D缓").Sum(x => x.PendingOutsourceFinishWeight);
 
         // 待投料 = (工单总重量 - 外购成品) × 1.1 - 已投料，与订单总览 R1 对齐
         Func<RawMaterialLockPlanAndExecutionDto, decimal> pendingCalc = x =>
@@ -336,10 +337,10 @@ public partial class RawMaterialLockPlanAndExecution
         _pendingWeight = _allItems.Sum(x => Math.Max(0, pendingCalc(x)));
 
         _pendingWeight_AJ = _allItems.Where(x => x.UrgencyLevel == "A+急").Sum(x => Math.Max(0, pendingCalc(x)));
-        _pendingWeight_A  = _allItems.Where(x => x.UrgencyLevel == "A急").Sum(x => Math.Max(0, pendingCalc(x)));
-        _pendingWeight_B  = _allItems.Where(x => x.UrgencyLevel == "B顺").Sum(x => Math.Max(0, pendingCalc(x)));
-        _pendingWeight_C  = _allItems.Where(x => x.UrgencyLevel == "C缓").Sum(x => Math.Max(0, pendingCalc(x)));
-        _pendingWeight_D  = _allItems.Where(x => x.UrgencyLevel == "D缓").Sum(x => Math.Max(0, pendingCalc(x)));
+        _pendingWeight_A = _allItems.Where(x => x.UrgencyLevel == "A急").Sum(x => Math.Max(0, pendingCalc(x)));
+        _pendingWeight_B = _allItems.Where(x => x.UrgencyLevel == "B顺").Sum(x => Math.Max(0, pendingCalc(x)));
+        _pendingWeight_C = _allItems.Where(x => x.UrgencyLevel == "C缓").Sum(x => Math.Max(0, pendingCalc(x)));
+        _pendingWeight_D = _allItems.Where(x => x.UrgencyLevel == "D缓").Sum(x => Math.Max(0, pendingCalc(x)));
 
         _preInputCount = _allItems.Count(x => x.IsPreInput);
         _preInputWeight = _allItems.Where(x => x.IsPreInput).Sum(x => x.TotalWeight);
@@ -1359,22 +1360,36 @@ public partial class RawMaterialLockPlanAndExecution
 
     private static string GetMaterialPlanStatusText(int status) => status switch
     {
-        0 => "未计划", 1 => "部分", 2 => "理论满足", 3 => "满足", 4 => "超量", _ => "未知"
+        0 => "未计划",
+        1 => "部分",
+        2 => "理论满足",
+        3 => "满足",
+        4 => "超量",
+        _ => "未知"
     };
 
     private static string GetInputStatusText(int status) => status switch
     {
-        0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知"
+        0 => "未投料",
+        1 => "部分",
+        2 => "满足",
+        _ => "未知"
     };
 
     private static string GetFlowStatusText(int status) => status switch
     {
-        0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知"
+        0 => "未投料",
+        1 => "部分",
+        2 => "满足",
+        _ => "未知"
     };
 
     private static string GetValidMainNoStatusText(int status) => status switch
     {
-        0 => "未计划", 1 => "部分", 2 => "满足", _ => "未知"
+        0 => "未计划",
+        1 => "部分",
+        2 => "满足",
+        _ => "未知"
     };
 
     // ========== 颜色 ==========

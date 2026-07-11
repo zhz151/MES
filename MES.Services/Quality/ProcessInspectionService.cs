@@ -1,11 +1,45 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Quality;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
@@ -128,6 +162,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 Remark = r.Remark,
                 BatchNo = r.BatchNo!,
                 DataSource = r.DataSource,
+                ProductStatus = r.ProductStatus,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             })
@@ -176,7 +211,8 @@ public class ProcessInspectionService : IProcessInspectionService
                 PlantGrade = pi.PlantGrade,
                 Remark = pi.Remark,
                 CreatedTime = pi.CreatedTime,
-                UpdatedTime = pi.UpdatedTime
+                UpdatedTime = pi.UpdatedTime,
+                ProductStatus = pi.ProductStatus
             })
             .ToListAsync();
     }
@@ -205,7 +241,7 @@ public class ProcessInspectionService : IProcessInspectionService
             var inspectionDates = (await _context.ProcessInspections.Select(r => r.InspectionDate).Distinct().ToListAsync()).Select(d => d.ToString("yyyy-MM-dd")).OrderBy(x => x).ToList();
             var remarks = await _context.ProcessInspections.Where(r => r.Remark != null && r.Remark != "").Select(r => r.Remark!).Distinct().OrderBy(v => v).ToListAsync();
             var dataSources = await _context.ProcessInspections.Where(r => r.DataSource != null && r.DataSource != "").Select(r => r.DataSource!).Distinct().OrderBy(v => v).ToListAsync();
-
+            var productStatuses = await _context.ProcessInspections.Where(r => r.ProductStatus != null && r.ProductStatus != "").Select(r => r.ProductStatus!).Distinct().OrderBy(v => v).ToListAsync();
             return new Dictionary<string, List<string>>
             {
                 ["BatchNo"] = batchNos,
@@ -223,7 +259,8 @@ public class ProcessInspectionService : IProcessInspectionService
                 ["TagNo"] = tagNos,
                 ["PlantGrade"] = plantGrades,
                 ["InspectionDate"] = inspectionDates,
-                ["Remark"] = remarks
+                ["Remark"] = remarks,
+                ["ProductStatus"] = productStatuses
             };
         }) ?? new Dictionary<string, List<string>>();
     }
@@ -368,7 +405,9 @@ public class ProcessInspectionService : IProcessInspectionService
                 TagNo = request.TagNo,
                 PlantGrade = request.PlantGrade,
                 Remark = request.Remark,
-                DataSource = request.DataSource ?? "MANUAL"
+                DataSource = request.DataSource ?? "MANUAL",
+                ProductStatus = ProductStatusHelper.Calculate(request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem,
+                    pgByBatch.GetValueOrDefault(batchId) ?? new())
             };
 
             entities.Add(entity);
@@ -417,6 +456,7 @@ public class ProcessInspectionService : IProcessInspectionService
             Remark = e.Remark,
             BatchNo = e.BatchNo,
             DataSource = e.DataSource,
+            ProductStatus = e.ProductStatus,
             CreatedTime = e.CreatedTime,
             UpdatedTime = e.UpdatedTime
         }).ToList();

@@ -4,9 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.Materials;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.Interfaces.Materials;
 
 namespace MES.Tests.Controllers;
 
@@ -42,7 +43,9 @@ public class PurchaseOrderControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<PurchaseOrderDto>
         {
             Items = new List<PurchaseOrderDto> { new() { Id = 1, OrderNo = "PO001" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<PurchaseOrderQueryParams>())).ReturnsAsync(pagedResult);
 

@@ -3,7 +3,7 @@ namespace MES.Shared.Constants;
 public static class Roles
 {
     public const string Admin = "Admin";
-    
+
     public static class Directors
     {
         public const string Order = "OrderDirector";

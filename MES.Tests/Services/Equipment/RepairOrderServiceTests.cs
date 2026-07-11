@@ -1,11 +1,12 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Equipment;
 using MES.Tests.Tests;
+using MES.Data.Entities.Equipment;
+using MES.Core.DTOs.Equipment;
 
 namespace MES.Tests.Services;
 

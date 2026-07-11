@@ -2,6 +2,11 @@ using FluentAssertions;
 using MES.Core.Enums;
 using MES.Data.Entities;
 using MES.Services.Mapping;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Warehouse;
+using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 
 namespace MES.Tests.Services;
 
@@ -13,13 +18,13 @@ public class DtoMapperTests
     /// <summary>
     /// 构建一个最小 WorkOrder
     /// </summary>
-    private static WorkOrder MakeWo(string spec = "219*8",
+    private static WoEntity MakeWo(string spec = "219*8",
         LengthStatus lengthStatus = LengthStatus.Fixed,
         decimal odNeg = 0.5m, decimal odPos = 0.5m,
         decimal wtNeg = 0.5m, decimal wtPos = 0.5m,
         decimal? maxLength = 6000m)
     {
-        return new WorkOrder
+        return new WoEntity
         {
             WorkOrderNo = "WO-TEST",
             SalesOrderNo = "SO-TEST",

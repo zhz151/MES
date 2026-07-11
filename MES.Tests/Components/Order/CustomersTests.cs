@@ -1,10 +1,10 @@
 using Bunit;
 using FluentAssertions;
-using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Pages.Orders;
 using MES.Blazor.Services;
+using MES.Core.DTOs.Order;
 
 namespace MES.Tests.Components;
 

@@ -1,11 +1,45 @@
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Constants;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.WorkOrder;
 
 namespace MES.Services.Infrastructure;
 
@@ -165,7 +199,7 @@ public class ScanService : IScanService
         return null;
     }
 
-    private async Task<Data.Entities.ProductionBatch> FindBatchAsync(string batchNo)
+    private async Task<ProductionBatch> FindBatchAsync(string batchNo)
     {
         return await _context.ProductionBatches
             .AsNoTracking()
@@ -173,7 +207,7 @@ public class ScanService : IScanService
             ?? throw new BusinessException($"未找到批次：{batchNo}");
     }
 
-    private static ScanResolveResultDto BuildResult(Data.Entities.ProductionBatch batch, Data.Entities.ProcessGroup group)
+    private static ScanResolveResultDto BuildResult(ProductionBatch batch, ProcessGroup group)
     {
         var availableSections = new List<SectionOption>();
         foreach (var field in SectionFields)
@@ -215,25 +249,25 @@ public class ScanService : IScanService
         };
     }
 
-    private static int? GetSectionValue(Data.Entities.ProcessGroup group, string fieldName)
+    private static int? GetSectionValue(ProcessGroup group, string fieldName)
     {
         return fieldName switch
         {
-            nameof(Data.Entities.ProcessGroup.ColdRollDraw) => group.ColdRollDraw,
-            nameof(Data.Entities.ProcessGroup.OilPipeCut) => group.OilPipeCut,
-            nameof(Data.Entities.ProcessGroup.Degrease) => group.Degrease,
-            nameof(Data.Entities.ProcessGroup.Solution) => group.Solution,
-            nameof(Data.Entities.ProcessGroup.Straighten) => group.Straighten,
-            nameof(Data.Entities.ProcessGroup.Cut) => group.Cut,
-            nameof(Data.Entities.ProcessGroup.ThicknessMeasure) => group.ThicknessMeasure,
-            nameof(Data.Entities.ProcessGroup.Pickle) => group.Pickle,
-            nameof(Data.Entities.ProcessGroup.OuterPolish) => group.OuterPolish,
-            nameof(Data.Entities.ProcessGroup.InnerGrinding) => group.InnerGrinding,
-            nameof(Data.Entities.ProcessGroup.OuterSpotGrinding) => group.OuterSpotGrinding,
-            nameof(Data.Entities.ProcessGroup.Inspection) => group.Inspection,
-            nameof(Data.Entities.ProcessGroup.WeldingHead) => group.WeldingHead,
-            nameof(Data.Entities.ProcessGroup.Lubrication) => group.Lubrication,
-            nameof(Data.Entities.ProcessGroup.Warehouse) => group.Warehouse,
+            nameof(ProcessGroup.ColdRollDraw) => group.ColdRollDraw,
+            nameof(ProcessGroup.OilPipeCut) => group.OilPipeCut,
+            nameof(ProcessGroup.Degrease) => group.Degrease,
+            nameof(ProcessGroup.Solution) => group.Solution,
+            nameof(ProcessGroup.Straighten) => group.Straighten,
+            nameof(ProcessGroup.Cut) => group.Cut,
+            nameof(ProcessGroup.ThicknessMeasure) => group.ThicknessMeasure,
+            nameof(ProcessGroup.Pickle) => group.Pickle,
+            nameof(ProcessGroup.OuterPolish) => group.OuterPolish,
+            nameof(ProcessGroup.InnerGrinding) => group.InnerGrinding,
+            nameof(ProcessGroup.OuterSpotGrinding) => group.OuterSpotGrinding,
+            nameof(ProcessGroup.Inspection) => group.Inspection,
+            nameof(ProcessGroup.WeldingHead) => group.WeldingHead,
+            nameof(ProcessGroup.Lubrication) => group.Lubrication,
+            nameof(ProcessGroup.Warehouse) => group.Warehouse,
             _ => null
         };
     }

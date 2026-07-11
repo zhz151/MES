@@ -1,11 +1,12 @@
 @page "/workorders/{WorkOrderId:int}/piercing-plan/create"
 @using System.Text.Json
 @using MES.Blazor.Services
-@using MES.Core.DTOs
 @using MES.Core.Enums
 @using MES.Blazor.Shared
 @using MES.Core.Constants
 @using MES.Blazor.Helpers
+@using MES.Core.DTOs.Batch
+@using MES.Core.DTOs.WorkOrder
 @using Microsoft.AspNetCore.Authorization
 @inject MaterialPlanService MaterialPlanService
 @inject WorkOrderService WorkOrderService

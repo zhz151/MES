@@ -4,10 +4,10 @@ public enum SettlementMethod
 {
 
     Weighing,
-    
+
 
     WeighingNegative,
-    
+
 
     Theoretical
 }

@@ -4,6 +4,6 @@ public enum RequirementType
 {
 
     Normal,
-    
+
     Special
 }

@@ -5,9 +5,9 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.Constants;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Configuration;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Configuration;

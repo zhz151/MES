@@ -7,11 +7,12 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Shared.Constants;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Materials;
@@ -463,7 +464,8 @@ public partial class PurchaseOrders : IAsyncDisposable
                 builder.OpenComponent<MudLink>(0);
                 builder.AddAttribute(1, "Typo", Typo.body2);
                 builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => ViewDetail(item.Id)));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => {
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 =>
+                {
                     b2.OpenElement(4, "strong");
                     b2.AddContent(5, item.OrderNo);
                     b2.CloseElement();

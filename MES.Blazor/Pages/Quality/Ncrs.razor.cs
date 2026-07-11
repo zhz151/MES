@@ -4,7 +4,6 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
@@ -12,6 +11,7 @@ using MES.Blazor.Shared;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Quality;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -149,6 +149,7 @@ public partial class Ncrs
 
         // 状态
         new() { Key = "Status",               Label = "状态",        SortKey = "status",              FilterType = "enum",   Width = "80",
+               GroupKey = 6, GroupName = "状态",
                EnumOptions = new List<EnumOption>
                {
                    new("Processing", "处理中"), new("Closed", "已关闭"),
@@ -707,7 +708,11 @@ public partial class Ncrs
         // 操作列尾随占位符（160px）
         result.Add(new GroupHeaderInfo
         {
-            GroupKey = 0, GroupName = "", TotalWidth = 160, ColumnCount = 0, CssClass = ""
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 160,
+            ColumnCount = 0,
+            CssClass = ""
         });
         return result;
     }
@@ -721,6 +726,7 @@ public partial class Ncrs
             3 => "col-g3",
             4 => "col-g4",
             5 => "col-g5",
+            6 => "col-g6",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -736,6 +742,7 @@ public partial class Ncrs
             3 => "col-g3-cell",
             4 => "col-g4-cell",
             5 => "col-g5-cell",
+            6 => "col-g6-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";

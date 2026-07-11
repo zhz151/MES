@@ -1,5 +1,5 @@
-@using MES.Core.DTOs
 @using MES.Blazor.Helpers
+@using MES.Core.DTOs.Batch
 @inject ISnackbar Snackbar
 
 <MudDialog>
@@ -44,7 +44,6 @@
                         <MudTh Style="width:70px;">班次</MudTh>
                         <MudTh Style="width:80px;">加工支数</MudTh>
                         <MudTh Style="width:80px;">加工重量</MudTh>
-                        <MudTh Style="width:60px;">是否成品</MudTh>
                         <MudTh Style="width:70px;">断切倍数</MudTh>
                         <MudTh Style="width:100px;">成品断切长度</MudTh>
                         <MudTh Style="width:80px;">切后支数</MudTh>
@@ -101,11 +100,6 @@
                                              Size="Size.Small" Variant="Variant.Outlined"
                                              Min="0" HideSpinButtons="true"
                                              Class="my-n2" Style="width:80px;" />
-                        </MudTd>
-                        <MudTd>
-                            <MudCheckBox Value="@r.IsFinished"
-                                         ValueChanged="@((bool v) => r.IsFinished = v)"
-                                         Size="Size.Small" Class="my-n2" />
                         </MudTd>
                         <MudTd>
                             <MudNumericField T="decimal?"
@@ -205,8 +199,7 @@
                 ExecDate = DateTime.Today.ToString("yyyy-MM-dd"),
                 ProcessName = group.ProcessName,
                 ManufacturingSpec = group.ManufacturingSpec,
-                ProcessGroupId = group.Id,
-                IsFinished = false
+                ProcessGroupId = group.Id
             });
         }
     }
@@ -255,7 +248,6 @@
                     Shift = string.IsNullOrEmpty(r.Shift) ? null : r.Shift,
                     Quantity = r.Quantity,
                     Weight = r.Weight,
-                    IsFinished = r.IsFinished,
                     CuttingMultiple = r.CuttingMultiple,
                     FinishedCutLength = r.FinishedCutLength,
                     PostCutQuantity = r.PostCutQuantity,
@@ -343,7 +335,6 @@
         public string? Shift { get; set; }
         public int? Quantity { get; set; }
         public decimal? Weight { get; set; }
-        public bool IsFinished { get; set; }
         public decimal? CuttingMultiple { get; set; }
         public decimal? FinishedCutLength { get; set; }
         public int? PostCutQuantity { get; set; }

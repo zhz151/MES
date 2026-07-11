@@ -1,13 +1,47 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Batch;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
@@ -91,7 +125,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 RecoveryRemark = s.OutsourceRecoveries
                     .OrderByDescending(r => r.RecoveryDate)
                     .Select(r => r.Remark)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                ProductStatus = s.ProductStatus
             })
             .ToListAsync();
     }
@@ -215,6 +250,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             ("isurgent", true) => queryable.OrderByDescending(s => s.IsUrgent),
             ("remark", false) => queryable.OrderBy(s => s.Remark ?? ""),
             ("remark", true) => queryable.OrderByDescending(s => s.Remark ?? ""),
+            ("productstatus", false) => queryable.OrderBy(s => s.ProductStatus ?? ""),
+            ("productstatus", true) => queryable.OrderByDescending(s => s.ProductStatus ?? ""),
             ("datasource", false) => queryable.OrderBy(s => s.DataSource ?? ""),
             ("datasource", true) => queryable.OrderByDescending(s => s.DataSource ?? ""),
             ("updatedtime", false) => queryable.OrderBy(s => s.UpdatedTime),
@@ -259,7 +296,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 RecoveryRemark = s.OutsourceRecoveries
                     .OrderByDescending(r => r.RecoveryDate)
                     .Select(r => r.Remark)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                ProductStatus = s.ProductStatus
             })
             .ToListAsync();
 
@@ -323,6 +361,13 @@ public class SectionOutsourceService : ISectionOutsourceService
             Remark = request.Remark,
             DataSource = request.DataSource ?? "MANUAL"
         };
+
+        // 计算制造状态
+        var processGroups = await _context.ProcessGroups
+            .Where(pg => pg.ProductionBatchId == batch.Id)
+            .ToListAsync();
+        entity.ProductStatus = ProductStatusHelper.Calculate(
+            entity.ProcessName, entity.ManufacturingSpec, batch.ManufacturingItem, processGroups);
 
         _context.SectionOutsources.Add(entity);
         await _context.SaveChangesAsync();
@@ -458,6 +503,14 @@ public class SectionOutsourceService : ISectionOutsourceService
                     sequenceNumber = pg.GetSectionSequence(request.SectionName) ?? 0;
             }
 
+            // 计算制造状态
+            var batchProcessGroups = pgByBatch.GetValueOrDefault(batch.Id, new List<ProcessGroup>());
+            var productStatus = ProductStatusHelper.Calculate(
+                request.ProcessName,
+                request.ManufacturingSpec,
+                batch.ManufacturingItem,
+                batchProcessGroups);
+
             entities.Add(new SectionOutsource
             {
                 ProductionBatchId = batch.Id,
@@ -477,7 +530,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 ExpectedReturnDate = request.ExpectedReturnDate,
                 IsUrgent = request.IsUrgent,
                 Remark = request.Remark,
-                DataSource = "MANUAL"
+                DataSource = "MANUAL",
+                ProductStatus = productStatus
             });
         }
 
@@ -983,6 +1037,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["OutsourceSpec"] = s.OutsourceSpec ?? "",
             ["ExpectedReturnDate"] = s.ExpectedReturnDate?.ToString("yyyy-MM-dd") ?? "",
             ["IsUrgent"] = s.IsUrgent ? "是" : "否",
+            ["ProductStatus"] = s.ProductStatus ?? "在制",
             ["TotalRecoveredQuantity"] = s.OutsourceRecoveries.Sum(r => r.RecoveryQuantity) ?? 0,
             ["TotalRecoveredWeight"] = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight) ?? 0,
             ["TotalUnprocessedQuantity"] = s.OutsourceRecoveries.Sum(r => r.UnprocessedQuantity) ?? 0,
@@ -1033,6 +1088,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["OutsourceSpec"] = s.OutsourceSpec ?? "",
             ["ExpectedReturnDate"] = s.ExpectedReturnDate?.ToString("yyyy-MM-dd") ?? "",
             ["IsUrgent"] = s.IsUrgent ? "是" : "否",
+            ["ProductStatus"] = s.ProductStatus ?? "在制",
             ["TotalRecoveredQuantity"] = s.TotalRecoveredQuantity ?? 0,
             ["TotalRecoveredWeight"] = s.TotalRecoveredWeight ?? 0,
             ["TotalUnprocessedQuantity"] = s.TotalUnprocessedQuantity ?? 0,
@@ -1193,6 +1249,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 s.TagNo,
                 s.PlantGrade,
                 s.OutsourceSpec,
+                s.ProductStatus,
                 s.Remark,
                 s.SendOutDate,
                 s.ExpectedReturnDate,
@@ -1214,6 +1271,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 ["TagNo"] = results.Select(x => x.TagNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["OutsourceSpec"] = results.Select(x => x.OutsourceSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["ProductStatus"] = results.Where(x => x.ProductStatus != null).Select(x => x.ProductStatus!).Distinct().OrderBy(x => x).ToList()!,
                 ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["SendOutDate"] = results.Select(x => x.SendOutDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
                 ["DataSource"] = results.Select(x => x.DataSource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
@@ -1257,6 +1315,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             IsUrgent = entity.IsUrgent,
             Remark = entity.Remark,
             DataSource = entity.DataSource,
+            ProductStatus = entity.ProductStatus,
             CreatedTime = entity.CreatedTime,
             UpdatedTime = entity.UpdatedTime
         };
@@ -1379,8 +1438,9 @@ public class SectionOutsourceService : ISectionOutsourceService
                 DataSource = s.DataSource,
                 CreatedTime = s.CreatedTime,
                 UpdatedTime = s.UpdatedTime,
+                ProductStatus = s.ProductStatus,
             })
             .ToListAsync();
     }
 
-    }
+}

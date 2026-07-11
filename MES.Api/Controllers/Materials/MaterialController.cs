@@ -1,10 +1,12 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.Interfaces.Materials;
 
 namespace MES.Api.Controllers.Materials;
 

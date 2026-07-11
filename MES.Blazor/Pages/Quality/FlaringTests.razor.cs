@@ -5,10 +5,11 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Quality;
@@ -207,11 +208,18 @@ public partial class FlaringTests
         _editCache[item.Id] = new EditCache
         {
             InspectionDate = item.InspectionDate.ToString("yyyy-MM-dd"),
-            Inspector = item.Inspector, FurnaceNo = item.FurnaceNo, Grade = item.Grade,
-            Specification = item.Specification, SampleNo = item.SampleNo, SampleSize = item.SampleSize,
-            InspectionStandard = item.InspectionStandard, MandrelTaper = item.MandrelTaper,
-            FlaredDiameter = item.FlaredDiameter, FlaringRate = item.FlaringRate,
-            Observation = item.Observation, Judgment = item.Judgment
+            Inspector = item.Inspector,
+            FurnaceNo = item.FurnaceNo,
+            Grade = item.Grade,
+            Specification = item.Specification,
+            SampleNo = item.SampleNo,
+            SampleSize = item.SampleSize,
+            InspectionStandard = item.InspectionStandard,
+            MandrelTaper = item.MandrelTaper,
+            FlaredDiameter = item.FlaredDiameter,
+            FlaringRate = item.FlaringRate,
+            Observation = item.Observation,
+            Judgment = item.Judgment
         };
     }
 
@@ -227,11 +235,19 @@ public partial class FlaringTests
         {
             var result = await FlaringTestService.UpdateAsync(item.Id, new UpdateFlaringTestRequest
             {
-                InspectionDate = date, Inspector = cache.Inspector, FurnaceNo = cache.FurnaceNo,
-                Grade = cache.Grade, Specification = cache.Specification, SampleNo = cache.SampleNo,
-                SampleSize = cache.SampleSize, InspectionStandard = cache.InspectionStandard,
-                MandrelTaper = cache.MandrelTaper, FlaredDiameter = cache.FlaredDiameter,
-                FlaringRate = cache.FlaringRate, Observation = cache.Observation, Judgment = cache.Judgment
+                InspectionDate = date,
+                Inspector = cache.Inspector,
+                FurnaceNo = cache.FurnaceNo,
+                Grade = cache.Grade,
+                Specification = cache.Specification,
+                SampleNo = cache.SampleNo,
+                SampleSize = cache.SampleSize,
+                InspectionStandard = cache.InspectionStandard,
+                MandrelTaper = cache.MandrelTaper,
+                FlaredDiameter = cache.FlaredDiameter,
+                FlaringRate = cache.FlaringRate,
+                Observation = cache.Observation,
+                Judgment = cache.Judgment
             });
             if (result.Success && result.Data != null)
             {
@@ -344,9 +360,11 @@ public partial class FlaringTests
         if (!string.IsNullOrEmpty(_dateTo)) extras["dateTo"] = _dateTo;
         await PageState.SaveAsync("flaring-test", new PageState
         {
-            SortBy = sortColumn, IsDescending = sortDescending,
+            SortBy = sortColumn,
+            IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPage, Extras = extras
+            PageIndex = _currentPage,
+            Extras = extras
         });
     }
 
@@ -357,7 +375,8 @@ public partial class FlaringTests
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
             ["ContentText"] = $"确定要删除生产编号 \"{item.FurnaceNo}\" 的扩口检验记录吗？\n\n删除后数据将不可恢复！",
-            ["ConfirmText"] = "确认删除", ["Color"] = Color.Error
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error
         });
         var dr = await dialog.Result;
         if (!dr.Canceled)

@@ -2,9 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.Equipment;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Shared;
+using MES.Core.Interfaces.Equipment;
 
 namespace MES.Tests.Controllers;
 
@@ -28,7 +29,9 @@ public class MaintenanceOrderControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<MaintenanceOrderListDto>
         {
             Items = new List<MaintenanceOrderListDto> { new() { Id = 1, EquipmentName = "设备A" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<MaintenanceOrderQueryParams>())).ReturnsAsync(pagedResult);
 

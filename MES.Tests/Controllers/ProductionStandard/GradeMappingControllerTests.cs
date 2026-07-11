@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.ProductionStandard;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.DTOs.Shared;
 
 namespace MES.Tests.Controllers;
 
@@ -26,7 +28,9 @@ public class GradeMappingControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<StandardGradeMappingDto>
         {
             Items = new List<StandardGradeMappingDto> { new() { Id = 1, PlantGrade = "304" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 
@@ -181,7 +185,7 @@ public class GradeMappingControllerTests : ControllerTestBase
     public async Task PrintGradeMappingBatch_ReturnsOk()
     {
         // Arrange
-        _serviceMock.Setup(x => x.PrintGradeMappingBatchAsync(It.IsAny<int[]>()))
+        _serviceMock.Setup(x => x.PrintGradeMappingBatchAsync(It.IsAny<int[]>(), It.IsAny<List<PrintColumnDef>>()))
             .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
 
         // Act
@@ -211,7 +215,7 @@ public class GradeMappingControllerTests : ControllerTestBase
     public async Task PrintGradeMappingAll_ReturnsOk()
     {
         // Arrange
-        _serviceMock.Setup(x => x.PrintGradeMappingAllAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>()))
+        _serviceMock.Setup(x => x.PrintGradeMappingAllAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<List<PrintColumnDef>?>()))
             .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
 
         // Act

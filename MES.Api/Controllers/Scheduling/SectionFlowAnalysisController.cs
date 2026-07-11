@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Services.Printing;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.Interfaces.Scheduling;
 
 namespace MES.Api.Controllers.Scheduling;
 

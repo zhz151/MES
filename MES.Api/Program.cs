@@ -12,9 +12,9 @@ using MES.Api.Middlewares;
 using MES.Api.Services;
 using MES.Api.Utils;
 using MES.Auth.Services;
-using MES.Core.Interfaces;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Auth;
 using MES.Data.Seed;
 using MES.Services;
 using MES.Services.Batch;
@@ -29,9 +29,22 @@ using MES.Services.DataFix;
 using MES.Services.Order;
 using MES.Services.Configuration;
 using MES.Services.ProductionStandard;
+using MES.Services.Report;
 using MES.Services.Scheduling;
 using QuestPDF.Infrastructure;
 using MES.Shared.Settings;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -234,7 +247,11 @@ builder.Services.AddScoped<IFinalInspectionPlanService, FinalInspectionPlanServi
 // 质量过程跟踪
 builder.Services.AddScoped<IQualityProcessTrackingService, QualityProcessTrackingService>();
 
+// ========== 报表服务 ==========
+builder.Services.AddScoped<ReportService>();
+
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUserService>();
 
 builder.Services.AddCors(options =>
 {

@@ -1,5 +1,15 @@
 using MES.Core.Enums;
-using MES.Data.Entities;
+using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Warehouse;
 
 namespace MES.Services;
 
@@ -12,7 +22,7 @@ internal static class PlanRateCalculator
     /// 从 6 种用料计划数据计算工单级满足率 + 状态
     /// </summary>
     public static (decimal rate, int status) ComputeWorkOrderRate(
-        Data.Entities.WorkOrder wo,
+        WoEntity wo,
         List<PurchaseSemiPlan> semiPlans,
         List<PurchaseFinishedPlan> finishPlans,
         List<InventoryPlan> inventoryPlans,
@@ -52,7 +62,7 @@ internal static class PlanRateCalculator
         return (totalRate, (int)status);
     }
 
-    private static decimal CalculatePlanRate(Data.Entities.WorkOrder wo, List<object> plans, bool isSemi, bool isPiercing)
+    private static decimal CalculatePlanRate(WoEntity wo, List<object> plans, bool isSemi, bool isPiercing)
     {
         if (wo.LengthStatus == LengthStatus.Fixed)
         {
@@ -102,7 +112,7 @@ internal static class PlanRateCalculator
         }
     }
 
-    private static decimal CalculateInventoryPlanRate(Data.Entities.WorkOrder wo, List<InventoryPlan> plans)
+    private static decimal CalculateInventoryPlanRate(WoEntity wo, List<InventoryPlan> plans)
     {
         if (wo.LengthStatus == LengthStatus.Fixed)
         {
@@ -118,7 +128,7 @@ internal static class PlanRateCalculator
         }
     }
 
-    private static decimal CalculateInProcessReworkPlanRate(Data.Entities.WorkOrder wo, List<InProcessReworkPlan> plans)
+    private static decimal CalculateInProcessReworkPlanRate(WoEntity wo, List<InProcessReworkPlan> plans)
     {
         if (wo.LengthStatus == LengthStatus.Fixed)
         {

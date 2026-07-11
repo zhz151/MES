@@ -2,10 +2,11 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.Interfaces.ProductionStandard;
 
 namespace MES.Api.Controllers.ProductionStandard;
 
@@ -113,7 +114,7 @@ public class GradeMappingController : ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids);
+        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids, null);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
@@ -127,7 +128,7 @@ public class GradeMappingController : ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintGradeMappingAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var pdfBytes = await _service.PrintGradeMappingAllAsync(request.Keyword, request.SortBy, request.IsDescending, null);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
@@ -142,7 +143,7 @@ public class GradeMappingController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids);
+        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids, null);
         return File(pdfBytes, "application/pdf", "牌号对照打印.pdf");
     }
 
@@ -156,7 +157,7 @@ public class GradeMappingController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _service.PrintGradeMappingAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var pdfBytes = await _service.PrintGradeMappingAllAsync(request.Keyword, request.SortBy, request.IsDescending, null);
         return File(pdfBytes, "application/pdf", "牌号对照列表.pdf");
     }
 

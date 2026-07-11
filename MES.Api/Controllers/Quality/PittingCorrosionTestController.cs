@@ -1,10 +1,10 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Quality;
+using MES.Core.Interfaces.Quality;
 
 namespace MES.Api.Controllers.Quality;
 
@@ -38,9 +38,13 @@ public class PittingCorrosionTestController : ControllerBase
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams
         {
-            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
-            SortBy = sortBy ?? "inspectiondate", IsDescending = isDescending,
-            InspectionDateFrom = inspectionDateFrom, InspectionDateTo = inspectionDateTo
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = sortBy ?? "inspectiondate",
+            IsDescending = isDescending,
+            InspectionDateFrom = inspectionDateFrom,
+            InspectionDateTo = inspectionDateTo
         };
         if (!string.IsNullOrEmpty(filters))
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }

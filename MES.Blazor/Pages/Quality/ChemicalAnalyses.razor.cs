@@ -5,10 +5,11 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Quality;
@@ -541,9 +542,21 @@ public partial class ChemicalAnalyses
             case "AnalysisStandard":
                 RenderEditableString(builder, isEditing, cache?.AnalysisStandard, v => { if (cache != null) cache.AnalysisStandard = v; }, item.AnalysisStandard);
                 break;
-            case "C": case "Si": case "Mn": case "P": case "S":
-            case "Ni": case "Cr": case "Mo": case "Cu": case "N":
-            case "Nb": case "Ti": case "Fe": case "Al": case "W":
+            case "C":
+            case "Si":
+            case "Mn":
+            case "P":
+            case "S":
+            case "Ni":
+            case "Cr":
+            case "Mo":
+            case "Cu":
+            case "N":
+            case "Nb":
+            case "Ti":
+            case "Fe":
+            case "Al":
+            case "W":
                 RenderEditableDecimal(builder, isEditing, cache, col.Key, item);
                 break;
             case "UpdatedTime":
@@ -610,17 +623,41 @@ public partial class ChemicalAnalyses
 
     private static decimal? GetDecimalValue(ChemicalAnalysisDto item, string key) => key switch
     {
-        "C" => item.C, "Si" => item.Si, "Mn" => item.Mn, "P" => item.P, "S" => item.S,
-        "Ni" => item.Ni, "Cr" => item.Cr, "Mo" => item.Mo, "Cu" => item.Cu, "N" => item.N,
-        "Nb" => item.Nb, "Ti" => item.Ti, "Fe" => item.Fe, "Al" => item.Al, "W" => item.W,
+        "C" => item.C,
+        "Si" => item.Si,
+        "Mn" => item.Mn,
+        "P" => item.P,
+        "S" => item.S,
+        "Ni" => item.Ni,
+        "Cr" => item.Cr,
+        "Mo" => item.Mo,
+        "Cu" => item.Cu,
+        "N" => item.N,
+        "Nb" => item.Nb,
+        "Ti" => item.Ti,
+        "Fe" => item.Fe,
+        "Al" => item.Al,
+        "W" => item.W,
         _ => null
     };
 
     private static decimal? GetDecimalFromCache(EditCache cache, string key) => key switch
     {
-        "C" => cache.C, "Si" => cache.Si, "Mn" => cache.Mn, "P" => cache.P, "S" => cache.S,
-        "Ni" => cache.Ni, "Cr" => cache.Cr, "Mo" => cache.Mo, "Cu" => cache.Cu, "N" => cache.N,
-        "Nb" => cache.Nb, "Ti" => cache.Ti, "Fe" => cache.Fe, "Al" => cache.Al, "W" => cache.W,
+        "C" => cache.C,
+        "Si" => cache.Si,
+        "Mn" => cache.Mn,
+        "P" => cache.P,
+        "S" => cache.S,
+        "Ni" => cache.Ni,
+        "Cr" => cache.Cr,
+        "Mo" => cache.Mo,
+        "Cu" => cache.Cu,
+        "N" => cache.N,
+        "Nb" => cache.Nb,
+        "Ti" => cache.Ti,
+        "Fe" => cache.Fe,
+        "Al" => cache.Al,
+        "W" => cache.W,
         _ => null
     };
 

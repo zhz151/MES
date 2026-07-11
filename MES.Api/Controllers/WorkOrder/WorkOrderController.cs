@@ -1,10 +1,11 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.WorkOrder;
 
 namespace MES.Api.Controllers.WorkOrder;
 
@@ -55,14 +56,27 @@ public class WorkOrderController : ControllerBase
         if (pageSize > 5000) pageSize = 5000;
         WorkOrderQueryParams query = new()
         {
-            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
-            SalesOrderNo = salesOrderNo, ProductionMainNo = productionMainNo, ProductionSubNo = productionSubNo,
-            Status = status, WorkOrderStatus = workOrderStatus, MaterialName = materialName,
-            Specification = specification, DeliveryDateStart = deliveryDateStart, DeliveryDateEnd = deliveryDateEnd,
-            Salesman = salesman, EndCustomer = endCustomer, PlantGrade = plantGrade,
-            IncludeCancelled = includeCancelled, MaterialPlanStatus = materialPlanStatus,
-            MainNoMaterialPlanStatus = mainNoMaterialPlanStatus, OrderMaterialPlanStatus = orderMaterialPlanStatus,
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
+            IsDescending = isDescending,
+            SalesOrderNo = salesOrderNo,
+            ProductionMainNo = productionMainNo,
+            ProductionSubNo = productionSubNo,
+            Status = status,
+            WorkOrderStatus = workOrderStatus,
+            MaterialName = materialName,
+            Specification = specification,
+            DeliveryDateStart = deliveryDateStart,
+            DeliveryDateEnd = deliveryDateEnd,
+            Salesman = salesman,
+            EndCustomer = endCustomer,
+            PlantGrade = plantGrade,
+            IncludeCancelled = includeCancelled,
+            MaterialPlanStatus = materialPlanStatus,
+            MainNoMaterialPlanStatus = mainNoMaterialPlanStatus,
+            OrderMaterialPlanStatus = orderMaterialPlanStatus,
             PlanTypeFilter = planTypeFilter
         };
         if (!string.IsNullOrEmpty(filters))
@@ -145,13 +159,23 @@ public class WorkOrderController : ControllerBase
         if (pageSize > 5000) pageSize = 5000;
         WorkOrderQueryParams query = new()
         {
-            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
-            SalesOrderNo = salesOrderNo, ProductionMainNo = productionMainNo, ProductionSubNo = productionSubNo,
-            Status = status, Specification = specification,
-            DeliveryDateStart = deliveryDateStart, DeliveryDateEnd = deliveryDateEnd,
-            Salesman = salesman, EndCustomer = endCustomer, PlantGrade = plantGrade,
-            SignDateFrom = signDateFrom, SignDateTo = signDateTo
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
+            IsDescending = isDescending,
+            SalesOrderNo = salesOrderNo,
+            ProductionMainNo = productionMainNo,
+            ProductionSubNo = productionSubNo,
+            Status = status,
+            Specification = specification,
+            DeliveryDateStart = deliveryDateStart,
+            DeliveryDateEnd = deliveryDateEnd,
+            Salesman = salesman,
+            EndCustomer = endCustomer,
+            PlantGrade = plantGrade,
+            SignDateFrom = signDateFrom,
+            SignDateTo = signDateTo
         };
         if (!string.IsNullOrEmpty(filters))
         {
@@ -188,14 +212,24 @@ public class WorkOrderController : ControllerBase
         if (pageSize > 5000) pageSize = 5000;
         WorkOrderQueryParams query = new()
         {
-            PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending,
-            SalesOrderNo = salesOrderNo, ProductionMainNo = productionMainNo, ProductionSubNo = productionSubNo,
-            Status = status, Specification = specification,
-            DeliveryDateStart = deliveryDateStart, DeliveryDateEnd = deliveryDateEnd,
-            Salesman = salesman, EndCustomer = endCustomer, PlantGrade = plantGrade,
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
+            IsDescending = isDescending,
+            SalesOrderNo = salesOrderNo,
+            ProductionMainNo = productionMainNo,
+            ProductionSubNo = productionSubNo,
+            Status = status,
+            Specification = specification,
+            DeliveryDateStart = deliveryDateStart,
+            DeliveryDateEnd = deliveryDateEnd,
+            Salesman = salesman,
+            EndCustomer = endCustomer,
+            PlantGrade = plantGrade,
             PlanTypeFilter = planTypeFilter,
-            SignDateFrom = signDateFrom, SignDateTo = signDateTo
+            SignDateFrom = signDateFrom,
+            SignDateTo = signDateTo
         };
         if (!string.IsNullOrEmpty(filters))
         {

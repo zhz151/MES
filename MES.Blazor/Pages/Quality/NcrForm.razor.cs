@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MES.Blazor.Helpers;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Quality;
 
 namespace MES.Blazor.Pages.Quality;
 

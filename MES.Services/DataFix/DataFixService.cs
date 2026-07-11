@@ -133,7 +133,7 @@ public class DataFixService : IDataFixService
                 bool changed = false;
 
                 // 修正 SequenceNumber
-                var newSeq = pg.GetSectionSequence( rec.SectionName);
+                var newSeq = pg.GetSectionSequence(rec.SectionName);
                 if (newSeq.HasValue && rec.SequenceNumber != newSeq.Value)
                 {
                     rec.SequenceNumber = newSeq.Value;
@@ -162,7 +162,7 @@ public class DataFixService : IDataFixService
             {
                 bool changed = false;
 
-                var newSeq = pg.GetSectionSequence( insp.SectionName);
+                var newSeq = pg.GetSectionSequence(insp.SectionName);
                 if (newSeq.HasValue && insp.SequenceNumber != newSeq.Value)
                 {
                     insp.SequenceNumber = newSeq.Value;
@@ -190,7 +190,7 @@ public class DataFixService : IDataFixService
             {
                 bool changed = false;
 
-                var newSeq = pg.GetSectionSequence( os.SectionName);
+                var newSeq = pg.GetSectionSequence(os.SectionName);
                 if (newSeq.HasValue && os.SequenceNumber != newSeq.Value)
                 {
                     os.SequenceNumber = newSeq.Value;

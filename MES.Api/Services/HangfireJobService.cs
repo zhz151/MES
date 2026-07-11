@@ -1,7 +1,7 @@
 // 文件路径: MES.Api/Services/HangfireJobService.cs
 
-using MES.Core.Interfaces;
 using MES.Data;
+using MES.Core.Interfaces.Quality;
 using Microsoft.EntityFrameworkCore;
 
 namespace MES.Api.Services;

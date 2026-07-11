@@ -2,6 +2,9 @@ using FluentAssertions;
 using MES.Core.Enums;
 using MES.Data.Entities;
 using MES.Services;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.WorkOrder;
 
 namespace MES.Tests.Services;
 
@@ -12,9 +15,9 @@ public class PlanRateCalculatorTests
 {
     // ========== Helper：快速构建 WorkOrder ==========
 
-    private static WorkOrder MakeWo(LengthStatus lengthStatus, int totalQty = 100, decimal totalWeight = 10000m)
+    private static MES.Data.Entities.WorkOrder.WorkOrder MakeWo(LengthStatus lengthStatus, int totalQty = 100, decimal totalWeight = 10000m)
     {
-        return new WorkOrder
+        return new MES.Data.Entities.WorkOrder.WorkOrder
         {
             WorkOrderNo = "WO-TEST",
             LengthStatus = lengthStatus,

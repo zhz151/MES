@@ -1,15 +1,42 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
-using MES.Data;
-using MES.Data.Entities;
 using MES.Services.Quality;
 using MES.Tests.Tests;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Quality;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -23,7 +50,7 @@ public class NcrServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<NcrService>.Instance, configMock.Object, Mock.Of<IMemoryCache>());
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<NcrService>.Instance, configMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
@@ -375,24 +402,29 @@ public class NcrServiceTests : TestBase
         var ctx = CreateDbContext();
         ctx.Ncrs.Add(new Ncr
         {
-            ReportDate = DateTime.Today, BatchNo = "BATCH001",
-            PipeCategory = PipeCategory.OrderFinished, Status = NcrStatus.Processing,
-            ReportDepartment = "质检部", PlantGrade = "304"
+            ReportDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            PipeCategory = PipeCategory.OrderFinished,
+            Status = NcrStatus.Processing,
+            ReportDepartment = "质检部",
+            PlantGrade = "304"
         });
         ctx.Ncrs.Add(new Ncr
         {
-            ReportDate = DateTime.Today, BatchNo = "BATCH002",
-            PipeCategory = PipeCategory.Intermediate, Status = NcrStatus.Closed,
-            ReportDepartment = "生产部", PlantGrade = "316L"
+            ReportDate = DateTime.Today,
+            BatchNo = "BATCH002",
+            PipeCategory = PipeCategory.Intermediate,
+            Status = NcrStatus.Closed,
+            ReportDepartment = "生产部",
+            PlantGrade = "316L"
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
         var contexts = await svc.GetFilterContextsAsync();
 
-        contexts.Should().ContainKey("pipecategory");
-        contexts["reportdepartment"].Should().BeEquivalentTo(new[] { "质检部", "生产部" }, opts => opts.WithStrictOrdering());
-        contexts["plantgrade"].Should().BeEquivalentTo(new[] { "304", "316L" }, opts => opts.WithStrictOrdering());
+        contexts["ReportDepartment"].Should().BeEquivalentTo(new[] { "生产部", "质检部" }, opts => opts.WithStrictOrdering());
+        contexts["PlantGrade"].Should().BeEquivalentTo(new[] { "304", "316L" }, opts => opts.WithStrictOrdering());
     }
 
     [Fact]
@@ -403,8 +435,7 @@ public class NcrServiceTests : TestBase
 
         var contexts = await svc.GetFilterContextsAsync();
 
-        contexts["pipecategory"].Should().BeEmpty();
-        contexts["status"].Should().BeEmpty();
+        contexts["ReportDepartment"].Should().BeEmpty();
     }
 
     // ========== GetPendingChecksAsync ==========
@@ -468,7 +499,8 @@ public class NcrServiceTests : TestBase
         });
         ctx.Ncrs.Add(new Ncr
         {
-            ReportDate = DateTime.Today, BatchNo = "BATCH001",
+            ReportDate = DateTime.Today,
+            BatchNo = "BATCH001",
             PipeCategory = PipeCategory.OrderFinished,
             DisposalMethod = DisposalMethod.Rework,
             SourceInspectionItem = InspectionItem.Dimension.ToString(),

@@ -1,11 +1,45 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Materials;
 using MES.Core.Enums;
 using MES.Services.Helpers;
 using MES.Services.Printing;
@@ -180,52 +214,52 @@ public class PurchaseOrderService : IPurchaseOrderService
     public async Task<List<PurchaseOrderDto>> GetAllListAsync()
     {
         var items = await (from p in _context.PurchaseOrders.AsNoTracking()
-                          join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
-                          from w in wj.DefaultIfEmpty()
-                          orderby p.OrderDate, p.OrderNo
-                          select new PurchaseOrderDto
-                          {
-                              Id = p.Id,
-                              OrderNo = p.OrderNo,
-                              SupplierId = p.SupplierId,
-                              SupplierName = p.SupplierName,
-                              OrderDate = p.OrderDate,
-                              Status = p.Status,
-                              IsForceCompleted = p.IsForceCompleted,
-                              MaterialCategory = p.MaterialCategory,
-                              PlantGrade = p.PlantGrade,
-                              Specification = p.Specification,
-                              UnitWeight = p.UnitWeight,
-                              Quantity = p.Quantity,
-                              Weight = p.Weight,
-                              RequiredDate = p.RequiredDate,
-                              UnitPrice = p.UnitPrice,
-                              TotalAmount = p.TotalAmount,
-                              LastArrivalDate = p.LastArrivalDate,
-                              ReceivedQuantity = p.ReceivedQuantity,
-                              ReceivedWeight = p.ReceivedWeight,
-                              SourceWorkOrderNo = p.SourceWorkOrderNo,
-                              InputMultiple = p.InputMultiple,
-                              Remark = p.Remark,
-                              CreatedTime = p.CreatedTime,
-                              WoSalesOrderNo = w.SalesOrderNo,
-                              WoProductionMainNo = w.ProductionMainNo,
-                              WoProductionSubNo = w.ProductionSubNo,
-                              WoSignDate = (DateTime?)w.SignDate,
-                              WoSalesman = w.Salesman,
-                              WoEndCustomer = w.EndCustomer,
-                              WoDeliveryDate = (DateTime?)w.DeliveryDate,
-                              WoDelayPenalty = w != null && w.DelayPenalty,
-                              WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
-                              WoPlantGrade = w.PlantGrade,
-                              WoSpecification = w.Specification,
-                              WoLengthStatus = (LengthStatus?)w.LengthStatus,
-                              WoMaxLength = w.MaxLength,
-                              WoTotalQuantity = (int?)w.TotalQuantity,
-                              WoTotalWeight = (decimal?)w.TotalWeight,
-                              WoDeliveryState = (DeliveryState?)w.DeliveryState,
-                              WoTotalItemCount = (int?)w.TotalItemCount,
-                          }).ToListAsync();
+                           join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
+                           from w in wj.DefaultIfEmpty()
+                           orderby p.OrderDate, p.OrderNo
+                           select new PurchaseOrderDto
+                           {
+                               Id = p.Id,
+                               OrderNo = p.OrderNo,
+                               SupplierId = p.SupplierId,
+                               SupplierName = p.SupplierName,
+                               OrderDate = p.OrderDate,
+                               Status = p.Status,
+                               IsForceCompleted = p.IsForceCompleted,
+                               MaterialCategory = p.MaterialCategory,
+                               PlantGrade = p.PlantGrade,
+                               Specification = p.Specification,
+                               UnitWeight = p.UnitWeight,
+                               Quantity = p.Quantity,
+                               Weight = p.Weight,
+                               RequiredDate = p.RequiredDate,
+                               UnitPrice = p.UnitPrice,
+                               TotalAmount = p.TotalAmount,
+                               LastArrivalDate = p.LastArrivalDate,
+                               ReceivedQuantity = p.ReceivedQuantity,
+                               ReceivedWeight = p.ReceivedWeight,
+                               SourceWorkOrderNo = p.SourceWorkOrderNo,
+                               InputMultiple = p.InputMultiple,
+                               Remark = p.Remark,
+                               CreatedTime = p.CreatedTime,
+                               WoSalesOrderNo = w.SalesOrderNo,
+                               WoProductionMainNo = w.ProductionMainNo,
+                               WoProductionSubNo = w.ProductionSubNo,
+                               WoSignDate = (DateTime?)w.SignDate,
+                               WoSalesman = w.Salesman,
+                               WoEndCustomer = w.EndCustomer,
+                               WoDeliveryDate = (DateTime?)w.DeliveryDate,
+                               WoDelayPenalty = w != null && w.DelayPenalty,
+                               WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
+                               WoPlantGrade = w.PlantGrade,
+                               WoSpecification = w.Specification,
+                               WoLengthStatus = (LengthStatus?)w.LengthStatus,
+                               WoMaxLength = w.MaxLength,
+                               WoTotalQuantity = (int?)w.TotalQuantity,
+                               WoTotalWeight = (decimal?)w.TotalWeight,
+                               WoDeliveryState = (DeliveryState?)w.DeliveryState,
+                               WoTotalItemCount = (int?)w.TotalItemCount,
+                           }).ToListAsync();
 
         return items;
     }
@@ -293,38 +327,38 @@ public class PurchaseOrderService : IPurchaseOrderService
         {
             try
             {
-            var orderNo = await GenerateOrderNoAsync();
-            var supplierName = await _context.SupplierProfiles
-                .Where(s => s.Id == request.SupplierId)
-                .Select(s => s.SupplierName)
-                .FirstOrDefaultAsync();
+                var orderNo = await GenerateOrderNoAsync();
+                var supplierName = await _context.SupplierProfiles
+                    .Where(s => s.Id == request.SupplierId)
+                    .Select(s => s.SupplierName)
+                    .FirstOrDefaultAsync();
 
-            entity = new PurchaseOrder
-            {
-                OrderNo = orderNo,
-                SupplierId = request.SupplierId,
-                SupplierName = supplierName,
-                OrderDate = request.OrderDate,
-                MaterialCategory = request.MaterialCategory,
-                PlantGrade = request.PlantGrade,
-                Specification = request.Specification,
-                UnitWeight = request.UnitWeight,
-                Quantity = request.Quantity,
-                Weight = request.Weight,
-                RequiredDate = request.RequiredDate,
-                UnitPrice = request.UnitPrice,
-                SourceWorkOrderNo = request.SourceWorkOrderNo,
-                InputMultiple = request.InputMultiple,
-                Remark = request.Remark
-            };
+                entity = new PurchaseOrder
+                {
+                    OrderNo = orderNo,
+                    SupplierId = request.SupplierId,
+                    SupplierName = supplierName,
+                    OrderDate = request.OrderDate,
+                    MaterialCategory = request.MaterialCategory,
+                    PlantGrade = request.PlantGrade,
+                    Specification = request.Specification,
+                    UnitWeight = request.UnitWeight,
+                    Quantity = request.Quantity,
+                    Weight = request.Weight,
+                    RequiredDate = request.RequiredDate,
+                    UnitPrice = request.UnitPrice,
+                    SourceWorkOrderNo = request.SourceWorkOrderNo,
+                    InputMultiple = request.InputMultiple,
+                    Remark = request.Remark
+                };
 
-            // 计算总金额
-            if (request.Quantity.HasValue && request.UnitPrice.HasValue)
-                entity.TotalAmount = request.Quantity.Value * request.UnitPrice.Value;
+                // 计算总金额
+                if (request.Quantity.HasValue && request.UnitPrice.HasValue)
+                    entity.TotalAmount = request.Quantity.Value * request.UnitPrice.Value;
 
-            _context.PurchaseOrders.Add(entity);
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+                _context.PurchaseOrders.Add(entity);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -334,7 +368,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
 
         var dto = ToDto(entity);
-        _ = TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
+        await TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
         return dto;
     }
 
@@ -350,61 +384,61 @@ public class PurchaseOrderService : IPurchaseOrderService
         {
             try
             {
-            // 一次查询，批量生成所有唯一单号（基于数值计算，避免字符串排序的009>010问题）
-            var today = DateTime.Now.ToString("yyMMdd");
-            var prefix = $"CG{today}";
-            var existingNos = await _context.PurchaseOrders
-                .Where(p => p.OrderNo.StartsWith(prefix) && p.OrderNo.Length == prefix.Length + 3)
-                .Select(p => p.OrderNo)
-                .ToListAsync();
+                // 一次查询，批量生成所有唯一单号（基于数值计算，避免字符串排序的009>010问题）
+                var today = DateTime.Now.ToString("yyMMdd");
+                var prefix = $"CG{today}";
+                var existingNos = await _context.PurchaseOrders
+                    .Where(p => p.OrderNo.StartsWith(prefix) && p.OrderNo.Length == prefix.Length + 3)
+                    .Select(p => p.OrderNo)
+                    .ToListAsync();
 
-            int maxSeq = 0;
-            foreach (var no in existingNos)
-            {
-                if (int.TryParse(no[^3..], out var s) && s > maxSeq)
-                    maxSeq = s;
-            }
-            int seq = maxSeq + 1;
-
-            // 批量查询供应商名称
-            var supplierIdsBatch = requests.Select(r => r.SupplierId).Distinct().ToList();
-            var supplierNames = await _context.SupplierProfiles
-                .Where(s => supplierIdsBatch.Contains(s.Id))
-                .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
-
-            foreach (var request in requests)
-            {
-                var orderNo = $"{prefix}{seq:D3}";
-                seq++;
-
-                var entity = new PurchaseOrder
+                int maxSeq = 0;
+                foreach (var no in existingNos)
                 {
-                    OrderNo = orderNo,
-                    SupplierId = request.SupplierId,
-                    SupplierName = supplierNames.GetValueOrDefault(request.SupplierId),
-                    OrderDate = request.OrderDate,
-                    MaterialCategory = request.MaterialCategory,
-                    PlantGrade = request.PlantGrade,
-                    Specification = request.Specification,
-                    UnitWeight = request.UnitWeight,
-                    Quantity = request.Quantity,
-                    Weight = request.Weight,
-                    RequiredDate = request.RequiredDate,
-                    UnitPrice = request.UnitPrice,
-                    SourceWorkOrderNo = request.SourceWorkOrderNo,
-                    InputMultiple = request.InputMultiple,
-                    Remark = request.Remark
-                };
+                    if (int.TryParse(no[^3..], out var s) && s > maxSeq)
+                        maxSeq = s;
+                }
+                int seq = maxSeq + 1;
 
-                if (request.Quantity.HasValue && request.UnitPrice.HasValue)
-                    entity.TotalAmount = request.Quantity.Value * request.UnitPrice.Value;
+                // 批量查询供应商名称
+                var supplierIdsBatch = requests.Select(r => r.SupplierId).Distinct().ToList();
+                var supplierNames = await _context.SupplierProfiles
+                    .Where(s => supplierIdsBatch.Contains(s.Id))
+                    .ToDictionaryAsync(s => s.Id, s => s.SupplierName);
 
-                _context.PurchaseOrders.Add(entity);
-                entities.Add(entity);
-            }
+                foreach (var request in requests)
+                {
+                    var orderNo = $"{prefix}{seq:D3}";
+                    seq++;
 
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+                    var entity = new PurchaseOrder
+                    {
+                        OrderNo = orderNo,
+                        SupplierId = request.SupplierId,
+                        SupplierName = supplierNames.GetValueOrDefault(request.SupplierId),
+                        OrderDate = request.OrderDate,
+                        MaterialCategory = request.MaterialCategory,
+                        PlantGrade = request.PlantGrade,
+                        Specification = request.Specification,
+                        UnitWeight = request.UnitWeight,
+                        Quantity = request.Quantity,
+                        Weight = request.Weight,
+                        RequiredDate = request.RequiredDate,
+                        UnitPrice = request.UnitPrice,
+                        SourceWorkOrderNo = request.SourceWorkOrderNo,
+                        InputMultiple = request.InputMultiple,
+                        Remark = request.Remark
+                    };
+
+                    if (request.Quantity.HasValue && request.UnitPrice.HasValue)
+                        entity.TotalAmount = request.Quantity.Value * request.UnitPrice.Value;
+
+                    _context.PurchaseOrders.Add(entity);
+                    entities.Add(entity);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
             }
             catch
             {
@@ -418,7 +452,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Where(w => !string.IsNullOrWhiteSpace(w))
             .Distinct()
             .ToList();
-        foreach (var woNo in distinctWoNos) _ = TryRefreshExecutionSummaryAsync(woNo);
+        foreach (var woNo in distinctWoNos) await TryRefreshExecutionSummaryAsync(woNo);
 
         return entities.Select(ToDto).ToList();
     }
@@ -444,7 +478,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             await _context.SaveChangesAsync();
 
             var dto = ToDto(entity);
-            _ = TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
+            await TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
             return dto;
         }
 
@@ -477,7 +511,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         await _context.SaveChangesAsync();
 
         var dto2 = ToDto(entity);
-        _ = TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
+        await TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
         return dto2;
     }
 
@@ -557,7 +591,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
 
         await _context.SaveChangesAsync();
-        _ = TryRefreshExecutionSummaryAsync(order.SourceWorkOrderNo);
+        await TryRefreshExecutionSummaryAsync(order.SourceWorkOrderNo);
     }
 
     public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
@@ -578,7 +612,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
 
         await _context.SaveChangesAsync();
-        _ = TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
+        await TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
     }
 
     public async Task DeleteAsync(int id, bool isAdmin = false)
@@ -596,7 +630,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         var deletedWoNo = entity.SourceWorkOrderNo;
         _context.PurchaseOrders.Remove(entity);
         await _context.SaveChangesAsync();
-        _ = TryRefreshExecutionSummaryAsync(deletedWoNo);
+        await TryRefreshExecutionSummaryAsync(deletedWoNo);
     }
 
     private static void RecalcPurchaseStatus(PurchaseOrder order, decimal purchaseCompleteRatio, decimal purchaseCompleteDeviation)
@@ -976,52 +1010,52 @@ public class PurchaseOrderService : IPurchaseOrderService
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
 
-        var query = from p in _context.PurchaseOrders.AsNoTracking()
-                    join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
-                    from w in wj.DefaultIfEmpty()
-                    select new
-                    {
-                        p.OrderNo,
-                        p.OrderDate,
-                        p.RequiredDate,
-                        p.MaterialCategory,
-                        p.PlantGrade,
-                        p.Specification,
-                        p.SourceWorkOrderNo,
-                        p.SupplierName,
-                        WoSalesOrderNo = w.SalesOrderNo,
-                        WoProductionMainNo = w.ProductionMainNo,
-                        WoProductionSubNo = w.ProductionSubNo,
-                        WoSignDate = (DateTime?)w.SignDate,
-                        WoSalesman = w.Salesman,
-                        WoEndCustomer = w.EndCustomer,
-                        WoDeliveryDate = (DateTime?)w.DeliveryDate,
-                        WoPlantGrade = w.PlantGrade,
-                        WoSpecification = w.Specification
-                    };
+            var query = from p in _context.PurchaseOrders.AsNoTracking()
+                        join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
+                        from w in wj.DefaultIfEmpty()
+                        select new
+                        {
+                            p.OrderNo,
+                            p.OrderDate,
+                            p.RequiredDate,
+                            p.MaterialCategory,
+                            p.PlantGrade,
+                            p.Specification,
+                            p.SourceWorkOrderNo,
+                            p.SupplierName,
+                            WoSalesOrderNo = w.SalesOrderNo,
+                            WoProductionMainNo = w.ProductionMainNo,
+                            WoProductionSubNo = w.ProductionSubNo,
+                            WoSignDate = (DateTime?)w.SignDate,
+                            WoSalesman = w.Salesman,
+                            WoEndCustomer = w.EndCustomer,
+                            WoDeliveryDate = (DateTime?)w.DeliveryDate,
+                            WoPlantGrade = w.PlantGrade,
+                            WoSpecification = w.Specification
+                        };
 
-        var all = await query.ToListAsync();
+            var all = await query.ToListAsync();
 
-        return new Dictionary<string, List<string>>
-        {
-            ["OrderNo"] = all.Select(x => x.OrderNo).Distinct().OrderBy(x => x).ToList(),
-            ["SourceWorkOrderNo"] = all.Where(x => x.SourceWorkOrderNo != null).Select(x => x.SourceWorkOrderNo!).Distinct().OrderBy(x => x).ToList(),
-            ["OrderDate"] = all.Select(x => x.OrderDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["RequiredDate"] = all.Select(x => x.RequiredDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["MaterialCategory"] = all.Select(x => x.MaterialCategory).Distinct().OrderBy(x => x).ToList(),
-            ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
-            ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
-            ["SupplierName"] = all.Where(x => x.SupplierName != null).Select(x => x.SupplierName!).Distinct().OrderBy(x => x).ToList(),
-            ["WoSalesOrderNo"] = all.Where(x => x.WoSalesOrderNo != null).Select(x => x.WoSalesOrderNo!).Distinct().OrderBy(x => x).ToList(),
-            ["WoProductionMainNo"] = all.Where(x => x.WoProductionMainNo != null).Select(x => x.WoProductionMainNo!).Distinct().OrderBy(x => x).ToList(),
-            ["WoProductionSubNo"] = all.Where(x => x.WoProductionSubNo != null).Select(x => x.WoProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
-            ["WoSignDate"] = all.Where(x => x.WoSignDate != null).Select(x => x.WoSignDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["WoSalesman"] = all.Where(x => x.WoSalesman != null).Select(x => x.WoSalesman!).Distinct().OrderBy(x => x).ToList(),
-            ["WoEndCustomer"] = all.Where(x => x.WoEndCustomer != null).Select(x => x.WoEndCustomer!).Distinct().OrderBy(x => x).ToList(),
-            ["WoDeliveryDate"] = all.Where(x => x.WoDeliveryDate != null).Select(x => x.WoDeliveryDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["WoPlantGrade"] = all.Where(x => x.WoPlantGrade != null).Select(x => x.WoPlantGrade!).Distinct().OrderBy(x => x).ToList(),
-            ["WoSpecification"] = all.Where(x => x.WoSpecification != null).Select(x => x.WoSpecification!).Distinct().OrderBy(x => x).ToList(),
-        };
+            return new Dictionary<string, List<string>>
+            {
+                ["OrderNo"] = all.Select(x => x.OrderNo).Distinct().OrderBy(x => x).ToList(),
+                ["SourceWorkOrderNo"] = all.Where(x => x.SourceWorkOrderNo != null).Select(x => x.SourceWorkOrderNo!).Distinct().OrderBy(x => x).ToList(),
+                ["OrderDate"] = all.Select(x => x.OrderDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["RequiredDate"] = all.Select(x => x.RequiredDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["MaterialCategory"] = all.Select(x => x.MaterialCategory).Distinct().OrderBy(x => x).ToList(),
+                ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
+                ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
+                ["SupplierName"] = all.Where(x => x.SupplierName != null).Select(x => x.SupplierName!).Distinct().OrderBy(x => x).ToList(),
+                ["WoSalesOrderNo"] = all.Where(x => x.WoSalesOrderNo != null).Select(x => x.WoSalesOrderNo!).Distinct().OrderBy(x => x).ToList(),
+                ["WoProductionMainNo"] = all.Where(x => x.WoProductionMainNo != null).Select(x => x.WoProductionMainNo!).Distinct().OrderBy(x => x).ToList(),
+                ["WoProductionSubNo"] = all.Where(x => x.WoProductionSubNo != null).Select(x => x.WoProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
+                ["WoSignDate"] = all.Where(x => x.WoSignDate != null).Select(x => x.WoSignDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["WoSalesman"] = all.Where(x => x.WoSalesman != null).Select(x => x.WoSalesman!).Distinct().OrderBy(x => x).ToList(),
+                ["WoEndCustomer"] = all.Where(x => x.WoEndCustomer != null).Select(x => x.WoEndCustomer!).Distinct().OrderBy(x => x).ToList(),
+                ["WoDeliveryDate"] = all.Where(x => x.WoDeliveryDate != null).Select(x => x.WoDeliveryDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["WoPlantGrade"] = all.Where(x => x.WoPlantGrade != null).Select(x => x.WoPlantGrade!).Distinct().OrderBy(x => x).ToList(),
+                ["WoSpecification"] = all.Where(x => x.WoSpecification != null).Select(x => x.WoSpecification!).Distinct().OrderBy(x => x).ToList(),
+            };
 
         }) ?? new Dictionary<string, List<string>>();
     }
@@ -1043,52 +1077,52 @@ public class PurchaseOrderService : IPurchaseOrderService
     public async Task<List<PurchaseOrderDto>> GetByIdsAsync(int[] ids)
     {
         var items = await (from p in _context.PurchaseOrders.AsNoTracking()
-                          join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
-                          from w in wj.DefaultIfEmpty()
-                          where ids.Contains(p.Id)
-                          select new PurchaseOrderDto
-                          {
-                              Id = p.Id,
-                              OrderNo = p.OrderNo,
-                              SupplierId = p.SupplierId,
-                              SupplierName = p.SupplierName,
-                              OrderDate = p.OrderDate,
-                              Status = p.Status,
-                              IsForceCompleted = p.IsForceCompleted,
-                              MaterialCategory = p.MaterialCategory,
-                              PlantGrade = p.PlantGrade,
-                              Specification = p.Specification,
-                              UnitWeight = p.UnitWeight,
-                              Quantity = p.Quantity,
-                              Weight = p.Weight,
-                              RequiredDate = p.RequiredDate,
-                              UnitPrice = p.UnitPrice,
-                              TotalAmount = p.TotalAmount,
-                              LastArrivalDate = p.LastArrivalDate,
-                              ReceivedQuantity = p.ReceivedQuantity,
-                              ReceivedWeight = p.ReceivedWeight,
-                              SourceWorkOrderNo = p.SourceWorkOrderNo,
-                              InputMultiple = p.InputMultiple,
-                              Remark = p.Remark,
-                              CreatedTime = p.CreatedTime,
-                              WoSalesOrderNo = w.SalesOrderNo,
-                              WoProductionMainNo = w.ProductionMainNo,
-                              WoProductionSubNo = w.ProductionSubNo,
-                              WoSignDate = (DateTime?)w.SignDate,
-                              WoSalesman = w.Salesman,
-                              WoEndCustomer = w.EndCustomer,
-                              WoDeliveryDate = (DateTime?)w.DeliveryDate,
-                              WoDelayPenalty = w != null && w.DelayPenalty,
-                              WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
-                              WoPlantGrade = w.PlantGrade,
-                              WoSpecification = w.Specification,
-                              WoLengthStatus = (LengthStatus?)w.LengthStatus,
-                              WoMaxLength = w.MaxLength,
-                              WoTotalQuantity = (int?)w.TotalQuantity,
-                              WoTotalWeight = (decimal?)w.TotalWeight,
-                              WoDeliveryState = (DeliveryState?)w.DeliveryState,
-                              WoTotalItemCount = (int?)w.TotalItemCount,
-                          }).ToListAsync();
+                           join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
+                           from w in wj.DefaultIfEmpty()
+                           where ids.Contains(p.Id)
+                           select new PurchaseOrderDto
+                           {
+                               Id = p.Id,
+                               OrderNo = p.OrderNo,
+                               SupplierId = p.SupplierId,
+                               SupplierName = p.SupplierName,
+                               OrderDate = p.OrderDate,
+                               Status = p.Status,
+                               IsForceCompleted = p.IsForceCompleted,
+                               MaterialCategory = p.MaterialCategory,
+                               PlantGrade = p.PlantGrade,
+                               Specification = p.Specification,
+                               UnitWeight = p.UnitWeight,
+                               Quantity = p.Quantity,
+                               Weight = p.Weight,
+                               RequiredDate = p.RequiredDate,
+                               UnitPrice = p.UnitPrice,
+                               TotalAmount = p.TotalAmount,
+                               LastArrivalDate = p.LastArrivalDate,
+                               ReceivedQuantity = p.ReceivedQuantity,
+                               ReceivedWeight = p.ReceivedWeight,
+                               SourceWorkOrderNo = p.SourceWorkOrderNo,
+                               InputMultiple = p.InputMultiple,
+                               Remark = p.Remark,
+                               CreatedTime = p.CreatedTime,
+                               WoSalesOrderNo = w.SalesOrderNo,
+                               WoProductionMainNo = w.ProductionMainNo,
+                               WoProductionSubNo = w.ProductionSubNo,
+                               WoSignDate = (DateTime?)w.SignDate,
+                               WoSalesman = w.Salesman,
+                               WoEndCustomer = w.EndCustomer,
+                               WoDeliveryDate = (DateTime?)w.DeliveryDate,
+                               WoDelayPenalty = w != null && w.DelayPenalty,
+                               WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
+                               WoPlantGrade = w.PlantGrade,
+                               WoSpecification = w.Specification,
+                               WoLengthStatus = (LengthStatus?)w.LengthStatus,
+                               WoMaxLength = w.MaxLength,
+                               WoTotalQuantity = (int?)w.TotalQuantity,
+                               WoTotalWeight = (decimal?)w.TotalWeight,
+                               WoDeliveryState = (DeliveryState?)w.DeliveryState,
+                               WoTotalItemCount = (int?)w.TotalItemCount,
+                           }).ToListAsync();
 
         return items;
     }

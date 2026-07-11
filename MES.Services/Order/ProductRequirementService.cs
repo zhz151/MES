@@ -1,11 +1,45 @@
 // 文件路径: MES.Services/ProductRequirementService.cs
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Order;
 using MES.Services.Mapping;
 using MES.Services.Order;
 
@@ -88,10 +122,10 @@ public class ProductRequirementService : IProductRequirementService
         }
     }
 
-public Task DeleteAsync(int orderItemId)
-{
-    throw new BusinessException("技术要求不允许单独删除，请删除对应的订单项次");
-}
+    public Task DeleteAsync(int orderItemId)
+    {
+        throw new BusinessException("技术要求不允许单独删除，请删除对应的订单项次");
+    }
 
     /// <summary>
     /// 根据订单ID获取所有项次的产品要求列表
@@ -112,7 +146,7 @@ public Task DeleteAsync(int orderItemId)
             .ToDictionaryAsync(pr => pr.OrderItemId, pr => pr);
 
         var result = new List<ProductRequirementDto>();
-        
+
         foreach (var item in orderItems)
         {
             if (existingRequirements.TryGetValue(item.Id, out var requirement))
@@ -122,7 +156,7 @@ public Task DeleteAsync(int orderItemId)
             }
             // 没有技术要求：不添加到结果，保持 null/不存在状态
         }
-        
+
         return result;
     }
 

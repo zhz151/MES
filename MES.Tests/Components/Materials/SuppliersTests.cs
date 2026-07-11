@@ -1,9 +1,9 @@
 using Bunit;
 using FluentAssertions;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Pages.Materials;
 using MES.Blazor.Services;
+using MES.Core.DTOs.Materials;
 
 namespace MES.Tests.Components;
 

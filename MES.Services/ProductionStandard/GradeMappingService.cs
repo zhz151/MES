@@ -1,11 +1,45 @@
 // 文件路径: MES.Services/GradeMappingService.cs
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.ProductionStandard;
 using MES.Services.Mapping;
 using MES.Services.Helpers;
 using MES.Services.Printing;
@@ -264,7 +298,7 @@ public class GradeMappingService : IGradeMappingService
         return GradeMappingPrintHelper.GeneratePdf(dto);
     }
 
-    public async Task<byte[]> PrintGradeMappingBatchAsync(int[] ids)
+    public async Task<byte[]> PrintGradeMappingBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
         var result = new List<StandardGradeMappingDto>();
         foreach (var id in ids)
@@ -278,7 +312,7 @@ public class GradeMappingService : IGradeMappingService
         return GradeMappingPrintHelper.GenerateBatchPdf(result);
     }
 
-    public async Task<byte[]> PrintGradeMappingAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)
+    public async Task<byte[]> PrintGradeMappingAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null)
     {
         var query = new QueryParams
         {

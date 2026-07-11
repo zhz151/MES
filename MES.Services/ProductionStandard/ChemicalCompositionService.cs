@@ -1,11 +1,45 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.ProductionStandard;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using OfficeOpenXml;
@@ -108,10 +142,22 @@ public class ChemicalCompositionService : IChemicalCompositionService
             {
                 Id = x.Id,
                 PlantGrade = x.PlantGrade,
-                Carbon = x.Carbon, Silicon = x.Silicon, Manganese = x.Manganese, Phosphorus = x.Phosphorus, Sulfur = x.Sulfur,
-                Nickel = x.Nickel, Chromium = x.Chromium, Molybdenum = x.Molybdenum, Copper = x.Copper,
-                Nitrogen = x.Nitrogen, Niobium = x.Niobium, Titanium = x.Titanium, Iron = x.Iron,
-                Aluminum = x.Aluminum, Tungsten = x.Tungsten, PREN = x.PREN,
+                Carbon = x.Carbon,
+                Silicon = x.Silicon,
+                Manganese = x.Manganese,
+                Phosphorus = x.Phosphorus,
+                Sulfur = x.Sulfur,
+                Nickel = x.Nickel,
+                Chromium = x.Chromium,
+                Molybdenum = x.Molybdenum,
+                Copper = x.Copper,
+                Nitrogen = x.Nitrogen,
+                Niobium = x.Niobium,
+                Titanium = x.Titanium,
+                Iron = x.Iron,
+                Aluminum = x.Aluminum,
+                Tungsten = x.Tungsten,
+                PREN = x.PREN,
                 CreatedTime = x.CreatedTime,
                 UpdatedTime = x.UpdatedTime
             })
@@ -410,12 +456,23 @@ public class ChemicalCompositionService : IChemicalCompositionService
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["工厂牌号"] = "PlantGrade",
-            ["C"] = "Carbon", ["Si"] = "Silicon", ["Mn"] = "Manganese",
-            ["P"] = "Phosphorus", ["S"] = "Sulfur", ["Ni"] = "Nickel",
-            ["Cr"] = "Chromium", ["Mo"] = "Molybdenum", ["Cu"] = "Copper",
-            ["N"] = "Nitrogen", ["Nb"] = "Niobium", ["Ti"] = "Titanium",
-            ["Fe"] = "Iron", ["Al"] = "Aluminum", ["W"] = "Tungsten",
-            ["PREN腐蚀当量"] = "PREN", ["PREN"] = "PREN"
+            ["C"] = "Carbon",
+            ["Si"] = "Silicon",
+            ["Mn"] = "Manganese",
+            ["P"] = "Phosphorus",
+            ["S"] = "Sulfur",
+            ["Ni"] = "Nickel",
+            ["Cr"] = "Chromium",
+            ["Mo"] = "Molybdenum",
+            ["Cu"] = "Copper",
+            ["N"] = "Nitrogen",
+            ["Nb"] = "Niobium",
+            ["Ti"] = "Titanium",
+            ["Fe"] = "Iron",
+            ["Al"] = "Aluminum",
+            ["W"] = "Tungsten",
+            ["PREN腐蚀当量"] = "PREN",
+            ["PREN"] = "PREN"
         };
     }
 

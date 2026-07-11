@@ -1,17 +1,22 @@
-using FluentAssertions;
-using Microsoft.AspNetCore.Http;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Warehouse;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Configuration;
 using MES.Core.Models;
 using MES.Services.Warehouse;
 using MES.Tests.Tests;
+using Moq;
+
+
 using MES.Data;
 using MES.Data.Entities;
-using Moq;
+using MES.Data.Entities.Warehouse;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -22,15 +27,13 @@ public class InventoryServiceTests : TestBase
 {
     private InventoryService CreateService(AppDbContext ctx)
     {
-        var httpMock = new Mock<IHttpContextAccessor>();
-        httpMock.Setup(x => x.HttpContext).Returns((HttpContext?)null);
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var loggerMock = new Mock<ILogger<InventoryService>>();
         var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new InventoryService(ctx, httpMock.Object, configMock.Object, workOrderExecMock.Object, qptMock.Object, loggerMock.Object, Mock.Of<IMemoryCache>());
+        return new InventoryService(ctx, configMock.Object, workOrderExecMock.Object, qptMock.Object, loggerMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     // ========== 入库 ==========
@@ -219,18 +222,26 @@ public class InventoryServiceTests : TestBase
 
         var b1 = await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 2, InitialWeight = 200m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 2,
+            InitialWeight = 200m
         });
 
         var b2 = await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 5, InitialWeight = 500m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 5,
+            InitialWeight = 500m
         });
 
         var act = () => svc.BatchOutboundAsync(new BatchOutboundRequest
@@ -311,18 +322,26 @@ public class InventoryServiceTests : TestBase
 
         await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
 
         await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "焊管",
-            PlantGrade = "Q235B", Specification = "159*6",
-            InboundSource = "采购", SourceName = "供应商B",
-            InitialQuantity = 20, InitialWeight = 2000m
+            WarehouseId = wh.Id,
+            MaterialType = "焊管",
+            PlantGrade = "Q235B",
+            Specification = "159*6",
+            InboundSource = "采购",
+            SourceName = "供应商B",
+            InitialQuantity = 20,
+            InitialWeight = 2000m
         });
 
         var result = await svc.GetPagedAsync(new InventoryQueryParams
@@ -345,26 +364,37 @@ public class InventoryServiceTests : TestBase
 
         await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
 
         var b2 = await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "焊管",
-            PlantGrade = "Q235B", Specification = "159*6",
-            InboundSource = "采购", SourceName = "供应商B",
-            InitialQuantity = 5, InitialWeight = 500m
+            WarehouseId = wh.Id,
+            MaterialType = "焊管",
+            PlantGrade = "Q235B",
+            Specification = "159*6",
+            InboundSource = "采购",
+            SourceName = "供应商B",
+            InitialQuantity = 5,
+            InitialWeight = 500m
         });
 
         // 把 b2 出库到零
         await svc.OutboundAsync(new CreateOutboundRequest
         {
-            InventoryBatchId = b2.Id, OutboundQuantity = 5,
-            OutboundWeight = 500m, OutboundType = "SalesOut",
-            TargetCompany = "客户X", OutboundDate = DateTime.Today
+            InventoryBatchId = b2.Id,
+            OutboundQuantity = 5,
+            OutboundWeight = 500m,
+            OutboundType = "SalesOut",
+            TargetCompany = "客户X",
+            OutboundDate = DateTime.Today
         });
 
         var result = await svc.GetPagedAsync(new InventoryQueryParams
@@ -402,10 +432,14 @@ public class InventoryServiceTests : TestBase
 
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
 
         var updated = await svc.UpdateInventoryBatchAsync(batch.Id, new UpdateInventoryBatchRequest
@@ -441,17 +475,24 @@ public class InventoryServiceTests : TestBase
 
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
 
         var outRecord = await svc.OutboundAsync(new CreateOutboundRequest
         {
-            InventoryBatchId = batch.Id, OutboundQuantity = 3,
-            OutboundWeight = 300m, OutboundType = "SalesOut",
-            TargetCompany = "客户X", OutboundDate = DateTime.Today
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 3,
+            OutboundWeight = 300m,
+            OutboundType = "SalesOut",
+            TargetCompany = "客户X",
+            OutboundDate = DateTime.Today
         });
 
         // 有出库记录时无法删除批次
@@ -478,23 +519,33 @@ public class InventoryServiceTests : TestBase
 
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
 
         await svc.OutboundAsync(new CreateOutboundRequest
         {
-            InventoryBatchId = batch.Id, OutboundQuantity = 2,
-            OutboundWeight = 200m, OutboundType = "SalesOut",
-            TargetCompany = "客户A", OutboundDate = DateTime.Today
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 2,
+            OutboundWeight = 200m,
+            OutboundType = "SalesOut",
+            TargetCompany = "客户A",
+            OutboundDate = DateTime.Today
         });
         await svc.OutboundAsync(new CreateOutboundRequest
         {
-            InventoryBatchId = batch.Id, OutboundQuantity = 3,
-            OutboundWeight = 300m, OutboundType = "TransferOut",
-            TargetCompany = "客户B", OutboundDate = DateTime.Today
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 3,
+            OutboundWeight = 300m,
+            OutboundType = "TransferOut",
+            TargetCompany = "客户B",
+            OutboundDate = DateTime.Today
         });
 
         var result = await svc.GetOutboundRecordsAsync(new OutboundQueryParams
@@ -521,10 +572,14 @@ public class InventoryServiceTests : TestBase
 
         await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
 
         var batch = await ctx.InventoryBatches.OrderByDescending(b => b.Id).FirstAsync();
@@ -547,10 +602,14 @@ public class InventoryServiceTests : TestBase
 
         await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
 
         var batch = await ctx.InventoryBatches.OrderByDescending(b => b.Id).FirstAsync();
@@ -572,17 +631,25 @@ public class InventoryServiceTests : TestBase
 
         await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
         await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "焊管",
-            PlantGrade = "Q235B", Specification = "159*6",
-            InboundSource = "采购", SourceName = "供应商B",
-            InitialQuantity = 20, InitialWeight = 2000m,
+            WarehouseId = wh.Id,
+            MaterialType = "焊管",
+            PlantGrade = "Q235B",
+            Specification = "159*6",
+            InboundSource = "采购",
+            SourceName = "供应商B",
+            InitialQuantity = 20,
+            InitialWeight = 2000m,
             SalesOrderNo = "SO-001"
         });
 
@@ -609,24 +676,34 @@ public class InventoryServiceTests : TestBase
 
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
 
         await svc.OutboundAsync(new CreateOutboundRequest
         {
-            InventoryBatchId = batch.Id, OutboundQuantity = 1,
-            OutboundWeight = 100m, OutboundType = "SalesOut",
-            TargetCompany = "客户X", OutboundDate = DateTime.Today
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 1,
+            OutboundWeight = 100m,
+            OutboundType = "SalesOut",
+            TargetCompany = "客户X",
+            OutboundDate = DateTime.Today
         });
         // Add a second with different order so we can test ordering
         await svc.OutboundAsync(new CreateOutboundRequest
         {
-            InventoryBatchId = batch.Id, OutboundQuantity = 2,
-            OutboundWeight = 200m, OutboundType = "TransferOut",
-            TargetCompany = "客户Y", OutboundDate = DateTime.Today
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 2,
+            OutboundWeight = 200m,
+            OutboundType = "TransferOut",
+            TargetCompany = "客户Y",
+            OutboundDate = DateTime.Today
         });
 
         // Update source order numbers for sort testing
@@ -651,23 +728,33 @@ public class InventoryServiceTests : TestBase
 
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
 
         await svc.OutboundAsync(new CreateOutboundRequest
         {
-            InventoryBatchId = batch.Id, OutboundQuantity = 1,
-            OutboundWeight = 100m, OutboundType = "SalesOut",
-            TargetCompany = "客户X", OutboundDate = DateTime.Today
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 1,
+            OutboundWeight = 100m,
+            OutboundType = "SalesOut",
+            TargetCompany = "客户X",
+            OutboundDate = DateTime.Today
         });
         await svc.OutboundAsync(new CreateOutboundRequest
         {
-            InventoryBatchId = batch.Id, OutboundQuantity = 2,
-            OutboundWeight = 200m, OutboundType = "TransferOut",
-            TargetCompany = "客户Y", OutboundDate = DateTime.Today
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 2,
+            OutboundWeight = 200m,
+            OutboundType = "TransferOut",
+            TargetCompany = "客户Y",
+            OutboundDate = DateTime.Today
         });
 
         var records = await ctx.OutboundRecords.OrderBy(r => r.Id).ToListAsync();
@@ -691,23 +778,33 @@ public class InventoryServiceTests : TestBase
 
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
-            WarehouseId = wh.Id, MaterialType = "无缝管",
-            PlantGrade = "Q345B", Specification = "219*8",
-            InboundSource = "采购", SourceName = "供应商A",
-            InitialQuantity = 10, InitialWeight = 1000m
+            WarehouseId = wh.Id,
+            MaterialType = "无缝管",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "采购",
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
         });
 
         await svc.OutboundAsync(new CreateOutboundRequest
         {
-            InventoryBatchId = batch.Id, OutboundQuantity = 1,
-            OutboundWeight = 100m, OutboundType = "SalesOut",
-            TargetCompany = "客户X", OutboundDate = DateTime.Today
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 1,
+            OutboundWeight = 100m,
+            OutboundType = "SalesOut",
+            TargetCompany = "客户X",
+            OutboundDate = DateTime.Today
         });
         await svc.OutboundAsync(new CreateOutboundRequest
         {
-            InventoryBatchId = batch.Id, OutboundQuantity = 2,
-            OutboundWeight = 200m, OutboundType = "TransferOut",
-            TargetCompany = "客户Y", OutboundDate = DateTime.Today
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 2,
+            OutboundWeight = 200m,
+            OutboundType = "TransferOut",
+            TargetCompany = "客户Y",
+            OutboundDate = DateTime.Today
         });
 
         var result = await svc.GetOutboundRecordsAsync(new OutboundQueryParams

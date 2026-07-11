@@ -1,4 +1,17 @@
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Services.Printing;
 
 namespace MES.Services.Printing;
@@ -30,7 +43,7 @@ public static class ProductionRecordPrintHelper
                 new() { Key = "Shift", Label = "班次" },
                 new() { Key = "Quantity", Label = "加工支数" },
                 new() { Key = "Weight", Label = "加工重量" },
-                new() { Key = "IsFinished", Label = "是否成品" },
+                new() { Key = "ProductStatus", Label = "制造状态" },
                 new() { Key = "Remark", Label = "备注" },
             };
         }
@@ -49,7 +62,7 @@ public static class ProductionRecordPrintHelper
                 ["Shift"] = r.Shift ?? "",
                 ["Quantity"] = r.Quantity?.ToString("G29") ?? "",
                 ["Weight"] = r.Weight?.ToString("G29") ?? "",
-                ["IsFinished"] = r.IsFinished ? "成品" : "在制品",
+                ["ProductStatus"] = r.ProductStatus ?? "在制",
                 ["Remark"] = r.Remark ?? "",
                 ["CreatedTime"] = r.CreatedTime.ToString("yyyy-MM-dd HH:mm"),
                 ["UpdatedTime"] = r.UpdatedTime.ToString("yyyy-MM-dd HH:mm")

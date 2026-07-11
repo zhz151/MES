@@ -78,7 +78,7 @@ public class ExceptionMiddleware
         await context.Response.WriteAsync(result);
     }
 
-private async Task HandleSystemExceptionAsync(HttpContext context, Exception ex)
+    private async Task HandleSystemExceptionAsync(HttpContext context, Exception ex)
     {
         _logger.LogError(ex, "系统异常: {Message}", ex.Message);
 

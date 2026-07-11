@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.ProductionStandard;
 
 namespace MES.Blazor.Pages.ProductionStandard;
 

@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.Warehouse;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.Interfaces.Warehouse;
 
 namespace MES.Tests.Controllers;
 
@@ -26,7 +26,9 @@ public class WarehouseControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<WarehouseDto>
         {
             Items = new List<WarehouseDto> { new() { Id = 1, Name = "成品库" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<bool?>())).ReturnsAsync(pagedResult);
 

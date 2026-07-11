@@ -7,8 +7,9 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Shared;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -116,6 +117,7 @@ public partial class QualityProcessTracking
         {
             new() { Key = "QualityStatus", Label = "执行状态", SortKey = "qualitystatus", FilterType = "enum", Width = "120", GroupKey = 6, GroupName = "执行状态",
                 EnumOptions = new() { new(){ Value = "待检验", Display = "待检验" }, new(){ Value = "检验中", Display = "检验中" }, new(){ Value = "完成检验", Display = "完成检验" }, new(){ Value = "异常完成", Display = "异常完成" } } },
+        new() { Key = "UpdatedTime",   Label = "更新日期",   SortKey = "updatedtime",                                 Width = "120", GroupKey = 6, GroupName = "执行状态" },
         };
 
         var all = new List<ColumnDef>();
@@ -391,7 +393,11 @@ public partial class QualityProcessTracking
         // 复选框列起始占位符（40px）
         result.Add(new GroupHeaderInfo
         {
-            GroupKey = 0, GroupName = "", TotalWidth = 40, ColumnCount = 0, CssClass = ""
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
         });
         int? lastKey = null;
         int totalWidth = 0;
@@ -516,8 +522,12 @@ public partial class QualityProcessTracking
     {
         var cls = groupKey switch
         {
-            1 => "col-g1", 2 => "col-g2", 3 => "col-g3",
-            4 => "col-g4", 5 => "col-g5", 6 => "col-g6",
+            1 => "col-g1",
+            2 => "col-g2",
+            3 => "col-g3",
+            4 => "col-g4",
+            5 => "col-g5",
+            6 => "col-g6",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -528,8 +538,12 @@ public partial class QualityProcessTracking
     {
         var cls = groupKey switch
         {
-            1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell",
-            4 => "col-g4-cell", 5 => "col-g5-cell", 6 => "col-g6-cell",
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            3 => "col-g3-cell",
+            4 => "col-g4-cell",
+            5 => "col-g5-cell",
+            6 => "col-g6-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
@@ -684,6 +698,10 @@ public partial class QualityProcessTracking
                     builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, displayText)));
                     builder.CloseComponent();
                 }
+                break;
+
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
 
             default:

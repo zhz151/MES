@@ -1,4 +1,5 @@
 using MES.Data.Entities;
+using MES.Data.Entities.Auth;
 using MES.Core.DTOs.Auth;
 using MES.Core.Models;
 

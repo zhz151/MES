@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using MES.Api.Controllers.Configuration;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Configuration;
+using MES.Core.Interfaces.Configuration;
 
 namespace MES.Tests.Controllers;
 
@@ -25,7 +25,9 @@ public class EmployeeControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<EmployeeDto>
         {
             Items = new List<EmployeeDto> { new() { Id = 1, Code = "EMP001", Name = "张三" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 

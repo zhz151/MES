@@ -1,9 +1,9 @@
 using Bunit;
 using FluentAssertions;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Pages.Batches;
 using MES.Blazor.Services;
+using MES.Core.DTOs.Batch;
 
 namespace MES.Tests.Components;
 
@@ -30,17 +30,18 @@ public class ProductionRecordsTests : TestBase
     }
 
     [Theory]
-    [InlineData(true, "成品")]
-    [InlineData(false, "在制品")]
-    public void StatusColumn_DisplaysCorrectText(bool isFinished, string expectedText)
+    [InlineData("成品")]
+    [InlineData("荒管")]
+    [InlineData("在制")]
+    public void StatusColumn_DisplaysCorrectText(string productStatus)
     {
-        ConfigureListResponse(isFinished);
+        ConfigureListResponse(productStatus);
         var cut = Ctx.RenderComponent<ProductionRecords>();
-        cut.WaitForState(() => cut.Markup.Contains(expectedText));
-        cut.Markup.Should().Contain(expectedText);
+        cut.WaitForState(() => cut.Markup.Contains(productStatus));
+        cut.Markup.Should().Contain(productStatus);
     }
 
-    private void ConfigureListResponse(bool isFinished)
+    private void ConfigureListResponse(string productStatus)
     {
         ConfigureEmptyResponse("/api/production-record/all/records");
         var pagedResult = new PagedResult<ProductionRecordDto>
@@ -56,7 +57,7 @@ public class ProductionRecordsTests : TestBase
                     SectionName = "冷轧车间",
                     SequenceNumber = 1,
                     ExecDate = DateTime.Today,
-                    IsFinished = isFinished
+                    ProductStatus = productStatus
                 }
             },
             TotalCount = 1,

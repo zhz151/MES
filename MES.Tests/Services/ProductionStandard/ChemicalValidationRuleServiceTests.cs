@@ -1,12 +1,13 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
 using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.ProductionStandard;
 using MES.Tests.Tests;
+using MES.Data.Entities.ProductionStandard;
+using MES.Core.DTOs.ProductionStandard;
 
 namespace MES.Tests.Services;
 
@@ -224,7 +225,8 @@ public class ChemicalValidationRuleServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "PlantGrade", Operator = "contains", Value = "Q345" }
@@ -245,7 +247,8 @@ public class ChemicalValidationRuleServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "CMin", Operator = "in", Values = new List<string> { "0.18" } }
@@ -265,7 +268,8 @@ public class ChemicalValidationRuleServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "PlantGrade", Operator = "contains", Value = "NONEXISTENT" }

@@ -1,7 +1,30 @@
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Data.Entities;
-using WorkOrderEntity = MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.ProductionStandard;
+using WorkOrderEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 
 namespace MES.Services.Mapping;
 
@@ -187,7 +210,7 @@ public static class DtoMapper
 
     // ========== 仓库上下文 Mapping ==========
 
-    public static WarehouseDto ToDto(this MES.Data.Entities.Warehouse entity) => new()
+    public static WarehouseDto ToDto(this MES.Data.Entities.Warehouse.Warehouse entity) => new()
     {
         Id = entity.Id,
         Code = entity.Code,
@@ -377,36 +400,36 @@ public static class DtoMapper
         int? outerPolish, int? innerGrinding, int? outerSpotGrinding,
         int? inspection, int? weldingHead, int? lubrication, int? warehouse,
         int id, DateTimeOffset createdTime, string createdBy) => new()
-    {
-        Id = id,
-        ParentPlanId = parentPlanId,
-        SequenceNumber = sequenceNumber,
-        ProcessName = processName,
-        ManufacturingSpec = manufacturingSpec,
-        OuterDiameterTolerance = outerDiameterTolerance,
-        WallThicknessTolerance = wallThicknessTolerance,
-        ManufacturingLength = manufacturingLength,
-        CuttingTreatment = cuttingTreatment,
-        ManufacturingMultiple = manufacturingMultiple,
-        Remark = remark,
-        ColdRollDraw = coldRollDraw,
-        OilPipeCut = oilPipeCut,
-        Degrease = degrease,
-        Solution = solution,
-        Straighten = straighten,
-        Cut = cut,
-        ThicknessMeasure = thicknessMeasure,
-        Pickle = pickle,
-        OuterPolish = outerPolish,
-        InnerGrinding = innerGrinding,
-        OuterSpotGrinding = outerSpotGrinding,
-        Inspection = inspection,
-        WeldingHead = weldingHead,
-        Lubrication = lubrication,
-        Warehouse = warehouse,
-        CreatedTime = createdTime,
-        CreatedBy = createdBy
-    };
+        {
+            Id = id,
+            ParentPlanId = parentPlanId,
+            SequenceNumber = sequenceNumber,
+            ProcessName = processName,
+            ManufacturingSpec = manufacturingSpec,
+            OuterDiameterTolerance = outerDiameterTolerance,
+            WallThicknessTolerance = wallThicknessTolerance,
+            ManufacturingLength = manufacturingLength,
+            CuttingTreatment = cuttingTreatment,
+            ManufacturingMultiple = manufacturingMultiple,
+            Remark = remark,
+            ColdRollDraw = coldRollDraw,
+            OilPipeCut = oilPipeCut,
+            Degrease = degrease,
+            Solution = solution,
+            Straighten = straighten,
+            Cut = cut,
+            ThicknessMeasure = thicknessMeasure,
+            Pickle = pickle,
+            OuterPolish = outerPolish,
+            InnerGrinding = innerGrinding,
+            OuterSpotGrinding = outerSpotGrinding,
+            Inspection = inspection,
+            WeldingHead = weldingHead,
+            Lubrication = lubrication,
+            Warehouse = warehouse,
+            CreatedTime = createdTime,
+            CreatedBy = createdBy
+        };
 
     public static MaterialPlanProcessGroupDto ToDto(this SemiPlanProcessGroup entity) =>
         ToPlanGroupDto(

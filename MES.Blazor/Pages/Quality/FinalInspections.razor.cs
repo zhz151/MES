@@ -4,11 +4,12 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Quality;
@@ -709,7 +710,11 @@ public partial class FinalInspections
         // 选择列起始占位符（必须最前，对应 JS 遍历的第一个 <th> checkbox，gk=0）
         result.Add(new GroupHeaderInfo
         {
-            GroupKey = 0, GroupName = "", TotalWidth = 40, ColumnCount = 0, CssClass = ""
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
         });
         int? lastKey = null;
         int totalWidth = 0;
@@ -753,7 +758,11 @@ public partial class FinalInspections
         // 操作列尾随占位符（必须最后，对应 JS 遍历的最后一个 <th> 操作列，gk=0）
         result.Add(new GroupHeaderInfo
         {
-            GroupKey = 0, GroupName = "", TotalWidth = 90, ColumnCount = 0, CssClass = ""
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 90,
+            ColumnCount = 0,
+            CssClass = ""
         });
         return result;
     }

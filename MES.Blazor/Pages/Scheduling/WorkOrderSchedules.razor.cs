@@ -5,8 +5,10 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Scheduling;
@@ -1068,12 +1070,18 @@ public partial class WorkOrderSchedules
 
     private static string GetFlowStatusText(int status) => status switch
     {
-        0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知"
+        0 => "未投料",
+        1 => "部分",
+        2 => "满足",
+        _ => "未知"
     };
 
     private static string GetValidMainNoStatusText(int status) => status switch
     {
-        0 => "未计划", 1 => "部分", 2 => "满足", _ => "未知"
+        0 => "未计划",
+        1 => "部分",
+        2 => "满足",
+        _ => "未知"
     };
 
     // ========== 颜色 ==========

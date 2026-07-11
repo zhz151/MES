@@ -1,19 +1,48 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
-using MES.Data.Entities;
 using MES.Services.Batch;
 using MES.Services.WorkOrder;
 using MES.Services.Order;
 using MES.Tests.Tests;
-using MES.Data;
 using Moq;
 using QuestPDF.Infrastructure;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -36,7 +65,7 @@ public class BatchServiceTests : TestBase
             .ReturnsAsync(new Dictionary<string, decimal>());
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var materialPlanMock = new Mock<IMaterialPlanService>();
-        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, Mock.Of<IMemoryCache>());
+        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     // ========== 种子数据辅助方法 ==========
@@ -98,7 +127,7 @@ public class BatchServiceTests : TestBase
         var itemIds = items.Select(i => i.Sequence).ToList();
 
         var configMock = new Mock<IConfigParameterService>();
-        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object, configMock.Object, Mock.Of<IMemoryCache>());
+        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object, configMock.Object, new MemoryCache(new MemoryCacheOptions()));
         var generated = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = order.OrderNumber,

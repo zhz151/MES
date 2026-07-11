@@ -1,6 +1,5 @@
 @page "/chemical-validate"
 @using MES.Blazor.Services
-@using MES.Core.DTOs
 @using MES.Core.Models
 @using MES.Blazor.Helpers
 @using System.Text.Json
@@ -8,6 +7,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Blazor.Components
+@using MES.Core.DTOs.ProductionStandard
 @inject ChemicalValidationRuleService ChemicalValidationRuleService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar

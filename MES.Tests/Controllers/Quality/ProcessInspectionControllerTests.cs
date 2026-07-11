@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.Quality;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Quality;
+using MES.Core.Interfaces.Quality;
 
 namespace MES.Tests.Controllers;
 
@@ -28,7 +28,9 @@ public class ProcessInspectionControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<ProcessInspectionDto>
         {
             Items = new List<ProcessInspectionDto> { new() { Id = 1, ProcessName = "热处理" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 

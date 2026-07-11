@@ -1,12 +1,46 @@
 // 文件路径: MES.Services/CustomerService.cs
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Order;
 using MES.Services.Mapping;
 using MES.Services.Helpers;
 using MES.Services.Printing;
@@ -251,6 +285,12 @@ public class CustomerService : ICustomerService
             throw new BusinessException("客户不存在");
         }
 
+        // 检查是否有订单引用该客户
+        var hasOrders = await _context.SalesOrders
+            .AnyAsync(so => so.CustomerId == id);
+        if (hasOrders)
+            throw new BusinessException($"客户 {entity.CustomerUnit} 已被订单引用，无法删除");
+
         _context.CustomerProfiles.Remove(entity);
         await _context.SaveChangesAsync();
     }
@@ -299,34 +339,34 @@ public class CustomerService : ICustomerService
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
 
-        // 注意：枚举列（Status）不在此处返回，
-        // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
-        var all = await _context.CustomerProfiles
-            .AsNoTracking()
-            .Select(c => new
-            {
-                c.CustomerCode,
-                c.Salesman,
-                c.CustomerUnit,
-                c.EndCustomer,
-                c.ContactPerson,
-                c.ContactPhone,
-                c.Address,
-                c.Remark
-            })
-            .ToListAsync();
+            // 注意：枚举列（Status）不在此处返回，
+            // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
+            var all = await _context.CustomerProfiles
+                .AsNoTracking()
+                .Select(c => new
+                {
+                    c.CustomerCode,
+                    c.Salesman,
+                    c.CustomerUnit,
+                    c.EndCustomer,
+                    c.ContactPerson,
+                    c.ContactPhone,
+                    c.Address,
+                    c.Remark
+                })
+                .ToListAsync();
 
-        return new Dictionary<string, List<string>>
-        {
-            ["CustomerCode"] = all.Select(x => x.CustomerCode).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
-            ["Salesman"] = all.Select(x => x.Salesman).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
-            ["CustomerUnit"] = all.Select(x => x.CustomerUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
-            ["EndCustomer"] = all.Select(x => x.EndCustomer ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["ContactPerson"] = all.Select(x => x.ContactPerson ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["ContactPhone"] = all.Select(x => x.ContactPhone ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["Address"] = all.Select(x => x.Address ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
-        };
+            return new Dictionary<string, List<string>>
+            {
+                ["CustomerCode"] = all.Select(x => x.CustomerCode).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+                ["Salesman"] = all.Select(x => x.Salesman).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+                ["CustomerUnit"] = all.Select(x => x.CustomerUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+                ["EndCustomer"] = all.Select(x => x.EndCustomer ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["ContactPerson"] = all.Select(x => x.ContactPerson ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["ContactPhone"] = all.Select(x => x.ContactPhone ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Address"] = all.Select(x => x.Address ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
+            };
 
         }) ?? new Dictionary<string, List<string>>();
     }

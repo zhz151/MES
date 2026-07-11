@@ -2,10 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.Batch;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Core.Exceptions;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Shared;
+using MES.Core.Interfaces.Batch;
 
 namespace MES.Tests.Controllers;
 
@@ -31,7 +32,9 @@ public class BatchControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<ProductionBatchListDto>
         {
             Items = new List<ProductionBatchListDto> { new() { Id = 1, BatchNo = "BATCH001" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>())).ReturnsAsync(pagedResult);
 

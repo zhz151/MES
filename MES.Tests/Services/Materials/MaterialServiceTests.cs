@@ -1,12 +1,28 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
 using MES.Core.Models;
-using MES.Data.Entities;
-using MES.Data;
 using MES.Services.Materials;
 using MES.Tests.Tests;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Warehouse;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -15,7 +31,7 @@ namespace MES.Tests.Services;
 /// </summary>
 public class MaterialServiceTests : TestBase
 {
-    private MaterialService CreateService(AppDbContext ctx) => new(ctx, Mock.Of<IMemoryCache>());
+    private MaterialService CreateService(AppDbContext ctx) => new(ctx, new MemoryCache(new MemoryCacheOptions()));
 
     private async Task SeedMaterialAsync(AppDbContext ctx, string category = "钢管", string grade = "20#", string spec = "219*8", bool isActive = true)
     {
@@ -394,7 +410,8 @@ public class MaterialServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "MaterialCategory", Operator = "contains", Value = "不锈钢" }
@@ -415,7 +432,8 @@ public class MaterialServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "PlantGrade", Operator = "in", Values = new List<string> { "304" } }
@@ -435,7 +453,8 @@ public class MaterialServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "MaterialCategory", Operator = "contains", Value = "NONEXISTENT" }
@@ -455,7 +474,8 @@ public class MaterialServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "IsActive", Operator = "in", Values = new List<string> { "True" } }
@@ -504,8 +524,12 @@ public class MaterialServiceTests : TestBase
         var ctx = CreateDbContext();
         ctx.Materials.Add(new Material
         {
-            MaterialCode = "MA0001", MaterialCategory = "钢管", PlantGrade = "20#",
-            Specification = "219*8", IsActive = true, Remark = null
+            MaterialCode = "MA0001",
+            MaterialCategory = "钢管",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            IsActive = true,
+            Remark = null
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

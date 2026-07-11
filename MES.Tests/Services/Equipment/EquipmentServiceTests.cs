@@ -1,12 +1,13 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Equipment;
+using EquipmentEntity = MES.Data.Entities.Equipment.Equipment;
 using MES.Tests.Tests;
+using MES.Core.DTOs.Equipment;
 
 namespace MES.Tests.Services;
 
@@ -33,8 +34,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区" },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区" }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -53,8 +54,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "数控车床", Location = "A区" },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "普通铣床", Location = "B区" }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "数控车床", Location = "A区" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "普通铣床", Location = "B区" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -73,8 +74,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", Remark = "需定期保养" },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区" }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", Remark = "需定期保养" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -93,8 +94,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", InspectionPerson = "张三" },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", MaintPerson = "李四" }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", InspectionPerson = "张三" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", MaintPerson = "李四" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -113,8 +114,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区" },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区" }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -133,8 +134,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-B", EquipmentName = "车床", Location = "A区" },
-            new Equipment { EquipmentCode = "EQ-A", EquipmentName = "铣床", Location = "B区" }
+            new EquipmentEntity { EquipmentCode = "EQ-B", EquipmentName = "车床", Location = "A区" },
+            new EquipmentEntity { EquipmentCode = "EQ-A", EquipmentName = "铣床", Location = "B区" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -155,8 +156,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区" },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区" }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -177,8 +178,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", LifecycleStatus = nameof(LifecycleStatus.Active) },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", LifecycleStatus = nameof(LifecycleStatus.Standby) }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", LifecycleStatus = nameof(LifecycleStatus.Active) },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", LifecycleStatus = nameof(LifecycleStatus.Standby) }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -197,8 +198,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", UsageType = nameof(UsageType.Primary) },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", UsageType = nameof(UsageType.Secondary) }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", UsageType = nameof(UsageType.Primary) },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", UsageType = nameof(UsageType.Secondary) }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -218,7 +219,7 @@ public class EquipmentServiceTests : TestBase
     public async Task GetByIdAsync_存在_返回详情()
     {
         var ctx = CreateDbContext();
-        var entity = new Equipment
+        var entity = new EquipmentEntity
         {
             EquipmentCode = "EQ-001",
             EquipmentName = "数控车床",
@@ -289,7 +290,7 @@ public class EquipmentServiceTests : TestBase
     public async Task CreateAsync_编号重复_抛出BusinessException()
     {
         var ctx = CreateDbContext();
-        ctx.Equipment.Add(new Equipment
+        ctx.Equipment.Add(new EquipmentEntity
         {
             EquipmentCode = "EQ-001",
             EquipmentName = "现有设备",
@@ -316,7 +317,7 @@ public class EquipmentServiceTests : TestBase
     public async Task UpdateAsync_更新成功()
     {
         var ctx = CreateDbContext();
-        var entity = new Equipment
+        var entity = new EquipmentEntity
         {
             EquipmentCode = "EQ-001",
             EquipmentName = "旧名称",
@@ -358,7 +359,7 @@ public class EquipmentServiceTests : TestBase
     public async Task DeleteAsync_删除成功()
     {
         var ctx = CreateDbContext();
-        var entity = new Equipment
+        var entity = new EquipmentEntity
         {
             EquipmentCode = "EQ-001",
             EquipmentName = "待删除设备",
@@ -381,8 +382,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-B", EquipmentName = "设备B", Location = "A区", LifecycleStatus = "Standby", UsageType = "Primary" },
-            new Equipment { EquipmentCode = "EQ-A", EquipmentName = "设备A", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" }
+            new EquipmentEntity { EquipmentCode = "EQ-B", EquipmentName = "设备B", Location = "A区", LifecycleStatus = "Standby", UsageType = "Primary" },
+            new EquipmentEntity { EquipmentCode = "EQ-A", EquipmentName = "设备A", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -399,8 +400,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-B", EquipmentName = "设备B", Location = "A区", LifecycleStatus = "Active", UsageType = "Secondary" },
-            new Equipment { EquipmentCode = "EQ-A", EquipmentName = "设备A", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" }
+            new EquipmentEntity { EquipmentCode = "EQ-B", EquipmentName = "设备B", Location = "A区", LifecycleStatus = "Active", UsageType = "Secondary" },
+            new EquipmentEntity { EquipmentCode = "EQ-A", EquipmentName = "设备A", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -417,8 +418,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", LifecycleStatus = "Standby", UsageType = "Secondary" }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", LifecycleStatus = "Standby", UsageType = "Secondary" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -435,8 +436,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", LifecycleStatus = "Standby", UsageType = "Secondary" }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", LifecycleStatus = "Active", UsageType = "Primary" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", LifecycleStatus = "Standby", UsageType = "Secondary" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -455,8 +456,8 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new Equipment { EquipmentCode = "EQ-001", EquipmentName = "车床", ModelNumber = "M1", Location = "A区", RelatedSection = "加工", LifecycleStatus = "Active", UsageType = "Primary" },
-            new Equipment { EquipmentCode = "EQ-002", EquipmentName = "铣床", ModelNumber = null, Location = "B区", RelatedSection = null, LifecycleStatus = "Standby", UsageType = "Secondary" }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", ModelNumber = "M1", Location = "A区", RelatedSection = "加工", LifecycleStatus = "Active", UsageType = "Primary" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", ModelNumber = null, Location = "B区", RelatedSection = null, LifecycleStatus = "Standby", UsageType = "Secondary" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

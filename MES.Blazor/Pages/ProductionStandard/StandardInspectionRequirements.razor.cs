@@ -6,8 +6,8 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Blazor.Shared;
-using MES.Core.DTOs;
 using MES.Core.Models;
+using MES.Core.DTOs.ProductionStandard;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.ProductionStandard;

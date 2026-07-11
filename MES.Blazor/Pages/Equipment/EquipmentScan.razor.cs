@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Infrastructure;
 using MudBlazor;
 
 namespace MES.Blazor.Pages.Equipment;

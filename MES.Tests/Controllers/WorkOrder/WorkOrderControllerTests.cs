@@ -2,10 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.WorkOrder;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Core.Enums;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.WorkOrder;
 
 namespace MES.Tests.Controllers;
 
@@ -27,7 +28,9 @@ public class WorkOrderControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<OrderWorkOrderStatusDto>
         {
             Items = new List<OrderWorkOrderStatusDto> { new() { SalesOrderId = 1, OrderNumber = "SO001" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetOrderWorkOrderStatusPageAsync(It.IsAny<WorkOrderQueryParams>())).ReturnsAsync(pagedResult);
 
@@ -103,7 +106,9 @@ public class WorkOrderControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<WorkOrderListItemDto>
         {
             Items = new List<WorkOrderListItemDto> { new() { Id = 1, WorkOrderNo = "WO001" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<WorkOrderQueryParams>())).ReturnsAsync(pagedResult);
 

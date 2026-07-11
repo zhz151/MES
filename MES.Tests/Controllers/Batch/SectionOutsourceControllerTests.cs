@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.Batch;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.Batch;
+using MES.Core.Interfaces.Batch;
 
 namespace MES.Tests.Controllers;
 
@@ -54,7 +54,9 @@ public class SectionOutsourceControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<SectionOutsourceDto>
         {
             Items = new List<SectionOutsourceDto> { new() { Id = 1, BatchNo = "BATCH001" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 
@@ -209,7 +211,9 @@ public class SectionOutsourceControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<OutsourceRecoveryDto>
         {
             Items = new List<OutsourceRecoveryDto> { new() { Id = 1, SectionOutsourceId = 1 } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetRecoveriesPagedAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 

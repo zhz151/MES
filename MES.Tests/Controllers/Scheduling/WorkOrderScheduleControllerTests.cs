@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using MES.Api.Controllers.Scheduling;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Tests.Tests;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.Interfaces.Scheduling;
 
 namespace MES.Tests.Controllers.Scheduling;
 
@@ -25,7 +25,9 @@ public class WorkOrderScheduleControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<WorkOrderScheduleDto>
         {
             Items = new List<WorkOrderScheduleDto> { new() { Id = 1, WorkOrderNo = "WO001" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 

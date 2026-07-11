@@ -1,15 +1,49 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Core.Constants;
 using MES.Core.Helpers;
 using MES.Data;
 using MES.Data.Entities;
-using WoEntity = MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Batch;
+using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 using MES.Services.Helpers;
 using Microsoft.Extensions.Caching.Memory;
 using MES.Services.Printing;
@@ -560,7 +594,7 @@ public class BatchService : IBatchService
 
         _logger.LogInformation("创建生产批次 {BatchNo} (工单: {WorkOrderNo})", batchNo, entity.WorkOrderNo);
 
-        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
 
         return new ProductionBatchListDto
         {
@@ -754,7 +788,7 @@ public class BatchService : IBatchService
 
         var dto = ToDetailDto(entity);
 
-        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
 
         return dto;
     }
@@ -774,6 +808,11 @@ public class BatchService : IBatchService
             throw new BusinessException($"无效的批次状态: {request.Status}");
 
         var oldStatus = entity.Status;
+
+        // 状态流转验证
+        if (!CanTransitionTo(oldStatus, newStatus))
+            throw new BusinessException($"不允许从 {oldStatus} 变更为 {newStatus}");
+
         entity.Status = newStatus;
 
         // 强制完成逻辑
@@ -802,7 +841,7 @@ public class BatchService : IBatchService
 
         _logger.LogInformation("更新批次状态 {BatchNo} → {Status}", entity.BatchNo, newStatus);
 
-        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
     }
 
     public async Task DeleteAsync(int id)
@@ -854,7 +893,7 @@ public class BatchService : IBatchService
 
         _logger.LogInformation("删除生产批次 {BatchNo} (Id={Id})", entity.BatchNo, id);
 
-        _ = TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
     }
 
     public async Task<SaveBatchResponse> SaveAllAsync(int id, SaveBatchRequest request)
@@ -1805,14 +1844,29 @@ public class BatchService : IBatchService
                 .AsNoTracking()
                 .Select(b => new
                 {
-                    b.BatchNo, b.TagNo, b.WorkOrderNo, b.SalesOrderNo,
-                    b.ProductionMainNo, b.ProductionSubNo,
+                    b.BatchNo,
+                    b.TagNo,
+                    b.WorkOrderNo,
+                    b.SalesOrderNo,
+                    b.ProductionMainNo,
+                    b.ProductionSubNo,
                     b.CurrentExecDate,
-                    b.CurrentGroupName, b.CurrentSectionName, b.CurrentEquipmentName,
-                    b.CurrentOutsource, b.CurrentSpec, b.NextSectionName,
-                    b.CorrespondingSpec, b.NextProcess, b.SignDate, b.Salesman, b.EndCustomer,
+                    b.CurrentGroupName,
+                    b.CurrentSectionName,
+                    b.CurrentEquipmentName,
+                    b.CurrentOutsource,
+                    b.CurrentSpec,
+                    b.NextSectionName,
+                    b.CorrespondingSpec,
+                    b.NextProcess,
+                    b.SignDate,
+                    b.Salesman,
+                    b.EndCustomer,
                     b.DeliveryDate,
-                    b.StandardCode, b.PlantGrade, b.Specification, b.CreatedBy
+                    b.StandardCode,
+                    b.PlantGrade,
+                    b.Specification,
+                    b.CreatedBy
                 })
                 .ToListAsync();
 
@@ -2153,4 +2207,21 @@ public class BatchService : IBatchService
             })
             .ToListAsync();
     }
+
+    #region 状态校验
+
+    /// <summary>批次状态流转验证</summary>
+    private static bool CanTransitionTo(BatchStatus current, BatchStatus target)
+    {
+        if (current == target) return true;
+        return current switch
+        {
+            BatchStatus.None => target is BatchStatus.InProgress or BatchStatus.Cancelled,
+            BatchStatus.InProgress => target is BatchStatus.Completed or BatchStatus.Suspended or BatchStatus.Cancelled,
+            BatchStatus.Suspended => target is BatchStatus.InProgress or BatchStatus.Completed or BatchStatus.Cancelled,
+            _ => false // Completed 或 Cancelled 不可再流转
+        };
+    }
+
+    #endregion
 }

@@ -1,17 +1,27 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Constants;
-using MES.Core.Interfaces;
-using MES.Data;
-using MES.Data.Entities;
+using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Interfaces.Configuration;
 using MES.Services.WorkOrder;
 using MES.Services.Order;
 using MES.Tests.Tests;
 using Moq;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.ProductionStandard;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -99,7 +109,7 @@ public class MaterialPlanServiceTests : TestBase
 
         var woLoggerMock = new Mock<ILogger<WorkOrderService>>();
         var configMock = new Mock<IConfigParameterService>();
-        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object, configMock.Object, Mock.Of<IMemoryCache>());
+        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object, configMock.Object, new MemoryCache(new MemoryCacheOptions()));
         var result = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = order.OrderNumber,

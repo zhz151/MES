@@ -6,9 +6,10 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Batches;
@@ -87,7 +88,7 @@ public partial class ProductionRecords
         new() { Key = "Shift",             Label = "班次",       SortKey = "shift",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight", Width = "80", GroupKey = 2, GroupName = "产出数据" },
-        new() { Key = "IsFinished",        Label = "是否成品",   SortKey = "isfinished",         FilterType = "boolean", BoolTrueLabel = "成品", BoolFalseLabel = "在制品", Width = "60", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "ProductStatus",      Label = "制造状态",   SortKey = "productstatus",         FilterType = "string", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity", Width = "80", GroupKey = 2, GroupName = "产出数据" },
@@ -269,15 +270,6 @@ public partial class ProductionRecords
             }).ToList();
         }
 
-        // IsFinished 列显示中文
-        if (_filterContextOptions.TryGetValue("IsFinished", out var isFinishedOptions))
-        {
-            foreach (var opt in isFinishedOptions)
-            {
-                opt.Display = opt.Value == "True" ? "成品" : "在制品";
-            }
-        }
-
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
         foreach (var col in _allColumns)
         {
@@ -292,18 +284,6 @@ public partial class ProductionRecords
             }
         }
 
-        // 补充布尔列筛选选项
-        foreach (var col in _allColumns)
-        {
-            if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
-            {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
-            }
-        }
     }
 
     // ========== ExcelFilter 事件 ==========
@@ -371,7 +351,6 @@ public partial class ProductionRecords
         public decimal? SolutionTemperature { get; set; }
         public int? SoakTime { get; set; }
         public int? FaceCutCount { get; set; }
-        public bool IsFinished { get; set; }
         public decimal? CuttingMultiple { get; set; }
         public decimal? FinishedCutLength { get; set; }
         public int? PostCutQuantity { get; set; }
@@ -394,7 +373,6 @@ public partial class ProductionRecords
             SolutionTemperature = item.SolutionTemperature,
             SoakTime = item.SoakTime,
             FaceCutCount = item.FaceCutCount,
-            IsFinished = item.IsFinished,
             CuttingMultiple = item.CuttingMultiple,
             FinishedCutLength = item.FinishedCutLength,
             PostCutQuantity = item.PostCutQuantity,
@@ -436,7 +414,6 @@ public partial class ProductionRecords
                 SolutionTemperature = cache.SolutionTemperature,
                 SoakTime = cache.SoakTime,
                 FaceCutCount = cache.FaceCutCount,
-                IsFinished = cache.IsFinished,
                 CuttingMultiple = cache.CuttingMultiple,
                 FinishedCutLength = cache.FinishedCutLength,
                 PostCutQuantity = cache.PostCutQuantity,
@@ -457,7 +434,7 @@ public partial class ProductionRecords
                 item.SolutionTemperature = result.Data.SolutionTemperature;
                 item.SoakTime = result.Data.SoakTime;
                 item.FaceCutCount = result.Data.FaceCutCount;
-                item.IsFinished = result.Data.IsFinished;
+                item.ProductStatus = result.Data.ProductStatus;
                 item.CuttingMultiple = result.Data.CuttingMultiple;
                 item.FinishedCutLength = result.Data.FinishedCutLength;
                 item.PostCutQuantity = result.Data.PostCutQuantity;
@@ -639,7 +616,7 @@ public partial class ProductionRecords
             or "Quantity" or "Weight"
             or "SolutionTemperature" or "SoakTime"
             or "FaceCutCount"
-            or "IsFinished" or "CuttingMultiple" or "FinishedCutLength"
+            or "CuttingMultiple" or "FinishedCutLength"
             or "PostCutQuantity" or "TagNo" or "PlantGrade" or "Remark" => true,
         _ => false
     };
@@ -804,20 +781,19 @@ public partial class ProductionRecords
                     builder.AddContent(0, DisplayHelper.FormatNullableInt(item.FaceCutCount));
                 }
                 break;
-            case "IsFinished":
-                if (isEditing && cache != null)
+            case "ProductStatus":
                 {
-                    builder.OpenComponent<MudCheckBox<bool>>(0);
-                    builder.AddAttribute(1, "Value", cache.IsFinished);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => cache.IsFinished = v));
-                    builder.CloseComponent();
-                }
-                else
-                {
+                    var color = item.ProductStatus switch
+                    {
+                        "成品" => Color.Success,
+                        "荒管" => Color.Primary,
+                        _ => Color.Default
+                    };
+                    var text = item.ProductStatus ?? "在制";
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
-                    builder.AddAttribute(2, "Color", item.IsFinished ? Color.Success : Color.Default);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.IsFinished ? "成品" : "在制品")));
+                    builder.AddAttribute(2, "Color", color);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, text)));
                     builder.CloseComponent();
                 }
                 break;

@@ -1,4 +1,6 @@
-using MES.Core.DTOs;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.WorkOrder;
 using MudBlazor;
 
 namespace MES.Blazor.Pages;

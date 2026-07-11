@@ -2,12 +2,46 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.Constants;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Quality;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
@@ -163,64 +197,64 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
 
-        // 从物化表查询所有数据，在内存中构建 DISTINCT 字典
-        var all = await _context.QualityProcessTrackings
-            .AsNoTracking()
-            .Select(e => new
-            {
-                e.BatchNo,
-                e.PlantGrade,
-                e.Specification,
-                e.Shift,
-                e.Checker,
-                e.FurnaceNo,
-                e.WorkOrderNo,
-                e.SalesOrderNo,
-                e.SourceUnit,
-                e.Salesman,
-                e.TagNo,
-                e.ReceiveDate,
-                e.PmiDate,
-                e.VisualDate,
-                e.DimensionDate,
-                e.EndoscopyDate,
-                e.HydroDate,
-                e.UnderwaterPneumaticDate,
-                e.EddyCurrentDate,
-                e.UltrasonicDate,
-                e.PortColoringDate,
-                e.InboundDate,
-                e.QualityStatus
-            })
-            .ToListAsync();
+            // 从物化表查询所有数据，在内存中构建 DISTINCT 字典
+            var all = await _context.QualityProcessTrackings
+                .AsNoTracking()
+                .Select(e => new
+                {
+                    e.BatchNo,
+                    e.PlantGrade,
+                    e.Specification,
+                    e.Shift,
+                    e.Checker,
+                    e.FurnaceNo,
+                    e.WorkOrderNo,
+                    e.SalesOrderNo,
+                    e.SourceUnit,
+                    e.Salesman,
+                    e.TagNo,
+                    e.ReceiveDate,
+                    e.PmiDate,
+                    e.VisualDate,
+                    e.DimensionDate,
+                    e.EndoscopyDate,
+                    e.HydroDate,
+                    e.UnderwaterPneumaticDate,
+                    e.EddyCurrentDate,
+                    e.UltrasonicDate,
+                    e.PortColoringDate,
+                    e.InboundDate,
+                    e.QualityStatus
+                })
+                .ToListAsync();
 
-        return new Dictionary<string, List<string>>
-        {
-            // 注：ManufacturingItem/DeliveryState 等有固定 EnumOptions 的枚举列
-            // 由前端硬编码提供中文选项，不在 API 返回（按 04_开发规范 筛选陷阱#1）
-            ["BatchNo"] = all.Select(x => x.BatchNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["PlantGrade"] = all.Select(x => x.PlantGrade).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["Specification"] = all.Select(x => x.Specification).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["Shift"] = all.Select(x => x.Shift).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["Checker"] = all.Select(x => x.Checker).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["FurnaceNo"] = all.Select(x => x.FurnaceNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["SourceUnit"] = all.Select(x => x.SourceUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["Salesman"] = all.Select(x => x.Salesman).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["QualityStatus"] = all.Select(x => x.QualityStatus).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["TagNo"] = all.Select(x => x.TagNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-            ["ReceiveDate"] = all.Select(x => x.ReceiveDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["PmiDate"] = all.Where(x => x.PmiDate.HasValue).Select(x => x.PmiDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["VisualDate"] = all.Where(x => x.VisualDate.HasValue).Select(x => x.VisualDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["DimensionDate"] = all.Where(x => x.DimensionDate.HasValue).Select(x => x.DimensionDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["EndoscopyDate"] = all.Where(x => x.EndoscopyDate.HasValue).Select(x => x.EndoscopyDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["HydroDate"] = all.Where(x => x.HydroDate.HasValue).Select(x => x.HydroDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["UnderwaterPneumaticDate"] = all.Where(x => x.UnderwaterPneumaticDate.HasValue).Select(x => x.UnderwaterPneumaticDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["EddyCurrentDate"] = all.Where(x => x.EddyCurrentDate.HasValue).Select(x => x.EddyCurrentDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["UltrasonicDate"] = all.Where(x => x.UltrasonicDate.HasValue).Select(x => x.UltrasonicDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["PortColoringDate"] = all.Where(x => x.PortColoringDate.HasValue).Select(x => x.PortColoringDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-            ["InboundDate"] = all.Where(x => x.InboundDate.HasValue).Select(x => x.InboundDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            return new Dictionary<string, List<string>>
+            {
+                // 注：ManufacturingItem/DeliveryState 等有固定 EnumOptions 的枚举列
+                // 由前端硬编码提供中文选项，不在 API 返回（按 04_开发规范 筛选陷阱#1）
+                ["BatchNo"] = all.Select(x => x.BatchNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["PlantGrade"] = all.Select(x => x.PlantGrade).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["Specification"] = all.Select(x => x.Specification).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["Shift"] = all.Select(x => x.Shift).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["Checker"] = all.Select(x => x.Checker).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["FurnaceNo"] = all.Select(x => x.FurnaceNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["SourceUnit"] = all.Select(x => x.SourceUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["Salesman"] = all.Select(x => x.Salesman).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["QualityStatus"] = all.Select(x => x.QualityStatus).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["TagNo"] = all.Select(x => x.TagNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["ReceiveDate"] = all.Select(x => x.ReceiveDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["PmiDate"] = all.Where(x => x.PmiDate.HasValue).Select(x => x.PmiDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["VisualDate"] = all.Where(x => x.VisualDate.HasValue).Select(x => x.VisualDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["DimensionDate"] = all.Where(x => x.DimensionDate.HasValue).Select(x => x.DimensionDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["EndoscopyDate"] = all.Where(x => x.EndoscopyDate.HasValue).Select(x => x.EndoscopyDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["HydroDate"] = all.Where(x => x.HydroDate.HasValue).Select(x => x.HydroDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["UnderwaterPneumaticDate"] = all.Where(x => x.UnderwaterPneumaticDate.HasValue).Select(x => x.UnderwaterPneumaticDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["EddyCurrentDate"] = all.Where(x => x.EddyCurrentDate.HasValue).Select(x => x.EddyCurrentDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["UltrasonicDate"] = all.Where(x => x.UltrasonicDate.HasValue).Select(x => x.UltrasonicDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["PortColoringDate"] = all.Where(x => x.PortColoringDate.HasValue).Select(x => x.PortColoringDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["InboundDate"] = all.Where(x => x.InboundDate.HasValue).Select(x => x.InboundDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
             };
         }) ?? new Dictionary<string, List<string>>();
     }
@@ -261,7 +295,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             .AsNoTracking()
             .Where(pr => pr.ProductionBatchId == rc.ProductionBatchId
                       && pr.SectionName == SectionDefs.Cut
-                      && pr.IsFinished)
+                      && pr.ProductStatus == "成品")
             .ToListAsync();
 
         // 6. 计算各字段值

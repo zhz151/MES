@@ -1,12 +1,19 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data.Entities;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.WorkOrder;
 using MES.Services.WorkOrder;
 using MES.Services.Order;
 using MES.Tests.Tests;
@@ -718,7 +725,7 @@ public class WorkOrderServiceTests : TestBase
         var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
 
-        ctx.WorkOrders.Add(new WorkOrder
+        ctx.WorkOrders.Add(new MES.Data.Entities.WorkOrder.WorkOrder
         {
             WorkOrderNo = $"WO-KW-{Guid.NewGuid():N}"[..15],
             SalesOrderNo = "SO-KWTEST",
@@ -764,7 +771,7 @@ public class WorkOrderServiceTests : TestBase
         var sr = await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
 
-        ctx.WorkOrders.Add(new WorkOrder
+        ctx.WorkOrders.Add(new MES.Data.Entities.WorkOrder.WorkOrder
         {
             WorkOrderNo = $"WO-KW-{Guid.NewGuid():N}"[..15],
             SalesOrderNo = "SO-KWTEST",

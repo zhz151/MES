@@ -13,8 +13,8 @@ using Moq;
 using MudBlazor.Services;
 using MES.Blazor.Pages.WorkOrders;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
+using MES.Core.DTOs.WorkOrder;
 
 namespace MES.Tests.Components;
 
@@ -72,7 +72,9 @@ public class MaterialPlanOverviewTests : IDisposable
             {
                 var filterJson = JsonSerializer.Serialize(new ApiResponse<Dictionary<string, List<string>>>
                 {
-                    Success = true, Code = 200, Message = "OK",
+                    Success = true,
+                    Code = 200,
+                    Message = "OK",
                     Data = new Dictionary<string, List<string>>()
                 });
                 return new HttpResponseMessage(HttpStatusCode.OK)
@@ -98,13 +100,18 @@ public class MaterialPlanOverviewTests : IDisposable
             var result = new PagedResult<WorkOrderListDto>
             {
                 Items = new List<WorkOrderListDto>(),
-                TotalCount = 0, PageIndex = 1, PageSize = 10
+                TotalCount = 0,
+                PageIndex = 1,
+                PageSize = 10
             };
             _configureResponse?.Invoke(result);
 
             var json = JsonSerializer.Serialize(new ApiResponse<PagedResult<WorkOrderListDto>>
             {
-                Success = true, Code = 200, Message = "OK", Data = result
+                Success = true,
+                Code = 200,
+                Message = "OK",
+                Data = result
             });
             return new HttpResponseMessage(HttpStatusCode.OK)
             {

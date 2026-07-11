@@ -1,10 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
 using MES.Data.Entities;
 using MES.Data;
 using MES.Services.WorkOrder;
 using MES.Tests.Tests;
+using MES.Data.Entities.WorkOrder;
 
 namespace MES.Tests.Services;
 

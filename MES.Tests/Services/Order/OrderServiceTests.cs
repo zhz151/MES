@@ -1,16 +1,20 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Services.Order;
 using MES.Tests.Tests;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Order;
+using MES.Core.DTOs.Order;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.WorkOrder;
+using OrderListSummaryEntity = MES.Data.Entities.Order.OrderListSummary;
 using Moq;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -26,7 +30,7 @@ public class OrderServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object, null);
+        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     [Fact]
@@ -579,8 +583,8 @@ public class OrderServiceTests : TestBase
     public async Task GetFilterContextsAsync_返回正确选项()
     {
         var ctx = CreateDbContext();
-        ctx.Set<MES.Data.Entities.OrderListSummary>().AddRange(
-            new MES.Data.Entities.OrderListSummary
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            new OrderListSummaryEntity
             {
                 OrderNumber = "SO001",
                 SignDate = DateTime.Today.AddDays(-1),
@@ -590,7 +594,7 @@ public class OrderServiceTests : TestBase
                 CreatedTime = DateTimeOffset.Now,
                 UpdatedTime = DateTimeOffset.Now
             },
-            new MES.Data.Entities.OrderListSummary
+            new OrderListSummaryEntity
             {
                 OrderNumber = "SO002",
                 SignDate = DateTime.Today,

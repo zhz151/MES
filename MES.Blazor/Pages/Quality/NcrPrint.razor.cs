@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Enums;
+using MES.Core.DTOs.Quality;
 
 namespace MES.Blazor.Pages.Quality;
 

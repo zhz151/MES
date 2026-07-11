@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Services.Order;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Order;
+using MES.Core.Interfaces.Order;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Order;
@@ -35,6 +35,8 @@ public class OrderController : ControllerBase
         [FromQuery] string? orderStatus = null,
         [FromQuery] DateTime? signDateFrom = null,
         [FromQuery] DateTime? signDateTo = null,
+        [FromQuery] DateTime? deliveryDateFrom = null,
+        [FromQuery] DateTime? deliveryDateTo = null,
         [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
@@ -44,7 +46,7 @@ public class OrderController : ControllerBase
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
             catch { }
         }
-        var result = await _orderService.GetPagedAsync(query, technicalStatus, orderStatus, signDateFrom, signDateTo);
+        var result = await _orderService.GetPagedAsync(query, technicalStatus, orderStatus, signDateFrom, signDateTo, deliveryDateFrom, deliveryDateTo);
         return Ok(ApiResponse<PagedResult<SalesOrderListDto>>.Ok(result, "查询成功"));
     }
 

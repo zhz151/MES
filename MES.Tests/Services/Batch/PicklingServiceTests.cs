@@ -1,14 +1,29 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Models;
-using MES.Data;
-using MES.Data.Entities;
 using MES.Services;
 using MES.Services.Batch;
 using MES.Tests.Tests;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Batch;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -18,7 +33,7 @@ namespace MES.Tests.Services;
 public class PicklingServiceTests : TestBase
 {
     private PicklingService CreateService(AppDbContext ctx)
-        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<PicklingService>.Instance, Mock.Of<IMemoryCache>());
+        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<PicklingService>.Instance, new MemoryCache(new MemoryCacheOptions()));
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
     {

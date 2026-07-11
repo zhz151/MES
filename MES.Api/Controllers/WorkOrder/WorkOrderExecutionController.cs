@@ -1,11 +1,11 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Services.Printing;
 using MES.Shared.Constants;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.WorkOrder;
 
 namespace MES.Api.Controllers.WorkOrder;
 

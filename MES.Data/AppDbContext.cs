@@ -1,34 +1,42 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
+using MES.Core.Interfaces.Infrastructure;
 using MES.Data.Entities;
-using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Batch;
 using MES.Data.Entities.Configuration;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.WorkOrder;
 using MES.Core.Enums;
 
 namespace MES.Data;
 
 public class AppDbContext : IdentityDbContext<AppUser>
 {
-    private readonly IHttpContextAccessor? _httpContextAccessor;
+    private readonly ICurrentUser? _currentUser;
 
     // 无参构造函数（用于工具项目）
     public AppDbContext() : base()
     {
-        _httpContextAccessor = null;
+        _currentUser = null;
     }
 
     // 仅 DbContextOptions 构造函数（用于工具项目）
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
-        _httpContextAccessor = null;
+        _currentUser = null;
     }
 
     // 完整构造函数（用于 Web API 项目）
-    public AppDbContext(DbContextOptions<AppDbContext> options, IHttpContextAccessor httpContextAccessor) : base(options)
+    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUser currentUser) : base(options)
     {
-        _httpContextAccessor = httpContextAccessor;
+        _currentUser = currentUser;
     }
 
     // ========== 订单上下文 ==========
@@ -291,17 +299,11 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
     private string GetCurrentUser()
     {
-        if (_httpContextAccessor == null)
+        if (_currentUser == null)
             return "system";
 
-        var userName = _httpContextAccessor?.HttpContext?.User?.Identity?.Name;
-        if (!string.IsNullOrEmpty(userName))
-            return userName;
-
-        var emailClaim = _httpContextAccessor?.HttpContext?.User?.FindFirst(ClaimTypes.Email);
-        if (emailClaim != null)
-            return emailClaim.Value;
-        return "system";
+        var userName = _currentUser.GetUserName();
+        return string.IsNullOrEmpty(userName) ? "system" : userName;
     }
 
     private static void ConfigureSalesOrder(ModelBuilder builder)
@@ -650,7 +652,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(100);
             entity.Property(e => e.RequiredUnitWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.RequiredDate).IsRequired().HasColumnType("date");
-			entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.Remark).HasMaxLength(500);
             entity.Property(e => e.StandardCycle).IsRequired().HasDefaultValue(0);
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_PurchaseSemiPlan_WorkOrderId");
 
@@ -721,7 +723,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(100);
             entity.Property(e => e.RequiredUnitWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.RequiredDate).IsRequired().HasColumnType("date");
-			entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.Remark).HasMaxLength(500);
             entity.Property(e => e.StandardCycle).IsRequired().HasDefaultValue(0);
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_RoundBarPiercingPlan_WorkOrderId");
 
@@ -810,6 +812,9 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.WorkOrderNo).HasMaxLength(50);
             entity.Property(e => e.SalesOrderNo).HasMaxLength(50);
             entity.Property(e => e.OrderItemIds).HasMaxLength(500);
+
+            // 乐观并发控制
+            entity.Property(e => e.RowVersion).IsRowVersion();
 
             // 索引
             entity.HasIndex(e => e.BatchNo).IsUnique().HasDatabaseName("UK_InventoryBatch_BatchNo");
@@ -1449,7 +1454,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Shift).HasMaxLength(10);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
-            entity.Property(e => e.IsFinished).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.ProductStatus).HasMaxLength(20);
             entity.Property(e => e.CuttingMultiple).HasColumnType("decimal(5,2)");
             entity.Property(e => e.FinishedCutLength).HasColumnType("decimal(18,2)");
             entity.Property(e => e.PostCutQuantity);
@@ -1499,6 +1504,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.OutsourceSpec).HasMaxLength(100);
             entity.Property(e => e.ExpectedReturnDate).HasColumnType("datetime2");
             entity.Property(e => e.IsUrgent).HasDefaultValue(false);
+            entity.Property(e => e.ProductStatus).HasMaxLength(20);
             entity.Property(e => e.Remark).HasMaxLength(500);
 
             entity.HasOne(e => e.ProductionBatch)
@@ -1562,7 +1568,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Shift).HasMaxLength(10);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
-            entity.Property(e => e.IsFinished).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.ProductStatus).HasMaxLength(20);
             entity.Property(e => e.TagNo).HasMaxLength(50);
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);
@@ -1606,7 +1612,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Shift).HasMaxLength(10);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.IsFinished);
+            entity.Property(e => e.ProductStatus).HasMaxLength(20);
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
 
             entity.HasOne(e => e.PicklingInRecord)
@@ -1839,6 +1845,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.TagNo).HasMaxLength(50);
             entity.Property(e => e.BatchNo).HasMaxLength(50);
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
+            entity.Property(e => e.ProductStatus).HasMaxLength(20);
             entity.Property(e => e.Remark).HasMaxLength(500);
 
             entity.HasOne(e => e.ProductionBatch)
@@ -2436,7 +2443,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.EquipmentId).IsRequired();
             entity.Property(e => e.ActualDate).HasColumnType("date");
             entity.Property(e => e.Executor).HasMaxLength(50);
-            entity.Property(e => e.ExecutionSummary).HasMaxLength(500);            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.ExecutionSummary).HasMaxLength(500); entity.Property(e => e.Remark).HasMaxLength(500);
 
             entity.HasOne<Equipment>()
                 .WithMany()

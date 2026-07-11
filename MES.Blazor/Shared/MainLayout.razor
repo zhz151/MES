@@ -34,7 +34,6 @@
             <AuthorizeView Roles="@Roles.Policies.OrderRead">
                 <MudNavGroup Title="订单管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/orders">订单列表</MudNavLink>
-                    <MudNavLink Href="/order-demand-adjustment">订单需求调整</MudNavLink>
                     <MudNavLink Href="/customers">客户管理</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
@@ -44,10 +43,22 @@
                 <MudNavGroup Title="工单管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/workorders">工单首页</MudNavLink>
                     <MudNavLink Href="/material-plan-overview">用料计划总览</MudNavLink>
-                    <MudNavLink Href="/workorder-overview">工单总览</MudNavLink>
+                    <MudNavLink Href="/order-demand-adjustment">工单需求调整</MudNavLink>
                     <MudNavLink Href="/workorder-execution">工单执行状况</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+
+            <!-- 计划排程 -->
+            <MudNavGroup Title="计划排程" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                <MudNavLink Href="/plan-overview">负载总览</MudNavLink>
+                <MudNavLink Href="/section-production-status">工段待产量</MudNavLink>
+                <MudNavLink Href="/section-flow-analysis">工段流转分析</MudNavLink>
+                <MudNavLink Href="/raw-material-lock-plan">原锁计划</MudNavLink>
+                <MudNavLink Href="/scheduling-plans">排程计划</MudNavLink>
+                <MudNavLink Href="/cold-roll-plans">冷轧计划</MudNavLink>
+                <MudNavLink Href="/batch-plans">批次计划</MudNavLink>
+                <MudNavLink Href="/final-inspection-plan">成检计划</MudNavLink>
+            </MudNavGroup>
 
             <!-- 批次模块 -->
             <AuthorizeView Roles="@Roles.Policies.BatchRead">
@@ -87,16 +98,6 @@
                 </MudNavGroup>
             </AuthorizeView>
 
-            <!-- 设备模块 -->
-            <AuthorizeView Roles="@Roles.Policies.EquipmentRead">
-                <MudNavGroup Title="设备管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                    <MudNavLink Href="/equipment">设备台账</MudNavLink>
-                    <MudNavLink Href="/repair-orders">维修工单</MudNavLink>
-                    <MudNavLink Href="/maintenance-orders">保养工单</MudNavLink>
-                    <MudNavLink Href="/inspection-records">点检记录</MudNavLink>
-                </MudNavGroup>
-            </AuthorizeView>
-
             <!-- 物料模块 -->
             <AuthorizeView Roles="@Roles.Policies.MaterialRead">
                 <MudNavGroup Title="物料管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
@@ -117,26 +118,15 @@
                 </MudNavGroup>
             </AuthorizeView>
 
-            <!-- 计划排程 -->
-            <MudNavGroup Title="计划排程" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                <MudNavLink Href="/order-overview">工单总览</MudNavLink>
-                <MudNavLink Href="/section-production-status">工段待产量</MudNavLink>
-                <MudNavLink Href="/section-flow-analysis">工段流转分析</MudNavLink>
-                <MudNavLink Href="/raw-material-lock-plan">原锁计划</MudNavLink>
-                <MudNavLink Href="/workorder-schedules">工单计划</MudNavLink>
-                <MudNavLink Href="/cold-roll-plans">冷轧计划</MudNavLink>
-                <MudNavLink Href="/batch-plans">批次计划</MudNavLink>
-                <MudNavLink Href="/final-inspection-plan">成检计划</MudNavLink>
-            </MudNavGroup>
-
-            <!-- 数据工具 -->
-            <MudNavLink Href="/data-exchange">数据工具</MudNavLink>
-
-            <!-- 扫码报工 -->
-            <MudNavLink Href="/mobile-report">扫码报工</MudNavLink>
-
-            <!-- 设备扫码 -->
-            <MudNavLink Href="/equipment-scan">设备扫码</MudNavLink>
+            <!-- 设备模块 -->
+            <AuthorizeView Roles="@Roles.Policies.EquipmentRead">
+                <MudNavGroup Title="设备管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                    <MudNavLink Href="/equipment">设备台账</MudNavLink>
+                    <MudNavLink Href="/repair-orders">维修工单</MudNavLink>
+                    <MudNavLink Href="/maintenance-orders">保养工单</MudNavLink>
+                    <MudNavLink Href="/inspection-records">点检记录</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
 
             <!-- 生产标准 -->
             <AuthorizeView Roles="@Roles.Policies.StandardRead">
@@ -151,6 +141,20 @@
                     <MudNavLink Href="/chemical-validate">工厂牌号化分验证</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
+
+            <!-- 报表系统 -->
+            <MudNavGroup Title="报表系统" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                <MudNavLink Href="/reports/production-output">产量报表</MudNavLink>
+            </MudNavGroup>
+
+            <!-- 数据工具 -->
+            <MudNavLink Href="/data-exchange">数据工具</MudNavLink>
+
+            <!-- 扫码报工 -->
+            <MudNavLink Href="/mobile-report">扫码报工</MudNavLink>
+
+            <!-- 设备扫码 -->
+            <MudNavLink Href="/equipment-scan">设备扫码</MudNavLink>
 
             <!-- 参数表 -->
             <AuthorizeView Roles="@Roles.Policies.ConfigurationRead">

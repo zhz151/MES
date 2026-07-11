@@ -8,31 +8,31 @@ namespace MES.Data.Migrations
     public partial class ReplaceOrderItemUniqueIndexWithFiltered : Migration
     {
         /// <inheritdoc />
-protected override void Up(MigrationBuilder migrationBuilder)
-{
-    migrationBuilder.DropIndex(
-        name: "UK_OrderItem_Sequence",
-        table: "OrderItem");
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropIndex(
+                name: "UK_OrderItem_Sequence",
+                table: "OrderItem");
 
-    migrationBuilder.CreateIndex(
-        name: "UK_OrderItem_Sequence_Active",
-        table: "OrderItem",
-        columns: new[] { "SalesOrderId", "Sequence" },
-        unique: true,
-        filter: "[IsDeleted] = 0");
-}
+            migrationBuilder.CreateIndex(
+                name: "UK_OrderItem_Sequence_Active",
+                table: "OrderItem",
+                columns: new[] { "SalesOrderId", "Sequence" },
+                unique: true,
+                filter: "[IsDeleted] = 0");
+        }
 
-protected override void Down(MigrationBuilder migrationBuilder)
-{
-    migrationBuilder.DropIndex(
-        name: "UK_OrderItem_Sequence_Active",
-        table: "OrderItem");
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropIndex(
+                name: "UK_OrderItem_Sequence_Active",
+                table: "OrderItem");
 
-    migrationBuilder.CreateIndex(
-        name: "UK_OrderItem_Sequence",
-        table: "OrderItem",
-        columns: new[] { "SalesOrderId", "Sequence" },
-        unique: true);
-}
+            migrationBuilder.CreateIndex(
+                name: "UK_OrderItem_Sequence",
+                table: "OrderItem",
+                columns: new[] { "SalesOrderId", "Sequence" },
+                unique: true);
+        }
     }
 }

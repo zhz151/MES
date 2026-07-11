@@ -1,9 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Services.Printing;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.Scheduling;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Scheduling;
@@ -21,7 +22,7 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     }
 
     [HttpGet("list")]
-    public async Task<ActionResult<ApiResponse<PagedResult<Core.DTOs.RawMaterialLockPlanAndExecutionDto>>>> GetPaged(
+    public async Task<ActionResult<ApiResponse<PagedResult<RawMaterialLockPlanAndExecutionDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null,
@@ -35,7 +36,7 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
             query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         var result = await _service.GetPagedAsync(query);
-        return Ok(ApiResponse<PagedResult<Core.DTOs.RawMaterialLockPlanAndExecutionDto>>.Ok(result));
+        return Ok(ApiResponse<PagedResult<RawMaterialLockPlanAndExecutionDto>>.Ok(result));
     }
 
     [HttpPost("set-pre-execute-flags")]

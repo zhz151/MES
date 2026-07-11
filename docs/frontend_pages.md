@@ -1,29 +1,32 @@
 # MES 前端页面结构参考
 
-> 生成日期：2026-07-09（V14）
+> 生成日期：2026-07-11（V16）
 > 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
 
 ---
 
 ## 1. 上下文定义
 
-本项目中"上下文"按导航菜单分组定义，共 **9 大业务上下文** + 工具/管理：
+本项目中"上下文"按导航菜单分组定义，共 **11 大业务上下文** + 工具/管理/首页：
 
 | 上下文 | 导航标签 | RBAC 角色 | 页面数 | 列表页数 |
 |-------|---------|----------|-------|---------|
+| 首页 | 首页 | 所有 | 1 | 0 |
 | 订单 | 订单管理 | OrderStaff/Director | 7 | 3 |
 | 工单 | 工单管理 | WorkOrderStaff/Director | 15 | 4 |
+| 计划排程 | 计划排程 | 所有 | 8 | 7 |
 | 批次 | 批次管理 | BatchStaff/Director | 14 | 6 |
 | 质量 | 质量管理 | QualityStaff/Director | 21 | 15 |
-| 设备 | 设备管理 | EquipmentStaff/Director | 8 | 4 |
 | 物料 | 物料管理 | MaterialStaff/Director | 10 | 4 |
 | 仓库 | 仓库管理 | WarehouseStaff/Director | 5 | 3 |
-| 计划排程 | 计划排程 | 所有 | 8 | 7 |
+| 设备 | 设备管理 | EquipmentStaff/Director | 8 | 4 |
 | 生产标准 | 生产标准 | StandardRead/StandardWrite | 14 | 8 |
-| 配置 | 参数表 | Admin | 8 | 8 |
+| 报表 | 报表系统 | 所有 | 1 | 1 |
 | 数据工具 | (独立按钮) | 所有 | 2 | 0 |
+| 扫码报工 | (独立按钮) | 所有 | 1 | 0 |
+| 设备扫码 | (独立按钮) | 所有 | 1 | 0 |
+| 配置 | 参数表 | Admin | 8 | 8 |
 | 用户管理 | (Admin按钮) | Admin | 1 | 0 |
-| 扫码报修 | (独立按钮) | 所有 | 1 | 0 |
 
 ---
 
@@ -32,8 +35,8 @@
 ### 2.1 订单上下文
 
 ```
-路由前缀: /orders, /order-demand-adjustment, /customers
-菜单: 订单管理 → [订单列表, 订单需求调整, 客户管理]
+路由前缀: /orders, /customers
+菜单: 订单管理 → [订单列表, 客户管理]
 
 ┌─ 订单管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -42,12 +45,10 @@
 │  OrderDetail.razor     /orders/{Id:int}     [详情页]       │
 │  ProductRequirement.razor /orders/{orderId:int}/requirements [子页] │
 │                                                           │
-│  OrderDemandAdjustment.razor /order-demand-adjustment [列表页]│
-│                                                           │
 │  Customers.razor       /customers           [列表页]       │
 │  CustomerCreate.razor  /customers/create    [创建页]       │
 │                                                           │
-│  列表页: Orders, OrderDemandAdjustment, Customers         │
+│  列表页: Orders, Customers                                │
 │                                                           │
 │  2026-06-21 变更：产品标准(Standards)已删除；牌号对照(GradeMappings)移至生产标准菜单│
 └───────────────────────────────────────────────────────────┘
@@ -56,8 +57,8 @@
 ### 2.2 工单上下文
 
 ```
-路由前缀: /workorders, /material-plan-overview, /workorder-execution
-菜单: 工单管理 → [工单首页, 用料计划总览, 工单执行状况]
+路由前缀: /workorders, /material-plan-overview, /workorder-execution, /order-demand-adjustment
+菜单: 工单管理 → [工单首页, 用料计划总览, 工单需求调整, 工单执行状况]
 
 ┌─ 工单管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -77,18 +78,43 @@
 │  WorkOrderInProcessReworkPlanCreate.razor /workorders/{id}/in-process-rework-plan/create │
 │  WorkOrderInProcessReworkPlanCreate.razor /workorders/{id}/in-process-rework-plan/edit/{PlanId:int} │
 │                                                           │
-│  WorkOrderOverview.razor          /workorder-overview              [列表页]  │
-│                                                           │
 │  MaterialPlanOverview.razor /material-plan-overview [列表页]│
 │                                                           │
 │  WorkOrderExecution.razor         /workorder-execution            [列表页]  │
 │                                                           │
-│  列表页: WorkOrders, MaterialPlanOverview, WorkOrderExecution  │
+│  OrderDemandAdjustment.razor      /order-demand-adjustment        [列表页]  │
+│                                                           │
+│  列表页: WorkOrders, MaterialPlanOverview, WorkOrderExecution, OrderDemandAdjustment  │
 │  ※ 页面文件在 Pages/WorkOrders/ 目录                        │
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 批次上下文
+### 2.3 计划排程上下文
+
+```
+路由前缀: /plan-overview, /section-production-status, /section-flow-analysis, /raw-material-lock-plan, /scheduling-plans, /cold-roll-plans, /batch-plans, /final-inspection-plan
+菜单: 计划排程 → [负载总览, 工段待产量, 工段流转分析, 原锁计划, 排程计划, 冷轧计划, 批次计划, 成检计划]
+
+┌─ 计划排程 ─────────────────────────────────────────────┐
+│                                                           │
+│  PlanOverview.razor                  /plan-overview                    [只读聚合] │
+│  SectionProductionStatus.razor      /section-production-status      [列表页]     │
+│  SectionFlowAnalysis.razor          /section-flow-analysis          [列表页]     │
+│  RawMaterialLockPlanAndExecution.razor /raw-material-lock-plan      [列表页]     │
+│  WorkOrderSchedules.razor           /scheduling-plans                [列表页]     │
+│  ColdRollPlans.razor                /cold-roll-plans                [列表页]     │
+│  BatchPlans.razor                   /batch-plans                    [列表页]     │
+│  FinalInspectionPlan.razor          /final-inspection-plan          [列表页]     │
+│                                                           │
+│  列表页: SectionProductionStatus, SectionFlowAnalysis,    │
+│          RawMaterialLockPlanAndExecution,                 │
+│          WorkOrderSchedules, ColdRollPlans, BatchPlans,   │
+│          FinalInspectionPlan                              │
+│  只读聚合: PlanOverview（MudTable 客户端模式，无分页/排序/筛选）│
+└───────────────────────────────────────────────────────────┘
+```
+
+### 2.4 批次上下文
 
 ```
 路由前缀: /batches, /production-records, /section-outsources, /outsource-recoveries,
@@ -123,7 +149,7 @@
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 2.4 质量上下文
+### 2.5 质量上下文
 
 ```
 路由前缀: /quality/furnace, /quality/process-inspection, /quality/material-receive-checks, /quality/final-inspection,
@@ -178,31 +204,6 @@
 │          PittingCorrosionTests, IntergranularCorrosionTests, │
 │          TensileTests, MetallographicTests,                  │
 │          FlatteningTests, FlaringTests                       │
-└───────────────────────────────────────────────────────────┘
-```
-
-### 2.5 设备上下文
-
-```
-路由前缀: /equipment, /repair-orders, /maintenance-orders, /inspection-records
-菜单: 设备管理 → [设备台账, 维修工单, 保养工单, 点检记录]
-
-┌─ 设备管理 ───────────────────────────────────────────────┐
-│                                                           │
-│  Equipments.razor            /equipment          [列表页]   │
-│  EquipmentCreate.razor       /equipment/create   [创建页]   │
-│                                                           │
-│  RepairOrders.razor          /repair-orders      [列表页]   │
-│  RepairOrderCreate.razor     /repair-orders/create [创建页] │
-│                                                           │
-│  MaintenanceOrders.razor     /maintenance-orders [列表页]   │
-│  MaintenanceOrderCreate.razor /maintenance-orders/create [创建页]│
-│                                                           │
-│  InspectionRecords.razor     /inspection-records [列表页]   │
-│  InspectionRecordCreate.razor /inspection-records/create [创建页]│
-│                                                           │
-│  列表页: Equipments, RepairOrders, MaintenanceOrders,      │
-│          InspectionRecords                                  │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -262,28 +263,28 @@
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 2.8 计划排程上下文
+### 2.8 设备上下文
 
 ```
-路由前缀: /order-overview, /section-production-status, /section-flow-analysis, /raw-material-lock-plan, /workorder-schedules, /cold-roll-plans, /batch-plans, /final-inspection-plan
-菜单: 计划排程 → [工单总览, 工段待产量, 工段流转分析, 原锁计划, 工单计划, 冷轧计划, 批次计划, 成检计划]
+路由前缀: /equipment, /repair-orders, /maintenance-orders, /inspection-records
+菜单: 设备管理 → [设备台账, 维修工单, 保养工单, 点检记录]
 
-┌─ 计划排程 ─────────────────────────────────────────────┐
+┌─ 设备管理 ───────────────────────────────────────────────┐
 │                                                           │
-│  OrderOverview.razor                 /order-overview                   [只读聚合] │
-│  SectionProductionStatus.razor      /section-production-status      [列表页]     │
-│  SectionFlowAnalysis.razor          /section-flow-analysis          [列表页]     │
-│  RawMaterialLockPlanAndExecution.razor /raw-material-lock-plan      [列表页]     │
-│  WorkOrderSchedules.razor           /workorder-schedules            [列表页]     │
-│  ColdRollPlans.razor                /cold-roll-plans                [列表页]     │
-│  BatchPlans.razor                   /batch-plans                    [列表页]     │
-│  FinalInspectionPlan.razor          /final-inspection-plan          [列表页]     │
+│  Equipments.razor            /equipment          [列表页]   │
+│  EquipmentCreate.razor       /equipment/create   [创建页]   │
 │                                                           │
-│  列表页: SectionProductionStatus, SectionFlowAnalysis,    │
-│          RawMaterialLockPlanAndExecution,                 │
-│          WorkOrderSchedules, ColdRollPlans, BatchPlans,   │
-│          FinalInspectionPlan                              │
-│  只读聚合: OrderOverview（MudTable 客户端模式，无分页/排序/筛选）│
+│  RepairOrders.razor          /repair-orders      [列表页]   │
+│  RepairOrderCreate.razor     /repair-orders/create [创建页] │
+│                                                           │
+│  MaintenanceOrders.razor     /maintenance-orders [列表页]   │
+│  MaintenanceOrderCreate.razor /maintenance-orders/create [创建页]│
+│                                                           │
+│  InspectionRecords.razor     /inspection-records [列表页]   │
+│  InspectionRecordCreate.razor /inspection-records/create [创建页]│
+│                                                           │
+│  列表页: Equipments, RepairOrders, MaintenanceOrders,      │
+│          InspectionRecords                                  │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -332,7 +333,7 @@
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 2.11 配置上下文
+### 2.10 配置上下文
 
 ```
 路由前缀: /section-flow-category-settings, /daily-production-capacities, /daily-output-estimates, /standard-work-days, /standard-work-day-delivery-states, /config-parameters, /workstations, /employees
@@ -359,6 +360,22 @@
 └───────────────────────────────────────────────────────────┘
 ```
 
+### 2.11 报表上下文
+
+```
+路由前缀: /reports
+菜单: 报表系统 → [产量报表]
+
+┌─ 报表系统 ───────────────────────────────────────────────┐
+│                                                           │
+│  ProductionOutput.razor     /reports/production-output     [列表页]     │
+│                                                           │
+│  列表页: ProductionOutput                                   │
+│  ※ API: ReportController (api/report/daily-output)         │
+│  ※ 后端 Service: ReportService, 前端 Service: ReportService │
+└───────────────────────────────────────────────────────────┘
+```
+
 ### 2.12 其他页
 
 ```
@@ -375,18 +392,19 @@
 │                                                           │
 │  导航栏：左侧 MudNavMenu 树形导航（200px 宽）            │
 │          首页                                          │
-│          ▸ 订单管理 / ▸ 工单管理 / ▸ 批次管理            │
+│          ▸ 订单管理 / ▸ 工单管理 / ▸ 计划排程            │
+│          ▸ 批次管理                                     │
 │          ▾ 质量管理（3 级嵌套）                          │
 │            ▾ 检验 → 过程检验/成检到料/成品检验/成检追踪   │
 │            不合格报告                                   │
 │            ▾ 炉号/化学 → 炉号登记                    │
 │            理化检测 / 质量证明书                         │
-│          ▸ 设备管理 / ▸ 物料管理 / ▸ 仓库管理            │
-│          ▸ 计划排程                                     │
+│          ▸ 物料管理 / ▸ 仓库管理 / ▸ 设备管理            │
 │          ▸ 生产标准 → 标准号列表 / 标准号检验项要求 /   │
           │            牌号对照 / 标准牌号化学成分 /            │
           │            工厂牌号化学成分 / 工厂牌号化分验证 /   │
           │            牌号物理性能 / 子标准速览             │
+│          ▸ 报表系统 → 产量报表                          │
 │          数据工具 / 扫码报工 / 设备扫码                  │
 │          ▸ 参数表 → 生产-工段日流转量 / 生产-重点工段日产 / │
 │                    生产-规格日产预估 / 生产-工段工量天数 /   │
@@ -401,11 +419,11 @@
 
 ## 3. 列表页完整清单（需检查加载/排序/筛选）
 
-共 **62 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
+共 **63 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
 
 | # | 页面文件 | 路由 | 上下文 | 内联编辑 | 备注 |
 |---|---------|------|-------|---------|------|
-| 1 | Orders.razor | /orders | 订单 | ✅ | |
+| 1 | Orders.razor | /orders | 订单 | ✅ | B23 列分组4组(基本信息/合同交付/订单确认/工单执行) + ExcelFilter + B23分组标题栏 + 搜索栏3组(模糊搜索+签订日期+交货日期) |
 | 2 | Customers.razor | /customers | 订单 | | |
 | 3 | GradeMappings.razor | /grade-mappings | 生产标准 | | |
 | 4 | WorkOrders.razor | /workorders | 工单 | ✅ | |
@@ -436,7 +454,7 @@
 | 29 | WorkOrderExecution.razor | /workorder-execution | 工单 | | ✅ 已过规范检查。列分组14组(G1-G14) + 复选框选择列 + 打印选中+打印全部 + 分组标题栏 + 底部聚合行 |
 | 30 | QualityProcessTracking.razor | /quality/process-tracking | 质量 | | 只读列表 |
 | 31 | Ncrs.razor | /quality/ncr | 质量 | | 列表页+分页汇总 |
-| 32 | OrderDemandAdjustment.razor | /order-demand-adjustment | 订单 | ✅ | 内联编辑催单/分批/暂停开关及调整备注 |
+| 32 | OrderDemandAdjustment.razor | /order-demand-adjustment | 工单 | ✅ | 内联编辑催单/分批/暂停开关及调整备注 |
 | 33 | RawMaterialLockPlanAndExecution.razor | /raw-material-lock-plan | 计划排程 | ✅ | 汇总栏（工单总数/成品在购/待投料 + 紧急性5档分解 + 预执行(外购/投料) 区分）+ G15 预执行 MudSwitch 内联编辑 + BudgetInputDate 日期输入 + 主号齐全系统计算（LEFT JOIN 实时查询，无计划安排按钮） |
 | 34 | StandardWorkDays.razor | /standard-work-days | 配置 | ✅ | 查改一体表 |
 | 35 | StandardWorkDayDeliveryStates.razor | /standard-work-day-delivery-states | 配置 | ✅ | 查改一体表 |
@@ -444,7 +462,7 @@
 | 37 | SectionFlowAnalysis.razor | /section-flow-analysis | 计划排程 | | 客户端模式，4列 |
 | 38 | SectionProductionStatus.razor | /section-production-status | 计划排程 | | 客户端模式，6列 |
 | 39 | SectionFlowCategorySettings.razor | /section-flow-category-settings | 配置 | ✅ | 主表+子表展开 |
-| 40 | WorkOrderSchedules.razor | /workorder-schedules | 计划排程 | | LEFT JOIN 实时查询模式（WorkOrderExecutionSummary + WorkOrderPlan 薄表），G15 内联编辑 + 计划安排按钮 |
+| 40 | WorkOrderSchedules.razor | /scheduling-plans | 计划排程 | | LEFT JOIN 实时查询模式（WorkOrderExecutionSummary + WorkOrderPlan 薄表），G15 内联编辑 + 计划安排按钮 |
 | 41 | DailyOutputEstimates.razor | /daily-output-estimates | 配置 | ✅ | 查改一体表 |
 | 42 | Workstations.razor | /workstations | 配置 | ✅ | 查改一体表 |
 | 43 | Employees.razor | /employees | 配置 | ✅ | 查改一体表 |
@@ -466,6 +484,7 @@
 | 59 | FlatteningTests.razor | /quality/flattening-test | 质量 | | 理化检测-压扁检验 |
 | 60 | FlaringTests.razor | /quality/flaring-test | 质量 | | 理化检测-扩口检验 |
 | 61 | DailyProductionCapacities.razor | /daily-production-capacities | 配置 | ✅ | 查改一体表，仿ConfigParameters模式 |
+| 62 | ProductionOutput.razor | /reports/production-output | 报表 | | 产量报表，服务端数据模式 |
 
 ---
 
@@ -510,4 +529,4 @@
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
 >
-> **最后更新：2026-07-09（V14）** — 路由规范化：ChemicalComposition/ValidationRule 路由同步生产标准前缀；MaterialReceiveChecks 加 /quality/ 前缀；QualityProcessTracking 用斜杠分层；上下文边界审核同步
+> **最后更新：2026-07-11（V16）** — 新增报表上下文：产量报表页面(/reports/production-output)

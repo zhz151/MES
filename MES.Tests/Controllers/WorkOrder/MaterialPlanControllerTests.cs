@@ -2,11 +2,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.WorkOrder;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.WorkOrder;
 
 namespace MES.Tests.Controllers;
 

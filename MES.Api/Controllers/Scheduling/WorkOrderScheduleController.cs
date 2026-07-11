@@ -1,9 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Services.Printing;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.Scheduling;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Scheduling;
@@ -21,7 +22,7 @@ public class WorkOrderScheduleController : ControllerBase
     }
 
     [HttpGet("list")]
-    public async Task<ActionResult<ApiResponse<PagedResult<Core.DTOs.WorkOrderScheduleDto>>>> GetPaged(
+    public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderScheduleDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null,
@@ -35,7 +36,7 @@ public class WorkOrderScheduleController : ControllerBase
             query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         var result = await _service.GetPagedAsync(query);
-        return Ok(ApiResponse<PagedResult<Core.DTOs.WorkOrderScheduleDto>>.Ok(result));
+        return Ok(ApiResponse<PagedResult<WorkOrderScheduleDto>>.Ok(result));
     }
 
     [HttpGet("filter-contexts")]
@@ -46,7 +47,7 @@ public class WorkOrderScheduleController : ControllerBase
     }
 
     [HttpPost("save-plan")]
-    public async Task<ActionResult<ApiResponse<bool>>> SavePlan([FromBody] Core.DTOs.SaveWorkOrderPlanRequest request)
+    public async Task<ActionResult<ApiResponse<bool>>> SavePlan([FromBody] SaveWorkOrderPlanRequest request)
     {
         var result = await _service.SavePlanAsync(request);
         return Ok(ApiResponse<bool>.Ok(result));

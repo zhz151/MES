@@ -5,10 +5,11 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Blazor.Models;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Quality;
@@ -54,24 +55,24 @@ public partial class FurnaceRegistrations
         new() { Key = "RelatedPlantGrade",Label = "关联工厂牌号", SortKey = "relatedplantgrade", FilterType = "string", Width = "120" },
         new() { Key = "FurnaceNumber",    Label = "炉号",         SortKey = "furnacenumber", FilterType = "string", Width = "120", IsRequired = true },
         new() { Key = "Specification",    Label = "规格",         SortKey = "specification", FilterType = "string", Width = "120" },
-        new() { Key = "Quantity",         Label = "支数",         SortKey = "quantity", Width = "80" },
-        new() { Key = "Weight",           Label = "重量",         SortKey = "weight", Width = "80" },
-        new() { Key = "Carbon",           Label = "C",            SortKey = "carbon", Width = "80" },
-        new() { Key = "Silicon",          Label = "Si",           SortKey = "silicon", Width = "80" },
-        new() { Key = "Manganese",        Label = "Mn",           SortKey = "manganese", Width = "80" },
-        new() { Key = "Phosphorus",       Label = "P",            SortKey = "phosphorus", Width = "80" },
-        new() { Key = "Sulfur",           Label = "S",            SortKey = "sulfur", Width = "80" },
-        new() { Key = "Nickel",           Label = "Ni",           SortKey = "nickel", Width = "80" },
-        new() { Key = "Chromium",         Label = "Cr",           SortKey = "chromium", Width = "80" },
-        new() { Key = "Molybdenum",       Label = "Mo",           SortKey = "molybdenum", Width = "80" },
-        new() { Key = "Copper",           Label = "Cu",           SortKey = "copper", Width = "80" },
-        new() { Key = "Nitrogen",         Label = "N",            SortKey = "nitrogen", Width = "80" },
-        new() { Key = "Niobium",          Label = "Nb",           SortKey = "niobium", Width = "80" },
-        new() { Key = "Titanium",         Label = "Ti",           SortKey = "titanium", Width = "80" },
-        new() { Key = "Iron",             Label = "Fe",           SortKey = "iron", Width = "80" },
-        new() { Key = "Aluminum",         Label = "Al",           SortKey = "aluminum", Width = "80" },
-        new() { Key = "Tungsten",         Label = "W",            SortKey = "tungsten", Width = "80" },
-        new() { Key = "PREN",             Label = "PREN腐蚀当量",  SortKey = "pren", Width = "80" },
+        new() { Key = "Quantity",         Label = "支数",         SortKey = "quantity",        FilterType = "number", Width = "80" },
+        new() { Key = "Weight",           Label = "重量",         SortKey = "weight",          FilterType = "number", Width = "80" },
+        new() { Key = "Carbon",           Label = "C",            SortKey = "carbon",          FilterType = "number", Width = "80" },
+        new() { Key = "Silicon",          Label = "Si",           SortKey = "silicon",         FilterType = "number", Width = "80" },
+        new() { Key = "Manganese",        Label = "Mn",           SortKey = "manganese",       FilterType = "number", Width = "80" },
+        new() { Key = "Phosphorus",       Label = "P",            SortKey = "phosphorus",      FilterType = "number", Width = "80" },
+        new() { Key = "Sulfur",           Label = "S",            SortKey = "sulfur",          FilterType = "number", Width = "80" },
+        new() { Key = "Nickel",           Label = "Ni",           SortKey = "nickel",          FilterType = "number", Width = "80" },
+        new() { Key = "Chromium",         Label = "Cr",           SortKey = "chromium",        FilterType = "number", Width = "80" },
+        new() { Key = "Molybdenum",       Label = "Mo",           SortKey = "molybdenum",      FilterType = "number", Width = "80" },
+        new() { Key = "Copper",           Label = "Cu",           SortKey = "copper",          FilterType = "number", Width = "80" },
+        new() { Key = "Nitrogen",         Label = "N",            SortKey = "nitrogen",        FilterType = "number", Width = "80" },
+        new() { Key = "Niobium",          Label = "Nb",           SortKey = "niobium",         FilterType = "number", Width = "80" },
+        new() { Key = "Titanium",         Label = "Ti",           SortKey = "titanium",        FilterType = "number", Width = "80" },
+        new() { Key = "Iron",             Label = "Fe",           SortKey = "iron",            FilterType = "number", Width = "80" },
+        new() { Key = "Aluminum",         Label = "Al",           SortKey = "aluminum",        FilterType = "number", Width = "80" },
+        new() { Key = "Tungsten",         Label = "W",            SortKey = "tungsten",         FilterType = "number", Width = "80" },
+        new() { Key = "PREN",             Label = "PREN腐蚀当量",  SortKey = "pren",             FilterType = "number", Width = "80" },
         new() { Key = "Remark",           Label = "备注",         SortKey = "remark", FilterType = "string", Width = "120" },
         new() { Key = "UpdatedTime",      Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
     };
@@ -828,12 +829,23 @@ public partial class FurnaceRegistrations
     {
         decimal? editValue = key switch
         {
-            "Carbon" => cache?.Carbon, "Silicon" => cache?.Silicon, "Manganese" => cache?.Manganese,
-            "Phosphorus" => cache?.Phosphorus, "Sulfur" => cache?.Sulfur, "Nickel" => cache?.Nickel,
-            "Chromium" => cache?.Chromium, "Molybdenum" => cache?.Molybdenum, "Copper" => cache?.Copper,
-            "Nitrogen" => cache?.Nitrogen, "Niobium" => cache?.Niobium, "Titanium" => cache?.Titanium,
-            "Iron" => cache?.Iron, "Aluminum" => cache?.Aluminum, "Tungsten" => cache?.Tungsten,
-            "PREN" => cache?.PREN, _ => null
+            "Carbon" => cache?.Carbon,
+            "Silicon" => cache?.Silicon,
+            "Manganese" => cache?.Manganese,
+            "Phosphorus" => cache?.Phosphorus,
+            "Sulfur" => cache?.Sulfur,
+            "Nickel" => cache?.Nickel,
+            "Chromium" => cache?.Chromium,
+            "Molybdenum" => cache?.Molybdenum,
+            "Copper" => cache?.Copper,
+            "Nitrogen" => cache?.Nitrogen,
+            "Niobium" => cache?.Niobium,
+            "Titanium" => cache?.Titanium,
+            "Iron" => cache?.Iron,
+            "Aluminum" => cache?.Aluminum,
+            "Tungsten" => cache?.Tungsten,
+            "PREN" => cache?.PREN,
+            _ => null
         };
 
         if (isEditing && cache != null)
@@ -851,14 +863,22 @@ public partial class FurnaceRegistrations
                 if (cache == null) return;
                 switch (key)
                 {
-                    case "Carbon": cache.Carbon = v; break; case "Silicon": cache.Silicon = v; break;
-                    case "Manganese": cache.Manganese = v; break; case "Phosphorus": cache.Phosphorus = v; break;
-                    case "Sulfur": cache.Sulfur = v; break; case "Nickel": cache.Nickel = v; break;
-                    case "Chromium": cache.Chromium = v; break; case "Molybdenum": cache.Molybdenum = v; break;
-                    case "Copper": cache.Copper = v; break; case "Nitrogen": cache.Nitrogen = v; break;
-                    case "Niobium": cache.Niobium = v; break; case "Titanium": cache.Titanium = v; break;
-                    case "Iron": cache.Iron = v; break; case "Aluminum": cache.Aluminum = v; break;
-                    case "Tungsten": cache.Tungsten = v; break; case "PREN": cache.PREN = v; break;
+                    case "Carbon": cache.Carbon = v; break;
+                    case "Silicon": cache.Silicon = v; break;
+                    case "Manganese": cache.Manganese = v; break;
+                    case "Phosphorus": cache.Phosphorus = v; break;
+                    case "Sulfur": cache.Sulfur = v; break;
+                    case "Nickel": cache.Nickel = v; break;
+                    case "Chromium": cache.Chromium = v; break;
+                    case "Molybdenum": cache.Molybdenum = v; break;
+                    case "Copper": cache.Copper = v; break;
+                    case "Nitrogen": cache.Nitrogen = v; break;
+                    case "Niobium": cache.Niobium = v; break;
+                    case "Titanium": cache.Titanium = v; break;
+                    case "Iron": cache.Iron = v; break;
+                    case "Aluminum": cache.Aluminum = v; break;
+                    case "Tungsten": cache.Tungsten = v; break;
+                    case "PREN": cache.PREN = v; break;
                 }
             }));
             builder.CloseComponent();
@@ -867,14 +887,22 @@ public partial class FurnaceRegistrations
         {
             var display = key switch
             {
-                "Carbon" => item.Carbon?.ToString("G29"), "Silicon" => item.Silicon?.ToString("G29"),
-                "Manganese" => item.Manganese?.ToString("G29"), "Phosphorus" => item.Phosphorus?.ToString("G29"),
-                "Sulfur" => item.Sulfur?.ToString("G29"), "Nickel" => item.Nickel?.ToString("G29"),
-                "Chromium" => item.Chromium?.ToString("G29"), "Molybdenum" => item.Molybdenum?.ToString("G29"),
-                "Copper" => item.Copper?.ToString("G29"), "Nitrogen" => item.Nitrogen?.ToString("G29"),
-                "Niobium" => item.Niobium?.ToString("G29"), "Titanium" => item.Titanium?.ToString("G29"),
-                "Iron" => item.Iron?.ToString("G29"), "Aluminum" => item.Aluminum?.ToString("G29"),
-                "Tungsten" => item.Tungsten?.ToString("G29"), "PREN" => item.PREN?.ToString("G29"),
+                "Carbon" => item.Carbon?.ToString("G29"),
+                "Silicon" => item.Silicon?.ToString("G29"),
+                "Manganese" => item.Manganese?.ToString("G29"),
+                "Phosphorus" => item.Phosphorus?.ToString("G29"),
+                "Sulfur" => item.Sulfur?.ToString("G29"),
+                "Nickel" => item.Nickel?.ToString("G29"),
+                "Chromium" => item.Chromium?.ToString("G29"),
+                "Molybdenum" => item.Molybdenum?.ToString("G29"),
+                "Copper" => item.Copper?.ToString("G29"),
+                "Nitrogen" => item.Nitrogen?.ToString("G29"),
+                "Niobium" => item.Niobium?.ToString("G29"),
+                "Titanium" => item.Titanium?.ToString("G29"),
+                "Iron" => item.Iron?.ToString("G29"),
+                "Aluminum" => item.Aluminum?.ToString("G29"),
+                "Tungsten" => item.Tungsten?.ToString("G29"),
+                "PREN" => item.PREN?.ToString("G29"),
                 _ => null
             };
             builder.AddContent(0, display);

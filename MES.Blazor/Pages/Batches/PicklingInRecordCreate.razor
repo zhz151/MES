@@ -1,9 +1,9 @@
 @page "/pickling-in-records/create"
-@using MES.Core.DTOs
 @using MES.Blazor.Services
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Core.Constants
+@using MES.Core.DTOs.Batch
 @inject PicklingService PicklingService
 @inject BatchService BatchService
 @inject NavigationManager Navigation
@@ -160,7 +160,7 @@
         new() { Key = "Shift",             Label = "班次" },
         new() { Key = "Quantity",          Label = "加工数量" },
         new() { Key = "Weight",            Label = "重量(kg)" },
-        new() { Key = "IsFinished",        Label = "是否成品" },
+        new() { Key = "ProductStatus",     Label = "制造状态" },
         new() { Key = "TagNo",             Label = "挂牌号" },
         new() { Key = "PlantGrade",        Label = "工厂牌号" },
         new() { Key = "Remark",            Label = "备注" },
@@ -205,7 +205,6 @@
         public string? Shift { get; set; }
         public int? Quantity { get; set; }
         public decimal? Weight { get; set; }
-        public bool IsFinished { get; set; }
         public string? TagNo { get; set; }
         public string? PlantGrade { get; set; }
         public string? Remark { get; set; }
@@ -304,7 +303,6 @@
                 Shift = r.Shift?.Trim(),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
-                IsFinished = r.IsFinished,
                 TagNo = r.TagNo?.Trim(),
                 PlantGrade = r.PlantGrade?.Trim(),
                 Remark = r.Remark?.Trim(),
@@ -512,11 +510,10 @@
                 builder.AddAttribute(8, "Clearable", true);
                 builder.CloseComponent();
                 break;
-            case "IsFinished":
-                builder.OpenComponent<MudCheckBox<bool>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Value", r.IsFinished);
-                builder.AddAttribute(3, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => r.IsFinished = v));
+            case "ProductStatus":
+                builder.OpenComponent<MudText>(0);
+                builder.AddAttribute(1, "Typo", Typo.body2);
+                builder.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "自动计算")));
                 builder.CloseComponent();
                 break;
             case "Remark":

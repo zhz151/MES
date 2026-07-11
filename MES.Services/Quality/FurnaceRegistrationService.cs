@@ -1,11 +1,45 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Quality;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using Microsoft.Extensions.Caching.Memory;
@@ -91,10 +125,22 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
                 Specification = x.Specification,
                 Quantity = x.Quantity,
                 Weight = x.Weight,
-                Carbon = x.Carbon, Silicon = x.Silicon, Manganese = x.Manganese, Phosphorus = x.Phosphorus, Sulfur = x.Sulfur,
-                Nickel = x.Nickel, Chromium = x.Chromium, Molybdenum = x.Molybdenum, Copper = x.Copper,
-                Nitrogen = x.Nitrogen, Niobium = x.Niobium, Titanium = x.Titanium, Iron = x.Iron,
-                Aluminum = x.Aluminum, Tungsten = x.Tungsten, PREN = x.PREN,
+                Carbon = x.Carbon,
+                Silicon = x.Silicon,
+                Manganese = x.Manganese,
+                Phosphorus = x.Phosphorus,
+                Sulfur = x.Sulfur,
+                Nickel = x.Nickel,
+                Chromium = x.Chromium,
+                Molybdenum = x.Molybdenum,
+                Copper = x.Copper,
+                Nitrogen = x.Nitrogen,
+                Niobium = x.Niobium,
+                Titanium = x.Titanium,
+                Iron = x.Iron,
+                Aluminum = x.Aluminum,
+                Tungsten = x.Tungsten,
+                PREN = x.PREN,
                 Remark = x.Remark,
                 CreatedTime = x.CreatedTime,
                 UpdatedTime = x.UpdatedTime
@@ -377,32 +423,32 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
 
-        var all = await _context.FurnaceRegistrations
-            .AsNoTracking()
-            .Select(r => new
-            {
-                r.RawMaterialUnit,
-                r.RawMaterialType,
-                r.RegisteredGrade,
-                r.RelatedPlantGrade,
-                r.FurnaceNumber,
-                r.Specification,
-                r.IncomingDate,
-                r.Remark
-            })
-            .ToListAsync();
+            var all = await _context.FurnaceRegistrations
+                .AsNoTracking()
+                .Select(r => new
+                {
+                    r.RawMaterialUnit,
+                    r.RawMaterialType,
+                    r.RegisteredGrade,
+                    r.RelatedPlantGrade,
+                    r.FurnaceNumber,
+                    r.Specification,
+                    r.IncomingDate,
+                    r.Remark
+                })
+                .ToListAsync();
 
-        return new Dictionary<string, List<string>>
-        {
-            ["RawMaterialUnit"] = all.Select(x => x.RawMaterialUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
-            ["RawMaterialType"] = all.Select(x => x.RawMaterialType).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
-            ["RegisteredGrade"] = all.Select(x => x.RegisteredGrade).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
-            ["RelatedPlantGrade"] = all.Select(x => x.RelatedPlantGrade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["FurnaceNumber"] = all.Select(x => x.FurnaceNumber).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
-            ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-            ["IncomingDate"] = all.Select(x => x.IncomingDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList(),
-            ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
-        };
+            return new Dictionary<string, List<string>>
+            {
+                ["RawMaterialUnit"] = all.Select(x => x.RawMaterialUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+                ["RawMaterialType"] = all.Select(x => x.RawMaterialType).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+                ["RegisteredGrade"] = all.Select(x => x.RegisteredGrade).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+                ["RelatedPlantGrade"] = all.Select(x => x.RelatedPlantGrade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["FurnaceNumber"] = all.Select(x => x.FurnaceNumber).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
+                ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["IncomingDate"] = all.Select(x => x.IncomingDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList(),
+                ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
+            };
 
         }) ?? new Dictionary<string, List<string>>();
     }
@@ -439,21 +485,21 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
 
         var carbon = request.Carbon;
 
-        ValidateElement(errors, prefix, "C",  request.Carbon,    rule.CMin,    rule.CMax,    carbon);
-        ValidateElement(errors, prefix, "Si", request.Silicon,   rule.SiMin,   rule.SiMax,   carbon);
-        ValidateElement(errors, prefix, "Mn", request.Manganese, rule.MnMin,   rule.MnMax,   carbon);
-        ValidateElement(errors, prefix, "P",  request.Phosphorus,rule.PMin,    rule.PMax,    carbon);
-        ValidateElement(errors, prefix, "S",  request.Sulfur,    rule.SMin,    rule.SMax,    carbon);
-        ValidateElement(errors, prefix, "Ni", request.Nickel,    rule.NiMin,   rule.NiMax,   carbon);
-        ValidateElement(errors, prefix, "Cr", request.Chromium,  rule.CrMin,   rule.CrMax,   carbon);
-        ValidateElement(errors, prefix, "Mo", request.Molybdenum,rule.MoMin,   rule.MoMax,   carbon);
-        ValidateElement(errors, prefix, "Cu", request.Copper,    rule.CuMin,   rule.CuMax,   carbon);
-        ValidateElement(errors, prefix, "N",  request.Nitrogen,  rule.NMin,    rule.NMax,    carbon);
-        ValidateElement(errors, prefix, "Nb", request.Niobium,   rule.NbMin,   rule.NbMax,   carbon);
-        ValidateElement(errors, prefix, "Ti", request.Titanium,  rule.TiMin,   rule.TiMax,   carbon);
-        ValidateElement(errors, prefix, "Fe", request.Iron,      rule.FeMin,   rule.FeMax,   carbon);
-        ValidateElement(errors, prefix, "Al", request.Aluminum,  rule.AlMin,   rule.AlMax,   carbon);
-        ValidateElement(errors, prefix, "W",  request.Tungsten,  rule.WMin,    rule.WMax,    carbon);
+        ValidateElement(errors, prefix, "C", request.Carbon, rule.CMin, rule.CMax, carbon);
+        ValidateElement(errors, prefix, "Si", request.Silicon, rule.SiMin, rule.SiMax, carbon);
+        ValidateElement(errors, prefix, "Mn", request.Manganese, rule.MnMin, rule.MnMax, carbon);
+        ValidateElement(errors, prefix, "P", request.Phosphorus, rule.PMin, rule.PMax, carbon);
+        ValidateElement(errors, prefix, "S", request.Sulfur, rule.SMin, rule.SMax, carbon);
+        ValidateElement(errors, prefix, "Ni", request.Nickel, rule.NiMin, rule.NiMax, carbon);
+        ValidateElement(errors, prefix, "Cr", request.Chromium, rule.CrMin, rule.CrMax, carbon);
+        ValidateElement(errors, prefix, "Mo", request.Molybdenum, rule.MoMin, rule.MoMax, carbon);
+        ValidateElement(errors, prefix, "Cu", request.Copper, rule.CuMin, rule.CuMax, carbon);
+        ValidateElement(errors, prefix, "N", request.Nitrogen, rule.NMin, rule.NMax, carbon);
+        ValidateElement(errors, prefix, "Nb", request.Niobium, rule.NbMin, rule.NbMax, carbon);
+        ValidateElement(errors, prefix, "Ti", request.Titanium, rule.TiMin, rule.TiMax, carbon);
+        ValidateElement(errors, prefix, "Fe", request.Iron, rule.FeMin, rule.FeMax, carbon);
+        ValidateElement(errors, prefix, "Al", request.Aluminum, rule.AlMin, rule.AlMax, carbon);
+        ValidateElement(errors, prefix, "W", request.Tungsten, rule.WMin, rule.WMax, carbon);
 
         // PREN 自动计算与验证：PREN = Cr + 3.3*Mo + 16*N
         var calculatedPren = CalculatePREN(request.Chromium, request.Molybdenum, request.Nitrogen);

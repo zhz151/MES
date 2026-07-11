@@ -1,11 +1,45 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Auth;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.Quality;
 using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Services.Extensions;
@@ -41,11 +75,11 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         _cache = cache;
     }
 
-    private void TryRefreshQualityProcessTrackingAsync(int mrCheckId)
+    private async Task TryRefreshQualityProcessTrackingAsync(int mrCheckId)
     {
         try
         {
-            _ = _qualityProcessTracking.RefreshByMrCheckIdAsync(mrCheckId);
+            await _qualityProcessTracking.RefreshByMrCheckIdAsync(mrCheckId);
         }
         catch (Exception ex)
         {
@@ -87,7 +121,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         {
             // 生产支数：切管工序已完工产记录汇总
             entity.ProductionCutQuantity = _context.ProductionRecords
-                .Where(pr => pr.ProductionBatchId == batch.Id && pr.SectionName == SectionDefs.Cut && pr.IsFinished)
+                .Where(pr => pr.ProductionBatchId == batch.Id && pr.SectionName == SectionDefs.Cut && pr.ProductStatus == "成品")
                 .Sum(pr => (int?)(pr.PostCutQuantity ?? 0)) ?? 0;
 
             // 目标重量 = 投料重量 × (1 - 有效工序组数 × 0.025)
@@ -198,7 +232,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
         await _context.SaveChangesAsync();
 
-        TryRefreshQualityProcessTrackingAsync(entity.Id);
+        await TryRefreshQualityProcessTrackingAsync(entity.Id);
 
         return new MaterialReceiveCheckDto
         {
@@ -317,6 +351,10 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         _context.ProductionBatches.UpdateRange(modifiedBatches);
         await _context.SaveChangesAsync();
 
+        // 批量创建后逐个刷新质量过程跟踪
+        foreach (var entity in entities)
+            await TryRefreshQualityProcessTrackingAsync(entity.Id);
+
         return entities.Select(e => new MaterialReceiveCheckDto
         {
             Id = e.Id,
@@ -362,7 +400,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         _context.MaterialReceiveChecks.Update(entity);
         await _context.SaveChangesAsync();
 
-        TryRefreshQualityProcessTrackingAsync(entity.Id);
+        await TryRefreshQualityProcessTrackingAsync(entity.Id);
 
         return new MaterialReceiveCheckDto
         {
@@ -602,10 +640,20 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 && (b.CurrentSectionName == "检验" || b.NextSectionName == "检验"))
             .Select(b => new
             {
-                b.Id, b.BatchNo, b.WorkOrderNo, b.Salesman, b.TagNo,
-                b.PlantGrade, b.Specification, b.CurrentValidWeight, b.CurrentExecDate,
-                b.CurrentSectionName, b.CurrentSectionCompleted, b.CurrentGroupName,
-                b.NextSectionName, b.NextProcess
+                b.Id,
+                b.BatchNo,
+                b.WorkOrderNo,
+                b.Salesman,
+                b.TagNo,
+                b.PlantGrade,
+                b.Specification,
+                b.CurrentValidWeight,
+                b.CurrentExecDate,
+                b.CurrentSectionName,
+                b.CurrentSectionCompleted,
+                b.CurrentGroupName,
+                b.NextSectionName,
+                b.NextProcess
             })
             .ToListAsync();
 

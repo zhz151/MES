@@ -1,9 +1,12 @@
 @page "/mobile-report"
 @using MES.Blazor.Helpers
-@using MES.Core.DTOs
 @using MES.Core.Enums
 @using MES.Core.Constants
 @using MES.Blazor.Services
+@using MES.Core.DTOs.Batch
+@using MES.Core.DTOs.Configuration
+@using MES.Core.DTOs.Infrastructure
+@using MES.Core.DTOs.Quality
 @using Microsoft.AspNetCore.Authorization
 @implements IDisposable
 @inject ScanService ScanService
@@ -2124,7 +2127,6 @@
                     CuttingMultiple = _cuttingMultiple,
                     FinishedCutLength = _finishedCutLength,
                     PostCutQuantity = _postCutQuantity,
-                    IsFinished = _isFinished,
                     Remark = _remark,
                     DataSource = "SCAN"
                 };
@@ -2164,7 +2166,6 @@
                     Shift = _shift,
                     Quantity = _quantity,
                     Weight = _weight,
-                    IsFinished = _isFinished,
                     Remark = _remark,
                     DataSource = "SCAN"
                 };

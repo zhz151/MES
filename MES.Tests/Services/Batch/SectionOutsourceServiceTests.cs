@@ -2,16 +2,19 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
-using MES.Core.DTOs;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services;
 using MES.Services.Batch;
 using MES.Tests.Tests;
+using MES.Data.Entities.Batch;
+using MES.Core.DTOs.Batch;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -27,7 +30,7 @@ public class SectionOutsourceServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new SectionOutsourceService(ctx, loggerMock.Object, prodRecSvcMock.Object, configMock.Object, Mock.Of<Microsoft.Extensions.Caching.Memory.IMemoryCache>());
+        return new SectionOutsourceService(ctx, loggerMock.Object, prodRecSvcMock.Object, configMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
@@ -202,9 +205,12 @@ public class SectionOutsourceServiceTests : TestBase
 
         var act = () => svc.CreateAsync(new CreateSectionOutsourceRequest
         {
-            BatchNo = "NONEXISTENT", ProcessName = "60冷轧",
-            ManufacturingSpec = "219*8", SectionName = "冷轧拔",
-            OutsourceVendor = "委外厂A", SendOutDate = DateTime.Today
+            BatchNo = "NONEXISTENT",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔",
+            OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today
         });
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
@@ -480,7 +486,8 @@ public class SectionOutsourceServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "ProcessName", Operator = "contains", Value = "酸洗" }
@@ -502,7 +509,8 @@ public class SectionOutsourceServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "OutsourceVendor", Operator = "in", Values = new List<string> { "委外厂A" } }
@@ -525,7 +533,8 @@ public class SectionOutsourceServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "BatchNo", Operator = "in", Values = new List<string> { "BATCH-FLTR-A" } }
@@ -546,7 +555,8 @@ public class SectionOutsourceServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "ProcessName", Operator = "contains", Value = "NONEXISTENT" }

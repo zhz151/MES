@@ -1,10 +1,19 @@
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using MES.Data.Entities;
+using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Scheduling;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Equipment;
+using MES.Data.Entities.Batch;
+using MES.Data.Entities.Auth;
+using MES.Data.Entities.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Helpers;
-using WoEntity = MES.Data.Entities.WorkOrder;
+using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 
 namespace MES.Services.Printing;
 

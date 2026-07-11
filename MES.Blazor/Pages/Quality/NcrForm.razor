@@ -1,11 +1,11 @@
 @page "/quality/ncr/create"
 @page "/quality/ncr/{Id:int}"
-@using MES.Core.DTOs
 @using MES.Core.Enums
 @using MES.Blazor.Services
 @using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
+@using MES.Core.DTOs.Quality
 @attribute [Authorize(Roles = Roles.Policies.QualityRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">

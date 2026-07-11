@@ -1,12 +1,12 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Components;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
+using MES.Core.DTOs.Scheduling;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Scheduling;
@@ -333,7 +333,7 @@ public partial class ColdRollPlans
                         MachineNo = schedule.MachineNo ?? "",
                         CompletionType = schedule.CompletionType,
                         RollType = schedule.RollType,
-                    };;
+                    }; ;
                 }
                 else
                 {

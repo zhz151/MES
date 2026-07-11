@@ -6,9 +6,10 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.WorkOrders;
@@ -199,13 +200,13 @@ public partial class WorkOrderExecution
             new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
         };
 
-        // G13: 订单需求调整
+        // G13: 工单需求调整
         var g13 = new List<ColumnDef>
         {
-            new() { Key = "IsUrging",              Label = "催单",             SortKey = "IsUrging", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
-            new() { Key = "IsBatchDelivery",       Label = "分批交货",         SortKey = "IsBatchDelivery", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
-            new() { Key = "IsPaused",               Label = "暂停",             SortKey = "IsPaused", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "订单需求调整" },
-            new() { Key = "AdjustmentRemark",       Label = "调整备注",         SortKey = "AdjustmentRemark", FilterType = "string", Width = "120", GroupKey = 13, GroupName = "订单需求调整" },
+            new() { Key = "IsUrging",              Label = "催单",             SortKey = "IsUrging", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsBatchDelivery",       Label = "分批交货",         SortKey = "IsBatchDelivery", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsPaused",               Label = "暂停",             SortKey = "IsPaused", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "AdjustmentRemark",       Label = "调整备注",         SortKey = "AdjustmentRemark", FilterType = "string", Width = "120", GroupKey = 13, GroupName = "工单需求调整" },
         };
 
         // G14: 在产节点待量
@@ -1069,7 +1070,7 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.MainNoAttentionProcess ?? "-");
                 break;
 
-            // ========== G13: 订单需求调整 ==========
+            // ========== G13: 工单需求调整 ==========
             case "IsUrging":
                 builder.AddContent(0, item.IsUrging ? "是" : "否");
                 break;

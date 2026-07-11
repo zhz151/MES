@@ -1,16 +1,43 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
-using MES.Data.Entities;
-using MES.Data;
 using MES.Services.Materials;
 using MES.Tests.Tests;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Warehouse;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -26,7 +53,7 @@ public class SubcontractOrderServiceTests : TestBase
             .ReturnsAsync(new Dictionary<string, decimal>());
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var loggerMock = new Mock<ILogger<SubcontractOrderService>>();
-        return new SubcontractOrderService(ctx, new Mock<IPurchaseOrderService>().Object, configMock.Object, workOrderExecMock.Object, loggerMock.Object, Mock.Of<IMemoryCache>());
+        return new SubcontractOrderService(ctx, new Mock<IPurchaseOrderService>().Object, configMock.Object, workOrderExecMock.Object, loggerMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "委外供应商")
@@ -197,7 +224,7 @@ public class SubcontractOrderServiceTests : TestBase
             OutWeight = 1000m,
             ReturnDeadline = DateTime.Today.AddDays(60),
             ProcessType = "车丝",
-            ReturnItems = new List<MES.Core.DTOs.CreateReturnItemRequest>
+            ReturnItems = new List<MES.Core.DTOs.Materials.CreateReturnItemRequest>
             {
                 new()
                 {
@@ -237,7 +264,7 @@ public class SubcontractOrderServiceTests : TestBase
             OutSpecification = "219*8",
             OutQuantity = 100,
             OutWeight = 1000m,
-            ReturnItems = new List<MES.Core.DTOs.CreateReturnItemRequest>()
+            ReturnItems = new List<MES.Core.DTOs.Materials.CreateReturnItemRequest>()
         });
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*至少需要一条*");
@@ -263,7 +290,7 @@ public class SubcontractOrderServiceTests : TestBase
             OutQuantity = 200,
             OutWeight = 2000m,
             ReturnDeadline = DateTime.Today.AddDays(90),
-            ReturnItems = new List<MES.Core.DTOs.CreateReturnItemRequest>
+            ReturnItems = new List<MES.Core.DTOs.Materials.CreateReturnItemRequest>
             {
                 new()
                 {
@@ -307,7 +334,7 @@ public class SubcontractOrderServiceTests : TestBase
             OutSpecification = "219*8",
             OutQuantity = 100,
             OutWeight = 1000m,
-            ReturnItems = new List<MES.Core.DTOs.CreateReturnItemRequest>()
+            ReturnItems = new List<MES.Core.DTOs.Materials.CreateReturnItemRequest>()
         });
 
         // Completed 订单允许编辑（仅来源工单号），不会抛出异常
@@ -335,7 +362,7 @@ public class SubcontractOrderServiceTests : TestBase
             OutSpecification = "273*10",
             OutQuantity = 200,
             OutWeight = 2000m,
-            ReturnItems = new List<MES.Core.DTOs.CreateReturnItemRequest>()
+            ReturnItems = new List<MES.Core.DTOs.Materials.CreateReturnItemRequest>()
         });
 
         // 验证主表字段未被修改（仍为种子数据的值）
@@ -548,7 +575,8 @@ public class SubcontractOrderServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new SubcontractQueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "OrderNo", Operator = "contains", Value = order.OrderNo[..^1] }
@@ -568,17 +596,24 @@ public class SubcontractOrderServiceTests : TestBase
         var sid2 = await SeedSupplierAsync(ctx, name: "其他供应商");
         ctx.SubcontractOrders.Add(new SubcontractOrder
         {
-            OrderNo = "WW20260101003", SupplierId = sid2, OrderDate = DateTime.Today,
-            Status = SubcontractOrderStatus.Sent, ProcessType = "抛光",
-            OutMaterialCategory = "钢管", OutPlantGrade = "304", OutSpecification = "273*10",
-            OutQuantity = 50, OutWeight = 500m
+            OrderNo = "WW20260101003",
+            SupplierId = sid2,
+            OrderDate = DateTime.Today,
+            Status = SubcontractOrderStatus.Sent,
+            ProcessType = "抛光",
+            OutMaterialCategory = "钢管",
+            OutPlantGrade = "304",
+            OutSpecification = "273*10",
+            OutQuantity = 50,
+            OutWeight = 500m
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
         var result = await svc.GetPagedAsync(new SubcontractQueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "ProcessType", Operator = "in", Values = new List<string> { "车丝" } }
@@ -599,7 +634,8 @@ public class SubcontractOrderServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new SubcontractQueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "OrderNo", Operator = "contains", Value = "NONEXISTENT" }
@@ -648,10 +684,17 @@ public class SubcontractOrderServiceTests : TestBase
         var sid = await SeedSupplierAsync(ctx, name: "供应商A");
         ctx.SubcontractOrders.Add(new SubcontractOrder
         {
-            OrderNo = "WW20260101099", SupplierId = sid, OrderDate = DateTime.Today,
-            Status = SubcontractOrderStatus.Sent, ProcessType = "车丝",
-            OutMaterialCategory = "钢管", OutPlantGrade = "20#", OutSpecification = "219*8",
-            OutQuantity = 100, OutWeight = 1000m, ReturnDeadline = null
+            OrderNo = "WW20260101099",
+            SupplierId = sid,
+            OrderDate = DateTime.Today,
+            Status = SubcontractOrderStatus.Sent,
+            ProcessType = "车丝",
+            OutMaterialCategory = "钢管",
+            OutPlantGrade = "20#",
+            OutSpecification = "219*8",
+            OutQuantity = 100,
+            OutWeight = 1000m,
+            ReturnDeadline = null
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

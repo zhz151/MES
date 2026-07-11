@@ -6,9 +6,10 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -125,6 +126,7 @@ public partial class SectionOutsources
         new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "ExpectedReturnDate",  Label = "要求收回日期", SortKey = "expectedreturndate",  FilterType = "date", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "IsUrgent",            Label = "紧急",         SortKey = "isurgent",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "ProductStatus",       Label = "制造状态",     SortKey = "productstatus",       FilterType = "string", Width = "80", GroupKey = 1, GroupName = "委外信息" },
         // ----- 元信息（归属委外记录） -----
         new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "委外信息",
@@ -622,6 +624,20 @@ public partial class SectionOutsources
                 {
                     builder.AddContent(0, DisplayHelper.GetYesNoText(item.IsUrgent));
                 }
+                break;
+
+            case "ProductStatus":
+                var psColor = item.ProductStatus switch
+                {
+                    "荒管" => Color.Primary,
+                    "成品" => Color.Success,
+                    _ => Color.Default
+                };
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", psColor);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ProductStatus ?? "在制")));
+                builder.CloseComponent();
                 break;
 
             case "TotalRecoveredQuantity":

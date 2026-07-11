@@ -5,9 +5,10 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Batches;
@@ -95,7 +96,7 @@ public partial class PicklingOutRecords
         new() { Key = "Shift",             Label = "班次",         SortKey = "shift",             FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "其它信息" },
         new() { Key = "Quantity",          Label = "加工支数",     SortKey = "quantity",                                     Width = "80",  GroupKey = 2, GroupName = "其它信息" },
         new() { Key = "Weight",            Label = "加工重量(kg)", SortKey = "weight",                                       Width = "80",  GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "IsFinished",        Label = "是否成品",     SortKey = "isfinished",          FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "80", GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "ProductStatus",     Label = "制造状态",     SortKey = "productstatus",       FilterType = "string", Width = "80", GroupKey = 2, GroupName = "其它信息" },
         new() { Key = "BatchNo",           Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
         new() { Key = "ProcessName",       Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
         new() { Key = "SectionName",       Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "100", GroupKey = 2, GroupName = "其它信息" },
@@ -551,23 +552,18 @@ public partial class PicklingOutRecords
             case "Weight":
                 builder.AddContent(0, $"{(int)(item.Weight ?? 0)}");
                 break;
-            case "IsFinished":
-                if (item.IsFinished)
+            case "ProductStatus":
+                var psColor = item.ProductStatus switch
                 {
-                    builder.OpenComponent<MudChip>(0);
-                    builder.AddAttribute(1, "Size", Size.Small);
-                    builder.AddAttribute(2, "Color", Color.Success);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.OpenComponent<MudChip>(0);
-                    builder.AddAttribute(1, "Size", Size.Small);
-                    builder.AddAttribute(2, "Color", Color.Default);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "否")));
-                    builder.CloseComponent();
-                }
+                    "荒管" => Color.Primary,
+                    "成品" => Color.Success,
+                    _ => Color.Default
+                };
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", psColor);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ProductStatus ?? "在制")));
+                builder.CloseComponent();
                 break;
             case "PlantGrade":
                 builder.AddContent(0, item.PlantGrade ?? "");

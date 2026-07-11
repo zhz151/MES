@@ -6,9 +6,10 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Shared;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Quality;
@@ -130,6 +131,8 @@ public partial class ProcessInspections
         new() { Key = "TagNo",                 Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Width = "120",
             GroupKey = 5, GroupName = "G5 辅助信息" },
         new() { Key = "PlantGrade",            Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120",
+            GroupKey = 5, GroupName = "G5 辅助信息" },
+        new() { Key = "ProductStatus",         Label = "制造状态",   SortKey = "productstatus", FilterType = "string", Width = "80",
             GroupKey = 5, GroupName = "G5 辅助信息" },
         new() { Key = "Remark",                Label = "备注",       SortKey = "remark", FilterType = "string", Width = "120",
             GroupKey = 5, GroupName = "G5 辅助信息" },
@@ -884,6 +887,19 @@ public partial class ProcessInspections
                     builder.AddContent(0, item.PlantGrade);
                 }
                 break;
+            case "ProductStatus":
+                var psColor = item.ProductStatus switch
+                {
+                    "荒管" => Color.Primary,
+                    "成品" => Color.Success,
+                    _ => Color.Default
+                };
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", psColor);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ProductStatus ?? "在制")));
+                builder.CloseComponent();
+                break;
             case "Remark":
                 if (isEditing && cache != null)
                 {
@@ -995,7 +1011,11 @@ public partial class ProcessInspections
         // 选择列起始占位符（必须最前，对应 JS 遍历的第一个 <th> checkbox，gk=0）
         result.Add(new GroupHeaderInfo
         {
-            GroupKey = 0, GroupName = "", TotalWidth = 40, ColumnCount = 0, CssClass = ""
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
         });
         int? lastKey = null;
         int totalWidth = 0;
@@ -1039,7 +1059,11 @@ public partial class ProcessInspections
         // 操作列尾随占位符（必须最后，对应 JS 遍历的最后一个 <th> 操作列，gk=0）
         result.Add(new GroupHeaderInfo
         {
-            GroupKey = 0, GroupName = "", TotalWidth = 90, ColumnCount = 0, CssClass = ""
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 90,
+            ColumnCount = 0,
+            CssClass = ""
         });
         return result;
     }

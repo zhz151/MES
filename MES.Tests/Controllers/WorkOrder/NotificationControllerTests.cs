@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.WorkOrder;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.WorkOrder;
+using MES.Core.Interfaces.WorkOrder;
 
 namespace MES.Tests.Controllers;
 
@@ -40,7 +40,9 @@ public class NotificationControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<NotificationDto>
         {
             Items = new List<NotificationDto> { new() { Id = 1, Title = "通知1" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetPagedNotificationsAsync(1, 20)).ReturnsAsync(pagedResult);
 

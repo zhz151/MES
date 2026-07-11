@@ -1,0 +1,122 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace MES.Core.DTOs.Quality;
+
+/// <summary>
+/// 金相检验DTO
+/// </summary>
+public class MetallographicTestDto
+{
+    public int Id { get; set; }
+    public DateTime InspectionDate { get; set; }
+    public string Inspector { get; set; } = null!;
+    public string FurnaceNo { get; set; } = null!;
+    public string Grade { get; set; } = null!;
+    public string Specification { get; set; } = null!;
+    public int? SampleNo { get; set; }
+    public string? SampleSize { get; set; }
+    public string? InspectionStandard { get; set; }
+    public string? EtchingMethod { get; set; }
+    public string? ElectrolyticVoltage { get; set; }
+    public string? ElectrolyticTime { get; set; }
+    public string? Magnification { get; set; }
+    public decimal? FerriteContent { get; set; }
+    public string? Judgment { get; set; }
+    public DateTimeOffset CreatedTime { get; set; }
+    public DateTimeOffset UpdatedTime { get; set; }
+}
+
+/// <summary>
+/// 创建金相检验请求
+/// </summary>
+public class CreateMetallographicTestRequest
+{
+    [Required(ErrorMessage = "检验日期不能为空")]
+    public DateTime InspectionDate { get; set; }
+
+    [Required(ErrorMessage = "检验员不能为空")]
+    [MaxLength(50)]
+    public string Inspector { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "生产编号不能为空")]
+    [MaxLength(50)]
+    public string FurnaceNo { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "牌号不能为空")]
+    [MaxLength(50)]
+    public string Grade { get; set; } = string.Empty;
+
+    [MaxLength(100)]
+    public string Specification { get; set; } = string.Empty;
+
+    public int? SampleNo { get; set; }
+
+    [MaxLength(50)]
+    public string? SampleSize { get; set; }
+
+    [MaxLength(100)]
+    public string? InspectionStandard { get; set; }
+
+    [MaxLength(100)]
+    public string? EtchingMethod { get; set; }
+
+    [MaxLength(50)]
+    public string? ElectrolyticVoltage { get; set; }
+
+    [MaxLength(50)]
+    public string? ElectrolyticTime { get; set; }
+
+    [MaxLength(50)]
+    public string? Magnification { get; set; }
+
+    public decimal? FerriteContent { get; set; }
+
+    [MaxLength(50)]
+    public string? Judgment { get; set; }
+}
+
+/// <summary>
+/// 更新金相检验请求
+/// </summary>
+public class UpdateMetallographicTestRequest
+{
+    [Required(ErrorMessage = "检验日期不能为空")]
+    public DateTime InspectionDate { get; set; }
+
+    [MaxLength(50)]
+    public string? Inspector { get; set; }
+
+    [MaxLength(50)]
+    public string? FurnaceNo { get; set; }
+
+    [MaxLength(50)]
+    public string? Grade { get; set; }
+
+    [MaxLength(100)]
+    public string? Specification { get; set; }
+
+    public int? SampleNo { get; set; }
+
+    [MaxLength(50)]
+    public string? SampleSize { get; set; }
+
+    [MaxLength(100)]
+    public string? InspectionStandard { get; set; }
+
+    [MaxLength(100)]
+    public string? EtchingMethod { get; set; }
+
+    [MaxLength(50)]
+    public string? ElectrolyticVoltage { get; set; }
+
+    [MaxLength(50)]
+    public string? ElectrolyticTime { get; set; }
+
+    [MaxLength(50)]
+    public string? Magnification { get; set; }
+
+    public decimal? FerriteContent { get; set; }
+
+    [MaxLength(50)]
+    public string? Judgment { get; set; }
+}

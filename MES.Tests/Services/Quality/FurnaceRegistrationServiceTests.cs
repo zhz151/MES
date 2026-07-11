@@ -1,13 +1,40 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
-using MES.Data;
-using MES.Data.Entities;
 using MES.Services.Quality;
 using MES.Tests.Tests;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.ProductionStandard;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -19,7 +46,7 @@ public class FurnaceRegistrationServiceTests : TestBase
     private FurnaceRegistrationService CreateService(AppDbContext ctx)
     {
         var ruleServiceMock = new Moq.Mock<IChemicalValidationRuleService>();
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FurnaceRegistrationService>.Instance, ruleServiceMock.Object, Mock.Of<IMemoryCache>());
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FurnaceRegistrationService>.Instance, ruleServiceMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task SeedFurnaceAsync(AppDbContext ctx, string furnaceNo = "FUR001",
@@ -190,8 +217,11 @@ public class FurnaceRegistrationServiceTests : TestBase
 
         var act = () => svc.UpdateAsync(999, new UpdateFurnaceRegistrationRequest
         {
-            IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂", RawMaterialType = "管坯",
-            RegisteredGrade = "Q345B", FurnaceNumber = "FUR999"
+            IncomingDate = DateTime.Today,
+            RawMaterialUnit = "钢厂",
+            RawMaterialType = "管坯",
+            RegisteredGrade = "Q345B",
+            FurnaceNumber = "FUR999"
         });
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
     }
@@ -361,7 +391,8 @@ public class FurnaceRegistrationServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "RawMaterialUnit", Operator = "contains", Value = "钢厂A" }
@@ -382,7 +413,8 @@ public class FurnaceRegistrationServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "FurnaceNumber", Operator = "in", Values = new List<string> { "FUR001" } }
@@ -402,7 +434,8 @@ public class FurnaceRegistrationServiceTests : TestBase
 
         var result = await svc.GetAllAsync(new QueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "FurnaceNumber", Operator = "contains", Value = "NONEXISTENT" }
@@ -450,10 +483,16 @@ public class FurnaceRegistrationServiceTests : TestBase
         var ctx = CreateDbContext();
         ctx.FurnaceRegistrations.Add(new FurnaceRegistration
         {
-            IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂A", RawMaterialType = "管坯",
-            RegisteredGrade = "Q345B", FurnaceNumber = "FUR001",
-            Specification = null, RelatedPlantGrade = null, Remark = null,
-            Quantity = 10, Weight = 1000m
+            IncomingDate = DateTime.Today,
+            RawMaterialUnit = "钢厂A",
+            RawMaterialType = "管坯",
+            RegisteredGrade = "Q345B",
+            FurnaceNumber = "FUR001",
+            Specification = null,
+            RelatedPlantGrade = null,
+            Remark = null,
+            Quantity = 10,
+            Weight = 1000m
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

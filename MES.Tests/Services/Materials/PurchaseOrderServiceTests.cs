@@ -1,16 +1,45 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Equipment;
+using MES.Core.DTOs.Infrastructure;
+using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces;
+using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Equipment;
+using MES.Core.Interfaces.Infrastructure;
+using MES.Core.Interfaces.Materials;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Scheduling;
+using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
-using MES.Data.Entities;
-using MES.Data;
 using MES.Services.Materials;
 using MES.Tests.Tests;
 using Moq;
+
+
+using MES.Data;
+using MES.Data.Entities;
+using MES.Data.Entities.Materials;
+using MES.Data.Entities.Order;
+using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Warehouse;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 
@@ -26,7 +55,7 @@ public class PurchaseOrderServiceTests : TestBase
             .ReturnsAsync(new Dictionary<string, decimal>());
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var loggerMock = new Mock<ILogger<PurchaseOrderService>>();
-        return new PurchaseOrderService(ctx, configMock.Object, workOrderExecMock.Object, loggerMock.Object, Mock.Of<IMemoryCache>());
+        return new PurchaseOrderService(ctx, configMock.Object, workOrderExecMock.Object, loggerMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "测试供应商")
@@ -541,7 +570,7 @@ public class PurchaseOrderServiceTests : TestBase
         ctx.OrderItems.Add(item);
         await ctx.SaveChangesAsync();
 
-        var wo = new WorkOrder
+        var wo = new MES.Data.Entities.WorkOrder.WorkOrder
         {
             WorkOrderNo = $"WO-PIERCE-{Guid.NewGuid():N}"[..15],
             SalesOrderNo = order.OrderNumber,
@@ -645,7 +674,8 @@ public class PurchaseOrderServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "OrderNo", Operator = "contains", Value = "099" }
@@ -680,7 +710,8 @@ public class PurchaseOrderServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "MaterialCategory", Operator = "in", Values = new List<string> { "圆钢" } }
@@ -701,7 +732,8 @@ public class PurchaseOrderServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "OrderNo", Operator = "contains", Value = "NONEXISTENT" }

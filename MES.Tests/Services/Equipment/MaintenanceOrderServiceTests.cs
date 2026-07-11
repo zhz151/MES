@@ -1,12 +1,13 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using MES.Core.DTOs;
 using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.Equipment;
 using MES.Tests.Tests;
+using MES.Data.Entities.Equipment;
+using MES.Core.DTOs.Equipment;
 
 namespace MES.Tests.Services;
 
@@ -287,7 +288,8 @@ public class MaintenanceOrderServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new MaintenanceOrderQueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "EquipmentName", Operator = "contains", Value = "设备A" }
@@ -313,7 +315,8 @@ public class MaintenanceOrderServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new MaintenanceOrderQueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "EquipmentName", Operator = "in", Values = new List<string> { "设备B" } }
@@ -334,7 +337,8 @@ public class MaintenanceOrderServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new MaintenanceOrderQueryParams
         {
-            PageIndex = 1, PageSize = 20,
+            PageIndex = 1,
+            PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "EquipmentName", Operator = "contains", Value = "NONEXISTENT" }
@@ -353,8 +357,11 @@ public class MaintenanceOrderServiceTests : TestBase
         var eq = await SeedEquipmentAsync(ctx, name: "设备A", code: "EQ001", location: "车间X");
         ctx.MaintenanceOrders.Add(new MaintenanceOrder
         {
-            MaintOrderNo = "BY-001", EquipmentId = eq.Id, ActualDate = DateTime.Today,
-            Executor = "张三", ExecutionSummary = "保养正常"
+            MaintOrderNo = "BY-001",
+            EquipmentId = eq.Id,
+            ActualDate = DateTime.Today,
+            Executor = "张三",
+            ExecutionSummary = "保养正常"
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -389,8 +396,12 @@ public class MaintenanceOrderServiceTests : TestBase
         var eq = await SeedEquipmentAsync(ctx, name: "设备A", code: "EQ001");
         ctx.MaintenanceOrders.Add(new MaintenanceOrder
         {
-            MaintOrderNo = "BY-001", EquipmentId = eq.Id, ActualDate = DateTime.Today,
-            Executor = null, ExecutionSummary = null, Remark = null
+            MaintOrderNo = "BY-001",
+            EquipmentId = eq.Id,
+            ActualDate = DateTime.Today,
+            Executor = null,
+            ExecutionSummary = null,
+            Remark = null
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

@@ -1,10 +1,10 @@
 // 文件路径: MES.Api/Controllers/ProductRequirementController.cs
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
 using MES.Shared.Constants;
+using MES.Core.DTOs.Order;
+using MES.Core.Interfaces.Order;
 
 namespace MES.Api.Controllers.Order;
 

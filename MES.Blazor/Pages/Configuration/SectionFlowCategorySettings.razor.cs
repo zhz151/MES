@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor;
 using MES.Blazor.Shared;
-using MES.Core.DTOs;
+using MES.Core.DTOs.Configuration;
 
 namespace MES.Blazor.Pages.Configuration;
 

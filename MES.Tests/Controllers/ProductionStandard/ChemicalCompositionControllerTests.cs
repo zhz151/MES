@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.ProductionStandard;
-using MES.Core.DTOs;
-using MES.Core.Interfaces;
 using MES.Core.Models;
+using MES.Core.DTOs.ProductionStandard;
+using MES.Core.Interfaces.ProductionStandard;
 using System.Security.Claims;
 
 namespace MES.Tests.Controllers;
@@ -37,7 +37,9 @@ public class ChemicalCompositionControllerTests : ControllerTestBase
         var pagedResult = new PagedResult<ChemicalCompositionDto>
         {
             Items = new List<ChemicalCompositionDto> { new() { Id = 1, PlantGrade = "304" } },
-            TotalCount = 1, PageIndex = 1, PageSize = 20
+            TotalCount = 1,
+            PageIndex = 1,
+            PageSize = 20
         };
         _serviceMock.Setup(x => x.GetAllAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
 
