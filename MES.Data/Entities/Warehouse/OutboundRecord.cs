@@ -56,6 +56,11 @@ public class OutboundRecord : IAuditableEntity
     public decimal OutboundWeight { get; set; }
 
     /// <summary>
+    /// 出库米数（仅成品库使用）
+    /// </summary>
+    public decimal? OutboundMeters { get; set; }
+
+    /// <summary>
     /// 出库日期
     /// </summary>
     public DateTime OutboundDate { get; set; }

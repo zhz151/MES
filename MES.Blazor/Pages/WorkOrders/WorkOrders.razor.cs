@@ -432,12 +432,16 @@ public partial class WorkOrders : IAsyncDisposable
             case "WorkOrderNo":
                 builder.OpenComponent<MudLink>(0);
                 builder.AddAttribute(1, "Typo", Typo.body2);
-                builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => NavigateToTrace(item.WorkOrderNo)));
+                builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => Navigation.NavigateTo($"/workorders/{item.Id}")));
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.WorkOrderNo)));
                 builder.CloseComponent();
                 break;
             case "SalesOrderNo":
-                builder.AddContent(0, item.SalesOrderNo);
+                builder.OpenComponent<MudLink>(0);
+                builder.AddAttribute(1, "Typo", Typo.body2);
+                builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => NavigateToTrace(item.SalesOrderNo)));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.SalesOrderNo)));
+                builder.CloseComponent();
                 break;
             case "ProductionMainNo":
                 builder.AddContent(0, item.ProductionMainNo);

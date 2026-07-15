@@ -65,6 +65,11 @@ public class OutboundItemRequest
     [Range(0, double.MaxValue, ErrorMessage = "出库重量必须大于等于0")]
     public decimal OutboundWeight { get; set; }
 
+    /// <summary>
+    /// 出库米数（仅成品库使用）
+    /// </summary>
+    public decimal? OutboundMeters { get; set; }
+
     // 行级可覆盖字段（row ?? request 回退）
     public string? OutboundType { get; set; }
     public string? SourceOrderNo { get; set; }

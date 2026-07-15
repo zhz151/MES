@@ -487,6 +487,11 @@ public partial class SubStandardQuickViews
 
     // ========== 删除 ==========
 
+    private void NavigateToCreate()
+    {
+        Navigation.NavigateTo("/sub-standard-quick-views/create");
+    }
+
     private async Task DeleteItem(SubStandardQuickViewDto item)
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters

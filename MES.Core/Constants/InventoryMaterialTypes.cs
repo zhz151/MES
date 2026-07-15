@@ -6,6 +6,7 @@ namespace MES.Core.Constants;
 public static class InventoryMaterialTypes
 {
     public const string Finished = "备料成品";
+    public const string OrderFinished = "订单成品";
     public const string Surplus = "余库料";
     public const string SemiFinished = "中间品";
     public const string DefectSemi = "次品中间品";

@@ -127,12 +127,12 @@ public class StandardRegisterService : IStandardRegisterService
             .FirstOrDefaultAsync();
     }
 
-    public async Task<bool> SaveAsync(StandardRegisterDto dto)
+    public async Task<int> SaveAsync(StandardRegisterDto dto)
     {
         if (dto.Id > 0)
         {
             var entity = await _context.StandardRegisters.FindAsync(dto.Id);
-            if (entity == null) return false;
+            if (entity == null) return 0;
 
             entity.StandardNo = dto.StandardNo;
             entity.StandardName = dto.StandardName;
@@ -141,6 +141,9 @@ public class StandardRegisterService : IStandardRegisterService
             entity.ManufactureMethod = dto.ManufactureMethod;
             entity.SteelType = dto.SteelType;
             entity.Remark = dto.Remark;
+
+            await _context.SaveChangesAsync();
+            return entity.Id;
         }
         else
         {
@@ -155,10 +158,9 @@ public class StandardRegisterService : IStandardRegisterService
                 Remark = dto.Remark
             };
             _context.StandardRegisters.Add(entity);
+            await _context.SaveChangesAsync();
+            return entity.Id;
         }
-
-        await _context.SaveChangesAsync();
-        return true;
     }
 
     public async Task<bool> DeleteAsync(int id)
@@ -187,6 +189,47 @@ public class StandardRegisterService : IStandardRegisterService
                 Remark = e.Remark
             })
             .ToListAsync();
+    }
+
+    /// <summary>
+    /// 根据标准号解析标准名称（含容错匹配），用于质保书新建页面前端自动填充
+    /// </summary>
+    public async Task<string?> ResolveNameAsync(string standardNo)
+    {
+        if (string.IsNullOrWhiteSpace(standardNo)) return null;
+
+        var std = await _context.StandardRegisters
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.StandardNo == standardNo);
+        if (std != null) return std.StandardName;
+
+        // 容错1：去掉年份后缀
+        var withoutYear = System.Text.RegularExpressions.Regex.Replace(standardNo, @"-\d{4}$", "");
+        if (withoutYear != standardNo)
+        {
+            std = await _context.StandardRegisters
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.StandardNo == withoutYear);
+            if (std != null) return std.StandardName;
+        }
+
+        // 容错2：去空白（原始输入去空白 — 键值与输入仅空格不同时）
+        var origNoSpace = standardNo.Replace(" ", "").Replace("\t", "");
+        std = await _context.StandardRegisters
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.StandardNo!.Replace(" ", "").Replace("\t", "") == origNoSpace);
+        if (std != null) return std.StandardName;
+
+        // 容错3：去年份再去空白（键无年份但输入有年份且含空格时）
+        var noSpace = withoutYear.Replace(" ", "").Replace("\t", "");
+        if (noSpace != withoutYear && noSpace != origNoSpace)
+        {
+            std = await _context.StandardRegisters
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.StandardNo!.Replace(" ", "").Replace("\t", "") == noSpace);
+            if (std != null) return std.StandardName;
+        }
+        return null;
     }
 
     public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
@@ -278,12 +321,12 @@ public class StandardRegisterService : IStandardRegisterService
             .ToListAsync();
     }
 
-    public async Task<bool> SaveItemAsync(StandardRegisterItemDto dto)
+    public async Task<int> SaveItemAsync(StandardRegisterItemDto dto)
     {
         if (dto.Id > 0)
         {
             var entity = await _context.StandardRegisterItems.FindAsync(dto.Id);
-            if (entity == null) return false;
+            if (entity == null) return 0;
 
             entity.SeqNo = dto.SeqNo;
             entity.InspectionCategory = dto.InspectionCategory;
@@ -293,6 +336,9 @@ public class StandardRegisterService : IStandardRegisterService
             entity.ApplicableRange = dto.ApplicableRange;
             entity.RefStandard = dto.RefStandard;
             entity.DetailRequirement = dto.DetailRequirement;
+
+            await _context.SaveChangesAsync();
+            return entity.Id;
         }
         else
         {
@@ -309,10 +355,9 @@ public class StandardRegisterService : IStandardRegisterService
                 DetailRequirement = dto.DetailRequirement
             };
             _context.StandardRegisterItems.Add(entity);
+            await _context.SaveChangesAsync();
+            return entity.Id;
         }
-
-        await _context.SaveChangesAsync();
-        return true;
     }
 
     public async Task<bool> DeleteItemAsync(int id)
@@ -323,5 +368,46 @@ public class StandardRegisterService : IStandardRegisterService
         _context.StandardRegisterItems.Remove(entity);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    /// <summary>
+    /// 清理孤儿子项（StandardRegisterId=0 或无对应主表记录）以及序号重复的冗余项
+    /// </summary>
+    public async Task<int> CleanupOrphanedItemsAsync()
+    {
+        var removedCount = 0;
+
+        // 1. 删除 StandardRegisterId=0 的孤儿子项
+        var orphanedByIdZero = await _context.StandardRegisterItems
+            .Where(i => i.StandardRegisterId == 0)
+            .ToListAsync();
+        removedCount += orphanedByIdZero.Count;
+        _context.StandardRegisterItems.RemoveRange(orphanedByIdZero);
+
+        // 2. 删除 StandardRegisterId 在标准号主表中不存在的孤儿子项
+        var validIds = await _context.StandardRegisters.Select(r => r.Id).ToListAsync();
+        var orphanedByMissingRef = await _context.StandardRegisterItems
+            .Where(i => i.StandardRegisterId != 0 && !validIds.Contains(i.StandardRegisterId))
+            .ToListAsync();
+        removedCount += orphanedByMissingRef.Count;
+        _context.StandardRegisterItems.RemoveRange(orphanedByMissingRef);
+
+        // 3. 删除同 StandardRegisterId + 同 SeqNo 的重复项（保留 Id 最小的）
+        var allItems = await _context.StandardRegisterItems
+            .OrderBy(i => i.Id)
+            .ToListAsync();
+        var seen = new HashSet<string>();
+        var dups = new List<StandardRegisterItem>();
+        foreach (var item in allItems)
+        {
+            var key = $"{item.StandardRegisterId}_{item.SeqNo}";
+            if (!seen.Add(key))
+                dups.Add(item);
+        }
+        removedCount += dups.Count;
+        _context.StandardRegisterItems.RemoveRange(dups);
+
+        await _context.SaveChangesAsync();
+        return removedCount;
     }
 }

@@ -25,6 +25,12 @@ public class SubStandardQuickViewService
         catch (Exception ex) { return ApiResponse<PagedResult<SubStandardQuickViewDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    public async Task<ApiResponse<SubStandardQuickViewDto>> CreateAsync(CreateSubStandardQuickViewRequest request)
+    {
+        try { return await _http.PostAsJsonAsync<CreateSubStandardQuickViewRequest, ApiResponse<SubStandardQuickViewDto>>(BaseUrl, request) ?? ApiResponse<SubStandardQuickViewDto>.Fail("创建失败"); }
+        catch (Exception ex) { return ApiResponse<SubStandardQuickViewDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     public async Task<ApiResponse<SubStandardQuickViewDto>> UpdateAsync(int id, UpdateSubStandardQuickViewRequest request)
     {
         try { return await _http.PutAsJsonAsync<UpdateSubStandardQuickViewRequest, ApiResponse<SubStandardQuickViewDto>>($"{BaseUrl}/{id}", request) ?? ApiResponse<SubStandardQuickViewDto>.Fail("更新失败"); }

@@ -435,6 +435,7 @@ public class InventoryService : IInventoryService
                         InitialWeight = row.InitialWeight,
                         UnitWeight = row.UnitWeight ?? request.UnitWeight,
                         Meters = row.Meters ?? request.Meters,
+                        RemainingMeters = row.Meters ?? request.Meters,
                         RemainingQuantity = row.InitialQuantity,
                         RemainingWeight = row.InitialWeight,
                         ActualSpecification = row.ActualSpecification ?? request.ActualSpecification,
@@ -547,6 +548,7 @@ public class InventoryService : IInventoryService
             InitialWeight = request.InitialWeight,
             UnitWeight = request.UnitWeight,
             Meters = request.Meters,
+            RemainingMeters = request.Meters,
             RemainingQuantity = request.InitialQuantity,
             RemainingWeight = request.InitialWeight,
             ActualSpecification = request.ActualSpecification,
@@ -608,9 +610,15 @@ public class InventoryService : IInventoryService
             if (batch.RemainingWeight < request.OutboundWeight)
                 throw new BusinessException($"剩余重量不足（剩余{batch.RemainingWeight:G29}kg，出库{request.OutboundWeight:G29}kg）");
 
+            if (request.OutboundMeters.HasValue && batch.RemainingMeters.HasValue
+                && batch.RemainingMeters.Value < request.OutboundMeters.Value)
+                throw new BusinessException($"剩余米数不足（剩余{batch.RemainingMeters:G29}m，出库{request.OutboundMeters:G29}m）");
+
             // 更新剩余量
             batch.RemainingQuantity -= request.OutboundQuantity;
             batch.RemainingWeight -= request.OutboundWeight;
+            if (request.OutboundMeters.HasValue && batch.RemainingMeters.HasValue)
+                batch.RemainingMeters -= request.OutboundMeters.Value;
 
             var record = new OutboundRecord
             {
@@ -621,6 +629,7 @@ public class InventoryService : IInventoryService
                 TargetCompany = request.TargetCompany,
                 OutboundQuantity = request.OutboundQuantity,
                 OutboundWeight = request.OutboundWeight,
+                OutboundMeters = request.OutboundMeters,
                 OutboundDate = request.OutboundDate,
                 Remark = request.Remark,
             };
@@ -666,9 +675,15 @@ public class InventoryService : IInventoryService
                 if (batch.RemainingWeight < item.OutboundWeight)
                     throw new BusinessException($"批次{batch.BatchNo}剩余重量不足（剩余{batch.RemainingWeight:G29}kg，出库{item.OutboundWeight:G29}kg）");
 
+                if (item.OutboundMeters.HasValue && batch.RemainingMeters.HasValue
+                    && batch.RemainingMeters.Value < item.OutboundMeters.Value)
+                    throw new BusinessException($"批次{batch.BatchNo}剩余米数不足（剩余{batch.RemainingMeters:G29}m，出库{item.OutboundMeters:G29}m）");
+
                 // 更新剩余量
                 batch.RemainingQuantity -= item.OutboundQuantity;
                 batch.RemainingWeight -= item.OutboundWeight;
+                if (item.OutboundMeters.HasValue && batch.RemainingMeters.HasValue)
+                    batch.RemainingMeters -= item.OutboundMeters.Value;
 
                 var record = new OutboundRecord
                 {
@@ -679,6 +694,7 @@ public class InventoryService : IInventoryService
                     TargetCompany = item.TargetCompany ?? request.TargetCompany,
                     OutboundQuantity = item.OutboundQuantity,
                     OutboundWeight = item.OutboundWeight,
+                    OutboundMeters = item.OutboundMeters,
                     OutboundDate = request.OutboundDate,
                     Remark = item.Remark ?? request.Remark,
                 };
@@ -832,6 +848,8 @@ public class InventoryService : IInventoryService
         var oldSourceOrderNo = entity.SourceOrderNo;
         var oldQuantity = entity.InitialQuantity;
         var oldWeight = entity.InitialWeight;
+        var oldMeters = entity.Meters;
+        var oldRemainingMeters = entity.RemainingMeters;
 
         // 所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖
         entity.BatchNo = request.BatchNo ?? entity.BatchNo;
@@ -896,6 +914,16 @@ public class InventoryService : IInventoryService
                 throw new BusinessException($"批次{entity.BatchNo}已出库{outboundTotalWt:G29}kg，新入库量{request.InitialWeight.Value:G29}kg不足覆盖（差额{Math.Abs(newRemainingWt):G29}kg），请先更正出库后再更改入库");
             entity.RemainingWeight = newRemainingWt;
             entity.InitialWeight = request.InitialWeight.Value;
+        }
+
+        // 如果修改了米数，基于已出库差量计算剩余米数
+        if (request.Meters.HasValue)
+        {
+            var outboundTotalM = (oldMeters ?? 0m) - (oldRemainingMeters ?? 0m);
+            var newRemainingM = request.Meters.Value - outboundTotalM;
+            if (newRemainingM < 0)
+                throw new BusinessException($"批次{entity.BatchNo}已出库{outboundTotalM:G29}m，新米数{request.Meters.Value:G29}m不足覆盖（差额{Math.Abs(newRemainingM):G29}m），请先更正出库后再更改入库");
+            entity.RemainingMeters = newRemainingM;
         }
 
         await _context.SaveChangesAsync();
@@ -965,19 +993,22 @@ public class InventoryService : IInventoryService
 
             var oldQty = entity.OutboundQuantity;
             var oldWt = entity.OutboundWeight;
+            var oldOutboundMeters = entity.OutboundMeters;
 
             if (request.OutboundType != null) entity.OutboundType = Enum.Parse<OutboundType>(request.OutboundType);
             entity.SourceOrderNo = request.SourceOrderNo ?? entity.SourceOrderNo;
             entity.TargetCompany = request.TargetCompany ?? entity.TargetCompany;
             if (request.OutboundQuantity.HasValue) entity.OutboundQuantity = request.OutboundQuantity.Value;
             if (request.OutboundWeight.HasValue) entity.OutboundWeight = request.OutboundWeight.Value;
+            if (request.OutboundMeters.HasValue) entity.OutboundMeters = request.OutboundMeters.Value;
             if (request.OutboundDate.HasValue) entity.OutboundDate = request.OutboundDate.Value;
             entity.Remark = request.Remark ?? entity.Remark;
 
-            // 数量/重量变化时，调整库存批次的剩余量（delta = new - old，剩余量 -= delta）
+            // 数量/重量/米数变化时，调整库存批次的剩余量（delta = new - old，剩余量 -= delta）
             var deltaQty = entity.OutboundQuantity - oldQty;
             var deltaWt = entity.OutboundWeight - oldWt;
-            if (deltaQty != 0 || deltaWt != 0)
+            var deltaMeters = (entity.OutboundMeters ?? 0m) - (oldOutboundMeters ?? 0m);
+            if (deltaQty != 0 || deltaWt != 0 || deltaMeters != 0)
             {
                 var batch = await _context.InventoryBatches
                     .FirstOrDefaultAsync(b => b.Id == entity.InventoryBatchId);
@@ -987,9 +1018,13 @@ public class InventoryService : IInventoryService
                     throw new BusinessException($"批次{batch.BatchNo}剩余支数不足（剩余{batch.RemainingQuantity}，调整差额{deltaQty}）");
                 if (batch.RemainingWeight < deltaWt)
                     throw new BusinessException($"批次{batch.BatchNo}剩余重量不足（剩余{batch.RemainingWeight:G29}kg，调整差额{deltaWt:G29}kg）");
+                if (deltaMeters > 0 && batch.RemainingMeters.HasValue && batch.RemainingMeters.Value < deltaMeters)
+                    throw new BusinessException($"批次{batch.BatchNo}剩余米数不足（剩余{batch.RemainingMeters:G29}m，调整差额{deltaMeters:G29}m）");
 
                 batch.RemainingQuantity -= deltaQty;
                 batch.RemainingWeight -= deltaWt;
+                if (deltaMeters != 0 && batch.RemainingMeters.HasValue)
+                    batch.RemainingMeters -= deltaMeters;
             }
 
             await _context.SaveChangesAsync();
@@ -1031,6 +1066,8 @@ public class InventoryService : IInventoryService
             {
                 batch.RemainingQuantity += entity.OutboundQuantity;
                 batch.RemainingWeight += entity.OutboundWeight;
+                if (entity.OutboundMeters.HasValue && batch.RemainingMeters.HasValue)
+                    batch.RemainingMeters += entity.OutboundMeters.Value;
             }
 
             _context.OutboundRecords.Remove(entity);

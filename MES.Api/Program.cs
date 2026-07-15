@@ -178,6 +178,8 @@ builder.Services.AddScoped<IWorkOrderListSummaryRefreshService, WorkOrderListSum
 builder.Services.AddScoped<IMaterialPlanService, MaterialPlanService>();
 builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
+builder.Services.AddScoped<IPendingDeliveryQueryService, PendingDeliveryQueryService>();
+builder.Services.AddScoped<ICertificateService, CertificateService>();
 
 // Register batch context services
 builder.Services.AddScoped<IBatchService, BatchService>();

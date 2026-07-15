@@ -428,6 +428,18 @@ public class WorkOrderController : ControllerBase
 
     #endregion
 
+    #region 数据维护
+
+    [HttpPost("backfill-order-item-ids")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<ApiResponse<BackfillResultDto>>> BackfillOrderItemIds()
+    {
+        var result = await _workOrderService.BackfillOrderItemIdsAsync();
+        return Ok(result);
+    }
+
+    #endregion
+
     #region 工单-订单关系
 
     [HttpGet("order-relation/{salesOrderNo}")]

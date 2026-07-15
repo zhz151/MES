@@ -77,7 +77,34 @@ public class SubStandardQuickViewService : ISubStandardQuickViewService
         var items = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(x => ToDto(x))
+            .Select(x => new SubStandardQuickViewDto
+            {
+                Id = x.Id,
+                StandardNo = x.StandardNo,
+                ChemicalComposition = x.ChemicalComposition,
+                HydrostaticTest = x.HydrostaticTest,
+                EddyCurrent = x.EddyCurrent,
+                UltrasonicTest = x.UltrasonicTest,
+                RadiographicTest = x.RadiographicTest,
+                HardnessRockwell = x.HardnessRockwell,
+                HardnessBrinell = x.HardnessBrinell,
+                HardnessVickers = x.HardnessVickers,
+                TensileRoomTemp = x.TensileRoomTemp,
+                TensileHighTemp = x.TensileHighTemp,
+                WeldJointTensile = x.WeldJointTensile,
+                ImpactTest = x.ImpactTest,
+                WeldJointImpact = x.WeldJointImpact,
+                FlatteningTest = x.FlatteningTest,
+                FlaringTest = x.FlaringTest,
+                ExpandingTest = x.ExpandingTest,
+                BendTest = x.BendTest,
+                WeldJointBend = x.WeldJointBend,
+                GrainSize = x.GrainSize,
+                IntergranularCorrosion = x.IntergranularCorrosion,
+                PittingCorrosion = x.PittingCorrosion,
+                FerriteContent = x.FerriteContent,
+                Macrostructure = x.Macrostructure
+            })
             .ToListAsync();
 
         return new PagedResult<SubStandardQuickViewDto>
@@ -217,10 +244,36 @@ public class SubStandardQuickViewService : ISubStandardQuickViewService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var query = _context.SubStandardQuickViews.AsNoTracking();
+        var all = await _context.SubStandardQuickViews
+            .AsNoTracking()
+            .ToListAsync();
+
         return new Dictionary<string, List<string>>
         {
-            ["StandardNo"] = await query.Select(x => x.StandardNo).Distinct().OrderBy(x => x).ToListAsync(),
+            ["StandardNo"] = all.Select(x => x.StandardNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["ChemicalComposition"] = all.Select(x => x.ChemicalComposition).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["HydrostaticTest"] = all.Select(x => x.HydrostaticTest).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["EddyCurrent"] = all.Select(x => x.EddyCurrent).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["UltrasonicTest"] = all.Select(x => x.UltrasonicTest).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["RadiographicTest"] = all.Select(x => x.RadiographicTest).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["HardnessRockwell"] = all.Select(x => x.HardnessRockwell).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["HardnessBrinell"] = all.Select(x => x.HardnessBrinell).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["HardnessVickers"] = all.Select(x => x.HardnessVickers).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["TensileRoomTemp"] = all.Select(x => x.TensileRoomTemp).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["TensileHighTemp"] = all.Select(x => x.TensileHighTemp).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["WeldJointTensile"] = all.Select(x => x.WeldJointTensile).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["ImpactTest"] = all.Select(x => x.ImpactTest).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["WeldJointImpact"] = all.Select(x => x.WeldJointImpact).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["FlatteningTest"] = all.Select(x => x.FlatteningTest).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["FlaringTest"] = all.Select(x => x.FlaringTest).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["ExpandingTest"] = all.Select(x => x.ExpandingTest).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["BendTest"] = all.Select(x => x.BendTest).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["WeldJointBend"] = all.Select(x => x.WeldJointBend).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["GrainSize"] = all.Select(x => x.GrainSize).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["IntergranularCorrosion"] = all.Select(x => x.IntergranularCorrosion).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["PittingCorrosion"] = all.Select(x => x.PittingCorrosion).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["FerriteContent"] = all.Select(x => x.FerriteContent).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Macrostructure"] = all.Select(x => x.Macrostructure).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
         };
     }
 

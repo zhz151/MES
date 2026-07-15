@@ -29,6 +29,7 @@ public static class ApiEndpoints
     public const string Notification = "api/notification";
 
     // ===== Quality 质量 =====
+    public const string Certificate = "api/certificate";
     public const string MaterialReceiveCheck = "api/material-receive-check";
     public const string FinalInspection = "api/final-inspection";
     public const string FurnaceRegistration = "api/furnace-registration";
@@ -60,6 +61,7 @@ public static class ApiEndpoints
     // ===== Warehouse 仓库 =====
     public const string Warehouse = "api/warehouse";
     public const string Inventory = "api/inventory";
+    public const string PendingDelivery = "api/pending-delivery";
 
     // ===== Other =====
     public const string DataExchange = "api/data-exchange";

@@ -48,16 +48,6 @@ public class InventoryQueryParams : QueryParams
     public string? SourceName { get; set; }
 
     /// <summary>
-    /// 入库日期开始
-    /// </summary>
-    public DateTime? InboundDateFrom { get; set; }
-
-    /// <summary>
-    /// 入库日期结束
-    /// </summary>
-    public DateTime? InboundDateTo { get; set; }
-
-    /// <summary>
     /// 炉号筛选
     /// </summary>
     public string? HeatNo { get; set; }

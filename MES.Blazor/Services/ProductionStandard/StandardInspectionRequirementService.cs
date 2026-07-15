@@ -34,6 +34,19 @@ public class StandardInspectionRequirementService
         }
     }
 
+    public async Task<ApiResponse<StandardInspectionRequirementDto>> CreateAsync(CreateStandardInspectionRequirementRequest request)
+    {
+        try
+        {
+            return await _http.PostAsJsonAsync<CreateStandardInspectionRequirementRequest, ApiResponse<StandardInspectionRequirementDto>>(BaseUrl, request)
+                   ?? ApiResponse<StandardInspectionRequirementDto>.Fail("创建失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<StandardInspectionRequirementDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     public async Task<ApiResponse> UpdateAsync(int id, UpdateStandardInspectionRequirementRequest request)
     {
         try

@@ -140,6 +140,16 @@ public class QueryParams
     public DateTime? ReportDateTo { get; set; }
 
     /// <summary>
+    /// 入库日期范围筛选-开始（仅待发货项使用）
+    /// </summary>
+    public DateTime? InboundDateFrom { get; set; }
+
+    /// <summary>
+    /// 入库日期范围筛选-结束（仅待发货项使用）
+    /// </summary>
+    public DateTime? InboundDateTo { get; set; }
+
+    /// <summary>
     /// 计算跳过的记录数
     /// </summary>
     public int Skip => (PageIndex - 1) * PageSize;

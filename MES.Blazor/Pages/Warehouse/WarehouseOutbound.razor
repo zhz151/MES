@@ -49,6 +49,7 @@
                         <MudTh>出库日期<span class="required-star">*</span></MudTh>
                         <MudTh>出库支数<span class="required-star">*</span></MudTh>
                         <MudTh>出库重量(kg)<span class="required-star">*</span></MudTh>
+                        <MudTh>出库米数(m)</MudTh>
                         <MudTh>出库类型<span class="required-star">*</span></MudTh>
                         <MudTh>物料单号</MudTh>
                         <MudTh>目标单位</MudTh>
@@ -79,6 +80,13 @@
                             <MudNumericField T="decimal" Format="G29"
                                              @bind-Value="item.OutboundWeight"
                                              Min="0" Max="@item.RemainingWeight"
+                                             Variant="Variant.Outlined" Dense="true"
+                                             Class="qty-input" HideSpinButtons="true" />
+                        </MudTd>
+                        <MudTd>
+                            <MudNumericField T="decimal?" Format="G29"
+                                             @bind-Value="item.OutboundMeters"
+                                             Min="0" Max="@item.RemainingMeters"
                                              Variant="Variant.Outlined" Dense="true"
                                              Class="qty-input" HideSpinButtons="true" />
                         </MudTd>
@@ -125,7 +133,7 @@
 
                 <!-- 合计 -->
                 <MudText Typo="Typo.body2" Class="font-weight-bold mb-4">
-                    合计出库：@_items.Sum(i => i.OutboundQuantity) 支 / @_items.Sum(i => i.OutboundWeight).ToString("G29") kg
+                    合计出库：@_items.Sum(i => i.OutboundQuantity) 支 / @_items.Sum(i => i.OutboundWeight).ToString("G29") kg@(_items.Any(i => i.OutboundMeters.HasValue) ? $" / {_items.Sum(i => i.OutboundMeters ?? 0m):G29} m" : "")
                 </MudText>
 
                 @if (!string.IsNullOrEmpty(_errorMessage))
@@ -163,8 +171,10 @@
         public string Specification { get; set; } = string.Empty;
         public int RemainingQuantity { get; set; }
         public decimal RemainingWeight { get; set; }
+        public decimal? RemainingMeters { get; set; }
         public int OutboundQuantity { get; set; }
         public decimal OutboundWeight { get; set; }
+        public decimal? OutboundMeters { get; set; }
         public string OutboundType { get; set; } = "ProductionPick";
         public string? SourceOrderNo { get; set; }
         public string? TargetCompany { get; set; }
@@ -197,9 +207,11 @@
                 Specification = s.Specification,
                 RemainingQuantity = s.RemainingQuantity,
                 RemainingWeight = s.RemainingWeight,
+                RemainingMeters = s.RemainingMeters,
                 // 初始默认值：出库数 = 剩余数
                 OutboundQuantity = s.RemainingQuantity,
                 OutboundWeight = s.RemainingWeight,
+                OutboundMeters = s.RemainingMeters,
             }).ToList();
         }
     }
@@ -244,6 +256,10 @@
                 errors.Add($"第{i + 1}行（{item.BatchNo}）：出库重量必须大于0");
             if (item.OutboundWeight > item.RemainingWeight)
                 errors.Add($"第{i + 1}行（{item.BatchNo}）：出库重量超过剩余量({item.RemainingWeight:G29}kg)");
+            if (item.OutboundMeters.HasValue && item.OutboundMeters < 0)
+                errors.Add($"第{i + 1}行（{item.BatchNo}）：出库米数不能为负数");
+            if (item.OutboundMeters.HasValue && item.RemainingMeters.HasValue && item.OutboundMeters > item.RemainingMeters)
+                errors.Add($"第{i + 1}行（{item.BatchNo}）：出库米数超过剩余量({item.RemainingMeters:G29}m)");
         }
 
         if (errors.Any())
@@ -271,6 +287,7 @@
                     InventoryBatchId = i.Id,
                     OutboundQuantity = i.OutboundQuantity,
                     OutboundWeight = i.OutboundWeight,
+                    OutboundMeters = i.OutboundMeters,
                     OutboundType = i.OutboundType,
                     SourceOrderNo = string.IsNullOrEmpty(i.SourceOrderNo) ? null : i.SourceOrderNo,
                     TargetCompany = string.IsNullOrEmpty(i.TargetCompany) ? null : i.TargetCompany,
@@ -314,6 +331,8 @@
         curr.SourceOrderNo = prev.SourceOrderNo;
         curr.TargetCompany = prev.TargetCompany;
         curr.Remark = prev.Remark;
+        if (prev.OutboundMeters.HasValue)
+            curr.OutboundMeters = prev.OutboundMeters;
     }
 
     private void RemoveItem(OutboundItem item)

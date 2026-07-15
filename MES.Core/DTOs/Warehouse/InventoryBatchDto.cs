@@ -33,6 +33,7 @@ public class InventoryBatchDto
     public decimal InitialWeight { get; set; }
     public decimal? UnitWeight { get; set; }
     public decimal? Meters { get; set; }
+    public decimal? RemainingMeters { get; set; }
     public int RemainingQuantity { get; set; }
     public decimal RemainingWeight { get; set; }
 

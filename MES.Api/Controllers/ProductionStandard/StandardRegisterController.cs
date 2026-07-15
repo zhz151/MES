@@ -50,10 +50,10 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpPost("save")]
-    public async Task<ActionResult<ApiResponse<bool>>> Save([FromBody] StandardRegisterDto dto)
+    public async Task<ActionResult<ApiResponse<int>>> Save([FromBody] StandardRegisterDto dto)
     {
         var result = await _service.SaveAsync(dto);
-        return Ok(ApiResponse<bool>.Ok(result));
+        return Ok(ApiResponse<int>.Ok(result));
     }
 
     [HttpPost("delete/{id}")]
@@ -68,6 +68,18 @@ public class StandardRegisterController : ControllerBase
     {
         var result = await _service.GetAllAsync();
         return Ok(ApiResponse<List<StandardRegisterDto>>.Ok(result));
+    }
+
+    /// <summary>
+    /// 根据标准号解析标准名称，用于前端自动填充
+    /// </summary>
+    [HttpGet("resolve-name")]
+    public async Task<ActionResult<ApiResponse<string?>>> ResolveName([FromQuery] string? standardNo)
+    {
+        if (string.IsNullOrWhiteSpace(standardNo))
+            return Ok(ApiResponse<string?>.Ok(null));
+        var result = await _service.ResolveNameAsync(standardNo);
+        return Ok(ApiResponse<string?>.Ok(result));
     }
 
     [HttpGet("filter-contexts")]
@@ -87,10 +99,10 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpPost("item/save")]
-    public async Task<ActionResult<ApiResponse<bool>>> SaveItem([FromBody] StandardRegisterItemDto dto)
+    public async Task<ActionResult<ApiResponse<int>>> SaveItem([FromBody] StandardRegisterItemDto dto)
     {
         var result = await _service.SaveItemAsync(dto);
-        return Ok(ApiResponse<bool>.Ok(result));
+        return Ok(ApiResponse<int>.Ok(result));
     }
 
     [HttpPost("item/delete/{id}")]
@@ -98,5 +110,12 @@ public class StandardRegisterController : ControllerBase
     {
         var result = await _service.DeleteItemAsync(id);
         return Ok(ApiResponse<bool>.Ok(result));
+    }
+
+    [HttpPost("cleanup-orphaned-items")]
+    public async Task<ActionResult<ApiResponse<int>>> CleanupOrphanedItems()
+    {
+        var count = await _service.CleanupOrphanedItemsAsync();
+        return Ok(ApiResponse<int>.Ok(count));
     }
 }

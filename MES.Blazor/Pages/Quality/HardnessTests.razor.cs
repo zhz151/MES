@@ -52,7 +52,7 @@ public partial class HardnessTests
     {
         new() { Key = "InspectionDate",    Label = "检验日期",   SortKey = "inspectiondate", FilterType = "date", Width = "110" },
         new() { Key = "Inspector",         Label = "检验员",     SortKey = "inspector", FilterType = "string", Width = "80" },
-        new() { Key = "FurnaceNo",         Label = "炉批号",     SortKey = "furnaceno", FilterType = "string", Width = "100" },
+        new() { Key = "FurnaceNo",         Label = "生产编号",     SortKey = "furnaceno", FilterType = "string", Width = "100" },
         new() { Key = "Grade",             Label = "牌号",       SortKey = "grade", FilterType = "string", Width = "100" },
         new() { Key = "Specification",     Label = "规格",       SortKey = "specification", FilterType = "string", Width = "100" },
         new() { Key = "SampleNo",          Label = "试样编号",   SortKey = "sampleno", Width = "80" },
@@ -348,7 +348,7 @@ public partial class HardnessTests
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除炉批号 \"{item.FurnaceNo}\" 的硬度检验记录吗？\n\n删除后数据将不可恢复！",
+            ["ContentText"] = $"确定要删除生产编号 \"{item.FurnaceNo}\" 的硬度检验记录吗？\n\n删除后数据将不可恢复！",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });

@@ -237,11 +237,29 @@ public class GradeChemicalCompositionService : IGradeChemicalCompositionService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var query = _context.GradeChemicalCompositions.AsNoTracking();
+        var all = await _context.GradeChemicalCompositions
+            .AsNoTracking()
+            .ToListAsync();
+
         return new Dictionary<string, List<string>>
         {
-            ["StandardGrade"] = await query.Select(x => x.StandardGrade).Distinct().OrderBy(x => x).ToListAsync(),
-            ["StandardGradeCategory"] = await query.Where(x => x.StandardGradeCategory != null).Select(x => x.StandardGradeCategory!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["StandardGrade"] = all.Select(x => x.StandardGrade).Distinct().OrderBy(x => x).ToList(),
+            ["StandardGradeCategory"] = all.Select(x => x.StandardGradeCategory).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Carbon"] = all.Select(x => x.Carbon).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Silicon"] = all.Select(x => x.Silicon).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Manganese"] = all.Select(x => x.Manganese).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Phosphorus"] = all.Select(x => x.Phosphorus).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Sulfur"] = all.Select(x => x.Sulfur).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Nickel"] = all.Select(x => x.Nickel).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Chromium"] = all.Select(x => x.Chromium).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Molybdenum"] = all.Select(x => x.Molybdenum).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Copper"] = all.Select(x => x.Copper).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Nitrogen"] = all.Select(x => x.Nitrogen).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Niobium"] = all.Select(x => x.Niobium).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Titanium"] = all.Select(x => x.Titanium).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Iron"] = all.Select(x => x.Iron).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Aluminum"] = all.Select(x => x.Aluminum).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Tungsten"] = all.Select(x => x.Tungsten).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
         };
     }
 

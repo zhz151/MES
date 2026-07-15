@@ -102,6 +102,11 @@ public class InventoryBatch : BaseEntity
     public decimal? Meters { get; set; }
 
     /// <summary>
+    /// 当前剩余米数（仅成品库使用）
+    /// </summary>
+    public decimal? RemainingMeters { get; set; }
+
+    /// <summary>
     /// 当前剩余支数
     /// </summary>
     public int RemainingQuantity { get; set; }

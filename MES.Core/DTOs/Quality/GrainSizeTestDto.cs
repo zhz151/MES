@@ -36,7 +36,7 @@ public class CreateGrainSizeTestRequest
     [MaxLength(50)]
     public string Inspector { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "炉批号不能为空")]
+    [Required(ErrorMessage = "生产编号不能为空")]
     [MaxLength(50)]
     public string FurnaceNo { get; set; } = string.Empty;
 

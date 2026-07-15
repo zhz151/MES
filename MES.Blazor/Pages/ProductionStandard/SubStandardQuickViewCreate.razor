@@ -1,0 +1,132 @@
+@page "/sub-standard-quick-views/create"
+@using MES.Blazor.Services
+@using MES.Core.Models
+@using MES.Core.DTOs.ProductionStandard
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@attribute [Authorize(Roles = Roles.Policies.StandardWrite)]
+@inject SubStandardQuickViewService SubStandardQuickViewService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.AddCircle" Class="mr-2" Color="Color.Primary" />
+                    新建子标准速览
+                </MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <MudForm @ref="_form" Validation="@(new Func<string?, string?>(ValidateStandardNo))">
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string"
+                                      Label="标准号 *"
+                                      @bind-Value="_model.StandardNo"
+                                      Variant="Variant.Outlined"
+                                      For="@(() => _model.StandardNo)"
+                                      Required="true"
+                                      RequiredError="标准号不能为空" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudText Typo="Typo.body2" Class="mt-4 mb-2 font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Checklist" Class="mr-1" Color="Color.Primary" Size="Size.Small" />
+                    检验项要求
+                </MudText>
+
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="化学分析(成品)" @bind-Value="_model.ChemicalComposition" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="液压检验" @bind-Value="_model.HydrostaticTest" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="涡流探伤" @bind-Value="_model.EddyCurrent" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="超声波检验" @bind-Value="_model.UltrasonicTest" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="射线探伤" @bind-Value="_model.RadiographicTest" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="硬度(洛氏)" @bind-Value="_model.HardnessRockwell" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="硬度(布氏)" @bind-Value="_model.HardnessBrinell" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="硬度(维氏)" @bind-Value="_model.HardnessVickers" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="拉伸(室温)" @bind-Value="_model.TensileRoomTemp" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="拉伸(高温)" @bind-Value="_model.TensileHighTemp" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="焊接接头拉伸" @bind-Value="_model.WeldJointTensile" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="冲击试验" @bind-Value="_model.ImpactTest" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="焊接接头冲击" @bind-Value="_model.WeldJointImpact" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="压扁试验" @bind-Value="_model.FlatteningTest" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="卷边试验" @bind-Value="_model.FlaringTest" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="扩口试验" @bind-Value="_model.ExpandingTest" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="弯曲试验" @bind-Value="_model.BendTest" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="焊接接头弯曲" @bind-Value="_model.WeldJointBend" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="晶粒度" @bind-Value="_model.GrainSize" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="晶间腐蚀" @bind-Value="_model.IntergranularCorrosion" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="点腐蚀" @bind-Value="_model.PittingCorrosion" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="金相检验" @bind-Value="_model.FerriteContent" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="低倍组织" @bind-Value="_model.Macrostructure" Variant="Variant.Outlined" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudGrid Class="mt-4">
+                    <MudItem xs="12">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   OnClick="SaveAsync" Disabled="_isSaving"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   Class="mr-2">
+                            @(_isSaving ? "保存中..." : "保存")
+                        </MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Default"
+                                   OnClick="Cancel"
+                                   StartIcon="@Icons.Material.Filled.Cancel">
+                            取消
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

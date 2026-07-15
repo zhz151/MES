@@ -1,6 +1,6 @@
 # MES 前端页面结构参考
 
-> 生成日期：2026-07-11（V16）
+> 生成日期：2026-07-15（V17）
 > 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
 
 ---
@@ -16,11 +16,11 @@
 | 工单 | 工单管理 | WorkOrderStaff/Director | 15 | 4 |
 | 计划排程 | 计划排程 | 所有 | 8 | 7 |
 | 批次 | 批次管理 | BatchStaff/Director | 14 | 6 |
-| 质量 | 质量管理 | QualityStaff/Director | 21 | 15 |
+| 质量 | 质量管理 | QualityStaff/Director | 32 | 16 |
 | 物料 | 物料管理 | MaterialStaff/Director | 10 | 4 |
-| 仓库 | 仓库管理 | WarehouseStaff/Director | 5 | 3 |
+| 仓库 | 仓库管理 | WarehouseStaff/Director | 6 | 4 |
 | 设备 | 设备管理 | EquipmentStaff/Director | 8 | 4 |
-| 生产标准 | 生产标准 | StandardRead/StandardWrite | 14 | 8 |
+| 生产标准 | 生产标准 | StandardRead/StandardWrite | 16 | 8 |
 | 报表 | 报表系统 | 所有 | 1 | 1 |
 | 数据工具 | (独立按钮) | 所有 | 2 | 0 |
 | 扫码报工 | (独立按钮) | 所有 | 1 | 0 |
@@ -158,7 +158,7 @@
          /quality/pitting-corrosion-test, /quality/intergranular-corrosion-test,
          /quality/tensile-test, /quality/metallographic-test,
          /quality/flattening-test, /quality/flaring-test,
-         /quality/lab-testing, /quality/certificate
+         /quality/lab-testing, /quality/certificates
 菜单: 质量管理 → [检验(子组), 不合格报告, 炉号/化学(子组), 理化检测, 质量证明书]
       检验子组: [过程检验, 成检到料, 成品检验, 成检追踪]
       炉号/化学子组: [炉号登记]
@@ -187,15 +187,26 @@
 │  ChemicalAnalyses.razor          /quality/chemical-analysis    [列表页]      │
 │  ChemicalAnalysisCreate.razor    /quality/chemical-analysis/create [创建页]  │
 │  HardnessTests.razor             /quality/hardness-test        [列表页]      │
+│  HardnessTestCreate.razor        /quality/hardness-test/create [创建页]      │
 │  GrainSizeTests.razor            /quality/grain-size-test      [列表页]      │
+│  GrainSizeTestCreate.razor       /quality/grain-size-test/create [创建页]    │
 │  PittingCorrosionTests.razor     /quality/pitting-corrosion-test [列表页]    │
+│  PittingCorrosionTestCreate.razor /quality/pitting-corrosion-test/create [创建页]│
 │  IntergranularCorrosionTests.razor /quality/intergranular-corrosion-test [列表页]│
+│  IntergranularCorrosionTestCreate.razor /quality/intergranular-corrosion-test/create [创建页]│
 │  TensileTests.razor              /quality/tensile-test         [列表页]      │
+│  TensileTestCreate.razor         /quality/tensile-test/create  [创建页]      │
 │  MetallographicTests.razor       /quality/metallographic-test  [列表页]      │
+│  MetallographicTestCreate.razor  /quality/metallographic-test/create [创建页] │
 │  FlatteningTests.razor           /quality/flattening-test      [列表页]      │
+│  FlatteningTestCreate.razor      /quality/flattening-test/create [创建页]    │
 │  FlaringTests.razor              /quality/flaring-test         [列表页]      │
+│  FlaringTestCreate.razor         /quality/flaring-test/create  [创建页]      │
 │                                                           │
-│  ⚠ /quality/certificate   - 路由存在，页面文件缺失           │
+│  --- 质量证明书模块（V17 新增） ---                          │
+│  Certificates.razor              /quality/certificates        [列表页]      │
+│  CertificateCreate.razor         /quality/certificates/create [创建页]      │
+│  CertificateDetail.razor         /quality/certificates/{Id:int} [详情页]    │
 │                                                           │
 │  列表页: FurnaceRegistrations, ProcessInspections,           │
 │          MaterialChecks, FinalInspections,                   │
@@ -203,7 +214,7 @@
 │          ChemicalAnalyses, HardnessTests, GrainSizeTests,    │
 │          PittingCorrosionTests, IntergranularCorrosionTests, │
 │          TensileTests, MetallographicTests,                  │
-│          FlatteningTests, FlaringTests                       │
+│          FlatteningTests, FlaringTests, Certificates         │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -238,7 +249,7 @@
 
 ```
 路由前缀: /warehouse, /warehouse/{Code}, /warehouse/inbound, /warehouse/outbound,
-         /warehouse/inbound-history, /warehouse/outbound-history
+         /warehouse/inbound-history, /warehouse/outbound-history, /warehouse/pending-delivery
 菜单: 仓库管理 → [原料库, 成品库, 次品库, 在制品库]
 
 ┌─ 仓库管理 ───────────────────────────────────────────────┐
@@ -252,13 +263,16 @@
 │                                                           │
 │  WarehouseOutbound.razor      /warehouse/outbound [功能页]   │
 │                                                           │
+│  PendingDelivery.razor        /warehouse/pending-delivery [列表页]│
+│                                                           │
 │  InboundHistory.razor         /warehouse/inbound-history      [列表页]│
 │  InboundHistory.razor         /warehouse/inbound-history/{Code}[列表页(复用)]│
 │                                                           │
 │  OutboundHistory.razor        /warehouse/outbound-history      [列表页]│
 │  OutboundHistory.razor        /warehouse/outbound-history/{Code}[列表页(复用)]│
 │                                                           │
-│  列表页: WarehouseInventory, InboundHistory, OutboundHistory │
+│  列表页: WarehouseInventory, PendingDelivery,                 │
+│          InboundHistory, OutboundHistory                      │
 │  注: Code参数路由复用同一页面文件，仅查询时区分仓库类型       │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -310,8 +324,10 @@
 │  GradePhysicalPropertyCreate.razor   /grade-physical-properties/create [创建页]│
 │                                                           │
 │  SubStandardQuickViews.razor         /sub-standard-quick-views     [列表页]     │
+│  SubStandardQuickViewCreate.razor    /sub-standard-quick-views/create [创建页]  │
 │                                                           │
 │  StandardInspectionRequirements.razor  /standard-inspection-requirements [列表页]  │
+│  StandardInspectionRequirementCreate.razor /standard-inspection-requirements/create [创建页]│
 │                                                           │
 │  ChemicalCompositions.razor       /chemical-composition  [列表页]  │
 │  ChemicalCompositionCreate.razor  /chemical-composition/create [创建页]  │
@@ -325,11 +341,16 @@
 │          ChemicalCompositions, ChemicalValidationRules     │
 │  ※ StandardRegisterDetail 双模式：Id=0 创建，Id>0 查看/编辑│
 │  ※ 详情页含子项目内联表格（StandardRegisterItem）           │
+│  ※ StandardRegister Save/SaveItem 返回 int（Id），防子项 SeqNo 重复创建 │
 │  ※ GradeMappings 原属订单上下文，2026-06-21 迁移至此      │
 │  ※ GradeChemicalCompositions/GradePhysicalProperties 为     │
 │     2026-06-21 新增，按 StandardGrade+Category 纯逻辑关联   │
 │  ※ ChemicalCompositions/ChemicalValidationRules 原属质量上下文，│
 │     已迁移至生产标准上下文，路由同步更新为生产标准前缀        │
+│  ※ StandardInspectionRequirements/SubStandardQuickViews      │
+│     2026-07-15 全列筛选支持（23 列 ExcelFilter）             │
+│  ※ GradeChemicalCompositions/GradePhysicalProperties         │
+│     2026-07-15 全列筛选支持（17列/12列 ExcelFilter）         │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -419,7 +440,7 @@
 
 ## 3. 列表页完整清单（需检查加载/排序/筛选）
 
-共 **63 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
+共 **65 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
 
 | # | 页面文件 | 路由 | 上下文 | 内联编辑 | 备注 |
 |---|---------|------|-------|---------|------|
@@ -469,11 +490,11 @@
 | 44 | ColdRollPlans.razor | /cold-roll-plans | 计划排程 | | 冷轧按规格维度聚合时间桶分布计划 + 简化/明细视图切换 + 打印功能 + 排程编辑模式（在轧要求/待轧要求/待轧序/待轧设备号）+ 搜索栏+ExcelFilter列筛选 |
 | 45 | BatchPlans.razor | /batch-plans | 计划排程 | | ServerData 模式 + 18 工段 Tab 筛选（冷轧类前移，过程检验拆分为荒管检/在制检）+ 产量目标输入行（MudNumericField 内联编辑，全量覆盖保存 BatchPlanTarget）+ 列分组标题栏 + 客户端排序 + 6 项 Tab 汇总（含流转批次/重量）+ 汇总重量单位吨(t) |
 | 46 | FinalInspectionPlan.razor | /final-inspection-plan | 计划排程 | | 全量加载 Items 模式 + 四档Tab(全部/待到料/待检验/检验中) + Tab 汇总 + 客户排序/筛选 + 列分组 G1-G4 + 紧急程度 MudChip 颜色渲染 |
-| 47 | StandardRegisters.razor | /standard-registers | 生产标准 | | ExcelFilter 列筛选 + RenderCell 模板 + FooterContent 分页汇总 + 导航至详情页 |
-| 48 | GradeChemicalCompositions.razor | /grade-chemical-compositions | 生产标准 | ✅ | 15元素内联编辑 + ExcelFilter + 列显隐 |
-| 49 | GradePhysicalProperties.razor | /grade-physical-properties | 生产标准 | ✅ | 12物理性能字段内联编辑 + ExcelFilter + 列显隐 |
-| 50 | SubStandardQuickViews.razor | /sub-standard-quick-views | 生产标准 | | 按标准号快速查看24项检验项目引用标准 |
-| 51 | StandardInspectionRequirements.razor | /standard-inspection-requirements | 生产标准 | | 标准号检验项要求，ExcelFilter列筛选+内联编辑 |
+| 47 | StandardRegisters.razor | /standard-registers | 生产标准 | | ExcelFilter 列筛选 + RenderCell 模板 + FooterContent 分页汇总 + 导航至详情页；Save/SaveItem 返回 Id 防 SeqNo 重复 |
+| 48 | GradeChemicalCompositions.razor | /grade-chemical-compositions | 生产标准 | ✅ | 15元素内联编辑 + 全列ExcelFilter(17列) + 列显隐 |
+| 49 | GradePhysicalProperties.razor | /grade-physical-properties | 生产标准 | ✅ | 12物理性能字段内联编辑 + 全列ExcelFilter(12列) + 列显隐 |
+| 50 | SubStandardQuickViews.razor | /sub-standard-quick-views | 生产标准 | | 全列ExcelFilter(23列)，按标准号快速查看24项检验项目引用标准 |
+| 51 | StandardInspectionRequirements.razor | /standard-inspection-requirements | 生产标准 | ✅ | 全列ExcelFilter(23列)，标准号检验项要求+内联编辑 |
 | 52 | ChemicalAnalyses.razor | /quality/chemical-analysis | 质量 | | 理化检测-化学分析 |
 | 53 | HardnessTests.razor | /quality/hardness-test | 质量 | | 理化检测-硬度检验 |
 | 54 | GrainSizeTests.razor | /quality/grain-size-test | 质量 | | 理化检测-晶粒度检验 |
@@ -485,6 +506,8 @@
 | 60 | FlaringTests.razor | /quality/flaring-test | 质量 | | 理化检测-扩口检验 |
 | 61 | DailyProductionCapacities.razor | /daily-production-capacities | 配置 | ✅ | 查改一体表，仿ConfigParameters模式 |
 | 62 | ProductionOutput.razor | /reports/production-output | 报表 | | 产量报表，服务端数据模式 |
+| 63 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页 |
+| 64 | PendingDelivery.razor | /warehouse/pending-delivery | 仓库 | | 待发货项列表页 |
 
 ---
 
@@ -529,4 +552,4 @@
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
 >
-> **最后更新：2026-07-11（V16）** — 新增报表上下文：产量报表页面(/reports/production-output)
+> **最后更新：2026-07-15（V17）** — 新增质量证明书模块(3页) + 理化检测创建页(8页) + 待发货项列表页 + 生产标准创建页(2页)；生产标准全列筛选支持

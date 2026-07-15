@@ -56,7 +56,7 @@ public partial class WarehouseInventory
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "InitialQuantity", "InitialWeight", "Meters", "RemainingQuantity", "RemainingWeight"
+        "InitialQuantity", "InitialWeight", "Meters", "RemainingMeters", "RemainingQuantity", "RemainingWeight"
     };
 
     // ========== ExcelFilter 状态 ==========
@@ -97,6 +97,7 @@ public partial class WarehouseInventory
         new() { Key = "InitialWeight",       Label = "重量(kg)", SortKey = "InitialWeight", Width = "80" },
         new() { Key = "UnitWeight",          Label = "单支重",   SortKey = "UnitWeight", Width = "80" },
         new() { Key = "Meters",              Label = "米数", SortKey = "Meters", Width = "80" },
+        new() { Key = "RemainingMeters",     Label = "剩余米数", SortKey = "RemainingMeters", Width = "80" },
         new() { Key = "Remark",              Label = "备注", SortKey = "Remark", FilterType = "string", Width = "120" },
         new() { Key = "RemainingQuantity",   Label = "剩余支数", SortKey = "RemainingQuantity", Width = "80" },
         new() { Key = "RemainingWeight",     Label = "剩余重量", SortKey = "RemainingWeight", Width = "80" },
@@ -129,6 +130,7 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "MinLength");
                 SetNotApplicable(cols, "MaxLength");
                 SetNotApplicable(cols, "Meters");
+                SetNotApplicable(cols, "RemainingMeters");
                 SetNotApplicable(cols, "ActualSpecification");
                 SetNotApplicable(cols, "ActualOuterDiameter");
                 SetNotApplicable(cols, "ActualWallThickness");
@@ -148,6 +150,7 @@ public partial class WarehouseInventory
                 break;
             case "DEFECT":
                 SetNotApplicable(cols, "Meters");
+                SetNotApplicable(cols, "RemainingMeters");
                 SetNotApplicable(cols, "ActualSpecification");
                 SetNotApplicable(cols, "ActualOuterDiameter");
                 SetNotApplicable(cols, "ActualWallThickness");
@@ -164,6 +167,7 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
                 SetNotApplicable(cols, "Meters");
+                SetNotApplicable(cols, "RemainingMeters");
                 SetNotApplicable(cols, "SourceOrderNo");
                 break;
         }
@@ -230,6 +234,10 @@ public partial class WarehouseInventory
             case "Meters":
                 if (item.Meters.HasValue)
                     builder.AddContent(0, ((int)item.Meters.Value).ToString());
+                break;
+            case "RemainingMeters":
+                if (item.RemainingMeters.HasValue)
+                    builder.AddContent(0, ((int)item.RemainingMeters.Value).ToString());
                 break;
             case "RemainingQuantity":
                 builder.OpenComponent<MudChip>(0);

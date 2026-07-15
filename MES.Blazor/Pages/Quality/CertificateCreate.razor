@@ -1,0 +1,478 @@
+@page "/quality/certificates/create"
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Services
+@using MES.Core.DTOs.Warehouse
+@using MES.Core.DTOs.Quality
+@attribute [Authorize(Roles = Roles.Policies.QualityWrite)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Verified" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">新建质量证明书</MudText>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @* ======================================================================== *@
+            @* Step 1：选择证书头                                                      *@
+            @* ======================================================================== *@
+            <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" Class="mr-1" />
+                Step 1：选择证书头信息
+            </MudText>
+
+            @if (!_headerConfirmed)
+            {
+                @* 表1：头选择 *@
+                <MudTextField T="string"
+                              Label="搜索订单号/客户/标准/交货状态"
+                              Value="@_headerSearchKeyword"
+                              ValueChanged="@(v => { _headerSearchKeyword = v ?? string.Empty; StateHasChanged(); })"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              Clearable="true"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Class="mb-2" />
+
+                @if (_isLoadingHeaders)
+                {
+                    <MudProgressCircular Indeterminate Size="Size.Small" Class="my-4" />
+                }
+                else if (_headerOptions.Count > 0)
+                {
+                    <div style="max-height:240px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:4px;">
+                        <MudTable Items="@FilteredHeaderOptions()"
+                                  Dense="true"
+                                  Hover="true"
+                                  Elevation="0"
+                                  Class="auto-table">
+                            <HeaderContent>
+                                <MudTh Style="width:50px;">选择</MudTh>
+                                <MudTh>订单号</MudTh>
+                                <MudTh>客户名称</MudTh>
+                                <MudTh>产品标准</MudTh>
+                                <MudTh>交货状态</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="item">
+                                <MudTd>
+                                    <div Style="cursor:pointer;display:flex;align-items:center;min-height:24px;" @onclick="@(() => _selectedHeader = item)">
+                                        @if (_selectedHeader == item)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.RadioButtonChecked" Color="Color.Primary" Size="Size.Small" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.RadioButtonUnchecked" Size="Size.Small" />
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd>@item.OrderNo</MudTd>
+                                <MudTd>@item.CustomerName</MudTd>
+                                <MudTd>@item.ProductStandard</MudTd>
+                                <MudTd>@item.DeliveryStatus</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="ConfirmHeaderSelection"
+                               Class="mt-2"
+                               StartIcon="@Icons.Material.Filled.ArrowForward">
+                        确认选择
+                    </MudButton>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Class="my-2">暂无待发货数据</MudAlert>
+                }
+            }
+            else
+            {
+                @* 证书头字段（已自动填入 + 手动补充） *@
+                <MudAlert Severity="Severity.Success" Class="mb-3" Dense="true">
+                    已选择订单：@_certOrderNo
+                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="ChangeHeaderSelection" Class="ml-4">
+                        重新选择
+                    </MudButton>
+                </MudAlert>
+
+                <MudGrid>
+                    <MudItem xs="6" md="2">
+                        <MudTextField @bind-Value="_certOrderNo" Label="订单号" Variant="Variant.Outlined" ReadOnly="true" />
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <MudTextField @bind-Value="_certCustomerName" Label="客户名称" Variant="Variant.Outlined" ReadOnly="true" />
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudTextField @bind-Value="_certProductStandard" Label="产品标准" Variant="Variant.Outlined" ReadOnly="true" />
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudTextField @bind-Value="_certDeliveryStatus" Label="交货状态" Variant="Variant.Outlined" ReadOnly="true" />
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <MudTextField @bind-Value="_certProductName" Label="产品名称" Variant="Variant.Outlined" Placeholder="可选" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudTextField @bind-Value="_certRemark" Label="备注" Variant="Variant.Outlined" Placeholder="可选" />
+                    </MudItem>
+                </MudGrid>
+            }
+
+            <MudDivider Class="my-4" />
+
+            @if (_headerConfirmed)
+            {
+                @* ==================================================================== *@
+                @* Step 2：选择库存批次                                                *@
+                @* ==================================================================== *@
+                <div class="d-flex align-center mb-2">
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Small" Class="mr-1" />
+                        Step 2：选择库存批次
+                    </MudText>
+                    <MudSpacer />
+                    @if (_batchTableCollapsed)
+                    {
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" OnClick="ExpandBatchTable">
+                            展开批次选择 (@_allFilteredItems.Count 条)
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   OnClick="FillSubItemsFromSelection"
+                                   Disabled="@(_selectedBatchNos.Count == 0)"
+                                   StartIcon="@Icons.Material.Filled.Add">
+                            填充选中到子表 (@_selectedBatchNos.Count)
+                        </MudButton>
+                    }
+                </div>
+
+                @if (!_batchTableCollapsed)
+                {
+
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="关键字搜索"
+                                      Value="@_batchKeyword"
+                                      ValueChanged="@OnBatchSearchChanged"
+                                      Immediate="true"
+                                      DebounceInterval="500"
+                                      Clearable="true"
+                                      ClearButton="true"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@Icons.Material.Filled.Search" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <div style="display:flex; gap:8px;">
+                            <MudTextField T="string"
+                                          Label="入库日期从"
+                                          Value="@_inboundDateFrom"
+                                          ValueChanged="@OnInboundDateFromChanged"
+                                          Placeholder="yyyy-MM-dd"
+                                          Clearable="true"
+                                          ClearButton="true"
+                                          Style="flex:1;min-width:0" />
+                            <MudTextField T="string"
+                                          Label="入库日期至"
+                                          Value="@_inboundDateTo"
+                                          ValueChanged="@OnInboundDateToChanged"
+                                          Placeholder="yyyy-MM-dd"
+                                          Clearable="true"
+                                          ClearButton="true"
+                                          Style="flex:1;min-width:0" />
+                        </div>
+                    </MudItem>
+                </MudGrid>
+
+                @if (_isLoadingBatches)
+                {
+                    <MudProgressCircular Indeterminate Size="Size.Small" Class="my-4" />
+                }
+                else if (_allFilteredItems.Count > 0)
+                {
+                    @* 表2：批次选择表 *@
+                    <div style="max-height:300px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:4px;">
+                        <MudTable Items="@_pageItems"
+                                  Dense="true"
+                                  Hover="true"
+                                  Elevation="0"
+                                  Class="auto-table">
+                            <HeaderContent>
+                                <MudTh Style="width:50px;">
+                                    <MudCheckBox T="bool"
+                                                 Value="@(_pageItems.Count > 0 && _pageItems.All(i => _selectedBatchNos.Contains(i.InventoryBatchNo)))"
+                                                 ValueChanged="@SelectAllBatches"
+                                                 Dense="true" />
+                                </MudTh>
+                                <MudTh Class="cursor-pointer" @onclick="@(() => ToggleBatchSort(nameof(PendingDeliveryItemDto.InventoryBatchNo)))">
+                                    仓库批次 @SortIcon(nameof(PendingDeliveryItemDto.InventoryBatchNo))
+                                </MudTh>
+                                <MudTh Class="cursor-pointer" @onclick="@(() => ToggleBatchSort(nameof(PendingDeliveryItemDto.InboundDate)))">
+                                    入库日期 @SortIcon(nameof(PendingDeliveryItemDto.InboundDate))
+                                </MudTh>
+                                <MudTh Class="cursor-pointer" @onclick="@(() => ToggleBatchSort(nameof(PendingDeliveryItemDto.ProductionBatchNo)))">
+                                    生产批号 @SortIcon(nameof(PendingDeliveryItemDto.ProductionBatchNo))
+                                </MudTh>
+                                <MudTh>炉号</MudTh>
+                                <MudTh Class="cursor-pointer" @onclick="@(() => ToggleBatchSort(nameof(PendingDeliveryItemDto.StandardGrade)))">
+                                    标准牌号 @SortIcon(nameof(PendingDeliveryItemDto.StandardGrade))
+                                </MudTh>
+                                <MudTh>名义规格</MudTh>
+                                <MudTh>最小长度</MudTh>
+                                <MudTh>最大长度</MudTh>
+                                <MudTh>剩余支数</MudTh>
+                                <MudTh>剩余米数</MudTh>
+                                <MudTh>剩余重量</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="item">
+                                <MudTd>
+                                    <MudCheckBox T="bool"
+                                                 Value="@IsBatchSelected(item.InventoryBatchNo)"
+                                                 ValueChanged="@(v => { ToggleBatchSelection(item.InventoryBatchNo); StateHasChanged(); })"
+                                                 Dense="true" />
+                                </MudTd>
+                                <MudTd>@item.InventoryBatchNo</MudTd>
+                                <MudTd>@item.InboundDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@item.ProductionBatchNo</MudTd>
+                                <MudTd>@item.HeatNo</MudTd>
+                                <MudTd>@item.StandardGrade</MudTd>
+                                <MudTd>@item.Specification</MudTd>
+                                <MudTd>@item.MinLength?.ToString("G29")</MudTd>
+                                <MudTd>@item.MaxLength?.ToString("G29")</MudTd>
+                                <MudTd>@item.RemainingQuantity</MudTd>
+                                <MudTd>@item.RemainingMeters?.ToString("G29")</MudTd>
+                                <MudTd>@item.RemainingWeight.ToString("G29")</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                    <div class="d-flex align-center mt-2">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            共 @_totalCount 条，@_pageSize 条/页
+                        </MudText>
+                        <MudSpacer />
+                        @if (_totalCount > _pageSize)
+                        {
+                            <MudButton Variant="Variant.Text" Size="Size.Small"
+                                       Disabled="@(_pageIndex <= 1)"
+                                       OnClick="@(() => OnBatchPageChanged(_pageIndex - 1))">
+                                上一页
+                            </MudButton>
+                            <MudText Typo="Typo.body2" Class="mx-2">@_pageIndex / @((_totalCount + _pageSize - 1) / _pageSize)</MudText>
+                            <MudButton Variant="Variant.Text" Size="Size.Small"
+                                       Disabled="@(_pageIndex * _pageSize >= _totalCount)"
+                                       OnClick="@(() => OnBatchPageChanged(_pageIndex + 1))">
+                                下一页
+                            </MudButton>
+                        }
+                    </div>
+
+                    <MudDivider Class="my-3" />
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Warning" Class="my-2">当前条件下无可选批次</MudAlert>
+                }
+                }
+
+                @* ==================================================================== *@
+                @* Step 3：子表（CertificateItem）                                      *@
+                @* ==================================================================== *@
+                <div class="d-flex align-center mb-2">
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Small" Class="mr-1" />
+                        Step 3：证书子项明细
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="d-inline ml-2">(共 @_subItems.Count 项)</MudText>
+                    </MudText>
+                    <MudSpacer />
+                    @if (_subItems.Count > 0)
+                    {
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Info"
+                                   OnClick="AutoFillInspection"
+                                   Loading="@_isAutoFilling"
+                                   StartIcon="@Icons.Material.Filled.AutoFixHigh"
+                                   Class="mr-2">
+                            生成（自动填充检验数据）
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   OnClick="SubmitCertificate"
+                                   Loading="@_isSubmitting"
+                                   StartIcon="@Icons.Material.Filled.Save">
+                            提交保存
+                        </MudButton>
+                    }
+                </div>
+
+                @if (_subItems.Count > 0)
+                {
+
+                    @* 子表（4 组分栏水平滚动） *@
+                    <div style="overflow-x:auto;border:1px solid #e0e0e0;border-radius:4px;">
+                        <MudTable Items="@_subItems"
+                                  Dense="true"
+                                  Hover="true"
+                                  Elevation="0"
+                                  Class="auto-table"
+                                  Style="table-layout:auto;min-width:5800px">
+                            <HeaderContent>
+                                <MudTh Style="width:40px;">#</MudTh>
+                                <MudTh Style="width:40px;" />
+                                @* 第1组：仓库信息 *@
+                                <MudTh Class="col-g1-cell" Style="width:120px;background:#e3f2fd;">仓库批次</MudTh>
+                                <MudTh Class="col-g1-cell" Style="width:120px;background:#e3f2fd;">生产批号</MudTh>
+                                <MudTh Class="col-g1-cell" Style="width:100px;background:#e3f2fd;">炉号</MudTh>
+                                <MudTh Class="col-g1-cell" Style="width:100px;background:#e3f2fd;">牌号</MudTh>
+                                <MudTh Class="col-g1-cell" Style="width:110px;background:#e3f2fd;">规格</MudTh>
+                                <MudTh Class="col-g1-cell" Style="width:100px;background:#e3f2fd;">长度</MudTh>
+                                <MudTh Class="col-g1-cell" Style="width:90px;background:#e3f2fd;">支数</MudTh>
+                                <MudTh Class="col-g1-cell" Style="width:90px;background:#e3f2fd;">米数</MudTh>
+                                <MudTh Class="col-g1-cell" Style="width:90px;background:#e3f2fd;">重量</MudTh>
+                                @* 第2组：化学成分 *@
+                                <MudTh Class="col-g2-cell" Style="width:90px;">C</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">Si</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">Mn</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">P</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">S</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">Ni</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">Cr</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">Mo</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">Cu</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">N</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">Nb</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">Ti</MudTh>
+                                <MudTh Class="col-g2-cell" Style="width:90px;">Al</MudTh>
+                                @* 第3组：成品检验 *@
+                                <MudTh Class="col-g3-cell" Style="width:90px;">PMI</MudTh>
+                                <MudTh Class="col-g3-cell" Style="width:90px;">表检</MudTh>
+                                <MudTh Class="col-g3-cell" Style="width:90px;">尺寸</MudTh>
+                                <MudTh Class="col-g3-cell" Style="width:90px;">内窥</MudTh>
+                                <MudTh Class="col-g3-cell" Style="width:90px;">水压</MudTh>
+                                <MudTh Class="col-g3-cell" Style="width:90px;">水下气压</MudTh>
+                                <MudTh Class="col-g3-cell" Style="width:90px;">涡流</MudTh>
+                                <MudTh Class="col-g3-cell" Style="width:90px;">超声波</MudTh>
+                                <MudTh Class="col-g3-cell" Style="width:90px;">端口着色</MudTh>
+                                @* 第4组：理化检测 *@
+                                <MudTh Class="col-g4-cell" Style="width:100px;">抗拉₁</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">抗拉₂</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">Rp0.2₁</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">Rp0.2₂</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">Rp1.0₁</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">Rp1.0₂</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">伸长₁</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">伸长₂</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">硬度₁</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">硬度₂</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">晶粒₁</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">晶粒₂</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">铁素₁</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">铁素₂</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">扩口</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">压扁</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">晶间腐蚀</MudTh>
+                                <MudTh Class="col-g4-cell" Style="width:100px;">点腐蚀</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="item">
+                                <MudTd>@item.SeqNo</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Size="Size.Small"
+                                                   Color="Color.Error"
+                                                   OnClick="@(() => RemoveSubItem(item))" />
+                                </MudTd>
+                                @* 第1组 *@
+                                <MudTd Class="col-g1-cell">
+                                    @item.InventoryBatchNo
+                                </MudTd>
+                                <MudTd Class="col-g1-cell">
+                                    <MudTextField @bind-Value="item.ProductionBatchNo" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudTd>
+                                <MudTd Class="col-g1-cell">
+                                    <MudTextField @bind-Value="item.HeatNo" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudTd>
+                                <MudTd Class="col-g1-cell">
+                                    <MudTextField @bind-Value="item.SteelGrade" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudTd>
+                                <MudTd Class="col-g1-cell">
+                                    <MudTextField @bind-Value="item.Specification" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudTd>
+                                <MudTd Class="col-g1-cell">
+                                    <MudTextField @bind-Value="item.LengthDesc" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudTd>
+                                <MudTd Class="col-g1-cell">
+                                    <MudNumericField @bind-Value="item.Quantity" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" />
+                                </MudTd>
+                                <MudTd Class="col-g1-cell">
+                                    <MudNumericField @bind-Value="item.Meters" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" />
+                                </MudTd>
+                                <MudTd Class="col-g1-cell">
+                                    <MudNumericField @bind-Value="item.Weight" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" />
+                                </MudTd>
+                                @* 第2组 *@
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemC" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemSi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemMn" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemP" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemS" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemNi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemCr" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemMo" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemCu" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemN" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemNb" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemTi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g2-cell"><MudNumericField @bind-Value="item.ChemAl" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                @* 第3组 *@
+                                <MudTd Class="col-g3-cell"><MudTextField @bind-Value="item.InspPMI" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g3-cell"><MudTextField @bind-Value="item.InspVisual" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g3-cell"><MudTextField @bind-Value="item.InspDimension" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g3-cell"><MudTextField @bind-Value="item.InspEndoscopy" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g3-cell"><MudTextField @bind-Value="item.InspHydro" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g3-cell"><MudTextField @bind-Value="item.InspUnderwaterPneumatic" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g3-cell"><MudTextField @bind-Value="item.InspEddyCurrent" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g3-cell"><MudTextField @bind-Value="item.InspUltrasonic" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g3-cell"><MudTextField @bind-Value="item.InspPortDye" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                @* 第4组 *@
+                                <MudTd Class="col-g4-cell"><MudNumericField @bind-Value="item.TensileStrength_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudNumericField @bind-Value="item.TensileStrength_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudNumericField @bind-Value="item.YieldRp02_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudNumericField @bind-Value="item.YieldRp02_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudNumericField @bind-Value="item.YieldRp10_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudNumericField @bind-Value="item.YieldRp10_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudNumericField @bind-Value="item.Elongation_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudNumericField @bind-Value="item.Elongation_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudTextField @bind-Value="item.Hardness_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudTextField @bind-Value="item.Hardness_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudTextField @bind-Value="item.GrainSize_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudTextField @bind-Value="item.GrainSize_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudNumericField @bind-Value="item.FerriteContent_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudNumericField @bind-Value="item.FerriteContent_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudTextField @bind-Value="item.FlaringResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudTextField @bind-Value="item.FlatteningResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudTextField @bind-Value="item.IntergranularResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                                <MudTd Class="col-g4-cell"><MudTextField @bind-Value="item.PittingResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /></MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="my-4">
+                        请在 Step 2 中选择批次并点击"填充选中到子表"
+                    </MudText>
+                }
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

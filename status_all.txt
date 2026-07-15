@@ -1,5 +1,0 @@
-﻿Tbl              ProductStatus        Cnt        
----------------- -------------------- -----------
-SectionOutsource 在制                           242
-
-(1 行受影响)

@@ -485,6 +485,11 @@ public partial class StandardInspectionRequirements
 
     // ========== 删除 ==========
 
+    private void NavigateToCreate()
+    {
+        Navigation.NavigateTo("/standard-inspection-requirements/create");
+    }
+
     private async Task DeleteItem(StandardInspectionRequirementDto item)
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters

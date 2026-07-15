@@ -107,6 +107,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<FlaringTest> FlaringTests { get; set; } = null!;
     public DbSet<Ncr> Ncrs { get; set; } = null!;
     public DbSet<QualityProcessTracking> QualityProcessTrackings { get; set; } = null!;
+    public DbSet<Certificate> Certificates { get; set; } = null!;
+    public DbSet<CertificateItem> CertificateItems { get; set; } = null!;
 
     // ========== 设备上下文 ==========
 
@@ -219,6 +221,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
         ConfigureFlaringTest(builder);
         ConfigureNcr(builder);
         ConfigureQualityProcessTracking(builder);
+        ConfigureCertificate(builder);
+        ConfigureCertificateItem(builder);
 
         // ========== 设备上下文 ==========
         ConfigureEquipment(builder);
@@ -786,6 +790,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.InitialWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
             entity.Property(e => e.UnitWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.Meters).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.RemainingMeters).HasColumnType("decimal(18,2)");
             entity.Property(e => e.RemainingQuantity).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.RemainingWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
 
@@ -847,6 +852,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.TargetCompany).HasMaxLength(200);
             entity.Property(e => e.OutboundQuantity).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.OutboundWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.OutboundMeters).HasColumnType("decimal(18,2)");
             entity.Property(e => e.OutboundDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.Remark).HasMaxLength(500);
 
@@ -2326,6 +2332,103 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.WorkOrderNo).HasDatabaseName("IX_QPT_WorkOrderNo");
             entity.HasIndex(e => e.QualityStatus).HasDatabaseName("IX_QPT_QualityStatus");
             entity.HasIndex(e => e.ReceiveDate).HasDatabaseName("IX_QPT_ReceiveDate");
+        });
+    }
+
+    private static void ConfigureCertificate(ModelBuilder builder)
+    {
+        builder.Entity<Certificate>(entity =>
+        {
+            entity.ToTable("Certificate");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CertificateNo).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.IssueDate).IsRequired();
+            entity.Property(e => e.CustomerName).HasMaxLength(200);
+            entity.Property(e => e.ProductStandard).HasMaxLength(100);
+            entity.Property(e => e.ProductName).HasMaxLength(200);
+            entity.Property(e => e.DeliveryStatus).HasMaxLength(50);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.HasIndex(e => e.CertificateNo).IsUnique().HasDatabaseName("UK_Certificate_No");
+            entity.HasMany(e => e.Items)
+                  .WithOne()
+                  .HasForeignKey(e => e.CertificateId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureCertificateItem(ModelBuilder builder)
+    {
+        builder.Entity<CertificateItem>(entity =>
+        {
+            entity.ToTable("CertificateItem");
+            entity.HasKey(e => e.Id);
+
+            // 仓库信息
+            entity.Property(e => e.InventoryBatchNo).HasMaxLength(50);
+            entity.Property(e => e.ProductionBatchNo).HasMaxLength(50);
+            entity.Property(e => e.HeatNo).HasMaxLength(50);
+            entity.Property(e => e.SteelGrade).HasMaxLength(100);
+            entity.Property(e => e.Specification).HasMaxLength(200);
+            entity.Property(e => e.LengthDesc).HasMaxLength(100);
+
+            // 化学成分
+            entity.Property(e => e.ChemC).HasPrecision(10, 4);
+            entity.Property(e => e.ChemSi).HasPrecision(10, 4);
+            entity.Property(e => e.ChemMn).HasPrecision(10, 4);
+            entity.Property(e => e.ChemP).HasPrecision(10, 4);
+            entity.Property(e => e.ChemS).HasPrecision(10, 4);
+            entity.Property(e => e.ChemNi).HasPrecision(10, 4);
+            entity.Property(e => e.ChemCr).HasPrecision(10, 4);
+            entity.Property(e => e.ChemMo).HasPrecision(10, 4);
+            entity.Property(e => e.ChemCu).HasPrecision(10, 4);
+            entity.Property(e => e.ChemN).HasPrecision(10, 4);
+            entity.Property(e => e.ChemNb).HasPrecision(10, 4);
+            entity.Property(e => e.ChemTi).HasPrecision(10, 4);
+            entity.Property(e => e.ChemFe).HasPrecision(10, 4);
+            entity.Property(e => e.ChemAl).HasPrecision(10, 4);
+            entity.Property(e => e.ChemW).HasPrecision(10, 4);
+            entity.Property(e => e.ChemPREN).HasPrecision(10, 4);
+
+            // 数值精度
+            entity.Property(e => e.Meters).HasPrecision(18, 3);
+            entity.Property(e => e.Weight).HasPrecision(18, 3);
+
+            // 成品检验
+            entity.Property(e => e.InspPMI).HasMaxLength(100);
+            entity.Property(e => e.InspVisual).HasMaxLength(100);
+            entity.Property(e => e.InspDimension).HasMaxLength(100);
+            entity.Property(e => e.InspEndoscopy).HasMaxLength(100);
+            entity.Property(e => e.InspHydro).HasMaxLength(100);
+            entity.Property(e => e.InspUnderwaterPneumatic).HasMaxLength(100);
+            entity.Property(e => e.InspEddyCurrent).HasMaxLength(100);
+            entity.Property(e => e.InspUltrasonic).HasMaxLength(100);
+            entity.Property(e => e.InspPortDye).HasMaxLength(100);
+
+            // 理化检测 — 拉伸
+            entity.Property(e => e.TensileStrength_1).HasPrecision(10, 2);
+            entity.Property(e => e.TensileStrength_2).HasPrecision(10, 2);
+            entity.Property(e => e.YieldRp02_1).HasPrecision(10, 2);
+            entity.Property(e => e.YieldRp02_2).HasPrecision(10, 2);
+            entity.Property(e => e.YieldRp10_1).HasPrecision(10, 2);
+            entity.Property(e => e.YieldRp10_2).HasPrecision(10, 2);
+            entity.Property(e => e.Elongation_1).HasPrecision(10, 2);
+            entity.Property(e => e.Elongation_2).HasPrecision(10, 2);
+
+            // 理化检测 — 硬度/晶粒度
+            entity.Property(e => e.Hardness_1).HasMaxLength(50);
+            entity.Property(e => e.Hardness_2).HasMaxLength(50);
+            entity.Property(e => e.GrainSize_1).HasMaxLength(50);
+            entity.Property(e => e.GrainSize_2).HasMaxLength(50);
+
+            // 理化检测 — 金相
+            entity.Property(e => e.FerriteContent_1).HasPrecision(10, 2);
+            entity.Property(e => e.FerriteContent_2).HasPrecision(10, 2);
+
+            // 理化检测 — 扩口/压扁/晶间腐蚀/点腐蚀
+            entity.Property(e => e.FlaringResult).HasMaxLength(100);
+            entity.Property(e => e.FlatteningResult).HasMaxLength(100);
+            entity.Property(e => e.IntergranularResult).HasMaxLength(100);
+            entity.Property(e => e.PittingResult).HasMaxLength(100);
         });
     }
 

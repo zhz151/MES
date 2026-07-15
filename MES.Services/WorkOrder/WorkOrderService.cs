@@ -2732,4 +2732,94 @@ public class WorkOrderService : IWorkOrderService
     }
 
     #endregion
+
+    #region 数据回填
+
+    public async Task<ApiResponse<BackfillResultDto>> BackfillOrderItemIdsAsync()
+    {
+        var result = new BackfillResultDto();
+
+        try
+        {
+            // 1. 找出所有 OrderItemIds 为空的工单
+            var workOrders = await _context.WorkOrders
+                .Where(wo => wo.OrderItemIds == null || wo.OrderItemIds == "")
+                .ToListAsync();
+
+            result.TotalProcessed = workOrders.Count;
+            if (workOrders.Count == 0)
+            {
+                return ApiResponse<BackfillResultDto>.Ok(result, "所有工单的 OrderItemIds 已填充，无需回填");
+            }
+
+            // 2. 按订单号分组，批量加载对应的 OrderItems
+            var orderNos = workOrders
+                .Select(wo => wo.SalesOrderNo)
+                .Distinct()
+                .ToList();
+
+            // 按 SalesOrderNo 分组加载 OrderItems 减少查询次数
+            var orderItemsByOrder = new Dictionary<string, List<MES.Data.Entities.Order.OrderItem>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var orderNo in orderNos)
+            {
+                var items = await _context.OrderItems
+                    .Where(oi => oi.OrderNumber == orderNo)
+                    .ToListAsync();
+                orderItemsByOrder[orderNo] = items;
+            }
+
+            // 3. 逐工单匹配 OrderItem.Sequence
+            foreach (var wo in workOrders)
+            {
+                if (!orderItemsByOrder.TryGetValue(wo.SalesOrderNo, out var orderItems) || orderItems.Count == 0)
+                {
+                    result.UnmatchedCount++;
+                    result.Errors.Add($"工单 {wo.WorkOrderNo}: 订单 {wo.SalesOrderNo} 下无项次");
+                    continue;
+                }
+
+                // 用关键字段匹配：标准号、交货状态、牌号、规格、长度状态
+                var matchedItems = orderItems.Where(oi =>
+                    (oi.StandardNo == wo.StandardCode || (oi.StandardNo == null && wo.StandardCode == null)) &&
+                    oi.DeliveryState == wo.DeliveryState &&
+                    oi.PlantGrade == wo.PlantGrade &&
+                    oi.Specification == wo.Specification &&
+                    oi.LengthStatus == wo.LengthStatus
+                ).ToList();
+
+                if (matchedItems.Count == 0)
+                {
+                    result.UnmatchedCount++;
+                    result.Errors.Add($"工单 {wo.WorkOrderNo}: 订单 {wo.SalesOrderNo} 下未匹配到项次");
+                    continue;
+                }
+
+                // 按顺序去重收集 Sequence
+                var sequences = matchedItems
+                    .Select(oi => oi.Sequence)
+                    .Distinct()
+                    .OrderBy(s => s)
+                    .ToList();
+
+                wo.OrderItemIds = string.Join(",", sequences);
+                result.SuccessCount++;
+            }
+
+            // 4. 批量保存
+            await _context.SaveChangesAsync();
+
+            var msg = $"回填完成：共处理 {result.TotalProcessed} 条，成功 {result.SuccessCount} 条，未匹配 {result.UnmatchedCount} 条";
+            _logger.LogInformation(msg);
+
+            return ApiResponse<BackfillResultDto>.Ok(result, msg);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "回填 OrderItemIds 失败");
+            result.Errors.Add($"系统异常: {ex.Message}");
+            return ApiResponse<BackfillResultDto>.Fail("回填失败: " + ex.Message);
+        }
+    }
+
+    #endregion
 }

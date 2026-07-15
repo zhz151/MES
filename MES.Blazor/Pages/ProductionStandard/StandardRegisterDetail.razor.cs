@@ -164,33 +164,37 @@ public partial class StandardRegisterDetail
         _isSubmitting = true;
         try
         {
-            var result = await Svc.SaveAsync(_editDto);
-            if (result.Success)
+            // 1. 保存标准号头，拿到 Id
+            var headerResult = await Svc.SaveAsync(_editDto);
+            if (!headerResult.Success || headerResult.Data <= 0)
             {
-                // 保存子项目
-                foreach (var item in _items)
-                {
-                    item.StandardRegisterId = _editDto.Id > 0 ? _editDto.Id : Id;
-                    await Svc.SaveItemAsync(item);
-                }
+                Snackbar.Add(headerResult.Message ?? "保存标准号失败", Severity.Error);
+                return;
+            }
 
-                Snackbar.Add("保存成功", Severity.Success);
-                if (_isCreateMode)
+            var headerId = headerResult.Data;
+
+            // 2. 保存子项目
+            foreach (var item in _items)
+            {
+                item.StandardRegisterId = headerId;
+                var itemResult = await Svc.SaveItemAsync(item);
+                if (itemResult.Success && itemResult.Data > 0 && item.Id == 0)
                 {
-                    Navigation.NavigateTo("/standard-registers");
+                    item.Id = itemResult.Data; // 回写新 Id，防重复创建
                 }
-                else
-                {
-                    _isEditMode = false;
-                    _dto = _editDto;
-                    var itemsResult = await Svc.GetItemsAsync(Id);
-                    if (itemsResult.Success && itemsResult.Data != null)
-                        _items = itemsResult.Data;
-                }
+            }
+
+            Snackbar.Add("保存成功", Severity.Success);
+            if (_isCreateMode)
+            {
+                Navigation.NavigateTo("/standard-registers");
             }
             else
             {
-                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+                _isEditMode = false;
+                // 重新加载数据确保最新
+                await LoadData();
             }
         }
         catch (Exception ex)

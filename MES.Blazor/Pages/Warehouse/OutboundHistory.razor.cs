@@ -51,7 +51,7 @@ public partial class OutboundHistory
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "OutboundQuantity", "OutboundWeight"
+        "OutboundQuantity", "OutboundWeight", "OutboundMeters"
     };
     private string _lastResolvedWarehouseCode = string.Empty;
     private bool _allSelected;
@@ -101,6 +101,7 @@ public partial class OutboundHistory
         new() { Key = "TargetCompany",    Label = "目标单位", SortKey = "targetcompany", FilterType = "string", Width = "120" },
         new() { Key = "OutboundQuantity", Label = "出库支数", SortKey = "outboundquantity", IsRequired = true, Width = "80" },
         new() { Key = "OutboundWeight",   Label = "出库重量", SortKey = "outboundweight",   IsRequired = true, Width = "80" },
+        new() { Key = "OutboundMeters",   Label = "出库米数", SortKey = "outboundmeters",   Width = "80" },
         new() { Key = "Remark",           Label = "备注", SortKey = "remark", FilterType = "string", Width = "120" },
         new() { Key = "CreatedBy",        Label = "创建人",   SortKey = "createdby", FilterType = "string", Width = "100" },
     };
@@ -351,6 +352,7 @@ public partial class OutboundHistory
         "OutboundType" => "select",
         "OutboundQuantity" => "int",
         "OutboundWeight" => "decimal",
+        "OutboundMeters" => "decimal",
         "OutboundDate" => "date",
         _ => "text"
     };
@@ -403,6 +405,10 @@ public partial class OutboundHistory
                 break;
             case "OutboundWeight":
                 builder.AddContent(0, ((int)item.OutboundWeight).ToString());
+                break;
+            case "OutboundMeters":
+                if (item.OutboundMeters.HasValue)
+                    builder.AddContent(0, ((int)item.OutboundMeters.Value).ToString());
                 break;
             case "Remark":
                 builder.AddContent(0, item.Remark);
@@ -460,13 +466,27 @@ public partial class OutboundHistory
                 break;
 
             case "decimal":
-                builder.OpenComponent<MudNumericField<decimal>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "HideSpinButtons", true);
-                builder.AddAttribute(3, "Format", "G29");
-                builder.AddAttribute(4, "Value", item.OutboundWeight);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => item.OutboundWeight = v));
-                builder.CloseComponent();
+                if (col.Key == "OutboundMeters")
+                {
+                    var metersVal = item.OutboundMeters ?? 0m;
+                    builder.OpenComponent<MudNumericField<decimal>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "HideSpinButtons", true);
+                    builder.AddAttribute(3, "Format", "G29");
+                    builder.AddAttribute(4, "Value", metersVal);
+                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => item.OutboundMeters = v));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.OpenComponent<MudNumericField<decimal>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "HideSpinButtons", true);
+                    builder.AddAttribute(3, "Format", "G29");
+                    builder.AddAttribute(4, "Value", item.OutboundWeight);
+                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => item.OutboundWeight = v));
+                    builder.CloseComponent();
+                }
                 break;
 
             case "date":
@@ -668,6 +688,7 @@ public partial class OutboundHistory
         "TargetCompany" => item.TargetCompany,
         "OutboundQuantity" => item.OutboundQuantity.ToString("G29"),
         "OutboundWeight" => item.OutboundWeight.ToString("G29"),
+        "OutboundMeters" => item.OutboundMeters?.ToString("G29"),
         "Remark" => item.Remark,
         "CreatedBy" => item.CreatedBy,
         _ => null
@@ -714,6 +735,7 @@ public partial class OutboundHistory
                 TargetCompany = string.IsNullOrEmpty(item.TargetCompany) ? null : item.TargetCompany,
                 OutboundQuantity = item.OutboundQuantity,
                 OutboundWeight = item.OutboundWeight,
+                OutboundMeters = item.OutboundMeters,
                 Remark = string.IsNullOrEmpty(item.Remark) ? null : item.Remark,
             };
 

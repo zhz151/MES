@@ -56,6 +56,7 @@ builder.Services.AddScoped<WorkOrderExecutionService>();
 // ========== 仓库上下文 ==========
 builder.Services.AddScoped<WarehouseService>();
 builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<PendingDeliveryService>();
 
 // ========== 批次上下文 ==========
 builder.Services.AddScoped<BatchService>();
@@ -79,6 +80,7 @@ builder.Services.AddScoped<FlatteningTestService>();
 builder.Services.AddScoped<FlaringTestService>();
 builder.Services.AddScoped<NcrService>();
 builder.Services.AddScoped<MaterialReceiveCheckService>();
+builder.Services.AddScoped<CertificateService>();
 
 // ========== 物料上下文 ==========
 builder.Services.AddScoped<MaterialService>();

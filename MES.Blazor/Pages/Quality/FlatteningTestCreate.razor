@@ -1,0 +1,320 @@
+@page "/quality/flattening-test/create"
+@using MES.Blazor.Helpers
+@using MES.Blazor.Services
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@using MES.Core.DTOs.Quality
+@inject FlatteningTestService FlatteningTestService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = Roles.Policies.QualityRead)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <style>
+        .edit-table td.mud-table-cell,
+        .edit-table th.mud-table-cell {
+            padding: 1px 4px !important;
+        }
+        .edit-table .mud-input-input-control {
+            margin-top: 0;
+        }
+        .edit-table .mud-input {
+            font-size: 13px;
+            width: 100%;
+            min-width: 0;
+        }
+        .edit-table th.mud-table-cell {
+            white-space: nowrap;
+        }
+        .table-scroll {
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+    </style>
+
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.AddCircleOutline" Class="mr-2" Color="Color.Primary" />
+                    新增压扁检验
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <div id="flattening-test-create-table">
+                @if (_rows.Any())
+                {
+                    <div class="d-flex align-center mb-2">
+                        <MudSpacer />
+                        <MudText Typo="Typo.body2">共 @_rows.Count 行</MudText>
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.AddCircleOutline"
+                                   OnClick="AddRow" Class="ml-2">
+                            添加行
+                        </MudButton>
+                    </div>
+                    <div class="table-scroll">
+                        <MudTable Items="@_rows" Dense="true" Hover="true" Elevation="0" Striped="true"
+                                  Class="edit-table auto-table" SortMode="SortMode.None" FixedHeader="true">
+                            <HeaderContent>
+                                <MudTh Style="width:100px;">
+                                    检验日期 <span class="required-star">*</span>
+                                </MudTh>
+                                <MudTh Style="width:70px;">
+                                    检验员 <span class="required-star">*</span>
+                                </MudTh>
+                                <MudTh Style="width:90px;">
+                                    生产编号 <span class="required-star">*</span>
+                                </MudTh>
+                                <MudTh Style="width:80px;">
+                                    牌号 <span class="required-star">*</span>
+                                </MudTh>
+                                <MudTh Style="width:80px;">规格</MudTh>
+                                <MudTh Style="width:70px;">试样编号</MudTh>
+                                <MudTh Style="width:80px;">试样尺寸</MudTh>
+                                <MudTh Style="width:100px;">检验标准</MudTh>
+                                <MudTh Style="width:80px;">压扁间隙</MudTh>
+                                <MudTh Style="width:80px;">观察结果</MudTh>
+                                <MudTh Style="width:60px;">判定</MudTh>
+                                <MudTh Style="width:50px;">操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="r">
+                                <MudTd>@RenderDateField(r)</MudTd>
+                                <MudTd>@RenderInputField(r.Inspector, v => r.Inspector = v)</MudTd>
+                                <MudTd>@RenderInputField(r.FurnaceNo, v => r.FurnaceNo = v)</MudTd>
+                                <MudTd>@RenderInputField(r.Grade, v => r.Grade = v)</MudTd>
+                                <MudTd>@RenderInputField(r.Specification, v => r.Specification = v)</MudTd>
+                                <MudTd>@RenderNumericField(r.SampleNo, v => r.SampleNo = v)</MudTd>
+                                <MudTd>@RenderInputField(r.SampleSize, v => r.SampleSize = v)</MudTd>
+                                <MudTd>@RenderInputField(r.InspectionStandard, v => r.InspectionStandard = v)</MudTd>
+                                <MudTd>@RenderDecimalField(r.FlatteningGap, v => r.FlatteningGap = v)</MudTd>
+                                <MudTd>@RenderInputField(r.Observation, v => r.Observation = v)</MudTd>
+                                <MudTd>@RenderInputField(r.Judgment, v => r.Judgment = v)</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
+                                                   Color="Color.Error" Size="Size.Small"
+                                                   Title="删除"
+                                                   OnClick="() => RemoveRow(r)"
+                                                   Disabled="@(_rows.Count <= 1)" />
+                                </MudTd>
+                            </RowTemplate>
+                            <FooterContent>
+                                <MudTd colspan="12">
+                                    <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
+                                                   Color="Color.Primary" Size="Size.Small"
+                                                   OnClick="AddRow" />
+                                </MudTd>
+                            </FooterContent>
+                        </MudTable>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-4">@_errorMessage</MudText>
+            }
+
+            @if (_rows.Any())
+            {
+                <MudGrid Class="mt-4">
+                    <MudItem xs="12" Class="d-flex justify-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   OnClick="Submit" Loading="@_isSubmitting"
+                                   Size="Size.Large">
+                            确认提交 (@_rows.Count 条)
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<EditRow> _rows = new();
+    private bool _isSubmitting;
+    private bool _isArrowNavSetup;
+    private string _errorMessage = string.Empty;
+
+    private class EditRow
+    {
+        public string InspectionDate { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
+        public string Inspector { get; set; } = string.Empty;
+        public string FurnaceNo { get; set; } = string.Empty;
+        public string Grade { get; set; } = string.Empty;
+        public string Specification { get; set; } = string.Empty;
+        public int? SampleNo { get; set; }
+        public string? SampleSize { get; set; }
+        public string? InspectionStandard { get; set; }
+        public decimal? FlatteningGap { get; set; }
+        public string? Observation { get; set; }
+        public string? Judgment { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        if (!_rows.Any())
+        {
+            _rows.Add(new EditRow());
+            _rows.Add(new EditRow());
+            _rows.Add(new EditRow());
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#flattening-test-create-table"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    private void AddRow()
+    {
+        _rows.Add(new EditRow());
+    }
+
+    private void RemoveRow(EditRow row)
+    {
+        if (_rows.Count <= 1) return;
+        _rows.Remove(row);
+    }
+
+    private async Task Submit()
+    {
+        _errorMessage = string.Empty;
+
+        var errors = new List<string>();
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            var r = _rows[i];
+            if (string.IsNullOrWhiteSpace(r.Inspector))
+                errors.Add($"第{i + 1}行：检验员不能为空");
+            if (string.IsNullOrWhiteSpace(r.FurnaceNo))
+                errors.Add($"第{i + 1}行：生产编号不能为空");
+            if (string.IsNullOrWhiteSpace(r.Grade))
+                errors.Add($"第{i + 1}行：牌号不能为空");
+            if (string.IsNullOrWhiteSpace(r.InspectionDate))
+                errors.Add($"第{i + 1}行：检验日期不能为空");
+            else if (!DateTime.TryParse(r.InspectionDate, out _))
+                errors.Add($"第{i + 1}行：检验日期格式无效（请用 yyyy-MM-dd）");
+        }
+
+        if (errors.Any())
+        {
+            Snackbar.Add(string.Join("；", errors), Severity.Error);
+            return;
+        }
+
+        _isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var requests = _rows.Select(r =>
+            {
+                DateTime.TryParse(r.InspectionDate, out var date);
+                return new CreateFlatteningTestRequest
+                {
+                    InspectionDate = date == default ? DateTime.Now : date,
+                    Inspector = r.Inspector.Trim(),
+                    FurnaceNo = r.FurnaceNo.Trim(),
+                    Grade = r.Grade.Trim(),
+                    Specification = r.Specification,
+                    SampleNo = r.SampleNo,
+                    SampleSize = r.SampleSize,
+                    InspectionStandard = r.InspectionStandard,
+                    FlatteningGap = r.FlatteningGap,
+                    Observation = r.Observation,
+                    Judgment = r.Judgment
+                };
+            }).ToList();
+
+            var result = await FlatteningTestService.BatchCreateAsync(requests);
+
+            if (result.Success && result.Data != null)
+            {
+                Snackbar.Add($"批量创建压扁检验成功，共{result.Data.Count}条", Severity.Success);
+                Navigation.NavigateTo("/quality/flattening-test");
+            }
+            else
+            {
+                _errorMessage = result.Message ?? "批量创建失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"网络错误: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/quality/flattening-test");
+    }
+
+    private RenderFragment RenderDateField(EditRow r) => builder =>
+    {
+        builder.OpenComponent<MudTextField<string>>(0);
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Size", Size.Small);
+        builder.AddAttribute(4, "Value", r.InspectionDate);
+        builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.InspectionDate = v ?? DateTime.Now.ToString("yyyy-MM-dd")));
+        builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
+        builder.CloseComponent();
+    };
+
+    private RenderFragment RenderInputField(string? value, Action<string?> setter) => builder =>
+    {
+        builder.OpenComponent<MudTextField<string>>(0);
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Size", Size.Small);
+        builder.AddAttribute(4, "Value", value);
+        builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, setter));
+        builder.CloseComponent();
+    };
+
+    private RenderFragment RenderNumericField(int? value, Action<int?> setter) => builder =>
+    {
+        builder.OpenComponent<MudNumericField<int?>>(0);
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Size", Size.Small);
+        builder.AddAttribute(4, "HideSpinButtons", true);
+        builder.AddAttribute(5, "Value", value);
+        builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, setter));
+        builder.CloseComponent();
+    };
+
+    private RenderFragment RenderDecimalField(decimal? value, Action<decimal?> setter) => builder =>
+    {
+        builder.OpenComponent<MudNumericField<decimal?>>(0);
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Size", Size.Small);
+        builder.AddAttribute(4, "HideSpinButtons", true);
+        builder.AddAttribute(5, "Format", "G29");
+        builder.AddAttribute(6, "Value", value);
+        builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, setter));
+        builder.CloseComponent();
+    };
+}

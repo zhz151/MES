@@ -238,11 +238,24 @@ public class GradePhysicalPropertyService : IGradePhysicalPropertyService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var query = _context.GradePhysicalProperties.AsNoTracking();
+        var all = await _context.GradePhysicalProperties
+            .AsNoTracking()
+            .ToListAsync();
+
         return new Dictionary<string, List<string>>
         {
-            ["StandardGrade"] = await query.Select(x => x.StandardGrade).Distinct().OrderBy(x => x).ToListAsync(),
-            ["StandardGradeCategory"] = await query.Where(x => x.StandardGradeCategory != null).Select(x => x.StandardGradeCategory!).Distinct().OrderBy(x => x).ToListAsync(),
+            ["StandardGrade"] = all.Select(x => x.StandardGrade).Distinct().OrderBy(x => x).ToList(),
+            ["StandardGradeCategory"] = all.Select(x => x.StandardGradeCategory).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Density"] = all.Select(x => x.Density.ToString()).Distinct().OrderBy(x => x).ToList(),
+            ["HeatTreatmentTemp"] = all.Select(x => x.HeatTreatmentTemp).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["HardnessRockwell"] = all.Select(x => x.HardnessRockwell).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["HardnessVickers"] = all.Select(x => x.HardnessVickers).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["HardnessBrinell"] = all.Select(x => x.HardnessBrinell).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["TensileStrength"] = all.Select(x => x.TensileStrength).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["YieldStrength02"] = all.Select(x => x.YieldStrength02).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["YieldStrength10"] = all.Select(x => x.YieldStrength10).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["Elongation"] = all.Select(x => x.Elongation).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+            ["GrainSize"] = all.Select(x => x.GrainSize).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
         };
     }
 }

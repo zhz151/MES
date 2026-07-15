@@ -13,6 +13,7 @@ public class OutboundRecordDto
     public string? TargetCompany { get; set; }
     public int OutboundQuantity { get; set; }
     public decimal OutboundWeight { get; set; }
+    public decimal? OutboundMeters { get; set; }
     public DateTime OutboundDate { get; set; }
     public string? Remark { get; set; }
     public string? CreatedBy { get; set; }

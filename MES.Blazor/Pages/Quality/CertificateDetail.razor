@@ -1,0 +1,621 @@
+@page "/quality/certificates/{Id:int}"
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Services
+@using MES.Core.DTOs.Quality
+@attribute [Authorize(Roles = Roles.Policies.QualityRead)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    @if (_isLoading)
+    {
+        <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+    }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <div class="d-flex align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Verified" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                        <MudText Typo="Typo.h5" Class="font-weight-bold">质量证明书详情</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-4">@_dto?.CertificateNo</MudText>
+                    </div>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                    @if (_isEditMode)
+                    {
+                        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit">取消</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Loading="@_isSubmitting">
+                            保存
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <AuthorizeView Roles="@Roles.Policies.QualityWrite">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
+                        </AuthorizeView>
+                    }
+                </CardHeaderActions>
+            </MudCardHeader>
+
+            <MudCardContent>
+                @* ====== 基本信息 ====== *@
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />基本信息
+                </MudText>
+
+                <MudGrid>
+                    <MudItem xs="6" md="3">
+                        @if (_isEditMode)
+                        {
+                            <MudTextField @bind-Value="_editDto!.CustomerName"
+                                          Label="客户名称"
+                                          Variant="Variant.Outlined" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">客户名称</MudText>
+                            <MudText Typo="Typo.body1">@(_dto?.CustomerName ?? "-")</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        @if (_isEditMode)
+                        {
+                            <MudTextField @bind-Value="_editDto!.ProductStandard"
+                                          Label="产品标准"
+                                          Variant="Variant.Outlined" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">产品标准</MudText>
+                            <MudText Typo="Typo.body1">@(_dto?.ProductStandard ?? "-")</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        @if (_isEditMode)
+                        {
+                            <MudTextField @bind-Value="_editDto!.ProductName"
+                                          Label="产品名称"
+                                          Variant="Variant.Outlined" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">产品名称</MudText>
+                            <MudText Typo="Typo.body1">@(_dto?.ProductName ?? "-")</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        @if (_isEditMode)
+                        {
+                            <MudTextField @bind-Value="_editDto!.DeliveryStatus"
+                                          Label="交货状态"
+                                          Variant="Variant.Outlined" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">交货状态</MudText>
+                            <MudText Typo="Typo.body1">@(_dto?.DeliveryStatus ?? "-")</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">签发日期</MudText>
+                        <MudText Typo="Typo.body1">@(_dto?.IssueDate.ToString("yyyy-MM-dd") ?? "-")</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        @if (_isEditMode)
+                        {
+                            <MudTextField @bind-Value="_editDto!.Remark"
+                                          Label="备注"
+                                          Variant="Variant.Outlined" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">备注</MudText>
+                            <MudText Typo="Typo.body1">@(_dto?.Remark ?? "-")</MudText>
+                        }
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-6" />
+
+                @* ====== 明细项 ====== *@
+                <div class="d-flex align-center mb-3">
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Small" Class="mr-1" />仓库信息
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-2">(共 @_items.Count 项)</MudText>
+                </div>
+
+                <MudTable Items="@_items"
+                          Dense="true"
+                          Hover="true"
+                          Elevation="0"
+                          Class="auto-table"
+                          Striped="true"
+                          ReadOnly="@(!_isEditMode)">
+                    <HeaderContent>
+                        <MudTh Style="width:40px;">#</MudTh>
+                        <MudTh>库存批次号</MudTh>
+                        <MudTh>生产批号</MudTh>
+                        <MudTh>炉号</MudTh>
+                        <MudTh>牌号</MudTh>
+                        <MudTh>规格</MudTh>
+                        <MudTh>长度</MudTh>
+                        <MudTh>支数</MudTh>
+                        <MudTh>米数</MudTh>
+                        <MudTh>重量</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        <MudTd>@item.SeqNo</MudTd>
+                        <MudTd>
+                            @if (_isEditMode)
+                            {
+                                <MudTextField @bind-Value="item.InventoryBatchNo" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                            }
+                            else
+                            {
+                                @(item.InventoryBatchNo ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode)
+                            {
+                                <MudTextField @bind-Value="item.ProductionBatchNo" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                            }
+                            else
+                            {
+                                @(item.ProductionBatchNo ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode)
+                            {
+                                <MudTextField @bind-Value="item.HeatNo" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                            }
+                            else
+                            {
+                                @(item.HeatNo ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode)
+                            {
+                                <MudTextField @bind-Value="item.SteelGrade" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                            }
+                            else
+                            {
+                                @(item.SteelGrade ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode)
+                            {
+                                <MudTextField @bind-Value="item.Specification" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                            }
+                            else
+                            {
+                                @(item.Specification ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode)
+                            {
+                                <MudTextField @bind-Value="item.LengthDesc" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                            }
+                            else
+                            {
+                                @(item.LengthDesc ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode)
+                            {
+                                <MudNumericField @bind-Value="item.Quantity" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" />
+                            }
+                            else
+                            {
+                                @(item.Quantity?.ToString() ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode)
+                            {
+                                <MudNumericField @bind-Value="item.Meters" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" />
+                            }
+                            else
+                            {
+                                @(item.Meters?.ToString("G29") ?? "-")
+                            }
+                        </MudTd>
+                        <MudTd>
+                            @if (_isEditMode)
+                            {
+                                <MudNumericField @bind-Value="item.Weight" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" />
+                            }
+                            else
+                            {
+                                @(item.Weight?.ToString("G29") ?? "-")
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                @* ====== 化学成分 ====== *@
+                <MudDivider Class="my-6" />
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Science" Size="Size.Small" Class="mr-1" />化学成分
+                </MudText>
+                <MudTable Items="@_items" Dense="true" Hover="true" Elevation="0" Class="auto-table" Striped="true">
+                    <HeaderContent>
+                        <MudTh Style="width:40px;">#</MudTh>
+                        <MudTh>C</MudTh><MudTh>Si</MudTh><MudTh>Mn</MudTh><MudTh>P</MudTh><MudTh>S</MudTh>
+                        <MudTh>Ni</MudTh><MudTh>Cr</MudTh><MudTh>Mo</MudTh><MudTh>Cu</MudTh><MudTh>N</MudTh>
+                        <MudTh>Nb</MudTh><MudTh>Ti</MudTh><MudTh>Fe</MudTh><MudTh>Al</MudTh><MudTh>W</MudTh><MudTh>PREN</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        <MudTd>@item.SeqNo</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemC" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemC?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemSi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemSi?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemMn" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemMn?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemP" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemP?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemS" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemS?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemNi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemNi?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemCr" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemCr?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemMo" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemMo?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemCu" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemCu?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemN" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemN?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemNb" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemNb?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemTi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemTi?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemFe" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemFe?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemAl" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemAl?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemW" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemW?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemPREN" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemPREN?.ToString("G29") ?? "-") }</MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                @* ====== 成品检验 ====== *@
+                <MudDivider Class="my-6" />
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.FactCheck" Size="Size.Small" Class="mr-1" />成品检验
+                </MudText>
+                <MudTable Items="@_items" Dense="true" Hover="true" Elevation="0" Class="auto-table" Striped="true">
+                    <HeaderContent>
+                        <MudTh Style="width:40px;">#</MudTh>
+                        <MudTh>PMI</MudTh><MudTh>表检</MudTh><MudTh>尺寸</MudTh><MudTh>内窥</MudTh>
+                        <MudTh>水压</MudTh><MudTh>水下气压</MudTh><MudTh>涡流</MudTh><MudTh>超声波</MudTh><MudTh>端口着色</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        <MudTd>@item.SeqNo</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.InspPMI" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.InspPMI ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.InspVisual" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.InspVisual ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.InspDimension" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.InspDimension ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.InspEndoscopy" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.InspEndoscopy ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.InspHydro" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.InspHydro ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.InspUnderwaterPneumatic" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.InspUnderwaterPneumatic ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.InspEddyCurrent" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.InspEddyCurrent ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.InspUltrasonic" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.InspUltrasonic ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.InspPortDye" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.InspPortDye ?? "-") }</MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                @* ====== 理化检测 ====== *@
+                <MudDivider Class="my-6" />
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Biotech" Size="Size.Small" Class="mr-1" />理化检测
+                </MudText>
+                <MudTable Items="@_items" Dense="true" Hover="true" Elevation="0" Class="auto-table" Striped="true">
+                    <HeaderContent>
+                        <MudTh Style="width:40px;">#</MudTh>
+                        <MudTh>抗拉强度₁</MudTh><MudTh>抗拉强度₂</MudTh>
+                        <MudTh>屈服Rp0.2₁</MudTh><MudTh>屈服Rp0.2₂</MudTh>
+                        <MudTh>屈服Rp1.0₁</MudTh><MudTh>屈服Rp1.0₂</MudTh>
+                        <MudTh>伸长率₁</MudTh><MudTh>伸长率₂</MudTh>
+                        <MudTh>硬度₁</MudTh><MudTh>硬度₂</MudTh>
+                        <MudTh>晶粒度₁</MudTh><MudTh>晶粒度₂</MudTh>
+                        <MudTh>铁素体₁</MudTh><MudTh>铁素体₂</MudTh>
+                        <MudTh>扩口</MudTh><MudTh>压扁</MudTh><MudTh>晶间腐蚀</MudTh><MudTh>点蚀</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        <MudTd>@item.SeqNo</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.TensileStrength_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.TensileStrength_1?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.TensileStrength_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.TensileStrength_2?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp02_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp02_1?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp02_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp02_2?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp10_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp10_1?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp10_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp10_2?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.Elongation_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.Elongation_1?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.Elongation_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.Elongation_2?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.Hardness_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.Hardness_1 ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.Hardness_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.Hardness_2 ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.GrainSize_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.GrainSize_1 ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.GrainSize_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.GrainSize_2 ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.FerriteContent_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.FerriteContent_1?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.FerriteContent_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.FerriteContent_2?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.FlaringResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.FlaringResult ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.FlatteningResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.FlatteningResult ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.IntergranularResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.IntergranularResult ?? "-") }</MudTd>
+                        <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.PittingResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.PittingResult ?? "-") }</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private CertificateDetailDto? _dto;
+    private CertificateUpdateRequest? _editDto;
+    private List<CertificateItemDto> _items = new();
+    private List<CertificateItemDto> _itemsBackup = new();
+
+    private bool _isLoading = true;
+    private bool _isEditMode;
+    private bool _isSubmitting;
+
+    [Inject] private CertificateService Svc { get; set; } = null!;
+    [Inject] private NavigationManager Navigation { get; set; } = null!;
+    [Inject] private ISnackbar Snackbar { get; set; } = null!;
+    [Inject] private IDialogService DialogService { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var result = await Svc.GetByIdAsync(Id);
+            if (result.Success && result.Data != null)
+            {
+                _dto = result.Data;
+                _items = _dto.Items.Select(i => new CertificateItemDto
+                {
+                    Id = i.Id,
+                    SeqNo = i.SeqNo,
+                    InventoryBatchNo = i.InventoryBatchNo,
+                    ProductionBatchNo = i.ProductionBatchNo,
+                    HeatNo = i.HeatNo,
+                    SteelGrade = i.SteelGrade,
+                    Specification = i.Specification,
+                    LengthDesc = i.LengthDesc,
+                    Quantity = i.Quantity,
+                    Meters = i.Meters,
+                    Weight = i.Weight,
+                    ChemC = i.ChemC,
+                    ChemSi = i.ChemSi,
+                    ChemMn = i.ChemMn,
+                    ChemP = i.ChemP,
+                    ChemS = i.ChemS,
+                    ChemNi = i.ChemNi,
+                    ChemCr = i.ChemCr,
+                    ChemMo = i.ChemMo,
+                    ChemCu = i.ChemCu,
+                    ChemN = i.ChemN,
+                    ChemNb = i.ChemNb,
+                    ChemTi = i.ChemTi,
+                    ChemFe = i.ChemFe,
+                    ChemAl = i.ChemAl,
+                    ChemW = i.ChemW,
+                    ChemPREN = i.ChemPREN,
+                    InspPMI = i.InspPMI,
+                    InspVisual = i.InspVisual,
+                    InspDimension = i.InspDimension,
+                    InspEndoscopy = i.InspEndoscopy,
+                    InspHydro = i.InspHydro,
+                    InspUnderwaterPneumatic = i.InspUnderwaterPneumatic,
+                    InspEddyCurrent = i.InspEddyCurrent,
+                    InspUltrasonic = i.InspUltrasonic,
+                    InspPortDye = i.InspPortDye,
+                    TensileStrength_1 = i.TensileStrength_1,
+                    TensileStrength_2 = i.TensileStrength_2,
+                    YieldRp02_1 = i.YieldRp02_1,
+                    YieldRp02_2 = i.YieldRp02_2,
+                    YieldRp10_1 = i.YieldRp10_1,
+                    YieldRp10_2 = i.YieldRp10_2,
+                    Elongation_1 = i.Elongation_1,
+                    Elongation_2 = i.Elongation_2,
+                    Hardness_1 = i.Hardness_1,
+                    Hardness_2 = i.Hardness_2,
+                    GrainSize_1 = i.GrainSize_1,
+                    GrainSize_2 = i.GrainSize_2,
+                    FerriteContent_1 = i.FerriteContent_1,
+                    FerriteContent_2 = i.FerriteContent_2,
+                    FlaringResult = i.FlaringResult,
+                    FlatteningResult = i.FlatteningResult,
+                    IntergranularResult = i.IntergranularResult,
+                    PittingResult = i.PittingResult
+                }).ToList();
+                _itemsBackup = CloneItems(_items);
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+                GoBack();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            GoBack();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/quality/certificates");
+
+    private void EnterEditMode()
+    {
+        if (_dto == null) return;
+        _editDto = new CertificateUpdateRequest
+        {
+            CustomerName = _dto.CustomerName,
+            ProductStandard = _dto.ProductStandard,
+            ProductName = _dto.ProductName,
+            DeliveryStatus = _dto.DeliveryStatus,
+            Remark = _dto.Remark
+        };
+        _itemsBackup = CloneItems(_items);
+        _isEditMode = true;
+    }
+
+    private void CancelEdit()
+    {
+        _items = _itemsBackup;
+        _isEditMode = false;
+    }
+
+    private async Task SaveAll()
+    {
+        if (_editDto == null) return;
+        _isSubmitting = true;
+        try
+        {
+            _editDto.Items = _items.Select(i => new CertificateItemUpdateDto
+            {
+                Id = i.Id,
+                SeqNo = i.SeqNo,
+                InventoryBatchNo = i.InventoryBatchNo,
+                ProductionBatchNo = i.ProductionBatchNo,
+                HeatNo = i.HeatNo,
+                SteelGrade = i.SteelGrade,
+                Specification = i.Specification,
+                LengthDesc = i.LengthDesc,
+                Quantity = i.Quantity,
+                Meters = i.Meters,
+                Weight = i.Weight,
+                ChemC = i.ChemC,
+                ChemSi = i.ChemSi,
+                ChemMn = i.ChemMn,
+                ChemP = i.ChemP,
+                ChemS = i.ChemS,
+                ChemNi = i.ChemNi,
+                ChemCr = i.ChemCr,
+                ChemMo = i.ChemMo,
+                ChemCu = i.ChemCu,
+                ChemN = i.ChemN,
+                ChemNb = i.ChemNb,
+                ChemTi = i.ChemTi,
+                ChemFe = i.ChemFe,
+                ChemAl = i.ChemAl,
+                ChemW = i.ChemW,
+                ChemPREN = i.ChemPREN,
+                InspPMI = i.InspPMI,
+                InspVisual = i.InspVisual,
+                InspDimension = i.InspDimension,
+                InspEndoscopy = i.InspEndoscopy,
+                InspHydro = i.InspHydro,
+                InspUnderwaterPneumatic = i.InspUnderwaterPneumatic,
+                InspEddyCurrent = i.InspEddyCurrent,
+                InspUltrasonic = i.InspUltrasonic,
+                InspPortDye = i.InspPortDye,
+                TensileStrength_1 = i.TensileStrength_1,
+                TensileStrength_2 = i.TensileStrength_2,
+                YieldRp02_1 = i.YieldRp02_1,
+                YieldRp02_2 = i.YieldRp02_2,
+                YieldRp10_1 = i.YieldRp10_1,
+                YieldRp10_2 = i.YieldRp10_2,
+                Elongation_1 = i.Elongation_1,
+                Elongation_2 = i.Elongation_2,
+                Hardness_1 = i.Hardness_1,
+                Hardness_2 = i.Hardness_2,
+                GrainSize_1 = i.GrainSize_1,
+                GrainSize_2 = i.GrainSize_2,
+                FerriteContent_1 = i.FerriteContent_1,
+                FerriteContent_2 = i.FerriteContent_2,
+                FlaringResult = i.FlaringResult,
+                FlatteningResult = i.FlatteningResult,
+                IntergranularResult = i.IntergranularResult,
+                PittingResult = i.PittingResult
+            }).ToList();
+
+            var result = await Svc.UpdateAsync(Id, _editDto);
+            if (result.Success)
+            {
+                Snackbar.Add("保存成功", Severity.Success);
+                _isEditMode = false;
+                await LoadDataAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private static List<CertificateItemDto> CloneItems(List<CertificateItemDto> source)
+    {
+        return source.Select(i => new CertificateItemDto
+        {
+            Id = i.Id,
+            SeqNo = i.SeqNo,
+            InventoryBatchNo = i.InventoryBatchNo,
+            ProductionBatchNo = i.ProductionBatchNo,
+            HeatNo = i.HeatNo,
+            SteelGrade = i.SteelGrade,
+            Specification = i.Specification,
+            LengthDesc = i.LengthDesc,
+            Quantity = i.Quantity,
+            Meters = i.Meters,
+            Weight = i.Weight,
+            ChemC = i.ChemC,
+            ChemSi = i.ChemSi,
+            ChemMn = i.ChemMn,
+            ChemP = i.ChemP,
+            ChemS = i.ChemS,
+            ChemNi = i.ChemNi,
+            ChemCr = i.ChemCr,
+            ChemMo = i.ChemMo,
+            ChemCu = i.ChemCu,
+            ChemN = i.ChemN,
+            ChemNb = i.ChemNb,
+            ChemTi = i.ChemTi,
+            ChemFe = i.ChemFe,
+            ChemAl = i.ChemAl,
+            ChemW = i.ChemW,
+            ChemPREN = i.ChemPREN,
+            InspPMI = i.InspPMI,
+            InspVisual = i.InspVisual,
+            InspDimension = i.InspDimension,
+            InspEndoscopy = i.InspEndoscopy,
+            InspHydro = i.InspHydro,
+            InspUnderwaterPneumatic = i.InspUnderwaterPneumatic,
+            InspEddyCurrent = i.InspEddyCurrent,
+            InspUltrasonic = i.InspUltrasonic,
+            InspPortDye = i.InspPortDye,
+            TensileStrength_1 = i.TensileStrength_1,
+            TensileStrength_2 = i.TensileStrength_2,
+            YieldRp02_1 = i.YieldRp02_1,
+            YieldRp02_2 = i.YieldRp02_2,
+            YieldRp10_1 = i.YieldRp10_1,
+            YieldRp10_2 = i.YieldRp10_2,
+            Elongation_1 = i.Elongation_1,
+            Elongation_2 = i.Elongation_2,
+            Hardness_1 = i.Hardness_1,
+            Hardness_2 = i.Hardness_2,
+            GrainSize_1 = i.GrainSize_1,
+            GrainSize_2 = i.GrainSize_2,
+            FerriteContent_1 = i.FerriteContent_1,
+            FerriteContent_2 = i.FerriteContent_2,
+            FlaringResult = i.FlaringResult,
+            FlatteningResult = i.FlatteningResult,
+            IntergranularResult = i.IntergranularResult,
+            PittingResult = i.PittingResult
+        }).ToList();
+    }
+}

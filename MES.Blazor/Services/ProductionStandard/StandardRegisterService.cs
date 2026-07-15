@@ -41,16 +41,16 @@ public class StandardRegisterService
         }
     }
 
-    public async Task<ApiResponse<bool>> SaveAsync(StandardRegisterDto dto)
+    public async Task<ApiResponse<int>> SaveAsync(StandardRegisterDto dto)
     {
         try
         {
-            return await _http.PostAsJsonAsync<StandardRegisterDto, ApiResponse<bool>>($"{BaseUrl}/save", dto)
-                   ?? ApiResponse<bool>.Fail("保存失败");
+            return await _http.PostAsJsonAsync<StandardRegisterDto, ApiResponse<int>>($"{BaseUrl}/save", dto)
+                   ?? ApiResponse<int>.Fail("保存失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<bool>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -64,6 +64,24 @@ public class StandardRegisterService
         catch (Exception ex)
         {
             return ApiResponse<List<StandardRegisterDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 根据标准号解析标准名称，用于前端自动填充
+    /// </summary>
+    public async Task<string?> ResolveNameAsync(string? standardNo)
+    {
+        if (string.IsNullOrWhiteSpace(standardNo)) return null;
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<string?>>(
+                $"{BaseUrl}/resolve-name?standardNo={Uri.EscapeDataString(standardNo)}");
+            return response?.Data;
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -106,16 +124,16 @@ public class StandardRegisterService
         }
     }
 
-    public async Task<ApiResponse<bool>> SaveItemAsync(StandardRegisterItemDto dto)
+    public async Task<ApiResponse<int>> SaveItemAsync(StandardRegisterItemDto dto)
     {
         try
         {
-            return await _http.PostAsJsonAsync<StandardRegisterItemDto, ApiResponse<bool>>($"{BaseUrl}/item/save", dto)
-                   ?? ApiResponse<bool>.Fail("保存子项目失败");
+            return await _http.PostAsJsonAsync<StandardRegisterItemDto, ApiResponse<int>>($"{BaseUrl}/item/save", dto)
+                   ?? ApiResponse<int>.Fail("保存子项目失败");
         }
         catch (Exception ex)
         {
-            return ApiResponse<bool>.Fail($"网络错误: {ex.Message}");
+            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -129,6 +147,19 @@ public class StandardRegisterService
         catch (Exception ex)
         {
             return ApiResponse<bool>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<int>> CleanupOrphanedItemsAsync()
+    {
+        try
+        {
+            return await _http.PostAsJsonAsync<object?, ApiResponse<int>>($"{BaseUrl}/cleanup-orphaned-items", null)
+                   ?? ApiResponse<int>.Fail("清理失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
         }
     }
 }

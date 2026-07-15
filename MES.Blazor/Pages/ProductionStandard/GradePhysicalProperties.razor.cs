@@ -43,7 +43,7 @@ public partial class GradePhysicalProperties
     {
         new() { Key = "StandardGrade",        Label = "标准牌号",            SortKey = "standardgrade",          FilterType = "string", IsRequired = true },
         new() { Key = "StandardGradeCategory",Label = "标准牌号类别",        SortKey = "standardgradecategory",  FilterType = "string" },
-        new() { Key = "Density",              Label = "密度(g/cm³)",         SortKey = "density",                FilterType = null, IsRequired = true },
+        new() { Key = "Density",              Label = "密度(g/cm³)",         SortKey = "density",                FilterType = "string", IsRequired = true },
         new() { Key = "HeatTreatmentTemp",    Label = "热处理温度",          SortKey = "heattreatmenttemp",      FilterType = "string" },
         new() { Key = "HardnessRockwell",     Label = "硬度(HRC/HRB)",       SortKey = "hardnessrockwell",       FilterType = "string" },
         new() { Key = "HardnessVickers",      Label = "硬度(HV)",            SortKey = "hardnessvickers",        FilterType = "string" },
