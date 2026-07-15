@@ -732,7 +732,7 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.ProductionSubNo ?? "-");
                 break;
             case "MaterialName":
-                builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName));
+                builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName));
                 break;
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
@@ -1375,7 +1375,7 @@ public partial class WorkOrderExecution
     {
         // 枚举→中文
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
-        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName) ?? "",
+        "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName) ?? "",
         "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState) ?? "",
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
         // Bool→中文

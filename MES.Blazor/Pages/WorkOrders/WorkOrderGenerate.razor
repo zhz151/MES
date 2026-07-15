@@ -120,7 +120,7 @@
                                   SortLabel="点击表头排序">
                             <HeaderContent>
                                 <MudTh SortBy="item => item.Sequence">项次</MudTh>
-                                <MudTh SortBy="item => item.MaterialName">物料名称</MudTh>
+                                <MudTh SortBy="item => item.PipeManufacturingType">物料名称</MudTh>
                                 <MudTh SortBy="item => item.DeliveryDate">交货日期</MudTh>
                                 <MudTh SortBy="item => item.DeliveryState">交货状态</MudTh>
                                 <MudTh SortBy="item => item.PlantGrade">工厂牌号</MudTh>
@@ -140,7 +140,7 @@
                             </HeaderContent>
                             <RowTemplate Context="item">
                                 <MudTd>@item.Sequence</MudTd>
-                                <MudTd>@DisplayHelper.GetMaterialNameText(item.MaterialName)</MudTd>
+                                <MudTd>@DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType)</MudTd>
                                 <MudTd>@item.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@DisplayHelper.GetDeliveryStateText(item.DeliveryState)</MudTd>
                                 <MudTd>@item.PlantGrade</MudTd>
@@ -356,15 +356,15 @@
 
     private string GetMergeKey(OrderItemForWorkOrderDto item)
     {
-        return $"{item.DeliveryDate:yyyy-MM-dd}|{item.DelayPenalty}|{item.MaterialName}|{item.SettlementMethod}|" +
+        return $"{item.DeliveryDate:yyyy-MM-dd}|{item.DelayPenalty}|{item.PipeManufacturingType}|{item.SettlementMethod}|" +
                $"{item.StandardNo}|{item.DeliveryState}|{item.PlantGrade}|{item.Specification}|" +
                $"{item.OuterDiameterNegative}|{item.OuterDiameterPositive}|{item.WallThicknessNegative}|" +
                $"{item.WallThicknessPositive}|{item.LengthStatus}";
     }
 
-    private static string GetMainNoPrefix(MaterialName materialName, LengthStatus lengthStatus)
+    private static string GetMainNoPrefix(PipeManufacturingType pipeManufacturingType, LengthStatus lengthStatus)
     {
-        if (materialName == MaterialName.WeldedPipe)
+        if (pipeManufacturingType == PipeManufacturingType.WeldedPipe)
             return "H";
         return lengthStatus switch
         {
@@ -420,7 +420,7 @@
             if (generateMode == WorkOrderGenerateMode.Update && !string.IsNullOrEmpty(item.OriginalMainNo))
                 continue;
 
-            var expectedPrefix = GetMainNoPrefix(item.MaterialName, item.LengthStatus);
+            var expectedPrefix = GetMainNoPrefix(item.PipeManufacturingType, item.LengthStatus);
             if (!mainNo.StartsWith(expectedPrefix))
             {
                 var prefixDesc = expectedPrefix switch
@@ -431,7 +431,7 @@
                     "L" => "非定尺",
                     _ => expectedPrefix
                 };
-                errors.Add($"项次 {item.Sequence} 的主号 \"{mainNo}\" 首字母应为 \"{expectedPrefix}\"（{DisplayHelper.GetMaterialNameText(item.MaterialName)}/{DisplayHelper.GetLengthStatusText(item.LengthStatus)} → {prefixDesc}）");
+                errors.Add($"项次 {item.Sequence} 的主号 \"{mainNo}\" 首字母应为 \"{expectedPrefix}\"（{DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType)}/{DisplayHelper.GetLengthStatusText(item.LengthStatus)} → {prefixDesc}）");
             }
         }
 

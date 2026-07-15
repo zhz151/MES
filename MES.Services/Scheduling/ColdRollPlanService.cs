@@ -317,7 +317,7 @@ public class ColdRollPlanService : IColdRollPlanService
                 // 总量 = 近日在轧 + 近日待轧 + 远日量
                 row.WeightTotal = row.WeightProd + row.WeightWaitNear + row.WeightDistant;
 
-                row.MergeDisplay = $"{row.BilletSpec}×{row.RollingSpec}-{(row.IsFinished ? "成品" : "中间品")}";
+                row.MergeDisplay = $"{row.BilletSpec}×{row.RollingSpec}-{(row.IsFinished ? "成品" : "在制品")}";
                 row.ShortDisplay = GetShortDisplay(row.BilletSpec, row.RollingSpec);
 
                 // 在轧设备号：从近日在轧批次的设备字段聚合（去重）

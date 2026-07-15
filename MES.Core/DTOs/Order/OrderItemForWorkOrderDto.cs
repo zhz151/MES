@@ -23,9 +23,9 @@ public class OrderItemForWorkOrderDto
     public int Sequence { get; set; }
 
     /// <summary>
-    /// 物料名称
+    /// 钢管制造类别
     /// </summary>
-    public MaterialName MaterialName { get; set; }
+    public PipeManufacturingType PipeManufacturingType { get; set; }
 
     /// <summary>
     /// 交货日期

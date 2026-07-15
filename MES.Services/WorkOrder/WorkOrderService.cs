@@ -541,7 +541,7 @@ public class WorkOrderService : IWorkOrderService
             DelayPenalty = false,
             SettlementMethod = default,
             PlantGrade = "",
-            MaterialName = default,
+            PipeManufacturingType = default,
             Specification = "",
             LengthStatus = default,
             MinLength = null,
@@ -630,7 +630,7 @@ public class WorkOrderService : IWorkOrderService
         foreach (var group in groups)
         {
             var firstItem = group.First();
-            var prefix = GetMainNoPrefix(firstItem.MaterialName, firstItem.LengthStatus);
+            var prefix = GetMainNoPrefix(firstItem.PipeManufacturingType, firstItem.LengthStatus);
             var suggestedMainNo = $"{prefix}{mainNoCounter++:D2}";
 
             foreach (var item in group)
@@ -642,7 +642,7 @@ public class WorkOrderService : IWorkOrderService
                     Id = item.Id,
                     OrderNumber = salesOrder.OrderNumber,
                     Sequence = item.Sequence,
-                    MaterialName = item.MaterialName,
+                    PipeManufacturingType = item.PipeManufacturingType,
                     DeliveryDate = item.DeliveryDate,
                     DelayPenalty = item.DelayPenalty,
                     SettlementMethod = item.SettlementMethod,
@@ -673,7 +673,7 @@ public class WorkOrderService : IWorkOrderService
                 {
                     bool stillMatches = item.DeliveryDate == originalWo.DeliveryDate
                         && item.DelayPenalty == originalWo.DelayPenalty
-                        && item.MaterialName == originalWo.MaterialName
+                        && item.PipeManufacturingType == originalWo.PipeManufacturingType
                         && item.SettlementMethod == originalWo.SettlementMethod
                         && item.DeliveryState == originalWo.DeliveryState
                         && item.PlantGrade == originalWo.PlantGrade
@@ -698,7 +698,7 @@ public class WorkOrderService : IWorkOrderService
 
     private string GetMergeKey(OrderItem item)
     {
-        return $"{item.DeliveryDate:yyyy-MM-dd}|{item.DelayPenalty}|{item.MaterialName}|{item.SettlementMethod}|" +
+        return $"{item.DeliveryDate:yyyy-MM-dd}|{item.DelayPenalty}|{item.PipeManufacturingType}|{item.SettlementMethod}|" +
                $"{item.StandardNo}|{item.DeliveryState}|{item.PlantGrade}|{item.Specification}|" +
                $"{item.OuterDiameter}|{item.WallThickness}|" +
                $"{item.OuterDiameterNegative}|{item.OuterDiameterPositive}|" +
@@ -716,8 +716,8 @@ public class WorkOrderService : IWorkOrderService
             errors.Add($"延期罚款 ({item1.DelayPenalty} ≠ {item2.DelayPenalty})");
         if (item1.SettlementMethod != item2.SettlementMethod)
             errors.Add($"结算方式 ({item1.SettlementMethod} ≠ {item2.SettlementMethod})");
-        if (item1.MaterialName != item2.MaterialName)
-            errors.Add($"物料名称 ({item1.MaterialName} ≠ {item2.MaterialName})");
+        if (item1.PipeManufacturingType != item2.PipeManufacturingType)
+            errors.Add($"物料名称 ({item1.PipeManufacturingType} ≠ {item2.PipeManufacturingType})");
         if (item1.StandardNo != item2.StandardNo)
             errors.Add($"标准号 ({item1.StandardNo} ≠ {item2.StandardNo})");
         if (item1.DeliveryState != item2.DeliveryState)
@@ -756,9 +756,9 @@ public class WorkOrderService : IWorkOrderService
         return groups.Values.ToList();
     }
 
-    private static string GetMainNoPrefix(MaterialName materialName, LengthStatus lengthStatus)
+    private static string GetMainNoPrefix(PipeManufacturingType pipeManufacturingType, LengthStatus lengthStatus)
     {
-        if (materialName == MaterialName.WeldedPipe)
+        if (pipeManufacturingType == PipeManufacturingType.WeldedPipe)
             return "H";
         else
             return lengthStatus switch
@@ -966,7 +966,7 @@ public class WorkOrderService : IWorkOrderService
                         EndCustomer = salesOrderCustomer?.EndCustomer,
                         DeliveryDate = firstItem.DeliveryDate,
                         DelayPenalty = firstItem.DelayPenalty,
-                        MaterialName = firstItem.MaterialName,
+                        PipeManufacturingType = firstItem.PipeManufacturingType,
                         SettlementMethod = firstItem.SettlementMethod,
                         StandardCode = srDict.GetValueOrDefault(firstItem.StandardNo ?? string.Empty)?.StandardNo ?? firstItem.StandardNo ?? string.Empty,
                         DeliveryState = firstItem.DeliveryState,
@@ -1243,7 +1243,7 @@ public class WorkOrderService : IWorkOrderService
                             EndCustomer = customer?.EndCustomer,
                             DeliveryDate = firstItem.DeliveryDate,
                             DelayPenalty = firstItem.DelayPenalty,
-                            MaterialName = firstItem.MaterialName,
+                            PipeManufacturingType = firstItem.PipeManufacturingType,
                             SettlementMethod = firstItem.SettlementMethod,
                             StandardCode = srDict.GetValueOrDefault(firstItem.StandardNo ?? string.Empty)?.StandardNo ?? firstItem.StandardNo ?? string.Empty,
                             DeliveryState = firstItem.DeliveryState,
@@ -1428,7 +1428,7 @@ public class WorkOrderService : IWorkOrderService
                 DelayPenalty = s.DelayPenalty,
                 SettlementMethod = Enum.Parse<SettlementMethod>(s.SettlementMethod),
                 PlantGrade = s.PlantGrade,
-                MaterialName = Enum.Parse<MaterialName>(s.MaterialName),
+                PipeManufacturingType = Enum.Parse<PipeManufacturingType>(s.MaterialName),
                 Specification = s.Specification,
                 LengthStatus = Enum.Parse<LengthStatus>(s.LengthStatus),
                 MinLength = s.MinLength,
@@ -1703,7 +1703,7 @@ public class WorkOrderService : IWorkOrderService
                 DelayPenalty = s.DelayPenalty,
                 SettlementMethod = Enum.Parse<SettlementMethod>(s.SettlementMethod),
                 PlantGrade = s.PlantGrade,
-                MaterialName = Enum.Parse<MaterialName>(s.MaterialName),
+                PipeManufacturingType = Enum.Parse<PipeManufacturingType>(s.MaterialName),
                 Specification = s.Specification,
                 LengthStatus = Enum.Parse<LengthStatus>(s.LengthStatus),
                 MinLength = s.MinLength,
@@ -2525,7 +2525,7 @@ public class WorkOrderService : IWorkOrderService
                 ProductionSubNo = wo.ProductionSubNo,
                 Status = wo.Status,
                 StatusText = GetStatusText(wo.Status),
-                MaterialName = wo.MaterialName.ToString(),
+                MaterialName = wo.PipeManufacturingType.ToString(),
                 StandardGrade = workOrderItems.FirstOrDefault()?.StandardGrade ?? "",
                 PlantGrade = wo.PlantGrade,
                 Specification = wo.Specification,

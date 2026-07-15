@@ -68,7 +68,7 @@ public class OrderServiceTests : TestBase
                 {
                     StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
-                    MaterialName = MaterialName.SeamlessPipe,
+                    PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
                     OuterDiameter = 219m,
                     WallThickness = 8m,
                     LengthStatus = LengthStatus.Fixed,
@@ -195,7 +195,7 @@ public class OrderServiceTests : TestBase
             Sequence = 1, // 已存在
             StandardNo = sr.StandardNo,
             StandardGrade = gm.StandardGrade,
-            MaterialName = MaterialName.SeamlessPipe,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
             OuterDiameter = 273m,
             WallThickness = 10m,
             OuterDiameterNegative = 0.5m,
@@ -230,7 +230,7 @@ public class OrderServiceTests : TestBase
         {
             StandardNo = sr.StandardNo,
             StandardGrade = gm.StandardGrade,
-            MaterialName = MaterialName.SeamlessPipe,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
             OuterDiameter = 273m,
             WallThickness = 10m,
             OuterDiameterNegative = 0.5m,
@@ -378,7 +378,7 @@ public class OrderServiceTests : TestBase
             Sequence = 1,
             StandardNo = sr.StandardNo,
             StandardGrade = gm.StandardGrade,
-            MaterialName = MaterialName.SeamlessPipe,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
             OuterDiameter = 273m,
             WallThickness = 10m,
             OuterDiameterNegative = 0.5m,
@@ -414,7 +414,7 @@ public class OrderServiceTests : TestBase
             Sequence = 1,
             StandardNo = sr.StandardNo,
             StandardGrade = gm.StandardGrade,
-            MaterialName = MaterialName.SeamlessPipe,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
             OuterDiameter = 273m,
             WallThickness = 10m,
             OuterDiameterNegative = 0.5m,
@@ -493,7 +493,7 @@ public class OrderServiceTests : TestBase
                 {
                     StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
-                    MaterialName = MaterialName.SeamlessPipe,
+                    PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
                     OuterDiameter = 273m,
                     WallThickness = 10m,
                     OuterDiameterNegative = 0.5m,
@@ -557,7 +557,7 @@ public class OrderServiceTests : TestBase
                 {
                     StandardNo = "TEST-STD-NO",
                     StandardGrade = standardGrade,
-                    MaterialName = MaterialName.SeamlessPipe,
+                    PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
                     OuterDiameter = 219m,
                     WallThickness = 8m,
                     OuterDiameterNegative = 0.5m,

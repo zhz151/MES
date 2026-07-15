@@ -773,20 +773,12 @@ public partial class WorkOrderSchedules
                 builder.AddContent(0, item.ProductionSubNo ?? "-");
                 break;
             case "MaterialName":
-                builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName));
+                builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName));
                 break;
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
                 break;
             case "PlantGrade":
-                builder.AddContent(0, item.PlantGrade);
-                break;
-            case "Specification":
-                builder.AddContent(0, item.Specification);
-                break;
-            case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
-                break;
             case "MinLength":
                 builder.AddContent(0, item.MinLength?.ToString("G29") ?? "-");
                 break;
@@ -1279,7 +1271,7 @@ public partial class WorkOrderSchedules
     private static object ResolvePrintValue(WorkOrderScheduleDto item, string key) => key switch
     {
         // G1: 枚举→中文
-        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName) ?? "",
+        "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName) ?? "",
         "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState) ?? "",
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",

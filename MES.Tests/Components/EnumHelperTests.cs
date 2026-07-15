@@ -138,19 +138,19 @@ public class EnumHelperTests
     }
 
     [Theory]
-    [InlineData(MaterialName.SeamlessPipe, "无缝管")]
-    [InlineData(MaterialName.WeldedPipe, "焊管")]
-    public void MaterialName_GetDisplayName(MaterialName value, string expected)
+    [InlineData(PipeManufacturingType.SeamlessPipe, "无缝管")]
+    [InlineData(PipeManufacturingType.WeldedPipe, "焊管")]
+    public void MaterialName_GetDisplayName(PipeManufacturingType value, string expected)
     {
         EnumHelper.GetDisplayName(value).Should().Be(expected);
     }
 
     [Theory]
-    [InlineData("无缝管", MaterialName.SeamlessPipe)]
-    [InlineData("焊管", MaterialName.WeldedPipe)]
-    public void MaterialName_Parse_Chinese(string chinese, MaterialName expected)
+    [InlineData("无缝管", PipeManufacturingType.SeamlessPipe)]
+    [InlineData("焊管", PipeManufacturingType.WeldedPipe)]
+    public void MaterialName_Parse_Chinese(string chinese, PipeManufacturingType expected)
     {
-        EnumHelper.Parse<MaterialName>(chinese).Should().Be(expected);
+        EnumHelper.Parse<PipeManufacturingType>(chinese).Should().Be(expected);
     }
 
     [Theory]
@@ -309,7 +309,7 @@ public class EnumHelperTests
     }
 
     [Theory]
-    [InlineData(RawMaterialType.SemiFinished, "荒管")]
+    [InlineData(RawMaterialType.RoughTube, "荒管")]
     [InlineData(RawMaterialType.SemiProduct, "半成品")]
     public void RawMaterialType_GetDisplayName(RawMaterialType value, string expected)
     {
@@ -317,7 +317,7 @@ public class EnumHelperTests
     }
 
     [Theory]
-    [InlineData("荒管", RawMaterialType.SemiFinished)]
+    [InlineData("荒管", RawMaterialType.RoughTube)]
     [InlineData("半成品", RawMaterialType.SemiProduct)]
     public void RawMaterialType_Parse_Chinese(string chinese, RawMaterialType expected)
     {
@@ -500,8 +500,8 @@ public class EnumHelperTests
             yield return new object[] { typeof(SettlementMethod), value! };
         foreach (var value in Enum.GetValues<SalesOrderStatus>())
             yield return new object[] { typeof(SalesOrderStatus), value! };
-        foreach (var value in Enum.GetValues<MaterialName>())
-            yield return new object[] { typeof(MaterialName), value! };
+        foreach (var value in Enum.GetValues<PipeManufacturingType>())
+            yield return new object[] { typeof(PipeManufacturingType), value! };
         foreach (var value in Enum.GetValues<InspectionItem>())
             yield return new object[] { typeof(InspectionItem), value! };
         foreach (var value in Enum.GetValues<OutboundType>())

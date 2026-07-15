@@ -300,7 +300,7 @@ public static class WorkOrderPrintHelper
             ("最终用户", entity.EndCustomer ?? "-"),
             ("交货日期", entity.DeliveryDate.ToString("yyyy-MM-dd")),
             ("延期罚款", entity.DelayPenalty ? "是" : "否"),
-            ("物料名称", EnumHelper.GetDisplayName(entity.MaterialName)),
+            ("物料名称", EnumHelper.GetDisplayName(entity.PipeManufacturingType)),
             ("结算方式", EnumHelper.GetDisplayName(entity.SettlementMethod)),
             ("标准编码", entity.StandardCode),
         };

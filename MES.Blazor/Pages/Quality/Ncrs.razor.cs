@@ -74,8 +74,8 @@ public partial class Ncrs
                GroupKey = 1, GroupName = "G1 问题反馈",
                EnumOptions = new List<EnumOption>
                {
-                   new("TubeBlank", "荒管"), new("Intermediate", "中间品"), new("SurplusInventory", "余库料"),
-                   new("CriticalFinished", "临界成品"), new("OrderFinished", "订单成品"), new("SpecialDelivery", "特定交态成品"),
+                   new("TubeBlank", "荒管"), new("WorkInProgress", "在制品"), new("SurplusInventory", "余库料"),
+                   new("CriticalFinished", "临界成品"), new("PreparedFinished", "备料成品"), new("OrderFinished", "订单成品"), new("SpecialDelivery", "特定交态成品"),
                } },
         new() { Key = "BatchNo",              Label = "生产编号",    SortKey = "batchno",           FilterType = "string", Width = "120",
                GroupKey = 1, GroupName = "G1 问题反馈" },
@@ -849,9 +849,10 @@ public partial class Ncrs
     private string GetPipeCategoryText(PipeCategory category) => category switch
     {
         PipeCategory.TubeBlank => "荒管",
-        PipeCategory.Intermediate => "中间品",
+        PipeCategory.WorkInProgress => "在制品",
         PipeCategory.SurplusInventory => "余库料",
         PipeCategory.CriticalFinished => "临界成品",
+        PipeCategory.PreparedFinished => "备料成品",
         PipeCategory.OrderFinished => "订单成品",
         PipeCategory.SpecialDelivery => "特定交态成品",
         _ => category.ToString()

@@ -44,7 +44,7 @@ public class MaterialReceiveCheck : BaseEntity
     /// <summary>生产编号</summary>
     public string? BatchNo { get; set; }
 
-    /// <summary>制造物品（订单成品/备料成品/余库料/中间品，待批次上下文枚举迁移后改为 ManufacturingItem?）</summary>
+    /// <summary>制造物品（订单成品/备料成品/余库料，待批次上下文枚举迁移后改为 ManufacturingItem?）</summary>
     public string? ManufacturingItem { get; set; }
 
     /// <summary>挂牌号</summary>

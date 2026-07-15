@@ -51,7 +51,7 @@ public partial class QualityProcessTracking
         {
             new() { Key = "BatchNo",              Label = "生产编号",       SortKey = "batchno",              FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "ManufacturingItem",     Label = "制造物品",       SortKey = "manufacturingitem",    FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
-                EnumOptions = new() { new("OrderFinishedProduct","订单成品"), new("PreparedMaterial","备料成品"), new("SurplusStock","余库料"), new("IntermediateProduct","中间品"), new("SpecialDeliveryStatus","特定交态成品") } },
+                EnumOptions = new() { new("OrderFinishedProduct","订单成品"), new("PreparedMaterial","备料成品"), new("SurplusStock","余库料"), new("SpecialDeliveryStatus","特定交态成品") } },
             new() { Key = "PlantGrade",            Label = "工厂牌号",       SortKey = "plantgrade",            FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "Specification",         Label = "规格",           SortKey = "specification",         FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "LengthStatus",          Label = "长度状态",       SortKey = "lengthstatus",          FilterType = "enum",    Width = "100", GroupKey = 1, GroupName = "批次信息",

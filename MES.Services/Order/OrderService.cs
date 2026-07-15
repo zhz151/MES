@@ -332,7 +332,7 @@ public class OrderService : IOrderService
                     DeliveryDate = oi.DeliveryDate,
                     DelayPenalty = oi.DelayPenalty,
                     SettlementMethod = oi.SettlementMethod,
-                    MaterialName = oi.MaterialName,
+                    PipeManufacturingType = oi.PipeManufacturingType,
                     StandardNo = oi.StandardNo ?? string.Empty,
                     DeliveryState = oi.DeliveryState,
                     StandardGrade = oi.StandardGrade,
@@ -697,7 +697,7 @@ public class OrderService : IOrderService
             deliveryDate: request.DeliveryDate,
             delayPenalty: request.DelayPenalty,
             settlementMethod: request.SettlementMethod,
-            materialName: request.MaterialName,
+            pipeManufacturingType: request.PipeManufacturingType,
             standardNo: request.StandardNo,
             deliveryState: request.DeliveryState,
             standardGrade: request.StandardGrade,
@@ -901,7 +901,7 @@ public class OrderService : IOrderService
 
                     SetOrderItemFields(orderItem,
                         deliveryDate: updateReq.DeliveryDate, delayPenalty: updateReq.DelayPenalty,
-                        settlementMethod: updateReq.SettlementMethod, materialName: updateReq.MaterialName,
+                        settlementMethod: updateReq.SettlementMethod, pipeManufacturingType: updateReq.PipeManufacturingType,
                         standardNo: updateReq.StandardNo, deliveryState: updateReq.DeliveryState,
                         standardGrade: updateReq.StandardGrade, plantGrade: gradeMapping.PlantGrade,
                         density: gradeMapping.Density, outerDiameter: normalizedOd, wallThickness: normalizedWt,
@@ -951,7 +951,7 @@ public class OrderService : IOrderService
 
                     SetOrderItemFields(orderItem,
                         deliveryDate: newReq.DeliveryDate, delayPenalty: newReq.DelayPenalty,
-                        settlementMethod: newReq.SettlementMethod, materialName: newReq.MaterialName,
+                        settlementMethod: newReq.SettlementMethod, pipeManufacturingType: newReq.PipeManufacturingType,
                         standardNo: newReq.StandardNo, deliveryState: newReq.DeliveryState,
                         standardGrade: newReq.StandardGrade, plantGrade: gradeMapping.PlantGrade,
                         density: gradeMapping.Density, outerDiameter: normalizedOd, wallThickness: normalizedWt,
@@ -1282,7 +1282,7 @@ public class OrderService : IOrderService
             deliveryDate: request.DeliveryDate,
             delayPenalty: request.DelayPenalty,
             settlementMethod: request.SettlementMethod,
-            materialName: request.MaterialName,
+            pipeManufacturingType: request.PipeManufacturingType,
             standardNo: request.StandardNo,
             deliveryState: request.DeliveryState,
             standardGrade: request.StandardGrade,
@@ -1347,7 +1347,7 @@ public class OrderService : IOrderService
             deliveryDate: request.DeliveryDate,
             delayPenalty: request.DelayPenalty,
             settlementMethod: request.SettlementMethod,
-            materialName: request.MaterialName,
+            pipeManufacturingType: request.PipeManufacturingType,
             standardNo: request.StandardNo,
             deliveryState: request.DeliveryState,
             standardGrade: request.StandardGrade,
@@ -1472,7 +1472,7 @@ public class OrderService : IOrderService
     }
 
     private static void SetOrderItemFields(OrderItem item,
-        DateTime deliveryDate, bool delayPenalty, SettlementMethod settlementMethod, MaterialName materialName,
+        DateTime deliveryDate, bool delayPenalty, SettlementMethod settlementMethod, PipeManufacturingType pipeManufacturingType,
         string standardNo, DeliveryState deliveryState, string standardGrade, string plantGrade,
         decimal density, decimal outerDiameter, decimal wallThickness, string specification,
         decimal outerDiameterNegative, decimal outerDiameterPositive, decimal wallThicknessNegative,
@@ -1482,7 +1482,7 @@ public class OrderService : IOrderService
         item.DeliveryDate = deliveryDate;
         item.DelayPenalty = delayPenalty;
         item.SettlementMethod = settlementMethod;
-        item.MaterialName = materialName;
+        item.PipeManufacturingType = pipeManufacturingType;
         item.StandardNo = standardNo;
         item.DeliveryState = deliveryState;
         item.StandardGrade = standardGrade;
@@ -1514,7 +1514,7 @@ public class OrderService : IOrderService
             DeliveryDate = orderItem.DeliveryDate,
             DelayPenalty = orderItem.DelayPenalty,
             SettlementMethod = orderItem.SettlementMethod,
-            MaterialName = orderItem.MaterialName,
+            PipeManufacturingType = orderItem.PipeManufacturingType,
             StandardNo = orderItem.StandardNo ?? string.Empty,
             DeliveryState = orderItem.DeliveryState,
             StandardGrade = orderItem.StandardGrade,
@@ -1650,7 +1650,7 @@ public class OrderService : IOrderService
                         DeliveryDate = oi.DeliveryDate,
                         DelayPenalty = oi.DelayPenalty,
                         SettlementMethod = oi.SettlementMethod,
-                        MaterialName = oi.MaterialName,
+                        PipeManufacturingType = oi.PipeManufacturingType,
                         StandardNo = oi.StandardNo ?? string.Empty,
                         DeliveryState = oi.DeliveryState,
                         StandardGrade = oi.StandardGrade,

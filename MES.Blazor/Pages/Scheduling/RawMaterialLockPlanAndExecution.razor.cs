@@ -729,7 +729,7 @@ public partial class RawMaterialLockPlanAndExecution
     private static object ResolvePrintValue(RawMaterialLockPlanAndExecutionDto item, string key) => key switch
     {
         // G1: 枚举→中文
-        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName) ?? "",
+        "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName) ?? "",
         "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState) ?? "",
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
@@ -1058,7 +1058,7 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddContent(0, item.ProductionSubNo ?? "-");
                 break;
             case "MaterialName":
-                builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName));
+                builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName));
                 break;
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));

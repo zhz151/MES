@@ -11,8 +11,6 @@ public enum ManufacturingItem
     PreparedMaterial,
     /// <summary>余库料</summary>
     SurplusStock,
-    /// <summary>中间品</summary>
-    IntermediateProduct,
     /// <summary>特定交态成品</summary>
     SpecialDeliveryStatus
 }

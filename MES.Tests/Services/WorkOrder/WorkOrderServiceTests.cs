@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -40,7 +41,7 @@ public class WorkOrderServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new WorkOrderService(ctx, loggerMock.Object, configMock.Object, Mock.Of<IMemoryCache>());
+        return new WorkOrderService(ctx, loggerMock.Object, configMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<(int OrderId, string OrderNo)> SeedConfirmedOrderAsync(AppDbContext ctx)
@@ -53,7 +54,7 @@ public class WorkOrderServiceTests : TestBase
         var orderConfigMock = new Mock<IConfigParameterService>();
         orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, null);
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new MemoryCache(new MemoryCacheOptions()));
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -66,7 +67,7 @@ public class WorkOrderServiceTests : TestBase
                 {
                     StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
-                    MaterialName = MaterialName.SeamlessPipe,
+                    PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
                     OuterDiameter = 219m,
                     WallThickness = 8m,
                     OuterDiameterNegative = 0.5m,
@@ -490,7 +491,7 @@ public class WorkOrderServiceTests : TestBase
             DeliveryDate = orderItem.DeliveryDate,
             DelayPenalty = orderItem.DelayPenalty,
             SettlementMethod = orderItem.SettlementMethod.ToString(),
-            MaterialName = orderItem.MaterialName.ToString(),
+            MaterialName = orderItem.PipeManufacturingType.ToString(),
             PlantGrade = orderItem.PlantGrade ?? "",
             Specification = $"{orderItem.OuterDiameter}*{orderItem.WallThickness}",
             LengthStatus = orderItem.LengthStatus.ToString(),
@@ -735,7 +736,7 @@ public class WorkOrderServiceTests : TestBase
             SignDate = DateTime.Today,
             Salesman = "测试",
             DeliveryDate = DateTime.Today.AddMonths(1),
-            MaterialName = MaterialName.SeamlessPipe,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
             SettlementMethod = SettlementMethod.Theoretical,
             StandardCode = sr.StandardNo,
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
@@ -781,7 +782,7 @@ public class WorkOrderServiceTests : TestBase
             SignDate = DateTime.Today,
             Salesman = "测试",
             DeliveryDate = DateTime.Today.AddMonths(1),
-            MaterialName = MaterialName.SeamlessPipe,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
             SettlementMethod = SettlementMethod.Theoretical,
             StandardCode = sr.StandardNo,
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,

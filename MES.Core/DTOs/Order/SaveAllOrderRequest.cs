@@ -59,8 +59,8 @@ public class OrderItemSaveRequest
     /// <summary>结算方式</summary>
     public SettlementMethod SettlementMethod { get; set; }
 
-    /// <summary>物料名称</summary>
-    public MaterialName MaterialName { get; set; }
+    /// <summary>钢管制造类别</summary>
+    public PipeManufacturingType PipeManufacturingType { get; set; }
 
     /// <summary>标准号</summary>
     public string StandardNo { get; set; } = null!;

@@ -19,7 +19,7 @@ public class WorkOrderListItemDto
     public bool DelayPenalty { get; set; }
     public SettlementMethod SettlementMethod { get; set; }
     public string PlantGrade { get; set; } = null!;
-    public MaterialName MaterialName { get; set; }
+    public PipeManufacturingType PipeManufacturingType { get; set; }
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
     public decimal? MinLength { get; set; }

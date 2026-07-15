@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Materials;
@@ -63,7 +64,7 @@ public class MaterialPlanServiceTests : TestBase
         var orderConfigMock = new Mock<IConfigParameterService>();
         orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, null);
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new MemoryCache(new MemoryCacheOptions()));
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -76,7 +77,7 @@ public class MaterialPlanServiceTests : TestBase
                 {
                     StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
-                    MaterialName = MaterialName.SeamlessPipe,
+                    PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
                     OuterDiameter = od,
                     WallThickness = wt,
                     OuterDiameterNegative = 0.5m,
@@ -217,7 +218,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "SemiFinished",
+            RawMaterialType = "RoughTube",
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
@@ -252,7 +253,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "SemiFinished",
+            RawMaterialType = "RoughTube",
             RawMaterialSpec = "245*10",
             RequiredWeight = 1000m,
             RequiredDate = DateTime.Today.AddMonths(1)
@@ -277,7 +278,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "SemiFinished",
+            RawMaterialType = "RoughTube",
             RawMaterialSpec = "245*10",
             RequiredWeight = 1000m,
             RequiredDate = DateTime.Today.AddMonths(1)
@@ -302,7 +303,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "SemiFinished",
+            RawMaterialType = "RoughTube",
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
@@ -670,7 +671,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "SemiFinished",
+            RawMaterialType = "RoughTube",
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
@@ -708,7 +709,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "SemiFinished",
+            RawMaterialType = "RoughTube",
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
@@ -756,7 +757,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "SemiFinished",
+            RawMaterialType = "RoughTube",
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,

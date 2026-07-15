@@ -8,7 +8,7 @@ public enum RawMaterialType
     /// <summary>
     /// 荒管
     /// </summary>
-    SemiFinished,
+    RoughTube,
 
     /// <summary>
     /// 半成品

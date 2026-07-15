@@ -619,7 +619,7 @@ public class DataExchangeServiceTests : TestBase
                 "是",                                                                         // 强制完成
                 "WO001", "SO2026001", "D01",
                 "2026-01-15", "张三", "2026-06-01",
-                EnumHelper.GetDisplayName(typeof(MaterialName), MaterialName.SeamlessPipe),     // 物料名称
+                EnumHelper.GetDisplayName(typeof(PipeManufacturingType), PipeManufacturingType.SeamlessPipe),     // 物料名称
                 EnumHelper.GetDisplayName(typeof(SettlementMethod), SettlementMethod.Weighing), // 结算方式
                 "GB/T 14976",
                 EnumHelper.GetDisplayName(typeof(DeliveryState), DeliveryState.SolutionAnnealedAndPickled),
@@ -648,7 +648,7 @@ public class DataExchangeServiceTests : TestBase
         saved.WorkOrderNo.Should().Be("WO001");
         saved.SalesOrderNo.Should().Be("SO2026001");
         saved.ProductionMainNo.Should().Be("D01");
-        saved.MaterialName.Should().Be(nameof(MaterialName.SeamlessPipe));
+        saved.MaterialName.Should().Be(nameof(PipeManufacturingType.SeamlessPipe));
         saved.SettlementMethod.Should().Be(nameof(SettlementMethod.Weighing));
         saved.StandardCode.Should().Be("GB/T 14976");
         saved.DeliveryState.Should().Be(nameof(DeliveryState.SolutionAnnealedAndPickled));

@@ -21,7 +21,7 @@ public class InventoryBatch : BaseEntity
     public int WarehouseId { get; set; }
 
     /// <summary>
-    /// 物料名称（荒管/圆钢/临界成品/中间品等）
+    /// 物料名称（荒管/圆钢/临界成品/半成品等）
     /// </summary>
     public string MaterialType { get; set; } = null!;
 

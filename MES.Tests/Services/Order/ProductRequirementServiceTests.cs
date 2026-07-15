@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Data.Entities;
@@ -37,7 +38,7 @@ public class ProductRequirementServiceTests : TestBase
         var orderConfigMock = new Mock<IConfigParameterService>();
         orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, null);
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new MemoryCache(new MemoryCacheOptions()));
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -50,7 +51,7 @@ public class ProductRequirementServiceTests : TestBase
                 {
                     StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
-                    MaterialName = MaterialName.SeamlessPipe,
+                    PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
                     OuterDiameter = 219m,
                     WallThickness = 8m,
                     LengthStatus = LengthStatus.Fixed,

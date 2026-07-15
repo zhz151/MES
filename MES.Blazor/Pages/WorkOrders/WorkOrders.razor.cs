@@ -471,7 +471,7 @@ public partial class WorkOrders : IAsyncDisposable
                 builder.AddContent(0, item.PlantGrade);
                 break;
             case "MaterialName":
-                builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName));
+                builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType));
                 break;
             case "Specification":
                 builder.AddContent(0, item.Specification);

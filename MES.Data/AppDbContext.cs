@@ -339,7 +339,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.DeliveryDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.DelayPenalty).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.SettlementMethod).IsRequired().HasConversion<string>().HasMaxLength(20);
-            entity.Property(e => e.MaterialName).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.PipeManufacturingType).HasColumnName("MaterialName").IsRequired().HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.DeliveryState).IsRequired().HasConversion<string>().HasMaxLength(50);
             entity.Property(e => e.StandardGrade).HasMaxLength(50);
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
@@ -565,7 +565,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
             entity.Property(e => e.EndCustomer).HasMaxLength(200);
             entity.Property(e => e.DeliveryDate).IsRequired().HasColumnType("datetime2");
-            entity.Property(e => e.MaterialName).IsRequired().HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.PipeManufacturingType).HasColumnName("MaterialName").IsRequired().HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.SettlementMethod).IsRequired().HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.StandardCode).IsRequired().HasMaxLength(50);
             entity.Property(e => e.DeliveryState).IsRequired().HasConversion<string>().HasMaxLength(50);
@@ -597,7 +597,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
             entity.HasIndex(e => e.SalesOrderNo).HasDatabaseName("IX_WorkOrder_SalesOrderNo");
             entity.HasIndex(e => e.Status).HasDatabaseName("IX_WorkOrder_Status");
             entity.HasIndex(e => e.DeliveryDate).HasDatabaseName("IX_WorkOrder_DeliveryDate");
-            entity.HasIndex(e => e.MaterialName).HasDatabaseName("IX_WorkOrder_MaterialName");
+            entity.HasIndex(e => e.PipeManufacturingType).HasDatabaseName("IX_WorkOrder_MaterialName");
             entity.HasIndex(e => e.Specification).HasDatabaseName("IX_WorkOrder_Specification");
         });
     }

@@ -54,14 +54,14 @@ public static class EnumHelper
                                     ("Confirmed", "已确认"),
                                     ("Cancelled", "已取消"));
 
-        Register<MaterialName>(("SeamlessPipe", "无缝管"),
-                                ("WeldedPipe", "焊管"));
+        Register<PipeManufacturingType>(("SeamlessPipe", "无缝管"),
+                                         ("WeldedPipe", "焊管"));
 
         Register<ReworkType>(("EmptyDrawing", "空拉改制"),
                               ("FewerPass", "少道次改制"),
                               ("ManualSelect", "人工选择改制"));
 
-        Register<RawMaterialType>(("SemiFinished", "荒管"),
+        Register<RawMaterialType>(("RoughTube", "荒管"),
                                    ("SemiProduct", "半成品"),
                                    ("RoundBar", "圆棒"));
 
@@ -79,21 +79,22 @@ public static class EnumHelper
         Register<ManufacturingItem>(("OrderFinishedProduct", "订单成品"),
                                      ("PreparedMaterial", "备料成品"),
                                      ("SurplusStock", "余库料"),
-                                     ("IntermediateProduct", "中间品"),
                                      ("SpecialDeliveryStatus", "特定交态成品"));
 
-        Register<MaterialCategory>(("RoundBar", "原材料"),
-                                    ("RoughTube", "二级原料"),
+        Register<MaterialCategory>(("RoundBar", "圆棒"),
+                                    ("RoughTube", "荒管"),
                                     ("SemiProduct", "半成品"),
                                     ("OrderFinished", "订单成品"),
-                                    ("StockFinished", "非订单成品"),
+                                    ("PreparedFinished", "备料成品"),
                                     ("CriticalFinished", "临界成品"),
-                                    ("DefectRoundBar", "不合格圆棒"),
-                                    ("DefectRoughTube", "不合格荒管"),
-                                    ("DefectSemiProduct", "不合格中间品"),
-                                    ("DefectFinished", "不合格成品"),
-                                    ("Scrap", "废料"),
-                                    ("Surplus", "余料"));
+                                    ("DefectRoundBar", "次品圆棒"),
+                                    ("DefectRoughTube", "次品荒管"),
+                                    ("DefectSemiProduct", "次品半成品"),
+                                    ("DefectFinished", "次品成品"),
+                                    ("Scrap", "报废品"),
+                                    ("Surplus", "余库料"),
+                                    ("SpecialDeliveryFinished", "特定交态成品"),
+                                    ("DefectWIP", "次品在制"));
 
         Register<OutboundType>(("ProductionPick", "生产领用"),
                                 ("SalesOut", "销售出库"),

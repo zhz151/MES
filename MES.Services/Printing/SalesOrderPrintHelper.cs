@@ -225,7 +225,7 @@ public static class SalesOrderPrintHelper
                 table.Cell().Element(CellStyle).Text(item.DeliveryDate.ToString("yyyy-MM-dd")).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.DelayPenalty ? "是" : "否").FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.SettlementMethod)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.MaterialName)).FontSize(7).AlignCenter();
+                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.PipeManufacturingType)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.StandardNo).FontSize(6).AlignCenter();
                 table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.DeliveryState)).FontSize(6).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.StandardGrade).FontSize(6).AlignCenter();

@@ -372,7 +372,7 @@ public class DataFixService : IDataFixService
     {
         return type switch
         {
-            RawMaterialType.SemiFinished => "荒管",
+            RawMaterialType.RoughTube => "荒管",
             RawMaterialType.SemiProduct => "半成品",
             RawMaterialType.RoundBar => "圆棒",
             _ => type.ToString()

@@ -235,7 +235,7 @@
         public DateTime DeliveryDate { get; set; } = DateTime.Now.AddMonths(1);
         public bool DelayPenalty { get; set; }
         public SettlementMethod SettlementMethod { get; set; } = SettlementMethod.Theoretical;
-        public MaterialName MaterialName { get; set; } = MaterialName.SeamlessPipe;
+        public PipeManufacturingType PipeManufacturingType { get; set; } = PipeManufacturingType.SeamlessPipe;
         public string StandardNo { get; set; } = string.Empty;
         public DeliveryState DeliveryState { get; set; } = DeliveryState.SolutionAnnealedAndPickled;
         public string StandardGrade { get; set; } = string.Empty;
@@ -441,7 +441,7 @@
             DeliveryDate = i.DeliveryDate,
             DelayPenalty = i.DelayPenalty,
             SettlementMethod = i.SettlementMethod,
-            MaterialName = i.MaterialName,
+            PipeManufacturingType = i.PipeManufacturingType,
             StandardNo = i.StandardNo,
             DeliveryState = i.DeliveryState,
             StandardGrade = i.StandardGrade,
@@ -470,7 +470,7 @@
             DeliveryDate = i.DeliveryDate,
             DelayPenalty = i.DelayPenalty,
             SettlementMethod = i.SettlementMethod,
-            MaterialName = i.MaterialName,
+            PipeManufacturingType = i.PipeManufacturingType,
             StandardNo = i.StandardNo,
             DeliveryState = i.DeliveryState,
             StandardGrade = i.StandardGrade,
@@ -621,7 +621,7 @@
             DeliveryDate = default,
             DelayPenalty = false,
             SettlementMethod = default,
-            MaterialName = default,
+            PipeManufacturingType = default,
             StandardNo = string.Empty,
             DeliveryState = default,
             StandardGrade = string.Empty,
@@ -660,7 +660,7 @@
             DeliveryDate = last.DeliveryDate,
             DelayPenalty = last.DelayPenalty,
             SettlementMethod = last.SettlementMethod,
-            MaterialName = last.MaterialName,
+            PipeManufacturingType = last.PipeManufacturingType,
             StandardNo = last.StandardNo,
             DeliveryState = last.DeliveryState,
             StandardGrade = last.StandardGrade,
@@ -868,7 +868,7 @@
                     DeliveryDate = item.DeliveryDate,
                     DelayPenalty = item.DelayPenalty,
                     SettlementMethod = item.SettlementMethod,
-                    MaterialName = item.MaterialName,
+                    PipeManufacturingType = item.PipeManufacturingType,
                     StandardNo = item.StandardNo,
                     DeliveryState = item.DeliveryState,
                     StandardGrade = item.StandardGrade,
@@ -1156,26 +1156,26 @@
             case "materialname":
                 if (_isEditMode)
                 {
-                    builder.OpenComponent<MudSelect<MaterialName>>(0);
-                    builder.AddAttribute(1, "Value", item.MaterialName);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<MaterialName>(this, v => item.MaterialName = v));
+                    builder.OpenComponent<MudSelect<PipeManufacturingType>>(0);
+                    builder.AddAttribute(1, "Value", item.PipeManufacturingType);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<PipeManufacturingType>(this, v => item.PipeManufacturingType = v));
                     builder.AddAttribute(3, "Dense", true);
                     builder.AddAttribute(4, "Variant", Variant.Outlined);
                     builder.AddAttribute(5, "Size", Size.Small);
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        cb.OpenComponent<MudSelectItem<MaterialName>>(0);
-                        cb.AddAttribute(1, "Value", MaterialName.SeamlessPipe);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialNameText(MaterialName.SeamlessPipe))));
+                        cb.OpenComponent<MudSelectItem<PipeManufacturingType>>(0);
+                        cb.AddAttribute(1, "Value", PipeManufacturingType.SeamlessPipe);
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(PipeManufacturingType.SeamlessPipe))));
                         cb.CloseComponent();
-                        cb.OpenComponent<MudSelectItem<MaterialName>>(0);
-                        cb.AddAttribute(1, "Value", MaterialName.WeldedPipe);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialNameText(MaterialName.WeldedPipe))));
+                        cb.OpenComponent<MudSelectItem<PipeManufacturingType>>(0);
+                        cb.AddAttribute(1, "Value", PipeManufacturingType.WeldedPipe);
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(PipeManufacturingType.WeldedPipe))));
                         cb.CloseComponent();
                     }));
                     builder.CloseComponent();
                 }
-                else { builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName)); }
+                else { builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType)); }
                 break;
             case "productionstandard":
                 if (_isEditMode)

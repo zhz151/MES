@@ -237,7 +237,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
                     DeliveryDate = wo.DeliveryDate,
                     DelayPenalty = wo.DelayPenalty,
                     SettlementMethod = wo.SettlementMethod.ToString(),
-                    MaterialName = wo.MaterialName.ToString(),
+                    MaterialName = wo.PipeManufacturingType.ToString(),
                     StandardCode = wo.StandardCode,
                     DeliveryState = wo.DeliveryState.ToString(),
                     PlantGrade = wo.PlantGrade,

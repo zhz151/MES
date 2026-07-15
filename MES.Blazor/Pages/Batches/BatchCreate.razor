@@ -445,7 +445,6 @@
                                     <MudSelectItem Value="@("OrderFinishedProduct")">订单成品</MudSelectItem>
                                     <MudSelectItem Value="@("PreparedMaterial")">备料成品</MudSelectItem>
                                     <MudSelectItem Value="@("SurplusStock")">余库料</MudSelectItem>
-                                    <MudSelectItem Value="@("IntermediateProduct")">中间品</MudSelectItem>
                                     <MudSelectItem Value="@("SpecialDeliveryStatus")">特定交态成品</MudSelectItem>
                                 </MudSelect>
                             </td>
@@ -864,7 +863,7 @@
                 request.EndCustomer = wo.EndCustomer;
                 request.DeliveryDate = wo.DeliveryDate;
                 request.DelayPenalty = wo.DelayPenalty;
-                request.MaterialName = wo.MaterialName.ToString();
+                request.MaterialName = wo.PipeManufacturingType.ToString();
                 request.SettlementMethod = wo.SettlementMethod.ToString();
                 request.StandardCode = wo.StandardCode;
                 request.DeliveryState = wo.DeliveryState.ToString();

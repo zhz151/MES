@@ -48,6 +48,27 @@ public class TestAppDbContext : AppDbContext
                 else if (entry.State == EntityState.Modified)
                     entry.Property(nameof(ProductionBatch.RowVersion)).OriginalValue = DefaultRowVersion;
             }
+            if (entry.Entity is InventoryBatch ib)
+            {
+                if (entry.State == EntityState.Added)
+                    ib.RowVersion = DefaultRowVersion;
+                else if (entry.State == EntityState.Modified)
+                    entry.Property(nameof(InventoryBatch.RowVersion)).OriginalValue = DefaultRowVersion;
+            }
+            if (entry.Entity is OrderListSummary ols)
+            {
+                if (entry.State == EntityState.Added)
+                    ols.RowVersion = DefaultRowVersion;
+                else if (entry.State == EntityState.Modified)
+                    entry.Property(nameof(OrderListSummary.RowVersion)).OriginalValue = DefaultRowVersion;
+            }
+            if (entry.Entity is WorkOrderListSummary wols)
+            {
+                if (entry.State == EntityState.Added)
+                    wols.RowVersion = DefaultRowVersion;
+                else if (entry.State == EntityState.Modified)
+                    entry.Property(nameof(WorkOrderListSummary.RowVersion)).OriginalValue = DefaultRowVersion;
+            }
         }
         return await base.SaveChangesAsync(cancellationToken);
     }

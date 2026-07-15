@@ -493,6 +493,17 @@ public partial class WarehouseInventory
             }
         }
 
+        // 按仓库代码过滤 MaterialType 筛选选项（仅显示该仓库允许的物料类型）
+        if (!string.IsNullOrEmpty(warehouseCode) &&
+            _filterContextOptions.TryGetValue("MaterialType", out var materialOptions))
+        {
+            var allowedTypes = MES.Core.Constants.InventoryMaterialTypes.GetAllowedTypes(warehouseCode);
+            if (allowedTypes != null)
+            {
+                materialOptions.RemoveAll(opt => !allowedTypes.Contains(opt.Value));
+            }
+        }
+
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
         foreach (var col in _allColumns)
         {

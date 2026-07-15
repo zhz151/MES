@@ -391,7 +391,7 @@ public static class ProcessCardPrintHelper
             ["EndCustomer"] = ("最终用户", () => b.EndCustomer ?? "-"),
             ["DeliveryDate"] = ("交货日期", () => b.DeliveryDate.ToString("yyyy-MM-dd")),
             ["DelayPenalty"] = ("延期罚款", () => b.DelayPenalty ? "是" : "否"),
-            ["MaterialName"] = ("物料名称", () => Enum.TryParse<MaterialName>(b.MaterialName, out var mn) ? EnumHelper.GetDisplayName(mn) : (b.MaterialName ?? "-")),
+            ["MaterialName"] = ("物料名称", () => Enum.TryParse<PipeManufacturingType>(b.MaterialName, out var pmt) ? EnumHelper.GetDisplayName(pmt) : (b.MaterialName ?? "-")),
             ["SettlementMethod"] = ("结算方式", () => Enum.TryParse<SettlementMethod>(b.SettlementMethod, out var sm) ? EnumHelper.GetDisplayName(sm) : (b.SettlementMethod ?? "-")),
             ["StandardCode"] = ("标准编码", () => b.StandardCode),
             ["DeliveryState"] = ("交货状态", () => Enum.TryParse<DeliveryState>(b.DeliveryState, out var ds) ? EnumHelper.GetDisplayName(ds) : (b.DeliveryState ?? "-")),

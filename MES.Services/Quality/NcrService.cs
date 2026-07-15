@@ -820,9 +820,10 @@ public class NcrService : INcrService
     private static string GetPipeCategoryText(PipeCategory category) => category switch
     {
         PipeCategory.TubeBlank => "荒管",
-        PipeCategory.Intermediate => "中间品",
+        PipeCategory.WorkInProgress => "在制品",
         PipeCategory.SurplusInventory => "余库料",
         PipeCategory.CriticalFinished => "临界成品",
+        PipeCategory.PreparedFinished => "备料成品",
         PipeCategory.OrderFinished => "订单成品",
         PipeCategory.SpecialDelivery => "特定交态成品",
         _ => category.ToString()

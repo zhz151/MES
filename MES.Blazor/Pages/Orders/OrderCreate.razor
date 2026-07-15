@@ -187,9 +187,9 @@
 
                                 <!-- 物料名称 - 下拉选择 -->
                                 <MudTd>
-                                    <MudSelect T="MaterialName" @bind-Value="item.MaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="MaterialName.SeamlessPipe">@DisplayHelper.GetMaterialNameText(MaterialName.SeamlessPipe)</MudSelectItem>
-                                        <MudSelectItem Value="MaterialName.WeldedPipe">@DisplayHelper.GetMaterialNameText(MaterialName.WeldedPipe)</MudSelectItem>
+                                    <MudSelect T="PipeManufacturingType" @bind-Value="item.PipeManufacturingType" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                        <MudSelectItem Value="PipeManufacturingType.SeamlessPipe">@DisplayHelper.GetPipeManufacturingTypeText(PipeManufacturingType.SeamlessPipe)</MudSelectItem>
+                                        <MudSelectItem Value="PipeManufacturingType.WeldedPipe">@DisplayHelper.GetPipeManufacturingTypeText(PipeManufacturingType.WeldedPipe)</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
 
@@ -405,7 +405,7 @@
         public string DeliveryDateStr { get; set; } = DateTime.Now.AddMonths(1).ToString("yyyy-MM-dd");
         public bool DelayPenalty { get; set; }
         public SettlementMethod SettlementMethod { get; set; } = SettlementMethod.Theoretical;
-        public MaterialName MaterialName { get; set; } = MaterialName.SeamlessPipe;
+        public PipeManufacturingType PipeManufacturingType { get; set; } = PipeManufacturingType.SeamlessPipe;
         public string StandardNo { get; set; } = string.Empty;
         public DeliveryState DeliveryState { get; set; } = DeliveryState.SolutionAnnealedAndPickled;
         public string StandardGrade { get; set; } = string.Empty;
@@ -571,7 +571,7 @@
             Sequence = newSequence,
             DeliveryDateStr = string.Empty,
             SettlementMethod = SettlementMethod.Theoretical,
-            MaterialName = MaterialName.SeamlessPipe,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
             LengthStatus = LengthStatus.Fixed,
             OuterDiameterNegativeStr = string.Empty,
@@ -597,7 +597,7 @@
             DeliveryDateStr = last.DeliveryDateStr,
             DelayPenalty = last.DelayPenalty,
             SettlementMethod = last.SettlementMethod,
-            MaterialName = last.MaterialName,
+            PipeManufacturingType = last.PipeManufacturingType,
             StandardNo = last.StandardNo,
             DeliveryState = last.DeliveryState,
             StandardGrade = last.StandardGrade,
@@ -923,7 +923,7 @@
                 DeliveryDate = DateTime.Parse(item.DeliveryDateStr),
                 DelayPenalty = item.DelayPenalty,
                 SettlementMethod = item.SettlementMethod,
-                MaterialName = item.MaterialName,
+                PipeManufacturingType = item.PipeManufacturingType,
                 StandardNo = item.StandardNo,
                 DeliveryState = item.DeliveryState,
                 StandardGrade = item.StandardGrade,

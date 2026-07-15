@@ -661,7 +661,7 @@ public partial class FinalInspections
     private string? GetCellDisplayText(FinalInspectionDto item, string key) => key switch
     {
         "InspectionItem" => DisplayHelper.GetInspectionItemText(item.InspectionItem),
-        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName),
+        "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName),
         _ => GetCellRawValue(item, key) ?? ""
     };
 
@@ -940,7 +940,7 @@ public partial class FinalInspections
                 builder.AddContent(0, item.BatchNo);
                 break;
             case "MaterialName":
-                builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName));
+                builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName));
                 break;
             case "TagNo":
                 builder.AddContent(0, item.TagNo);

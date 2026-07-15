@@ -31,7 +31,7 @@ public class ProductionBatch : BaseEntity
     public string? ProductionType { get; set; }
 
     /// <summary>
-    /// 制造物品（订单成品/备料成品/余库料/中间品）
+    /// 制造物品（订单成品/备料成品/余库料）
     /// </summary>
     public string ManufacturingItem { get; set; } = null!;
 

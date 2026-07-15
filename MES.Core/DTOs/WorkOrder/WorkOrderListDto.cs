@@ -72,7 +72,7 @@ public class WorkOrderListDto
     /// <summary>
     /// 物料名称
     /// </summary>
-    public MaterialName MaterialName { get; set; }
+    public PipeManufacturingType PipeManufacturingType { get; set; }
 
     /// <summary>
     /// 规格

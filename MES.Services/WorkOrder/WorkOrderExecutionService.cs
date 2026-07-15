@@ -1281,7 +1281,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             SalesOrderNo = wo.SalesOrderNo,
             ProductionMainNo = wo.ProductionMainNo,
             ProductionSubNo = wo.ProductionSubNo,
-            MaterialName = wo.MaterialName.ToString(),
+            MaterialName = wo.PipeManufacturingType.ToString(),
             DeliveryState = wo.DeliveryState.ToString(),
             PlantGrade = wo.PlantGrade,
             Specification = wo.Specification,
@@ -2642,7 +2642,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     {
         // 枚举→中文
         "SettlementMethod" => GetSettlementMethodText(item.SettlementMethod),
-        "MaterialName" => GetMaterialNameText(item.MaterialName),
+        "MaterialName" => GetPipeManufacturingTypeText(item.MaterialName),
         "DeliveryState" => GetDeliveryStateText(item.DeliveryState),
         "LengthStatus" => GetLengthStatusText(item.LengthStatus),
         // Bool→中文
@@ -2768,11 +2768,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         _ => ""
     })!;
 
-    private static string GetMaterialNameText(string? materialName) => materialName switch
+    private static string GetPipeManufacturingTypeText(string? pipeManufacturingType) => pipeManufacturingType switch
     {
         "SeamlessPipe" => "无缝管",
         "WeldedPipe" => "焊管",
-        _ => materialName ?? ""
+        _ => pipeManufacturingType ?? ""
     };
 
     private static string GetDeliveryStateText(string? deliveryState) => deliveryState switch

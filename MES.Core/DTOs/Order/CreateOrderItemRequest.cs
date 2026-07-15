@@ -27,10 +27,10 @@ public class CreateOrderItemRequest
     public SettlementMethod SettlementMethod { get; set; }
 
     /// <summary>
-    /// 物料名称
+    /// 钢管制造类别
     /// </summary>
-    [Required(ErrorMessage = "物料名称不能为空")]
-    public MaterialName MaterialName { get; set; }
+    [Required(ErrorMessage = "钢管制造类别不能为空")]
+    public PipeManufacturingType PipeManufacturingType { get; set; }
 
     /// <summary>
     /// 标准号

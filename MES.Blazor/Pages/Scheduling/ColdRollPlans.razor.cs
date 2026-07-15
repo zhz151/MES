@@ -108,7 +108,7 @@ public partial class ColdRollPlans
                     ProcessType = g.Key.ProcessType,
                     ShortDisplay = g.Key.ShortDisplay,
                     IsFinished = g.Key.IsFinished,
-                    MergeDisplay = $"{g.Key.ShortDisplay}-{(g.Key.IsFinished ? "成品" : "中间品")}",
+                    MergeDisplay = $"{g.Key.ShortDisplay}-{(g.Key.IsFinished ? "成品" : "在制品")}",
                     BatchCount = g.Sum(x => x.BatchCount),
                     KeyBatchCount = g.Sum(x => x.KeyBatchCount),
                     WeightProd = g.Sum(x => x.WeightProd),
@@ -865,7 +865,7 @@ public partial class ColdRollPlans
 
         return col.Key switch
         {
-            "IsFinished" => item.IsFinished ? "成品" : "中间品",
+            "IsFinished" => item.IsFinished ? "成品" : "在制品",
             "WeightProd" or "WeightProdUrgent" or "WeightProdUrgentOther" or "WeightWaitNear" or "WeightWaitNearUrgent"
                 or "WeightWaitNearBackUrgent" or "WeightWaitNearOtherUrgent"
                 or "WeightToday" or "WeightTomorrow" or "WeightDayAfter"

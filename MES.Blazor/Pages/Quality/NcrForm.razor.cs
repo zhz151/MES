@@ -126,7 +126,7 @@ public partial class NcrForm
             {
                 _formData.PipeCategory = processName?.Contains("荒管处理") == true
                     ? PipeCategory.TubeBlank
-                    : PipeCategory.Intermediate;
+                    : PipeCategory.WorkInProgress;
             }
             else if (sourceType == "FinalInspection")
             {
@@ -181,7 +181,7 @@ public partial class NcrForm
             {
                 _formData.PipeCategory = item.ProcessName?.Contains("荒管处理") == true
                     ? PipeCategory.TubeBlank
-                    : PipeCategory.Intermediate;
+                    : PipeCategory.WorkInProgress;
             }
             else if (item.SourceType == "FinalInspection")
             {
@@ -210,7 +210,8 @@ public partial class NcrForm
 
         // 根据物料名称映射钢管类别
         if (materialName.Contains("荒管")) return PipeCategory.TubeBlank;
-        if (materialName.Contains("中间")) return PipeCategory.Intermediate;
+        if (materialName.Contains("在制")) return PipeCategory.WorkInProgress;
+        if (materialName.Contains("备料")) return PipeCategory.PreparedFinished;
         if (materialName.Contains("余库")) return PipeCategory.SurplusInventory;
         if (materialName.Contains("临界")) return PipeCategory.CriticalFinished;
         if (materialName.Contains("成品")) return PipeCategory.OrderFinished;
@@ -427,9 +428,10 @@ public partial class NcrForm
     private static List<SelectOption<PipeCategory>> GetPipeCategoryOptions() => new()
     {
         new(PipeCategory.TubeBlank, "荒管"),
-        new(PipeCategory.Intermediate, "中间品"),
+        new(PipeCategory.WorkInProgress, "在制品"),
         new(PipeCategory.SurplusInventory, "余库料"),
         new(PipeCategory.CriticalFinished, "临界成品"),
+        new(PipeCategory.PreparedFinished, "备料成品"),
         new(PipeCategory.OrderFinished, "订单成品"),
         new(PipeCategory.SpecialDelivery, "特定交态成品"),
     };

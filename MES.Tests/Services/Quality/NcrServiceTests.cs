@@ -413,7 +413,7 @@ public class NcrServiceTests : TestBase
         {
             ReportDate = DateTime.Today,
             BatchNo = "BATCH002",
-            PipeCategory = PipeCategory.Intermediate,
+            PipeCategory = PipeCategory.WorkInProgress,
             Status = NcrStatus.Closed,
             ReportDepartment = "生产部",
             PlantGrade = "316L"

@@ -729,7 +729,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Select(g => new
             {
                 g.Key.WorkOrderId,
-                CategoryName = g.Key.RawMaterialType == RawMaterialType.SemiFinished ? "荒管" : "半成品",
+                CategoryName = g.Key.RawMaterialType == RawMaterialType.RoughTube ? "荒管" : "半成品",
                 PlanWeight = g.Sum(p => p.RequiredWeight)
             })
             .ToListAsync();

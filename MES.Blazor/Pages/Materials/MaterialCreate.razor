@@ -119,8 +119,8 @@
         materialCategories = await MaterialService.GetCategoriesAsync();
         if (materialCategories.Count == 0)
         {
-            materialCategories = new() { "圆棒", "荒管", "中间品", "订单成品", "备料成品", "临界成品",
-                "次品圆棒", "次品荒管", "次品中间品", "次品成品", "报废品", "余库料" };
+            materialCategories = new() { "圆棒", "荒管", "半成品", "订单成品", "备料成品", "临界成品",
+                "次品圆棒", "次品荒管", "次品半成品", "次品在制", "次品成品", "报废品", "余库料" };
         }
         AddRow();
     }

@@ -83,7 +83,7 @@ public class WorkOrdersTests : TestBase
                     OrderMaterialPlanStatus = 0,
                     CreatedTime = DateTimeOffset.Now,
                     PlantGrade = "20#",
-                    MaterialName = MaterialName.SeamlessPipe,
+                    PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
                     SettlementMethod = SettlementMethod.Theoretical,
                     LengthStatus = LengthStatus.Fixed,
                     DeliveryState = DeliveryState.Bright,

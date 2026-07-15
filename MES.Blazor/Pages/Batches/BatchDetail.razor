@@ -337,7 +337,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">最终用户</MudText><MudText Typo="Typo.body2">@(batch.EndCustomer ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">交货日期</MudText><MudText Typo="Typo.body2">@FmtDate(batch.DeliveryDate)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">延期罚款</MudText><MudText Typo="Typo.body2">@(batch.DelayPenalty ? "是" : "否")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">物料名称</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetMaterialNameText(batch.MaterialName))</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">物料名称</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetPipeManufacturingTypeText(batch.MaterialName))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">结算方式</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetSettlementMethodText(batch.SettlementMethod))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">标准编码</MudText><MudText Typo="Typo.body2">@FmtStr(batch.StandardCode)</MudText></div>
             </div>

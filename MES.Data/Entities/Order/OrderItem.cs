@@ -40,9 +40,9 @@ public class OrderItem : BaseEntity
     public SettlementMethod SettlementMethod { get; set; }
 
     /// <summary>
-    /// 物料名称
+    /// 钢管制造类别
     /// </summary>
-    public MaterialName MaterialName { get; set; }
+    public PipeManufacturingType PipeManufacturingType { get; set; }
 
     /// <summary>
     /// 标准号（从 StandardRegister 弱引用，无 FK 约束）

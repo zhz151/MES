@@ -72,7 +72,7 @@ public partial class MaterialReceiveChecks
     {
         new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate", FilterType = "date", Width = "120" },
         new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120" },
-        new() { Key = "ManufacturingItem", Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120", EnumOptions = new() { new("OrderFinishedProduct","订单成品"), new("PreparedMaterial","备料成品"), new("SurplusStock","余库料"), new("IntermediateProduct","中间品"), new("SpecialDeliveryStatus","特定交态成品") } },
+        new() { Key = "ManufacturingItem", Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120", EnumOptions = new() { new("OrderFinishedProduct","订单成品"), new("PreparedMaterial","备料成品"), new("SurplusStock","余库料"), new("SpecialDeliveryStatus","特定交态成品") } },
         new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120" },
         new() { Key = "Specification",     Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120" },
         new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Visible = false, Width = "120" },

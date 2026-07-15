@@ -108,28 +108,28 @@ public static class DisplayHelper
     }
 
     /// <summary>
-    /// 获取物料名称中文文本
+    /// 获取钢管制造类别中文文本
     /// </summary>
-    public static string GetMaterialNameText(MaterialName materialName)
+    public static string GetPipeManufacturingTypeText(PipeManufacturingType type)
     {
-        return materialName switch
+        return type switch
         {
-            MaterialName.SeamlessPipe => "无缝管",
-            MaterialName.WeldedPipe => "焊管",
-            _ => materialName.ToString()
+            PipeManufacturingType.SeamlessPipe => "无缝管",
+            PipeManufacturingType.WeldedPipe => "焊管",
+            _ => type.ToString()
         };
     }
 
     /// <summary>
-    /// 获取物料名称中文文本（字符串版本）
+    /// 获取钢管制造类别中文文本（字符串版本）
     /// </summary>
-    public static string GetMaterialNameText(string? materialName)
+    public static string GetPipeManufacturingTypeText(string? type)
     {
-        return materialName switch
+        return type switch
         {
             "SeamlessPipe" => "无缝管",
             "WeldedPipe" => "焊管",
-            _ => materialName ?? ""
+            _ => type ?? ""
         };
     }
 
@@ -447,7 +447,6 @@ public static class DisplayHelper
             "OrderFinishedProduct" => "订单成品",
             "PreparedMaterial" => "备料成品",
             "SurplusStock" => "余库料",
-            "IntermediateProduct" => "中间品",
             "SpecialDeliveryStatus" => "特定交态成品",
             _ => item ?? ""
         };
@@ -463,7 +462,6 @@ public static class DisplayHelper
             ManufacturingItem.OrderFinishedProduct => "订单成品",
             ManufacturingItem.PreparedMaterial => "备料成品",
             ManufacturingItem.SurplusStock => "余库料",
-            ManufacturingItem.IntermediateProduct => "中间品",
             ManufacturingItem.SpecialDeliveryStatus => "特定交态成品",
             _ => item.ToString()
         };
@@ -1035,7 +1033,7 @@ public static class DisplayHelper
     {
         return type switch
         {
-            RawMaterialType.SemiFinished => "荒管",
+            RawMaterialType.RoughTube => "荒管",
             RawMaterialType.SemiProduct => "半成品",
             RawMaterialType.RoundBar => "圆棒",
             _ => "未知"

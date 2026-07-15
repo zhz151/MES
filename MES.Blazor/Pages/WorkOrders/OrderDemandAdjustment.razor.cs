@@ -603,7 +603,7 @@ public partial class OrderDemandAdjustment
                 builder.AddContent(0, item.ProductionSubNo ?? "-");
                 break;
             case "MaterialName":
-                builder.AddContent(0, DisplayHelper.GetMaterialNameText(item.MaterialName));
+                builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName));
                 break;
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
@@ -853,7 +853,7 @@ public partial class OrderDemandAdjustment
     private static object ResolvePrintValue(OrderDemandAdjustmentDto item, string key) => key switch
     {
         // 枚举→中文
-        "MaterialName" => DisplayHelper.GetMaterialNameText(item.MaterialName) ?? "",
+        "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName) ?? "",
         "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState) ?? "",
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",

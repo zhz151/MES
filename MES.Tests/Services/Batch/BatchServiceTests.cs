@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -83,7 +84,7 @@ public class BatchServiceTests : TestBase
         var orderConfigMock = new Mock<IConfigParameterService>();
         orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, null);
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new MemoryCache(new MemoryCacheOptions()));
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -96,7 +97,7 @@ public class BatchServiceTests : TestBase
                 {
                     StandardNo = sr.StandardNo,
                     StandardGrade = gm.StandardGrade,
-                    MaterialName = MaterialName.SeamlessPipe,
+                    PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
                     OuterDiameter = 219m,
                     WallThickness = 8m,
                     OuterDiameterNegative = 0.5m,
@@ -588,27 +589,24 @@ public class BatchServiceTests : TestBase
 
         var detail = await svc.GetByIdAsync(created.Id);
 
+        // 先开到在产
+        await svc.UpdateStatusAsync(created.Id, new UpdateBatchStatusRequest
+        {
+            Status = "InProgress",
+            RowVersion = detail.RowVersion
+        });
+        var inProgress = await svc.GetByIdAsync(created.Id);
+
         // 直接完成
         await svc.UpdateStatusAsync(created.Id, new UpdateBatchStatusRequest
         {
             Status = "Completed",
-            RowVersion = detail.RowVersion
+            RowVersion = inProgress.RowVersion
         });
 
         var completed = await svc.GetByIdAsync(created.Id);
         completed.Status.Should().Be("Completed");
         completed.IsForceCompleted.Should().BeTrue();
-
-        // 回退到在产
-        await svc.UpdateStatusAsync(created.Id, new UpdateBatchStatusRequest
-        {
-            Status = "InProgress",
-            RowVersion = completed.RowVersion
-        });
-
-        var rollbacked = await svc.GetByIdAsync(created.Id);
-        rollbacked.Status.Should().Be("InProgress");
-        rollbacked.IsForceCompleted.Should().BeFalse();
     }
 
     // ========== 删除批次 ==========
