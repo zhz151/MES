@@ -1,4 +1,6 @@
 @page "/warehouse/outbound"
+@using MES.Core.Enums
+@using MES.Blazor.Helpers
 @using MES.Blazor.Services
 @using MES.Core.Models
 @using MES.Core.DTOs.Warehouse
@@ -91,15 +93,15 @@
                                              Class="qty-input" HideSpinButtons="true" />
                         </MudTd>
                         <MudTd>
-                            <MudSelect T="string" @bind-Value="item.OutboundType"
+                            <MudSelect T="OutboundType" @bind-Value="item.OutboundType"
                                         Variant="Variant.Outlined" Dense="true">
-                                <MudSelectItem Value="@("SalesOut")">销售出库</MudSelectItem>
-                                <MudSelectItem Value="@("SubcontractOut")">委外出库</MudSelectItem>
-                                <MudSelectItem Value="@("ReturnOut")">退货出库</MudSelectItem>
-                                <MudSelectItem Value="@("ProductionPick")">生产领用</MudSelectItem>
-                                <MudSelectItem Value="@("InspectionPick")">检验领用</MudSelectItem>
-                                <MudSelectItem Value="@("TransferOut")">移库出库</MudSelectItem>
-                                <MudSelectItem Value="@("OtherOut")">其他出库</MudSelectItem>
+                                <MudSelectItem Value="@(OutboundType.SalesOut)">@DisplayHelper.GetOutboundTypeText(OutboundType.SalesOut)</MudSelectItem>
+                                <MudSelectItem Value="@(OutboundType.SubcontractOut)">@DisplayHelper.GetOutboundTypeText(OutboundType.SubcontractOut)</MudSelectItem>
+                                <MudSelectItem Value="@(OutboundType.ReturnOut)">@DisplayHelper.GetOutboundTypeText(OutboundType.ReturnOut)</MudSelectItem>
+                                <MudSelectItem Value="@(OutboundType.ProductionPick)">@DisplayHelper.GetOutboundTypeText(OutboundType.ProductionPick)</MudSelectItem>
+                                <MudSelectItem Value="@(OutboundType.InspectionPick)">@DisplayHelper.GetOutboundTypeText(OutboundType.InspectionPick)</MudSelectItem>
+                                <MudSelectItem Value="@(OutboundType.TransferOut)">@DisplayHelper.GetOutboundTypeText(OutboundType.TransferOut)</MudSelectItem>
+                                <MudSelectItem Value="@(OutboundType.OtherOut)">@DisplayHelper.GetOutboundTypeText(OutboundType.OtherOut)</MudSelectItem>
                             </MudSelect>
                         </MudTd>
                         <MudTd>
@@ -175,7 +177,7 @@
         public int OutboundQuantity { get; set; }
         public decimal OutboundWeight { get; set; }
         public decimal? OutboundMeters { get; set; }
-        public string OutboundType { get; set; } = "ProductionPick";
+        public OutboundType OutboundType { get; set; } = OutboundType.ProductionPick;
         public string? SourceOrderNo { get; set; }
         public string? TargetCompany { get; set; }
         public string? Remark { get; set; }
@@ -246,8 +248,6 @@
         for (int i = 0; i < _items.Count; i++)
         {
             var item = _items[i];
-            if (string.IsNullOrEmpty(item.OutboundType))
-                errors.Add($"第{i + 1}行（{item.BatchNo}）：出库类型不能为空");
             if (item.OutboundQuantity < 1)
                 errors.Add($"第{i + 1}行（{item.BatchNo}）：出库支数必须大于0");
             if (item.OutboundQuantity > item.RemainingQuantity)

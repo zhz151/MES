@@ -4,6 +4,7 @@
 @using MES.Blazor.Shared
 @using MES.Blazor.Helpers
 @using MES.Core.DTOs.Materials
+@using MES.Core.Enums
 @using MES.Core.DTOs.WorkOrder
 @using Microsoft.AspNetCore.Authorization
 @inject MaterialPlanService MaterialPlanService
@@ -87,14 +88,14 @@
                             </HeaderContent>
                             <RowTemplate Context="item">
                                 <MudTd>
-                                    <MudSelect Dense="true" T="string"
+                                    <MudSelect Dense="true" T="FinishedProductType"
                                                Value="@item.ProductType"
-                                               ValueChanged="@((string v) => { item.ProductType = v; })"
+                                               ValueChanged="@((FinishedProductType v) => { item.ProductType = v; })"
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
                                                Class="my-n2" Style="width:115px;">
-                                        <MudSelectItem Value="@("Order")">订单成品</MudSelectItem>
-                                        <MudSelectItem Value="@("Critical")">临界成品</MudSelectItem>
+                                        <MudSelectItem Value="@(FinishedProductType.Order)">@DisplayHelper.GetFinishedProductTypeText(FinishedProductType.Order)</MudSelectItem>
+                                        <MudSelectItem Value="@(FinishedProductType.Critical)">@DisplayHelper.GetFinishedProductTypeText(FinishedProductType.Critical)</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
                                 <MudTd>
@@ -130,15 +131,15 @@
                                                   Class="my-n2" Style="width:115px;" />
                                 </MudTd>
                                 <MudTd>
-                                    <MudSelect Dense="true" T="string"
+                                    <MudSelect Dense="true" T="LengthStatus"
                                                Value="@item.LengthStatus"
-                                               ValueChanged="@((string v) => { item.LengthStatus = v; })"
+                                               ValueChanged="@((LengthStatus v) => { item.LengthStatus = v; })"
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
                                                Class="my-n2" Style="width:115px;">
-                                        <MudSelectItem Value="@("Fixed")">定尺</MudSelectItem>
-                                        <MudSelectItem Value="@("Range")">范围</MudSelectItem>
-                                        <MudSelectItem Value="@("NonFixed")">非定尺</MudSelectItem>
+                                        <MudSelectItem Value="@(LengthStatus.Fixed)">@DisplayHelper.GetLengthStatusText(LengthStatus.Fixed)</MudSelectItem>
+                                        <MudSelectItem Value="@(LengthStatus.Range)">@DisplayHelper.GetLengthStatusText(LengthStatus.Range)</MudSelectItem>
+                                        <MudSelectItem Value="@(LengthStatus.NonFixed)">@DisplayHelper.GetLengthStatusText(LengthStatus.NonFixed)</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
                                 <MudTd>
@@ -159,15 +160,15 @@
                                     </div>
                                 </MudTd>
                                 <MudTd>
-                                    <MudSelect Dense="true" T="string"
+                                    <MudSelect Dense="true" T="DeliveryState"
                                                Value="@item.DeliveryState"
-                                               ValueChanged="@((string v) => { item.DeliveryState = v; })"
+                                               ValueChanged="@((DeliveryState v) => { item.DeliveryState = v; })"
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
                                                Class="my-n2" Style="width:115px;">
-                                        <MudSelectItem Value="@("SolutionAnnealedAndPickled")">固溶酸洗</MudSelectItem>
-                                        <MudSelectItem Value="@("Bright")">光亮</MudSelectItem>
-                                        <MudSelectItem Value="@("Hard")">硬态</MudSelectItem>
+                                        <MudSelectItem Value="@(DeliveryState.SolutionAnnealedAndPickled)">@DisplayHelper.GetDeliveryStateText(DeliveryState.SolutionAnnealedAndPickled)</MudSelectItem>
+                                        <MudSelectItem Value="@(DeliveryState.Bright)">@DisplayHelper.GetDeliveryStateText(DeliveryState.Bright)</MudSelectItem>
+                                        <MudSelectItem Value="@(DeliveryState.Hard)">@DisplayHelper.GetDeliveryStateText(DeliveryState.Hard)</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
                                 <MudTd>
@@ -260,15 +261,15 @@
 
     private class FinishPlanRow
     {
-        public string ProductType { get; set; } = "Order";
+        public FinishedProductType ProductType { get; set; } = FinishedProductType.Order;
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public string OdToleranceStr { get; set; } = string.Empty;
         public string WtToleranceStr { get; set; } = string.Empty;
-        public string LengthStatus { get; set; } = "Fixed";
+        public LengthStatus LengthStatus { get; set; } = LengthStatus.Fixed;
         public decimal? MinLength { get; set; }
         public decimal? MaxLength { get; set; }
-        public string DeliveryState { get; set; } = "SolutionAnnealedAndPickled";
+        public DeliveryState DeliveryState { get; set; } = DeliveryState.SolutionAnnealedAndPickled;
         public int? RequiredPiece { get; set; }
         public decimal RequiredWeight { get; set; }
         public int? InputMultiple { get; set; }
@@ -321,10 +322,10 @@
             Specification = workOrder.Specification ?? string.Empty,
             OdToleranceStr = $"-{workOrder.OuterDiameterNegative:G29}/+{workOrder.OuterDiameterPositive:G29}",
             WtToleranceStr = $"-{workOrder.WallThicknessNegative:G29}/+{workOrder.WallThicknessPositive:G29}",
-            LengthStatus = workOrder.LengthStatus.ToString(),
+            LengthStatus = workOrder.LengthStatus,
             MinLength = workOrder.MinLength,
             MaxLength = workOrder.MaxLength,
-            DeliveryState = workOrder.DeliveryState.ToString(),
+            DeliveryState = workOrder.DeliveryState,
         };
         rows.Add(row);
     }
@@ -350,10 +351,10 @@
                     Specification = existingPlan.Specification,
                     OdToleranceStr = odStr,
                     WtToleranceStr = wtStr,
-                    LengthStatus = existingPlan.LengthStatus.ToString(),
+                    LengthStatus = existingPlan.LengthStatus,
                     MinLength = existingPlan.MinLength,
                     MaxLength = existingPlan.MaxLength,
-                    DeliveryState = existingPlan.DeliveryState.ToString(),
+                    DeliveryState = existingPlan.DeliveryState,
                     RequiredPiece = existingPlan.RequiredPiece,
                     RequiredWeight = existingPlan.RequiredWeight,
                     InputMultiple = existingPlan.InputMultiple,
@@ -395,8 +396,6 @@
             var row = rows[i];
             var rowErrors = new List<string>();
 
-            if (string.IsNullOrWhiteSpace(row.ProductType))
-                rowErrors.Add("成品类型不能为空");
             if (string.IsNullOrWhiteSpace(row.PlantGrade))
                 rowErrors.Add("工厂牌号不能为空");
             if (string.IsNullOrWhiteSpace(row.Specification))
