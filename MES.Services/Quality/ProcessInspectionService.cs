@@ -392,7 +392,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 Shift = request.Shift,
                 Quantity = request.Quantity,
                 Weight = request.Weight,
-                InspectionItem = request.InspectionItem,
+                InspectionItem = request.InspectionItem?.ToString(),
                 QualifiedQuantity = request.QualifiedQuantity,
                 QualifiedWeight = request.QualifiedWeight,
                 QualifiedConcessionQuantity = request.QualifiedConcessionQuantity,
@@ -473,7 +473,7 @@ public class ProcessInspectionService : IProcessInspectionService
         entity.Shift = request.Shift ?? entity.Shift;
         entity.Quantity = request.Quantity ?? entity.Quantity;
         entity.Weight = request.Weight ?? entity.Weight;
-        entity.InspectionItem = request.InspectionItem ?? entity.InspectionItem;
+        entity.InspectionItem = request.InspectionItem?.ToString() ?? entity.InspectionItem;
         entity.QualifiedQuantity = request.QualifiedQuantity ?? entity.QualifiedQuantity;
         entity.QualifiedWeight = request.QualifiedWeight ?? entity.QualifiedWeight;
         entity.QualifiedConcessionQuantity = request.QualifiedConcessionQuantity ?? entity.QualifiedConcessionQuantity;

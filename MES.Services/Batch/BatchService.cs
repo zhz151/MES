@@ -472,8 +472,6 @@ public class BatchService : IBatchService
             throw new BusinessException($"无效的物料名称: {request.MaterialName}");
         if (!Enum.TryParse<LengthStatus>(request.LengthStatus, out _))
             throw new BusinessException($"无效的长度状态: {request.LengthStatus}");
-        if (!string.IsNullOrEmpty(request.SourceLengthStatus) && !Enum.TryParse<LengthStatus>(request.SourceLengthStatus, out _))
-            throw new BusinessException($"无效的来源长度状态: {request.SourceLengthStatus}");
 
         // ========== 有工单路径额外验证 ==========
         if (request.WorkOrderNo != NotWorkOrder)
@@ -513,7 +511,7 @@ public class BatchService : IBatchService
             SourceHeatNo = request.SourceHeatNo,
             SourcePlantGrade = request.SourcePlantGrade,
             SourceSpecification = request.SourceSpecification,
-            SourceLengthStatus = request.SourceLengthStatus,
+            SourceLengthStatus = request.SourceLengthStatus?.ToString(),
             SourceUnitWeight = request.SourceUnitWeight,
             InputQuantity = request.InputQuantity,
             InputWeight = request.InputWeight,
@@ -668,8 +666,6 @@ public class BatchService : IBatchService
             throw new BusinessException($"无效的长度状态: {request.LengthStatus}");
         if (!string.IsNullOrEmpty(request.TechnicalRequirements) && !Enum.TryParse<RequirementType>(request.TechnicalRequirements, out _))
             throw new BusinessException($"无效的技术要求: {request.TechnicalRequirements}");
-        if (!string.IsNullOrEmpty(request.SourceLengthStatus) && !Enum.TryParse<LengthStatus>(request.SourceLengthStatus, out _))
-            throw new BusinessException($"无效的来源长度状态: {request.SourceLengthStatus}");
 
         // 更新可修改字段（所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖）
         entity.TagNo = request.TagNo ?? entity.TagNo;
@@ -685,7 +681,7 @@ public class BatchService : IBatchService
         entity.SourceHeatNo = request.SourceHeatNo ?? entity.SourceHeatNo;
         entity.SourcePlantGrade = request.SourcePlantGrade ?? entity.SourcePlantGrade;
         entity.SourceSpecification = request.SourceSpecification ?? entity.SourceSpecification;
-        entity.SourceLengthStatus = request.SourceLengthStatus ?? entity.SourceLengthStatus;
+        entity.SourceLengthStatus = request.SourceLengthStatus?.ToString() ?? entity.SourceLengthStatus;
         entity.SourceUnitWeight = request.SourceUnitWeight ?? entity.SourceUnitWeight;
         entity.InputQuantity = request.InputQuantity ?? entity.InputQuantity;
         entity.InputWeight = request.InputWeight ?? entity.InputWeight;
@@ -1044,7 +1040,7 @@ public class BatchService : IBatchService
         entity.SourceHeatNo = request.SourceHeatNo ?? entity.SourceHeatNo;
         entity.SourcePlantGrade = request.SourcePlantGrade ?? entity.SourcePlantGrade;
         entity.SourceSpecification = request.SourceSpecification ?? entity.SourceSpecification;
-        entity.SourceLengthStatus = request.SourceLengthStatus ?? entity.SourceLengthStatus;
+        entity.SourceLengthStatus = request.SourceLengthStatus?.ToString() ?? entity.SourceLengthStatus;
         entity.SourceUnitWeight = request.SourceUnitWeight ?? entity.SourceUnitWeight;
         entity.InputQuantity = request.InputQuantity ?? entity.InputQuantity;
         entity.InputWeight = request.InputWeight ?? entity.InputWeight;

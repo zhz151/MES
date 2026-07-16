@@ -226,7 +226,13 @@
                                 <td><MudTextField T="string" @bind-Value="request.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
                                 <td><MudTextField T="string" @bind-Value="request.SourcePlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
                                 <td><MudTextField T="string" @bind-Value="request.SourceSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
-                                <td><MudTextField T="string" @bind-Value="request.SourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                                <td><MudSelect T="LengthStatus?" @bind-Value="request.SourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                        <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
+                                        @foreach (var val in Enum.GetValues<LengthStatus>())
+                                        {
+                                            <MudSelectItem Value="@val">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                        }
+                                    </MudSelect></td>
                                 <td><MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td>
                                 <td><MudNumericField T="int?" @bind-Value="request.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td>
                                 <td><MudNumericField T="decimal?" @bind-Value="request.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td>
@@ -868,7 +874,7 @@
         request.SourceHeatNo = originalBatch.SourceHeatNo;
         request.SourcePlantGrade = originalBatch.SourcePlantGrade;
         request.SourceSpecification = originalBatch.SourceSpecification;
-        request.SourceLengthStatus = originalBatch.SourceLengthStatus;
+        request.SourceLengthStatus = string.IsNullOrEmpty(originalBatch.SourceLengthStatus) ? null : Enum.Parse<LengthStatus>(originalBatch.SourceLengthStatus);
         request.SourceUnitWeight = originalBatch.SourceUnitWeight;
         request.InputQuantity = originalBatch.InputQuantity;
         request.InputWeight = originalBatch.InputWeight;
@@ -984,7 +990,7 @@
         request.SourceHeatNo = batch.HeatNo;
         request.SourcePlantGrade = batch.PlantGrade;
         request.SourceSpecification = batch.Specification;
-        request.SourceLengthStatus = batch.LengthStatus;
+        request.SourceLengthStatus = string.IsNullOrEmpty(batch.LengthStatus) ? null : Enum.Parse<LengthStatus>(batch.LengthStatus);
         request.SourceUnitWeight = batch.UnitWeight;
         request.InputQuantity = batch.OutboundQuantity;
         request.InputWeight = batch.OutboundWeight;
@@ -1493,7 +1499,7 @@
         var effectiveTotalQuantity = request.TotalQuantity ?? originalBatch.TotalQuantity;
         var effectiveSourceGrade = request.SourcePlantGrade ?? originalBatch.SourcePlantGrade;
         var effectiveSourceSpec = request.SourceSpecification ?? originalBatch.SourceSpecification;
-        var effectiveSourceLengthStatus = request.SourceLengthStatus ?? originalBatch.SourceLengthStatus;
+        var effectiveSourceLengthStatus = request.SourceLengthStatus?.ToString() ?? originalBatch.SourceLengthStatus;
         var effectiveInputWeight = request.InputWeight ?? originalBatch.InputWeight;
         var effectiveInputQuantity = request.InputQuantity ?? originalBatch.InputQuantity;
 

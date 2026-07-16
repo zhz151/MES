@@ -175,7 +175,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100,
             Remark = "测试批次无工单"
@@ -210,7 +210,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100,
             SettlementMethod = "Theoretical",
@@ -264,7 +264,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100,
             Remark = "带工序组测试",
@@ -318,7 +318,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             LengthStatus = "Fixed",
             TotalWeight = 1000m,
             TotalQuantity = 100,
@@ -357,7 +357,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -405,7 +405,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -446,7 +446,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -496,7 +496,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -544,7 +544,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -582,7 +582,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -632,7 +632,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100,
             ProcessGroups = new List<CreateProcessGroupRequest>
@@ -680,7 +680,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -735,7 +735,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100,
             ProcessGroups = new List<CreateProcessGroupRequest>
@@ -786,7 +786,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -823,7 +823,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -868,7 +868,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -887,7 +887,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -937,7 +937,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -999,7 +999,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100,
             ProcessGroups = new List<CreateProcessGroupRequest>
@@ -1041,7 +1041,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -1087,7 +1087,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -1120,7 +1120,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -1162,7 +1162,7 @@ public class BatchServiceTests : TestBase
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
             SourceSpecification = "219×8",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             InputWeight = 1200m,
             InputQuantity = 100
         });
@@ -1204,8 +1204,8 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-1", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = "NonFixed", InputWeight = 1200m, InputQuantity = 100 });
-        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-2", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = "NonFixed", InputWeight = 1200m, InputQuantity = 100 });
+        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-1", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-2", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
 
         var entity1 = await ctx.ProductionBatches.FindAsync(b1.Id);
         entity1!.CurrentSpec = "B-Spec";
@@ -1226,8 +1226,8 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-1", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = "NonFixed", InputWeight = 1200m, InputQuantity = 100 });
-        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-2", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = "NonFixed", InputWeight = 1200m, InputQuantity = 100 });
+        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-1", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-2", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
 
         var entity1 = await ctx.ProductionBatches.FindAsync(b1.Id);
         entity1!.CorrespondingSpec = "B-Corr";
@@ -1248,7 +1248,7 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "CREATOR-TEST", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = "NonFixed", InputWeight = 1200m, InputQuantity = 100 });
+        await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "CREATOR-TEST", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
         var entity = await ctx.ProductionBatches.FirstAsync(b => b.TagNo == "CREATOR-TEST");
         entity.CreatedBy = "测试创建人";
         await ctx.SaveChangesAsync();
@@ -1514,7 +1514,7 @@ public class BatchServiceTests : TestBase
             Specification = "50×5",
             SourcePlantGrade = "304",
             SourceSpecification = "50×5",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
             ProductionRatio = 1,
             InputWeight = 1200m,
@@ -1559,7 +1559,6 @@ public class BatchServiceTests : TestBase
             Specification = "50×5",
             SourcePlantGrade = "304",
             SourceSpecification = "50×5",
-            SourceLengthStatus = "非定尺",
             TotalWeight = 1000m,
             ProductionRatio = 1,
             InputWeight = 1200m,
@@ -1594,7 +1593,7 @@ public class BatchServiceTests : TestBase
             Specification = "50×5",
             SourcePlantGrade = "304",
             SourceSpecification = "50×5",
-            SourceLengthStatus = "NonFixed",
+            SourceLengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
             ProductionRatio = 1,
             InputWeight = 1200m,

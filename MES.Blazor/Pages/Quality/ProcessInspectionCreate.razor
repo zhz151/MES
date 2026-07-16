@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Core.Constants
+@using MES.Blazor.Helpers
 @using MES.Core.DTOs.Quality
 @inject ProcessInspectionService ProcessInspectionService
 @inject BatchService BatchService
@@ -336,7 +337,7 @@
                 Shift = r.Shift,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
-                InspectionItem = r.InspectionItem,
+                InspectionItem = string.IsNullOrEmpty(r.InspectionItem) ? null : Enum.Parse<InspectionItem>(r.InspectionItem),
                 QualifiedQuantity = r.QualifiedQuantity,
                 QualifiedWeight = r.QualifiedWeight,
                 QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
@@ -553,12 +554,26 @@
                 builder.CloseComponent();
                 break;
             case "InspectionItem":
-                builder.OpenComponent<MudTextField<string>>(0);
+                builder.OpenComponent<MudSelect<string>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(5, "Value",r.InspectionItem);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.InspectionItem = v));
+                builder.AddAttribute(4, "Value", r.InspectionItem);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.InspectionItem = v));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    b2.OpenComponent<MudSelectItem<string>>(0);
+                    b2.AddAttribute(1, "Value", (string)null!);
+                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "请选择")));
+                    b2.CloseComponent();
+                    foreach (var val in Enum.GetValues<InspectionItem>())
+                    {
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", val.ToString());
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetInspectionItemText(val))));
+                        b2.CloseComponent();
+                    }
+                }));
                 builder.CloseComponent();
                 break;
             case "QualifiedQuantity":

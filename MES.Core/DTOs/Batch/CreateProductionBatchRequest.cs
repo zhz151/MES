@@ -56,8 +56,7 @@ public class CreateProductionBatchRequest
     [MaxLength(100)]
     public string? SourceSpecification { get; set; }
 
-    [MaxLength(20)]
-    public string? SourceLengthStatus { get; set; }
+    public MES.Core.Enums.LengthStatus? SourceLengthStatus { get; set; }
 
     public decimal? SourceUnitWeight { get; set; }
 

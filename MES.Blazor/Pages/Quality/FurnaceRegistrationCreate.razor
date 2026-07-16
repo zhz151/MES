@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Core.DTOs.Quality
+@using MES.Blazor.Helpers
 @inject FurnaceRegistrationService FurnaceRegistrationService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -411,7 +412,28 @@
                 RenderInputField(builder, r.RawMaterialUnit, v => r.RawMaterialUnit = v ?? "");
                 break;
             case "RawMaterialType":
-                RenderInputField(builder, r.RawMaterialType, v => r.RawMaterialType = v ?? "");
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.RawMaterialType);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.RawMaterialType = v ?? ""));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    b2.OpenComponent<MudSelectItem<string>>(0);
+                    b2.AddAttribute(1, "Value", (string)null!);
+                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "请选择")));
+                    b2.CloseComponent();
+                    foreach (var val in Enum.GetValues<MES.Core.Enums.RawMaterialType>())
+                    {
+                        var enumName = val.ToString();
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", enumName);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetRawMaterialTypeText(val))));
+                        b2.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
                 break;
             case "RegisteredGrade":
                 builder.OpenComponent<MudTextField<string>>(0);

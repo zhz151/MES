@@ -217,7 +217,13 @@
                             <td><MudTextField T="string" @bind-Value="request.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
                             <td><MudTextField T="string" @bind-Value="request.SourcePlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
                             <td><MudTextField T="string" @bind-Value="request.SourceSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
-                            <td><MudTextField T="string" @bind-Value="request.SourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
+                            <td><MudSelect T="LengthStatus?" @bind-Value="request.SourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                    <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
+                                    @foreach (var val in Enum.GetValues<LengthStatus>())
+                                    {
+                                        <MudSelectItem Value="@val">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                    }
+                                </MudSelect></td>
                             <td><MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td>
                             <td><MudNumericField T="int?" @bind-Value="request.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" @bind-Value:after="SyncValidQtyFromInput" /></td>
                             <td><MudNumericField T="decimal?" @bind-Value="request.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" @bind-Value:after="SyncValidWeightFromInput" /></td>
@@ -833,7 +839,7 @@
         request.SourceHeatNo = batch.HeatNo;
         request.SourcePlantGrade = batch.PlantGrade;
         request.SourceSpecification = batch.Specification;
-        request.SourceLengthStatus = batch.LengthStatus;
+        request.SourceLengthStatus = string.IsNullOrEmpty(batch.LengthStatus) ? null : Enum.Parse<LengthStatus>(batch.LengthStatus);
         request.SourceUnitWeight = batch.UnitWeight;
         request.InputQuantity = batch.OutboundQuantity;
         request.InputWeight = batch.OutboundWeight;
@@ -1315,7 +1321,7 @@
         // ========== 有工单路径额外验证 ==========
         if (request.WorkOrderNo != "非工单")
         {
-            if (string.IsNullOrWhiteSpace(request.SourceLengthStatus))
+            if (request.SourceLengthStatus == null)
                 errors.Add("来源长度状态不能为空");
             if (string.IsNullOrWhiteSpace(request.SettlementMethod))
                 errors.Add("结算方式不能为空");

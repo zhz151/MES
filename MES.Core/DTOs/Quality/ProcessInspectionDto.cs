@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs.Quality;
 
@@ -111,8 +112,7 @@ public class CreateProcessInspectionRequest
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
 
-    [MaxLength(100)]
-    public string? InspectionItem { get; set; }
+    public InspectionItem? InspectionItem { get; set; }
     public int? QualifiedQuantity { get; set; }
     public decimal? QualifiedWeight { get; set; }
     public int? QualifiedConcessionQuantity { get; set; }
@@ -166,8 +166,7 @@ public class UpdateProcessInspectionRequest
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
 
-    [MaxLength(100)]
-    public string? InspectionItem { get; set; }
+    public InspectionItem? InspectionItem { get; set; }
     public int? QualifiedQuantity { get; set; }
     public decimal? QualifiedWeight { get; set; }
     public int? QualifiedConcessionQuantity { get; set; }

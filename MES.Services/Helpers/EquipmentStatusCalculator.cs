@@ -34,7 +34,7 @@ public static class EquipmentStatusCalculator
         var latestRepair = await context.RepairOrders
             .AsNoTracking()
             .Where(r => r.EquipmentId == equipmentId)
-            .OrderByDescending(r => r.RepairStartTime ?? r.RepairEndTime ?? r.CreatedTime.DateTime)
+            .OrderByDescending(r => r.RepairStartTime ?? r.RepairEndTime)
             .Select(r => new { r.RepairStartTime, r.RepairEndTime })
             .FirstOrDefaultAsync();
 
@@ -136,7 +136,7 @@ public static class EquipmentStatusCalculator
         var latestRepair = await context.RepairOrders
             .AsNoTracking()
             .Where(r => r.EquipmentId == equipmentId)
-            .OrderByDescending(r => r.RepairStartTime ?? r.RepairEndTime ?? r.CreatedTime.DateTime)
+            .OrderByDescending(r => r.RepairStartTime ?? r.RepairEndTime)
             .Select(r => new { r.RepairStartTime, r.RepairEndTime })
             .FirstOrDefaultAsync();
 

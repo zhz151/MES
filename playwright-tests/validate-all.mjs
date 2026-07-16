@@ -31,12 +31,20 @@ const SCRIPTS = {
     { name: 'scan-delete-confirm', file: 'scan-delete-confirm.mjs', description: '删除按钮 ConfirmDialog 覆盖度回归检测' },
     { name: 'scan-spec-compliance', file: 'scan-spec-compliance.mjs', description: 'TC30-37 规范符合度全面扫描' },
     { name: 'scan-enum-consistency', file: 'scan-enum-consistency.mjs', description: 'TC06+TC40 枚举显示回潮与完整性扫描' },
+    { name: 'scan-g29-coverage', file: 'scan-g29-coverage.mjs', description: 'TC41 G29 覆盖率扫描' },
+    { name: 'scan-date-format', file: 'scan-date-format.mjs', description: 'TC42 日期格式一致性扫描' },
   ],
   tier2: [
-    { name: 'api-verify', file: 'api-verify-sort-filter-search.mjs', description: 'API 集成测试（需后端运行）' },
+    { name: 'api-verify', file: 'api-verify-sort-filter-search.mjs', description: 'API 集成测试（列表/排序/筛选/搜索/fc）' },
+    { name: 'api-crud', file: 'api-crud-all.mjs', description: 'TC14 CRUD 通断测试（需后端运行）' },
+    { name: 'api-auth', file: 'api-auth-check.mjs', description: 'TC15 认证鉴权测试（需后端运行）' },
   ],
   tier3: [
+    { name: 'page-smoke', file: 'page-smoke-all.mjs', description: 'Phase 3 页面烟测 TC20-23（需 Blazor + API 运行）' },
     { name: 'interact', file: 'interact-sort-filter-search.mjs', description: 'Playwright E2E 交互测试（需 Blazor 运行）' },
+    { name: 'tc50', file: 'tc50-order-workorder-batch-quality.mjs', description: 'TC50 订单→工单→批次→质检 E2E' },
+    { name: 'tc51', file: 'tc51-material-purchase-warehouse.mjs', description: 'TC51 物料→采购→入库→库存 E2E' },
+    { name: 'tc52', file: 'tc52-standard-register-items.mjs', description: 'TC52 标准号→检验项目 E2E' },
   ],
 };
 

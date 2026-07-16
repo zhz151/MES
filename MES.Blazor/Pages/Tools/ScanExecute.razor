@@ -1038,11 +1038,17 @@
                                              Style="font-size: 0.875rem; height: 44px;" />
                         </div>
 
-                        <MudTextField @bind-Value="_inspectionItem"
+                        <MudSelect T="string" @bind-Value="_inspectionItem"
                                       Label="检验项目"
                                       Variant="Variant.Outlined"
                                       Style="font-size: 0.875rem; height: 44px;"
-                                      Class="mt-2" />
+                                      Class="mt-2">
+                            <MudSelectItem Value="@((string)null!)">请选择</MudSelectItem>
+                            @foreach (var val in Enum.GetValues<InspectionItem>())
+                            {
+                                <MudSelectItem Value="@val.ToString()">@DisplayHelper.GetInspectionItemText(val)</MudSelectItem>
+                            }
+                        </MudSelect>
 
                         <MudText Typo="Typo.body2" Color="Color.Success" Class="mt-2 mb-1 font-weight-bold">合格</MudText>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -2294,7 +2300,7 @@
                     Shift = _shift,
                     Quantity = _inspectionQuantity,
                     Weight = _inspectionWeight,
-                    InspectionItem = _inspectionItem,
+                    InspectionItem = string.IsNullOrEmpty(_inspectionItem) ? null : Enum.Parse<InspectionItem>(_inspectionItem),
                     QualifiedQuantity = _inspectionQualifiedQty,
                     QualifiedWeight = _inspectionQualifiedWeight,
                     QualifiedConcessionQuantity = _inspectionConcessionQty,

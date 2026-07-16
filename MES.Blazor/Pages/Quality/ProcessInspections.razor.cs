@@ -10,6 +10,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
+using MES.Core.Enums;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Quality;
@@ -513,7 +514,7 @@ public partial class ProcessInspections
                 Shift = cache.Shift,
                 Quantity = cache.Quantity,
                 Weight = cache.Weight,
-                InspectionItem = cache.InspectionItem,
+                InspectionItem = string.IsNullOrEmpty(cache.InspectionItem) ? null : Enum.Parse<InspectionItem>(cache.InspectionItem),
                 QualifiedQuantity = cache.QualifiedQuantity,
                 QualifiedWeight = cache.QualifiedWeight,
                 QualifiedConcessionQuantity = cache.QualifiedConcessionQuantity,
@@ -715,10 +716,24 @@ public partial class ProcessInspections
             case "InspectionItem":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.OpenComponent<MudSelect<string>>(0);
                     builder.AddAttribute(1, "Value", cache.InspectionItem);
                     builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.InspectionItem = v));
                     builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "ChildContent", (RenderFragment)(b2 =>
+                    {
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", (string)null!);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "请选择")));
+                        b2.CloseComponent();
+                        foreach (var val in Enum.GetValues<InspectionItem>())
+                        {
+                            b2.OpenComponent<MudSelectItem<string>>(0);
+                            b2.AddAttribute(1, "Value", val.ToString());
+                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetInspectionItemText(val))));
+                            b2.CloseComponent();
+                        }
+                    }));
                     builder.CloseComponent();
                 }
                 else
