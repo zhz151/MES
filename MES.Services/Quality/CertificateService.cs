@@ -91,25 +91,41 @@ public class CertificateService : ICertificateService
         };
 
         var totalCount = await queryable.CountAsync();
-        var items = await queryable
+        var projectedItems = await queryable
             .Skip((query.PageIndex - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(c => new CertificateDto
+            .Select(c => new
             {
-                Id = c.Id,
-                CertificateNo = c.CertificateNo,
-                IssueDate = c.IssueDate,
-                CustomerName = c.CustomerName,
-                ProductStandard = c.ProductStandard,
-                ProductName = c.ProductName,
+                c.Id,
+                c.CertificateNo,
+                c.IssueDate,
+                c.CustomerName,
+                c.ProductStandard,
+                c.ProductName,
                 DeliveryStatus = c.DeliveryStatus,
-                Remark = c.Remark,
-                CreatedTime = c.CreatedTime.DateTime,
-                CreatedBy = c.CreatedBy,
-                UpdatedTime = c.UpdatedTime.DateTime,
-                UpdatedBy = c.UpdatedBy
+                c.Remark,
+                c.CreatedTime,
+                c.UpdatedTime,
+                c.CreatedBy,
+                c.UpdatedBy
             })
             .ToListAsync();
+
+        var items = projectedItems.Select(c => new CertificateDto
+        {
+            Id = c.Id,
+            CertificateNo = c.CertificateNo,
+            IssueDate = c.IssueDate,
+            CustomerName = c.CustomerName,
+            ProductStandard = c.ProductStandard,
+            ProductName = c.ProductName,
+            DeliveryStatus = Enum.TryParse<DeliveryState>(c.DeliveryStatus, out var ds) ? ds : null,
+            Remark = c.Remark,
+            CreatedTime = c.CreatedTime.DateTime,
+            CreatedBy = c.CreatedBy,
+            UpdatedTime = c.UpdatedTime.DateTime,
+            UpdatedBy = c.UpdatedBy
+        }).ToList();
 
         return new PagedResult<CertificateDto>
         {
@@ -122,20 +138,20 @@ public class CertificateService : ICertificateService
 
     public async Task<CertificateDetailDto?> GetByIdAsync(int id)
     {
-        return await _context.Certificates
+        var projected = await _context.Certificates
             .AsNoTracking()
             .Include(c => c.Items.OrderBy(i => i.SeqNo))
             .Where(c => c.Id == id)
-            .Select(c => new CertificateDetailDto
+            .Select(c => new
             {
-                Id = c.Id,
-                CertificateNo = c.CertificateNo,
-                IssueDate = c.IssueDate,
-                CustomerName = c.CustomerName,
-                ProductStandard = c.ProductStandard,
-                ProductName = c.ProductName,
+                c.Id,
+                c.CertificateNo,
+                c.IssueDate,
+                c.CustomerName,
+                c.ProductStandard,
+                c.ProductName,
                 DeliveryStatus = c.DeliveryStatus,
-                Remark = c.Remark,
+                c.Remark,
                 Items = c.Items.Select(i => new CertificateItemDto
                 {
                     Id = i.Id,
@@ -195,6 +211,21 @@ public class CertificateService : ICertificateService
                 }).ToList()
             })
             .FirstOrDefaultAsync();
+
+        if (projected == null) return null;
+
+        return new CertificateDetailDto
+        {
+            Id = projected.Id,
+            CertificateNo = projected.CertificateNo,
+            IssueDate = projected.IssueDate,
+            CustomerName = projected.CustomerName,
+            ProductStandard = projected.ProductStandard,
+            ProductName = projected.ProductName,
+            DeliveryStatus = Enum.TryParse<DeliveryState>(projected.DeliveryStatus, out var ds) ? ds : null,
+            Remark = projected.Remark,
+            Items = projected.Items
+        };
     }
 
     public async Task<CertificateDetailDto> CreateAsync(CertificateCreateRequest request)
@@ -215,7 +246,7 @@ public class CertificateService : ICertificateService
             CustomerName = request.CustomerName,
             ProductStandard = request.ProductStandard,
             ProductName = request.ProductName,
-            DeliveryStatus = request.DeliveryStatus,
+            DeliveryStatus = request.DeliveryStatus?.ToString(),
             Remark = request.Remark,
         };
 
@@ -326,7 +357,7 @@ public class CertificateService : ICertificateService
         entity.CustomerName = request.CustomerName;
         entity.ProductStandard = request.ProductStandard;
         entity.ProductName = request.ProductName;
-        entity.DeliveryStatus = request.DeliveryStatus;
+        entity.DeliveryStatus = request.DeliveryStatus?.ToString();
         entity.Remark = request.Remark;
 
         // 更新子项（增/删/改）

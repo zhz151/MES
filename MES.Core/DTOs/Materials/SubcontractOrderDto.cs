@@ -9,7 +9,7 @@ public class SubcontractOrderDto
     public int SupplierId { get; set; }
     public string SupplierName { get; set; } = null!;
     public DateTime OrderDate { get; set; }
-    public string ProcessType { get; set; } = null!;
+    public SubcontractProcessType ProcessType { get; set; }
     public SubcontractOrderStatus Status { get; set; }
     public bool IsForceCompleted { get; set; }
     public string? FurnaceNumber { get; set; }
@@ -94,7 +94,7 @@ public class CreateSubcontractOrderRequest
 {
     public int SupplierId { get; set; }
     public DateTime OrderDate { get; set; }
-    public string ProcessType { get; set; } = null!;
+    public SubcontractProcessType ProcessType { get; set; }
     public string? FurnaceNumber { get; set; }
     public MaterialCategory OutMaterialCategory { get; set; }
     public string OutPlantGrade { get; set; } = null!;
@@ -126,7 +126,7 @@ public class CreateReturnItemRequest
 public class UpdateSubcontractOrderRequest
 {
     public int SupplierId { get; set; }
-    public string ProcessType { get; set; } = null!;
+    public SubcontractProcessType ProcessType { get; set; }
     public string? FurnaceNumber { get; set; }
     public MaterialCategory OutMaterialCategory { get; set; }
     public string OutPlantGrade { get; set; } = null!;

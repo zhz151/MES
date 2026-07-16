@@ -194,6 +194,15 @@ public partial class Certificates
             }).ToList();
         }
 
+        // 交货状态列：枚举英文名 → 中文显示
+        if (_filterContextOptions.TryGetValue("deliverystatus", out var deliveryOptions))
+        {
+            foreach (var opt in deliveryOptions)
+            {
+                opt.Display = DisplayHelper.GetDeliveryStateText(opt.Value);
+            }
+        }
+
         // 补充枚举列筛选选项
         foreach (var col in _allColumns)
         {
@@ -382,7 +391,7 @@ public partial class Certificates
                 builder.CloseElement();
                 break;
             case "deliverystatus":
-                builder.AddContent(0, item.DeliveryStatus);
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryStatus));
                 break;
         }
     };

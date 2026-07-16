@@ -121,7 +121,13 @@
                 <tbody>
                     <tr>
                         <td><MudTextField T="string" @bind-Value="orderDateText" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Placeholder="yyyy-MM-dd" Margin="Margin.Dense" /></td>
-                        <td><MudTextField T="string" @bind-Value="processType" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
+                        <td><MudSelect T="string" @bind-Value="processType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Margin="Margin.Dense">
+                                <MudSelectItem Value="@((string)null!)">请选择</MudSelectItem>
+                                @foreach (var val in Enum.GetValues<SubcontractProcessType>())
+                                {
+                                    <MudSelectItem Value="@val.ToString()">@DisplayHelper.GetSubcontractProcessTypeText(val)</MudSelectItem>
+                                }
+                            </MudSelect></td>
                         <td><MudSelect T="MaterialCategory" @bind-Value="outMaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Margin="Margin.Dense">@foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>()) { <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialCategoryText(cat)</MudSelectItem> }</MudSelect></td>
                         <td><MudTextField T="string" @bind-Value="furnaceNumber" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
                         <td><MudTextField T="string" @bind-Value="outPlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
@@ -233,7 +239,7 @@
     private SupplierProfileDto? selectedSupplier;
     private string supplierName = string.Empty;
     private string orderDateText = DateTime.Today.ToString("yyyy-MM-dd");
-    private string processType = string.Empty;
+    private string? processType;
     private string returnDeadlineText = string.Empty;
     private string? remark;
 
@@ -517,7 +523,7 @@
             {
                 SupplierId = supplierId,
                 OrderDate = orderDate,
-                ProcessType = processType,
+                ProcessType = string.IsNullOrEmpty(processType) ? default : Enum.Parse<SubcontractProcessType>(processType),
                 FurnaceNumber = string.IsNullOrWhiteSpace(furnaceNumber) ? null : furnaceNumber,
                 ReturnDeadline = string.IsNullOrWhiteSpace(returnDeadlineText) ? null : DateTime.Parse(returnDeadlineText),
                 OutMaterialCategory = outMaterialCategory,

@@ -218,6 +218,13 @@ public static class EnumHelper
                                  ("Outsource", "委外中"),
                                  ("Next", "待执行"),
                                  ("Pending", "待处理"));
+
+        Register<SubcontractProcessType>(("Piercing", "穿孔"),
+                                          ("ColdDrawing", "冷拔"),
+                                          ("HeatTreatment", "热处理"),
+                                          ("Threading", "车丝"),
+                                          ("Polishing", "抛光"),
+                                          ("Cutting", "切割"));
     }
 
     private static void Register<T>(params (string value, string display)[] mappings) where T : Enum

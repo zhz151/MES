@@ -1,26 +1,38 @@
 # MES 项目持久知识
 
-## 订单管理列表页模式（Orders.razor）
-- **页面路由**: `/orders`，Controller: `api/order`
-- **数据源**: 读模型 `OrderListSummary`（物化表），聚合 SalesOrders + OrderItems + CustomerProfiles + ProductRequirements + WorkOrderExecutionSummary
-- **列表模式**: ServerData + ExcelFilter + 列显隐（ColumnDisplaySelect）+ B23 分组列标题栏
-- **搜索栏布局**: 3 组各占 1/3（MudGrid md="4"）
-  - 组1: 模糊搜索（Immediate + DebounceInterval=500）
-  - 组2: 签订日期从/至（flex 等分，Style="flex:1;min-width:0"，Placeholder="yyyy-MM-dd"）
-  - 组3: 交货日期从/至（同上 flex 布局，映射后端 DeliveryStart 字段）
-- **分组列标题**: `#orders-list-table` div 必须包裹工具栏 + 分组标题栏 + MudTable 三者，JS 的 `initGroupHeaders` 在内部查找 `.col-group-header-scroll`
-- **`<MudTh>` 必须加分组 CSS 类**: `GetHeaderGroupCss()` 返回 `col-g1`/`col-g2` 等，否则 JS 无法识别分组边界
-- **`<MudTd>` 必须加分组 CSS 类**: `GetCellGroupCss()` 返回 `col-g1-cell`/`col-g2-cell` 等
-- **选择列**: `<MudTh Class="col-selection-th">`，`<MudTd Class="col-selection-td">
-- **表头 checkbox**: 实时表达式 `Value="@(_pageItems.Count > 0 && _pageItems.All(i => selectedOrderIds.Contains(i.Id)))"`（禁止 field-cache 模式）
-- **数值显示**: decimal 字段用 `ToString("G29")` 去零（如 TotalContractWeight）
-- **分组结构**: 4 组（①基本信息 ②合同交付 ③订单确认 ④工单执行）
+## 枚举字段从 MudTextField 改为 MudSelect 的完整模式（已验证 SourceLengthStatus / SubcontractProcessType / DeliveryState）
 
-## StandardRegister（标准号）模块
-...
+### Entity 层
+- 保留 `string?` 字段，不改为枚举类型（DB 列不变，无 schema 变更）
 
-## 日期范围搜索规范（§6.30.2）
-...
+### DTO 层
+- 列表 DTO、详情 DTO、创建/更新请求 DTO：`string?` → `枚举类型?`
+- 必须添加 `using MES.Core.Enums;`
 
-## 文档同步规则
-...
+### Service 层
+- **写入 DB（Create/Update）**: `request.EnumField?.ToString()`
+- **读取（LINQ 投影）**: 拆分为两步 — ① `Select` 到匿名类型保留 `c.EnumField` (string) ② `.ToListAsync()` 后用 `Enum.TryParse<T>()` 转 DTO
+- **筛选/排序**: 操作实体字段，保持 `c.EnumField` (string) 不变
+- **FilterContexts**: 返回实体 DISTINCT string 值（仍是英文枚举名）
+
+### 前端 Blazor 层
+
+#### Detail 页（编辑模式）
+- MudTextField → MudSelect 下拉（枚举版本）
+- 查看模式用 `DisplayHelper.GetXxxText()` 显示中文
+
+#### 列表页（List.razor.cs）
+- **列定义**: `FilterType = "enum"` + `EnumOptions = GetXxxOptions()`
+- **单元格**: `DisplayHelper.GetXxxText(item.EnumField)` 显示中文
+- **BuildFilterContextOptions()**: 在基础循环后，对 FilterContexts 中已有的枚举字段，添加显示转换：
+  ```csharp
+  if (_filterContextOptions.TryGetValue("columnkey", out var options))
+      foreach (var opt in options) opt.Display = DisplayHelper.GetXxxText(opt.Value);
+  ```
+- 如果 API 不返回该枚举字段的 filter contexts（如 SubcontractOrder.ProcessType），则 "补充枚举列筛选选项" 段落的 `EnumOptions` 自动生效
+
+### 测试文件
+- DTO 赋值用 `EnumType.Member`（非 `.ToString()`）
+- Entity 种子数据赋值用 `EnumType.Member.ToString()`（Entity 仍是 string）
+- 断言：DTO 用 `.Be(EnumType.Member)`，Entity 用 `.Be("MemberName")`
+- Filter contexts 值断言用 `.Contain("MemberName")`（DB 原始字串）

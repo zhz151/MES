@@ -307,7 +307,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                     SupplierId = request.SupplierId,
                     SupplierName = supplierName,
                     OrderDate = request.OrderDate,
-                    ProcessType = request.ProcessType,
+                    ProcessType = request.ProcessType.ToString(),
                     FurnaceNumber = request.FurnaceNumber,
                     OutMaterialCategory = request.OutMaterialCategory.ToString(),
                     OutPlantGrade = request.OutPlantGrade,
@@ -407,7 +407,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                 .Where(s => s.Id == request.SupplierId)
                 .Select(s => s.SupplierName)
                 .FirstOrDefaultAsync();
-            entity.ProcessType = request.ProcessType;
+            entity.ProcessType = request.ProcessType.ToString();
             entity.FurnaceNumber = request.FurnaceNumber ?? entity.FurnaceNumber;
             entity.OutMaterialCategory = request.OutMaterialCategory.ToString();
             entity.OutPlantGrade = request.OutPlantGrade;
@@ -876,7 +876,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         Status = entity.Status,
         IsForceCompleted = entity.IsForceCompleted,
         FurnaceNumber = entity.FurnaceNumber,
-        ProcessType = entity.ProcessType,
+        ProcessType = Enum.TryParse<SubcontractProcessType>(entity.ProcessType, out var pt) ? pt : default,
         OutMaterialCategory = !string.IsNullOrEmpty(entity.OutMaterialCategory) && Enum.TryParse<MaterialCategory>(entity.OutMaterialCategory, out var category) ? category : default,
         OutPlantGrade = entity.OutPlantGrade,
         OutSpecification = entity.OutSpecification,

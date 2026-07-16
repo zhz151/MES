@@ -65,6 +65,9 @@ public static class DisplayHelper
     /// <summary>获取交货状态中文文本</summary>
     public static string GetDeliveryStateText(DeliveryState state) => EnumHelper.GetDisplayName(state);
 
+    /// <summary>获取交货状态中文文本（可空版本）</summary>
+    public static string GetDeliveryStateText(DeliveryState? state) => state.HasValue ? EnumHelper.GetDisplayName(state.Value) : "-";
+
     /// <summary>获取交货状态中文文本（字符串版本）</summary>
     public static string GetDeliveryStateText(string? deliveryState) => EnumHelper.GetDisplayName<DeliveryState>(deliveryState);
 
@@ -160,6 +163,12 @@ public static class DisplayHelper
 
     /// <summary>获取委外加工明细状态中文文本</summary>
     public static string GetSubcontractProcessStatusText(SubcontractProcessStatus status) => EnumHelper.GetDisplayName(status);
+
+    /// <summary>获取外协加工类型中文文本（枚举版本）</summary>
+    public static string GetSubcontractProcessTypeText(SubcontractProcessType type) => EnumHelper.GetDisplayName(type);
+
+    /// <summary>获取外协加工类型中文文本（字符串版本）</summary>
+    public static string GetSubcontractProcessTypeText(string? type) => EnumHelper.GetDisplayName<SubcontractProcessType>(type);
 
     /// <summary>获取委外加工单状态中文文本</summary>
     public static string GetSubcontractOrderStatusText(SubcontractOrderStatus status) => EnumHelper.GetDisplayName(status);

@@ -5,6 +5,7 @@ using MES.Blazor.Services;
 using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Warehouse;
+using MES.Core.Enums;
 using MES.Core.Models;
 
 namespace MES.Blazor.Pages.Quality;
@@ -561,7 +562,7 @@ public partial class CertificateCreate
                 CustomerName = _certCustomerName,
                 ProductStandard = _certProductStandard,
                 ProductName = _certProductName,
-                DeliveryStatus = _certDeliveryStatus,
+                DeliveryStatus = string.IsNullOrEmpty(_certDeliveryStatus) ? null : Enum.Parse<DeliveryState>(_certDeliveryStatus),
                 Remark = _certRemark,
                 InventoryBatchNos = _subItems
                     .Where(s => !string.IsNullOrEmpty(s.InventoryBatchNo))

@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Quality;
 
 /// <summary>
@@ -18,7 +20,7 @@ public class CertificateCreateRequest
     public string? ProductName { get; set; }
 
     /// <summary>交货状态</summary>
-    public string? DeliveryStatus { get; set; }
+    public DeliveryState? DeliveryStatus { get; set; }
 
     /// <summary>备注</summary>
     public string? Remark { get; set; }
@@ -38,7 +40,7 @@ public class CertificateUpdateRequest
     public string? CustomerName { get; set; }
     public string? ProductStandard { get; set; }
     public string? ProductName { get; set; }
-    public string? DeliveryStatus { get; set; }
+    public DeliveryState? DeliveryStatus { get; set; }
     public string? Remark { get; set; }
     public List<CertificateItemUpdateDto> Items { get; set; } = new();
 }

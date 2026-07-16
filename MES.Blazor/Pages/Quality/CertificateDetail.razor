@@ -2,6 +2,8 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Services
 @using MES.Core.DTOs.Quality
+@using MES.Core.Enums
+@using MES.Blazor.Helpers
 @attribute [Authorize(Roles = Roles.Policies.QualityRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
@@ -87,14 +89,19 @@
                     <MudItem xs="6" md="2">
                         @if (_isEditMode)
                         {
-                            <MudTextField @bind-Value="_editDto!.DeliveryStatus"
-                                          Label="交货状态"
-                                          Variant="Variant.Outlined" />
+                            <MudSelect T="DeliveryState?" @bind-Value="_editDto!.DeliveryStatus"
+                                       Label="交货状态"
+                                       Variant="Variant.Outlined">
+                                @foreach (var state in Enum.GetValues<DeliveryState>())
+                                {
+                                    <MudSelectItem Value="@state">@DisplayHelper.GetDeliveryStateText(state)</MudSelectItem>
+                                }
+                            </MudSelect>
                         }
                         else
                         {
                             <MudText Typo="Typo.body2" Class="mb-1 mud-text-secondary">交货状态</MudText>
-                            <MudText Typo="Typo.body1">@(_dto?.DeliveryStatus ?? "-")</MudText>
+                            <MudText Typo="Typo.body1">@(DisplayHelper.GetDeliveryStateText(_dto?.DeliveryStatus))</MudText>
                         }
                     </MudItem>
                     <MudItem xs="6" md="2">

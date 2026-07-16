@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Core.Constants;
 using MES.Core.DTOs.Warehouse;
+using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Models;
 using MES.Data;
@@ -342,7 +344,6 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
 
         // 4. 组装 DTO
         var result = new List<PendingDeliveryItemDto>();
-        var deliveryStateMap = GetDeliveryStateMap();
 
         foreach (var batch in batches)
         {
@@ -379,7 +380,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                     itemStandardGrade = itemInfo.StandardGrade;
 
                     if (!string.IsNullOrEmpty(itemInfo.DeliveryState))
-                        deliveryStateMap.TryGetValue(itemInfo.DeliveryState, out itemDeliveryStatus);
+                        itemDeliveryStatus = EnumHelper.GetDisplayName<DeliveryState>(itemInfo.DeliveryState);
                 }
             }
 
@@ -431,26 +432,6 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// 交货状态枚举 → 中文显示
-    /// </summary>
-    private static Dictionary<string, string> GetDeliveryStateMap()
-    {
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["SolutionAnnealedAndPickled"] = "固溶酸洗",
-            ["SolutionAnnealedAndPickledUTube"] = "固溶酸洗-U型管",
-            ["SolutionAnnealedAndPickledExternalPolished"] = "固溶酸洗-外抛光",
-            ["SolutionAnnealedAndPickledInternalPolished"] = "固溶酸洗-内抛光",
-            ["SolutionAnnealedAndPickledBothPolished"] = "固溶酸洗-内外抛光",
-            ["SolutionAnnealedAndPickledCoiled"] = "固溶酸洗-盘管",
-            ["Bright"] = "光亮",
-            ["BrightUTube"] = "光亮-U型管",
-            ["BrightCoiled"] = "光亮-盘管",
-            ["Hard"] = "硬态",
-        };
     }
 
     // ========== 内部辅助类 ==========
