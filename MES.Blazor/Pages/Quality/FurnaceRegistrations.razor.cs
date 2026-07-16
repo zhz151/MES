@@ -47,11 +47,13 @@ public partial class FurnaceRegistrations
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    private static List<EnumOption> GetRawMaterialTypeOptions() => DisplayHelper.GetEnumFilterOptions<RawMaterialType>();
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "IncomingDate",     Label = "来料日期",     SortKey = "incomingdate", FilterType = "date", Width = "120" },
         new() { Key = "RawMaterialUnit",  Label = "原料单位",     SortKey = "rawmaterialunit", FilterType = "string", Width = "120", IsRequired = true },
-        new() { Key = "RawMaterialType",  Label = "原料类型",     SortKey = "rawmaterialtype", FilterType = "string", Width = "120", IsRequired = true },
+        new() { Key = "RawMaterialType",  Label = "原料类型",     SortKey = "rawmaterialtype", FilterType = "enum", Width = "120", IsRequired = true, EnumOptions = GetRawMaterialTypeOptions() },
         new() { Key = "RegisteredGrade",  Label = "登记牌号",     SortKey = "registeredgrade", FilterType = "string", Width = "120", IsRequired = true },
         new() { Key = "RelatedPlantGrade",Label = "关联工厂牌号", SortKey = "relatedplantgrade", FilterType = "string", Width = "120" },
         new() { Key = "FurnaceNumber",    Label = "炉号",         SortKey = "furnacenumber", FilterType = "string", Width = "120", IsRequired = true },
@@ -184,6 +186,15 @@ public partial class FurnaceRegistrations
                 Display = v,
                 Count = 0
             }).ToList();
+        }
+
+        // RawMaterialType 列显示中文
+        if (_filterContextOptions.TryGetValue("RawMaterialType", out var rawMatOptions))
+        {
+            foreach (var opt in rawMatOptions)
+            {
+                opt.Display = DisplayHelper.GetRawMaterialTypeText(opt.Value);
+            }
         }
 
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）

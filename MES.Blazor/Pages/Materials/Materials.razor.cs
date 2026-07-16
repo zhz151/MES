@@ -67,10 +67,12 @@ public partial class Materials
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    private static List<EnumOption> GetMaterialCategoryOptions() => DisplayHelper.GetEnumFilterOptions<MaterialCategory>();
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "MaterialCode",     Label = "物料编码", SortKey = "materialcode",     FilterType = "string",  Width = "150" },
-        new() { Key = "MaterialCategory", Label = "物料分类", SortKey = "materialcategory", FilterType = "string",  Width = "100" },
+        new() { Key = "MaterialCategory", Label = "物料分类", SortKey = "materialcategory", FilterType = "enum",   Width = "100", EnumOptions = GetMaterialCategoryOptions() },
         new() { Key = "PlantGrade",       Label = "厂内钢种", SortKey = "plantgrade",       FilterType = "string",  Width = "100" },
         new() { Key = "Specification",    Label = "名义规格", SortKey = "specification",    FilterType = "string",  Width = "120" },
         new() { Key = "Remark",           Label = "备注",           SortKey = "remark",      FilterType = "string",  Width = "200" },

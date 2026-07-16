@@ -1284,7 +1284,7 @@ public partial class WorkOrderSchedules
         // G12: 关注状态
         "ScheduleStage" => item.ScheduleStage switch { 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知" },
         // G15: 覆盖字段
-        "PlanScheduleStage" => item.PlanScheduleStage switch { 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => item.PlanScheduleStage?.ToString() ?? "" },
+        "PlanScheduleStage" => item.PlanScheduleStage switch { 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知" },
         "ConsistencyStatus" => item.ConsistencyStatus ?? "",
         // 非枚举字段原样输出
         _ => GetRawPropertyValue(item, key)

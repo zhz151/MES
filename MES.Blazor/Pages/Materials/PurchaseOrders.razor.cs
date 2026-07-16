@@ -86,6 +86,8 @@ public partial class PurchaseOrders : IAsyncDisposable
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    private static List<EnumOption> GetMaterialCategoryOptions() => DisplayHelper.GetEnumFilterOptions<MaterialCategory>();
+
     private static List<ColumnDef> GetAllColumnDefs()
     {
         // G1: 采购核心信息
@@ -98,7 +100,7 @@ public partial class PurchaseOrders : IAsyncDisposable
             new() { Key = "OrderDate",           Label = "下单日期",     SortKey = "orderdate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
             new() { Key = "RequiredDate",        Label = "要求到货日",   SortKey = "requireddate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
             new() { Key = "Received",            Label = "已到货",       Width = "80", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "MaterialCategory",    Label = "物料分类",     SortKey = "materialcategory", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
+            new() { Key = "MaterialCategory",    Label = "物料分类",     SortKey = "materialcategory", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "采购核心信息", EnumOptions = GetMaterialCategoryOptions() },
             new() { Key = "PlantGrade",          Label = "厂内钢种",     SortKey = "plantgrade", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
             new() { Key = "Specification",       Label = "规格",         SortKey = "specification", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
             new() { Key = "UnitWeight",          Label = "单支重量",     SortKey = "unitweight", Width = "80", GroupKey = 1, GroupName = "采购核心信息" },
@@ -363,6 +365,15 @@ public partial class PurchaseOrders : IAsyncDisposable
             }
         }
 
+        // MaterialCategory 列显示中文
+        if (_filterContextOptions.TryGetValue("MaterialCategory", out var materialCatOptions))
+        {
+            foreach (var opt in materialCatOptions)
+            {
+                opt.Display = DisplayHelper.GetMaterialCategoryText(opt.Value);
+            }
+        }
+
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
         foreach (var col in _allColumns)
         {
@@ -534,7 +545,7 @@ public partial class PurchaseOrders : IAsyncDisposable
                 builder.CloseComponent();
                 break;
             case "MaterialCategory":
-                builder.AddContent(0, item.MaterialCategory);
+                builder.AddContent(0, DisplayHelper.GetMaterialCategoryText(item.MaterialCategory));
                 break;
             case "PlantGrade":
                 builder.AddContent(0, item.PlantGrade);
