@@ -3,6 +3,7 @@
 @using MES.Blazor.Services
 @using MES.Core.Models
 @using MES.Blazor.Helpers
+@using MES.Core.Enums
 @using MES.Core.DTOs.Warehouse
 @using Microsoft.AspNetCore.Authorization
 @inject WarehouseService WarehouseService
@@ -296,6 +297,10 @@
         ("NonFixed", "非定尺"),
     };
 
+    private readonly List<(string Value, string Text)> _materialTypeOptions = Enum.GetValues<PipeManufacturingType>()
+        .Select(v => (v.ToString(), DisplayHelper.GetPipeManufacturingTypeText(v)))
+        .ToList();
+
     private static int GetColWidth(string key) => key switch
     {
         "SourceOrderSequence" => 90,
@@ -586,7 +591,7 @@
         {
             case "MaterialType":
                 if (!string.IsNullOrEmpty(row.MaterialType))
-                    builder.AddContent(0, row.MaterialType);
+                    builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(row.MaterialType));
                 break;
             case "InboundSource":
                 if (!string.IsNullOrEmpty(row.InboundSource))
@@ -733,7 +738,7 @@
 
     private static string GetColumnType(string key) => key switch
     {
-        "InboundSource" or "LengthStatus" => "select",
+        "InboundSource" or "LengthStatus" or "MaterialType" => "select",
         "IsLinkedToWorkOrder" => "bool",
         "InitialQuantity" => "int",
         "SourceOrderSequence" => "nullable-int",
@@ -748,7 +753,9 @@
         switch (GetColumnType(col.Key))
         {
             case "select":
-                var options = col.Key == "LengthStatus" ? _lengthStatusOptions : _inboundSourceOptions;
+                var options = col.Key == "LengthStatus" ? _lengthStatusOptions
+                    : col.Key == "MaterialType" ? _materialTypeOptions
+                    : _inboundSourceOptions;
                 var selVal = GetRowStringValue(row, col.Key);
                 builder.OpenComponent<MudSelect<string>>(0);
                 builder.AddAttribute(1, "Dense", true);
