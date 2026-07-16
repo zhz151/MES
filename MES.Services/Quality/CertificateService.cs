@@ -79,6 +79,12 @@ public class CertificateService : ICertificateService
             ("certificateno", true) => queryable.OrderByDescending(c => c.CertificateNo),
             ("customername", false) => queryable.OrderBy(c => c.CustomerName ?? ""),
             ("customername", true) => queryable.OrderByDescending(c => c.CustomerName ?? ""),
+            ("productstandard", false) => queryable.OrderBy(c => c.ProductStandard ?? ""),
+            ("productstandard", true) => queryable.OrderByDescending(c => c.ProductStandard ?? ""),
+            ("productname", false) => queryable.OrderBy(c => c.ProductName ?? ""),
+            ("productname", true) => queryable.OrderByDescending(c => c.ProductName ?? ""),
+            ("deliverystatus", false) => queryable.OrderBy(c => c.DeliveryStatus ?? ""),
+            ("deliverystatus", true) => queryable.OrderByDescending(c => c.DeliveryStatus ?? ""),
             ("issuedate", false) => queryable.OrderBy(c => c.IssueDate),
             ("issuedate", true) => queryable.OrderByDescending(c => c.IssueDate),
             _ => queryable.OrderByDescending(c => c.IssueDate)

@@ -70,38 +70,17 @@ public partial class NcrPrint
 
     private static string GetPipeCategoryText(PipeCategory category) => DisplayHelper.GetPipeCategoryText(category);
 
-    private static string GetDisposalMethodText(DisposalMethod? method) => method switch
-    {
-        DisposalMethod.Rework => "返整",
-        DisposalMethod.WarehouseEntry => "入库",
-        DisposalMethod.Scrap => "报废",
-        _ => ""
-    };
+    private static string GetDisposalMethodText(DisposalMethod? method) =>
+        method.HasValue ? DisplayHelper.GetDisposalMethodText(method.Value) : "";
 
-    private static string GetSeverityText(SeverityLevel? severity) => severity switch
-    {
-        SeverityLevel.Critical => "严重",
-        SeverityLevel.General => "一般",
-        _ => ""
-    };
+    private static string GetSeverityText(SeverityLevel? severity) =>
+        severity.HasValue ? DisplayHelper.GetSeverityLevelText(severity.Value) : "";
 
-    private static string GetResponsibilityCategoryText(ResponsibilityCategory? category) => category switch
-    {
-        ResponsibilityCategory.ProductionInternal => "生产-厂内",
-        ResponsibilityCategory.ProductionOutsource => "生产-外协",
-        ResponsibilityCategory.MaterialTubeBlank => "原料-荒管",
-        ResponsibilityCategory.MaterialPurchased => "原料-外购成品",
-        ResponsibilityCategory.MaterialSurplus => "原料-余库料",
-        _ => ""
-    };
+    private static string GetResponsibilityCategoryText(ResponsibilityCategory? category) =>
+        category.HasValue ? DisplayHelper.GetResponsibilityCategoryText(category.Value) : "";
 
-    private static string GetVerifyResultText(VerifyResult? result) => result switch
-    {
-        VerifyResult.Passed => "通过",
-        VerifyResult.NeedsRectification => "需整改",
-        VerifyResult.NotApplicable => "不适用",
-        _ => ""
-    };
+    private static string GetVerifyResultText(VerifyResult? result) =>
+        result.HasValue ? DisplayHelper.GetVerifyResultText(result.Value) : "";
 
     private static string GetYesNoText(bool value) => value ? "是" : "否";
 

@@ -1063,21 +1063,11 @@ public partial class WorkOrderSchedules
 
     // ========== 文本辅助 ==========
 
-    private static string GetFlowStatusText(int status) => status switch
-    {
-        0 => "未投料",
-        1 => "部分",
-        2 => "满足",
-        _ => "未知"
-    };
+    private static string GetFlowStatusText(int status) =>
+        DisplayHelper.GetFlowStatusText(status);
 
-    private static string GetValidMainNoStatusText(int status) => status switch
-    {
-        0 => "未计划",
-        1 => "部分",
-        2 => "满足",
-        _ => "未知"
-    };
+    private static string GetValidMainNoStatusText(int status) =>
+        DisplayHelper.GetMainNoFlowStatusText(status);
 
     // ========== 颜色 ==========
 
@@ -1279,12 +1269,12 @@ public partial class WorkOrderSchedules
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
         // G7: 流转状态
-        "FlowStatus" => item.FlowStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
-        "MainNoFlowStatus" => item.MainNoFlowStatus switch { 0 => "未计划", 1 => "部分", 2 => "满足", _ => "未知" },
+        "FlowStatus" => DisplayHelper.GetFlowStatusText(item.FlowStatus),
+        "MainNoFlowStatus" => DisplayHelper.GetMainNoFlowStatusText(item.MainNoFlowStatus),
         // G12: 关注状态
-        "ScheduleStage" => item.ScheduleStage switch { 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知" },
+        "ScheduleStage" => DisplayHelper.GetScheduleStageText(item.ScheduleStage),
         // G15: 覆盖字段
-        "PlanScheduleStage" => item.PlanScheduleStage switch { 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知" },
+        "PlanScheduleStage" => item.PlanScheduleStage.HasValue ? DisplayHelper.GetScheduleStageText(item.PlanScheduleStage.Value) : "未知",
         "ConsistencyStatus" => item.ConsistencyStatus ?? "",
         // 非枚举字段原样输出
         _ => GetRawPropertyValue(item, key)

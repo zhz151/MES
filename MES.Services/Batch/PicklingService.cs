@@ -86,9 +86,7 @@ public class PicklingService : IPicklingService
                 (s.EquipmentName != null && s.EquipmentName.Contains(kw)) ||
                 (s.Operator != null && s.Operator.Contains(kw)) ||
                 (s.Shift != null && s.Shift.Contains(kw)) ||
-                s.SequenceNumber.ToString().Contains(kw) ||
-                (s.DataSource != null && s.DataSource.Contains(kw)) ||
-                s.Status.ToString().Contains(kw));
+                (s.DataSource != null && s.DataSource.Contains(kw)));
         }
 
         // 入缸日期范围筛选

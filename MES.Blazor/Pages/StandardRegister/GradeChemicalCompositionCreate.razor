@@ -79,7 +79,7 @@
                             <MudTd>
                                 @if (rows.Count > 1)
                                 {
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => RemoveRow(row)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => RemoveRow(row)" />
                                 }
                             </MudTd>
                         </RowTemplate>

@@ -216,7 +216,7 @@
                             <MudTd><MudTextField T="string" @bind-Value="item.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.UnitPriceStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.TotalAmountStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
-                            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => RemoveReturnItem(item)" /></MudTd>
+                            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => RemoveReturnItem(item)" /></MudTd>
                         </RowTemplate>
                     </MudTable>
                 </div></div>

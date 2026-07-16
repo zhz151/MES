@@ -153,10 +153,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                 x.PlantGrade.Contains(kw) ||
                 x.Specification.Contains(kw) ||
                 x.ProductionMainNo.Contains(kw) ||
-                (x.SettlementMethod.ToString().Contains(kw)) ||
                 x.MaterialName.Contains(kw) ||
-                (x.DeliveryState.ToString().Contains(kw)) ||
-                (x.LengthStatus.ToString().Contains(kw)) ||
                 (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
                 (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
                 (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)) ||

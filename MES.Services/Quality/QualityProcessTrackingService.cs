@@ -100,7 +100,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         q = q.ApplyFilters(query.Filters);
 
         // 排序（DB 级）
-        q = ApplySorting(q, query.SortBy, query.IsDescending);
+        q = q.ApplySort(query.SortBy, query.IsDescending);
 
         // 计数
         var totalCount = await q.CountAsync();
@@ -184,23 +184,6 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             TotalCount = totalCount,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
-        };
-    }
-
-    private static IQueryable<QualityProcessTracking> ApplySorting(IQueryable<QualityProcessTracking> query, string? sortBy, bool isDescending)
-    {
-        var sortKey = sortBy?.ToLower();
-        return sortKey switch
-        {
-            "batchno" => isDescending ? query.OrderByDescending(x => x.BatchNo ?? "") : query.OrderBy(x => x.BatchNo ?? ""),
-            "manufacturingitem" => isDescending ? query.OrderByDescending(x => x.ManufacturingItem ?? "") : query.OrderBy(x => x.ManufacturingItem ?? ""),
-            "plantgrade" => isDescending ? query.OrderByDescending(x => x.PlantGrade ?? "") : query.OrderBy(x => x.PlantGrade ?? ""),
-            "specification" => isDescending ? query.OrderByDescending(x => x.Specification ?? "") : query.OrderBy(x => x.Specification ?? ""),
-            "checker" => isDescending ? query.OrderByDescending(x => x.Checker ?? "") : query.OrderBy(x => x.Checker ?? ""),
-            "shift" => isDescending ? query.OrderByDescending(x => x.Shift ?? "") : query.OrderBy(x => x.Shift ?? ""),
-            "salesman" => isDescending ? query.OrderByDescending(x => x.Salesman ?? "") : query.OrderBy(x => x.Salesman ?? ""),
-            "deliverystate" => isDescending ? query.OrderByDescending(x => x.DeliveryState ?? "") : query.OrderBy(x => x.DeliveryState ?? ""),
-            _ => query.OrderByDescending(x => x.ReceiveDate)
         };
     }
 

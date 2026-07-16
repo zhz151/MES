@@ -310,7 +310,7 @@
                             @if (GetPgCol("WeldingHead").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.WeldingHead" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
                             @if (GetPgCol("Lubrication").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Lubrication" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
                             @if (GetPgCol("Warehouse").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Warehouse" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteProcessGroupRow(pg))" /></MudTd>
+                            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="@(() => DeleteProcessGroupRow(pg))" /></MudTd>
                         </RowTemplate>
                         <NoRecordsContent>
                             <MudText Class="pa-4 text-center" Color="Color.Secondary">暂无工序组，可点击"新增工序"添加</MudText>

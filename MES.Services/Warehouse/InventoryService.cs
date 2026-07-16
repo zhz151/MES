@@ -456,6 +456,9 @@ public class InventoryService : IInventoryService
             "remark" => query.IsDescending
                 ? queryable.OrderByDescending(r => r.Remark ?? "")
                 : queryable.OrderBy(r => r.Remark ?? ""),
+            "outboundmeters" => query.IsDescending
+                ? queryable.OrderByDescending(r => r.OutboundMeters)
+                : queryable.OrderBy(r => r.OutboundMeters),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(r => r.OutboundDate)
                 : queryable.OrderBy(r => r.OutboundDate)

@@ -69,21 +69,7 @@ public class StandardRegisterService : IStandardRegisterService
         }
 
         q = q.ApplyFilters(query.Filters);
-
-        var sortBy = string.IsNullOrWhiteSpace(query.SortBy) ? "StandardNo" : query.SortBy;
-        var sortField = sortBy.ToLower() switch
-        {
-            "standardno" => "StandardNo",
-            "standardname" => "StandardName",
-            "refspecification" => "RefSpecification",
-            "standardlevel" => "StandardLevel",
-            "manufacturemethod" => "ManufactureMethod",
-            "steeltype" => "SteelType",
-            "createdtime" => "CreatedTime",
-            _ => "StandardNo"
-        };
-
-        q = ApplySorting(q, sortField, query.IsDescending);
+        q = q.ApplySort(query.SortBy, query.IsDescending);
 
         var totalCount = await q.CountAsync();
         var items = await q
@@ -278,26 +264,6 @@ public class StandardRegisterService : IStandardRegisterService
         if (steelTypes.Any()) dict["SteelType"] = steelTypes;
 
         return dict;
-    }
-
-    private static IQueryable<StdReg> ApplySorting(IQueryable<StdReg> query, string sortField, bool isDescending)
-    {
-        return (sortField, isDescending) switch
-        {
-            ("StandardName", false) => query.OrderBy(e => e.StandardName),
-            ("StandardName", true) => query.OrderByDescending(e => e.StandardName),
-            ("RefSpecification", false) => query.OrderBy(e => e.RefSpecification),
-            ("RefSpecification", true) => query.OrderByDescending(e => e.RefSpecification),
-            ("StandardLevel", false) => query.OrderBy(e => e.StandardLevel),
-            ("StandardLevel", true) => query.OrderByDescending(e => e.StandardLevel),
-            ("ManufactureMethod", false) => query.OrderBy(e => e.ManufactureMethod),
-            ("ManufactureMethod", true) => query.OrderByDescending(e => e.ManufactureMethod),
-            ("SteelType", false) => query.OrderBy(e => e.SteelType),
-            ("SteelType", true) => query.OrderByDescending(e => e.SteelType),
-            ("CreatedTime", false) => query.OrderBy(e => e.CreatedTime),
-            ("CreatedTime", true) => query.OrderByDescending(e => e.CreatedTime),
-            _ => query.OrderBy(e => e.StandardNo)
-        };
     }
 
     // ========== 子项目 ==========

@@ -980,18 +980,8 @@
         };
     }
 
-    private static string GetStatusText(MaterialPlanStatus status)
-    {
-        return status switch
-        {
-            MaterialPlanStatus.NotPlanned => "未计划",
-            MaterialPlanStatus.Partial => "部分",
-            MaterialPlanStatus.TheoreticalSatisfied => "理论满足",
-            MaterialPlanStatus.Satisfied => "满足",
-            MaterialPlanStatus.Excess => "超量",
-            _ => "未知"
-        };
-    }
+    private static string GetStatusText(MaterialPlanStatus status) =>
+        DisplayHelper.GetMaterialPlanStatusText(status);
 
     private void EditSemiPlan(int planId)
     {

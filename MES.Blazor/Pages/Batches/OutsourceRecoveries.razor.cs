@@ -462,13 +462,7 @@ public partial class OutsourceRecoveries
                 builder.AddContent(0, item.Remark ?? "");
                 break;
             case "DataSource":
-                var dsText = item.DataSource switch
-                {
-                    "SCAN" => "扫码",
-                    "MANUAL" => "手动",
-                    _ => item.DataSource ?? ""
-                };
-                builder.AddContent(0, dsText);
+                builder.AddContent(0, DisplayHelper.GetDataSourceText(item.DataSource));
                 break;
             case "UpdatedTime":
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));

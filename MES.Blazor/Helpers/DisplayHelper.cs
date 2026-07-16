@@ -320,6 +320,21 @@ public static class DisplayHelper
     }
 
     /// <summary>
+    /// 获取排程关注阶段中文文本（int 字段）
+    /// </summary>
+    public static string GetScheduleStageText(int stage)
+    {
+        return stage switch
+        {
+            0 => "工单完成",
+            1 => "原料锁定",
+            2 => "生产执行",
+            3 => "成品检验",
+            _ => "未知"
+        };
+    }
+
+    /// <summary>
     /// 获取产品检验类型中文文本（数据库字符串字段）
     /// </summary>
     public static string GetProductInspectionTypeText(string? type)
@@ -629,4 +644,32 @@ public static class DisplayHelper
         => Enum.GetValues<T>()
                .Select(v => new EnumOption(v.ToString(), EnumHelper.GetDisplayName(v)))
                .ToList();
+
+    // ========== string 类型枚举映射（非 C# enum，string 存储） ==========
+
+    /// <summary>
+    /// 数据来源类型中文显示：SCAN→扫码, MANUAL→手动
+    /// </summary>
+    public static string GetDataSourceText(string? dataSource) => dataSource switch
+    {
+        "SCAN" => "扫码",
+        "MANUAL" => "手动",
+        _ => dataSource ?? ""
+    };
+
+    /// <summary>
+    /// 报工模板类型中文显示：ProductionRecord→普通报工, PicklingInRecord→入缸, 等
+    /// </summary>
+    public static string GetReportTypeText(string? reportType) => reportType switch
+    {
+        "ProductionRecord" => "普通报工",
+        "PicklingInRecord" => "入缸",
+        "PicklingOutRecord" => "出缸完工",
+        "SectionOutsource" => "工段委外",
+        "OutsourceRecovery" => "委外回收",
+        "ProcessInspection" => "过程检验",
+        "FinalInspection" => "成品检验",
+        "MaterialReceiveCheck" => "成检到料",
+        _ => reportType ?? ""
+    };
 }

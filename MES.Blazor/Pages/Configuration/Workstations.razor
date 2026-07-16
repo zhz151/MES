@@ -179,18 +179,7 @@
                             }
                             else
                             {
-                                @(item.ReportType switch
-                                {
-                                    "ProductionRecord" => "普通报工",
-                                    "PicklingInRecord" => "入缸",
-                                    "PicklingOutRecord" => "出缸完工",
-                                    "SectionOutsource" => "工段委外",
-                                    "OutsourceRecovery" => "委外回收",
-                                    "ProcessInspection" => "过程检验",
-                                    "FinalInspection" => "成品检验",
-                                    "MaterialReceiveCheck" => "成检到料",
-                                    _ => item.ReportType
-                                })
+                                @DisplayHelper.GetReportTypeText(item.ReportType)
                             }
                         }
                         else if (col.Key == "EquipmentName")
@@ -268,7 +257,7 @@
                         else
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
                         }
                     </MudTd>
                 </RowTemplate>

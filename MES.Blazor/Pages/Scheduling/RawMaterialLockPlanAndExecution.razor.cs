@@ -735,14 +735,14 @@ public partial class RawMaterialLockPlanAndExecution
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
         // G2: 状态枚举
-        "MaterialPlanStatus" => item.MaterialPlanStatus switch { MaterialPlanStatus.NotPlanned => "未计划", MaterialPlanStatus.Partial => "部分", MaterialPlanStatus.TheoreticalSatisfied => "理论满足", MaterialPlanStatus.Satisfied => "满足", MaterialPlanStatus.Excess => "超量", _ => "未知" },
-        "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatus switch { MaterialPlanStatus.NotPlanned => "未计划", MaterialPlanStatus.Partial => "部分", MaterialPlanStatus.TheoreticalSatisfied => "理论满足", MaterialPlanStatus.Satisfied => "满足", MaterialPlanStatus.Excess => "超量", _ => "未知" },
+        "MaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText(item.MaterialPlanStatus),
+        "MainNoMaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText(item.MainNoMaterialPlanStatus),
         // G3: 投料状态
-        "InputStatus" => item.InputStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
-        "MainNoInputStatus" => item.MainNoInputStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
+        "InputStatus" => DisplayHelper.GetFlowStatusText(item.InputStatus),
+        "MainNoInputStatus" => DisplayHelper.GetFlowStatusText(item.MainNoInputStatus),
         // G7: 流转状态
-        "FlowStatus" => item.FlowStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
-        "MainNoFlowStatus" => item.MainNoFlowStatus switch { 0 => "未计划", 1 => "部分", 2 => "满足", _ => "未知" },
+        "FlowStatus" => DisplayHelper.GetFlowStatusText(item.FlowStatus),
+        "MainNoFlowStatus" => DisplayHelper.GetMainNoFlowStatusText(item.MainNoFlowStatus),
         // G12: 关注状态
         "ScheduleStage" => item.ScheduleStageText,
         // 非枚举字段原样输出（TablePrintHelper 自动处理 bool→"是/否"、DateTime→"yyyy-MM-dd" 等）
@@ -1359,31 +1359,14 @@ public partial class RawMaterialLockPlanAndExecution
 
     // ========== 文本辅助 ==========
 
-    private static string GetMaterialPlanStatusText(MaterialPlanStatus status) => status switch
-    {
-        MaterialPlanStatus.NotPlanned => "未计划",
-        MaterialPlanStatus.Partial => "部分",
-        MaterialPlanStatus.TheoreticalSatisfied => "理论满足",
-        MaterialPlanStatus.Satisfied => "满足",
-        MaterialPlanStatus.Excess => "超量",
-        _ => "未知"
-    };
+    private static string GetMaterialPlanStatusText(MaterialPlanStatus status) =>
+        DisplayHelper.GetMaterialPlanStatusText(status);
 
-    private static string GetInputStatusText(int status) => status switch
-    {
-        0 => "未投料",
-        1 => "部分",
-        2 => "满足",
-        _ => "未知"
-    };
+    private static string GetInputStatusText(int status) =>
+        DisplayHelper.GetFlowStatusText(status);
 
-    private static string GetFlowStatusText(int status) => status switch
-    {
-        0 => "未投料",
-        1 => "部分",
-        2 => "满足",
-        _ => "未知"
-    };
+    private static string GetFlowStatusText(int status) =>
+        DisplayHelper.GetFlowStatusText(status);
 
     private static string GetValidMainNoStatusText(int status) => status switch
     {
