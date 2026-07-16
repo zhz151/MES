@@ -1,12 +1,11 @@
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,8 +20,7 @@ public static class FurnaceRegistrationPrintHelper
 {
     private static readonly Dictionary<string, Func<object?, string>> ValueResolvers = new()
     {
-        ["RawMaterialType"] = v => v?.ToString() is { Length: > 0 } s && Enum.TryParse<RawMaterialType>(s, out var rmt)
-            ? EnumHelper.GetDisplayName(rmt) : (v?.ToString() ?? "")
+        ["RawMaterialType"] = v => v is RawMaterialType rmt ? EnumHelper.GetDisplayName(rmt) : (v?.ToString() ?? "")
     };
 
     public static byte[] GenerateBatchPdf(List<FurnaceRegistrationDto> items, List<PrintColumnDef> columns)

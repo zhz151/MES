@@ -12,6 +12,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using MES.Shared.Constants;
 using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Shared;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -37,6 +38,43 @@ public partial class Ncrs
     private bool sortDescending = true;
     private bool _isFirstLoad = true;
     private int _restoredPageIndex;
+
+    // ========== 选择/打印 ==========
+    private HashSet<int> selectedIds = new();
+    private bool allSelected => _pageItems.Count > 0 && _pageItems.All(i => selectedIds.Contains(i.Id));
+
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _allColumns.Where(c => c.IsApplicable && c.Visible).Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any()) { Snackbar.Add("请先选择要打印的记录", Severity.Warning); return; }
+        try
+        {
+            var ids = selectedIds.ToArray();
+            var result = await NcrService.PrintSelectedAsync(ids, GetPrintColumnDefs());
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
+                await JS.InvokeVoidAsync("printRawHtml", result.Data, "不合格报告", "portrait");
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var result = await NcrService.PrintAllAsync(
+                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                GetPrintColumnDefs());
+            if (result.Success && !string.IsNullOrEmpty(result.Data))
+                await JS.InvokeVoidAsync("printRawHtml", result.Data, "不合格报告", "portrait");
+            else
+                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
 
     // 待处理卡片
     private List<NcrPendingCheckDto> _pendingItems = new();
@@ -629,13 +667,7 @@ public partial class Ncrs
         return item;
     }
 
-    private static string GetDisposalMethodText(DisposalMethod method) => method switch
-    {
-        DisposalMethod.Rework => "返整",
-        DisposalMethod.WarehouseEntry => "入库",
-        DisposalMethod.Scrap => "报废",
-        _ => method.ToString()
-    };
+    private static string GetDisposalMethodText(DisposalMethod method) => DisplayHelper.GetDisposalMethodText(method);
 
     private static Color GetWarningColor() => Color.Warning;
 
@@ -705,6 +737,15 @@ public partial class Ncrs
                 CssClass = GetHeaderGroupCss(groupKey, true)
             });
         }
+        // 复选框列占位符（40px）
+        result.Insert(0, new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = "col-selection-th"
+        });
         // 操作列尾随占位符（160px）
         result.Add(new GroupHeaderInfo
         {
@@ -838,58 +879,17 @@ public partial class Ncrs
         _ => Color.Default
     };
 
-    private string GetStatusText(NcrStatus status) => status switch
-    {
-        NcrStatus.Pending => "待处理",
-        NcrStatus.Processing => "处理中",
-        NcrStatus.Closed => "已关闭",
-        _ => status.ToString()
-    };
+    private string GetStatusText(NcrStatus status) => DisplayHelper.GetNcrStatusText(status);
 
-    private string GetPipeCategoryText(PipeCategory category) => category switch
-    {
-        PipeCategory.TubeBlank => "荒管",
-        PipeCategory.WorkInProgress => "在制品",
-        PipeCategory.SurplusInventory => "余库料",
-        PipeCategory.CriticalFinished => "临界成品",
-        PipeCategory.PreparedFinished => "备料成品",
-        PipeCategory.OrderFinished => "订单成品",
-        PipeCategory.SpecialDelivery => "特定交态成品",
-        _ => category.ToString()
-    };
+    private string GetPipeCategoryText(PipeCategory category) => DisplayHelper.GetPipeCategoryText(category);
 
-    private string GetDisposalMethodText(DisposalMethod? method) => method switch
-    {
-        DisposalMethod.Rework => "返整",
-        DisposalMethod.WarehouseEntry => "入库",
-        DisposalMethod.Scrap => "报废",
-        _ => ""
-    };
+    private string GetDisposalMethodText(DisposalMethod? method) => method.HasValue ? DisplayHelper.GetDisposalMethodText(method.Value) : "";
 
-    private string GetSeverityText(SeverityLevel? severity) => severity switch
-    {
-        SeverityLevel.Critical => "严重",
-        SeverityLevel.General => "一般",
-        _ => ""
-    };
+    private string GetSeverityText(SeverityLevel? severity) => severity.HasValue ? DisplayHelper.GetSeverityLevelText(severity.Value) : "";
 
-    private string GetResponsibilityCategoryText(ResponsibilityCategory? category) => category switch
-    {
-        ResponsibilityCategory.ProductionInternal => "生产-厂内",
-        ResponsibilityCategory.ProductionOutsource => "生产-外协",
-        ResponsibilityCategory.MaterialTubeBlank => "原料-荒管",
-        ResponsibilityCategory.MaterialPurchased => "原料-外购成品",
-        ResponsibilityCategory.MaterialSurplus => "原料-余库料",
-        _ => ""
-    };
+    private string GetResponsibilityCategoryText(ResponsibilityCategory? category) => category.HasValue ? DisplayHelper.GetResponsibilityCategoryText(category.Value) : "";
 
-    private string GetVerifyResultText(VerifyResult? result) => result switch
-    {
-        VerifyResult.Passed => "通过",
-        VerifyResult.NeedsRectification => "需整改",
-        VerifyResult.NotApplicable => "不适用",
-        _ => ""
-    };
+    private string GetVerifyResultText(VerifyResult? result) => result.HasValue ? DisplayHelper.GetVerifyResultText(result.Value) : "";
 
     private static Color GetSeverityColor(SeverityLevel? severity) => severity switch
     {

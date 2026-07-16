@@ -1,7 +1,7 @@
 using MES.Core.DTOs.Auth;
 using MES.Core.Models;
 
-namespace MES.Auth.Services;
+namespace MES.Core.Interfaces.Auth;
 
 public interface IUserManagementService
 {

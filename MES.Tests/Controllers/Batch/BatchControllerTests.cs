@@ -7,6 +7,7 @@ using MES.Core.Exceptions;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Shared;
 using MES.Core.Interfaces.Batch;
+using MES.Core.Enums;
 
 namespace MES.Tests.Controllers;
 
@@ -156,7 +157,7 @@ public class BatchControllerTests : ControllerTestBase
     public async Task UpdateStatus_ReturnsOk()
     {
         // Arrange
-        var request = new UpdateBatchStatusRequest { Status = "完成" };
+        var request = new UpdateBatchStatusRequest { Status = BatchStatus.Completed };
         _serviceMock.Setup(x => x.UpdateStatusAsync(1, request)).Returns(Task.CompletedTask);
 
         // Act
@@ -188,7 +189,7 @@ public class BatchControllerTests : ControllerTestBase
     {
         // Arrange
         var request = new SaveBatchRequest();
-        var dto = new SaveBatchResponse { Status = "保存成功" };
+        var dto = new SaveBatchResponse { Status = BatchStatus.None, RowVersion = new byte[8] };
         _serviceMock.Setup(x => x.SaveAllAsync(1, request)).ReturnsAsync(dto);
 
         // Act
@@ -196,7 +197,7 @@ public class BatchControllerTests : ControllerTestBase
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<SaveBatchResponse>>(result);
-        Assert.Equal("保存成功", response.Data?.Status);
+        Assert.Equal(BatchStatus.None, response.Data?.Status);
     }
 
     [Fact]

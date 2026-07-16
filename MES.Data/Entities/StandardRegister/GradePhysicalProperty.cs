@@ -1,4 +1,4 @@
-namespace MES.Data.Entities.ProductionStandard;
+namespace MES.Data.Entities.StandardRegister;
 
 /// <summary>
 /// 牌号物理性能 — 按标准牌号+牌号类别的物理/力学性能参数

@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -22,7 +22,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -33,7 +33,7 @@ using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Batch;
@@ -127,11 +127,11 @@ public class EquipmentService : IEquipmentService
                 LastMaintDate = e.LastMaintDate,
                 CurrentMaintStartDate = e.CurrentMaintStartDate,
                 LastRepairDate = e.LastRepairDate,
-                LifecycleStatus = e.LifecycleStatus,
-                UsageType = e.UsageType,
-                RunningStatus = e.RunningStatus,
-                InspectionStatus = e.InspectionStatus,
-                MaintStatus = e.MaintStatus,
+                LifecycleStatus = ToLifecycleStatus(e.LifecycleStatus),
+                UsageType = ToUsageType(e.UsageType),
+                RunningStatus = Enum.Parse<RunningStatus>(e.RunningStatus),
+                InspectionStatus = Enum.Parse<EquipmentTaskStatus>(e.InspectionStatus),
+                MaintStatus = Enum.Parse<EquipmentTaskStatus>(e.MaintStatus),
                 CreatedTime = e.CreatedTime,
                 UpdatedTime = e.UpdatedTime,
             })
@@ -199,8 +199,8 @@ public class EquipmentService : IEquipmentService
             MaintPerson = request.MaintPerson,
             MaintCycleDays = request.MaintCycleDays,
             CurrentMaintStartDate = request.CurrentMaintStartDate,
-            LifecycleStatus = request.LifecycleStatus,
-            UsageType = request.UsageType
+            LifecycleStatus = request.LifecycleStatus.ToString(),
+            UsageType = request.UsageType.ToString()
         };
 
         _context.Equipment.Add(entity);
@@ -245,8 +245,8 @@ public class EquipmentService : IEquipmentService
         entity.MaintCycleDays = request.MaintCycleDays;
         entity.CurrentMaintStartDate = request.CurrentMaintStartDate ?? entity.CurrentMaintStartDate;
 
-        entity.LifecycleStatus = request.LifecycleStatus;
-        entity.UsageType = request.UsageType;
+        entity.LifecycleStatus = request.LifecycleStatus.ToString();
+        entity.UsageType = request.UsageType.ToString();
 
         await _context.SaveChangesAsync();
 
@@ -308,11 +308,11 @@ public class EquipmentService : IEquipmentService
         LastMaintDate = e.LastMaintDate,
         CurrentMaintStartDate = e.CurrentMaintStartDate,
         LastRepairDate = e.LastRepairDate,
-        LifecycleStatus = e.LifecycleStatus,
-        UsageType = e.UsageType,
-        RunningStatus = e.RunningStatus,
-        InspectionStatus = e.InspectionStatus,
-        MaintStatus = e.MaintStatus,
+        LifecycleStatus = Enum.TryParse<LifecycleStatus>(e.LifecycleStatus, out var ls) ? ls : default,
+        UsageType = Enum.TryParse<UsageType>(e.UsageType, out var ut) ? ut : default,
+        RunningStatus = Enum.Parse<RunningStatus>(e.RunningStatus),
+        InspectionStatus = Enum.Parse<EquipmentTaskStatus>(e.InspectionStatus),
+        MaintStatus = Enum.Parse<EquipmentTaskStatus>(e.MaintStatus),
         CreatedTime = e.CreatedTime,
         UpdatedTime = e.UpdatedTime,
     };
@@ -349,4 +349,10 @@ public class EquipmentService : IEquipmentService
 
         return contexts;
     }
+
+    private static LifecycleStatus ToLifecycleStatus(string? value)
+        => Enum.TryParse<LifecycleStatus>(value ?? "", out var r) ? r : default;
+
+    private static UsageType ToUsageType(string? value)
+        => Enum.TryParse<UsageType>(value ?? "", out var r) ? r : default;
 }

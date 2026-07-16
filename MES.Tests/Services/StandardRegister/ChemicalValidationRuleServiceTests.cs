@@ -4,10 +4,10 @@ using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
-using MES.Services.ProductionStandard;
+using MES.Services.StandardRegister;
 using MES.Tests.Tests;
-using MES.Data.Entities.ProductionStandard;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
+using MES.Core.DTOs.StandardRegister;
 
 namespace MES.Tests.Services;
 

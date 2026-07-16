@@ -4,6 +4,7 @@ using Moq;
 using MES.Api.Controllers.Materials;
 using MES.Core.Models;
 using MES.Core.DTOs.Materials;
+using MES.Core.Enums;
 using MES.Core.Interfaces.Materials;
 
 namespace MES.Tests.Controllers;
@@ -77,7 +78,7 @@ public class MaterialControllerTests : ControllerTestBase
     public async Task Create_ReturnsOk()
     {
         // Arrange
-        var request = new CreateMaterialRequest { PlantGrade = "304", MaterialCategory = "管材", Specification = "219*8" };
+        var request = new CreateMaterialRequest { PlantGrade = "304", MaterialCategory = MaterialCategory.RoughTube, Specification = "219*8" };
         var dto = new MaterialDto { Id = 1, MaterialCode = "M001" };
         _serviceMock.Setup(x => x.CreateAsync(request)).ReturnsAsync(dto);
 

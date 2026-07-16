@@ -190,7 +190,7 @@
                         <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd>
-                        @if (item.Status == "Soaking")
+                        @if (item.Status == PicklingStatus.Soaking)
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small"
                                            Color="Color.Success"

@@ -2,6 +2,7 @@
 @using MES.Blazor.Services
 @using MES.Blazor.Shared
 @using MES.Core.DTOs.Equipment
+@using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
 @inject RepairOrderService RepairOrderService
 @inject EquipmentService EquipmentService
@@ -196,7 +197,7 @@
         public int? EquipmentId { get; set; }
         public string FaultDescription { get; set; } = string.Empty;
         public string? FaultType { get; set; }
-        public string Priority { get; set; } = "Normal";
+        public RepairPriority Priority { get; set; } = RepairPriority.Normal;
         public string ReportPerson { get; set; } = string.Empty;
         public string ReportTimeText { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
     }
@@ -424,24 +425,24 @@
                 builder.CloseComponent();
                 break;
             case "Priority":
-                builder.OpenComponent<MudSelect<string>>(0);
+                builder.OpenComponent<MudSelect<RepairPriority>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "Value", r.Priority);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.Priority = v));
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<RepairPriority>(this, v => r.Priority = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
                 {
-                    b2.OpenComponent<MudSelectItem<string>>(0);
-                    b2.AddAttribute(1, "Value", "Normal");
+                    b2.OpenComponent<MudSelectItem<RepairPriority>>(0);
+                    b2.AddAttribute(1, "Value", RepairPriority.Normal);
                     b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "普通")));
                     b2.CloseComponent();
-                    b2.OpenComponent<MudSelectItem<string>>(0);
-                    b2.AddAttribute(1, "Value", "Urgent");
+                    b2.OpenComponent<MudSelectItem<RepairPriority>>(0);
+                    b2.AddAttribute(1, "Value", RepairPriority.Urgent);
                     b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "紧急")));
                     b2.CloseComponent();
-                    b2.OpenComponent<MudSelectItem<string>>(0);
-                    b2.AddAttribute(1, "Value", "Emergency");
+                    b2.OpenComponent<MudSelectItem<RepairPriority>>(0);
+                    b2.AddAttribute(1, "Value", RepairPriority.Emergency);
                     b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "特急")));
                     b2.CloseComponent();
                 }));

@@ -187,7 +187,7 @@
                         <MudTd Style="width: 40px;">
                             <MudCheckBox T="bool"
                                          Value="@_selectedItems.Contains(item)"
-                                         ValueChanged="@((v) => { if(v) _selectedItems.Add(item); else _selectedItems.Remove(item); _allSelected = _pageItems.Any() && _pageItems.All(i => _selectedItems.Contains(i)); StateHasChanged(); })"
+                                         ValueChanged="@((v) => { if(v) _selectedItems.Add(item); else _selectedItems.Remove(item); StateHasChanged(); })"
                                          Dense="true" />
                         </MudTd>
                         @foreach (var col in _visibleColumns)

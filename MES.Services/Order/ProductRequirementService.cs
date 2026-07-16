@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -23,7 +23,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -34,13 +34,12 @@ using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Order;
-using MES.Services.Mapping;
 using MES.Services.Order;
 
 namespace MES.Services.Order;
@@ -152,7 +151,7 @@ public class ProductRequirementService : IProductRequirementService
             if (existingRequirements.TryGetValue(item.Id, out var requirement))
             {
                 // 有技术要求，添加到结果
-                result.Add(requirement.ToDto(item.Sequence));
+                result.Add(ToDto(requirement, item.Sequence));
             }
             // 没有技术要求：不添加到结果，保持 null/不存在状态
         }
@@ -174,6 +173,22 @@ public class ProductRequirementService : IProductRequirementService
             sequence = orderItem?.Sequence ?? 0;
         }
 
-        return entity.ToDto(sequence);
+        return ToDto(entity, sequence);
     }
+
+    private static ProductRequirementDto ToDto(ProductRequirement entity, int sequence) => new()
+    {
+        Id = entity.Id,
+        OrderItemId = entity.OrderItemId,
+        Sequence = sequence,
+        RequirementType = entity.RequirementType,
+        ChemicalComposition = entity.ChemicalComposition,
+        MechanicalProperty = entity.MechanicalProperty,
+        ToleranceRequirement = entity.ToleranceRequirement,
+        SurfaceQuality = entity.SurfaceQuality,
+        NdtRequirement = entity.NdtRequirement,
+        OtherRequirement = entity.OtherRequirement,
+        CreatedTime = entity.CreatedTime,
+        UpdatedTime = entity.UpdatedTime
+    };
 }

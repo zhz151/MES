@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -38,12 +38,11 @@ using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Services.Helpers;
-using MES.Services.Mapping;
 using MES.Services.Printing;
 
-namespace MES.Services.ProductionStandard;
+namespace MES.Services.StandardRegister;
 
 public class GradePhysicalPropertyService : IGradePhysicalPropertyService
 {
@@ -140,7 +139,7 @@ public class GradePhysicalPropertyService : IGradePhysicalPropertyService
             .FirstOrDefaultAsync(g => g.Id == id);
         if (entity == null)
             throw new BusinessException("牌号物理性能不存在");
-        return entity.ToPhysicalPropertyDto();
+        return ToPhysicalPropertyDto(entity);
     }
 
     public async Task<GradePhysicalPropertyDto> CreateAsync(CreateGradePhysicalPropertyRequest request)
@@ -168,7 +167,7 @@ public class GradePhysicalPropertyService : IGradePhysicalPropertyService
 
         _context.GradePhysicalProperties.Add(entity);
         await _context.SaveChangesAsync();
-        return entity.ToPhysicalPropertyDto();
+        return ToPhysicalPropertyDto(entity);
     }
 
     public async Task<GradePhysicalPropertyDto> UpdateAsync(int id, UpdateGradePhysicalPropertyRequest request)
@@ -202,7 +201,7 @@ public class GradePhysicalPropertyService : IGradePhysicalPropertyService
         if (request.GrainSize != null) entity.GrainSize = request.GrainSize;
 
         await _context.SaveChangesAsync();
-        return entity.ToPhysicalPropertyDto();
+        return ToPhysicalPropertyDto(entity);
     }
 
     public async Task DeleteAsync(int id)
@@ -229,7 +228,7 @@ public class GradePhysicalPropertyService : IGradePhysicalPropertyService
             PageIndex = 1,
             PageSize = int.MaxValue,
             Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null : sortBy,
+            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
             IsDescending = isDescending
         };
         var result = await GetPagedAsync(query);
@@ -258,4 +257,21 @@ public class GradePhysicalPropertyService : IGradePhysicalPropertyService
             ["GrainSize"] = all.Select(x => x.GrainSize).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
         };
     }
+
+    private static GradePhysicalPropertyDto ToPhysicalPropertyDto(GradePhysicalProperty entity) => new()
+    {
+        Id = entity.Id,
+        StandardGrade = entity.StandardGrade,
+        StandardGradeCategory = entity.StandardGradeCategory,
+        Density = entity.Density,
+        HeatTreatmentTemp = entity.HeatTreatmentTemp,
+        HardnessRockwell = entity.HardnessRockwell,
+        HardnessVickers = entity.HardnessVickers,
+        HardnessBrinell = entity.HardnessBrinell,
+        TensileStrength = entity.TensileStrength,
+        YieldStrength02 = entity.YieldStrength02,
+        YieldStrength10 = entity.YieldStrength10,
+        Elongation = entity.Elongation,
+        GrainSize = entity.GrainSize
+    };
 }

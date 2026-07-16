@@ -1,4 +1,4 @@
-namespace MES.Core.DTOs.ProductionStandard;
+namespace MES.Core.DTOs.StandardRegister;
 
 public class StandardRegisterDto
 {

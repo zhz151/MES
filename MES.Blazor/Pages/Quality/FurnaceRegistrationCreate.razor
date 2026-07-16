@@ -336,7 +336,7 @@
                 {
                     IncomingDate = date == default ? DateTime.Now : date,
                     RawMaterialUnit = r.RawMaterialUnit,
-                    RawMaterialType = r.RawMaterialType,
+                    RawMaterialType = Enum.TryParse<RawMaterialType>(r.RawMaterialType, true, out var rm) ? rm : default,
                     RegisteredGrade = r.RegisteredGrade,
                     RelatedPlantGrade = r.RelatedPlantGrade,
                     FurnaceNumber = r.FurnaceNumber,

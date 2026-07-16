@@ -6,7 +6,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -45,17 +45,17 @@ public class PicklingServiceTests : TestBase
             Specification = "219*8",
             Status = BatchStatus.InProgress,
             ProductionType = "Internal",
-            ManufacturingItem = "管",
+            ManufacturingItem = "OrderFinishedProduct",
             WorkOrderNo = "WO-001",
             SalesOrderNo = "SO-001",
             TagNo = "TAG001",
             ProductionMainNo = "M-001",
             OrderItemIds = "1",
             Salesman = "张三",
-            SettlementMethod = "过磅",
+            SettlementMethod = "Weighing",
             StandardCode = "GB/T 14976",
-            DeliveryState = "固溶酸洗",
-            LengthStatus = "定尺",
+            DeliveryState = "SolutionAnnealedAndPickled",
+            LengthStatus = "Fixed",
             TechnicalRequirements = "NORMAL",
             SignDate = DateTime.Today,
             DeliveryDate = DateTime.Today.AddMonths(1)

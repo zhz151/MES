@@ -4,6 +4,7 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
+using MES.Core.Enums;
 using MES.Blazor.Services;
 using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
@@ -157,9 +158,9 @@ public partial class BatchPlans
             new() { Key = "WorkOrderNo",           Label = "工单号",     SortKey = "WorkOrderNo",           FilterType = "string", Width = "120", GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "Salesman",              Label = "业务员",     SortKey = "Salesman",              FilterType = "string", Width = "100", GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "DeliveryDate",          Label = "交货日期",   SortKey = "DeliveryDate",          Width = "110", GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "DeliveryState",         Label = "交货状态",   SortKey = "DeliveryState",         FilterType = "enum", Width = "120", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态") }, GroupKey = 2, GroupName = "关联工单", DisplayConverter = v => DisplayHelper.GetDeliveryStateText(v as string) },
+            new() { Key = "DeliveryState",         Label = "交货状态",   SortKey = "DeliveryState",         FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 2, GroupName = "关联工单", DisplayConverter = v => v is DeliveryState dv ? DisplayHelper.GetDeliveryStateText(dv) : DisplayHelper.GetDeliveryStateText(v as string) },
             new() { Key = "Specification",         Label = "成品规格",   SortKey = "Specification",         FilterType = "string", Width = "120", GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "LengthStatus",          Label = "长度状态",   SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") }, GroupKey = 2, GroupName = "关联工单", DisplayConverter = v => DisplayHelper.GetLengthStatusText(v as string) },
+            new() { Key = "LengthStatus",          Label = "长度状态",   SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), GroupKey = 2, GroupName = "关联工单", DisplayConverter = v => v is LengthStatus ls ? DisplayHelper.GetLengthStatusText(ls) : DisplayHelper.GetLengthStatusText(v as string) },
             new() { Key = "MinLength",             Label = "最小长度",   SortKey = "MinLength",             Width = "80",  GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "MaxLength",             Label = "最大长度",   SortKey = "MaxLength",             Width = "80",  GroupKey = 2, GroupName = "关联工单" },
         };
@@ -401,9 +402,9 @@ public partial class BatchPlans
         "PlantGrade" => item.PlantGrade,
         "WorkOrderNo" => item.WorkOrderNo,
         "Salesman" => item.Salesman,
-        "DeliveryState" => item.DeliveryState,
+        "DeliveryState" => item.DeliveryState.HasValue ? DisplayHelper.GetDeliveryStateText(item.DeliveryState.Value) : null,
         "Specification" => item.Specification,
-        "LengthStatus" => item.LengthStatus,
+        "LengthStatus" => item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : null,
         "CurrentSectionName" => item.CurrentSectionName,
         "PendingProcess" => item.PendingProcess,
         "PendingSectionName" => item.PendingSectionName,
@@ -421,14 +422,14 @@ public partial class BatchPlans
         "FlowCRType" => item.FlowCRType,
         "OuterDiameterSpan" => item.OuterDiameterSpan,
         "FlowExecSpec" => item.FlowExecSpec,
-        "IsKeyBatch" => item.IsKeyBatch.ToString(),
-        "IsFlow" => item.IsFlow.ToString(),
-        "IsUrging" => item.IsUrging.ToString(),
-        "IsBatchDelivery" => item.IsBatchDelivery.ToString(),
-        "IsPaused" => item.IsPaused.ToString(),
-        "IsGrabOrder" => item.IsGrabOrder.ToString(),
+        "IsKeyBatch" => DisplayHelper.GetYesNoText(item.IsKeyBatch),
+        "IsFlow" => DisplayHelper.GetYesNoText(item.IsFlow),
+        "IsUrging" => DisplayHelper.GetYesNoText(item.IsUrging),
+        "IsBatchDelivery" => DisplayHelper.GetYesNoText(item.IsBatchDelivery),
+        "IsPaused" => DisplayHelper.GetYesNoText(item.IsPaused),
+        "IsGrabOrder" => DisplayHelper.GetYesNoText(item.IsGrabOrder),
         "PlanRemark" => item.PlanRemark,
-        "PlanIsFlow" => item.PlanIsFlow.ToString(),
+        "PlanIsFlow" => DisplayHelper.GetYesNoText(item.PlanIsFlow),
         "PlanFlowLevel" => item.PlanFlowLevelDisplay,
         "PlanFlowTarget" => item.PlanFlowTarget,
         "PlanFlowCRType" => item.PlanFlowCRType,
@@ -439,22 +440,22 @@ public partial class BatchPlans
         "CurrentCR_ProcessType" => item.CurrentCR_ProcessType,
         "CurrentCR_BilletSpec" => item.CurrentCR_BilletSpec,
         "CurrentCR_RollingSpec" => item.CurrentCR_RollingSpec,
-        "CurrentCR_IsFinished" => item.CurrentCR_IsFinished.ToString(),
+        "CurrentCR_IsFinished" => DisplayHelper.GetYesNoText(item.CurrentCR_IsFinished),
         "NextCR_ProcessType" => item.NextCR_ProcessType,
         "NextCR_BilletSpec" => item.NextCR_BilletSpec,
         "NextCR_RollingSpec" => item.NextCR_RollingSpec,
-        "NextCR_IsFinished" => item.NextCR_IsFinished.ToString(),
+        "NextCR_IsFinished" => DisplayHelper.GetYesNoText(item.NextCR_IsFinished),
         "NextNextCR_ProcessType" => item.NextNextCR_ProcessType,
         "NextNextCR_BilletSpec" => item.NextNextCR_BilletSpec,
         "NextNextCR_RollingSpec" => item.NextNextCR_RollingSpec,
-        "NextNextCR_IsFinished" => item.NextNextCR_IsFinished.ToString(),
+        "NextNextCR_IsFinished" => DisplayHelper.GetYesNoText(item.NextNextCR_IsFinished),
         "CR_CompletionType" => item.CR_CompletionType,
         "CR_RollType" => item.CR_RollType,
         "CR_SchedMachineNo" => item.CR_SchedMachineNo,
         "OriginalDiff" => item.OriginalDiff?.ToString(),
         "CurrentDiff" => item.CurrentDiff?.ToString(),
-        "IsExecuted" => item.IsExecuted?.ToString(),
-        "IsCompliant" => item.IsCompliant?.ToString(),
+        "IsExecuted" => item.IsExecuted.HasValue ? DisplayHelper.GetYesNoText(item.IsExecuted.Value) : null,
+        "IsCompliant" => item.IsCompliant,
         _ => null
     };
 
@@ -800,8 +801,8 @@ public partial class BatchPlans
                 (x.CR_CompletionType != null && x.CR_CompletionType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.CR_RollType != null && x.CR_RollType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.CR_SchedMachineNo != null && x.CR_SchedMachineNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.DeliveryState != null && x.DeliveryState.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.LengthStatus != null && x.LengthStatus.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.DeliveryState != null && DisplayHelper.GetDeliveryStateText(x.DeliveryState.Value).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.LengthStatus != null && DisplayHelper.GetLengthStatusText(x.LengthStatus.Value).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.CurrentSectionName != null && x.CurrentSectionName.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.PendingSpec != null && x.PendingSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.PendingEquipment != null && x.PendingEquipment.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
@@ -860,9 +861,9 @@ public partial class BatchPlans
             "workorderno" => items.OrderBy(x => x.WorkOrderNo ?? ""),
             "salesman" => items.OrderBy(x => x.Salesman ?? ""),
             "deliverydate" => items.OrderBy(x => x.DeliveryDate),
-            "deliverystate" => items.OrderBy(x => x.DeliveryState ?? ""),
+            "deliverystate" => items.OrderBy(x => x.DeliveryState.HasValue ? DisplayHelper.GetDeliveryStateText(x.DeliveryState.Value) : ""),
             "specification" => items.OrderBy(x => x.Specification ?? ""),
-            "lengthstatus" => items.OrderBy(x => x.LengthStatus ?? ""),
+            "lengthstatus" => items.OrderBy(x => x.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(x.LengthStatus.Value) : ""),
             "minlength" => items.OrderBy(x => x.MinLength),
             "maxlength" => items.OrderBy(x => x.MaxLength),
             "currentexecdate" => items.OrderBy(x => x.CurrentExecDate),
@@ -955,13 +956,13 @@ public partial class BatchPlans
                 builder.AddContent(0, item.DeliveryDate.ToString("yyyy-MM-dd"));
                 break;
             case "DeliveryState":
-                builder.AddContent(0, col.DisplayConverter?.Invoke(item.DeliveryState) ?? item.DeliveryState ?? "-");
+                builder.AddContent(0, col.DisplayConverter?.Invoke(item.DeliveryState) as string ?? (item.DeliveryState.HasValue ? DisplayHelper.GetDeliveryStateText(item.DeliveryState.Value) : "-"));
                 break;
             case "Specification":
                 builder.AddContent(0, item.Specification);
                 break;
             case "LengthStatus":
-                builder.AddContent(0, col.DisplayConverter?.Invoke(item.LengthStatus) ?? item.LengthStatus ?? "-");
+                builder.AddContent(0, col.DisplayConverter?.Invoke(item.LengthStatus) as string ?? (item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : "-"));
                 break;
             case "MinLength":
                 builder.AddContent(0, item.MinLength.HasValue ? ((int)item.MinLength.Value).ToString() : "-");

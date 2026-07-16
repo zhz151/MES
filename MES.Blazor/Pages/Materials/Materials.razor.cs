@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Blazor.Components;
+using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
+using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Materials;
@@ -368,7 +370,7 @@ public partial class Materials
     private string? GetCellRawValue(MaterialDto item, string key) => key switch
     {
         "MaterialCode" => item.MaterialCode,
-        "MaterialCategory" => item.MaterialCategory,
+        "MaterialCategory" => item.MaterialCategory.ToString(),
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
         "Remark" => item.Remark,
@@ -378,6 +380,7 @@ public partial class Materials
 
     private string? GetCellDisplayText(MaterialDto item, string key) => key switch
     {
+        "MaterialCategory" => DisplayHelper.GetMaterialCategoryText(item.MaterialCategory),
         "IsActive" => item.IsActive ? "启用" : "停用",
         _ => GetCellRawValue(item, key) ?? ""
     };
@@ -392,7 +395,7 @@ public partial class Materials
 
     private class EditCache
     {
-        public string MaterialCategory { get; set; } = string.Empty;
+        public MaterialCategory MaterialCategory { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public bool IsActive { get; set; }
@@ -514,17 +517,26 @@ public partial class Materials
             case "MaterialCategory":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.OpenComponent<MudSelect<MaterialCategory>>(0);
                     builder.AddAttribute(1, "Dense", true);
                     builder.AddAttribute(2, "Variant", Variant.Outlined);
                     builder.AddAttribute(3, "Value", cache.MaterialCategory);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.MaterialCategory = v ?? ""));
-                    builder.AddAttribute(5, "Class", "compact-input");
+                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<MaterialCategory>(this, v => cache.MaterialCategory = v));
+                    builder.AddAttribute(5, "ChildContent", (RenderFragment)(cb =>
+                    {
+                        foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>())
+                        {
+                            cb.OpenComponent<MudSelectItem<MaterialCategory>>(0);
+                            cb.AddAttribute(1, "Value", cat);
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialCategoryText(cat))));
+                            cb.CloseComponent();
+                        }
+                    }));
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, item.MaterialCategory);
+                    builder.AddContent(0, DisplayHelper.GetMaterialCategoryText(item.MaterialCategory));
                 }
                 break;
 

@@ -1,4 +1,4 @@
-namespace MES.Data.Entities.ProductionStandard;
+namespace MES.Data.Entities.StandardRegister;
 
 /// <summary>
 /// 标准号子项目 — 检验项目要求

@@ -18,5 +18,20 @@ public enum NotificationType
     /// <summary>
     /// 出库预警
     /// </summary>
-    OutboundAlert
+    OutboundAlert,
+
+    /// <summary>
+    /// 工单已删除
+    /// </summary>
+    WorkOrderDeleted,
+
+    /// <summary>
+    /// 订单已删除
+    /// </summary>
+    OrderDeleted,
+
+    /// <summary>
+    /// 订单已变更
+    /// </summary>
+    OrderChanged
 }

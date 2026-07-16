@@ -1,12 +1,11 @@
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,21 +20,8 @@ public static class FinalInspectionPrintHelper
 {
     private static readonly Dictionary<string, Func<object?, string>> ValueResolvers = new()
     {
-        ["InspectionItem"] = v => v switch
-        {
-            InspectionItem.PMIInspection => "PMI检验",
-            InspectionItem.VisualInspection => "表检",
-            InspectionItem.Dimension => "尺寸",
-            InspectionItem.Endoscopy => "内窥",
-            InspectionItem.HydrostaticPressure => "水压",
-            InspectionItem.UnderwaterPneumatic => "水下气压",
-            InspectionItem.EddyCurrent => "涡流",
-            InspectionItem.Ultrasonic => "超声波",
-            InspectionItem.PortColoring => "端口着色",
-            _ => v?.ToString() ?? ""
-        },
-        ["ProductionType"] = v => v?.ToString() is { Length: > 0 } s && Enum.TryParse<ProductionType>(s, out var pt)
-            ? EnumHelper.GetDisplayName(pt) : (v?.ToString() ?? ""),
+        ["InspectionItem"] = v => v is InspectionItem item ? EnumHelper.GetDisplayName(item) : (v?.ToString() ?? ""),
+        ["ProductionType"] = v => v is ProductionType pt ? EnumHelper.GetDisplayName(pt) : (v?.ToString() ?? ""),
         ["DataSource"] = v => v?.ToString() switch
         {
             "SCAN" => "扫码报工",

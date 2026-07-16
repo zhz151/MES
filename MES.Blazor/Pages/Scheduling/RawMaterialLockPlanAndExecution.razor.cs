@@ -5,6 +5,7 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
+using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -421,12 +422,12 @@ public partial class RawMaterialLockPlanAndExecution
         "ProductionSubNo" => item.ProductionSubNo,
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
-        "SettlementMethod" => item.SettlementMethod,
+        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
         "MaterialName" => item.MaterialName,
-        "DeliveryState" => item.DeliveryState,
-        "LengthStatus" => item.LengthStatus,
-        "MaterialPlanStatus" => item.MaterialPlanStatus.ToString(),
-        "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatus.ToString(),
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
+        "MaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText(item.MaterialPlanStatus),
+        "MainNoMaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText(item.MainNoMaterialPlanStatus),
         "InputStatus" => item.InputStatus.ToString(),
         "MainNoInputStatus" => item.MainNoInputStatus.ToString(),
         "FlowStatus" => item.FlowStatus.ToString(),
@@ -435,14 +436,14 @@ public partial class RawMaterialLockPlanAndExecution
         "UrgencyLevel" => item.UrgencyLevel,
         "RawMaterialLockRemark" => item.RawMaterialLockRemark,
         "AdjustmentRemark" => item.AdjustmentRemark,
-        "DelayPenalty" => item.DelayPenalty.ToString(),
-        "IsUrging" => item.IsUrging.ToString(),
-        "IsBatchDelivery" => item.IsBatchDelivery.ToString(),
-        "IsPaused" => item.IsPaused.ToString(),
-        "IsPreInput" => item.IsPreInput.ToString(),
-        "IsBudgetComplete" => item.IsBudgetComplete.ToString(),
-        "ExecutionError" => item.ExecutionError.ToString(),
-        "IsMainNoMaterialComplete" => item.IsMainNoMaterialComplete.ToString(),
+        "DelayPenalty" => DisplayHelper.GetYesNoText(item.DelayPenalty),
+        "IsUrging" => DisplayHelper.GetYesNoText(item.IsUrging),
+        "IsBatchDelivery" => DisplayHelper.GetYesNoText(item.IsBatchDelivery),
+        "IsPaused" => DisplayHelper.GetYesNoText(item.IsPaused),
+        "IsPreInput" => DisplayHelper.GetYesNoText(item.IsPreInput),
+        "IsBudgetComplete" => DisplayHelper.GetYesNoText(item.IsBudgetComplete),
+        "ExecutionError" => DisplayHelper.GetYesNoText(item.ExecutionError),
+        "IsMainNoMaterialComplete" => DisplayHelper.GetYesNoText(item.IsMainNoMaterialComplete),
         _ => null
     };
 
@@ -465,10 +466,10 @@ public partial class RawMaterialLockPlanAndExecution
                 (x.Specification?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.ProductionMainNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.ProductionSubNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
-                (x.SettlementMethod?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (DisplayHelper.GetSettlementMethodText(x.SettlementMethod).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.MaterialName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
-                (x.DeliveryState?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
-                (x.LengthStatus?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (DisplayHelper.GetDeliveryStateText(x.DeliveryState).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (DisplayHelper.GetLengthStatusText(x.LengthStatus).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.MaterialPlanProportion?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.UrgencyLevel?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.RawMaterialLockRemark?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
@@ -734,8 +735,8 @@ public partial class RawMaterialLockPlanAndExecution
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
         // G2: 状态枚举
-        "MaterialPlanStatus" => item.MaterialPlanStatus switch { 0 => "未计划", 1 => "部分", 2 => "理论满足", 3 => "满足", 4 => "超量", _ => "未知" },
-        "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatus switch { 0 => "未计划", 1 => "部分", 2 => "理论满足", 3 => "满足", 4 => "超量", _ => "未知" },
+        "MaterialPlanStatus" => item.MaterialPlanStatus switch { MaterialPlanStatus.NotPlanned => "未计划", MaterialPlanStatus.Partial => "部分", MaterialPlanStatus.TheoreticalSatisfied => "理论满足", MaterialPlanStatus.Satisfied => "满足", MaterialPlanStatus.Excess => "超量", _ => "未知" },
+        "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatus switch { MaterialPlanStatus.NotPlanned => "未计划", MaterialPlanStatus.Partial => "部分", MaterialPlanStatus.TheoreticalSatisfied => "理论满足", MaterialPlanStatus.Satisfied => "满足", MaterialPlanStatus.Excess => "超量", _ => "未知" },
         // G3: 投料状态
         "InputStatus" => item.InputStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
         "MainNoInputStatus" => item.MainNoInputStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
@@ -745,10 +746,10 @@ public partial class RawMaterialLockPlanAndExecution
         // G12: 关注状态
         "ScheduleStage" => item.ScheduleStageText,
         // 非枚举字段原样输出（TablePrintHelper 自动处理 bool→"是/否"、DateTime→"yyyy-MM-dd" 等）
-        _ => GetRawPropertyValue(item, key)
+        _ => GetRawPropertyValue(item, key)!
     };
 
-    private static object GetRawPropertyValue(RawMaterialLockPlanAndExecutionDto item, string key)
+    private static object? GetRawPropertyValue(RawMaterialLockPlanAndExecutionDto item, string key)
     {
         // 大多数字段可直接通过 DTO 属性读取
         return key switch
@@ -1358,13 +1359,13 @@ public partial class RawMaterialLockPlanAndExecution
 
     // ========== 文本辅助 ==========
 
-    private static string GetMaterialPlanStatusText(int status) => status switch
+    private static string GetMaterialPlanStatusText(MaterialPlanStatus status) => status switch
     {
-        0 => "未计划",
-        1 => "部分",
-        2 => "理论满足",
-        3 => "满足",
-        4 => "超量",
+        MaterialPlanStatus.NotPlanned => "未计划",
+        MaterialPlanStatus.Partial => "部分",
+        MaterialPlanStatus.TheoreticalSatisfied => "理论满足",
+        MaterialPlanStatus.Satisfied => "满足",
+        MaterialPlanStatus.Excess => "超量",
         _ => "未知"
     };
 
@@ -1394,13 +1395,13 @@ public partial class RawMaterialLockPlanAndExecution
 
     // ========== 颜色 ==========
 
-    private static Color GetPlanStatusColor(int status) => status switch
+    private static Color GetPlanStatusColor(MaterialPlanStatus status) => status switch
     {
-        0 => Color.Default,
-        1 => Color.Warning,
-        2 => Color.Info,
-        3 => Color.Success,
-        4 => Color.Error,
+        MaterialPlanStatus.NotPlanned => Color.Default,
+        MaterialPlanStatus.Partial => Color.Warning,
+        MaterialPlanStatus.TheoreticalSatisfied => Color.Info,
+        MaterialPlanStatus.Satisfied => Color.Success,
+        MaterialPlanStatus.Excess => Color.Error,
         _ => Color.Default
     };
 

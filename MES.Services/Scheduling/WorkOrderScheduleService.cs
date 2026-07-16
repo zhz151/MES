@@ -7,12 +7,13 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Enums;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -20,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -31,7 +32,7 @@ using MES.Data.Entities;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -74,15 +75,15 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     SignDate = e.SignDate,
                     DeliveryDate = e.DeliveryDate,
                     DelayPenalty = e.DelayPenalty,
-                    SettlementMethod = e.SettlementMethod,
+                    SettlementMethod = string.IsNullOrEmpty(e.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(e.SettlementMethod),
                     SalesOrderNo = e.SalesOrderNo,
                     ProductionMainNo = e.ProductionMainNo,
                     ProductionSubNo = e.ProductionSubNo,
                     MaterialName = e.MaterialName,
-                    DeliveryState = e.DeliveryState,
+                    DeliveryState = string.IsNullOrEmpty(e.DeliveryState) ? default : Enum.Parse<DeliveryState>(e.DeliveryState),
                     PlantGrade = e.PlantGrade,
                     Specification = e.Specification,
-                    LengthStatus = e.LengthStatus,
+                    LengthStatus = string.IsNullOrEmpty(e.LengthStatus) ? default : Enum.Parse<LengthStatus>(e.LengthStatus),
                     MinLength = e.MinLength,
                     MaxLength = e.MaxLength,
                     TotalItemCount = e.TotalItemCount,
@@ -152,10 +153,10 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                 x.PlantGrade.Contains(kw) ||
                 x.Specification.Contains(kw) ||
                 x.ProductionMainNo.Contains(kw) ||
-                (x.SettlementMethod != null && x.SettlementMethod.Contains(kw)) ||
+                (x.SettlementMethod.ToString().Contains(kw)) ||
                 x.MaterialName.Contains(kw) ||
-                x.DeliveryState.Contains(kw) ||
-                x.LengthStatus.Contains(kw) ||
+                (x.DeliveryState.ToString().Contains(kw)) ||
+                (x.LengthStatus.ToString().Contains(kw)) ||
                 (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
                 (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
                 (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)) ||
@@ -205,15 +206,15 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     SignDate = e.SignDate,
                     DeliveryDate = e.DeliveryDate,
                     DelayPenalty = e.DelayPenalty,
-                    SettlementMethod = e.SettlementMethod,
+                    SettlementMethod = string.IsNullOrEmpty(e.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(e.SettlementMethod),
                     SalesOrderNo = e.SalesOrderNo,
                     ProductionMainNo = e.ProductionMainNo,
                     ProductionSubNo = e.ProductionSubNo,
                     MaterialName = e.MaterialName,
-                    DeliveryState = e.DeliveryState,
+                    DeliveryState = string.IsNullOrEmpty(e.DeliveryState) ? default : Enum.Parse<DeliveryState>(e.DeliveryState),
                     PlantGrade = e.PlantGrade,
                     Specification = e.Specification,
-                    LengthStatus = e.LengthStatus,
+                    LengthStatus = string.IsNullOrEmpty(e.LengthStatus) ? default : Enum.Parse<LengthStatus>(e.LengthStatus),
                     MinLength = e.MinLength,
                     MaxLength = e.MaxLength,
                     TotalItemCount = e.TotalItemCount,

@@ -4,7 +4,7 @@
 @using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
-@using MES.Core.DTOs.ProductionStandard
+@using MES.Core.DTOs.StandardRegister
 @inject ChemicalCompositionService ChemicalCompositionService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -122,7 +122,7 @@
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedIds.Contains(item.Id)"
-                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     @foreach (var col in _visibleColumns)

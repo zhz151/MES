@@ -146,14 +146,14 @@
                         </HeaderContent>
                         <RowTemplate Context="item">
                             <MudTd>
-                                <MudSelect Dense="true" T="string"
+                                <MudSelect Dense="true" T="RawMaterialType"
                                            Value="@item.RawMaterialType"
-                                           ValueChanged="@((string v) => { item.RawMaterialType = v; })"
+                                           ValueChanged="@((RawMaterialType v) => { item.RawMaterialType = v; })"
                                            Size="Size.Small"
                                            Variant="Variant.Outlined"
                                            Class="my-n2" Style="width:110px;">
-                                    <MudSelectItem Value="@("SemiFinished")">荒管</MudSelectItem>
-                                    <MudSelectItem Value="@("SemiProduct")">半成品</MudSelectItem>
+                                    <MudSelectItem Value="@(RawMaterialType.RoughTube)">荒管</MudSelectItem>
+                                    <MudSelectItem Value="@(RawMaterialType.SemiProduct)">半成品</MudSelectItem>
                                 </MudSelect>
                             </MudTd>
                             <MudTd>
@@ -389,7 +389,7 @@
 
     private class MaterialRow
     {
-        public string RawMaterialType { get; set; } = "SemiFinished";
+        public RawMaterialType RawMaterialType { get; set; } = RawMaterialType.RoughTube;
         public string PlantGrade { get; set; } = string.Empty;
         public string? RawMaterialSpec { get; set; }
         public decimal? RequiredUnitWeight { get; set; }
@@ -532,8 +532,7 @@
         }
         else
         {
-            if (string.IsNullOrWhiteSpace(material.RawMaterialType))
-                errors.Add("请选择原料类型");
+            // 原料类型由 MudSelect 确保始终有值，无需验证
             if (string.IsNullOrWhiteSpace(material.RawMaterialSpec))
                 errors.Add("请输入原料规格");
             if (string.IsNullOrWhiteSpace(material.RequiredDateStr) || !DateTime.TryParse(material.RequiredDateStr, out _))

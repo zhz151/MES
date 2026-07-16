@@ -1,5 +1,6 @@
 @page "/materials/create"
 @using MES.Blazor.Services
+@using MES.Blazor.Helpers
 @using MES.Core.DTOs.Materials
 @using Microsoft.AspNetCore.Authorization
 @inject MaterialService MaterialService
@@ -47,11 +48,11 @@
                             <MudText Typo="Typo.body2">@row.Sequence</MudText>
                         </MudTd>
                         <MudTd>
-                            <MudSelect T="string" @bind-Value="row.MaterialCategory"
+                            <MudSelect T="MaterialCategory" @bind-Value="row.MaterialCategory"
                                        Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                 @foreach (var cat in materialCategories)
                                 {
-                                    <MudSelectItem Value="cat">@cat</MudSelectItem>
+                                    <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialCategoryText(cat)</MudSelectItem>
                                 }
                             </MudSelect>
                         </MudTd>
@@ -101,28 +102,24 @@
 @code {
     private List<MaterialRow> rows = new();
     private bool isSubmitting;
-    private List<string> materialCategories = new();
+    private List<MaterialCategory> materialCategories = new();
     private bool _isArrowNavSetup;
 
     private class MaterialRow
     {
         public int Sequence { get; set; }
-        public string MaterialCategory { get; set; } = string.Empty;
+        public MaterialCategory MaterialCategory { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
         public string? Remark { get; set; }
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
-        materialCategories = await MaterialService.GetCategoriesAsync();
-        if (materialCategories.Count == 0)
-        {
-            materialCategories = new() { "圆棒", "荒管", "半成品", "订单成品", "备料成品", "临界成品",
-                "次品圆棒", "次品荒管", "次品半成品", "次品在制", "次品成品", "报废品", "余库料" };
-        }
+        materialCategories = Enum.GetValues<MaterialCategory>().ToList();
         AddRow();
+        return Task.CompletedTask;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -154,7 +151,6 @@
         {
             var r = rows[i];
             var seq = i + 1;
-            if (string.IsNullOrWhiteSpace(r.MaterialCategory)) errors.Add($"行{seq}: 物料分类不能为空");
             if (string.IsNullOrWhiteSpace(r.PlantGrade)) errors.Add($"行{seq}: 厂内钢种不能为空");
             if (string.IsNullOrWhiteSpace(r.Specification)) errors.Add($"行{seq}: 名义规格不能为空");
         }

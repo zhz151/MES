@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -418,9 +418,9 @@ public class WorkOrderExecutionServiceTests : TestBase
             Salesman = "业务员A",
             DeliveryDate = DateTime.Today.AddMonths(1),
             MaterialName = "无缝管",
-            SettlementMethod = "理算",
+            SettlementMethod = "Theoretical",
             StandardCode = "GB/T 8163",
-            DeliveryState = "固溶酸洗",
+            DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Fixed",
             ManufacturingItem = "OrderFinishedProduct",
             PlantGrade = "304",
@@ -486,9 +486,9 @@ public class WorkOrderExecutionServiceTests : TestBase
             Salesman = "业务员A",
             DeliveryDate = DateTime.Today.AddMonths(1),
             MaterialName = "无缝管",
-            SettlementMethod = "理算",
+            SettlementMethod = "Theoretical",
             StandardCode = "GB/T 8163",
-            DeliveryState = "固溶酸洗",
+            DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Unlimited",
             ManufacturingItem = "OrderFinishedProduct",
             PlantGrade = "304",
@@ -548,9 +548,9 @@ public class WorkOrderExecutionServiceTests : TestBase
             Salesman = "业务员A",
             DeliveryDate = DateTime.Today.AddMonths(1),
             MaterialName = "无缝管",
-            SettlementMethod = "理算",
+            SettlementMethod = "Theoretical",
             StandardCode = "GB/T 8163",
-            DeliveryState = "固溶酸洗",
+            DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Fixed",
             ManufacturingItem = "OrderFinishedProduct",
             PlantGrade = "304",
@@ -584,9 +584,9 @@ public class WorkOrderExecutionServiceTests : TestBase
             Salesman = "业务员A",
             DeliveryDate = DateTime.Today.AddMonths(1),
             MaterialName = "无缝管",
-            SettlementMethod = "理算",
+            SettlementMethod = "Theoretical",
             StandardCode = "GB/T 8163",
-            DeliveryState = "固溶酸洗",
+            DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Fixed",
             ManufacturingItem = "OrderFinishedProduct",
             PlantGrade = "304",
@@ -748,16 +748,16 @@ public class WorkOrderExecutionServiceTests : TestBase
             WorkOrderNo = "WO001",
             Salesman = "旧业务员",
             CustomerName = "",
-            SettlementMethod = "理算",
+            SettlementMethod = "Theoretical",
             SignDate = DateTime.MinValue,
             DeliveryDate = DateTime.MinValue,
             SalesOrderNo = "SO001",
             ProductionMainNo = "D01",
             MaterialName = "",
-            DeliveryState = "旧状态",
+            DeliveryState = "SolutionAnnealedAndPickled",
             PlantGrade = "",
             Specification = "",
-            LengthStatus = "",
+            LengthStatus = "Fixed",
             TotalItemCount = 0,
             TotalQuantity = 0,
             TotalMeters = 0,
@@ -791,7 +791,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             WorkOrderNo = "STALE",
             Salesman = "",
             CustomerName = "",
-            SettlementMethod = "理算",
+            SettlementMethod = "Theoretical",
             SignDate = DateTime.MinValue,
             DeliveryDate = DateTime.MinValue,
             SalesOrderNo = "",
@@ -800,7 +800,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             DeliveryState = "",
             PlantGrade = "",
             Specification = "",
-            LengthStatus = "",
+            LengthStatus = "Fixed",
         };
         ctx.Set<WorkOrderExecutionSummary>().Add(stale);
         await ctx.SaveChangesAsync();
@@ -875,9 +875,9 @@ public class WorkOrderExecutionServiceTests : TestBase
                 Salesman = "业务员A",
                 DeliveryDate = DateTime.Today.AddMonths(1),
                 MaterialName = "无缝管",
-                SettlementMethod = "理算",
+                SettlementMethod = "Theoretical",
                 StandardCode = "GB/T 8163",
-                DeliveryState = "固溶酸洗",
+                DeliveryState = "SolutionAnnealedAndPickled",
                 LengthStatus = "Fixed",
                 ManufacturingItem = "OrderFinishedProduct",
                 PlantGrade = "304",
@@ -993,9 +993,9 @@ public class WorkOrderExecutionServiceTests : TestBase
             Salesman = "业务员A",
             DeliveryDate = DateTime.Today.AddMonths(1),
             MaterialName = "无缝管",
-            SettlementMethod = "理算",
+            SettlementMethod = "Theoretical",
             StandardCode = "GB/T 8163",
-            DeliveryState = "固溶酸洗",
+            DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Unlimited",
             ManufacturingItem = "OrderFinishedProduct",
             PlantGrade = "304",
@@ -1104,7 +1104,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             WorkOrderNo = workOrderNo,
             Salesman = salesman,
             CustomerName = customerName,
-            SettlementMethod = "理算",
+            SettlementMethod = "Theoretical",
             SignDate = DateTime.Today,
             DeliveryDate = DateTime.Today.AddMonths(1),
             SalesOrderNo = salesOrderNo,

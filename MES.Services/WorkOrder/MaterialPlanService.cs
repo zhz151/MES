@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -25,7 +25,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -34,7 +34,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
@@ -204,9 +204,7 @@ public class MaterialPlanService : IMaterialPlanService
             UnitWeight = calc.UnitWeight,
             RawUnitWeight = calc.RawUnitWeight,
             PlantGrade = request.PlantGrade,
-            RawMaterialType = Enum.TryParse<RawMaterialType>(request.RawMaterialType, out var rt)
-                ? rt
-                : throw new BusinessException($"无效的原料类型: {request.RawMaterialType}"),
+            RawMaterialType = request.RawMaterialType,
             RawMaterialSpec = request.RawMaterialSpec,
             RequiredUnitWeight = request.RequiredUnitWeight,
             RequiredPieces = request.RequiredPieces,
@@ -346,9 +344,7 @@ public class MaterialPlanService : IMaterialPlanService
         plan.YieldRate = request.YieldRate;
         plan.InputMultiple = request.InputMultiple;
         plan.QualifiedRate = request.QualifiedRate;
-        plan.RawMaterialType = Enum.TryParse<RawMaterialType>(request.RawMaterialType, out var rt)
-            ? rt
-            : throw new BusinessException($"无效的原料类型: {request.RawMaterialType}");
+        plan.RawMaterialType = request.RawMaterialType;
 
         // 更新原料信息
         plan.PlantGrade = request.PlantGrade;
@@ -487,9 +483,7 @@ public class MaterialPlanService : IMaterialPlanService
         {
             WorkOrderId = request.WorkOrderId,
             PlanDate = request.PlanDate,
-            ProductType = Enum.TryParse<FinishedProductType>(request.ProductType, out var pt)
-                ? pt
-                : throw new BusinessException($"无效的成品类型: {request.ProductType}"),
+            ProductType = request.ProductType,
             RequiredPiece = request.RequiredPiece,
             RequiredWeight = request.RequiredWeight,
             InputMultiple = request.InputMultiple,
@@ -501,14 +495,10 @@ public class MaterialPlanService : IMaterialPlanService
             OuterDiameterPositive = request.OuterDiameterPositive,
             WallThicknessNegative = request.WallThicknessNegative,
             WallThicknessPositive = request.WallThicknessPositive,
-            LengthStatus = Enum.TryParse<LengthStatus>(request.LengthStatus, out var ls)
-                ? ls
-                : LengthStatus.Fixed,
+            LengthStatus = request.LengthStatus,
             MinLength = request.MinLength,
             MaxLength = request.MaxLength,
-            DeliveryState = Enum.TryParse<DeliveryState>(request.DeliveryState, out var ds)
-                ? ds
-                : DeliveryState.SolutionAnnealedAndPickled,
+            DeliveryState = request.DeliveryState,
             StandardCycle = defaultStandardCycle // 成品采购默认天数
         };
 
@@ -566,9 +556,7 @@ public class MaterialPlanService : IMaterialPlanService
             {
                 WorkOrderId = workOrderId,
                 PlanDate = request.PlanDate,
-                ProductType = Enum.TryParse<FinishedProductType>(request.ProductType, out var pt)
-                    ? pt
-                    : throw new BusinessException($"无效的成品类型: {request.ProductType}"),
+                ProductType = request.ProductType,
                 RequiredPiece = request.RequiredPiece,
                 RequiredWeight = request.RequiredWeight,
                 InputMultiple = request.InputMultiple,
@@ -580,12 +568,10 @@ public class MaterialPlanService : IMaterialPlanService
                 OuterDiameterPositive = request.OuterDiameterPositive,
                 WallThicknessNegative = request.WallThicknessNegative,
                 WallThicknessPositive = request.WallThicknessPositive,
-                LengthStatus = Enum.TryParse<LengthStatus>(request.LengthStatus, out var ls)
-                    ? ls : LengthStatus.Fixed,
+                LengthStatus = request.LengthStatus,
                 MinLength = request.MinLength,
                 MaxLength = request.MaxLength,
-                DeliveryState = Enum.TryParse<DeliveryState>(request.DeliveryState, out var ds)
-                    ? ds : DeliveryState.SolutionAnnealedAndPickled,
+                DeliveryState = request.DeliveryState,
                 StandardCycle = defaultStandardCycle // 成品采购默认天数
             });
         }
@@ -629,9 +615,7 @@ public class MaterialPlanService : IMaterialPlanService
 
         // 更新字段
         plan.PlanDate = request.PlanDate;
-        plan.ProductType = Enum.TryParse<FinishedProductType>(request.ProductType, out var pt)
-            ? pt
-            : throw new BusinessException($"无效的成品类型: {request.ProductType}");
+        plan.ProductType = request.ProductType;
         plan.RequiredPiece = request.RequiredPiece;
         plan.RequiredWeight = request.RequiredWeight;
         plan.InputMultiple = request.InputMultiple;
@@ -643,14 +627,10 @@ public class MaterialPlanService : IMaterialPlanService
         plan.OuterDiameterPositive = request.OuterDiameterPositive;
         plan.WallThicknessNegative = request.WallThicknessNegative;
         plan.WallThicknessPositive = request.WallThicknessPositive;
-        plan.LengthStatus = Enum.TryParse<LengthStatus>(request.LengthStatus, out var ls)
-            ? ls
-            : LengthStatus.Fixed;
+        plan.LengthStatus = request.LengthStatus;
         plan.MinLength = request.MinLength;
         plan.MaxLength = request.MaxLength;
-        plan.DeliveryState = Enum.TryParse<DeliveryState>(request.DeliveryState, out var ds)
-            ? ds
-            : DeliveryState.SolutionAnnealedAndPickled;
+        plan.DeliveryState = request.DeliveryState;
 
         var transaction = await _context.Database.BeginTransactionAsync();
         using (transaction)
@@ -785,7 +765,7 @@ public class MaterialPlanService : IMaterialPlanService
             RequiredDate = request.RequiredDate,
             PlanStatus = InventoryPlanStatus.Planned,
             Remark = request.Remark,
-            ReworkType = request.ReworkType != null ? Enum.Parse<ReworkType>(request.ReworkType) : null,
+            ReworkType = request.ReworkType,
         };
 
         var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
@@ -894,7 +874,7 @@ public class MaterialPlanService : IMaterialPlanService
                 RequiredDate = request.RequiredDate,
                 PlanStatus = InventoryPlanStatus.Planned,
                 Remark = request.Remark,
-                ReworkType = request.ReworkType != null ? Enum.Parse<ReworkType>(request.ReworkType) : null,
+                ReworkType = request.ReworkType,
             };
 
             // 工艺周期（改制计划在工序组设置后通过 ProcessGroup 管理接口重新计算）
@@ -1430,9 +1410,7 @@ public class MaterialPlanService : IMaterialPlanService
             UnitWeight = calc.UnitWeight,
             RawUnitWeight = calc.RawUnitWeight,
             PlantGrade = request.PlantGrade,
-            RawMaterialType = Enum.TryParse<RawMaterialType>(request.RawMaterialType, out var rt)
-                ? rt
-                : throw new BusinessException($"无效的原料类型: {request.RawMaterialType}"),
+            RawMaterialType = request.RawMaterialType,
             RoundBarSpec = request.RoundBarSpec,
             PiercingSpec = request.PiercingSpec,
             RequiredUnitWeight = request.RequiredUnitWeight,
@@ -1564,9 +1542,7 @@ public class MaterialPlanService : IMaterialPlanService
         plan.UnitWeight = calc.UnitWeight;
         plan.RawUnitWeight = calc.RawUnitWeight;
         plan.PlantGrade = request.PlantGrade;
-        plan.RawMaterialType = Enum.TryParse<RawMaterialType>(request.RawMaterialType, out var rt)
-            ? rt
-            : throw new BusinessException($"无效的原料类型: {request.RawMaterialType}");
+        plan.RawMaterialType = request.RawMaterialType;
         plan.RoundBarSpec = request.RoundBarSpec;
         plan.PiercingSpec = request.PiercingSpec;
         plan.RequiredUnitWeight = request.RequiredUnitWeight;
@@ -1736,8 +1712,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (batch.Status != BatchStatus.None && batch.Status != BatchStatus.InProgress)
             throw new BusinessException("只能选择未产或在产状态的批次");
 
-        if (!Enum.TryParse<ReworkType>(request.ReworkType, out var reworkType))
-            throw new BusinessException($"无效的改制类型: {request.ReworkType}");
+        var reworkType = request.ReworkType;
 
         // 校验用量
         if (request.UsedQuantity.HasValue && request.UsedQuantity <= 0)
@@ -1807,8 +1782,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (workOrder == null)
             throw new BusinessException("关联工单不存在");
 
-        if (!Enum.TryParse<ReworkType>(request.ReworkType, out var reworkType))
-            throw new BusinessException($"无效的改制类型: {request.ReworkType}");
+        var reworkType = request.ReworkType;
 
         if (request.UsedQuantity.HasValue && request.UsedQuantity <= 0)
             throw new BusinessException("使用支数必须大于0");
@@ -1984,7 +1958,7 @@ public class MaterialPlanService : IMaterialPlanService
                         MaterialName = b.MaterialName,
                         PlantGrade = b.PlantGrade,
                         Specification = b.CurrentSpec ?? b.Specification,
-                        LengthStatus = b.LengthStatus,
+                        LengthStatus = string.IsNullOrEmpty(b.LengthStatus) ? default : Enum.Parse<LengthStatus>(b.LengthStatus),
                         TotalQuantity = b.TotalQuantity,
                         TotalWeight = b.TotalWeight,
                         CurrentValidQty = b.CurrentValidQty * GetCurrentProcessGroupMultiple(b),
@@ -1994,7 +1968,7 @@ public class MaterialPlanService : IMaterialPlanService
                         SourceHeatNo = b.SourceHeatNo,
                         SourceSpecification = b.SourceSpecification,
                         ProductionType = b.ProductionType,
-                        ManufacturingItem = b.ManufacturingItem,
+                        ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(b.ManufacturingItem, out var mi) ? mi : default,
                     })
                     .OrderByDescending(b => b.CurrentValidWeight)
                     .ToList();
@@ -2014,7 +1988,7 @@ public class MaterialPlanService : IMaterialPlanService
                 MaterialName = b.MaterialName,
                 PlantGrade = b.PlantGrade,
                 Specification = b.CurrentSpec ?? b.Specification,
-                LengthStatus = b.LengthStatus,
+                LengthStatus = string.IsNullOrEmpty(b.LengthStatus) ? default : Enum.Parse<LengthStatus>(b.LengthStatus),
                 TotalQuantity = b.TotalQuantity,
                 TotalWeight = b.TotalWeight,
                 CurrentValidQty = b.CurrentValidQty * GetCurrentProcessGroupMultiple(b),
@@ -2024,7 +1998,7 @@ public class MaterialPlanService : IMaterialPlanService
                 SourceHeatNo = b.SourceHeatNo,
                 SourceSpecification = b.SourceSpecification,
                 ProductionType = b.ProductionType,
-                ManufacturingItem = b.ManufacturingItem,
+                ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(b.ManufacturingItem, out var mi) ? mi : default,
             })
             .OrderByDescending(b => b.CurrentValidWeight)
             .ToList();
@@ -2941,7 +2915,7 @@ internal static class MaterialPlanMappingExtensions
             UnitWeight = entity.UnitWeight,
             RawUnitWeight = entity.RawUnitWeight,
             PlantGrade = entity.PlantGrade,
-            RawMaterialType = entity.RawMaterialType.ToString(),
+            RawMaterialType = entity.RawMaterialType,
             RawMaterialSpec = entity.RawMaterialSpec,
             RequiredUnitWeight = entity.RequiredUnitWeight,
             RequiredPieces = entity.RequiredPieces,
@@ -2969,7 +2943,7 @@ internal static class MaterialPlanMappingExtensions
             UnitWeight = entity.UnitWeight,
             RawUnitWeight = entity.RawUnitWeight,
             PlantGrade = entity.PlantGrade,
-            RawMaterialType = entity.RawMaterialType.ToString(),
+            RawMaterialType = entity.RawMaterialType,
             RoundBarSpec = entity.RoundBarSpec,
             PiercingSpec = entity.PiercingSpec,
             RequiredUnitWeight = entity.RequiredUnitWeight,
@@ -2990,7 +2964,7 @@ internal static class MaterialPlanMappingExtensions
             Id = entity.Id,
             WorkOrderId = entity.WorkOrderId,
             PlanDate = entity.PlanDate,
-            ProductType = entity.ProductType.ToString(),
+            ProductType = entity.ProductType,
             RequiredPiece = entity.RequiredPiece,
             RequiredWeight = entity.RequiredWeight,
             InputMultiple = entity.InputMultiple,
@@ -3031,7 +3005,7 @@ internal static class MaterialPlanMappingExtensions
             UsedQuantity = entity.UsedQuantity,
             UsedWeight = entity.UsedWeight,
             RequiredDate = entity.RequiredDate,
-            PlanStatus = (int)entity.PlanStatus,
+            PlanStatus = entity.PlanStatus,
             PlanStatusText = entity.PlanStatus switch
             {
                 InventoryPlanStatus.Planned => "已计划",
@@ -3040,7 +3014,7 @@ internal static class MaterialPlanMappingExtensions
                 _ => "未知"
             },
             Remark = entity.Remark,
-            ReworkType = entity.ReworkType?.ToString(),
+            ReworkType = entity.ReworkType,
             ReworkTypeText = entity.ReworkType switch
             {
                 ReworkType.EmptyDrawing => "空拉改制",
@@ -3067,12 +3041,12 @@ internal static class MaterialPlanMappingExtensions
             MaterialName = entity.MaterialName,
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
-            LengthStatus = entity.LengthStatus,
+            LengthStatus = string.IsNullOrEmpty(entity.LengthStatus) ? default : Enum.Parse<LengthStatus>(entity.LengthStatus),
             InputMultiple = entity.InputMultiple,
             UsedQuantity = entity.UsedQuantity,
             UsedWeight = entity.UsedWeight,
             RequiredDate = entity.RequiredDate,
-            PlanStatus = (int)entity.PlanStatus,
+            PlanStatus = entity.PlanStatus,
             PlanStatusText = entity.PlanStatus switch
             {
                 InventoryPlanStatus.Planned => "已计划",
@@ -3081,7 +3055,7 @@ internal static class MaterialPlanMappingExtensions
                 _ => "未知"
             },
             Remark = entity.Remark,
-            ReworkType = entity.ReworkType.ToString(),
+            ReworkType = entity.ReworkType,
             ReworkTypeText = entity.ReworkType switch
             {
                 ReworkType.EmptyDrawing => "空拉改制",

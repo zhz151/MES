@@ -1,3 +1,7 @@
+@using System.Net.Http
+@inject HttpClient Http
+@inject IJSRuntime JS
+
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
@@ -11,3 +15,17 @@
         </NotFound>
     </Router>
 </CascadingAuthenticationState>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var apiBaseUrl = Http.BaseAddress?.ToString().TrimEnd('/');
+            if (!string.IsNullOrEmpty(apiBaseUrl))
+            {
+                await JS.InvokeVoidAsync("MES_setApiUrl", apiBaseUrl);
+            }
+        }
+    }
+}

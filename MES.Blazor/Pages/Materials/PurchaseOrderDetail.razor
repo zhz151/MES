@@ -77,7 +77,7 @@
                 @* 到货进度条 *@
                 @{
                     var hasQty = _order.Quantity.HasValue && _order.Quantity > 0;
-                    var receivedPct = hasQty ? Math.Min(100, (double)_order.ReceivedQuantity / (double)_order.Quantity.Value * 100) : 0;
+                    var receivedPct = hasQty ? Math.Min(100, (double)_order.ReceivedQuantity / (double)_order.Quantity!.Value * 100) : 0;
                 }
                 <div class="d-flex align-center mt-2">
                     <MudText Typo="Typo.body2" Class="mr-4">
@@ -137,7 +137,7 @@
     private class EditOrderModel
     {
         public int SupplierId { get; set; }
-        public string MaterialCategory { get; set; } = string.Empty;
+        public MaterialCategory MaterialCategory { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public decimal? SourceUnitWeight { get; set; }
@@ -322,7 +322,6 @@
             errors.Add("下单日期格式错误，请使用 yyyy-MM-dd");
         if (!DateTime.TryParse(_requiredDateText, out var requiredDate))
             errors.Add("要求到货日期格式错误，请使用 yyyy-MM-dd");
-        if (string.IsNullOrWhiteSpace(_editOrder.MaterialCategory)) errors.Add("物料分类不能为空");
         if (string.IsNullOrWhiteSpace(_editOrder.PlantGrade)) errors.Add("厂内钢种不能为空");
         if (string.IsNullOrWhiteSpace(_editOrder.Specification)) errors.Add("规格不能为空");
         if (!int.TryParse(_quantityStr, out var qty) || qty < 0)
@@ -487,15 +486,25 @@
             case "materialcategory":
                 if (_isEditMode)
                 {
-                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.OpenComponent<MudSelect<MaterialCategory>>(0);
                     builder.AddAttribute(1, "Value", _editOrder.MaterialCategory);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _editOrder.MaterialCategory = v));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<MaterialCategory>(this, v => _editOrder.MaterialCategory = v));
                     builder.AddAttribute(3, "Dense", true);
                     builder.AddAttribute(4, "Variant", Variant.Outlined);
                     builder.AddAttribute(5, "Size", Size.Small);
+                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
+                    {
+                        foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>())
+                        {
+                            cb.OpenComponent<MudSelectItem<MaterialCategory>>(0);
+                            cb.AddAttribute(1, "Value", cat);
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialCategoryText(cat))));
+                            cb.CloseComponent();
+                        }
+                    }));
                     builder.CloseComponent();
                 }
-                else { builder.AddContent(0, item.MaterialCategory); }
+                else { builder.AddContent(0, DisplayHelper.GetMaterialCategoryText(item.MaterialCategory)); }
                 break;
             case "plantgrade":
                 if (_isEditMode)

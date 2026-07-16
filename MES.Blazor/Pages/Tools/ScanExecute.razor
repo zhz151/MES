@@ -1755,7 +1755,7 @@
             {
                 // 仅显示待完工的记录（Status == "Soaking"）
                 _picklingInRecords = picklingResponse.Data
-                    .Where(r => r.Status == "Soaking")
+                    .Where(r => r.Status == PicklingStatus.Soaking)
                     .ToList();
             }
 

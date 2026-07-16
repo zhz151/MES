@@ -10,6 +10,7 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
+using MES.Core.Enums;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Warehouse;
@@ -433,7 +434,7 @@ public partial class OutboundHistory
         {
             case "select":
                 if (!_editOutboundTypes.ContainsKey(item.Id))
-                    _editOutboundTypes[item.Id] = item.OutboundType;
+                    _editOutboundTypes[item.Id] = item.OutboundType.ToString();
                 var selVal = _editOutboundTypes[item.Id];
                 builder.OpenComponent<MudSelect<string>>(0);
                 builder.AddAttribute(1, "Dense", true);
@@ -441,7 +442,7 @@ public partial class OutboundHistory
                 builder.AddAttribute(3, "Value", selVal);
                 builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
                 {
-                    _editOutboundTypes[item.Id] = v ?? item.OutboundType;
+                    _editOutboundTypes[item.Id] = v ?? item.OutboundType.ToString();
                 }));
                 builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 =>
                 {
@@ -538,7 +539,7 @@ public partial class OutboundHistory
     {
         _editingRowId = item.Id;
         _editDateStrings[item.Id] = item.OutboundDate.ToString("yyyy-MM-dd");
-        _editOutboundTypes[item.Id] = item.OutboundType;
+        _editOutboundTypes[item.Id] = item.OutboundType.ToString();
     }
 
     private void CancelEdit()
@@ -683,7 +684,7 @@ public partial class OutboundHistory
     {
         "BatchNo" => item.BatchNo,
         "OutboundDate" => item.OutboundDate.ToString("yyyy-MM-dd"),
-        "OutboundType" => item.OutboundType,
+        "OutboundType" => item.OutboundType.ToString(),
         "SourceOrderNo" => item.SourceOrderNo,
         "TargetCompany" => item.TargetCompany,
         "OutboundQuantity" => item.OutboundQuantity.ToString("G29"),
@@ -725,11 +726,11 @@ public partial class OutboundHistory
 
         try
         {
-            var outboundType = _editOutboundTypes.TryGetValue(item.Id, out var typ) ? typ : item.OutboundType;
+            var outboundType = _editOutboundTypes.TryGetValue(item.Id, out var typ) ? Enum.Parse<OutboundType>(typ) : item.OutboundType;
 
             var request = new UpdateOutboundRecordRequest
             {
-                OutboundType = outboundType,
+                OutboundType = outboundType.ToString(),
                 OutboundDate = parsedDate,
                 SourceOrderNo = string.IsNullOrEmpty(item.SourceOrderNo) ? null : item.SourceOrderNo,
                 TargetCompany = string.IsNullOrEmpty(item.TargetCompany) ? null : item.TargetCompany,
@@ -854,6 +855,7 @@ public partial class OutboundHistory
 
     // ========== 辅助方法 ==========
 
+    private static string GetOutboundTypeText(OutboundType type) => DisplayHelper.GetOutboundTypeText(type);
     private static string GetOutboundTypeText(string type) => DisplayHelper.GetOutboundTypeText(type);
 
     private void GoBack() => Navigation.NavigateTo(!string.IsNullOrEmpty(Code) ? $"/warehouse/{Code.ToLowerInvariant()}" : "/warehouse");

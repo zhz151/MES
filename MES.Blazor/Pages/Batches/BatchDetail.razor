@@ -116,13 +116,13 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">强制完成</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetYesNoText(batch.IsForceCompleted))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">剩余工量</MudText><MudText Typo="Typo.body2">@(batch.RemainingWorkDays == 0 ? "0" : $"{batch.RemainingWorkDays}天")</MudText></div>
                 <div class="d-flex align-center" Style="gap:6px; width:100%; flex-wrap:wrap;">
-                    @if (batch.Status == "None")
+                    @if (batch.Status == BatchStatus.None)
                     {
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error"
                                    StartIcon="@Icons.Material.Filled.Cancel"
                                    OnClick="CancelBatchAsync">作废</MudButton>
                     }
-                    @if (batch.Status == "InProgress" || batch.Status == "Completed")
+                    @if (batch.Status == BatchStatus.InProgress || batch.Status == BatchStatus.Completed)
                     {
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning"
                                    StartIcon="@Icons.Material.Filled.PauseCircle"
@@ -134,19 +134,19 @@
                                    StartIcon="@Icons.Material.Filled.Verified"
                                    OnClick="ForceCompleteAsync">强制完成</MudButton>
                     }
-                    else if (batch.Status == "Suspended")
+                    else if (batch.Status == BatchStatus.Suspended)
                     {
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Success"
                                    StartIcon="@Icons.Material.Filled.PlayCircle"
                                    OnClick="ResumeBatchAsync">恢复</MudButton>
                     }
-                    else if (batch.Status == "Cancelled")
+                    else if (batch.Status == BatchStatus.Cancelled)
                     {
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Success"
                                    StartIcon="@Icons.Material.Filled.Restore"
                                    OnClick="ResumeBatchAsync">恢复</MudButton>
                     }
-                    @if (batch.IsForceCompleted && batch.Status == "Completed")
+                    @if (batch.IsForceCompleted && batch.Status == BatchStatus.Completed)
                     {
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default"
                                    StartIcon="@Icons.Material.Filled.Undo"
@@ -251,7 +251,7 @@
                                                 <span Style="font-size:0.65rem; color:#888; line-height:1.2;">@(section.ExecDate.Value.ToString("MM-dd"))</span>
                                             }
                                         </div>
-                                        @if (section.Status == "Outsource")
+                                        @if (section.Status == SectionStatus.Outsource)
                                         {
                                             <MudChip Size="Size.Small" Color="Color.Warning" Class="detail-outsource-chip ma-0">委外</MudChip>
                                         }
@@ -681,12 +681,12 @@
         var result = await dialog.Result;
         if (result.Canceled) return;
 
-        await UpdateBatchStatusAsync("Suspended");
+        await UpdateBatchStatusAsync(BatchStatus.Suspended);
     }
 
     private async Task ResumeBatchAsync()
     {
-        await UpdateBatchStatusAsync("InProgress");
+        await UpdateBatchStatusAsync(BatchStatus.InProgress);
     }
 
     private async Task ForceCompleteAsync()
@@ -700,7 +700,7 @@
         var result = await dialog.Result;
         if (result.Canceled) return;
 
-        await UpdateBatchStatusAsync("Completed");
+        await UpdateBatchStatusAsync(BatchStatus.Completed);
     }
 
     private async Task UnforceCompleteAsync()
@@ -714,7 +714,7 @@
         var result = await dialog.Result;
         if (result.Canceled) return;
 
-        await UpdateBatchStatusAsync("InProgress");
+        await UpdateBatchStatusAsync(BatchStatus.InProgress);
     }
 
     private async Task CancelBatchAsync()
@@ -728,10 +728,10 @@
         var result = await dialog.Result;
         if (result.Canceled) return;
 
-        await UpdateBatchStatusAsync("Cancelled");
+        await UpdateBatchStatusAsync(BatchStatus.Cancelled);
     }
 
-    private async Task UpdateBatchStatusAsync(string newStatus)
+    private async Task UpdateBatchStatusAsync(BatchStatus newStatus)
     {
         if (batch == null) return;
         try
@@ -862,21 +862,21 @@
         }
     }
 
-    private static string GetSectionStyle(string status) => status switch
+    private static string GetSectionStyle(SectionStatus status) => status switch
     {
-        "Completed" => "background:#e8f5e9; opacity:0.85;",
-        "InProgress" => "background:#e3f2fd; border-left:3px solid #1976d2;",
-        "Outsource" => "background:#fff3e0; border-left:3px solid #f57c00;",
-        "Next" => "background:#f3e5f5; border:1px dashed #9c27b0;",
+        SectionStatus.Completed => "background:#e8f5e9; opacity:0.85;",
+        SectionStatus.InProgress => "background:#e3f2fd; border-left:3px solid #1976d2;",
+        SectionStatus.Outsource => "background:#fff3e0; border-left:3px solid #f57c00;",
+        SectionStatus.Next => "background:#f3e5f5; border:1px dashed #9c27b0;",
         _ => "background:#fafafa; opacity:0.6;"
     };
 
-    private static string GetSectionIcon(string status) => status switch
+    private static string GetSectionIcon(SectionStatus status) => status switch
     {
-        "Completed" => "✅",
-        "InProgress" => "🔄",
-        "Outsource" => "🚚",
-        "Next" => "⏭",
+        SectionStatus.Completed => "✅",
+        SectionStatus.InProgress => "🔄",
+        SectionStatus.Outsource => "🚚",
+        SectionStatus.Next => "⏭",
         _ => "⭕"
     };
 

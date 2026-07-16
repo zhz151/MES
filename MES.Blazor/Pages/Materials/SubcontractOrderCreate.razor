@@ -2,6 +2,7 @@
 @using MES.Blazor.Services
 @using MES.Blazor.Shared
 @using MES.Blazor.Helpers
+@using MES.Core.Enums
 @using MES.Core.DTOs.Materials
 @using MES.Core.DTOs.WorkOrder
 @using Microsoft.AspNetCore.Authorization
@@ -121,7 +122,7 @@
                     <tr>
                         <td><MudTextField T="string" @bind-Value="orderDateText" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Placeholder="yyyy-MM-dd" Margin="Margin.Dense" /></td>
                         <td><MudTextField T="string" @bind-Value="processType" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
-                        <td><MudTextField T="string" @bind-Value="outMaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
+                        <td><MudSelect T="MaterialCategory" @bind-Value="outMaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Margin="Margin.Dense">@foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>()) { <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialCategoryText(cat)</MudSelectItem> }</MudSelect></td>
                         <td><MudTextField T="string" @bind-Value="furnaceNumber" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
                         <td><MudTextField T="string" @bind-Value="outPlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
                         <td><MudTextField T="string" @bind-Value="outSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
@@ -204,7 +205,7 @@
                                     </div>
                                 }
                             </MudTd>
-                            <MudTd><MudTextField T="string" @bind-Value="item.MaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
+                            <MudTd><MudSelect T="MaterialCategory" @bind-Value="item.MaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small">@foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>()) { <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialCategoryText(cat)</MudSelectItem> }</MudSelect></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.PlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.ProcessSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.UnitWeightStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
@@ -237,7 +238,7 @@
     private string? remark;
 
     // 公共数据 — 发出物料
-    private string outMaterialCategory = string.Empty;
+    private MaterialCategory outMaterialCategory;
     private string? furnaceNumber;
     private string outPlantGrade = string.Empty;
     private string outSpecification = string.Empty;
@@ -254,7 +255,7 @@
     private class ReturnItemRow
     {
         public int Sequence { get; set; }
-        public string MaterialCategory { get; set; } = string.Empty;
+        public MaterialCategory MaterialCategory { get; set; }
         public string? PlantGrade { get; set; }
         public string ProcessSpecification { get; set; } = string.Empty;
         public string UnitWeightStr { get; set; } = string.Empty;
@@ -335,11 +336,12 @@
         }
 
         var plan = result.Data;
+        var planCategory = EnumHelper.TryParse<MaterialCategory>(plan.MaterialCategory ?? "") ?? MaterialCategory.RoundBar;
         returnItems.Add(new ReturnItemRow
         {
             Sequence = returnItems.Count + 1,
             SourceWorkOrderNo = plan.WorkOrderNo,
-            MaterialCategory = plan.MaterialCategory,
+            MaterialCategory = planCategory,
             PlantGrade = plan.PlantGrade,
             ProcessSpecification = plan.Specification ?? string.Empty,
             UnitWeightStr = plan.UnitWeight?.ToString("G29") ?? string.Empty,
@@ -348,18 +350,17 @@
             InputMultipleStr = plan.InputMultiple?.ToString() ?? "",
             Remark = plan.Remark
         });
-        Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{plan.MaterialCategory}）", Severity.Success);
+        Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{DisplayHelper.GetMaterialCategoryText(planCategory)}）", Severity.Success);
     }
 
     private string GetActiveMaterialCategory()
     {
         var categories = returnItems
             .Select(r => r.MaterialCategory)
-            .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Distinct()
             .ToList();
-        if (categories.Count == 1) return categories[0];
-        return outMaterialCategory;
+        if (categories.Count == 1) return DisplayHelper.GetMaterialCategoryText(categories[0]);
+        return DisplayHelper.GetMaterialCategoryText(outMaterialCategory);
     }
 
     private async Task ToggleWorkOrderInfo(ReturnItemRow item)
@@ -410,7 +411,6 @@
             errors.Add("收回期限格式错误，请使用 yyyy-MM-dd");
         else if (string.IsNullOrWhiteSpace(returnDeadlineText))
             errors.Add("收回期限不能为空");
-        if (string.IsNullOrWhiteSpace(outMaterialCategory)) errors.Add("发出物料分类不能为空");
         if (string.IsNullOrWhiteSpace(processType)) errors.Add("加工类型不能为空");
         if (string.IsNullOrWhiteSpace(outPlantGrade)) errors.Add("发出钢种不能为空");
         if (string.IsNullOrWhiteSpace(outSpecification)) errors.Add("发出规格不能为空");
@@ -419,23 +419,23 @@
         if (!decimal.TryParse(outWeightStr, out var outWgt) || outWgt <= 0) errors.Add("发出重量必须大于0");
         if (returnItems.Count == 0) errors.Add("请至少添加一条加工要求");
 
-        var invalidItems = returnItems.Where(i => string.IsNullOrWhiteSpace(i.MaterialCategory) || string.IsNullOrWhiteSpace(i.ProcessSpecification)).ToList();
-        if (invalidItems.Any()) errors.Add("物料分类、加工规格为必填");
+        var invalidItems = returnItems.Where(i => string.IsNullOrWhiteSpace(i.ProcessSpecification)).ToList();
+        if (invalidItems.Any()) errors.Add("加工规格为必填");
 
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
         // ========== 物料匹配检测 ==========
         var unmatched = false;
-        if (!string.IsNullOrWhiteSpace(outMaterialCategory) &&
-            !string.IsNullOrWhiteSpace(outPlantGrade) &&
+        var outCatDisplay = DisplayHelper.GetMaterialCategoryText(outMaterialCategory);
+        if (!string.IsNullOrWhiteSpace(outPlantGrade) &&
             !string.IsNullOrWhiteSpace(outSpecification))
         {
-            var matchResult = await MaterialService.MatchAsync(outMaterialCategory, outPlantGrade, outSpecification);
+            var matchResult = await MaterialService.MatchAsync(outCatDisplay, outPlantGrade, outSpecification);
             if (matchResult?.Data == null)
             {
                 var dialog = DialogService.Show<ConfirmDialog>("物料档案匹配", new DialogParameters
                 {
-                    { "ContentText", $"发出物料（{outMaterialCategory}/{outPlantGrade}/{outSpecification}）未匹配到物料档案。\n\n是否继续保存并自动添加到物料档案？" },
+                    { "ContentText", $"发出物料（{outCatDisplay}/{outPlantGrade}/{outSpecification}）未匹配到物料档案。\n\n是否继续保存并自动添加到物料档案？" },
                     { "ConfirmText", "继续保存" },
                     { "Color", Color.Warning }
                 });
@@ -456,9 +456,8 @@
             // 按名称查找已有供应商
             var existing = allSuppliers.FirstOrDefault(s =>
                 s.SupplierName.Equals(supplierName.Trim(), StringComparison.OrdinalIgnoreCase) &&
-                (string.IsNullOrWhiteSpace(outMaterialCategory) ||
-                 s.MaterialCategory == null ||
-                 s.MaterialCategory.Equals(outMaterialCategory, StringComparison.OrdinalIgnoreCase)));
+                (s.MaterialCategory == null ||
+                 s.MaterialCategory.Equals(outCatDisplay, StringComparison.OrdinalIgnoreCase)));
             if (existing != null)
             {
                 supplierId = existing.Id;
@@ -471,7 +470,7 @@
                     var createResult = await SupplierService.CreateAsync(new CreateSupplierRequest
                     {
                         SupplierName = supplierName.Trim(),
-                        MaterialCategory = string.IsNullOrWhiteSpace(outMaterialCategory) ? null : outMaterialCategory,
+                        MaterialCategory = outCatDisplay,
                         IsActive = true
                     });
                     if (createResult.Success && createResult.Data != null)

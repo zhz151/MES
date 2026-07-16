@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -30,6 +30,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities.Configuration;
 using MES.Services.Helpers;
+using MES.Services.Printing;
 
 namespace MES.Services.Configuration;
 
@@ -171,5 +172,27 @@ public class EmployeeService : IEmployeeService
         _context.Employees.Remove(entity);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
+    {
+        var query = new QueryParams { PageIndex = 1, PageSize = int.MaxValue };
+        var all = await GetPagedAsync(query);
+        var selected = all.Items.Where(i => ids.Contains(i.Id)).ToList();
+        return EmployeePrintHelper.GenerateBatchPdf(selected, columns);
+    }
+
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns)
+    {
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = int.MaxValue,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
+            IsDescending = isDescending
+        };
+        var result = await GetPagedAsync(query);
+        return EmployeePrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 }

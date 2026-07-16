@@ -2,6 +2,7 @@
 @using MES.Blazor.Services
 @using MES.Blazor.Shared
 @using MES.Blazor.Helpers
+@using MES.Core.Enums
 @using MES.Core.DTOs.Batch
 @using MES.Core.DTOs.Materials
 @using MES.Core.DTOs.WorkOrder
@@ -151,10 +152,13 @@
                                 }
                             </MudTd>
                             <MudTd>
-                                <MudTextField T="string"
-                                              @bind-Value="row.MaterialCategory"
-                                              Dense="true" Variant="Variant.Outlined" Size="Size.Small"
-                                              />
+                                <MudSelect T="MaterialCategory" @bind-Value="row.MaterialCategory"
+                                           Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                    @foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>())
+                                    {
+                                        <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialCategoryText(cat)</MudSelectItem>
+                                    }
+                                </MudSelect>
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"
@@ -256,7 +260,7 @@
         public string SupplierName { get; set; } = string.Empty;
         public SupplierProfileDto? SelectedSupplier { get; set; }
         public string RequiredDateStr { get; set; } = string.Empty;
-        public string MaterialCategory { get; set; } = string.Empty;
+        public MaterialCategory MaterialCategory { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public string UnitWeightStr { get; set; } = string.Empty;
@@ -308,13 +312,14 @@
         }
 
         var plan = result.Data;
+        var planCategory = EnumHelper.TryParse<MaterialCategory>(plan.MaterialCategory ?? "") ?? MaterialCategory.RoundBar;
         var existingRow = rows.FirstOrDefault(r =>
             r.SourceWorkOrderNo == plan.WorkOrderNo &&
-            r.MaterialCategory == plan.MaterialCategory);
+            r.MaterialCategory == planCategory);
 
         if (existingRow != null)
         {
-            Snackbar.Add($"工单 {plan.WorkOrderNo}（{plan.MaterialCategory}）已在列表中，可继续添加", Severity.Info);
+            Snackbar.Add($"工单 {plan.WorkOrderNo}（{DisplayHelper.GetMaterialCategoryText(planCategory)}）已在列表中，可继续添加", Severity.Info);
         }
 
         rows.Add(new PurchaseOrderRow
@@ -322,7 +327,7 @@
             Sequence = rows.Count + 1,
             OrderDateStr = DateTime.Today.ToString("yyyy-MM-dd"),
             SourceWorkOrderNo = plan.WorkOrderNo,
-            MaterialCategory = plan.MaterialCategory,
+            MaterialCategory = planCategory,
             PlantGrade = plan.PlantGrade ?? string.Empty,
             Specification = plan.Specification ?? string.Empty,
             UnitWeightStr = plan.UnitWeight?.ToString("G29") ?? string.Empty,
@@ -332,7 +337,7 @@
             Remark = plan.Remark,
             RequiredDateStr = plan.RequiredDate?.ToString("yyyy-MM-dd") ?? string.Empty
         });
-        Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{plan.MaterialCategory}）", Severity.Success);
+        Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{DisplayHelper.GetMaterialCategoryText(planCategory)}）", Severity.Success);
     }
 
     private string FormatSupplier(SupplierProfileDto? s) =>
@@ -341,9 +346,10 @@
     private Task<IEnumerable<SupplierProfileDto>> FilterSuppliers(PurchaseOrderRow row, string search)
     {
         var query = allSuppliers.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(row.MaterialCategory))
+        var catDisplay = DisplayHelper.GetMaterialCategoryText(row.MaterialCategory);
+        if (!string.IsNullOrWhiteSpace(catDisplay))
             query = query.Where(s => s.MaterialCategory != null &&
-                s.MaterialCategory.Equals(row.MaterialCategory, StringComparison.OrdinalIgnoreCase));
+                s.MaterialCategory.Equals(catDisplay, StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(s => s.SupplierName.Contains(search, StringComparison.OrdinalIgnoreCase));
         return Task.FromResult(query.Take(30));
@@ -407,7 +413,6 @@
                 errors.Add($"行{seq}: 供应商名称至少2个字符");
             if (!string.IsNullOrWhiteSpace(r.RequiredDateStr) && !DateTime.TryParse(r.RequiredDateStr, out _))
                 errors.Add($"行{seq}: 要求到货日期格式错误");
-            if (string.IsNullOrWhiteSpace(r.MaterialCategory)) errors.Add($"行{seq}: 物料分类不能为空");
             if (string.IsNullOrWhiteSpace(r.PlantGrade)) errors.Add($"行{seq}: 厂内钢种不能为空");
             if (string.IsNullOrWhiteSpace(r.Specification)) errors.Add($"行{seq}: 规格不能为空");
             if (r.Weight <= 0) errors.Add($"行{seq}: 采购重量必须大于0");
@@ -418,8 +423,7 @@
         var unmatched = new List<(int Index, string Category, string Grade, string Spec)>();
         var matchItems = rows
             .Select((r, i) => (Row: r, Index: i + 1))
-            .Where(x => !string.IsNullOrWhiteSpace(x.Row.MaterialCategory) &&
-                        !string.IsNullOrWhiteSpace(x.Row.PlantGrade) &&
+            .Where(x => !string.IsNullOrWhiteSpace(x.Row.PlantGrade) &&
                         !string.IsNullOrWhiteSpace(x.Row.Specification))
             .ToList();
 
@@ -428,7 +432,7 @@
             var batchResult = await MaterialService.BatchMatchAsync(
                 matchItems.Select(x => new BatchMaterialMatchItem
                 {
-                    Category = x.Row.MaterialCategory,
+                    Category = DisplayHelper.GetMaterialCategoryText(x.Row.MaterialCategory),
                     Grade = x.Row.PlantGrade,
                     Spec = x.Row.Specification
                 }).ToList());
@@ -441,9 +445,10 @@
 
                 foreach (var x in matchItems)
                 {
-                    var key = $"{x.Row.MaterialCategory}|{x.Row.PlantGrade}|{x.Row.Specification}";
+                    var catDisplay = DisplayHelper.GetMaterialCategoryText(x.Row.MaterialCategory);
+                    var key = $"{catDisplay}|{x.Row.PlantGrade}|{x.Row.Specification}";
                     if (unmatchedSet.Contains(key))
-                        unmatched.Add((x.Index, x.Row.MaterialCategory, x.Row.PlantGrade, x.Row.Specification));
+                        unmatched.Add((x.Index, catDisplay, x.Row.PlantGrade, x.Row.Specification));
                 }
             }
         }
@@ -473,8 +478,8 @@
         var newSupplierEntries = rows
             .Select((r, i) => (
                 Index: i + 1,
-                Key: $"{r.SupplierName.Trim()}|{r.MaterialCategory.Trim()}",
-                Display: $"{r.SupplierName.Trim()}（{r.MaterialCategory}）"))
+                Key: $"{r.SupplierName.Trim()}|{DisplayHelper.GetMaterialCategoryText(r.MaterialCategory)}",
+                Display: $"{r.SupplierName.Trim()}（{DisplayHelper.GetMaterialCategoryText(r.MaterialCategory)}）"))
             .Where(x => !supplierLookup.ContainsKey(x.Key))
             .GroupBy(x => x.Key)
             .Select(g => g.First())
@@ -502,7 +507,8 @@
         {
             var r = rows[i];
             var supplierName = r.SupplierName.Trim();
-            var lookupKey = $"{supplierName}|{r.MaterialCategory.Trim()}";
+            var catDisplay = DisplayHelper.GetMaterialCategoryText(r.MaterialCategory);
+            var lookupKey = $"{supplierName}|{catDisplay}";
             int supplierId;
 
             if (r.SelectedSupplier != null)
@@ -520,7 +526,7 @@
                     var createResult = await SupplierService.CreateAsync(new CreateSupplierRequest
                     {
                         SupplierName = supplierName,
-                        MaterialCategory = string.IsNullOrWhiteSpace(r.MaterialCategory) ? null : r.MaterialCategory,
+                        MaterialCategory = catDisplay,
                         IsActive = true
                     });
                     if (createResult.Success && createResult.Data != null)

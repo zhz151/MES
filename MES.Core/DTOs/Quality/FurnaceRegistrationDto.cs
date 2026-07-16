@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
+using MES.Core.Enums;
 namespace MES.Core.DTOs.Quality;
 
 // ========== 来料炉号登记 ==========
@@ -15,7 +16,7 @@ public class FurnaceRegistrationDto
     public string RawMaterialUnit { get; set; } = null!;
 
     /// <summary>原料类型</summary>
-    public string RawMaterialType { get; set; } = null!;
+    public RawMaterialType RawMaterialType { get; set; }
 
     /// <summary>登记牌号</summary>
     public string RegisteredGrade { get; set; } = null!;
@@ -72,8 +73,7 @@ public class CreateFurnaceRegistrationRequest
     public string RawMaterialUnit { get; set; } = null!;
 
     [Required(ErrorMessage = "原料类型不能为空")]
-    [MaxLength(50)]
-    public string RawMaterialType { get; set; } = null!;
+    public RawMaterialType RawMaterialType { get; set; }
 
     [Required(ErrorMessage = "登记牌号不能为空")]
     [MaxLength(100)]
@@ -124,8 +124,7 @@ public class UpdateFurnaceRegistrationRequest
     [MaxLength(100)]
     public string RawMaterialUnit { get; set; } = null!;
 
-    [MaxLength(50)]
-    public string RawMaterialType { get; set; } = null!;
+    public RawMaterialType RawMaterialType { get; set; }
 
     [MaxLength(100)]
     public string RegisteredGrade { get; set; } = null!;

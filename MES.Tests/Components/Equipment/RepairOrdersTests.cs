@@ -5,6 +5,7 @@ using MES.Core.Models;
 using MES.Blazor.Pages.Equipment;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Equipment;
+using MES.Core.Enums;
 
 namespace MES.Tests.Components;
 
@@ -31,12 +32,12 @@ public class RepairOrdersTests : TestBase
     }
 
     [Theory]
-    [InlineData("Normal", "普通")]
-    [InlineData("Urgent", "紧急")]
-    [InlineData("Emergency", "特急")]
-    public void PriorityColumn_DisplaysCorrectText(string priority, string expectedText)
+    [InlineData(RepairPriority.Normal, "普通")]
+    [InlineData(RepairPriority.Urgent, "紧急")]
+    [InlineData(RepairPriority.Emergency, "特急")]
+    public void PriorityColumn_DisplaysCorrectText(RepairPriority priority, string expectedText)
     {
-        ConfigureListResponse(priority, "Pending");
+        ConfigureListResponse(priority, RepairOrderStatus.Pending);
         var cut = Ctx.RenderComponent<CascadingAuthenticationState>(p =>
             p.AddChildContent<RepairOrders>());
         cut.WaitForState(() => cut.Markup.Contains(expectedText));
@@ -44,19 +45,19 @@ public class RepairOrdersTests : TestBase
     }
 
     [Theory]
-    [InlineData("Pending", "待维修")]
-    [InlineData("InProgress", "维修中")]
-    [InlineData("Completed", "完成")]
-    public void StatusColumn_DisplaysCorrectText(string status, string expectedText)
+    [InlineData(RepairOrderStatus.Pending, "待维修")]
+    [InlineData(RepairOrderStatus.InProgress, "维修中")]
+    [InlineData(RepairOrderStatus.Completed, "完成")]
+    public void StatusColumn_DisplaysCorrectText(RepairOrderStatus status, string expectedText)
     {
-        ConfigureListResponse("Normal", status);
+        ConfigureListResponse(RepairPriority.Normal, status);
         var cut = Ctx.RenderComponent<CascadingAuthenticationState>(p =>
             p.AddChildContent<RepairOrders>());
         cut.WaitForState(() => cut.Markup.Contains(expectedText));
         cut.Markup.Should().Contain(expectedText);
     }
 
-    private void ConfigureListResponse(string priority, string repairStatus)
+    private void ConfigureListResponse(RepairPriority priority, RepairOrderStatus repairStatus)
     {
         ConfigureEmptyResponse("/api/repair-order/list");
         var pagedResult = new PagedResult<RepairOrderListDto>

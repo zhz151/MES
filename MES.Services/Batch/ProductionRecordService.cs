@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -23,7 +23,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -34,7 +34,7 @@ using MES.Data.Entities;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -749,7 +749,7 @@ public class ProductionRecordService : IProductionRecordService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
-                Status = s.Status.ToString(),
+                Status = s.Status,
                 TagNo = s.TagNo,
                 PlantGrade = s.PlantGrade,
                 OutsourceSpec = s.OutsourceSpec,
@@ -830,7 +830,7 @@ public class ProductionRecordService : IProductionRecordService
             SendOutDate = entity.SendOutDate,
             SendQuantity = entity.SendQuantity,
             SendWeight = entity.SendWeight,
-            Status = entity.Status.ToString(),
+            Status = entity.Status,
             TagNo = entity.TagNo,
             PlantGrade = entity.PlantGrade,
             OutsourceSpec = entity.OutsourceSpec,
@@ -1163,7 +1163,7 @@ public class ProductionRecordService : IProductionRecordService
                     SectionName = sectionName,
                     SequenceNumber = seq,
                     ProcessGroupId = pg.Id,
-                    Status = sectionStatus.ToString(),
+                    Status = sectionStatus,
                     ExecDate = record?.ExecDate
                         ?? (inspectionByKey.TryGetValue(key, out var insp) ? insp.InspectionDate : (DateTime?)null)
                         ?? (hasOutsource ? outsource!.SendOutDate : (DateTime?)null)
@@ -1229,12 +1229,12 @@ public class ProductionRecordService : IProductionRecordService
 
         // 7. 组装返回
         var maxBySeq = allSectionDtos
-            .Where(s => s.Status == SectionStatus.InProgress.ToString() || s.Status == SectionStatus.Outsource.ToString() || s.Status == SectionStatus.Completed.ToString())
+            .Where(s => s.Status == SectionStatus.InProgress || s.Status == SectionStatus.Outsource || s.Status == SectionStatus.Completed)
             .OrderByDescending(s => s.SequenceNumber)
             .FirstOrDefault();
 
         var nextBySeq = allSectionDtos
-            .Where(s => s.Status == SectionStatus.Next.ToString())
+            .Where(s => s.Status == SectionStatus.Next)
             .OrderBy(s => s.SequenceNumber)
             .FirstOrDefault();
 
@@ -2106,7 +2106,7 @@ public class ProductionRecordService : IProductionRecordService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
-                Status = s.Status.ToString(),
+                Status = s.Status,
                 TagNo = s.TagNo,
                 PlantGrade = s.PlantGrade,
                 OutsourceSpec = s.OutsourceSpec,
@@ -2218,7 +2218,7 @@ public class ProductionRecordService : IProductionRecordService
                         SendOutDate = s.SendOutDate,
                         SendQuantity = s.SendQuantity,
                         SendWeight = s.SendWeight,
-                        Status = s.Status.ToString(),
+                        Status = s.Status,
                         TagNo = s.TagNo,
                         PlantGrade = s.PlantGrade,
                         OutsourceSpec = s.OutsourceSpec,

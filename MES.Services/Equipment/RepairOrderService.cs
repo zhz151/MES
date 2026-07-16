@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -22,7 +22,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -34,7 +34,7 @@ using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Batch;
@@ -174,10 +174,10 @@ public class RepairOrderService : IRepairOrderService
                 EquipmentLocation = x.Equipment.Location,
                 FaultDescription = x.Order.FaultDescription,
                 FaultType = x.Order.FaultType,
-                Priority = x.Order.Priority,
+                Priority = Enum.Parse<RepairPriority>(x.Order.Priority),
                 RepairStatus = x.Order.RepairStartTime != null
-                    ? (x.Order.RepairEndTime != null ? nameof(RepairOrderStatus.Completed) : nameof(RepairOrderStatus.InProgress))
-                    : nameof(RepairOrderStatus.Pending),
+                    ? (x.Order.RepairEndTime != null ? RepairOrderStatus.Completed : RepairOrderStatus.InProgress)
+                    : RepairOrderStatus.Pending,
                 ReportPerson = x.Order.ReportPerson,
                 ReportTime = x.Order.ReportTime,
                 RepairPerson = x.Order.RepairPerson,
@@ -214,10 +214,10 @@ public class RepairOrderService : IRepairOrderService
                             EquipmentLocation = e.Location,
                             FaultDescription = r.FaultDescription,
                             FaultType = r.FaultType,
-                            Priority = r.Priority,
+                            Priority = Enum.Parse<RepairPriority>(r.Priority),
                             RepairStatus = r.RepairStartTime != null
-                                ? (r.RepairEndTime != null ? nameof(RepairOrderStatus.Completed) : nameof(RepairOrderStatus.InProgress))
-                                : nameof(RepairOrderStatus.Pending),
+                                ? (r.RepairEndTime != null ? RepairOrderStatus.Completed : RepairOrderStatus.InProgress)
+                                : RepairOrderStatus.Pending,
                             ReportPerson = r.ReportPerson,
                             ReportTime = r.ReportTime,
                             RepairPerson = r.RepairPerson,
@@ -255,8 +255,8 @@ public class RepairOrderService : IRepairOrderService
             EquipmentId = request.EquipmentId,
             FaultDescription = request.FaultDescription,
             FaultType = request.FaultType,
-            Priority = request.Priority,
-            RepairStatus = DeriveRepairStatus(request.RepairStartTime, request.RepairEndTime),
+            Priority = request.Priority.ToString(),
+            RepairStatus = DeriveRepairStatus(request.RepairStartTime, request.RepairEndTime).ToString(),
             ReportPerson = request.ReportPerson,
             ReportTime = request.ReportTime,
             RepairPerson = request.RepairPerson,
@@ -303,7 +303,7 @@ public class RepairOrderService : IRepairOrderService
 
         if (request.FaultDescription != null) entity.FaultDescription = request.FaultDescription;
         if (request.FaultType != null) entity.FaultType = request.FaultType;
-        if (request.Priority != null) entity.Priority = request.Priority;
+        if (request.Priority.HasValue) entity.Priority = request.Priority.Value.ToString();
         if (request.ReportPerson != null) entity.ReportPerson = request.ReportPerson;
         if (request.ReportTime.HasValue) entity.ReportTime = request.ReportTime.Value;
         if (request.RepairPerson != null) entity.RepairPerson = request.RepairPerson;
@@ -315,7 +315,7 @@ public class RepairOrderService : IRepairOrderService
         if (request.OtherRepairPersons != null) entity.OtherRepairPersons = request.OtherRepairPersons;
 
         // 根据字段完整度自动重算状态
-        entity.RepairStatus = DeriveRepairStatus(entity.RepairStartTime, entity.RepairEndTime);
+        entity.RepairStatus = DeriveRepairStatus(entity.RepairStartTime, entity.RepairEndTime).ToString();
 
         // RepairEndTime 有值时回写设备最近维修日期
         if (request.RepairEndTime.HasValue)
@@ -427,10 +427,10 @@ public class RepairOrderService : IRepairOrderService
                         EquipmentLocation = e.Location,
                         FaultDescription = r.FaultDescription,
                         FaultType = r.FaultType,
-                        Priority = r.Priority,
+                        Priority = Enum.Parse<RepairPriority>(r.Priority),
                         RepairStatus = r.RepairStartTime != null
-                            ? nameof(RepairOrderStatus.InProgress)
-                            : nameof(RepairOrderStatus.Pending),
+                            ? RepairOrderStatus.InProgress
+                            : RepairOrderStatus.Pending,
                         ReportPerson = r.ReportPerson,
                         ReportTime = r.ReportTime,
                         RepairPerson = r.RepairPerson,
@@ -503,11 +503,11 @@ public class RepairOrderService : IRepairOrderService
         return await ToDtoAsync(entity);
     }
 
-    private static string DeriveRepairStatus(DateTime? startTime, DateTime? endTime)
+    private static RepairOrderStatus DeriveRepairStatus(DateTime? startTime, DateTime? endTime)
     {
-        if (endTime != null) return nameof(RepairOrderStatus.Completed);
-        if (startTime != null) return nameof(RepairOrderStatus.InProgress);
-        return nameof(RepairOrderStatus.Pending);
+        if (endTime != null) return RepairOrderStatus.Completed;
+        if (startTime != null) return RepairOrderStatus.InProgress;
+        return RepairOrderStatus.Pending;
     }
 
     private async Task<string> GenerateOrderNoAsync(string prefix)
@@ -543,7 +543,7 @@ public class RepairOrderService : IRepairOrderService
             EquipmentLocation = equipment?.Location,
             FaultDescription = entity.FaultDescription,
             FaultType = entity.FaultType,
-            Priority = entity.Priority,
+            Priority = Enum.Parse<RepairPriority>(entity.Priority),
             RepairStatus = DeriveRepairStatus(entity.RepairStartTime, entity.RepairEndTime),
             ReportPerson = entity.ReportPerson,
             ReportTime = entity.ReportTime,

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
+using MES.Blazor.Helpers;
 using MES.Blazor.Services;
 using MES.Core.Enums;
 using MES.Core.DTOs.Quality;
@@ -58,13 +59,7 @@ public partial class NcrPrint
 
     // ========== 枚举转文本 ==========
 
-    private static string GetStatusText(NcrStatus status) => status switch
-    {
-        NcrStatus.Pending => "待处理",
-        NcrStatus.Processing => "处理中",
-        NcrStatus.Closed => "已关闭",
-        _ => status.ToString()
-    };
+    private static string GetStatusText(NcrStatus status) => DisplayHelper.GetNcrStatusText(status);
 
     private static string GetStatusCss(NcrStatus status) => status switch
     {
@@ -73,17 +68,7 @@ public partial class NcrPrint
         _ => ""
     };
 
-    private static string GetPipeCategoryText(PipeCategory category) => category switch
-    {
-        PipeCategory.TubeBlank => "荒管",
-        PipeCategory.WorkInProgress => "在制品",
-        PipeCategory.SurplusInventory => "余库料",
-        PipeCategory.CriticalFinished => "临界成品",
-        PipeCategory.PreparedFinished => "备料成品",
-        PipeCategory.OrderFinished => "订单成品",
-        PipeCategory.SpecialDelivery => "特定交态成品",
-        _ => category.ToString()
-    };
+    private static string GetPipeCategoryText(PipeCategory category) => DisplayHelper.GetPipeCategoryText(category);
 
     private static string GetDisposalMethodText(DisposalMethod? method) => method switch
     {

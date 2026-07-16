@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -38,11 +38,11 @@ using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services.ProductionStandard;
+namespace MES.Services.StandardRegister;
 
 public class SubStandardQuickViewService : ISubStandardQuickViewService
 {
@@ -235,7 +235,7 @@ public class SubStandardQuickViewService : ISubStandardQuickViewService
             PageIndex = 1,
             PageSize = int.MaxValue,
             Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null : sortBy,
+            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
             IsDescending = isDescending
         };
         var result = await GetPagedAsync(query);

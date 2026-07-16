@@ -6,7 +6,7 @@ using MES.Core.Interfaces.Quality;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Warehouse;
 using System.Text.RegularExpressions;
 
@@ -382,11 +382,11 @@ public class CertificateService : ICertificateService
 
         return new Dictionary<string, List<string>>
         {
-            ["certificateNo"] = certs.Select(c => c.CertificateNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().Take(200).ToList(),
-            ["customerName"] = certs.Select(c => c.CustomerName).Where(v => !string.IsNullOrEmpty(v)).Distinct().Take(200).ToList(),
-            ["productStandard"] = certs.Select(c => c.ProductStandard).Where(v => !string.IsNullOrEmpty(v)).Distinct().Take(200).ToList(),
-            ["productName"] = certs.Select(c => c.ProductName).Where(v => !string.IsNullOrEmpty(v)).Distinct().Take(200).ToList(),
-            ["deliveryStatus"] = certs.Select(c => c.DeliveryStatus).Where(v => !string.IsNullOrEmpty(v)).Distinct().Take(200).ToList()
+            ["certificateNo"] = certs.Select(c => c.CertificateNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().Take(200).Cast<string>().ToList(),
+            ["customerName"] = certs.Select(c => c.CustomerName).Where(v => !string.IsNullOrEmpty(v)).Distinct().Take(200).Cast<string>().ToList(),
+            ["productStandard"] = certs.Select(c => c.ProductStandard).Where(v => !string.IsNullOrEmpty(v)).Distinct().Take(200).Cast<string>().ToList(),
+            ["productName"] = certs.Select(c => c.ProductName).Where(v => !string.IsNullOrEmpty(v)).Distinct().Take(200).Cast<string>().ToList(),
+            ["deliveryStatus"] = certs.Select(c => c.DeliveryStatus).Where(v => !string.IsNullOrEmpty(v)).Distinct().Take(200).Cast<string>().ToList()
         };
     }
 

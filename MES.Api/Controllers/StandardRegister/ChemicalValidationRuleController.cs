@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
 using MES.Shared.Constants;
-using MES.Core.DTOs.ProductionStandard;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
+using MES.Core.Interfaces.StandardRegister;
 
-namespace MES.Api.Controllers.ProductionStandard;
+namespace MES.Api.Controllers.StandardRegister;
 
 /// <summary>
 /// 牌号验证控制器

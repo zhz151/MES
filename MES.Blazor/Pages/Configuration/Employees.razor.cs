@@ -7,11 +7,14 @@ using MES.Blazor.Services;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Shared;
+using System.Text.Json;
 
 namespace MES.Blazor.Pages.Configuration;
 
 public partial class Employees
 {
+    [Inject] private HttpClient Http { get; set; } = null!;
     private MudTable<EmployeeDto>? table;
     private List<EmployeeDto> _pageItems = new();
     private int _totalCount;
@@ -25,6 +28,56 @@ public partial class Employees
     // 排序状态
     private string sortColumn = "Code";
     private bool sortDescending = false;
+
+    // ========== 选择/打印 ==========
+    private HashSet<int> selectedIds = new();
+    private bool allSelected => _pageItems.Count > 0 && _pageItems.All(i => selectedIds.Contains(i.Id));
+
+    private void OnSelectAllChanged(bool v)
+    {
+        selectedIds = v ? new HashSet<int>(_pageItems.Select(i => i.Id)) : new();
+        StateHasChanged();
+    }
+
+    private void OnRowSelectionChanged(int id, bool v)
+    {
+        if (v) selectedIds.Add(id); else selectedIds.Remove(id);
+        StateHasChanged();
+    }
+
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _allColumns.Where(c => c.Visible).Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any()) { Snackbar.Add("请先选择要打印的记录", Severity.Warning); return; }
+        try
+        {
+            var request = new EmployeePrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
+            var apiUrl = $"{Http.BaseAddress}api/employee/print-batch-file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var request = new EmployeePrintAllRequest
+            {
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
+                Columns = GetPrintColumnDefs()
+            };
+            var apiUrl = $"{Http.BaseAddress}api/employee/print-all-file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
 
     // ========== 列选择管理 ==========
     private List<ColumnDef> _allColumns = new();

@@ -1,3 +1,4 @@
+using MES.Core.Enums;
 namespace MES.Core.DTOs.Warehouse;
 
 /// <summary>
@@ -8,7 +9,7 @@ public class OutboundRecordDto
     public long Id { get; set; }
     public int InventoryBatchId { get; set; }
     public string? BatchNo { get; set; }
-    public string OutboundType { get; set; } = string.Empty;
+    public OutboundType OutboundType { get; set; }
     public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
     public int OutboundQuantity { get; set; }

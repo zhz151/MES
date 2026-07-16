@@ -91,19 +91,19 @@
                             </HeaderContent>
                             <RowTemplate Context="r">
                                 <MudTd>@RenderDateField(r)</MudTd>
-                                <MudTd>@RenderInputField(r.Inspector, v => r.Inspector = v)</MudTd>
-                                <MudTd>@RenderInputField(r.FurnaceNo, v => r.FurnaceNo = v)</MudTd>
-                                <MudTd>@RenderInputField(r.Grade, v => r.Grade = v)</MudTd>
-                                <MudTd>@RenderInputField(r.Specification, v => r.Specification = v)</MudTd>
-                                <MudTd>@RenderNumericField(r.SampleNo, v => r.SampleNo = v)</MudTd>
-                                <MudTd>@RenderInputField(r.SampleSize, v => r.SampleSize = v)</MudTd>
-                                <MudTd>@RenderInputField(r.InspectionStandard, v => r.InspectionStandard = v)</MudTd>
-                                <MudTd>@RenderInputField(r.EtchingMethod, v => r.EtchingMethod = v)</MudTd>
-                                <MudTd>@RenderInputField(r.ElectrolyticVoltage, v => r.ElectrolyticVoltage = v)</MudTd>
-                                <MudTd>@RenderInputField(r.ElectrolyticTime, v => r.ElectrolyticTime = v)</MudTd>
-                                <MudTd>@RenderInputField(r.Magnification, v => r.Magnification = v)</MudTd>
-                                <MudTd>@RenderDecimalField(r.FerriteContent, v => r.FerriteContent = v)</MudTd>
-                                <MudTd>@RenderInputField(r.Judgment, v => r.Judgment = v)</MudTd>
+                                <MudTd>@RenderInputField(r.Inspector, v => r.Inspector = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.FurnaceNo, v => r.FurnaceNo = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.Grade, v => r.Grade = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.Specification, v => r.Specification = v!)</MudTd>
+                                <MudTd>@RenderNumericField(r.SampleNo, v => r.SampleNo = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.SampleSize, v => r.SampleSize = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.InspectionStandard, v => r.InspectionStandard = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.EtchingMethod, v => r.EtchingMethod = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.ElectrolyticVoltage, v => r.ElectrolyticVoltage = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.ElectrolyticTime, v => r.ElectrolyticTime = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.Magnification, v => r.Magnification = v!)</MudTd>
+                                <MudTd>@RenderDecimalField(r.FerriteContent, v => r.FerriteContent = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.Judgment, v => r.Judgment = v!)</MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
                                                    Color="Color.Error" Size="Size.Small"

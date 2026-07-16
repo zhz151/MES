@@ -13,7 +13,7 @@ public class SubcontractOrderDto
     public SubcontractOrderStatus Status { get; set; }
     public bool IsForceCompleted { get; set; }
     public string? FurnaceNumber { get; set; }
-    public string OutMaterialCategory { get; set; } = null!;
+    public MaterialCategory OutMaterialCategory { get; set; }
     public string OutPlantGrade { get; set; } = null!;
     public string OutSpecification { get; set; } = null!;
     public int OutQuantity { get; set; }
@@ -51,7 +51,7 @@ public class SubcontractReturnItemDto
     public int Id { get; set; }
     public int SubcontractOrderId { get; set; }
     public int Sequence { get; set; }
-    public string MaterialCategory { get; set; } = null!;
+    public MaterialCategory MaterialCategory { get; set; }
     public string? PlantGrade { get; set; }
     public string ProcessSpecification { get; set; } = null!;
     public decimal? UnitWeight { get; set; }
@@ -96,7 +96,7 @@ public class CreateSubcontractOrderRequest
     public DateTime OrderDate { get; set; }
     public string ProcessType { get; set; } = null!;
     public string? FurnaceNumber { get; set; }
-    public string OutMaterialCategory { get; set; } = null!;
+    public MaterialCategory OutMaterialCategory { get; set; }
     public string OutPlantGrade { get; set; } = null!;
     public string OutSpecification { get; set; } = null!;
     public int OutQuantity { get; set; }
@@ -108,7 +108,7 @@ public class CreateSubcontractOrderRequest
 
 public class CreateReturnItemRequest
 {
-    public string MaterialCategory { get; set; } = null!;
+    public MaterialCategory MaterialCategory { get; set; }
     public string? PlantGrade { get; set; }
     public string ProcessSpecification { get; set; } = null!;
     public decimal? UnitWeight { get; set; }
@@ -128,7 +128,7 @@ public class UpdateSubcontractOrderRequest
     public int SupplierId { get; set; }
     public string ProcessType { get; set; } = null!;
     public string? FurnaceNumber { get; set; }
-    public string OutMaterialCategory { get; set; } = null!;
+    public MaterialCategory OutMaterialCategory { get; set; }
     public string OutPlantGrade { get; set; } = null!;
     public string OutSpecification { get; set; } = null!;
     public int OutQuantity { get; set; }

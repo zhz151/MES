@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.WorkOrder;
 
 /// <summary>
@@ -18,15 +20,15 @@ public class WorkOrderExecutionSummaryDto
     public DateTime SignDate { get; set; }
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
-    public string SettlementMethod { get; set; } = null!;
+    public SettlementMethod SettlementMethod { get; set; }
     public string SalesOrderNo { get; set; } = null!;
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
     public string MaterialName { get; set; } = null!;
-    public string DeliveryState { get; set; } = null!;
+    public DeliveryState DeliveryState { get; set; }
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalItemCount { get; set; }
@@ -37,9 +39,9 @@ public class WorkOrderExecutionSummaryDto
     // ========== Group 2: 用料计划 ==========
     public DateTime? LatestPlanDate { get; set; }
     public decimal MaterialPlanRate { get; set; }
-    public int MaterialPlanStatus { get; set; }
+    public MaterialPlanStatus MaterialPlanStatus { get; set; }
     public decimal MainNoMaterialPlanRate { get; set; }
-    public int MainNoMaterialPlanStatus { get; set; }
+    public MaterialPlanStatus MainNoMaterialPlanStatus { get; set; }
 
     /// <summary>工艺周期（天）</summary>
     public int ProcessCycle { get; set; }
@@ -142,21 +144,21 @@ public class WorkOrderExecutionSummaryDto
     // ========== 显示用 ==========
     public string MaterialPlanStatusText => MaterialPlanStatus switch
     {
-        0 => "未计划",
-        1 => "部分",
-        2 => "理论满足",
-        3 => "满足",
-        4 => "超量",
+        MaterialPlanStatus.NotPlanned => "未计划",
+        MaterialPlanStatus.Partial => "部分",
+        MaterialPlanStatus.TheoreticalSatisfied => "理论满足",
+        MaterialPlanStatus.Satisfied => "满足",
+        MaterialPlanStatus.Excess => "超量",
         _ => "未知"
     };
 
     public string MainNoMaterialPlanStatusText => MainNoMaterialPlanStatus switch
     {
-        0 => "未计划",
-        1 => "部分",
-        2 => "理论满足",
-        3 => "满足",
-        4 => "超量",
+        MaterialPlanStatus.NotPlanned => "未计划",
+        MaterialPlanStatus.Partial => "部分",
+        MaterialPlanStatus.TheoreticalSatisfied => "理论满足",
+        MaterialPlanStatus.Satisfied => "满足",
+        MaterialPlanStatus.Excess => "超量",
         _ => "未知"
     };
 

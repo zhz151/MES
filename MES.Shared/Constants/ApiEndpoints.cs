@@ -104,7 +104,7 @@ public static class ApiEndpoints
     public const string Workstation = "api/workstation";
     public const string Employee = "api/employee";
 
-    // ===== ProductionStandard 生产标准 =====
+    // ===== StandardRegister 标准号 =====
     public const string StandardRegister = "api/standard-register";
     public const string GradeChemicalComposition = "api/grade-chemical-composition";
     public const string GradePhysicalProperty = "api/grade-physical-property";

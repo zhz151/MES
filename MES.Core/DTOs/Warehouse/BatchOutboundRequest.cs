@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs.Warehouse;
 
@@ -11,7 +12,7 @@ public class BatchOutboundRequest
     /// 出库类型
     /// </summary>
     [Required(ErrorMessage = "出库类型不能为空")]
-    public string OutboundType { get; set; } = string.Empty;
+    public OutboundType OutboundType { get; set; }
 
     /// <summary>
     /// 物料单号（委外关联）
@@ -71,7 +72,7 @@ public class OutboundItemRequest
     public decimal? OutboundMeters { get; set; }
 
     // 行级可覆盖字段（row ?? request 回退）
-    public string? OutboundType { get; set; }
+    public OutboundType? OutboundType { get; set; }
     public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
     public string? Remark { get; set; }

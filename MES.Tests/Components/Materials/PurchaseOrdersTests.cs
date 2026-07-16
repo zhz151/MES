@@ -49,7 +49,7 @@ public class PurchaseOrdersTests : TestBase
             {
                 Id = 1, OrderNo = "PO-001", SupplierName = "测试供应商",
                 OrderDate = DateTime.Today, Status = PurchaseOrderStatus.Open,
-                MaterialCategory = "管坯", Specification = "89×10",
+                MaterialCategory = MaterialCategory.RoughTube, Specification = "89×10",
                 Quantity = 100, Weight = 5000, RequiredDate = DateTime.Today.AddDays(30),
                 UnitWeight = 50, PlantGrade = "304", SupplierId = 1,
                 IsForceCompleted = false
@@ -69,7 +69,7 @@ public class PurchaseOrdersTests : TestBase
             {
                 Id = 2, OrderNo = "PO-002", SupplierName = "测试供应商",
                 OrderDate = DateTime.Today, Status = PurchaseOrderStatus.Partial,
-                MaterialCategory = "管坯", Specification = "89×10",
+                MaterialCategory = MaterialCategory.RoughTube, Specification = "89×10",
                 Quantity = 100, Weight = 5000, RequiredDate = DateTime.Today.AddDays(30),
                 UnitWeight = 50, PlantGrade = "304", SupplierId = 1,
                 IsForceCompleted = false
@@ -89,7 +89,7 @@ public class PurchaseOrdersTests : TestBase
             {
                 Id = 3, OrderNo = "PO-003", SupplierName = "测试供应商",
                 OrderDate = DateTime.Today, Status = PurchaseOrderStatus.Completed,
-                MaterialCategory = "管坯", Specification = "89×10",
+                MaterialCategory = MaterialCategory.RoughTube, Specification = "89×10",
                 Quantity = 100, Weight = 5000, RequiredDate = DateTime.Today.AddDays(30),
                 UnitWeight = 50, PlantGrade = "304", SupplierId = 1,
                 IsForceCompleted = false

@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Blazor.Pages.Materials;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Materials;
+using MES.Core.Enums;
 
 namespace MES.Tests.Components;
 
@@ -51,7 +52,7 @@ public class MaterialsTests : TestBase
                 {
                     Id = 1,
                     MaterialCode = "M001",
-                    MaterialCategory = "无缝管",
+                    MaterialCategory = MaterialCategory.RoughTube,
                     PlantGrade = "304",
                     Specification = "219*8",
                     IsActive = isActive

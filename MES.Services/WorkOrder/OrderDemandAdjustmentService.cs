@@ -4,7 +4,7 @@ using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -12,11 +12,12 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
+using MES.Core.Enums;
 using MES.Core.Interfaces.DataExchange;
 using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -28,7 +29,7 @@ using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
@@ -75,15 +76,15 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     SignDate = e.SignDate,
                     DeliveryDate = e.DeliveryDate,
                     DelayPenalty = e.DelayPenalty,
-                    SettlementMethod = e.SettlementMethod,
+                    SettlementMethod = string.IsNullOrEmpty(e.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(e.SettlementMethod),
                     SalesOrderNo = e.SalesOrderNo,
                     ProductionMainNo = e.ProductionMainNo,
                     ProductionSubNo = e.ProductionSubNo,
                     MaterialName = e.MaterialName,
-                    DeliveryState = e.DeliveryState,
+                    DeliveryState = string.IsNullOrEmpty(e.DeliveryState) ? default : Enum.Parse<DeliveryState>(e.DeliveryState),
                     PlantGrade = e.PlantGrade,
                     Specification = e.Specification,
-                    LengthStatus = e.LengthStatus,
+                    LengthStatus = string.IsNullOrEmpty(e.LengthStatus) ? default : Enum.Parse<LengthStatus>(e.LengthStatus),
                     MinLength = e.MinLength,
                     MaxLength = e.MaxLength,
                     TotalItemCount = e.TotalItemCount,
@@ -129,10 +130,10 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                 x.PlantGrade.Contains(kw) ||
                 x.Specification.Contains(kw) ||
                 x.ProductionMainNo.Contains(kw) ||
-                (x.SettlementMethod != null && x.SettlementMethod.Contains(kw)) ||
+                (x.SettlementMethod.ToString().Contains(kw)) ||
                 x.MaterialName.Contains(kw) ||
-                x.DeliveryState.Contains(kw) ||
-                x.LengthStatus.Contains(kw) ||
+                (x.DeliveryState.ToString().Contains(kw)) ||
+                (x.LengthStatus.ToString().Contains(kw)) ||
                 (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
                 (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
                 (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)));
@@ -282,15 +283,15 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     SignDate = e.SignDate,
                     DeliveryDate = e.DeliveryDate,
                     DelayPenalty = e.DelayPenalty,
-                    SettlementMethod = e.SettlementMethod,
+                    SettlementMethod = string.IsNullOrEmpty(e.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(e.SettlementMethod),
                     SalesOrderNo = e.SalesOrderNo,
                     ProductionMainNo = e.ProductionMainNo,
                     ProductionSubNo = e.ProductionSubNo,
                     MaterialName = e.MaterialName,
-                    DeliveryState = e.DeliveryState,
+                    DeliveryState = string.IsNullOrEmpty(e.DeliveryState) ? default : Enum.Parse<DeliveryState>(e.DeliveryState),
                     PlantGrade = e.PlantGrade,
                     Specification = e.Specification,
-                    LengthStatus = e.LengthStatus,
+                    LengthStatus = string.IsNullOrEmpty(e.LengthStatus) ? default : Enum.Parse<LengthStatus>(e.LengthStatus),
                     MinLength = e.MinLength,
                     MaxLength = e.MaxLength,
                     TotalItemCount = e.TotalItemCount,
@@ -334,10 +335,10 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                 x.PlantGrade.Contains(kw) ||
                 x.Specification.Contains(kw) ||
                 x.ProductionMainNo.Contains(kw) ||
-                (x.SettlementMethod != null && x.SettlementMethod.Contains(kw)) ||
+                (x.SettlementMethod.ToString().Contains(kw)) ||
                 x.MaterialName.Contains(kw) ||
-                x.DeliveryState.Contains(kw) ||
-                x.LengthStatus.Contains(kw) ||
+                (x.DeliveryState.ToString().Contains(kw)) ||
+                (x.LengthStatus.ToString().Contains(kw)) ||
                 (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
                 (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
                 (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)));
@@ -363,9 +364,9 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
     private static object ResolvePrintValue(OrderDemandAdjustmentDto item, string key) => key switch
     {
         "MaterialName" => GetMaterialNameText(item.MaterialName),
-        "DeliveryState" => GetDeliveryStateText(item.DeliveryState),
-        "LengthStatus" => GetLengthStatusText(item.LengthStatus),
-        "SettlementMethod" => GetSettlementMethodText(item.SettlementMethod),
+        "DeliveryState" => GetDeliveryStateText(item.DeliveryState.ToString()),
+        "LengthStatus" => GetLengthStatusText(item.LengthStatus.ToString()),
+        "SettlementMethod" => GetSettlementMethodText(item.SettlementMethod.ToString()),
         "DelayPenalty" => item.DelayPenaltyText,
         "ScheduleStage" => item.ScheduleStageText,
         "FlowStatus" => item.FlowStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
@@ -380,9 +381,9 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         "FlowOutputRatio" => item.FlowOutputRatio.ToString("F1") + "%",
         "MainNoFlowOutputRatio" => item.MainNoFlowOutputRatio.ToString("F1") + "%",
         "TotalWeight" => ((int)item.TotalWeight).ToString(),
-        "TotalRemainingWorkDays" => item.TotalRemainingWorkDays?.ToString(),
-        "CapacityWorkDays" => item.CapacityWorkDays?.ToString(),
-        "DaysDiffFromDelivery" => item.DaysDiffFromDelivery?.ToString(),
+        "TotalRemainingWorkDays" => item.TotalRemainingWorkDays?.ToString() ?? "",
+        "CapacityWorkDays" => item.CapacityWorkDays?.ToString() ?? "",
+        "DaysDiffFromDelivery" => item.DaysDiffFromDelivery?.ToString() ?? "",
         "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays.ToString(),
         _ => GetRawValue(item, key)
     };

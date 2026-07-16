@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Batch;
 
 /// <summary>
@@ -68,7 +70,7 @@ public class SectionVisualDto
     public int ProcessGroupId { get; set; }
 
     /// <summary>状态: Completed / InProgress / Outsource / Next / Pending</summary>
-    public string Status { get; set; } = "Pending";
+    public SectionStatus Status { get; set; } = SectionStatus.Pending;
 
     // ===== 若有生产记录 =====
     public DateTime? ExecDate { get; set; }

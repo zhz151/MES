@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -22,7 +22,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -33,7 +33,7 @@ using MES.Data.Entities;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -70,82 +70,94 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
 
     public async Task<FurnaceRegistrationDto?> GetByIdAsync(int id)
     {
-        return await _context.FurnaceRegistrations
+        var r = await _context.FurnaceRegistrations
             .AsNoTracking()
-            .Where(r => r.Id == id)
-            .Select(r => new FurnaceRegistrationDto
-            {
-                Id = r.Id,
-                IncomingDate = r.IncomingDate,
-                RawMaterialUnit = r.RawMaterialUnit,
-                RawMaterialType = r.RawMaterialType,
-                RegisteredGrade = r.RegisteredGrade,
-                RelatedPlantGrade = r.RelatedPlantGrade,
-                FurnaceNumber = r.FurnaceNumber,
-                Specification = r.Specification,
-                Quantity = r.Quantity,
-                Weight = r.Weight,
-                Carbon = r.Carbon,
-                Silicon = r.Silicon,
-                Manganese = r.Manganese,
-                Phosphorus = r.Phosphorus,
-                Sulfur = r.Sulfur,
-                Nickel = r.Nickel,
-                Chromium = r.Chromium,
-                Molybdenum = r.Molybdenum,
-                Copper = r.Copper,
-                Nitrogen = r.Nitrogen,
-                Niobium = r.Niobium,
-                Titanium = r.Titanium,
-                Iron = r.Iron,
-                Aluminum = r.Aluminum,
-                Tungsten = r.Tungsten,
-                PREN = r.PREN,
-                Remark = r.Remark,
-                CreatedTime = r.CreatedTime,
-                UpdatedTime = r.UpdatedTime
-            })
+            .Where(x => x.Id == id)
             .FirstOrDefaultAsync();
+
+        if (r == null) return null;
+
+        return new FurnaceRegistrationDto
+        {
+            Id = r.Id,
+            IncomingDate = r.IncomingDate,
+            RawMaterialUnit = r.RawMaterialUnit,
+            RawMaterialType = Enum.TryParse<RawMaterialType>(r.RawMaterialType, out var rtm) ? rtm : default,
+            RegisteredGrade = r.RegisteredGrade,
+            RelatedPlantGrade = r.RelatedPlantGrade,
+            FurnaceNumber = r.FurnaceNumber,
+            Specification = r.Specification,
+            Quantity = r.Quantity,
+            Weight = r.Weight,
+            Carbon = r.Carbon,
+            Silicon = r.Silicon,
+            Manganese = r.Manganese,
+            Phosphorus = r.Phosphorus,
+            Sulfur = r.Sulfur,
+            Nickel = r.Nickel,
+            Chromium = r.Chromium,
+            Molybdenum = r.Molybdenum,
+            Copper = r.Copper,
+            Nitrogen = r.Nitrogen,
+            Niobium = r.Niobium,
+            Titanium = r.Titanium,
+            Iron = r.Iron,
+            Aluminum = r.Aluminum,
+            Tungsten = r.Tungsten,
+            PREN = r.PREN,
+            Remark = r.Remark,
+            CreatedTime = r.CreatedTime,
+            UpdatedTime = r.UpdatedTime
+        };
     }
 
     public async Task<List<FurnaceRegistrationDto>> GetAllListAsync()
     {
-        return await _context.FurnaceRegistrations
+        var raw = await _context.FurnaceRegistrations
             .AsNoTracking()
             .OrderByDescending(x => x.Id)
-            .Select(x => new FurnaceRegistrationDto
+            .Select(x => new
             {
-                Id = x.Id,
-                IncomingDate = x.IncomingDate,
-                RawMaterialUnit = x.RawMaterialUnit,
-                RawMaterialType = x.RawMaterialType,
-                RegisteredGrade = x.RegisteredGrade,
-                RelatedPlantGrade = x.RelatedPlantGrade,
-                FurnaceNumber = x.FurnaceNumber,
-                Specification = x.Specification,
-                Quantity = x.Quantity,
-                Weight = x.Weight,
-                Carbon = x.Carbon,
-                Silicon = x.Silicon,
-                Manganese = x.Manganese,
-                Phosphorus = x.Phosphorus,
-                Sulfur = x.Sulfur,
-                Nickel = x.Nickel,
-                Chromium = x.Chromium,
-                Molybdenum = x.Molybdenum,
-                Copper = x.Copper,
-                Nitrogen = x.Nitrogen,
-                Niobium = x.Niobium,
-                Titanium = x.Titanium,
-                Iron = x.Iron,
-                Aluminum = x.Aluminum,
-                Tungsten = x.Tungsten,
-                PREN = x.PREN,
-                Remark = x.Remark,
-                CreatedTime = x.CreatedTime,
-                UpdatedTime = x.UpdatedTime
+                x.Id, x.IncomingDate, x.RawMaterialUnit, RawMaterialTypeStr = x.RawMaterialType,
+                x.RegisteredGrade, x.RelatedPlantGrade, x.FurnaceNumber, x.Specification,
+                x.Quantity, x.Weight, x.Carbon, x.Silicon, x.Manganese, x.Phosphorus, x.Sulfur,
+                x.Nickel, x.Chromium, x.Molybdenum, x.Copper, x.Nitrogen, x.Niobium, x.Titanium,
+                x.Iron, x.Aluminum, x.Tungsten, x.PREN, x.Remark, x.CreatedTime, x.UpdatedTime
             })
             .ToListAsync();
+
+        return raw.Select(x => new FurnaceRegistrationDto
+        {
+            Id = x.Id,
+            IncomingDate = x.IncomingDate,
+            RawMaterialUnit = x.RawMaterialUnit,
+            RawMaterialType = Enum.TryParse<RawMaterialType>(x.RawMaterialTypeStr, out var xTmp) ? xTmp : default,
+            RegisteredGrade = x.RegisteredGrade,
+            RelatedPlantGrade = x.RelatedPlantGrade,
+            FurnaceNumber = x.FurnaceNumber,
+            Specification = x.Specification,
+            Quantity = x.Quantity,
+            Weight = x.Weight,
+            Carbon = x.Carbon,
+            Silicon = x.Silicon,
+            Manganese = x.Manganese,
+            Phosphorus = x.Phosphorus,
+            Sulfur = x.Sulfur,
+            Nickel = x.Nickel,
+            Chromium = x.Chromium,
+            Molybdenum = x.Molybdenum,
+            Copper = x.Copper,
+            Nitrogen = x.Nitrogen,
+            Niobium = x.Niobium,
+            Titanium = x.Titanium,
+            Iron = x.Iron,
+            Aluminum = x.Aluminum,
+            Tungsten = x.Tungsten,
+            PREN = x.PREN,
+            Remark = x.Remark,
+            CreatedTime = x.CreatedTime,
+            UpdatedTime = x.UpdatedTime
+        }).ToList();
     }
 
     public async Task<PagedResult<FurnaceRegistrationDto>> GetAllAsync(QueryParams query)
@@ -177,42 +189,51 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
 
         queryable = ApplySorting(queryable, query.SortBy ?? "furnacenumber", query.IsDescending);
 
-        var items = await queryable
+        var raw = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(r => new FurnaceRegistrationDto
+            .Select(r => new
             {
-                Id = r.Id,
-                IncomingDate = r.IncomingDate,
-                RawMaterialUnit = r.RawMaterialUnit,
-                RawMaterialType = r.RawMaterialType,
-                RegisteredGrade = r.RegisteredGrade,
-                RelatedPlantGrade = r.RelatedPlantGrade,
-                FurnaceNumber = r.FurnaceNumber,
-                Specification = r.Specification,
-                Quantity = r.Quantity,
-                Weight = r.Weight,
-                Carbon = r.Carbon,
-                Silicon = r.Silicon,
-                Manganese = r.Manganese,
-                Phosphorus = r.Phosphorus,
-                Sulfur = r.Sulfur,
-                Nickel = r.Nickel,
-                Chromium = r.Chromium,
-                Molybdenum = r.Molybdenum,
-                Copper = r.Copper,
-                Nitrogen = r.Nitrogen,
-                Niobium = r.Niobium,
-                Titanium = r.Titanium,
-                Iron = r.Iron,
-                Aluminum = r.Aluminum,
-                Tungsten = r.Tungsten,
-                PREN = r.PREN,
-                Remark = r.Remark,
-                CreatedTime = r.CreatedTime,
-                UpdatedTime = r.UpdatedTime
+                r.Id, r.IncomingDate, r.RawMaterialUnit, RawMaterialTypeStr = r.RawMaterialType,
+                r.RegisteredGrade, r.RelatedPlantGrade, r.FurnaceNumber, r.Specification,
+                r.Quantity, r.Weight, r.Carbon, r.Silicon, r.Manganese, r.Phosphorus, r.Sulfur,
+                r.Nickel, r.Chromium, r.Molybdenum, r.Copper, r.Nitrogen, r.Niobium, r.Titanium,
+                r.Iron, r.Aluminum, r.Tungsten, r.PREN, r.Remark, r.CreatedTime, r.UpdatedTime
             })
             .ToListAsync();
+
+        var items = raw.Select(r => new FurnaceRegistrationDto
+        {
+            Id = r.Id,
+            IncomingDate = r.IncomingDate,
+            RawMaterialUnit = r.RawMaterialUnit,
+            RawMaterialType = Enum.TryParse<RawMaterialType>(r.RawMaterialTypeStr, out var rTmp) ? rTmp : default,
+            RegisteredGrade = r.RegisteredGrade,
+            RelatedPlantGrade = r.RelatedPlantGrade,
+            FurnaceNumber = r.FurnaceNumber,
+            Specification = r.Specification,
+            Quantity = r.Quantity,
+            Weight = r.Weight,
+            Carbon = r.Carbon,
+            Silicon = r.Silicon,
+            Manganese = r.Manganese,
+            Phosphorus = r.Phosphorus,
+            Sulfur = r.Sulfur,
+            Nickel = r.Nickel,
+            Chromium = r.Chromium,
+            Molybdenum = r.Molybdenum,
+            Copper = r.Copper,
+            Nitrogen = r.Nitrogen,
+            Niobium = r.Niobium,
+            Titanium = r.Titanium,
+            Iron = r.Iron,
+            Aluminum = r.Aluminum,
+            Tungsten = r.Tungsten,
+            PREN = r.PREN,
+            Remark = r.Remark,
+            CreatedTime = r.CreatedTime,
+            UpdatedTime = r.UpdatedTime
+        }).ToList();
 
         return new PagedResult<FurnaceRegistrationDto>
         {
@@ -242,7 +263,7 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
         {
             IncomingDate = r.IncomingDate,
             RawMaterialUnit = r.RawMaterialUnit,
-            RawMaterialType = r.RawMaterialType,
+            RawMaterialType = r.RawMaterialType.ToString(),
             RegisteredGrade = r.RegisteredGrade,
             RelatedPlantGrade = r.RelatedPlantGrade,
             FurnaceNumber = r.FurnaceNumber,
@@ -276,7 +297,7 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
             Id = e.Id,
             IncomingDate = e.IncomingDate,
             RawMaterialUnit = e.RawMaterialUnit,
-            RawMaterialType = e.RawMaterialType,
+            RawMaterialType = Enum.TryParse<RawMaterialType>(e.RawMaterialType, out var eTmp) ? eTmp : default,
             RegisteredGrade = e.RegisteredGrade,
             RelatedPlantGrade = e.RelatedPlantGrade,
             FurnaceNumber = e.FurnaceNumber,
@@ -346,7 +367,7 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
 
         entity.IncomingDate = request.IncomingDate;
         entity.RawMaterialUnit = request.RawMaterialUnit;
-        entity.RawMaterialType = request.RawMaterialType;
+        entity.RawMaterialType = request.RawMaterialType.ToString();
         entity.RegisteredGrade = request.RegisteredGrade;
         entity.RelatedPlantGrade = request.RelatedPlantGrade ?? entity.RelatedPlantGrade;
         entity.FurnaceNumber = request.FurnaceNumber;
@@ -379,7 +400,7 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
             Id = entity.Id,
             IncomingDate = entity.IncomingDate,
             RawMaterialUnit = entity.RawMaterialUnit,
-            RawMaterialType = entity.RawMaterialType,
+            RawMaterialType = Enum.TryParse<RawMaterialType>(entity.RawMaterialType, out var entTmp) ? entTmp : default,
             RegisteredGrade = entity.RegisteredGrade,
             RelatedPlantGrade = entity.RelatedPlantGrade,
             FurnaceNumber = entity.FurnaceNumber,
@@ -582,7 +603,7 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
             PageIndex = 1,
             PageSize = int.MaxValue,
             Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null : sortBy,
+            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
             IsDescending = isDescending,
             IncomingDateFrom = incomingDateFrom,
             IncomingDateTo = incomingDateTo

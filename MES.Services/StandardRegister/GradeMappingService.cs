@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -39,12 +39,11 @@ using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
-using MES.Data.Entities.ProductionStandard;
-using MES.Services.Mapping;
+using MES.Data.Entities.StandardRegister;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services.ProductionStandard;
+namespace MES.Services.StandardRegister;
 
 /// <summary>
 /// Grade mapping service implementation
@@ -171,7 +170,7 @@ public class GradeMappingService : IGradeMappingService
             throw new BusinessException("Grade mapping does not exist");
         }
 
-        return entity.ToDto();
+        return ToDto(entity);
     }
 
     /// <summary>
@@ -204,7 +203,7 @@ public class GradeMappingService : IGradeMappingService
         _context.StandardGradeMappings.Add(entity);
         await _context.SaveChangesAsync();
 
-        return entity.ToDto();
+        return ToDto(entity);
     }
 
     /// <summary>
@@ -270,7 +269,7 @@ public class GradeMappingService : IGradeMappingService
 
         await _context.SaveChangesAsync();
 
-        return entity.ToDto();
+        return ToDto(entity);
     }
 
     /// <summary>
@@ -360,4 +359,18 @@ public class GradeMappingService : IGradeMappingService
             _ => "镍基合金"
         };
     }
+
+    private static StandardGradeMappingDto ToDto(StandardGradeMapping entity) => new()
+    {
+        Id = entity.Id,
+        StandardGrade = entity.StandardGrade,
+        StandardGradeCategory = entity.StandardGradeCategory,
+        PlantGrade = entity.PlantGrade,
+        Density = entity.Density,
+        HeatTreatment = entity.HeatTreatment,
+        SpecialMaterial = entity.SpecialMaterial,
+        SpecialNote = entity.SpecialNote,
+        SteelProperty = entity.SteelProperty,
+        Remark = entity.Remark
+    };
 }

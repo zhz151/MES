@@ -518,9 +518,9 @@
             // 设置改制类型Tab
             activeTab = plan.ReworkType switch
             {
-                "EmptyDrawing" => 0,
-                "FewerPass" => 1,
-                "ManualSelect" => 2,
+                ReworkType.EmptyDrawing => 0,
+                ReworkType.FewerPass => 1,
+                ReworkType.ManualSelect => 2,
                 _ => 0
             };
 
@@ -865,7 +865,7 @@
                     UsageMode = mode,
                     RequiredDate = null,
                     Remark = null,
-                    ReworkType = reworkType.ToString(),
+                    ReworkType = reworkType,
                     UsedQuantity = mode == "Partial" ? usedQuantities.GetValueOrDefault(batchId) : null,
                     UsedWeight = mode == "Partial" ? usedWeights.GetValueOrDefault(batchId) ?? 0 : 0,
                 };
@@ -912,7 +912,7 @@
                         UsageMode = mode,
                         RequiredDate = null,
                         Remark = null,
-                        ReworkType = reworkType.ToString(),
+                        ReworkType = reworkType,
                         UsedQuantity = mode == "Partial" ? usedQuantities.GetValueOrDefault(batchId) : null,
                         UsedWeight = mode == "Partial" ? usedWeights.GetValueOrDefault(batchId) ?? 0 : 0,
                     });

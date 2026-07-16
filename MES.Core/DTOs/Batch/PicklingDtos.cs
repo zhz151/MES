@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
 using MES.Core.DTOs.Shared;
+using MES.Core.Enums;
 namespace MES.Core.DTOs.Batch;
 
 // ========== 入缸记录（PicklingInRecord）==========
@@ -28,7 +29,7 @@ public class PicklingInRecordDto
     /// <summary>入缸日期</summary>
     public DateTime InDate { get; set; }
     /// <summary>状态（Soaking=浸泡中, Completed=已完工）</summary>
-    public string Status { get; set; } = null!;
+    public PicklingStatus Status { get; set; }
 
     /// <summary>设备名称</summary>
     public string? EquipmentName { get; set; }

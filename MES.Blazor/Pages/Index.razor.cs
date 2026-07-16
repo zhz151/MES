@@ -1,4 +1,5 @@
 using MES.Core.DTOs.Equipment;
+using MES.Core.Enums;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.WorkOrder;
 using MudBlazor;
@@ -380,7 +381,7 @@ public partial class Index
             if (result?.Success == true && result.Data != null)
             {
                 _card4InProgressList = result.Data
-                    .Where(r => r.RepairStatus != "Completed")
+                    .Where(r => r.RepairStatus != RepairOrderStatus.Completed)
                     .OrderByDescending(r => r.ReportTime)
                     .ToList();
                 _card4InProgressCount = _card4InProgressList.Count;

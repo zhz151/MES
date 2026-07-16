@@ -683,7 +683,7 @@
                     UsedWeight = _usedWeights.GetValueOrDefault(batchId),
                     RequiredDate = requiredDate,
                     Remark = string.IsNullOrWhiteSpace(_remark) ? null : _remark,
-                    ReworkType = "ManualSelect"
+                    ReworkType = ReworkType.ManualSelect
                 };
 
                 ApiResponse<InProcessReworkPlanDto> result;

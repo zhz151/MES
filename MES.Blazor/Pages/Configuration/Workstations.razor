@@ -53,16 +53,9 @@
 
             <!-- 数据表格 -->
             <div id="workstations-list-table">
-            <MudTable @ref="table"
-                      T="WorkstationDto"
-                      ServerData="@LoadDataFromServer"
-                      Dense="true"
-                      Hover="true"
-                      Class="mt-4 auto-table"
-                      Elevation="0"
-                      RowsPerPage="@_pageSize"
-                      RowsPerPageLabel="每页行数:">
-                <ToolBarContent>
+            <!-- 工具栏 -->
+            <div class="woe-toolbar">
+                <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"
                                          OnMoveUp="MoveColumnUp"
@@ -73,12 +66,39 @@
                                OnClick="ResetColumnDisplay" Class="ml-2">
                         重置
                     </MudButton>
-                    <MudSpacer />
-                    <MudText Typo="Typo.body2" Class="ml-auto">
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintSelected" Class="ml-2">
+                        打印选中
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll" Class="ml-2">
+                        打印全部
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
-                </ToolBarContent>
+                </div>
+            </div>
+            <MudTable @ref="table"
+                      T="WorkstationDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-0 auto-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
                 <HeaderContent>
+                    <MudTh Class="col-selection-th" Style="width: 40px;">
+                        <MudCheckBox Value="@allSelected"
+                                     ValueChanged="@((bool v) => OnSelectAllChanged(v))" />
+                    </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
@@ -94,6 +114,10 @@
                         var rowEditing = _editingIds.Contains(item.Id);
                         var rowCache = rowEditing && _editCache.TryGetValue(item.Id, out var rc) ? rc : null;
                     }
+                    <MudTd Class="col-selection-td">
+                        <MudCheckBox Value="@(selectedIds.Contains(item.Id))"
+                                     ValueChanged="@((bool v) => OnRowSelectionChanged(item.Id, v))" />
+                    </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTd>

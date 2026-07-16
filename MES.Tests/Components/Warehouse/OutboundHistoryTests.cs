@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Blazor.Pages.Warehouse;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Warehouse;
+using MES.Core.Enums;
 
 namespace MES.Tests.Components;
 
@@ -52,7 +53,7 @@ public class OutboundHistoryTests : TestBase
                     Id = 1,
                     InventoryBatchId = 1,
                     BatchNo = "BATCH-OB-001",
-                    OutboundType = "生产领料",
+                    OutboundType = OutboundType.ProductionPick,
                     OutboundQuantity = 50,
                     OutboundWeight = 2500m,
                     OutboundDate = DateTime.Today

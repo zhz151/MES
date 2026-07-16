@@ -145,7 +145,7 @@ public class NcrController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         var html = await _ncrService.PrintSelectedAsync(request.Ids, request.Columns);
-        return Ok(ApiResponse<string>.Ok(html));
+        return Ok(ApiResponse<string>.Ok(data: html));
     }
 
     /// <summary>打印全部 NCR（生成 HTML）</summary>
@@ -156,6 +156,6 @@ public class NcrController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         var html = await _ncrService.PrintAllAsync(request);
-        return Ok(ApiResponse<string>.Ok(html));
+        return Ok(ApiResponse<string>.Ok(data: html));
     }
 }

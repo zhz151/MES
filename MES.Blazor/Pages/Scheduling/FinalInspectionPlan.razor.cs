@@ -4,6 +4,7 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
+using MES.Core.Enums;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -97,7 +98,7 @@ public partial class FinalInspectionPlan
             new() { Key = "WorkOrderNo",           Label = "工单号",     SortKey = "WorkOrderNo",           FilterType = "string", Width = "130", GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "Salesman",              Label = "业务员",     SortKey = "Salesman",              FilterType = "string", Width = "100", GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "Specification",         Label = "成品规格",   SortKey = "Specification",         FilterType = "string", Width = "130", GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "LengthStatus",          Label = "长度状态",   SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") }, DisplayConverter = v => DisplayHelper.GetLengthStatusText(v as string), GroupKey = 2, GroupName = "关联工单" },
+            new() { Key = "LengthStatus",          Label = "长度状态",   SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), DisplayConverter = v => v is LengthStatus ls ? DisplayHelper.GetLengthStatusText(ls) : DisplayHelper.GetLengthStatusText(v as string), GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "MinLength",             Label = "最小长度",   SortKey = "MinLength",             Width = "80",  GroupKey = 2, GroupName = "关联工单" },
             new() { Key = "MaxLength",             Label = "最大长度",   SortKey = "MaxLength",             Width = "80",  GroupKey = 2, GroupName = "关联工单" },
         };
@@ -315,7 +316,7 @@ public partial class FinalInspectionPlan
         "WorkOrderNo" => item.WorkOrderNo,
         "Salesman" => item.Salesman,
         "Specification" => item.Specification,
-        "LengthStatus" => item.LengthStatus,
+        "LengthStatus" => item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : null,
         "ScheduleStage" => item.ScheduleStage.ToString(),
         "UrgencyLevel" => item.UrgencyLevel,
         "KanbanStage" => item.KanbanStage,
@@ -414,7 +415,7 @@ public partial class FinalInspectionPlan
             "workorderno" => items.OrderBy(x => x.WorkOrderNo ?? ""),
             "salesman" => items.OrderBy(x => x.Salesman ?? ""),
             "specification" => items.OrderBy(x => x.Specification ?? ""),
-            "lengthstatus" => items.OrderBy(x => x.LengthStatus ?? ""),
+            "lengthstatus" => items.OrderBy(x => x.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(x.LengthStatus.Value) : ""),
             "minlength" => items.OrderBy(x => x.MinLength),
             "maxlength" => items.OrderBy(x => x.MaxLength),
             "schedulestage" => items.OrderBy(x => x.ScheduleStage),
@@ -631,7 +632,7 @@ public partial class FinalInspectionPlan
                 builder.AddContent(0, item.Specification ?? "-");
                 break;
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : "-");
                 break;
             case "MinLength":
                 builder.AddContent(0, item.MinLength?.ToString("G29") ?? "-");
@@ -813,10 +814,10 @@ public partial class FinalInspectionPlan
             return raw?.ToString() ?? "-";
         }
 
-        return GetRawPropertyValue(item, col.Key);
+        return GetRawPropertyValue(item, col.Key)!;
     }
 
-    private static object GetRawPropertyValue(FinalInspectionPlanDto item, string key) => key switch
+    private static object? GetRawPropertyValue(FinalInspectionPlanDto item, string key) => key switch
     {
         "BatchNo" => item.BatchNo ?? "",
         "TagNo" => item.TagNo ?? "",
@@ -825,7 +826,7 @@ public partial class FinalInspectionPlan
         "WorkOrderNo" => item.WorkOrderNo ?? "",
         "Salesman" => item.Salesman ?? "",
         "Specification" => item.Specification ?? "",
-        "LengthStatus" => item.LengthStatus,
+        "LengthStatus" => item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : "",
         "MinLength" => item.MinLength,
         "MaxLength" => item.MaxLength,
         "ScheduleStage" => item.ScheduleStage,

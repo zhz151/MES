@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using MES.Blazor.Pages.Equipment;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Equipment;
+using MES.Core.Enums;
 
 namespace MES.Tests.Components;
 
@@ -31,10 +32,10 @@ public class EquipmentsTests : TestBase
     }
 
     [Theory]
-    [InlineData("Active", "在用")]
-    [InlineData("Standby", "备用")]
-    [InlineData("Scrapped", "报废")]
-    public void LifecycleStatus_DisplaysCorrectText(string status, string expectedText)
+    [InlineData(LifecycleStatus.Active, "在用")]
+    [InlineData(LifecycleStatus.Standby, "备用")]
+    [InlineData(LifecycleStatus.Scrapped, "报废")]
+    public void LifecycleStatus_DisplaysCorrectText(LifecycleStatus status, string expectedText)
     {
         ConfigureLifecycleResponse(status);
         var cut = Ctx.RenderComponent<CascadingAuthenticationState>(p => p.AddChildContent<Equipments>());
@@ -42,7 +43,7 @@ public class EquipmentsTests : TestBase
         cut.Markup.Should().Contain(expectedText);
     }
 
-    private void ConfigureLifecycleResponse(string lifecycleStatus)
+    private void ConfigureLifecycleResponse(LifecycleStatus lifecycleStatus)
     {
         ConfigureEmptyResponse("/api/equipment/list");
         var pagedResult = new PagedResult<EquipmentListDto>
@@ -55,10 +56,10 @@ public class EquipmentsTests : TestBase
                     EquipmentCode = "EQ001",
                     EquipmentName = "测试设备",
                     LifecycleStatus = lifecycleStatus,
-                    UsageType = "Primary",
-                    RunningStatus = "Normal",
-                    InspectionStatus = "Normal",
-                    MaintStatus = "Normal",
+                    UsageType = UsageType.Primary,
+                    RunningStatus = RunningStatus.Normal,
+                    InspectionStatus = EquipmentTaskStatus.Normal,
+                    MaintStatus = EquipmentTaskStatus.Normal,
                     Location = "车间A"
                 }
             },

@@ -20,7 +20,6 @@
   <ItemGroup>
     <ProjectReference Include="..\MES.Data\MES.Data.csproj" />
     <ProjectReference Include="..\MES.Core\MES.Core.csproj" />
-    <ProjectReference Include="..\MES.Auth\MES.Auth.csproj" />
     <ProjectReference Include="..\MES.Shared\MES.Shared.csproj" />
   </ItemGroup>
 

@@ -9,7 +9,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -24,7 +24,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -36,7 +36,7 @@ using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
@@ -77,7 +77,7 @@ public class OrderService : IOrderService
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
             return await _configService.GetConfigMapAsync(category);
         });
-        return map.GetValueOrDefault(key, defaultValue);
+        return map?.GetValueOrDefault(key, defaultValue) ?? defaultValue;
     }
 
     #region 订单管理
@@ -306,7 +306,7 @@ public class OrderService : IOrderService
                 .AsNoTracking()
                 .Where(sr => standardNos.Contains(sr.StandardNo))
                 .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, MES.Data.Entities.ProductionStandard.StandardRegister>(StringComparer.OrdinalIgnoreCase);
+            : new Dictionary<string, MES.Data.Entities.StandardRegister.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 5. 加载牌号映射
         var gradeDict = await LoadGradeMappingsDictAsync(orderItems);
@@ -814,7 +814,7 @@ public class OrderService : IOrderService
         var srDict = allStandardNos.Any()
             ? await _context.StandardRegisters.Where(sr => allStandardNos.Contains(sr.StandardNo))
                 .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, MES.Data.Entities.ProductionStandard.StandardRegister>(StringComparer.OrdinalIgnoreCase);
+            : new Dictionary<string, MES.Data.Entities.StandardRegister.StandardRegister>(StringComparer.OrdinalIgnoreCase);
         var gradeDict = allGradeNames.Any()
             ? (await _context.StandardGradeMappings.Where(sgm => allGradeNames.Contains(sgm.StandardGrade))
                 .ToListAsync())
@@ -1183,7 +1183,7 @@ public class OrderService : IOrderService
             // EstimatedCompletionDate: 取最大
             estimatedCompletionDate = executionSummaries
                 .Where(e => e.EstimatedProcessCompletionDate.HasValue)
-                .Select(e => e.EstimatedProcessCompletionDate.Value)
+                .Select(e => e.EstimatedProcessCompletionDate!.Value)
                 .DefaultIfEmpty()
                 .Max();
         }
@@ -1622,7 +1622,7 @@ public class OrderService : IOrderService
             ? await _context.StandardRegisters
                 .Where(sr => allStandardNos.Contains(sr.StandardNo))
                 .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, MES.Data.Entities.ProductionStandard.StandardRegister>(StringComparer.OrdinalIgnoreCase);
+            : new Dictionary<string, MES.Data.Entities.StandardRegister.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 加载牌号映射（从 StandardGradeMapping 取最新 PlantGrade/Density）
         var allOrderItems = salesOrders.SelectMany(so => so.OrderItems).ToList();

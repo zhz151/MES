@@ -1,17 +1,18 @@
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Services.Printing;
 
@@ -44,17 +45,17 @@ public static class EquipmentPrintHelper
                 ["InspectionCycleDays"] = m.InspectionCycleDays,
                 ["LastInspectionDate"] = m.LastInspectionDate?.ToString("yyyy-MM-dd") ?? "",
                 ["CurrentInspectionStartDate"] = m.CurrentInspectionStartDate?.ToString("yyyy-MM-dd") ?? "",
-                ["InspectionStatus"] = m.InspectionStatus ?? "",
+                ["InspectionStatus"] = EnumHelper.GetDisplayName(typeof(EquipmentTaskStatus), m.InspectionStatus),
                 ["NeedMaintenance"] = m.NeedMaintenance,
                 ["MaintPerson"] = m.MaintPerson ?? "",
                 ["MaintCycleDays"] = m.MaintCycleDays,
                 ["LastMaintDate"] = m.LastMaintDate?.ToString("yyyy-MM-dd") ?? "",
                 ["CurrentMaintStartDate"] = m.CurrentMaintStartDate?.ToString("yyyy-MM-dd") ?? "",
-                ["MaintStatus"] = m.MaintStatus ?? "",
+                ["MaintStatus"] = EnumHelper.GetDisplayName(typeof(EquipmentTaskStatus), m.MaintStatus),
                 ["LastRepairDate"] = m.LastRepairDate?.ToString("yyyy-MM-dd") ?? "",
-                ["LifecycleStatus"] = m.LifecycleStatus ?? "",
-                ["UsageType"] = m.UsageType ?? "",
-                ["RunningStatus"] = m.RunningStatus ?? "",
+                ["LifecycleStatus"] = EnumHelper.GetDisplayName(typeof(LifecycleStatus), m.LifecycleStatus),
+                ["UsageType"] = EnumHelper.GetDisplayName(typeof(UsageType), m.UsageType),
+                ["RunningStatus"] = EnumHelper.GetDisplayName(typeof(RunningStatus), m.RunningStatus),
                 ["CreatedTime"] = m.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
                 ["UpdatedTime"] = m.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
             };

@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -23,7 +23,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -80,7 +80,7 @@ public class SubcontractOrderServiceTests : TestBase
             OrderDate = orderDate ?? DateTime.Today,
             Status = status,
             ProcessType = "车丝",
-            OutMaterialCategory = "钢管",
+            OutMaterialCategory = "RoughTube",
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
             OutQuantity = outQty,
@@ -90,7 +90,7 @@ public class SubcontractOrderServiceTests : TestBase
         order.ReturnItems.Add(new SubcontractReturnItem
         {
             Sequence = 1,
-            MaterialCategory = "钢管",
+            MaterialCategory = "RoughTube",
             ProcessSpecification = "219*8",
             ProcessUnitPrice = 10m,
             ProcessTotalAmount = 1000m
@@ -128,7 +128,7 @@ public class SubcontractOrderServiceTests : TestBase
             OrderDate = DateTime.Today,
             Status = SubcontractOrderStatus.Sent,
             ProcessType = "车丝",
-            OutMaterialCategory = "不锈钢管",
+            OutMaterialCategory = "RoundBar",
             OutPlantGrade = "304",
             OutSpecification = "273*10",
             OutQuantity = 50,
@@ -217,7 +217,7 @@ public class SubcontractOrderServiceTests : TestBase
         {
             SupplierId = sid,
             OrderDate = DateTime.Today,
-            OutMaterialCategory = "钢管",
+            OutMaterialCategory = MaterialCategory.RoughTube,
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
             OutQuantity = 100,
@@ -228,7 +228,7 @@ public class SubcontractOrderServiceTests : TestBase
             {
                 new()
                 {
-                    MaterialCategory = "钢管",
+                    MaterialCategory = MaterialCategory.RoughTube,
                     ProcessSpecification = "219*8",
                     ProcessUnitPrice = 10m,
                     ProcessTotalAmount = 1000m,
@@ -259,7 +259,7 @@ public class SubcontractOrderServiceTests : TestBase
             SupplierId = sid,
             OrderDate = DateTime.Today,
             ProcessType = "车丝",
-            OutMaterialCategory = "钢管",
+            OutMaterialCategory = MaterialCategory.RoughTube,
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
             OutQuantity = 100,
@@ -284,7 +284,7 @@ public class SubcontractOrderServiceTests : TestBase
         {
             SupplierId = sid,
             ProcessType = "抛光",
-            OutMaterialCategory = "不锈钢管",
+            OutMaterialCategory = MaterialCategory.RoundBar,
             OutPlantGrade = "304",
             OutSpecification = "273*10",
             OutQuantity = 200,
@@ -294,14 +294,14 @@ public class SubcontractOrderServiceTests : TestBase
             {
                 new()
                 {
-                    MaterialCategory = "不锈钢管",
+                    MaterialCategory = MaterialCategory.RoundBar,
                     ProcessSpecification = "273*10",
                     ProcessUnitPrice = 20m,
                     ProcessTotalAmount = 4000m
                 },
                 new()
                 {
-                    MaterialCategory = "不锈钢管",
+                    MaterialCategory = MaterialCategory.RoundBar,
                     ProcessSpecification = "273*10",
                     ProcessUnitPrice = 15m,
                     ProcessTotalAmount = 3000m
@@ -314,7 +314,7 @@ public class SubcontractOrderServiceTests : TestBase
 
         var saved = await ctx.SubcontractOrders.Include(s => s.ReturnItems).FirstAsync(s => s.Id == order.Id);
         saved.ReturnItems.Should().HaveCount(2);
-        saved.OutMaterialCategory.Should().Be("不锈钢管");
+        saved.OutMaterialCategory.Should().Be("RoundBar");
     }
 
     [Fact]
@@ -329,7 +329,7 @@ public class SubcontractOrderServiceTests : TestBase
         {
             SupplierId = sid,
             ProcessType = "车丝",
-            OutMaterialCategory = "钢管",
+            OutMaterialCategory = MaterialCategory.RoughTube,
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
             OutQuantity = 100,
@@ -357,7 +357,7 @@ public class SubcontractOrderServiceTests : TestBase
         {
             SupplierId = sid,
             ProcessType = "抛光", // 请求中试图修改，但已完成状态不应生效
-            OutMaterialCategory = "不锈钢管",
+            OutMaterialCategory = MaterialCategory.RoundBar,
             OutPlantGrade = "304",
             OutSpecification = "273*10",
             OutQuantity = 200,
@@ -601,7 +601,7 @@ public class SubcontractOrderServiceTests : TestBase
             OrderDate = DateTime.Today,
             Status = SubcontractOrderStatus.Sent,
             ProcessType = "抛光",
-            OutMaterialCategory = "钢管",
+            OutMaterialCategory = "RoughTube",
             OutPlantGrade = "304",
             OutSpecification = "273*10",
             OutQuantity = 50,
@@ -689,7 +689,7 @@ public class SubcontractOrderServiceTests : TestBase
             OrderDate = DateTime.Today,
             Status = SubcontractOrderStatus.Sent,
             ProcessType = "车丝",
-            OutMaterialCategory = "钢管",
+            OutMaterialCategory = "RoughTube",
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
             OutQuantity = 100,

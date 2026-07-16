@@ -33,7 +33,7 @@ public class ScanServiceTests : TestBase
             Specification = "219*8",
             TagNo = "TAG001",
             ProductionType = "在制生产",
-            ManufacturingItem = "订单成品",
+            ManufacturingItem = "OrderFinishedProduct",
             WorkOrderNo = "GD250101001",
             SalesOrderNo = "SO001",
             ProductionMainNo = "D01",
@@ -43,9 +43,9 @@ public class ScanServiceTests : TestBase
             DeliveryDate = DateTime.Today.AddMonths(1),
             DelayPenalty = false,
             MaterialName = "无缝管",
-            SettlementMethod = "理算",
+            SettlementMethod = "Theoretical",
             StandardCode = "GB/T 8163",
-            DeliveryState = "固溶酸洗",
+            DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Fixed",
             TotalQuantity = 100,
             TotalMeters = 600,
@@ -86,7 +86,7 @@ public class ScanServiceTests : TestBase
 
         result.Should().NotBeNull();
         result.BatchNo.Should().Be(batch.BatchNo);
-        result.Status.Should().Be("未产");
+        result.Status.Should().Be(BatchStatus.None);
         result.PlantGrade.Should().Be("304");
         result.Specification.Should().Be("219*8");
         result.TagNo.Should().Be("TAG001");
@@ -118,7 +118,7 @@ public class ScanServiceTests : TestBase
             Status = BatchStatus.None,
             PlantGrade = "304",
             Specification = "219*8",
-            ManufacturingItem = "订单成品",
+            ManufacturingItem = "OrderFinishedProduct",
             WorkOrderNo = "GD250101002",
             SalesOrderNo = "SO002",
             ProductionMainNo = "D01",
@@ -127,9 +127,9 @@ public class ScanServiceTests : TestBase
             Salesman = "测试",
             DeliveryDate = DateTime.Today.AddMonths(1),
             MaterialName = "无缝管",
-            SettlementMethod = "理算",
+            SettlementMethod = "Theoretical",
             StandardCode = "GB/T 8163",
-            DeliveryState = "固溶酸洗",
+            DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Fixed",
             TotalQuantity = 100,
             TotalMeters = 600,
@@ -282,7 +282,7 @@ public class ScanServiceTests : TestBase
                 Status = status,
                 PlantGrade = "304",
                 Specification = "219*8",
-                ManufacturingItem = "订单成品",
+                ManufacturingItem = "OrderFinishedProduct",
                 WorkOrderNo = "GD250101003",
                 SalesOrderNo = "SO003",
                 ProductionMainNo = "D01",
@@ -291,9 +291,9 @@ public class ScanServiceTests : TestBase
                 Salesman = "测试",
                 DeliveryDate = DateTime.Today.AddMonths(1),
                 MaterialName = "无缝管",
-                SettlementMethod = "理算",
+                SettlementMethod = "Theoretical",
                 StandardCode = "GB/T 8163",
-                DeliveryState = "固溶酸洗",
+                DeliveryState = "SolutionAnnealedAndPickled",
                 LengthStatus = "Fixed",
                 TotalQuantity = 100,
                 TotalMeters = 600,
@@ -315,7 +315,7 @@ public class ScanServiceTests : TestBase
 
             var svc = CreateService(ctx);
             var result = await svc.ResolveAsync(batchNo, group.Id);
-            result.Status.Should().Be(expectedText, $"批次状态 {status} 应映射为 \"{expectedText}\"");
+            result.Status.Should().Be(status, $"批次状态 {status} 应映射为 \"{status}\"");
 
             // Clean up for next iteration
             ctx.ProductionBatches.Remove(batch);

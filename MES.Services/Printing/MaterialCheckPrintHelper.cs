@@ -1,17 +1,18 @@
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Services.Printing;
 
@@ -31,7 +32,7 @@ public static class MaterialCheckPrintHelper
             {
                 ["BatchNo"] = m.BatchNo ?? "",
                 ["ReceiveDate"] = m.ReceiveDate.ToString("yyyy-MM-dd"),
-                ["ManufacturingItem"] = m.ManufacturingItem ?? "",
+                ["ManufacturingItem"] = m.ManufacturingItem.HasValue ? EnumHelper.GetDisplayName(typeof(ManufacturingItem), m.ManufacturingItem.Value) : "",
                 ["PlantGrade"] = m.PlantGrade ?? "",
                 ["Specification"] = m.Specification ?? "",
                 ["TagNo"] = m.TagNo ?? "",
@@ -39,12 +40,12 @@ public static class MaterialCheckPrintHelper
                 ["SalesOrderNo"] = m.SalesOrderNo ?? "",
                 ["FurnaceNo"] = m.FurnaceNo ?? "",
                 ["SourceUnit"] = m.SourceUnit ?? "",
-                ["ProductionType"] = m.ProductionType ?? "",
+                ["ProductionType"] = m.ProductionType.HasValue ? EnumHelper.GetDisplayName(typeof(ProductionType), m.ProductionType.Value) : "",
                 ["Shift"] = m.Shift ?? "",
                 ["Checker"] = m.Checker ?? "",
                 ["ProductionCutQuantity"] = m.ProductionCutQuantity.ToString(),
                 ["ProductionWeight"] = m.ProductionWeight?.ToString("G29") ?? "",
-                ["LengthStatus"] = m.LengthStatus ?? "",
+                ["LengthStatus"] = m.LengthStatus.HasValue ? EnumHelper.GetDisplayName(typeof(LengthStatus), m.LengthStatus.Value) : "",
                 ["IsForceCompleted"] = m.IsForceCompleted ? "是" : "否",
                 ["Remark"] = m.Remark ?? "",
                 ["CreatedTime"] = m.CreatedTime.ToString("yyyy-MM-dd HH:mm"),

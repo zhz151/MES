@@ -7,7 +7,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Blazor.Components
-@using MES.Core.DTOs.ProductionStandard
+@using MES.Core.DTOs.StandardRegister
 @inject StandardRegisterService Svc
 @inject PageStateService PageState
 @inject NavigationManager Navigation
@@ -15,6 +15,7 @@
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
+@inject HttpClient Http
 @attribute [Authorize(Roles = Roles.Policies.StandardRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -55,16 +56,9 @@
 
             <!-- 数据表格 -->
             <div id="standard-registers-table">
-            <MudTable @ref="table"
-                      T="StandardRegisterDto"
-                      ServerData="@LoadDataFromServer"
-                      Dense="true"
-                      Hover="true"
-                      Class="mt-4 auto-table"
-                      Elevation="0"
-                      RowsPerPage="@_pageSize"
-                      RowsPerPageLabel="每页行数:">
-                <ToolBarContent>
+            <!-- 工具栏 -->
+            <div class="woe-toolbar">
+                <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"
                                          OnMoveUp="MoveColumnUp"
@@ -75,12 +69,39 @@
                                OnClick="ResetColumnDisplay" Class="ml-2">
                         重置
                     </MudButton>
-                    <MudSpacer />
-                    <MudText Typo="Typo.body2" Class="ml-auto">
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintSelected" Class="ml-2">
+                        打印选中
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll" Class="ml-2">
+                        打印全部
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
-                </ToolBarContent>
+                </div>
+            </div>
+            <MudTable @ref="table"
+                      T="StandardRegisterDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-0 auto-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
                 <HeaderContent>
+                    <MudTh Class="col-selection-th" Style="width: 40px;">
+                        <MudCheckBox T="bool" Value="@allSelected"
+                                     ValueChanged="@((bool v) => { selectedIds = v ? new HashSet<int>(_pageItems.Select(i => i.Id)) : new(); StateHasChanged(); })" />
+                    </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
@@ -101,6 +122,10 @@
                     <MudTh Style="width: 120px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
+                    <MudTd Class="col-selection-td">
+                        <MudCheckBox T="bool" Value="@(selectedIds.Contains(item.Id))"
+                                     ValueChanged="@((bool v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); StateHasChanged(); })" />
+                    </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTd>@RenderCell(item, col)</MudTd>

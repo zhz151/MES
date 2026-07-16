@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Blazor.Pages.Quality;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Quality;
+using MES.Core.Enums;
 
 namespace MES.Tests.Components;
 
@@ -50,7 +51,7 @@ public class FurnaceRegistrationsTests : TestBase
                     Id = 1,
                     IncomingDate = DateTime.Today,
                     RawMaterialUnit = "宝钢",
-                    RawMaterialType = "无缝管",
+                    RawMaterialType = RawMaterialType.RoughTube,
                     RegisteredGrade = "304",
                     RelatedPlantGrade = "S30408",
                     FurnaceNumber = "FUR-001",

@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -24,7 +24,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -36,7 +36,7 @@ using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -107,7 +107,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
-                Status = s.Status.ToString(),
+                Status = s.Status,
                 TagNo = s.TagNo,
                 PlantGrade = s.PlantGrade,
                 OutsourceSpec = s.OutsourceSpec,
@@ -278,7 +278,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
-                Status = s.Status.ToString(),
+                Status = s.Status,
                 TagNo = s.TagNo,
                 PlantGrade = s.PlantGrade,
                 OutsourceSpec = s.OutsourceSpec,
@@ -1082,7 +1082,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["SendOutDate"] = s.SendOutDate.ToString("yyyy-MM-dd"),
             ["SendQuantity"] = (object)(s.SendQuantity ?? (object?)DBNull.Value)!,
             ["SendWeight"] = (object)(s.SendWeight ?? (object?)DBNull.Value)!,
-            ["Status"] = Enum.TryParse<SectionOutsourceStatus>(s.Status, out var st) ? EnumHelper.GetDisplayName(st) : s.Status,
+            ["Status"] = EnumHelper.GetDisplayName(s.Status),
             ["TagNo"] = s.TagNo ?? "",
             ["PlantGrade"] = s.PlantGrade ?? "",
             ["OutsourceSpec"] = s.OutsourceSpec ?? "",
@@ -1307,7 +1307,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             SendOutDate = entity.SendOutDate,
             SendQuantity = entity.SendQuantity,
             SendWeight = entity.SendWeight,
-            Status = entity.Status.ToString(),
+            Status = entity.Status,
             TagNo = entity.TagNo,
             PlantGrade = entity.PlantGrade,
             OutsourceSpec = entity.OutsourceSpec,
@@ -1428,7 +1428,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
-                Status = s.Status.ToString(),
+                Status = s.Status,
                 TagNo = s.TagNo,
                 PlantGrade = s.PlantGrade,
                 OutsourceSpec = s.OutsourceSpec,

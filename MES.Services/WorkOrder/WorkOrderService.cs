@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -24,7 +24,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -35,14 +35,13 @@ using MES.Data.Entities;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.WorkOrder;
-using MES.Services.Mapping;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using Microsoft.Extensions.Caching.Memory;
@@ -113,7 +112,7 @@ public class WorkOrderService : IWorkOrderService
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
             return await _configService.GetConfigMapAsync(category);
         });
-        return map.GetValueOrDefault(key, defaultValue);
+        return map?.GetValueOrDefault(key, defaultValue) ?? defaultValue;
     }
 
     #region 工单首页（订单状态监控）
@@ -611,7 +610,7 @@ public class WorkOrderService : IWorkOrderService
             ? await _context.StandardRegisters
                 .Where(sr => standardNos.Contains(sr.StandardNo))
                 .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, MES.Data.Entities.ProductionStandard.StandardRegister>(StringComparer.OrdinalIgnoreCase);
+            : new Dictionary<string, MES.Data.Entities.StandardRegister.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 加载牌号映射（从 StandardGradeMapping 取最新 PlantGrade/Density）
         var gradeNames = orderItems.Select(oi => oi.StandardGrade).Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList();
@@ -661,7 +660,7 @@ public class WorkOrderService : IWorkOrderService
                     Meters = item.Meters,
                     ContractWeight = item.ContractWeight,
                     TheoreticalWeight = item.TheoreticalWeight,
-                    RequirementType = item.ProductRequirement?.RequirementType.ToString() ?? "Normal",
+                    RequirementType = item.ProductRequirement?.RequirementType ?? RequirementType.Normal,
                     SuggestedMainNo = suggestedMainNo
                 };
 
@@ -835,7 +834,7 @@ public class WorkOrderService : IWorkOrderService
             ? await _context.StandardRegisters
                 .Where(sr => standardNos.Contains(sr.StandardNo))
                 .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, MES.Data.Entities.ProductionStandard.StandardRegister>(StringComparer.OrdinalIgnoreCase);
+            : new Dictionary<string, MES.Data.Entities.StandardRegister.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 3. 验证项次
         foreach (var workOrderGroup in request.WorkOrders)
@@ -1065,7 +1064,7 @@ public class WorkOrderService : IWorkOrderService
             ? await _context.StandardRegisters
                 .Where(sr => standardNos.Contains(sr.StandardNo))
                 .ToDictionaryAsync(sr => sr.StandardNo, sr => sr, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, MES.Data.Entities.ProductionStandard.StandardRegister>(StringComparer.OrdinalIgnoreCase);
+            : new Dictionary<string, MES.Data.Entities.StandardRegister.StandardRegister>(StringComparer.OrdinalIgnoreCase);
 
         // 3. 验证项次
         foreach (var workOrderGroup in request.WorkOrders)
@@ -1439,11 +1438,11 @@ public class WorkOrderService : IWorkOrderService
                 TotalItemCount = s.TotalItemCount,
                 Status = (WorkOrderStatus)s.Status,
                 CreatedTime = s.CreatedTime,
-                MaterialPlanStatus = s.MaterialPlanStatus,
+                MaterialPlanStatus = (MaterialPlanStatus)s.MaterialPlanStatus,
                 MaterialPlanRate = s.MaterialPlanRate,
-                MainNoMaterialPlanStatus = s.MainNoMaterialPlanStatus,
+                MainNoMaterialPlanStatus = (MaterialPlanStatus)s.MainNoMaterialPlanStatus,
                 MainNoMaterialPlanRate = s.MainNoMaterialPlanRate,
-                OrderMaterialPlanStatus = s.OrderMaterialPlanStatus,
+                OrderMaterialPlanStatus = (MaterialPlanStatus)s.OrderMaterialPlanStatus,
                 LatestPlanDate = s.LatestPlanDate,
                 SemiPlanTotalWeight = s.SemiPlanTotalWeight,
                 SemiPlanTotalPieces = s.SemiPlanTotalPieces,
@@ -1583,7 +1582,7 @@ public class WorkOrderService : IWorkOrderService
             .Take(query.PageSize)
             .ToListAsync();
 
-        var items = workOrders.Select(wo => wo.ToListItemDto()).ToList();
+        var items = workOrders.Select(wo => ToListItemDto(wo)).ToList();
 
         return new PagedResult<WorkOrderListItemDto>
         {
@@ -1714,11 +1713,11 @@ public class WorkOrderService : IWorkOrderService
                 TotalItemCount = s.TotalItemCount,
                 Status = (WorkOrderStatus)s.Status,
                 CreatedTime = s.CreatedTime,
-                MaterialPlanStatus = s.MaterialPlanStatus,
+                MaterialPlanStatus = (MaterialPlanStatus)s.MaterialPlanStatus,
                 MaterialPlanRate = s.MaterialPlanRate,
-                MainNoMaterialPlanStatus = s.MainNoMaterialPlanStatus,
+                MainNoMaterialPlanStatus = (MaterialPlanStatus)s.MainNoMaterialPlanStatus,
                 MainNoMaterialPlanRate = s.MainNoMaterialPlanRate,
-                OrderMaterialPlanStatus = s.OrderMaterialPlanStatus,
+                OrderMaterialPlanStatus = (MaterialPlanStatus)s.OrderMaterialPlanStatus,
                 LatestPlanDate = s.LatestPlanDate,
                 SemiPlanTotalWeight = s.SemiPlanTotalWeight,
                 SemiPlanTotalPieces = s.SemiPlanTotalPieces,
@@ -1904,7 +1903,7 @@ public class WorkOrderService : IWorkOrderService
             var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce, inProcess,
                 fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
             item.MaterialPlanRate = rate;
-            item.MaterialPlanStatus = status;
+            item.MaterialPlanStatus = (MaterialPlanStatus)status;
         }
 
         // 2. 主号级聚合
@@ -1937,7 +1936,7 @@ public class WorkOrderService : IWorkOrderService
                 i.SalesOrderNo == key.SalesOrderNo && i.ProductionMainNo == key.MainNo))
             {
                 item.MainNoMaterialPlanRate = rate;
-                item.MainNoMaterialPlanStatus = (int)status;
+                item.MainNoMaterialPlanStatus = status;
             }
         }
 
@@ -1946,10 +1945,10 @@ public class WorkOrderService : IWorkOrderService
         {
             var orderItems = items.Where(i => i.SalesOrderNo == orderNo).ToList();
             var hasPartialOrNotPlanned = orderItems.Any(i =>
-                i.MainNoMaterialPlanStatus == (int)MaterialPlanStatus.Partial ||
-                i.MainNoMaterialPlanStatus == (int)MaterialPlanStatus.NotPlanned);
+                i.MainNoMaterialPlanStatus == MaterialPlanStatus.Partial ||
+                i.MainNoMaterialPlanStatus == MaterialPlanStatus.NotPlanned);
             var allNotPlanned = orderItems.All(i =>
-                i.MainNoMaterialPlanStatus == (int)MaterialPlanStatus.NotPlanned);
+                i.MainNoMaterialPlanStatus == MaterialPlanStatus.NotPlanned);
 
             MaterialPlanStatus orderStatus;
             if (allNotPlanned)
@@ -1960,7 +1959,7 @@ public class WorkOrderService : IWorkOrderService
                 orderStatus = MaterialPlanStatus.Satisfied;
 
             foreach (var item in orderItems)
-                item.OrderMaterialPlanStatus = (int)orderStatus;
+                item.OrderMaterialPlanStatus = orderStatus;
         }
     }
 
@@ -2093,7 +2092,7 @@ public class WorkOrderService : IWorkOrderService
         if (workOrder == null)
             throw new BusinessException("工单不存在");
 
-        var dto = workOrder.ToDetailDto();
+        var dto = ToDetailDto(workOrder);
 
         // 覆盖冗余快照字段：从 SalesOrder 快照字段读取
         var salesOrder = await _context.SalesOrders
@@ -2116,7 +2115,7 @@ public class WorkOrderService : IWorkOrderService
         if (workOrder == null)
             throw new BusinessException("工单不存在");
 
-        var dto = workOrder.ToDetailDto();
+        var dto = ToDetailDto(workOrder);
 
         // 覆盖冗余快照字段：从 SalesOrder 快照字段读取
         var salesOrder = await _context.SalesOrders
@@ -2140,7 +2139,7 @@ public class WorkOrderService : IWorkOrderService
             .ThenBy(wo => wo.ProductionSubNo)
             .ToListAsync();
 
-        return workOrders.Select(wo => wo.ToListItemDto()).ToList();
+        return workOrders.Select(wo => ToListItemDto(wo)).ToList();
     }
 
     /// <summary>
@@ -2506,7 +2505,7 @@ public class WorkOrderService : IWorkOrderService
                         Sequence = item.Sequence,
                         StandardGrade = item.StandardGrade,
                         Specification = item.Specification,
-                        LengthStatus = item.LengthStatus.ToString(),
+                        LengthStatus = item.LengthStatus,
                         MinLength = item.MinLength,
                         MaxLength = item.MaxLength,
                         Quantity = item.Quantity,
@@ -2533,8 +2532,8 @@ public class WorkOrderService : IWorkOrderService
                 OuterDiameterPositive = wo.OuterDiameterPositive,
                 WallThicknessNegative = wo.WallThicknessNegative,
                 WallThicknessPositive = wo.WallThicknessPositive,
-                DeliveryState = wo.DeliveryState.ToString(),
-                LengthStatus = wo.LengthStatus.ToString(),
+                DeliveryState = wo.DeliveryState,
+                LengthStatus = wo.LengthStatus,
                 DeliveryDate = wo.DeliveryDate,
                 TotalQuantity = wo.TotalQuantity,
                 TotalWeight = wo.TotalWeight,
@@ -2822,4 +2821,81 @@ public class WorkOrderService : IWorkOrderService
     }
 
     #endregion
+
+    private static WorkOrderListItemDto ToListItemDto(WoEntity entity) => new()
+    {
+        Id = entity.Id,
+        WorkOrderNo = entity.WorkOrderNo,
+        SalesOrderNo = entity.SalesOrderNo,
+        ProductionMainNo = entity.ProductionMainNo,
+        ProductionSubNo = entity.ProductionSubNo,
+        SignDate = entity.SignDate,
+        Salesman = entity.Salesman,
+        EndCustomer = entity.EndCustomer,
+        DeliveryDate = entity.DeliveryDate,
+        DelayPenalty = entity.DelayPenalty,
+        SettlementMethod = entity.SettlementMethod,
+        PlantGrade = entity.PlantGrade,
+        PipeManufacturingType = entity.PipeManufacturingType,
+        Specification = entity.Specification,
+        LengthStatus = entity.LengthStatus,
+        MinLength = entity.MinLength,
+        MaxLength = entity.MaxLength,
+        TotalQuantity = entity.TotalQuantity,
+        TotalWeight = entity.TotalWeight,
+        DeliveryState = entity.DeliveryState,
+        TotalItemCount = entity.TotalItemCount,
+        Status = entity.Status,
+        CreatedTime = entity.CreatedTime
+    };
+
+    private static WorkOrderDetailDto ToDetailDto(WoEntity entity) => new()
+    {
+        Id = entity.Id,
+        WorkOrderNo = entity.WorkOrderNo,
+        SalesOrderNo = entity.SalesOrderNo,
+        ProductionMainNo = entity.ProductionMainNo,
+        ProductionSubNo = entity.ProductionSubNo,
+        OrderItemIds = entity.OrderItemIds,
+        Status = entity.Status,
+        SignDate = entity.SignDate,
+        Salesman = entity.Salesman,
+        EndCustomer = entity.EndCustomer,
+        DeliveryDate = entity.DeliveryDate,
+        DelayPenalty = entity.DelayPenalty,
+        PipeManufacturingType = entity.PipeManufacturingType,
+        SettlementMethod = entity.SettlementMethod,
+        StandardCode = entity.StandardCode,
+        DeliveryState = entity.DeliveryState,
+        PlantGrade = entity.PlantGrade,
+        Specification = entity.Specification,
+        OuterDiameterNegative = entity.OuterDiameterNegative,
+        OuterDiameterPositive = entity.OuterDiameterPositive,
+        WallThicknessNegative = entity.WallThicknessNegative,
+        WallThicknessPositive = entity.WallThicknessPositive,
+        LengthStatus = entity.LengthStatus,
+        MinLength = entity.MinLength,
+        MaxLength = entity.MaxLength,
+        TotalQuantity = entity.TotalQuantity,
+        TotalMeters = entity.TotalMeters,
+        TotalWeight = entity.TotalWeight,
+        TotalItemCount = entity.TotalItemCount,
+        ItemDetails = entity.ItemDetails,
+        TechnicalRequirements = entity.TechnicalRequirements.ToString(),
+        RowVersion = entity.RowVersion,
+        CreatedTime = entity.CreatedTime,
+        CreatedBy = entity.CreatedBy,
+        UpdatedTime = entity.UpdatedTime,
+        UpdatedBy = entity.UpdatedBy,
+        MaterialPlanStatus = entity.MaterialPlanStatus,
+        MaterialPlanRate = entity.MaterialPlanRate,
+        UnitWeight = PipeWeightCalculator.CalculateUnitWeight(
+            entity.Specification,
+            entity.OuterDiameterNegative,
+            entity.OuterDiameterPositive,
+            entity.WallThicknessNegative,
+            entity.WallThicknessPositive,
+            entity.LengthStatus,
+            entity.MaxLength)
+    };
 }

@@ -1,4 +1,5 @@
 using MES.Core.DTOs.Shared;
+using MES.Core.Enums;
 namespace MES.Core.DTOs.Equipment;
 
 /// <summary>
@@ -23,7 +24,7 @@ public class EquipmentListDto
     public int InspectionCycleDays { get; set; }
     public DateTime? LastInspectionDate { get; set; }
     public DateTime? CurrentInspectionStartDate { get; set; }
-    public string InspectionStatus { get; set; } = null!;  // 物化存储
+    public EquipmentTaskStatus InspectionStatus { get; set; }  // 物化存储
 
     // 保养
     public bool NeedMaintenance { get; set; }
@@ -31,15 +32,15 @@ public class EquipmentListDto
     public int MaintCycleDays { get; set; }
     public DateTime? LastMaintDate { get; set; }
     public DateTime? CurrentMaintStartDate { get; set; }
-    public string MaintStatus { get; set; } = null!;  // 物化存储
+    public EquipmentTaskStatus MaintStatus { get; set; }  // 物化存储
 
     // 维修
     public DateTime? LastRepairDate { get; set; }
 
     // 状态
-    public string LifecycleStatus { get; set; } = null!;
-    public string UsageType { get; set; } = null!;
-    public string RunningStatus { get; set; } = null!;  // 物化存储
+    public LifecycleStatus LifecycleStatus { get; set; }
+    public UsageType UsageType { get; set; }
+    public RunningStatus RunningStatus { get; set; }  // 物化存储
 
     public DateTimeOffset CreatedTime { get; set; }
     public DateTimeOffset UpdatedTime { get; set; }
@@ -80,8 +81,8 @@ public class CreateEquipmentRequest
     public DateTime? CurrentMaintStartDate { get; set; }
 
     // 状态
-    public string LifecycleStatus { get; set; } = "Active";
-    public string UsageType { get; set; } = "Primary";
+    public LifecycleStatus LifecycleStatus { get; set; } = LifecycleStatus.Active;
+    public UsageType UsageType { get; set; } = UsageType.Primary;
 }
 
 /// <summary>
@@ -112,8 +113,8 @@ public class UpdateEquipmentRequest
     public DateTime? CurrentMaintStartDate { get; set; }
 
     // 状态（不含点检/保养/运行状态）
-    public string LifecycleStatus { get; set; } = null!;
-    public string UsageType { get; set; } = null!;
+    public LifecycleStatus LifecycleStatus { get; set; }
+    public UsageType UsageType { get; set; }
 }
 
 /// <summary>

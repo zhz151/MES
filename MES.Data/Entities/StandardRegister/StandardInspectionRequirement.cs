@@ -1,4 +1,4 @@
-namespace MES.Data.Entities.ProductionStandard;
+namespace MES.Data.Entities.StandardRegister;
 
 /// <summary>
 /// 标准号检验项要求 — 按标准号列出各检验项目的强制性等级（关键/主要/一般）

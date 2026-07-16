@@ -4,7 +4,7 @@ using QuestPDF.Infrastructure;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -368,24 +368,13 @@ public static class WorkOrderPrintHelper
         return $"{od}*{wt}";
     }
 
-    private static decimal? CalculateUnitWeight(WoEntity entity)
-    {
-        if (string.IsNullOrEmpty(entity.Specification)) return null;
-
-        var nominalOd = SpecificationParser.ParseOuterDiameter(entity.Specification);
-        var nominalWt = SpecificationParser.ParseWallThickness(entity.Specification);
-        if (nominalOd == null || nominalWt == null || nominalOd <= 0 || nominalWt <= 0) return null;
-
-        var odActual = nominalOd.Value - 0.5m * entity.OuterDiameterNegative + 0.5m * entity.OuterDiameterPositive;
-        var wtActual = nominalWt.Value - 0.5m * entity.WallThicknessNegative + 0.5m * entity.WallThicknessPositive;
-
-        if (odActual <= 0 || wtActual <= 0) return null;
-
-        var weightPerMeter = (odActual - wtActual) * wtActual * 0.02466m;
-        var maxLengthMm = entity.LengthStatus == LengthStatus.Fixed
-            ? entity.MaxLength ?? 4500m
-            : 4500m;
-
-        return Math.Round(weightPerMeter * maxLengthMm / 1000m, 3);
-    }
+    private static decimal? CalculateUnitWeight(WoEntity entity) =>
+        PipeWeightCalculator.CalculateUnitWeight(
+            entity.Specification,
+            entity.OuterDiameterNegative,
+            entity.OuterDiameterPositive,
+            entity.WallThicknessNegative,
+            entity.WallThicknessPositive,
+            entity.LengthStatus,
+            entity.MaxLength);
 }

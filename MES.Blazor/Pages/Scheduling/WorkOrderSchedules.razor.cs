@@ -352,21 +352,21 @@ public partial class WorkOrderSchedules
         "ProductionSubNo" => item.ProductionSubNo,
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
-        "SettlementMethod" => item.SettlementMethod,
+        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
         "MaterialName" => item.MaterialName,
-        "DeliveryState" => item.DeliveryState,
-        "LengthStatus" => item.LengthStatus,
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
         "FlowStatus" => item.FlowStatus.ToString(),
         "MainNoFlowStatus" => item.MainNoFlowStatus.ToString(),
         "ScheduleStage" => item.ScheduleStage.ToString(),
         "UrgencyLevel" => item.UrgencyLevel,
         "RawMaterialLockRemark" => item.RawMaterialLockRemark,
         "AdjustmentRemark" => item.AdjustmentRemark,
-        "DelayPenalty" => item.DelayPenalty.ToString(),
-        "IsUrging" => item.IsUrging.ToString(),
-        "IsBatchDelivery" => item.IsBatchDelivery.ToString(),
-        "IsPaused" => item.IsPaused.ToString(),
-        "DeformedProcessCompleted" => item.DeformedProcessCompleted.ToString(),
+        "DelayPenalty" => DisplayHelper.GetYesNoText(item.DelayPenalty),
+        "IsUrging" => DisplayHelper.GetYesNoText(item.IsUrging),
+        "IsBatchDelivery" => DisplayHelper.GetYesNoText(item.IsBatchDelivery),
+        "IsPaused" => DisplayHelper.GetYesNoText(item.IsPaused),
+        "DeformedProcessCompleted" => DisplayHelper.GetYesNoText(item.DeformedProcessCompleted),
         "ProductionAttentionProcess" => item.ProductionAttentionProcess,
         "ProductionFlowProperty" => item.ProductionFlowProperty,
         "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays?.ToString(),
@@ -398,10 +398,10 @@ public partial class WorkOrderSchedules
                 (x.Specification?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.ProductionMainNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.ProductionSubNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
-                (x.SettlementMethod?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (DisplayHelper.GetSettlementMethodText(x.SettlementMethod).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.MaterialName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
-                (x.DeliveryState?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
-                (x.LengthStatus?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (DisplayHelper.GetDeliveryStateText(x.DeliveryState).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (DisplayHelper.GetLengthStatusText(x.LengthStatus).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.UrgencyLevel?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.RawMaterialLockRemark?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.AdjustmentRemark?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
@@ -777,6 +777,9 @@ public partial class WorkOrderSchedules
                 break;
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
+                break;
+            case "LengthStatus":
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
                 break;
             case "PlantGrade":
             case "MinLength":

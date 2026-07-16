@@ -261,7 +261,7 @@ public partial class MaterialReceiveChecks
             sortDescending = !sortDescending;
         else
         {
-            sortColumn = sortKey;
+            sortColumn = sortKey!;
             sortDescending = false;
         }
         await SavePageStateAsync();
@@ -557,7 +557,7 @@ public partial class MaterialReceiveChecks
                 break;
 
             case "ManufacturingItem":
-                builder.AddContent(0, DisplayHelper.GetManufacturingItemText(item.ManufacturingItem));
+                builder.AddContent(0, DisplayHelper.GetManufacturingItemText(item.ManufacturingItem?.ToString()));
                 break;
 
             case "PlantGrade":
@@ -571,7 +571,7 @@ public partial class MaterialReceiveChecks
                 break;
 
             case "ProductionType":
-                builder.AddContent(0, DisplayHelper.GetProductionTypeText(item.ProductionType));
+                builder.AddContent(0, DisplayHelper.GetProductionTypeText(item.ProductionType?.ToString()));
                 break;
 
             case "ProductionCutQuantity":
@@ -583,7 +583,7 @@ public partial class MaterialReceiveChecks
                 break;
 
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus?.ToString()));
                 break;
 
             case "DataSource":
@@ -669,7 +669,7 @@ public partial class MaterialReceiveChecks
                 break;
 
             case "DeliveryState":
-                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState?.ToString()));
                 break;
 
             default:

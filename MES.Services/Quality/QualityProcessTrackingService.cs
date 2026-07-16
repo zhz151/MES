@@ -10,7 +10,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -24,7 +24,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -35,7 +35,7 @@ using MES.Data.Entities;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -105,65 +105,78 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         // 计数
         var totalCount = await q.CountAsync();
 
-        // 分页 + DTO 投影
-        var items = await q
+        // 分页 + 两步投影（枚举字段通过匿名类型中转）
+        var raw = await q
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(e => new QualityProcessTrackingDto
+            .Select(e => new
             {
-                Id = e.Id,
-                ProductionBatchId = e.ProductionBatchId,
-                BatchNo = e.BatchNo,
-                ManufacturingItem = e.ManufacturingItem,
-                TagNo = e.TagNo,
-                WorkOrderNo = e.WorkOrderNo,
-                SalesOrderNo = e.SalesOrderNo,
-                SourceUnit = e.SourceUnit,
-                FurnaceNo = e.FurnaceNo,
-                PlantGrade = e.PlantGrade,
-                Specification = e.Specification,
-                ProductionType = e.ProductionType,
-                LengthStatus = e.LengthStatus,
-                ProductionWeight = e.ProductionWeight,
-                IsForceCompleted = e.IsForceCompleted,
-                Salesman = e.Salesman,
-                DeliveryState = e.DeliveryState,
-                ReceiveDate = e.ReceiveDate,
-                Shift = e.Shift,
-                Checker = e.Checker,
-                CreatedTime = e.CreatedTime,
-                UpdatedTime = e.UpdatedTime,
-
-                // G2
-                PmiDate = e.PmiDate,
-                VisualDate = e.VisualDate,
-                DimensionDate = e.DimensionDate,
-                EndoscopyDate = e.EndoscopyDate,
-                HydroDate = e.HydroDate,
-                UnderwaterPneumaticDate = e.UnderwaterPneumaticDate,
-                EddyCurrentDate = e.EddyCurrentDate,
-                UltrasonicDate = e.UltrasonicDate,
-                PortColoringDate = e.PortColoringDate,
-                InspectionCount = e.InspectionCount,
-
-                // G3
-                ProductionCutQuantity = e.ProductionCutQuantity,
-                TotalQuantity = e.TotalQuantity,
-                QualifiedQuantity = e.QualifiedQuantity,
-                DefectReworkQuantity = e.DefectReworkQuantity,
-                DefectWarehouseQuantity = e.DefectWarehouseQuantity,
-                DefectScrapQuantity = e.DefectScrapQuantity,
-                MaxInspectionDate = e.MaxInspectionDate,
-
-                // G4
-                InboundQuantity = e.InboundQuantity,
-                InboundWeight = e.InboundWeight,
-                InboundDate = e.InboundDate,
-
-                // G5
-                QualityStatus = e.QualityStatus
+                e.Id, e.ProductionBatchId, e.BatchNo,
+                ManufacturingItemStr = e.ManufacturingItem,
+                e.TagNo, e.WorkOrderNo, e.SalesOrderNo, e.SourceUnit, e.FurnaceNo,
+                e.PlantGrade, e.Specification,
+                ProductionTypeStr = e.ProductionType,
+                LengthStatusStr = e.LengthStatus,
+                e.ProductionWeight, e.IsForceCompleted, e.Salesman,
+                DeliveryStateStr = e.DeliveryState,
+                e.ReceiveDate, e.Shift, e.Checker, e.CreatedTime, e.UpdatedTime,
+                e.PmiDate, e.VisualDate, e.DimensionDate, e.EndoscopyDate,
+                e.HydroDate, e.UnderwaterPneumaticDate, e.EddyCurrentDate,
+                e.UltrasonicDate, e.PortColoringDate, e.InspectionCount,
+                e.ProductionCutQuantity, e.TotalQuantity, e.QualifiedQuantity,
+                e.DefectReworkQuantity, e.DefectWarehouseQuantity, e.DefectScrapQuantity,
+                e.MaxInspectionDate,
+                e.InboundQuantity, e.InboundWeight, e.InboundDate,
+                e.QualityStatus
             })
             .ToListAsync();
+
+        var items = raw.Select(e => new QualityProcessTrackingDto
+        {
+            Id = e.Id,
+            ProductionBatchId = e.ProductionBatchId,
+            BatchNo = e.BatchNo,
+            ManufacturingItem = e.ManufacturingItemStr != null && Enum.TryParse<ManufacturingItem>(e.ManufacturingItemStr, out var r139) ? r139 : null,
+            TagNo = e.TagNo,
+            WorkOrderNo = e.WorkOrderNo,
+            SalesOrderNo = e.SalesOrderNo,
+            SourceUnit = e.SourceUnit,
+            FurnaceNo = e.FurnaceNo,
+            PlantGrade = e.PlantGrade,
+            Specification = e.Specification,
+            ProductionType = e.ProductionTypeStr != null ? Enum.Parse<ProductionType>(e.ProductionTypeStr) : null,
+            LengthStatus = e.LengthStatusStr != null ? Enum.Parse<LengthStatus>(e.LengthStatusStr) : null,
+            ProductionWeight = e.ProductionWeight,
+            IsForceCompleted = e.IsForceCompleted,
+            Salesman = e.Salesman,
+            DeliveryState = e.DeliveryStateStr != null ? Enum.Parse<DeliveryState>(e.DeliveryStateStr) : null,
+            ReceiveDate = e.ReceiveDate,
+            Shift = e.Shift,
+            Checker = e.Checker,
+            CreatedTime = e.CreatedTime,
+            UpdatedTime = e.UpdatedTime,
+            PmiDate = e.PmiDate,
+            VisualDate = e.VisualDate,
+            DimensionDate = e.DimensionDate,
+            EndoscopyDate = e.EndoscopyDate,
+            HydroDate = e.HydroDate,
+            UnderwaterPneumaticDate = e.UnderwaterPneumaticDate,
+            EddyCurrentDate = e.EddyCurrentDate,
+            UltrasonicDate = e.UltrasonicDate,
+            PortColoringDate = e.PortColoringDate,
+            InspectionCount = e.InspectionCount,
+            ProductionCutQuantity = e.ProductionCutQuantity,
+            TotalQuantity = e.TotalQuantity,
+            QualifiedQuantity = e.QualifiedQuantity,
+            DefectReworkQuantity = e.DefectReworkQuantity,
+            DefectWarehouseQuantity = e.DefectWarehouseQuantity,
+            DefectScrapQuantity = e.DefectScrapQuantity,
+            MaxInspectionDate = e.MaxInspectionDate,
+            InboundQuantity = e.InboundQuantity,
+            InboundWeight = e.InboundWeight,
+            InboundDate = e.InboundDate,
+            QualityStatus = e.QualityStatus
+        }).ToList();
 
         return new PagedResult<QualityProcessTrackingDto>
         {
@@ -232,18 +245,18 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             {
                 // 注：ManufacturingItem/DeliveryState 等有固定 EnumOptions 的枚举列
                 // 由前端硬编码提供中文选项，不在 API 返回（按 04_开发规范 筛选陷阱#1）
-                ["BatchNo"] = all.Select(x => x.BatchNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["PlantGrade"] = all.Select(x => x.PlantGrade).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["Specification"] = all.Select(x => x.Specification).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["Shift"] = all.Select(x => x.Shift).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["Checker"] = all.Select(x => x.Checker).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["FurnaceNo"] = all.Select(x => x.FurnaceNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["SourceUnit"] = all.Select(x => x.SourceUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["Salesman"] = all.Select(x => x.Salesman).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["QualityStatus"] = all.Select(x => x.QualityStatus).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
-                ["TagNo"] = all.Select(x => x.TagNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).ToList(),
+                ["BatchNo"] = all.Select(x => x.BatchNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["PlantGrade"] = all.Select(x => x.PlantGrade).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["Specification"] = all.Select(x => x.Specification).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["Shift"] = all.Select(x => x.Shift).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["Checker"] = all.Select(x => x.Checker).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["FurnaceNo"] = all.Select(x => x.FurnaceNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["SourceUnit"] = all.Select(x => x.SourceUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["Salesman"] = all.Select(x => x.Salesman).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["QualityStatus"] = all.Select(x => x.QualityStatus).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["TagNo"] = all.Select(x => x.TagNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
                 ["ReceiveDate"] = all.Select(x => x.ReceiveDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
                 ["PmiDate"] = all.Where(x => x.PmiDate.HasValue).Select(x => x.PmiDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
                 ["VisualDate"] = all.Where(x => x.VisualDate.HasValue).Select(x => x.VisualDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),

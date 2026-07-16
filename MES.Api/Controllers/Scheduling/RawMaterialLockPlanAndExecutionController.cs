@@ -50,7 +50,7 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     public ActionResult<ApiResponse<string>> Print([FromBody] RawMaterialLockPlanPrintRequest request)
     {
         var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
-        return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes)));
+        return Ok(ApiResponse<string>.Ok(data: Convert.ToBase64String(pdfBytes)));
     }
 
     [HttpPost("print-file")]

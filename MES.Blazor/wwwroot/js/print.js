@@ -50,13 +50,15 @@ window.MES.printQrCodes = function (codes) {
 };
 
 // 在新窗口中打开打印 HTML
-function openPrintWindow(html, title) {
+function openPrintWindow(html, title, pageOrientation) {
+    var orientation = pageOrientation || 'landscape';
+    var margin = orientation === 'portrait' ? '12mm 15mm' : '5mm 8mm';
     var printWindow = window.open('', '_blank');
     printWindow.document.write(
         '<html><head>' +
         '<title>' + (title || '打印') + '</title>' +
         '<style>' +
-        '@page{size:landscape;margin:5mm 8mm;}' +
+        '@page{size:' + orientation + ';margin:' + margin + ';}' +
         'body{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;padding:0;margin:0;}' +
         'h2{text-align:center;margin:6px 0 12px;font-size:16px;}' +
         'table{width:100%;border-collapse:collapse;font-size:11px;table-layout:auto;}' +
@@ -86,9 +88,9 @@ window.getTableHtml = function (containerSelector) {
 };
 
 // 打印原始 HTML 表格内容（打印全部）
-window.printRawHtml = function (htmlContent, title) {
+window.printRawHtml = function (htmlContent, title, pageOrientation) {
     if (!htmlContent) return;
-    openPrintWindow(htmlContent, title);
+    openPrintWindow(htmlContent, title, pageOrientation);
 };
 
 // ===== PDF 打印（Base64 兼容版——旧页面用，Blob URL + iframe 覆盖层）=====
@@ -114,6 +116,15 @@ window.openPdf = function (base64) {
 // C# 传入 API 地址和 JSON 请求体，JS 直接 fetch 获取二进制 PDF
 
 window.openPdfFromApi = function (apiUrl, jsonBody) {
+    // 修正 API 基地址：若 Blazor 端口与 API 端口不同，替换 origin
+    var apiBase = window.MES_API_URL;
+    if (apiBase) {
+        var currentOrigin = window.location.origin;
+        if (apiUrl.indexOf(currentOrigin + '/') === 0) {
+            apiUrl = apiBase + apiUrl.substring(currentOrigin.length);
+        }
+    }
+
     // 读取 JWT 令牌（与 AuthHttpClient 共用 localStorage，Blazored.LocalStorage 存的是 JSON 格式需 parse）
     var raw = localStorage.getItem('authToken');
     var token = null;
@@ -208,3 +219,8 @@ function showPdfOverlay(url) {
     overlay.appendChild(iframe);
     document.body.appendChild(overlay);
 }
+
+// 从 Blazor 启动时注入 API 基地址（解决开发环境端口不一致问题）
+window.MES_setApiUrl = function (url) {
+    window.MES_API_URL = url;
+};

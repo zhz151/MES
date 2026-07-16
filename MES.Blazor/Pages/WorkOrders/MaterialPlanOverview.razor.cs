@@ -502,37 +502,37 @@ public partial class MaterialPlanOverview
 
     // ========== 辅助方法 ==========
 
-    private Color GetStatusColor(int status)
+    private Color GetStatusColor(MaterialPlanStatus status)
     {
         return status switch
         {
-            0 => Color.Default,
-            1 => Color.Warning,
-            2 => Color.Info,
-            3 => Color.Success,
-            4 => Color.Error,
+            MaterialPlanStatus.NotPlanned => Color.Default,
+            MaterialPlanStatus.Partial => Color.Warning,
+            MaterialPlanStatus.TheoreticalSatisfied => Color.Info,
+            MaterialPlanStatus.Satisfied => Color.Success,
+            MaterialPlanStatus.Excess => Color.Error,
             _ => Color.Default
         };
     }
 
-    private string GetStatusText(int status) => DisplayHelper.GetMaterialPlanStatusText((MaterialPlanStatus)status);
+    private string GetStatusText(MaterialPlanStatus status) => DisplayHelper.GetMaterialPlanStatusText(status);
 
-    private Color GetOrderStatusColor(int status)
+    private Color GetOrderStatusColor(MaterialPlanStatus status)
     {
         return status switch
         {
-            0 => Color.Default,
-            1 => Color.Warning,
-            3 => Color.Success,
+            MaterialPlanStatus.NotPlanned => Color.Default,
+            MaterialPlanStatus.Partial => Color.Warning,
+            MaterialPlanStatus.Satisfied => Color.Success,
             _ => Color.Default
         };
     }
 
-    private string GetOrderStatusText(int status) => status switch
+    private string GetOrderStatusText(MaterialPlanStatus status) => status switch
     {
-        0 => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.NotPlanned),
-        1 => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.Partial),
-        3 => "全部满足",
+        MaterialPlanStatus.NotPlanned => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.NotPlanned),
+        MaterialPlanStatus.Partial => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.Partial),
+        MaterialPlanStatus.Satisfied => "全部满足",
         _ => "未知"
     };
 
@@ -580,7 +580,7 @@ public partial class MaterialPlanOverview
         "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType),
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
         "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
-        "MaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText((MaterialPlanStatus)item.MaterialPlanStatus),
+        "MaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText(item.MaterialPlanStatus),
         "MainNoMaterialPlanStatus" => GetStatusText(item.MainNoMaterialPlanStatus),
         "OrderMaterialPlanStatus" => GetOrderStatusText(item.OrderMaterialPlanStatus),
         _ => GetCellRawValue(item, key) ?? ""

@@ -118,9 +118,9 @@
             <div id="ncrs-list-table">
             @{
                 var _groupHeaders = GetGroupHeaders();
-                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 160;
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 160;
             }
-            @* 工具栏：列显隐 + 重置（左）+ 记录数（右） *@
+            @* 工具栏：列显隐 + 重置（左）+ 打印 + 记录数（右） *@
             <div class="woe-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="@_allColumns"
@@ -135,6 +135,18 @@
                     </MudButton>
                 </div>
                 <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintSelected" Class="ml-2">
+                        打印选中
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll" Class="ml-2">
+                        打印全部
+                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
@@ -161,6 +173,10 @@
                     @{
                         int? _prevGk = null;
                     }
+                    <MudTh Class="col-selection-th" Style="width: 40px;">
+                        <MudCheckBox T="bool" Value="@allSelected"
+                                     ValueChanged="@((bool v) => { selectedIds = v ? new HashSet<int>(_pageItems.Select(i => i.Id)) : new(); StateHasChanged(); })" />
+                    </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
@@ -195,6 +211,10 @@
                     @{
                         int? _prevGk2 = null;
                     }
+                    <MudTd Class="col-selection-td">
+                        <MudCheckBox T="bool" Value="@(selectedIds.Contains(item.Id))"
+                                     ValueChanged="@((bool v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); StateHasChanged(); })" />
+                    </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
@@ -225,6 +245,7 @@
                     @{
                         int? _prevGk3 = null;
                     }
+                    <MudTd Class="col-footer-cell" Style="width: 40px;"></MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;

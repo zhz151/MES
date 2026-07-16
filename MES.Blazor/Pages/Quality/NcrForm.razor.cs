@@ -465,13 +465,7 @@ public partial class NcrForm
         new(VerifyResult.NotApplicable, "不适用"),
     };
 
-    private string GetStatusText(NcrStatus status) => status switch
-    {
-        NcrStatus.Pending => "待处理",
-        NcrStatus.Processing => "处理中",
-        NcrStatus.Closed => "已关闭",
-        _ => status.ToString()
-    };
+    private string GetStatusText(NcrStatus status) => DisplayHelper.GetNcrStatusText(status);
 
     private static string GetSourceTypeText(string sourceType) => sourceType switch
     {
@@ -480,13 +474,7 @@ public partial class NcrForm
         _ => sourceType
     };
 
-    private static string GetDisposalMethodText(DisposalMethod method) => method switch
-    {
-        DisposalMethod.Rework => "返整",
-        DisposalMethod.WarehouseEntry => "入库",
-        DisposalMethod.Scrap => "报废",
-        _ => method.ToString()
-    };
+    private static string GetDisposalMethodText(DisposalMethod method) => DisplayHelper.GetDisposalMethodText(method);
 
     private static Color GetWarningColor() => Color.Warning;
 

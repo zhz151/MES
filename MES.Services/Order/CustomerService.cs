@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -35,13 +35,12 @@ using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Order;
-using MES.Services.Mapping;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using MES.Services.Order;
@@ -148,7 +147,7 @@ public class CustomerService : ICustomerService
             throw new BusinessException("客户不存在");
         }
 
-        return entity.ToDto();
+        return ToDto(entity);
     }
 
     /// <summary>
@@ -181,7 +180,7 @@ public class CustomerService : ICustomerService
         _context.CustomerProfiles.Add(entity);
         await _context.SaveChangesAsync();
 
-        return entity.ToDto();
+        return ToDto(entity);
     }
 
     /// <summary>
@@ -269,7 +268,7 @@ public class CustomerService : ICustomerService
             await _orderService.RefreshByOrderIdAsync(orderId);
         }
 
-        return entity.ToDto();
+        return ToDto(entity);
     }
 
     /// <summary>
@@ -406,4 +405,18 @@ public class CustomerService : ICustomerService
         var paged = await GetPagedAsync(query);
         return CustomerPrintHelper.GenerateBatchPdf(paged.Items);
     }
+
+    private static CustomerProfileDto ToDto(CustomerProfile entity) => new()
+    {
+        Id = entity.Id,
+        CustomerCode = entity.CustomerCode,
+        Salesman = entity.Salesman,
+        CustomerUnit = entity.CustomerUnit,
+        EndCustomer = entity.EndCustomer,
+        ContactPerson = entity.ContactPerson,
+        ContactPhone = entity.ContactPhone,
+        Address = entity.Address,
+        Status = entity.Status,
+        Remark = entity.Remark
+    };
 }

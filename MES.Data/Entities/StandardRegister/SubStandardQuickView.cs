@@ -1,4 +1,4 @@
-namespace MES.Data.Entities.ProductionStandard;
+namespace MES.Data.Entities.StandardRegister;
 
 /// <summary>
 /// 子标准速览 — 按标准号列出各检验项目对应的引用标准/方法

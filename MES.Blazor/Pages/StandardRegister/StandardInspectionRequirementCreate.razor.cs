@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MES.Blazor.Services;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 
-namespace MES.Blazor.Pages.ProductionStandard;
+namespace MES.Blazor.Pages.StandardRegister;
 
 public partial class StandardInspectionRequirementCreate
 {

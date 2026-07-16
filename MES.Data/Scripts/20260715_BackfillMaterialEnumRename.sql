@@ -69,5 +69,15 @@ WHERE [MaterialType] = '次品中间品';
 
 -- ========== 5. 新增次品在制（暂无数据迁移，为新类型预留） ==========
 
+-- ========== 6. RawMaterialType SemiFinished → RoughTube ==========
+-- 枚举重命名：RawMaterialType.SemiFinished → RoughTube（英文名语义修正）
+UPDATE [PurchaseSemiPlan]
+SET [RawMaterialType] = 'RoughTube'
+WHERE [RawMaterialType] = 'SemiFinished';
+
+UPDATE [RoundBarPiercingPlan]
+SET [RawMaterialType] = 'RoughTube'
+WHERE [RawMaterialType] = 'SemiFinished';
+
 -- ============================================================
 COMMIT TRANSACTION;

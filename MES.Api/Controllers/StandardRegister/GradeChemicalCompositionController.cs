@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
 using MES.Shared.Constants;
-using MES.Core.DTOs.ProductionStandard;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
+using MES.Core.Interfaces.StandardRegister;
 
-namespace MES.Api.Controllers.ProductionStandard;
+namespace MES.Api.Controllers.StandardRegister;
 
 [ApiController]
 [Route("api/grade-chemical-composition")]
@@ -74,5 +74,27 @@ public class GradeChemicalCompositionController : ControllerBase
     {
         var result = await _service.GetFilterContextsAsync();
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
+    // ========== 打印 ==========
+
+    /// <summary>批量打印选中记录（PDF 文件）</summary>
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    public async Task<IActionResult> PrintBatchFile([FromBody] GradeChemicalCompositionPrintBatchRequest request)
+    {
+        if (request.Ids.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("请至少选择一条记录"));
+        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "牌号化学成分-选中.pdf");
+    }
+
+    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    public async Task<IActionResult> PrintAllFile([FromBody] GradeChemicalCompositionPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
+        return File(pdfBytes, "application/pdf", "牌号化学成分-全部.pdf");
     }
 }

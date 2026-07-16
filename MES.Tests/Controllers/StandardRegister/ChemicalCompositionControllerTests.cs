@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
-using MES.Api.Controllers.ProductionStandard;
+using MES.Api.Controllers.StandardRegister;
 using MES.Core.Models;
-using MES.Core.DTOs.ProductionStandard;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
+using MES.Core.Interfaces.StandardRegister;
 using System.Security.Claims;
 
 namespace MES.Tests.Controllers;

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.Infrastructure;
-using MES.Auth.Services;
+using MES.Core.Interfaces.Auth;
 using MES.Core.Models;
 using MES.Core.DTOs.Auth;
 

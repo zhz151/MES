@@ -57,8 +57,8 @@
 ### 2.2 工单上下文
 
 ```
-路由前缀: /workorders, /material-plan-overview, /workorder-execution, /order-demand-adjustment
-菜单: 工单管理 → [工单首页, 用料计划总览, 工单需求调整, 工单执行状况]
+路由前缀: /workorders, /material-plan-overview, /workorder-overview, /workorder-execution, /order-demand-adjustment
+菜单: 工单管理 → [工单首页, 用料计划总览, 工单总览, 工单需求调整, 工单执行状况]
 
 ┌─ 工单管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -79,6 +79,7 @@
 │  WorkOrderInProcessReworkPlanCreate.razor /workorders/{id}/in-process-rework-plan/edit/{PlanId:int} │
 │                                                           │
 │  MaterialPlanOverview.razor /material-plan-overview [列表页]│
+│  WorkOrderOverview.razor    /workorder-overview    [只读聚合]│
 │                                                           │
 │  WorkOrderExecution.razor         /workorder-execution            [列表页]  │
 │                                                           │
@@ -182,6 +183,7 @@
 │  Ncrs.razor                      /quality/ncr                      [列表页+分页汇总]│
 │  NcrForm.razor                   /quality/ncr/create               [创建页]       │
 │  NcrForm.razor                   /quality/ncr/{Id:int}             [详情页]       │
+│  NcrPrint.razor                  /quality/ncr/print/{Id:int}      [打印页]       │
 │                                                           │
 │  --- 理化检测模块（V7.0 新增） ---                          │
 │  ChemicalAnalyses.razor          /quality/chemical-analysis    [列表页]      │
@@ -440,7 +442,7 @@
 
 ## 3. 列表页完整清单（需检查加载/排序/筛选）
 
-共 **65 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
+共 **64 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
 
 | # | 页面文件 | 路由 | 上下文 | 内联编辑 | 备注 |
 |---|---------|------|-------|---------|------|
@@ -449,12 +451,13 @@
 | 3 | GradeMappings.razor | /grade-mappings | 生产标准 | | |
 | 4 | WorkOrders.razor | /workorders | 工单 | ✅ | |
 | 5 | MaterialPlanOverview.razor | /material-plan-overview | 工单 | | |
-| 6 | **Batches.razor** | /batches | 批次 | | ✅ 已过规范检查 |
+| 6 | WorkOrderOverview.razor | /workorder-overview | 工单 | | 工单概况只读聚合 |
+| 7 | **Batches.razor** | /batches | 批次 | | ✅ 已过规范检查 |
 | 7 | **ProductionRecords.razor** | /production-records | 批次 | | 列分组4组（G1执行信息/G2产出数据/G3工艺参数/G4追溯信息）+ ExcelFilter + 内联编辑 + 分组标题栏 |
 | 8 | **SectionOutsources.razor** | /section-outsources | 批次 | | |
 | 9 | **OutsourceRecoveries.razor** | /outsource-recoveries | 批次 | | |
-| 10 | PicklingInRecords.razor | /batches/pickling-in-records | 批次 | | |
-| 11 | PicklingOutRecords.razor | /batches/pickling-out-records | 批次 | | |
+| 10 | PicklingInRecords.razor | /pickling-in-records | 批次 | | |
+| 11 | PicklingOutRecords.razor | /pickling-out-records | 批次 | | |
 | 12 | FurnaceRegistrations.razor | /quality/furnace | 质量 | | |
 | 13 | ChemicalCompositions.razor | /chemical-composition | 生产标准 | | 原属质量上下文，已迁移 |
 | 14 | ChemicalValidationRules.razor | /chemical-validate | 生产标准 | | 原属质量上下文，已迁移 |
@@ -475,6 +478,7 @@
 | 29 | WorkOrderExecution.razor | /workorder-execution | 工单 | | ✅ 已过规范检查。列分组14组(G1-G14) + 复选框选择列 + 打印选中+打印全部 + 分组标题栏 + 底部聚合行 |
 | 30 | QualityProcessTracking.razor | /quality/process-tracking | 质量 | | 只读列表 |
 | 31 | Ncrs.razor | /quality/ncr | 质量 | | 列表页+分页汇总 |
+| 31b | NcrPrint.razor | /quality/ncr/print/{Id:int} | 质量 | | NCR 报告打印页 |
 | 32 | OrderDemandAdjustment.razor | /order-demand-adjustment | 工单 | ✅ | 内联编辑催单/分批/暂停开关及调整备注 |
 | 33 | RawMaterialLockPlanAndExecution.razor | /raw-material-lock-plan | 计划排程 | ✅ | 汇总栏（工单总数/成品在购/待投料 + 紧急性5档分解 + 预执行(外购/投料) 区分）+ G15 预执行 MudSwitch 内联编辑 + BudgetInputDate 日期输入 + 主号齐全系统计算（LEFT JOIN 实时查询，无计划安排按钮） |
 | 34 | StandardWorkDays.razor | /standard-work-days | 配置 | ✅ | 查改一体表 |

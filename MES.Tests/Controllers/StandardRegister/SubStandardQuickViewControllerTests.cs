@@ -1,0 +1,164 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+using MES.Api.Controllers.StandardRegister;
+using MES.Core.Models;
+using MES.Core.DTOs.StandardRegister;
+using MES.Core.Interfaces.StandardRegister;
+using System.Security.Claims;
+
+namespace MES.Tests.Controllers;
+
+public class SubStandardQuickViewControllerTests : ControllerTestBase
+{
+    private readonly Mock<ISubStandardQuickViewService> _serviceMock;
+    private readonly SubStandardQuickViewController _controller;
+
+    public SubStandardQuickViewControllerTests()
+    {
+        _serviceMock = new Mock<ISubStandardQuickViewService>();
+        _controller = new SubStandardQuickViewController(_serviceMock.Object);
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, "admin") }))
+            }
+        };
+    }
+
+    [Fact]
+    public async Task GetPaged_ReturnsOk()
+    {
+        var pagedResult = new PagedResult<SubStandardQuickViewDto>
+        {
+            Items = new List<SubStandardQuickViewDto> { new() { Id = 1, StandardNo = "GB/T 14976" } },
+            TotalCount = 1, PageIndex = 1, PageSize = 20
+        };
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
+
+        var result = await _controller.GetPaged();
+
+        var (_, response) = AssertOk<ApiResponse<PagedResult<SubStandardQuickViewDto>>>(result);
+        Assert.True(response.Success);
+        Assert.Single(response.Data!.Items);
+    }
+
+    [Fact]
+    public async Task GetPaged_LimitsPageSize()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SubStandardQuickViewDto> { Items = new List<SubStandardQuickViewDto>() });
+
+        await _controller.GetPaged(pageSize: 10000);
+
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.PageSize == 5000)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_PassesFilters_ToService()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SubStandardQuickViewDto> { Items = new List<SubStandardQuickViewDto>() });
+
+        var filtersJson = "[{\"Field\":\"StandardNo\",\"Operator\":\"contains\",\"Value\":\"GB/T\"}]";
+        await _controller.GetPaged(filters: filtersJson);
+
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q =>
+            q.Filters != null && q.Filters.Count == 1)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaged_DefaultSortBy_IsCreatedTime()
+    {
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>()))
+            .ReturnsAsync(new PagedResult<SubStandardQuickViewDto> { Items = new List<SubStandardQuickViewDto>() });
+
+        await _controller.GetPaged();
+
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "CreatedTime")), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetById_ReturnsOk()
+    {
+        var dto = new SubStandardQuickViewDto { Id = 1, StandardNo = "GB/T 14976" };
+        _serviceMock.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(dto);
+
+        var result = await _controller.GetById(1);
+
+        var (_, response) = AssertOk<ApiResponse<SubStandardQuickViewDto>>(result);
+        Assert.Equal("GB/T 14976", response.Data?.StandardNo);
+    }
+
+    [Fact]
+    public async Task Create_ReturnsOk()
+    {
+        var request = new CreateSubStandardQuickViewRequest { StandardNo = "GB/T 8163" };
+        var dto = new SubStandardQuickViewDto { Id = 1, StandardNo = "GB/T 8163" };
+        _serviceMock.Setup(x => x.CreateAsync(request)).ReturnsAsync(dto);
+
+        var result = await _controller.Create(request);
+
+        var (_, response) = AssertOk<ApiResponse<SubStandardQuickViewDto>>(result);
+        Assert.Equal("GB/T 8163", response.Data?.StandardNo);
+    }
+
+    [Fact]
+    public async Task Create_ReturnsBadRequest_WhenModelInvalid()
+    {
+        AddModelError(_controller);
+
+        var result = await _controller.Create(new CreateSubStandardQuickViewRequest());
+
+        var (_, response) = AssertBadRequest<ApiResponse<SubStandardQuickViewDto>>(result);
+        Assert.False(response.Success);
+    }
+
+    [Fact]
+    public async Task Update_ReturnsOk()
+    {
+        var request = new UpdateSubStandardQuickViewRequest { StandardNo = "GB/T 8163" };
+        var dto = new SubStandardQuickViewDto { Id = 1, StandardNo = "GB/T 8163" };
+        _serviceMock.Setup(x => x.UpdateAsync(1, request)).ReturnsAsync(dto);
+
+        var result = await _controller.Update(1, request);
+
+        var (_, response) = AssertOk<ApiResponse<SubStandardQuickViewDto>>(result);
+        Assert.Equal("GB/T 8163", response.Data?.StandardNo);
+    }
+
+    [Fact]
+    public async Task Update_ReturnsBadRequest_WhenModelInvalid()
+    {
+        AddModelError(_controller);
+
+        var result = await _controller.Update(1, new UpdateSubStandardQuickViewRequest());
+
+        var (_, response) = AssertBadRequest<ApiResponse<SubStandardQuickViewDto>>(result);
+        Assert.False(response.Success);
+    }
+
+    [Fact]
+    public async Task Delete_ReturnsOk()
+    {
+        _serviceMock.Setup(x => x.DeleteAsync(1)).Returns(Task.CompletedTask);
+
+        var result = await _controller.Delete(1);
+
+        var (_, response) = AssertOk<ApiResponse<bool>>(result);
+        Assert.True(response.Data);
+    }
+
+    [Fact]
+    public async Task GetFilterContexts_ReturnsOk()
+    {
+        var contexts = new Dictionary<string, List<string>> { ["StandardNo"] = new() { "GB/T 14976", "GB/T 8163" } };
+        _serviceMock.Setup(x => x.GetFilterContextsAsync()).ReturnsAsync(contexts);
+
+        var result = await _controller.GetFilterContexts();
+
+        var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
+        Assert.Single(response.Data!);
+    }
+}

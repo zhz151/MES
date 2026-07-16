@@ -21,7 +21,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
@@ -218,7 +218,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "RoughTube",
+            RawMaterialType = RawMaterialType.RoughTube,
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
@@ -253,7 +253,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "RoughTube",
+            RawMaterialType = RawMaterialType.RoughTube,
             RawMaterialSpec = "245*10",
             RequiredWeight = 1000m,
             RequiredDate = DateTime.Today.AddMonths(1)
@@ -278,7 +278,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "RoughTube",
+            RawMaterialType = RawMaterialType.RoughTube,
             RawMaterialSpec = "245*10",
             RequiredWeight = 1000m,
             RequiredDate = DateTime.Today.AddMonths(1)
@@ -303,7 +303,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "RoughTube",
+            RawMaterialType = RawMaterialType.RoughTube,
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
@@ -352,7 +352,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
-            ProductType = "Critical",
+            ProductType = FinishedProductType.Critical,
             RequiredPiece = 10,
             RequiredWeight = 2500m,
             RequiredDate = DateTime.Today.AddMonths(1),
@@ -362,8 +362,8 @@ public class MaterialPlanServiceTests : TestBase
             OuterDiameterPositive = 0.5m,
             WallThicknessNegative = 0.3m,
             WallThicknessPositive = 0.5m,
-            LengthStatus = "Fixed",
-            DeliveryState = "SolutionAnnealedAndPickled"
+            LengthStatus = LengthStatus.Fixed,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled
         });
 
         result.Should().NotBeNull();
@@ -385,7 +385,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
-            ProductType = "Critical",
+            ProductType = FinishedProductType.Critical,
             RequiredWeight = 2500m,
             PlantGrade = "Q345B",
             Specification = "89*10",
@@ -393,8 +393,8 @@ public class MaterialPlanServiceTests : TestBase
             OuterDiameterPositive = 0.5m,
             WallThicknessNegative = 0.3m,
             WallThicknessPositive = 0.5m,
-            LengthStatus = "Fixed",
-            DeliveryState = "SolutionAnnealedAndPickled"
+            LengthStatus = LengthStatus.Fixed,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled
         });
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*采购支数*");
@@ -411,7 +411,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
-            ProductType = "Order",
+            ProductType = FinishedProductType.Order,
             RequiredWeight = 2500m,
             PlantGrade = "Q345B",
             Specification = "89*10",
@@ -419,8 +419,8 @@ public class MaterialPlanServiceTests : TestBase
             OuterDiameterPositive = 0.5m,
             WallThicknessNegative = 0.3m,
             WallThicknessPositive = 0.5m,
-            LengthStatus = "Fixed",
-            DeliveryState = "SolutionAnnealedAndPickled"
+            LengthStatus = LengthStatus.Fixed,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled
         });
 
         await svc.DeleteFinishedPlanAsync(created.Id);
@@ -671,7 +671,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "RoughTube",
+            RawMaterialType = RawMaterialType.RoughTube,
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
@@ -709,7 +709,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "RoughTube",
+            RawMaterialType = RawMaterialType.RoughTube,
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
@@ -722,7 +722,7 @@ public class MaterialPlanServiceTests : TestBase
         {
             WorkOrderId = woId,
             PlanDate = DateTime.Today,
-            ProductType = "Critical",
+            ProductType = FinishedProductType.Critical,
             RequiredPiece = 10,
             RequiredWeight = 2500m,
             PlantGrade = "Q345B",
@@ -731,8 +731,8 @@ public class MaterialPlanServiceTests : TestBase
             OuterDiameterPositive = 0.5m,
             WallThicknessNegative = 0.3m,
             WallThicknessPositive = 0.5m,
-            LengthStatus = "Fixed",
-            DeliveryState = "SolutionAnnealedAndPickled"
+            LengthStatus = LengthStatus.Fixed,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled
         });
 
         // 验证状态已更新
@@ -757,7 +757,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "Q345B",
-            RawMaterialType = "RoughTube",
+            RawMaterialType = RawMaterialType.RoughTube,
             RawMaterialSpec = "245*10",
             RequiredPieces = 10,
             RequiredWeight = 1000m,
@@ -902,7 +902,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "20#",
-            RawMaterialType = "RoundBar",
+            RawMaterialType = RawMaterialType.RoundBar,
             RoundBarSpec = "250*8",
             PiercingSpec = "230*7",
             RequiredUnitWeight = 300m,
@@ -942,7 +942,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "20#",
-            RawMaterialType = "RoundBar",
+            RawMaterialType = RawMaterialType.RoundBar,
             RoundBarSpec = "250*8",
             PiercingSpec = "230*7",
             RequiredPieces = 10,
@@ -973,7 +973,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "20#",
-            RawMaterialType = "RoundBar",
+            RawMaterialType = RawMaterialType.RoundBar,
             RoundBarSpec = "250*8",
             PiercingSpec = "230*7",
             RequiredWeight = 3000m,
@@ -999,7 +999,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "20#",
-            RawMaterialType = "RoundBar",
+            RawMaterialType = RawMaterialType.RoundBar,
             RoundBarSpec = "250*8",
             PiercingSpec = "230*7",
             RequiredPieces = 10,
@@ -1041,7 +1041,7 @@ public class MaterialPlanServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "20#",
-            RawMaterialType = "RoundBar",
+            RawMaterialType = RawMaterialType.RoundBar,
             RoundBarSpec = "250*8",
             PiercingSpec = "230*7",
             RequiredPieces = 10,

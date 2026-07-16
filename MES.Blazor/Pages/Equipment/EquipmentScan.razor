@@ -88,8 +88,8 @@
                             <MudText Typo="Typo.body2" Class="font-weight-bold" Color="Color.Primary">
                                 @_equipment!.EquipmentName (@_equipment.EquipmentCode)
                             </MudText>
-                            <MudChip Size="Size.Small" Color="Color.Primary">@_equipment.Location</MudChip>
-                            @if (!string.IsNullOrEmpty(_equipment.RelatedSection))
+                            <MudChip Size="Size.Small" Color="Color.Primary">@_equipment!.Location</MudChip>
+                            @if (!string.IsNullOrEmpty(_equipment!.RelatedSection))
                             {
                                 <MudChip Size="Size.Small" Color="Color.Tertiary">@_equipment.RelatedSection</MudChip>
                             }

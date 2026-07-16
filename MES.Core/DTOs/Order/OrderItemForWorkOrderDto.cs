@@ -120,7 +120,7 @@ public class OrderItemForWorkOrderDto
     /// <summary>
     /// 技术要求类型（Normal/Special）
     /// </summary>
-    public string RequirementType { get; set; } = null!;
+    public RequirementType RequirementType { get; set; }
 
     /// <summary>
     /// 系统生成的主号（可修改）

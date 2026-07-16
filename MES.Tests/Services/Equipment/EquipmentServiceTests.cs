@@ -178,15 +178,15 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", LifecycleStatus = nameof(LifecycleStatus.Active) },
-            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", LifecycleStatus = nameof(LifecycleStatus.Standby) }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", LifecycleStatus = "Active" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", LifecycleStatus = "Standby" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
         var result = await svc.GetPagedAsync(new EquipmentQueryParams
         {
-            LifecycleStatus = nameof(LifecycleStatus.Active)
+            LifecycleStatus = "Active"
         });
 
         result.Items.Should().HaveCount(1);
@@ -198,15 +198,15 @@ public class EquipmentServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         ctx.Equipment.AddRange(
-            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", UsageType = nameof(UsageType.Primary) },
-            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", UsageType = nameof(UsageType.Secondary) }
+            new EquipmentEntity { EquipmentCode = "EQ-001", EquipmentName = "车床", Location = "A区", UsageType = "Primary" },
+            new EquipmentEntity { EquipmentCode = "EQ-002", EquipmentName = "铣床", Location = "B区", UsageType = "Secondary" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
         var result = await svc.GetPagedAsync(new EquipmentQueryParams
         {
-            UsageType = nameof(UsageType.Primary)
+            UsageType = "Primary"
         });
 
         result.Items.Should().HaveCount(1);
@@ -225,8 +225,8 @@ public class EquipmentServiceTests : TestBase
             EquipmentName = "数控车床",
             Location = "A区",
             ModelNumber = "CK6140",
-            LifecycleStatus = nameof(LifecycleStatus.Active),
-            UsageType = nameof(UsageType.Primary)
+            LifecycleStatus = "Active",
+            UsageType = "Primary"
         };
         ctx.Equipment.Add(entity);
         await ctx.SaveChangesAsync();
@@ -267,8 +267,8 @@ public class EquipmentServiceTests : TestBase
             Location = "A区",
             ModelNumber = "CK6140",
             Manufacturer = "沈阳机床",
-            LifecycleStatus = nameof(LifecycleStatus.Active),
-            UsageType = nameof(UsageType.Primary)
+            LifecycleStatus = LifecycleStatus.Active,
+            UsageType = UsageType.Primary
         };
 
         var result = await svc.CreateAsync(request);
@@ -323,8 +323,8 @@ public class EquipmentServiceTests : TestBase
             EquipmentName = "旧名称",
             Location = "A区",
             ModelNumber = "旧型号",
-            LifecycleStatus = nameof(LifecycleStatus.Active),
-            UsageType = nameof(UsageType.Primary)
+            LifecycleStatus = "Active",
+            UsageType = "Primary"
         };
         ctx.Equipment.Add(entity);
         await ctx.SaveChangesAsync();
@@ -336,8 +336,8 @@ public class EquipmentServiceTests : TestBase
             EquipmentName = "新名称",
             Location = "B区",
             ModelNumber = "新型号",
-            LifecycleStatus = nameof(LifecycleStatus.Standby),
-            UsageType = nameof(UsageType.Secondary)
+            LifecycleStatus = LifecycleStatus.Standby,
+            UsageType = UsageType.Secondary
         };
 
         var result = await svc.UpdateAsync(entity.Id, request);
@@ -345,8 +345,8 @@ public class EquipmentServiceTests : TestBase
         result.EquipmentName.Should().Be("新名称");
         result.Location.Should().Be("B区");
         result.ModelNumber.Should().Be("新型号");
-        result.LifecycleStatus.Should().Be(nameof(LifecycleStatus.Standby));
-        result.UsageType.Should().Be(nameof(UsageType.Secondary));
+        result.LifecycleStatus.Should().Be(LifecycleStatus.Standby);
+        result.UsageType.Should().Be(UsageType.Secondary);
 
         var updated = await ctx.Equipment.FirstAsync(e => e.Id == entity.Id);
         updated.EquipmentName.Should().Be("新名称");
@@ -391,8 +391,8 @@ public class EquipmentServiceTests : TestBase
         var resultAsc = await svc.GetPagedAsync(new EquipmentQueryParams
         { PageIndex = 0, PageSize = 20, SortBy = "lifecyclestatus", IsDescending = false });
 
-        resultAsc.Items[0].LifecycleStatus.Should().Be("Active");
-        resultAsc.Items[1].LifecycleStatus.Should().Be("Standby");
+        resultAsc.Items[0].LifecycleStatus.Should().Be(LifecycleStatus.Active);
+        resultAsc.Items[1].LifecycleStatus.Should().Be(LifecycleStatus.Standby);
     }
 
     [Fact]
@@ -409,8 +409,8 @@ public class EquipmentServiceTests : TestBase
         var resultAsc = await svc.GetPagedAsync(new EquipmentQueryParams
         { PageIndex = 0, PageSize = 20, SortBy = "usagetype", IsDescending = false });
 
-        resultAsc.Items[0].UsageType.Should().Be("Primary");
-        resultAsc.Items[1].UsageType.Should().Be("Secondary");
+        resultAsc.Items[0].UsageType.Should().Be(UsageType.Primary);
+        resultAsc.Items[1].UsageType.Should().Be(UsageType.Secondary);
     }
 
     [Fact]
@@ -428,7 +428,7 @@ public class EquipmentServiceTests : TestBase
         { PageIndex = 0, PageSize = 20, Keyword = "Active" });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].LifecycleStatus.Should().Be("Active");
+        result.Items[0].LifecycleStatus.Should().Be(LifecycleStatus.Active);
     }
 
     [Fact]
@@ -446,7 +446,7 @@ public class EquipmentServiceTests : TestBase
         { PageIndex = 0, PageSize = 20, Keyword = "Secondary" });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].UsageType.Should().Be("Secondary");
+        result.Items[0].UsageType.Should().Be(UsageType.Secondary);
     }
 
     // ========== 筛选上下文 ==========

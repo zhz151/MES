@@ -6,7 +6,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -22,7 +22,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -77,16 +77,16 @@ public class ProductionRecordServiceTests : TestBase
             Specification = "219*8",
             Status = BatchStatus.InProgress,
             ProductionType = "Internal",
-            ManufacturingItem = "管",
+            ManufacturingItem = "OrderFinishedProduct",
             WorkOrderNo = "WO-001",
             SalesOrderNo = "SO-001",
             ProductionMainNo = "M-001",
             OrderItemIds = "1",
             Salesman = "张三",
-            SettlementMethod = "现款现货",
+            SettlementMethod = "Weighing",
             StandardCode = "GB/T 14976",
-            DeliveryState = "冷拔态",
-            LengthStatus = "不定尺",
+            DeliveryState = "Hard",
+            LengthStatus = "NonFixed",
             TechnicalRequirements = "无",
             SignDate = DateTime.Today,
             DeliveryDate = DateTime.Today.AddMonths(1),

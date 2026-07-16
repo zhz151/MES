@@ -13,7 +13,7 @@ using MES.Tests.Tests;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Order;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Warehouse;
 using MES.Core.Interfaces.DataExchange;
 using Moq;
@@ -29,8 +29,12 @@ public class DataExchangeServiceTests : TestBase
     private DataExchangeService CreateService(AppDbContext ctx)
     {
         var loggerMock = new Mock<ILogger<DataExchangeService>>();
+        var exportLoggerMock = new Mock<ILogger<DataExportService>>();
+        var importLoggerMock = new Mock<ILogger<DataImportService>>();
         var fixServiceMock = new Mock<IDataFixService>();
-        return new DataExchangeService(ctx, loggerMock.Object, fixServiceMock.Object);
+        var exportService = new DataExportService(ctx, exportLoggerMock.Object);
+        var importService = new DataImportService(ctx, importLoggerMock.Object);
+        return new DataExchangeService(importService, exportService, fixServiceMock.Object, loggerMock.Object);
     }
 
     // ========== Registry 验证 ==========
@@ -38,13 +42,13 @@ public class DataExchangeServiceTests : TestBase
     [Fact]
     public void Registry_包含所有67个实体()
     {
-        DataExchangeService.Registry.Should().HaveCount(67);
+        DataExchangeRegistry.Registry.Should().HaveCount(67);
     }
 
     [Fact]
     public void Registry_每个实体都有列定义()
     {
-        foreach (var (key, def) in DataExchangeService.Registry)
+        foreach (var (key, def) in DataExchangeRegistry.Registry)
         {
             def.Columns.Should().NotBeEmpty($"实体 {key} 缺少列定义");
         }
@@ -53,7 +57,7 @@ public class DataExchangeServiceTests : TestBase
     [Fact]
     public void Registry_每个实体列定义_Header不重复()
     {
-        foreach (var (key, def) in DataExchangeService.Registry)
+        foreach (var (key, def) in DataExchangeRegistry.Registry)
         {
             var headers = def.Columns.Select(c => c.Header).ToList();
             headers.Should().OnlyHaveUniqueItems($"实体 {key} 存在重复表头");
@@ -63,8 +67,8 @@ public class DataExchangeServiceTests : TestBase
     [Fact]
     public void Registry_实体顺序与EntityOrder一致()
     {
-        var registryKeys = DataExchangeService.Registry.Keys.ToList();
-        var orderKeys = DataExchangeService.EntityOrder;
+        var registryKeys = DataExchangeRegistry.Registry.Keys.ToList();
+        var orderKeys = DataExchangeRegistry.EntityOrder;
 
         orderKeys.Should().HaveCount(registryKeys.Count);
         foreach (var key in orderKeys)
@@ -76,7 +80,7 @@ public class DataExchangeServiceTests : TestBase
     [Fact]
     public void Registry_InventoryBatch_包含缺陷字段()
     {
-        var def = DataExchangeService.Registry["InventoryBatch"];
+        var def = DataExchangeRegistry.Registry["InventoryBatch"];
         var headers = def.Columns.Select(c => c.Header).ToList();
 
         headers.Should().Contain("次品原因");
@@ -90,7 +94,7 @@ public class DataExchangeServiceTests : TestBase
     [Fact]
     public void Registry_ProductionBatch_包含系统跟踪字段()
     {
-        var def = DataExchangeService.Registry["ProductionBatch"];
+        var def = DataExchangeRegistry.Registry["ProductionBatch"];
         var headers = def.Columns.Select(c => c.Header).ToList();
 
         headers.Should().Contain("有效投料疑问");
@@ -101,7 +105,7 @@ public class DataExchangeServiceTests : TestBase
     [Fact]
     public void Registry_SubcontractReturnItem_包含回收执行字段()
     {
-        var def = DataExchangeService.Registry["SubcontractReturnItem"];
+        var def = DataExchangeRegistry.Registry["SubcontractReturnItem"];
         var headers = def.Columns.Select(c => c.Header).ToList();
 
         headers.Should().Contain("回收支数");
@@ -113,7 +117,7 @@ public class DataExchangeServiceTests : TestBase
     [Fact]
     public void Registry_ProductionBatch_系统跟踪字段标记为IsSystem()
     {
-        var def = DataExchangeService.Registry["ProductionBatch"];
+        var def = DataExchangeRegistry.Registry["ProductionBatch"];
 
         def.Columns.First(c => c.Header == "有效投料疑问").IsSystem.Should().BeTrue();
         def.Columns.First(c => c.Header == "当前工段完工").IsSystem.Should().BeTrue();
@@ -123,7 +127,7 @@ public class DataExchangeServiceTests : TestBase
     [Fact]
     public void Registry_SubcontractReturnItem_IsForceCompleted非系统字段()
     {
-        var def = DataExchangeService.Registry["SubcontractReturnItem"];
+        var def = DataExchangeRegistry.Registry["SubcontractReturnItem"];
 
         def.Columns.First(c => c.Header == "回收支数").IsSystem.Should().BeTrue();
         def.Columns.First(c => c.Header == "回收重量(kg)").IsSystem.Should().BeTrue();
@@ -291,7 +295,7 @@ public class DataExchangeServiceTests : TestBase
     // ========== 所有实体可导出 ==========
 
     public static IEnumerable<object[]> AllEntityKeys =>
-        DataExchangeService.Registry.Keys.Select(k => new object[] { k });
+        DataExchangeRegistry.Registry.Keys.Select(k => new object[] { k });
 
     [Theory]
     [MemberData(nameof(AllEntityKeys))]
@@ -347,11 +351,10 @@ public class DataExchangeServiceTests : TestBase
         return package.GetAsByteArray();
     }
 
-    private TestableDataExchangeService CreateTestableService(AppDbContext ctx)
+    private TestableDataImportService CreateTestableService(AppDbContext ctx)
     {
-        var loggerMock = new Mock<ILogger<DataExchangeService>>();
-        var fixServiceMock = new Mock<IDataFixService>();
-        return new TestableDataExchangeService(ctx, loggerMock.Object, fixServiceMock.Object);
+        var loggerMock = new Mock<ILogger<DataImportService>>();
+        return new TestableDataImportService(ctx, loggerMock.Object);
     }
 
     [Fact]
@@ -707,12 +710,12 @@ public class DataExchangeServiceTests : TestBase
 }
 
 /// <summary>
-/// 可测试的 DataExchangeService：跳过 SQL Server 原生约束管理（InMemory 不支持原生 SQL）
+/// 可测试的 DataImportService：跳过 SQL Server 原生约束管理（InMemory 不支持原生 SQL）
 /// </summary>
-public class TestableDataExchangeService : DataExchangeService
+public class TestableDataImportService : DataImportService
 {
-    public TestableDataExchangeService(AppDbContext context, ILogger<DataExchangeService> logger, IDataFixService fixService)
-        : base(context, logger, fixService) { }
+    public TestableDataImportService(AppDbContext context, ILogger<DataImportService> logger)
+        : base(context, logger) { }
 
     protected override Task DisableAllConstraintsAsync(DbConnection connection, DbTransaction transaction)
     {

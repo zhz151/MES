@@ -23,9 +23,9 @@ public class PurchaseFinishedPlanDto
     public DateTime PlanDate { get; set; }
 
     /// <summary>
-    /// 成品类型（Critical=临界成品 Order=订单成品）
+    /// 成品类型
     /// </summary>
-    public string ProductType { get; set; } = null!;
+    public FinishedProductType ProductType { get; set; }
 
     /// <summary>
     /// 采购支数
@@ -134,7 +134,7 @@ public class CreatePurchaseFinishedPlanRequest
     /// <summary>
     /// 成品类型
     /// </summary>
-    public string ProductType { get; set; } = null!;
+    public FinishedProductType ProductType { get; set; }
 
     /// <summary>
     /// 采购支数
@@ -194,7 +194,7 @@ public class CreatePurchaseFinishedPlanRequest
     /// <summary>
     /// 长度状态
     /// </summary>
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
 
     /// <summary>
     /// 最小长度(mm)
@@ -209,5 +209,5 @@ public class CreatePurchaseFinishedPlanRequest
     /// <summary>
     /// 交货状态
     /// </summary>
-    public string DeliveryState { get; set; } = null!;
+    public DeliveryState DeliveryState { get; set; }
 }

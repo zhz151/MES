@@ -6,12 +6,13 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
@@ -20,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -33,7 +34,7 @@ using MES.Tests.Tests;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
@@ -56,7 +57,7 @@ public class FurnaceRegistrationServiceTests : TestBase
         {
             IncomingDate = DateTime.Today,
             RawMaterialUnit = unit,
-            RawMaterialType = "管坯",
+            RawMaterialType = "RoughTube",
             RegisteredGrade = grade,
             RelatedPlantGrade = grade,
             FurnaceNumber = furnaceNo,
@@ -160,12 +161,12 @@ public class FurnaceRegistrationServiceTests : TestBase
         {
             new()
             {
-                IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂A", RawMaterialType = "管坯",
+                IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂A", RawMaterialType = RawMaterialType.RoughTube,
                 RegisteredGrade = "Q345B", FurnaceNumber = "FUR001", Quantity = 10, Weight = 1000m
             },
             new()
             {
-                IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂B", RawMaterialType = "管坯",
+                IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂B", RawMaterialType = RawMaterialType.RoughTube,
                 RegisteredGrade = "20#", FurnaceNumber = "FUR002", Quantity = 20, Weight = 2000m
             }
         });
@@ -199,7 +200,7 @@ public class FurnaceRegistrationServiceTests : TestBase
         {
             IncomingDate = DateTime.Today,
             RawMaterialUnit = "新钢厂",
-            RawMaterialType = "管坯",
+            RawMaterialType = RawMaterialType.RoughTube,
             RegisteredGrade = "304",
             FurnaceNumber = "FUR001-NEW",
             Quantity = 15
@@ -219,7 +220,7 @@ public class FurnaceRegistrationServiceTests : TestBase
         {
             IncomingDate = DateTime.Today,
             RawMaterialUnit = "钢厂",
-            RawMaterialType = "管坯",
+            RawMaterialType = RawMaterialType.RoughTube,
             RegisteredGrade = "Q345B",
             FurnaceNumber = "FUR999"
         });
@@ -304,7 +305,7 @@ public class FurnaceRegistrationServiceTests : TestBase
         {
             IncomingDate = DateTime.Today,
             RawMaterialUnit = "钢厂A",
-            RawMaterialType = "管坯",
+            RawMaterialType = "RoughTube",
             RegisteredGrade = "Q345B",
             RelatedPlantGrade = "Q345B",
             FurnaceNumber = "FUR-SPEC",
@@ -329,7 +330,7 @@ public class FurnaceRegistrationServiceTests : TestBase
         {
             IncomingDate = DateTime.Today,
             RawMaterialUnit = "钢厂A",
-            RawMaterialType = "管坯",
+            RawMaterialType = "RoughTube",
             RegisteredGrade = "Q345B",
             RelatedPlantGrade = "Q345B",
             FurnaceNumber = "FUR-REMARK",
@@ -485,7 +486,7 @@ public class FurnaceRegistrationServiceTests : TestBase
         {
             IncomingDate = DateTime.Today,
             RawMaterialUnit = "钢厂A",
-            RawMaterialType = "管坯",
+            RawMaterialType = "RoughTube",
             RegisteredGrade = "Q345B",
             FurnaceNumber = "FUR001",
             Specification = null,

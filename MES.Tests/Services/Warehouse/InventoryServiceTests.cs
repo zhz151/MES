@@ -7,6 +7,7 @@ using MES.Core.Exceptions;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.Warehouse;
 using MES.Core.Models;
 using MES.Services.Warehouse;
 using MES.Tests.Tests;
@@ -27,13 +28,19 @@ public class InventoryServiceTests : TestBase
 {
     private InventoryService CreateService(AppDbContext ctx)
     {
+        var woExecMock = new Mock<IWorkOrderExecutionService>();
+        var qualityMock = new Mock<IQualityProcessTrackingService>();
         var configMock = new Mock<IConfigParameterService>();
-        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
-            .ReturnsAsync(new Dictionary<string, decimal>());
-        var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
-        var loggerMock = new Mock<ILogger<InventoryService>>();
-        var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new InventoryService(ctx, configMock.Object, workOrderExecMock.Object, qptMock.Object, loggerMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        var loggerMain = new Mock<ILogger<InventoryService>>();
+        var loggerBatch = new Mock<ILogger<InventoryBatchWriteService>>();
+        var loggerOutbound = new Mock<ILogger<OutboundWriteService>>();
+        var loggerSync = new Mock<ILogger<InventorySyncService>>();
+
+        var batchWrite = new InventoryBatchWriteService(ctx, woExecMock.Object, qualityMock.Object, loggerBatch.Object);
+        var outboundWrite = new OutboundWriteService(ctx, woExecMock.Object, loggerOutbound.Object);
+        var syncService = new InventorySyncService(ctx, configMock.Object, woExecMock.Object, loggerSync.Object, new MemoryCache(new MemoryCacheOptions()));
+
+        return new InventoryService(ctx, batchWrite, outboundWrite, syncService, loggerMain.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     // ========== 入库 ==========
@@ -98,7 +105,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = 999,
             OutboundQuantity = 1,
             OutboundWeight = 100m,
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -130,7 +137,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 10,
             OutboundWeight = 100m,
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -163,7 +170,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 1,
             OutboundWeight = 600m,
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -196,7 +203,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 3,
             OutboundWeight = 300m,
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -246,7 +253,7 @@ public class InventoryServiceTests : TestBase
 
         var act = () => svc.BatchOutboundAsync(new BatchOutboundRequest
         {
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户Y",
             OutboundDate = DateTime.Today,
             Items = new List<OutboundItemRequest>
@@ -392,7 +399,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = b2.Id,
             OutboundQuantity = 5,
             OutboundWeight = 500m,
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -490,7 +497,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 3,
             OutboundWeight = 300m,
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -534,7 +541,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 2,
             OutboundWeight = 200m,
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户A",
             OutboundDate = DateTime.Today
         });
@@ -543,7 +550,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 3,
             OutboundWeight = 300m,
-            OutboundType = "TransferOut",
+            OutboundType = OutboundType.TransferOut,
             TargetCompany = "客户B",
             OutboundDate = DateTime.Today
         });
@@ -556,7 +563,7 @@ public class InventoryServiceTests : TestBase
         });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].OutboundType.Should().Be("SalesOut");
+        result.Items[0].OutboundType.Should().Be(OutboundType.SalesOut);
         result.Items[0].BatchNo.Should().Be(batch.BatchNo);
         result.TotalCount.Should().Be(1);
     }
@@ -691,7 +698,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 1,
             OutboundWeight = 100m,
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -701,7 +708,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 2,
             OutboundWeight = 200m,
-            OutboundType = "TransferOut",
+            OutboundType = OutboundType.TransferOut,
             TargetCompany = "客户Y",
             OutboundDate = DateTime.Today
         });
@@ -743,7 +750,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 1,
             OutboundWeight = 100m,
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -752,7 +759,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 2,
             OutboundWeight = 200m,
-            OutboundType = "TransferOut",
+            OutboundType = OutboundType.TransferOut,
             TargetCompany = "客户Y",
             OutboundDate = DateTime.Today
         });
@@ -793,7 +800,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 1,
             OutboundWeight = 100m,
-            OutboundType = "SalesOut",
+            OutboundType = OutboundType.SalesOut,
             TargetCompany = "客户X",
             OutboundDate = DateTime.Today
         });
@@ -802,7 +809,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 2,
             OutboundWeight = 200m,
-            OutboundType = "TransferOut",
+            OutboundType = OutboundType.TransferOut,
             TargetCompany = "客户Y",
             OutboundDate = DateTime.Today
         });
@@ -811,7 +818,7 @@ public class InventoryServiceTests : TestBase
         { PageIndex = 0, PageSize = 20, Keyword = "TransferOut" });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].OutboundType.Should().Be("TransferOut");
+        result.Items[0].OutboundType.Should().Be(OutboundType.TransferOut);
     }
 
     // ========== 库存筛选上下文 ==========

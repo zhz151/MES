@@ -18,8 +18,7 @@ public static class EnumHelper
 
         Register<WorkOrderStatus>(("NotGenerated", "未编制"),
                                    ("Confirmed", "已确定"),
-                                   ("Pending", "待修正"),
-                                   ("Cancelled", "已取消"));
+                                   ("Pending", "待修正"));
 
         Register<MaterialPlanStatus>(("NotPlanned", "未计划"),
                                       ("Partial", "部分"),
@@ -103,8 +102,6 @@ public static class EnumHelper
                                 ("ScrapOut", "报废出库"),
                                 ("InspectionPick", "检验领用"),
                                 ("TransferOut", "移库出库"),
-                                ("InventoryLoss", "盘亏出库"),
-                                ("SampleOut", "样品出库"),
                                 ("OtherOut", "其他出库"));
 
         Register<CustomerStatus>(("Active", "启用"),
@@ -115,7 +112,10 @@ public static class EnumHelper
 
         Register<NotificationType>(("NewMaterial", "新物料确认"),
                                     ("DeleteBlocked", "删除拦截"),
-                                    ("OutboundAlert", "出库预警"));
+                                    ("OutboundAlert", "出库预警"),
+                                    ("WorkOrderDeleted", "工单已删除"),
+                                    ("OrderDeleted", "订单已删除"),
+                                    ("OrderChanged", "订单已变更"));
 
         Register<NotificationChangeType>(("Deleted", "订单已删除"),
                                           ("ItemChanged", "项次已变更"));
@@ -167,6 +167,10 @@ public static class EnumHelper
                                    ("Completed", "已完成"),
                                    ("Overdue", "已逾期"));
 
+        Register<SubcontractProcessStatus>(("Pending", "待回收"),
+                                             ("PartialReturned", "部分回收"),
+                                             ("Completed", "已完成"));
+
         Register<InspectionItem>(("PMIInspection", "PMI检验"),
                                   ("VisualInspection", "表检"),
                                   ("Dimension", "尺寸"),
@@ -176,6 +180,44 @@ public static class EnumHelper
                                   ("EddyCurrent", "涡流"),
                                   ("Ultrasonic", "超声波"),
                                   ("PortColoring", "端口着色"));
+
+        Register<DisposalMethod>(("Rework", "返整"),
+                                  ("WarehouseEntry", "入库"),
+                                  ("Scrap", "报废"));
+
+        Register<NcrStatus>(("Pending", "待处理"),
+                             ("Processing", "处理中"),
+                             ("Closed", "已关闭"));
+
+        Register<PicklingStatus>(("Soaking", "浸泡中"),
+                                  ("Completed", "已完工"));
+
+        Register<ResponsibilityCategory>(("ProductionInternal", "生产-厂内"),
+                                          ("ProductionOutsource", "生产-外协"),
+                                          ("MaterialTubeBlank", "原料-荒管"),
+                                          ("MaterialPurchased", "原料-外购成品"),
+                                          ("MaterialSurplus", "原料-余库料"));
+
+        Register<SeverityLevel>(("Critical", "严重"),
+                                 ("General", "一般"));
+
+        Register<VerifyResult>(("Passed", "通过"),
+                                ("NeedsRectification", "需整改"),
+                                ("NotApplicable", "不适用"));
+
+        Register<PipeCategory>(("TubeBlank", "荒管"),
+                                ("WorkInProgress", "在制品"),
+                                ("SurplusInventory", "余库料"),
+                                ("CriticalFinished", "临界成品"),
+                                ("OrderFinished", "订单成品"),
+                                ("PreparedFinished", "备料成品"),
+                                ("SpecialDelivery", "特定交态成品"));
+
+        Register<SectionStatus>(("Completed", "已完成"),
+                                 ("InProgress", "进行中"),
+                                 ("Outsource", "委外中"),
+                                 ("Next", "待执行"),
+                                 ("Pending", "待处理"));
     }
 
     private static void Register<T>(params (string value, string display)[] mappings) where T : Enum
@@ -220,6 +262,19 @@ public static class EnumHelper
             ? display
             : name;
     }
+
+    /// <summary>
+    /// 获取枚举值的中文显示名（字符串版本，适用于 DTO 中存储为字符串的枚举）
+    /// </summary>
+    public static string GetDisplayName<T>(string? enumName) where T : struct, Enum
+        => Enum.TryParse<T>(enumName ?? "", true, out var result) ? GetDisplayName(result) : (enumName ?? "");
+
+    /// <summary>
+    /// 获取枚举值的中文显示名（字符串版本，非泛型，需传入枚举类型和字符串值）
+    /// </summary>
+    public static string GetDisplayName(Type enumType, string? enumName)
+        => Enum.TryParse(enumType, enumName ?? "", true, out var result) && result is Enum e
+            ? GetDisplayName(enumType, e) : (enumName ?? "");
 
     /// <summary>
     /// 将中文名（或英文名）解析为枚举值（非泛型版本，返回 object）

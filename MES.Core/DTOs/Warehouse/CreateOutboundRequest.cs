@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs.Warehouse;
 
@@ -11,7 +12,7 @@ public class CreateOutboundRequest
     public int InventoryBatchId { get; set; }
 
     [Required(ErrorMessage = "出库类型不能为空")]
-    public string OutboundType { get; set; } = string.Empty;
+    public OutboundType OutboundType { get; set; }
 
     public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }

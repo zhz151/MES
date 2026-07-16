@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.WorkOrder;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace MES.Core.DTOs.WorkOrder;
 public class NotificationDto
 {
     public int Id { get; set; }
-    public string NotificationType { get; set; } = null!;
+    public NotificationType NotificationType { get; set; }
     public int? TargetId { get; set; }
     public string Title { get; set; } = null!;
     public string Content { get; set; } = null!;

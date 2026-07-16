@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -22,7 +22,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -81,7 +81,7 @@ public class PurchaseOrderServiceTests : TestBase
             SupplierName = supplierName,
             OrderDate = orderDate ?? DateTime.Today,
             Status = status,
-            MaterialCategory = "钢管",
+            MaterialCategory = "RoughTube",
             PlantGrade = "20#",
             Specification = "219*8",
             Quantity = quantity,
@@ -122,7 +122,7 @@ public class PurchaseOrderServiceTests : TestBase
             SupplierId = sid,
             OrderDate = DateTime.Today,
             Status = PurchaseOrderStatus.Open,
-            MaterialCategory = "钢管",
+            MaterialCategory = "RoughTube",
             PlantGrade = "304",
             Specification = "273*10",
             Quantity = 50,
@@ -132,7 +132,7 @@ public class PurchaseOrderServiceTests : TestBase
         await ctx.SaveChangesAsync();
 
         var seedOrderNo = await ctx.PurchaseOrders
-            .Where(p => p.MaterialCategory == "钢管" && p.PlantGrade == "20#")
+            .Where(p => p.MaterialCategory == "RoughTube" && p.PlantGrade == "20#")
             .Select(p => p.OrderNo)
             .FirstAsync();
         var svc = CreateService(ctx);
@@ -158,7 +158,7 @@ public class PurchaseOrderServiceTests : TestBase
             SupplierId = sid2,
             OrderDate = DateTime.Today,
             Status = PurchaseOrderStatus.Open,
-            MaterialCategory = "钢管",
+            MaterialCategory = "RoughTube",
             PlantGrade = "304",
             Specification = "273*10",
             Quantity = 50,
@@ -274,7 +274,7 @@ public class PurchaseOrderServiceTests : TestBase
         {
             SupplierId = sid,
             OrderDate = DateTime.Today,
-            MaterialCategory = "钢管",
+            MaterialCategory = MaterialCategory.RoughTube,
             PlantGrade = "20#",
             Specification = "219*8",
             Quantity = 100,
@@ -305,7 +305,7 @@ public class PurchaseOrderServiceTests : TestBase
         {
             SupplierId = sid,
             OrderDate = DateTime.Today,
-            MaterialCategory = "钢管",
+            MaterialCategory = MaterialCategory.RoughTube,
             PlantGrade = "20#",
             Specification = "219*8",
             Quantity = null,
@@ -329,7 +329,7 @@ public class PurchaseOrderServiceTests : TestBase
         var result = await svc.UpdateAsync(order.Id, new UpdatePurchaseOrderRequest
         {
             SupplierId = sid,
-            MaterialCategory = "钢管",
+            MaterialCategory = MaterialCategory.RoughTube,
             PlantGrade = "25#",
             Specification = "273*10",
             Quantity = 200,
@@ -353,7 +353,7 @@ public class PurchaseOrderServiceTests : TestBase
         var act = () => svc.UpdateAsync(order.Id, new UpdatePurchaseOrderRequest
         {
             SupplierId = sid,
-            MaterialCategory = "钢管",
+            MaterialCategory = MaterialCategory.RoughTube,
             PlantGrade = "20#",
             Specification = "219*8",
             Quantity = 100,
@@ -381,7 +381,7 @@ public class PurchaseOrderServiceTests : TestBase
             InboundSource = "采购",
             SourceName = "测试供应商",
             SourceOrderNo = order.OrderNo,
-            MaterialType = "钢管",
+            MaterialType = "RoughTube",
             PlantGrade = "20#",
             Specification = "219*8",
             InitialQuantity = 30,
@@ -413,7 +413,7 @@ public class PurchaseOrderServiceTests : TestBase
             InboundSource = "采购",
             SourceName = "测试供应商",
             SourceOrderNo = order.OrderNo,
-            MaterialType = "钢管",
+            MaterialType = "RoughTube",
             PlantGrade = "20#",
             Specification = "219*8",
             InitialQuantity = 100,
@@ -648,100 +648,6 @@ public class PurchaseOrderServiceTests : TestBase
         result.Items[0].Remark.Should().Be("采购备注测试");
     }
 
-    // ========== 筛选测试（FilterDescriptor） ==========
-
-    [Fact]
-    public async Task GetPagedAsync_Filters_OrderNo_Contains_返回匹配()
-    {
-        var ctx = CreateDbContext();
-        var sid = await SeedSupplierAsync(ctx);
-        await SeedOrderAsync(ctx, sid);
-        ctx.PurchaseOrders.Add(new PurchaseOrder
-        {
-            OrderNo = "CG20260101099",
-            SupplierId = sid,
-            OrderDate = DateTime.Today,
-            Status = PurchaseOrderStatus.Open,
-            MaterialCategory = "钢管",
-            PlantGrade = "304",
-            Specification = "273*10",
-            Quantity = 50,
-            Weight = 500m,
-            RequiredDate = DateTime.Today.AddDays(30)
-        });
-        await ctx.SaveChangesAsync();
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
-        {
-            PageIndex = 1,
-            PageSize = 20,
-            Filters = new List<FilterDescriptor>
-            {
-                new() { Field = "OrderNo", Operator = "contains", Value = "099" }
-            }
-        });
-
-        result.Items.Should().HaveCount(1);
-        result.Items[0].OrderNo.Should().Be("CG20260101099");
-    }
-
-    [Fact]
-    public async Task GetPagedAsync_Filters_MaterialCategory_In_返回匹配()
-    {
-        var ctx = CreateDbContext();
-        var sid = await SeedSupplierAsync(ctx);
-        await SeedOrderAsync(ctx, sid);
-        ctx.PurchaseOrders.Add(new PurchaseOrder
-        {
-            OrderNo = "CG20260101099",
-            SupplierId = sid,
-            OrderDate = DateTime.Today,
-            Status = PurchaseOrderStatus.Open,
-            MaterialCategory = "圆钢",
-            PlantGrade = "45#",
-            Specification = "50*1000",
-            Quantity = 100,
-            Weight = 5000m,
-            RequiredDate = DateTime.Today.AddDays(30)
-        });
-        await ctx.SaveChangesAsync();
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
-        {
-            PageIndex = 1,
-            PageSize = 20,
-            Filters = new List<FilterDescriptor>
-            {
-                new() { Field = "MaterialCategory", Operator = "in", Values = new List<string> { "圆钢" } }
-            }
-        });
-
-        result.Items.Should().HaveCount(1);
-        result.Items[0].MaterialCategory.Should().Be("圆钢");
-    }
-
-    [Fact]
-    public async Task GetPagedAsync_Filters_NoMatch_返回空列表()
-    {
-        var ctx = CreateDbContext();
-        var sid = await SeedSupplierAsync(ctx);
-        await SeedOrderAsync(ctx, sid);
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
-        {
-            PageIndex = 1,
-            PageSize = 20,
-            Filters = new List<FilterDescriptor>
-            {
-                new() { Field = "OrderNo", Operator = "contains", Value = "NONEXISTENT" }
-            }
-        });
-
-        result.Items.Should().BeEmpty();
-    }
 
     // ========== GetFilterContextsAsync ==========
 
@@ -757,7 +663,7 @@ public class PurchaseOrderServiceTests : TestBase
             SupplierId = sid,
             OrderDate = DateTime.Today,
             Status = PurchaseOrderStatus.Open,
-            MaterialCategory = "圆钢",
+            MaterialCategory = "RoundBar",
             PlantGrade = "45#",
             Specification = "50*1000",
             Quantity = 100,

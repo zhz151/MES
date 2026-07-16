@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace MES.Core.DTOs.ProductionStandard;
+namespace MES.Core.DTOs.StandardRegister;
 
 // ========== 牌号验证 ==========
 

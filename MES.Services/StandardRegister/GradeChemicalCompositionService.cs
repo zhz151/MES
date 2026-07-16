@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -38,12 +38,11 @@ using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Services.Helpers;
-using MES.Services.Mapping;
 using MES.Services.Printing;
 
-namespace MES.Services.ProductionStandard;
+namespace MES.Services.StandardRegister;
 
 public class GradeChemicalCompositionService : IGradeChemicalCompositionService
 {
@@ -150,7 +149,7 @@ public class GradeChemicalCompositionService : IGradeChemicalCompositionService
             .FirstOrDefaultAsync(g => g.Id == id);
         if (entity == null)
             throw new BusinessException("牌号化学成分不存在");
-        return entity.ToChemicalCompositionDto();
+        return ToChemicalCompositionDto(entity);
     }
 
     public async Task<GradeChemicalCompositionDto> CreateAsync(CreateGradeChemicalCompositionRequest request)
@@ -183,7 +182,7 @@ public class GradeChemicalCompositionService : IGradeChemicalCompositionService
 
         _context.GradeChemicalCompositions.Add(entity);
         await _context.SaveChangesAsync();
-        return entity.ToChemicalCompositionDto();
+        return ToChemicalCompositionDto(entity);
     }
 
     public async Task<GradeChemicalCompositionDto> UpdateAsync(int id, UpdateGradeChemicalCompositionRequest request)
@@ -222,7 +221,7 @@ public class GradeChemicalCompositionService : IGradeChemicalCompositionService
         if (request.Tungsten != null) entity.Tungsten = request.Tungsten;
 
         await _context.SaveChangesAsync();
-        return entity.ToChemicalCompositionDto();
+        return ToChemicalCompositionDto(entity);
     }
 
     public async Task DeleteAsync(int id)
@@ -283,4 +282,26 @@ public class GradeChemicalCompositionService : IGradeChemicalCompositionService
         var paged = await GetPagedAsync(query);
         return GradeChemicalCompositionPrintHelper.GenerateBatchPdf(paged.Items, columns);
     }
+
+    private static GradeChemicalCompositionDto ToChemicalCompositionDto(GradeChemicalComposition entity) => new()
+    {
+        Id = entity.Id,
+        StandardGrade = entity.StandardGrade,
+        StandardGradeCategory = entity.StandardGradeCategory,
+        Carbon = entity.Carbon,
+        Silicon = entity.Silicon,
+        Manganese = entity.Manganese,
+        Phosphorus = entity.Phosphorus,
+        Sulfur = entity.Sulfur,
+        Nickel = entity.Nickel,
+        Chromium = entity.Chromium,
+        Molybdenum = entity.Molybdenum,
+        Copper = entity.Copper,
+        Nitrogen = entity.Nitrogen,
+        Niobium = entity.Niobium,
+        Titanium = entity.Titanium,
+        Iron = entity.Iron,
+        Aluminum = entity.Aluminum,
+        Tungsten = entity.Tungsten
+    };
 }

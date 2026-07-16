@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Configuration;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace MES.Core.DTOs.Configuration;
 public class StandardWorkDayDeliveryStateDto
 {
     public int Id { get; set; }
-    public string DeliveryState { get; set; } = string.Empty;
+    public DeliveryState? DeliveryState { get; set; }
     public double ExtraDays { get; set; }
     public string? PlantGradePrefix { get; set; }
     public string? Remark { get; set; }

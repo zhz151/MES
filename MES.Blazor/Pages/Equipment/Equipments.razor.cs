@@ -10,6 +10,7 @@ using MES.Blazor.Shared;
 using MES.Core.Models;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Shared;
+using MES.Core.Enums;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Equipment;
@@ -75,8 +76,8 @@ public partial class Equipments
         public int MaintCycleDays { get; set; }
         public string? CurrentMaintStartDateText { get; set; }
         public string? LastRepairDateText { get; set; }
-        public string LifecycleStatus { get; set; } = null!;
-        public string UsageType { get; set; } = null!;
+        public LifecycleStatus LifecycleStatus { get; set; }
+        public UsageType UsageType { get; set; }
     }
 
     // ========== 列定义 ==========
@@ -552,15 +553,15 @@ public partial class Equipments
         "InstallationDate" => item.InstallationDate?.ToString("yyyy-MM-dd"),
         "Location" => item.Location,
         "RelatedSection" => item.RelatedSection,
-        "LifecycleStatus" => item.LifecycleStatus,
-        "UsageType" => item.UsageType,
-        "RunningStatus" => item.RunningStatus,
-        "InspectionStatus" => item.InspectionStatus,
+        "LifecycleStatus" => item.LifecycleStatus.ToString(),
+        "UsageType" => item.UsageType.ToString(),
+        "RunningStatus" => item.RunningStatus.ToString(),
+        "InspectionStatus" => item.InspectionStatus.ToString(),
         "NeedInspection" => item.NeedInspection.ToString(),
         "InspectionPerson" => item.InspectionPerson,
         "InspectionCycleDays" => item.InspectionCycleDays.ToString(),
         "CurrentInspectionStartDate" => item.CurrentInspectionStartDate?.ToString("yyyy-MM-dd"),
-        "MaintStatus" => item.MaintStatus,
+        "MaintStatus" => item.MaintStatus.ToString(),
         "NeedMaintenance" => item.NeedMaintenance.ToString(),
         "MaintPerson" => item.MaintPerson,
         "MaintCycleDays" => item.MaintCycleDays.ToString(),
@@ -828,48 +829,48 @@ public partial class Equipments
                 builder.CloseComponent();
                 break;
             case "LifecycleStatus":
-                builder.OpenComponent<MudSelect<string>>(0);
+                builder.OpenComponent<MudSelect<LifecycleStatus>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "Value", cache.LifecycleStatus);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.LifecycleStatus = v));
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<LifecycleStatus>(this, v => cache.LifecycleStatus = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Active");
+                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
+                    cb.AddAttribute(1, "Value", LifecycleStatus.Active);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "在用")));
                     cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Standby");
+                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
+                    cb.AddAttribute(1, "Value", LifecycleStatus.Standby);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "备用")));
                     cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Scrapped");
+                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
+                    cb.AddAttribute(1, "Value", LifecycleStatus.Scrapped);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "报废")));
                     cb.CloseComponent();
                 }));
                 builder.CloseComponent();
                 break;
             case "UsageType":
-                builder.OpenComponent<MudSelect<string>>(0);
+                builder.OpenComponent<MudSelect<UsageType>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "Value", cache.UsageType);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.UsageType = v));
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<UsageType>(this, v => cache.UsageType = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Primary");
+                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
+                    cb.AddAttribute(1, "Value", UsageType.Primary);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "主生产")));
                     cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Secondary");
+                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
+                    cb.AddAttribute(1, "Value", UsageType.Secondary);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "辅生产")));
                     cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Other");
+                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
+                    cb.AddAttribute(1, "Value", UsageType.Other);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "其它")));
                     cb.CloseComponent();
                 }));

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MES.Auth.Services;
+using MES.Core.Interfaces.Auth;
 using MES.Core.DTOs.Auth;
 using MES.Core.Models;
 using MES.Shared.Constants;

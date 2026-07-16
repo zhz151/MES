@@ -10,6 +10,7 @@ using MES.Blazor.Shared;
 using MES.Blazor.Models;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
+using MES.Core.Enums;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Quality;
@@ -271,7 +272,7 @@ public partial class FurnaceRegistrations
         {
             IncomingDate = item.IncomingDate,
             RawMaterialUnit = item.RawMaterialUnit,
-            RawMaterialType = item.RawMaterialType,
+            RawMaterialType = item.RawMaterialType.ToString(),
             RegisteredGrade = item.RegisteredGrade,
             RelatedPlantGrade = item.RelatedPlantGrade,
             FurnaceNumber = item.FurnaceNumber,
@@ -338,7 +339,7 @@ public partial class FurnaceRegistrations
             {
                 IncomingDate = cache.IncomingDate,
                 RawMaterialUnit = cache.RawMaterialUnit,
-                RawMaterialType = cache.RawMaterialType,
+                RawMaterialType = Enum.TryParse<RawMaterialType>(cache.RawMaterialType, true, out var rm) ? rm : default,
                 RegisteredGrade = cache.RegisteredGrade,
                 RelatedPlantGrade = cache.RelatedPlantGrade,
                 FurnaceNumber = cache.FurnaceNumber,
@@ -572,7 +573,7 @@ public partial class FurnaceRegistrations
     {
         "IncomingDate" => item.IncomingDate.ToString("yyyy-MM-dd"),
         "RawMaterialUnit" => item.RawMaterialUnit,
-        "RawMaterialType" => item.RawMaterialType,
+        "RawMaterialType" => DisplayHelper.GetRawMaterialTypeText(item.RawMaterialType),
         "RegisteredGrade" => item.RegisteredGrade,
         "RelatedPlantGrade" => item.RelatedPlantGrade,
         "FurnaceNumber" => item.FurnaceNumber,
@@ -734,7 +735,7 @@ public partial class FurnaceRegistrations
                 RenderEditField(builder, isEditing, cache?.RawMaterialUnit, v => { if (cache != null) cache.RawMaterialUnit = v ?? ""; }, item.RawMaterialUnit);
                 break;
             case "RawMaterialType":
-                RenderEditField(builder, isEditing, cache?.RawMaterialType, v => { if (cache != null) cache.RawMaterialType = v ?? ""; }, item.RawMaterialType);
+                RenderEditField(builder, isEditing, cache?.RawMaterialType, v => { if (cache != null) cache.RawMaterialType = v ?? ""; }, DisplayHelper.GetRawMaterialTypeText(item.RawMaterialType));
                 break;
             case "RegisteredGrade":
                 RenderEditField(builder, isEditing, cache?.RegisteredGrade, v => { if (cache != null) cache.RegisteredGrade = v ?? ""; }, item.RegisteredGrade);

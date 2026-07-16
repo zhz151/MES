@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -20,7 +20,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -56,20 +56,21 @@ public class NotificationService : INotificationService
             .OrderByDescending(n => n.CreatedTime);
 
         var totalCount = await query.CountAsync();
-        var items = await query
+        var entities = await query
             .Skip((pageIndex - 1) * pageSize)
             .Take(pageSize)
-            .Select(n => new NotificationDto
-            {
-                Id = n.Id,
-                NotificationType = n.NotificationType,
-                TargetId = n.TargetId,
-                Title = n.Title,
-                Content = n.Content,
-                IsRead = n.IsRead,
-                CreatedTime = n.CreatedTime
-            })
             .ToListAsync();
+
+        var items = entities.Select(n => new NotificationDto
+        {
+            Id = n.Id,
+            NotificationType = Enum.Parse<NotificationType>(n.NotificationType),
+            TargetId = n.TargetId,
+            Title = n.Title,
+            Content = n.Content,
+            IsRead = n.IsRead,
+            CreatedTime = n.CreatedTime
+        }).ToList();
 
         return new PagedResult<NotificationDto>
         {
@@ -131,20 +132,21 @@ public class NotificationService : INotificationService
 
     public async Task<List<NotificationDto>> GetUnreadByTypeAsync(string notificationType)
     {
-        return await _context.Notifications
+        var entities = await _context.Notifications
             .Where(n => n.NotificationType == notificationType && !n.IsRead)
             .OrderByDescending(n => n.CreatedTime)
-            .Select(n => new NotificationDto
-            {
-                Id = n.Id,
-                NotificationType = n.NotificationType,
-                TargetId = n.TargetId,
-                Title = n.Title,
-                Content = n.Content,
-                IsRead = n.IsRead,
-                CreatedTime = n.CreatedTime
-            })
             .ToListAsync();
+
+        return entities.Select(n => new NotificationDto
+        {
+            Id = n.Id,
+            NotificationType = Enum.Parse<NotificationType>(n.NotificationType),
+            TargetId = n.TargetId,
+            Title = n.Title,
+            Content = n.Content,
+            IsRead = n.IsRead,
+            CreatedTime = n.CreatedTime
+        }).ToList();
     }
 
     public async Task MarkAllByTypeAsReadAsync(string notificationType)

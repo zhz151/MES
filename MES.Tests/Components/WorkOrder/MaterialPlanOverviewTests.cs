@@ -13,6 +13,7 @@ using Moq;
 using MudBlazor.Services;
 using MES.Blazor.Pages.WorkOrders;
 using MES.Blazor.Services;
+using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Core.DTOs.WorkOrder;
 
@@ -90,11 +91,11 @@ public class MaterialPlanOverviewTests : IDisposable
                 _captured.PageIndex = int.TryParse(q["pageIndex"], out var pi) ? pi : -1;
                 _captured.PageSize = int.TryParse(q["pageSize"], out var ps) ? ps : -1;
                 _captured.MaterialPlanStatus = q["materialPlanStatus"] is { Length: > 0 } s
-                    ? int.Parse(s) : null;
+                    ? (MaterialPlanStatus)int.Parse(s) : null;
                 _captured.MainNoStatus = q["mainNoMaterialPlanStatus"] is { Length: > 0 } ms
-                    ? int.Parse(ms) : null;
+                    ? (MaterialPlanStatus)int.Parse(ms) : null;
                 _captured.OrderStatus = q["orderMaterialPlanStatus"] is { Length: > 0 } os
-                    ? int.Parse(os) : null;
+                    ? (MaterialPlanStatus)int.Parse(os) : null;
             }
 
             var result = new PagedResult<WorkOrderListDto>
@@ -185,8 +186,8 @@ public class MaterialPlanOverviewTests : IDisposable
             r.Items = new List<WorkOrderListDto>
             {
                 new() { Id = 1, WorkOrderNo = "WO-TEST-001", SalesOrderNo = "SO-001",
-                    ProductionMainNo = "M-001", ProductionSubNo = "001", MaterialPlanStatus = 3,
-                    MaterialPlanRate = 100, MainNoMaterialPlanStatus = 3, OrderMaterialPlanStatus = 3 }
+                    ProductionMainNo = "M-001", ProductionSubNo = "001", MaterialPlanStatus = (MaterialPlanStatus)3,
+                    MaterialPlanRate = 100, MainNoMaterialPlanStatus = (MaterialPlanStatus)3, OrderMaterialPlanStatus = (MaterialPlanStatus)3 }
             };
             r.TotalCount = 1;
         });
@@ -218,8 +219,8 @@ public class MaterialPlanOverviewTests : IDisposable
             {
                 new() { Id = 1, WorkOrderNo = "WO-001", SalesOrderNo = "SO-001",
                     ProductionMainNo = "M-001", ProductionSubNo = "001",
-                    MaterialPlanStatus = status, MaterialPlanRate = 0,
-                    MainNoMaterialPlanStatus = 0, OrderMaterialPlanStatus = 0 }
+                    MaterialPlanStatus = (MaterialPlanStatus)status, MaterialPlanRate = 0,
+                    MainNoMaterialPlanStatus = MaterialPlanStatus.NotPlanned, OrderMaterialPlanStatus = MaterialPlanStatus.NotPlanned }
             };
             r.TotalCount = 1;
         });
@@ -239,8 +240,8 @@ public class MaterialPlanOverviewTests : IDisposable
             {
                 new() { Id = 1, WorkOrderNo = "WO-001", SalesOrderNo = "SO-001",
                     ProductionMainNo = "M-001", ProductionSubNo = "001",
-                    MaterialPlanStatus = 0, MaterialPlanRate = 0,
-                    MainNoMaterialPlanStatus = 0, OrderMaterialPlanStatus = status }
+                    MaterialPlanStatus = MaterialPlanStatus.NotPlanned, MaterialPlanRate = 0,
+                    MainNoMaterialPlanStatus = MaterialPlanStatus.NotPlanned, OrderMaterialPlanStatus = (MaterialPlanStatus)status }
             };
             r.TotalCount = 1;
         });
@@ -262,9 +263,9 @@ public class MaterialPlanOverviewTests : IDisposable
     {
         public int PageIndex { get; set; } = -1;
         public int PageSize { get; set; } = -1;
-        public int? MaterialPlanStatus { get; set; }
-        public int? MainNoStatus { get; set; }
-        public int? OrderStatus { get; set; }
+        public MaterialPlanStatus? MaterialPlanStatus { get; set; }
+        public MaterialPlanStatus? MainNoStatus { get; set; }
+        public MaterialPlanStatus? OrderStatus { get; set; }
     }
 
     public void Dispose() => _ctx.Dispose();

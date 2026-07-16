@@ -135,7 +135,7 @@
                         {
                             <MudCheckBox T="bool"
                                          Value="@selectedIds.Contains(item.Id)"
-                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                         ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); StateHasChanged(); })"
                                          Dense="true" />
                         }
                     </MudTd>

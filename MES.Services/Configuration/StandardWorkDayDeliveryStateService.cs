@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -20,7 +20,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -77,19 +77,28 @@ public class StandardWorkDayDeliveryStateService : IStandardWorkDayDeliveryState
         var items = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(w => new StandardWorkDayDeliveryStateDto
+            .Select(w => new
             {
-                Id = w.Id,
-                DeliveryState = w.DeliveryState,
-                ExtraDays = w.ExtraDays,
-                PlantGradePrefix = w.PlantGradePrefix,
-                Remark = w.Remark
+                w.Id,
+                w.DeliveryState,
+                w.ExtraDays,
+                w.PlantGradePrefix,
+                w.Remark
             })
             .ToListAsync();
 
+        var dtos = items.Select(w => new StandardWorkDayDeliveryStateDto
+        {
+            Id = w.Id,
+            DeliveryState = string.IsNullOrEmpty(w.DeliveryState) ? null : Enum.Parse<DeliveryState>(w.DeliveryState),
+            ExtraDays = w.ExtraDays,
+            PlantGradePrefix = w.PlantGradePrefix,
+            Remark = w.Remark
+        }).ToList();
+
         return new PagedResult<StandardWorkDayDeliveryStateDto>
         {
-            Items = items,
+            Items = dtos,
             TotalCount = totalCount,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
@@ -108,7 +117,7 @@ public class StandardWorkDayDeliveryStateService : IStandardWorkDayDeliveryState
         return new StandardWorkDayDeliveryStateDto
         {
             Id = entity.Id,
-            DeliveryState = entity.DeliveryState,
+            DeliveryState = string.IsNullOrEmpty(entity.DeliveryState) ? null : Enum.Parse<DeliveryState>(entity.DeliveryState),
             ExtraDays = entity.ExtraDays,
             PlantGradePrefix = entity.PlantGradePrefix,
             Remark = entity.Remark
@@ -125,7 +134,7 @@ public class StandardWorkDayDeliveryStateService : IStandardWorkDayDeliveryState
             if (entity == null)
                 throw new BusinessException("交货状态附加天数配置不存在");
 
-            entity.DeliveryState = dto.DeliveryState;
+            entity.DeliveryState = dto.DeliveryState?.ToString() ?? "";
             entity.ExtraDays = dto.ExtraDays;
             entity.PlantGradePrefix = dto.PlantGradePrefix;
             entity.Remark = dto.Remark;
@@ -134,7 +143,7 @@ public class StandardWorkDayDeliveryStateService : IStandardWorkDayDeliveryState
         {
             var entity = new StandardWorkDayDeliveryState
             {
-                DeliveryState = dto.DeliveryState,
+                DeliveryState = dto.DeliveryState?.ToString() ?? "",
                 ExtraDays = dto.ExtraDays,
                 PlantGradePrefix = dto.PlantGradePrefix,
                 Remark = dto.Remark

@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -33,7 +33,7 @@ using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
@@ -83,23 +83,29 @@ public class MaterialService : IMaterialService
         var items = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(m => new MaterialDto
+            .Select(m => new
             {
-                Id = m.Id,
-                MaterialCode = m.MaterialCode,
-                MaterialCategory = m.MaterialCategory,
-                PlantGrade = m.PlantGrade,
-                Specification = m.Specification,
-                IsActive = m.IsActive,
-                Remark = m.Remark,
-                CreatedTime = m.CreatedTime,
-                CreatedBy = m.CreatedBy
+                m.Id, m.MaterialCode, m.MaterialCategory, m.PlantGrade,
+                m.Specification, m.IsActive, m.Remark, m.CreatedTime, m.CreatedBy
             })
             .ToListAsync();
 
+        var dtos = items.Select(m => new MaterialDto
+        {
+            Id = m.Id,
+            MaterialCode = m.MaterialCode,
+            MaterialCategory = !string.IsNullOrEmpty(m.MaterialCategory) && Enum.TryParse<MaterialCategory>(m.MaterialCategory, out var mc) ? mc : default,
+            PlantGrade = m.PlantGrade,
+            Specification = m.Specification,
+            IsActive = m.IsActive,
+            Remark = m.Remark,
+            CreatedTime = m.CreatedTime,
+            CreatedBy = m.CreatedBy
+        }).ToList();
+
         return new PagedResult<MaterialDto>
         {
-            Items = items,
+            Items = dtos,
             TotalCount = totalCount,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
@@ -108,22 +114,28 @@ public class MaterialService : IMaterialService
 
     public async Task<List<MaterialDto>> GetAllListAsync()
     {
-        return await _context.Materials
+        var materials = await _context.Materials
             .AsNoTracking()
             .OrderBy(m => m.MaterialCode)
-            .Select(m => new MaterialDto
+            .Select(m => new
             {
-                Id = m.Id,
-                MaterialCode = m.MaterialCode,
-                MaterialCategory = m.MaterialCategory,
-                PlantGrade = m.PlantGrade,
-                Specification = m.Specification,
-                IsActive = m.IsActive,
-                Remark = m.Remark,
-                CreatedTime = m.CreatedTime,
-                CreatedBy = m.CreatedBy
+                m.Id, m.MaterialCode, m.MaterialCategory, m.PlantGrade,
+                m.Specification, m.IsActive, m.Remark, m.CreatedTime, m.CreatedBy
             })
             .ToListAsync();
+
+        return materials.Select(m => new MaterialDto
+        {
+            Id = m.Id,
+            MaterialCode = m.MaterialCode,
+            MaterialCategory = !string.IsNullOrEmpty(m.MaterialCategory) && Enum.TryParse<MaterialCategory>(m.MaterialCategory, out var mc) ? mc : default,
+            PlantGrade = m.PlantGrade,
+            Specification = m.Specification,
+            IsActive = m.IsActive,
+            Remark = m.Remark,
+            CreatedTime = m.CreatedTime,
+            CreatedBy = m.CreatedBy
+        }).ToList();
     }
 
     public async Task<MaterialDto> GetByIdAsync(int id)
@@ -200,7 +212,7 @@ public class MaterialService : IMaterialService
     {
         var exists = await _context.Materials
             .AnyAsync(m =>
-                m.MaterialCategory == request.MaterialCategory &&
+                m.MaterialCategory == request.MaterialCategory.ToString() &&
                 m.PlantGrade == request.PlantGrade &&
                 m.Specification == request.Specification);
         if (exists) throw new BusinessException("该物料组合已存在");
@@ -211,7 +223,7 @@ public class MaterialService : IMaterialService
         var entity = new Material
         {
             MaterialCode = materialCode,
-            MaterialCategory = request.MaterialCategory,
+            MaterialCategory = request.MaterialCategory.ToString(),
             PlantGrade = request.PlantGrade,
             Specification = request.Specification,
             IsActive = request.IsActive,
@@ -245,7 +257,7 @@ public class MaterialService : IMaterialService
             .ToListAsync();
         var conflict = requests.FirstOrDefault(r =>
             existing.Any(e =>
-                e.MaterialCategory == r.MaterialCategory &&
+                e.MaterialCategory == r.MaterialCategory.ToString() &&
                 e.PlantGrade == r.PlantGrade &&
                 e.Specification == r.Specification));
         if (conflict != null)
@@ -270,7 +282,7 @@ public class MaterialService : IMaterialService
             entities.Add(new Material
             {
                 MaterialCode = code,
-                MaterialCategory = r.MaterialCategory,
+                MaterialCategory = r.MaterialCategory.ToString(),
                 PlantGrade = r.PlantGrade,
                 Specification = r.Specification,
                 IsActive = r.IsActive,
@@ -289,7 +301,7 @@ public class MaterialService : IMaterialService
             .FirstOrDefaultAsync(m => m.Id == id);
         if (entity == null) throw new BusinessException("物料不存在");
 
-        if (request.MaterialCategory != null) entity.MaterialCategory = request.MaterialCategory;
+        if (request.MaterialCategory != null) entity.MaterialCategory = request.MaterialCategory.ToString()!;
         if (request.PlantGrade != null) entity.PlantGrade = request.PlantGrade;
         if (request.Specification != null) entity.Specification = request.Specification;
         if (request.IsActive.HasValue) entity.IsActive = request.IsActive.Value;
@@ -367,7 +379,7 @@ public class MaterialService : IMaterialService
     {
         Id = entity.Id,
         MaterialCode = entity.MaterialCode,
-        MaterialCategory = entity.MaterialCategory,
+        MaterialCategory = !string.IsNullOrEmpty(entity.MaterialCategory) && Enum.TryParse<MaterialCategory>(entity.MaterialCategory, out var mc) ? mc : default,
         PlantGrade = entity.PlantGrade,
         Specification = entity.Specification,
         IsActive = entity.IsActive,

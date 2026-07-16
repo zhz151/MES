@@ -88,8 +88,8 @@
                             <MudText Typo="Typo.body2" Class="font-weight-bold" Color="Color.Primary">
                                 @_equipment!.EquipmentName (@_equipment.EquipmentCode)
                             </MudText>
-                            <MudChip Size="Size.Small" Color="Color.Primary">@_equipment.Location</MudChip>
-                            @if (!string.IsNullOrEmpty(_equipment.RelatedSection))
+                            <MudChip Size="Size.Small" Color="Color.Primary">@_equipment!.Location</MudChip>
+                            @if (!string.IsNullOrEmpty(_equipment!.RelatedSection))
                             {
                                 <MudChip Size="Size.Small" Color="Color.Tertiary">@_equipment.RelatedSection</MudChip>
                             }
@@ -116,7 +116,7 @@
                                 <div class="d-flex flex-column" style="gap: 4px;">
                                     <div class="d-flex align-center" style="gap: 8px;">
                                         <MudText Typo="Typo.body2" Class="font-weight-bold">@order.RepairOrderNo</MudText>
-                                        @if (order.RepairStatus == "InProgress")
+                                        @if (order.RepairStatus == RepairOrderStatus.InProgress)
                                         {
                                             <MudChip Size="Size.Small" Color="Color.Warning">维修中</MudChip>
                                         }
@@ -134,7 +134,7 @@
                                         报修人：@order.ReportPerson ｜ 报修时间：@order.ReportTime.ToString("yyyy-MM-dd HH:mm")
                                     </MudText>
 
-                                    @if (order.RepairStatus == "Pending")
+                                    @if (order.RepairStatus == RepairOrderStatus.Pending)
                                     {
                                         <div class="d-flex" style="gap: 8px; margin-top: 8px;">
                                             <MudButton Variant="Variant.Filled" Color="Color.Primary"
@@ -147,7 +147,7 @@
                                         </div>
                                     }
 
-                                    @if (order.RepairStatus == "InProgress" && _activeOrder == null)
+                                    @if (order.RepairStatus == RepairOrderStatus.InProgress && _activeOrder == null)
                                     {
                                         <MudButton Variant="Variant.Filled" Color="Color.Success"
                                                    Size="Size.Small"

@@ -6,12 +6,13 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Services.Materials;
@@ -33,7 +34,7 @@ public class MaterialServiceTests : TestBase
 {
     private MaterialService CreateService(AppDbContext ctx) => new(ctx, new MemoryCache(new MemoryCacheOptions()));
 
-    private async Task SeedMaterialAsync(AppDbContext ctx, string category = "钢管", string grade = "20#", string spec = "219*8", bool isActive = true)
+    private async Task SeedMaterialAsync(AppDbContext ctx, string category = "RoughTube", string grade = "20#", string spec = "219*8", bool isActive = true)
     {
         ctx.Materials.Add(new Material
         {
@@ -65,14 +66,14 @@ public class MaterialServiceTests : TestBase
     public async Task GetPagedAsync_按关键字搜索分类_返回匹配结果()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "不锈钢管");
-        await SeedMaterialAsync(ctx, category: "碳钢管");
+        await SeedMaterialAsync(ctx, category: "RoughTube");
+        await SeedMaterialAsync(ctx, category: "RoundBar");
         var svc = CreateService(ctx);
 
-        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "不锈钢" });
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "Rough" });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].MaterialCategory.Should().Be("不锈钢管");
+        result.Items[0].MaterialCategory.Should().Be(MaterialCategory.RoughTube);
     }
 
     [Fact]
@@ -133,15 +134,15 @@ public class MaterialServiceTests : TestBase
     public async Task GetPagedAsync_按分类排序_成功()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "B管");
-        await SeedMaterialAsync(ctx, category: "A管");
+        await SeedMaterialAsync(ctx, category: "RoughTube");
+        await SeedMaterialAsync(ctx, category: "RoundBar");
         var svc = CreateService(ctx);
 
         var result = await svc.GetPagedAsync(new QueryParams
         { PageIndex = 1, PageSize = 20, SortBy = "MaterialCategory", IsDescending = false });
 
-        result.Items[0].MaterialCategory.Should().Be("A管");
-        result.Items[1].MaterialCategory.Should().Be("B管");
+        result.Items[0].MaterialCategory.Should().Be(MaterialCategory.RoughTube);
+        result.Items[1].MaterialCategory.Should().Be(MaterialCategory.RoundBar);
     }
 
     // ========== GetByIdAsync ==========
@@ -157,7 +158,7 @@ public class MaterialServiceTests : TestBase
         var result = await svc.GetByIdAsync(id);
 
         result.Should().NotBeNull();
-        result.MaterialCategory.Should().Be("钢管");
+        result.MaterialCategory.Should().Be(MaterialCategory.RoughTube);
     }
 
     [Fact]
@@ -176,14 +177,14 @@ public class MaterialServiceTests : TestBase
     public async Task GetActiveAsync_仅返回激活物料()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "激活物料", isActive: true);
-        await SeedMaterialAsync(ctx, category: "停用物料", isActive: false);
+        await SeedMaterialAsync(ctx, category: "RoundBar", isActive: true);
+        await SeedMaterialAsync(ctx, category: "SemiProduct", isActive: false);
         var svc = CreateService(ctx);
 
         var result = await svc.GetActiveAsync();
 
         result.Should().HaveCount(1);
-        result[0].MaterialCategory.Should().Be("激活物料");
+        result[0].MaterialCategory.Should().Be(MaterialCategory.RoundBar);
     }
 
     // ========== GetCategoriesAsync ==========
@@ -192,16 +193,16 @@ public class MaterialServiceTests : TestBase
     public async Task GetCategoriesAsync_返回去重分类列表()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "钢管", isActive: true);
-        await SeedMaterialAsync(ctx, category: "钢管", grade: "304", spec: "219*8", isActive: true);
-        await SeedMaterialAsync(ctx, category: "不锈钢管", isActive: true);
+        await SeedMaterialAsync(ctx, category: "RoughTube", isActive: true);
+        await SeedMaterialAsync(ctx, category: "RoughTube", grade: "304", spec: "219*8", isActive: true);
+        await SeedMaterialAsync(ctx, category: "RoundBar", isActive: true);
         var svc = CreateService(ctx);
 
         var result = await svc.GetCategoriesAsync();
 
         result.Should().HaveCount(2);
-        result.Should().Contain("钢管");
-        result.Should().Contain("不锈钢管");
+        result.Should().Contain("RoughTube");
+        result.Should().Contain("RoundBar");
     }
 
     [Fact]
@@ -222,13 +223,13 @@ public class MaterialServiceTests : TestBase
     public async Task MatchAsync_找到匹配_返回Dto()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "钢管", grade: "20#", spec: "219*8");
+        await SeedMaterialAsync(ctx, category: "RoughTube", grade: "20#", spec: "219*8");
         var svc = CreateService(ctx);
 
-        var result = await svc.MatchAsync("钢管", "20#", "219*8");
+        var result = await svc.MatchAsync("RoughTube", "20#", "219*8");
 
         result.Should().NotBeNull();
-        result!.MaterialCategory.Should().Be("钢管");
+        result!.MaterialCategory.Should().Be(MaterialCategory.RoughTube);
     }
 
     [Fact]
@@ -238,7 +239,7 @@ public class MaterialServiceTests : TestBase
         await SeedMaterialAsync(ctx);
         var svc = CreateService(ctx);
 
-        var result = await svc.MatchAsync("钢管", "304", "219*8");
+        var result = await svc.MatchAsync("RoughTube", "304", "219*8");
 
         result.Should().BeNull();
     }
@@ -253,31 +254,31 @@ public class MaterialServiceTests : TestBase
 
         var result = await svc.CreateAsync(new CreateMaterialRequest
         {
-            MaterialCategory = "钢管",
+            MaterialCategory = MaterialCategory.RoughTube,
             PlantGrade = "20#",
             Specification = "219*8",
             Remark = "测试"
         });
 
         result.Should().NotBeNull();
-        result.MaterialCategory.Should().Be("钢管");
+        result.MaterialCategory.Should().Be(MaterialCategory.RoughTube);
         result.PlantGrade.Should().Be("20#");
         result.Specification.Should().Be("219*8");
 
         var saved = await ctx.Materials.FirstAsync();
-        saved.MaterialCategory.Should().Be("钢管");
+        saved.MaterialCategory.Should().Be("RoughTube");
     }
 
     [Fact]
     public async Task CreateAsync_重复组合_抛出BusinessException()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "钢管", grade: "20#", spec: "219*8");
+        await SeedMaterialAsync(ctx, category: "RoughTube", grade: "20#", spec: "219*8");
         var svc = CreateService(ctx);
 
         var act = () => svc.CreateAsync(new CreateMaterialRequest
         {
-            MaterialCategory = "钢管",
+            MaterialCategory = MaterialCategory.RoughTube,
             PlantGrade = "20#",
             Specification = "219*8"
         });
@@ -314,7 +315,7 @@ public class MaterialServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var act = () => svc.UpdateAsync(999, new UpdateMaterialRequest { MaterialCategory = "钢管" });
+        var act = () => svc.UpdateAsync(999, new UpdateMaterialRequest { MaterialCategory = MaterialCategory.RoughTube });
         await act.Should().ThrowAsync<BusinessException>().WithMessage("物料不存在");
     }
 
@@ -348,7 +349,7 @@ public class MaterialServiceTests : TestBase
     public async Task DeleteAsync_有关联库存批次_无FK可正常删除()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "钢管", grade: "20#", spec: "219*8");
+        await SeedMaterialAsync(ctx, category: "RoughTube", grade: "20#", spec: "219*8");
         var materialId = await ctx.Materials.Select(m => m.Id).FirstAsync();
 
         // 创建关联的库存批次（MaterialType/PlantGrade/Specification 为字符串逻辑引用，无FK）
@@ -383,7 +384,7 @@ public class MaterialServiceTests : TestBase
         ctx.Materials.Add(new Material
         {
             MaterialCode = $"M{Guid.NewGuid():N}"[..10],
-            MaterialCategory = "钢管",
+            MaterialCategory = "RoughTube",
             PlantGrade = "20#",
             Specification = "219*8",
             IsActive = true,
@@ -404,8 +405,8 @@ public class MaterialServiceTests : TestBase
     public async Task GetPagedAsync_Filters_MaterialCategoryContains_返回匹配()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "不锈钢管");
-        await SeedMaterialAsync(ctx, category: "碳钢管");
+        await SeedMaterialAsync(ctx, category: "RoughTube");
+        await SeedMaterialAsync(ctx, category: "RoundBar");
         var svc = CreateService(ctx);
 
         var result = await svc.GetPagedAsync(new QueryParams
@@ -414,20 +415,20 @@ public class MaterialServiceTests : TestBase
             PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
-                new() { Field = "MaterialCategory", Operator = "contains", Value = "不锈钢" }
+                new() { Field = "MaterialCategory", Operator = "contains", Value = "Rough" }
             }
         });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].MaterialCategory.Should().Be("不锈钢管");
+        result.Items[0].MaterialCategory.Should().Be(MaterialCategory.RoughTube);
     }
 
     [Fact]
     public async Task GetPagedAsync_Filters_PlantGradeIn_返回匹配()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "钢管", grade: "20#");
-        await SeedMaterialAsync(ctx, category: "钢管", grade: "304");
+        await SeedMaterialAsync(ctx, category: "RoughTube", grade: "20#");
+        await SeedMaterialAsync(ctx, category: "RoughTube", grade: "304");
         var svc = CreateService(ctx);
 
         var result = await svc.GetPagedAsync(new QueryParams
@@ -468,8 +469,8 @@ public class MaterialServiceTests : TestBase
     public async Task GetPagedAsync_Filters_IsActiveIn_返回激活()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "激活", isActive: true);
-        await SeedMaterialAsync(ctx, category: "停用", isActive: false);
+        await SeedMaterialAsync(ctx, category: "RoughTube", isActive: true);
+        await SeedMaterialAsync(ctx, category: "RoundBar", isActive: false);
         var svc = CreateService(ctx);
 
         var result = await svc.GetPagedAsync(new QueryParams
@@ -492,14 +493,14 @@ public class MaterialServiceTests : TestBase
     public async Task GetFilterContextsAsync_返回正确选项()
     {
         var ctx = CreateDbContext();
-        await SeedMaterialAsync(ctx, category: "钢管", grade: "20#", spec: "219*8");
-        await SeedMaterialAsync(ctx, category: "不锈钢管", grade: "304", spec: "273*10");
+        await SeedMaterialAsync(ctx, category: "RoughTube", grade: "20#", spec: "219*8");
+        await SeedMaterialAsync(ctx, category: "RoundBar", grade: "304", spec: "273*10");
         var svc = CreateService(ctx);
 
         var contexts = await svc.GetFilterContextsAsync();
 
         contexts.Should().ContainKey("MaterialCategory");
-        contexts["MaterialCategory"].Should().BeEquivalentTo(new[] { "不锈钢管", "钢管" }, opts => opts.WithStrictOrdering());
+        contexts["MaterialCategory"].Should().BeEquivalentTo(new[] { "RoughTube", "RoundBar" }, opts => opts.WithStrictOrdering());
         contexts.Should().ContainKey("PlantGrade");
         contexts["PlantGrade"].Should().BeEquivalentTo(new[] { "20#", "304" }, opts => opts.WithStrictOrdering());
         contexts["IsActive"].Should().Contain("True");
@@ -525,7 +526,7 @@ public class MaterialServiceTests : TestBase
         ctx.Materials.Add(new Material
         {
             MaterialCode = "MA0001",
-            MaterialCategory = "钢管",
+            MaterialCategory = "RoughTube",
             PlantGrade = "20#",
             Specification = "219*8",
             IsActive = true,

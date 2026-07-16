@@ -10,10 +10,10 @@ using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using System.Text.Json;
 
-namespace MES.Blazor.Pages.ProductionStandard;
+namespace MES.Blazor.Pages.StandardRegister;
 
 public partial class GradeMappings
 {

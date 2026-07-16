@@ -3,6 +3,7 @@ using Microsoft.JSInterop;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
+using MES.Core.Enums;
 using MudBlazor;
 
 namespace MES.Blazor.Pages.Equipment;
@@ -156,7 +157,7 @@ public partial class RepairExecute : IDisposable
         _pendingOrders = response.Data;
 
         // 如果有维修中的工单，自动选中第一个作为活跃工单
-        var inProgress = _pendingOrders.FirstOrDefault(o => o.RepairStatus == "InProgress");
+        var inProgress = _pendingOrders.FirstOrDefault(o => o.RepairStatus == RepairOrderStatus.InProgress);
         if (inProgress != null)
         {
             _activeOrder = inProgress;
@@ -299,9 +300,9 @@ public partial class RepairExecute : IDisposable
         Navigation.NavigateTo("/");
     }
 
-    private string GetOrderBorderStyle(string? status)
+    private string GetOrderBorderStyle(RepairOrderStatus? status)
     {
-        var color = status == "InProgress" ? "#ff9800" : "#9e9e9e";
+        var color = status == RepairOrderStatus.InProgress ? "#ff9800" : "#9e9e9e";
         return $"border-left: 3px solid {color};";
     }
 

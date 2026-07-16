@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.WorkOrder;
 
 /// <summary>
@@ -14,15 +16,15 @@ public class InProcessReworkPlanDto
     public string MaterialName { get; set; } = null!;
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
     public int InputMultiple { get; set; }
     public int? UsedQuantity { get; set; }
     public decimal UsedWeight { get; set; }
     public DateTime? RequiredDate { get; set; }
-    public int PlanStatus { get; set; }
+    public InventoryPlanStatus PlanStatus { get; set; }
     public string PlanStatusText { get; set; } = null!;
     public string? Remark { get; set; }
-    public string ReworkType { get; set; } = null!;
+    public ReworkType ReworkType { get; set; }
     public string ReworkTypeText { get; set; } = null!;
     public int StandardCycle { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
@@ -42,7 +44,7 @@ public class CreateInProcessReworkPlanRequest
     public decimal UsedWeight { get; set; }
     public DateTime? RequiredDate { get; set; }
     public string? Remark { get; set; }
-    public string ReworkType { get; set; } = null!;
+    public ReworkType ReworkType { get; set; }
 }
 
 /// <summary>
@@ -63,7 +65,7 @@ public class AvailableInProcessBatchDto
     /// <summary>规格</summary>
     public string Specification { get; set; } = null!;
     /// <summary>长度状态</summary>
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
     /// <summary>批次总支数</summary>
     public int TotalQuantity { get; set; }
     /// <summary>批次总重量</summary>
@@ -83,5 +85,5 @@ public class AvailableInProcessBatchDto
     /// <summary>生产类型</summary>
     public string? ProductionType { get; set; }
     /// <summary>制造物品</summary>
-    public string ManufacturingItem { get; set; } = null!;
+    public ManufacturingItem ManufacturingItem { get; set; }
 }

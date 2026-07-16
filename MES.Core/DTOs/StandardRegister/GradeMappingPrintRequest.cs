@@ -1,7 +1,7 @@
 using MES.Core.Models;
 
 using MES.Core.DTOs.Shared;
-namespace MES.Core.DTOs.ProductionStandard;
+namespace MES.Core.DTOs.StandardRegister;
 
 /// <summary>
 /// 牌号对照打印选中项请求

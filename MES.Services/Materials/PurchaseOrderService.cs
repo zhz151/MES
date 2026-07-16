@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -22,7 +22,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -34,7 +34,7 @@ using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
@@ -91,120 +91,161 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     public async Task<PagedResult<PurchaseOrderDto>> GetPagedAsync(PurchaseOrderQueryParams query)
     {
-        // LEFT JOIN WorkOrders，直接投影到 PurchaseOrderDto
-        // 所有 Wo* 字段在投影中一并填充，后续 ApplyFilters/ApplySort 直接操作 DTO 属性
-        var queryable = from p in _context.PurchaseOrders.AsNoTracking()
-                        join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
-                        from w in wj.DefaultIfEmpty()
-                        select new PurchaseOrderDto
-                        {
-                            Id = p.Id,
-                            OrderNo = p.OrderNo,
-                            SupplierId = p.SupplierId,
-                            SupplierName = p.SupplierName,
-                            OrderDate = p.OrderDate,
-                            Status = p.Status,
-                            IsForceCompleted = p.IsForceCompleted,
-                            MaterialCategory = p.MaterialCategory,
-                            PlantGrade = p.PlantGrade,
-                            Specification = p.Specification,
-                            UnitWeight = p.UnitWeight,
-                            Quantity = p.Quantity,
-                            Weight = p.Weight,
-                            RequiredDate = p.RequiredDate,
-                            UnitPrice = p.UnitPrice,
-                            TotalAmount = p.TotalAmount,
-                            LastArrivalDate = p.LastArrivalDate,
-                            ReceivedQuantity = p.ReceivedQuantity,
-                            ReceivedWeight = p.ReceivedWeight,
-                            SourceWorkOrderNo = p.SourceWorkOrderNo,
-                            InputMultiple = p.InputMultiple,
-                            Remark = p.Remark,
-                            CreatedTime = p.CreatedTime,
-                            WoSalesOrderNo = w.SalesOrderNo,
-                            WoProductionMainNo = w.ProductionMainNo,
-                            WoProductionSubNo = w.ProductionSubNo,
-                            WoSignDate = (DateTime?)w.SignDate,
-                            WoSalesman = w.Salesman,
-                            WoEndCustomer = w.EndCustomer,
-                            WoDeliveryDate = (DateTime?)w.DeliveryDate,
-                            WoDelayPenalty = w != null && w.DelayPenalty,
-                            WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
-                            WoPlantGrade = w.PlantGrade,
-                            WoSpecification = w.Specification,
-                            WoLengthStatus = (LengthStatus?)w.LengthStatus,
-                            WoMaxLength = w.MaxLength,
-                            WoTotalQuantity = (int?)w.TotalQuantity,
-                            WoTotalWeight = (decimal?)w.TotalWeight,
-                            WoDeliveryState = (DeliveryState?)w.DeliveryState,
-                            WoTotalItemCount = (int?)w.TotalItemCount,
-                        };
+        // 实体级查询（MaterialCategory 为字符串，用于 DB 端筛选和排序）
+        var entityQuery = from p in _context.PurchaseOrders.AsNoTracking()
+                          join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
+                          from w in wj.DefaultIfEmpty()
+                          select new { p, w, MaterialCategory = p.MaterialCategory };
 
+        // 关键词筛选（使用实体级字符串字段）
         if (!string.IsNullOrEmpty(query.Keyword))
         {
             var kw = query.Keyword;
-            queryable = queryable.Where(dto =>
-                dto.OrderNo.Contains(kw) ||
-                dto.MaterialCategory.Contains(kw) ||
-                dto.PlantGrade.Contains(kw) ||
-                dto.Specification.Contains(kw) ||
-                (dto.SupplierName != null && dto.SupplierName.Contains(kw)) ||
-                (dto.SourceWorkOrderNo != null && dto.SourceWorkOrderNo.Contains(kw)) ||
-                (dto.WoSalesOrderNo != null && dto.WoSalesOrderNo.Contains(kw)) ||
-                (dto.WoProductionMainNo != null && dto.WoProductionMainNo.Contains(kw)) ||
-                (dto.WoProductionSubNo != null && dto.WoProductionSubNo.Contains(kw)) ||
-                (dto.WoSalesman != null && dto.WoSalesman.Contains(kw)) ||
-                (dto.WoEndCustomer != null && dto.WoEndCustomer.Contains(kw)) ||
-                (dto.WoPlantGrade != null && dto.WoPlantGrade.Contains(kw)) ||
-                (dto.WoSpecification != null && dto.WoSpecification.Contains(kw)) ||
-                (dto.Remark != null && dto.Remark.Contains(kw)));
+            entityQuery = entityQuery.Where(x =>
+                x.p.OrderNo.Contains(kw) ||
+                x.p.MaterialCategory.Contains(kw) ||
+                x.p.PlantGrade.Contains(kw) ||
+                x.p.Specification.Contains(kw) ||
+                (x.p.SupplierName != null && x.p.SupplierName.Contains(kw)) ||
+                (x.p.SourceWorkOrderNo != null && x.p.SourceWorkOrderNo.Contains(kw)) ||
+                (x.w.SalesOrderNo != null && x.w.SalesOrderNo.Contains(kw)) ||
+                (x.w.ProductionMainNo != null && x.w.ProductionMainNo.Contains(kw)) ||
+                (x.w.ProductionSubNo != null && x.w.ProductionSubNo.Contains(kw)) ||
+                (x.w.Salesman != null && x.w.Salesman.Contains(kw)) ||
+                (x.w.EndCustomer != null && x.w.EndCustomer.Contains(kw)) ||
+                (x.w.PlantGrade != null && x.w.PlantGrade.Contains(kw)) ||
+                (x.w.Specification != null && x.w.Specification.Contains(kw)) ||
+                (x.p.Remark != null && x.p.Remark.Contains(kw)));
         }
 
         // 状态筛选
         if (!string.IsNullOrEmpty(query.Status) && Enum.TryParse<PurchaseOrderStatus>(query.Status, out var parsedStatus))
         {
-            queryable = queryable.Where(p => p.Status == parsedStatus);
+            entityQuery = entityQuery.Where(x => x.p.Status == parsedStatus);
         }
 
         // 下单日期筛选
         if (query.DateFrom.HasValue)
         {
             var from = query.DateFrom.Value.Date;
-            queryable = queryable.Where(p => p.OrderDate >= from);
+            entityQuery = entityQuery.Where(x => x.p.OrderDate >= from);
         }
         if (query.DateTo.HasValue)
         {
             var to = query.DateTo.Value.Date.AddDays(1);
-            queryable = queryable.Where(p => p.OrderDate < to);
+            entityQuery = entityQuery.Where(x => x.p.OrderDate < to);
         }
 
         // 要求到货日筛选
         if (query.RequiredDateFrom.HasValue)
         {
             var from = query.RequiredDateFrom.Value.Date;
-            queryable = queryable.Where(p => p.RequiredDate >= from);
+            entityQuery = entityQuery.Where(x => x.p.RequiredDate >= from);
         }
         if (query.RequiredDateTo.HasValue)
         {
             var to = query.RequiredDateTo.Value.Date.AddDays(1);
-            queryable = queryable.Where(p => p.RequiredDate < to);
+            entityQuery = entityQuery.Where(x => x.p.RequiredDate < to);
         }
 
-        // ApplyFilters 直接反射操作 DTO 属性，Wo* 字段无需特殊处理
-        queryable = queryable.ApplyFilters(query.Filters);
+        // 通用筛选 + 排序（通过 DTO 级查询桥接）
+        var dtoQuery = entityQuery.Select(x => new
+        {
+            // 所有需要排序/筛选的字段（MaterialCategory 仍用字符串代理）
+            x.p.Id, x.p.OrderNo, x.p.SupplierId, x.p.SupplierName,
+            x.p.OrderDate, x.p.Status, x.p.IsForceCompleted, x.MaterialCategory,
+            x.p.PlantGrade, x.p.Specification, x.p.UnitWeight, x.p.Quantity,
+            x.p.Weight, x.p.RequiredDate, x.p.UnitPrice, x.p.TotalAmount,
+            x.p.LastArrivalDate, x.p.ReceivedQuantity, x.p.ReceivedWeight,
+            x.p.SourceWorkOrderNo, x.p.InputMultiple, x.p.Remark, x.p.CreatedTime,
+            WoSalesOrderNo = x.w != null ? x.w.SalesOrderNo : null,
+            WoProductionMainNo = x.w != null ? x.w.ProductionMainNo : null,
+            WoProductionSubNo = x.w != null ? x.w.ProductionSubNo : null,
+            WoSignDate = x.w != null ? (DateTime?)x.w.SignDate : null,
+            WoSalesman = x.w != null ? x.w.Salesman : null,
+            WoEndCustomer = x.w != null ? x.w.EndCustomer : null,
+            WoDeliveryDate = x.w != null ? (DateTime?)x.w.DeliveryDate : null,
+            WoDelayPenalty = x.w != null && x.w.DelayPenalty,
+            WoSettlementMethod = x.w != null ? (SettlementMethod?)x.w.SettlementMethod : null,
+            WoPlantGrade = x.w != null ? x.w.PlantGrade : null,
+            WoSpecification = x.w != null ? x.w.Specification : null,
+            WoLengthStatus = x.w != null ? (LengthStatus?)x.w.LengthStatus : null,
+            WoMaxLength = x.w != null ? x.w.MaxLength : null,
+            WoTotalQuantity = x.w != null ? (int?)x.w.TotalQuantity : null,
+            WoTotalWeight = x.w != null ? (decimal?)x.w.TotalWeight : null,
+            WoDeliveryState = x.w != null ? (DeliveryState?)x.w.DeliveryState : null,
+            WoTotalItemCount = x.w != null ? (int?)x.w.TotalItemCount : null,
+        });
 
-        // ApplySort 直接反射操作 DTO 属性，Wo* 字段无需 GroupJoin
-        queryable = queryable.ApplySort(query.SortBy ?? "orderdate", query.IsDescending);
+        // 通用筛选
+        dtoQuery = dtoQuery.ApplyFilters(query.Filters);
 
-        var totalCount = await queryable.CountAsync();
-        var items = await queryable
+        var totalCount = await dtoQuery.CountAsync();
+
+        // 排序（基于 DTO 字段名）
+        dtoQuery = (query.SortBy?.ToLower(), query.IsDescending) switch
+        {
+            ("orderdate", false) => dtoQuery.OrderBy(x => x.OrderDate),
+            ("orderdate", true) => dtoQuery.OrderByDescending(x => x.OrderDate),
+            ("materialcategory", false) => dtoQuery.OrderBy(x => x.MaterialCategory),
+            ("materialcategory", true) => dtoQuery.OrderByDescending(x => x.MaterialCategory),
+            _ => query.IsDescending
+                ? dtoQuery.OrderByDescending(x => x.CreatedTime)
+                : dtoQuery.OrderBy(x => x.CreatedTime)
+        };
+
+        var items = await dtoQuery
             .Skip(query.Skip)
             .Take(query.PageSize)
             .ToListAsync();
 
+        var dtos = items.Select(x => new PurchaseOrderDto
+        {
+            Id = x.Id,
+            OrderNo = x.OrderNo,
+            SupplierId = x.SupplierId,
+            SupplierName = x.SupplierName ?? "",
+            OrderDate = x.OrderDate,
+            Status = x.Status,
+            IsForceCompleted = x.IsForceCompleted,
+            MaterialCategory = !string.IsNullOrEmpty(x.MaterialCategory) && Enum.TryParse<MaterialCategory>(x.MaterialCategory, out var mc) ? mc : default,
+            PlantGrade = x.PlantGrade,
+            Specification = x.Specification,
+            UnitWeight = x.UnitWeight,
+            Quantity = x.Quantity,
+            Weight = x.Weight,
+            RequiredDate = x.RequiredDate,
+            UnitPrice = x.UnitPrice,
+            TotalAmount = x.TotalAmount,
+            LastArrivalDate = x.LastArrivalDate,
+            ReceivedQuantity = x.ReceivedQuantity,
+            ReceivedWeight = x.ReceivedWeight,
+            SourceWorkOrderNo = x.SourceWorkOrderNo,
+            InputMultiple = x.InputMultiple,
+            Remark = x.Remark,
+            CreatedTime = x.CreatedTime,
+            WoSalesOrderNo = x.WoSalesOrderNo,
+            WoProductionMainNo = x.WoProductionMainNo,
+            WoProductionSubNo = x.WoProductionSubNo,
+            WoSignDate = x.WoSignDate,
+            WoSalesman = x.WoSalesman,
+            WoEndCustomer = x.WoEndCustomer,
+            WoDeliveryDate = x.WoDeliveryDate,
+            WoDelayPenalty = x.WoDelayPenalty,
+            WoSettlementMethod = x.WoSettlementMethod,
+            WoPlantGrade = x.WoPlantGrade,
+            WoSpecification = x.WoSpecification,
+            WoLengthStatus = x.WoLengthStatus,
+            WoMaxLength = x.WoMaxLength,
+            WoTotalQuantity = x.WoTotalQuantity,
+            WoTotalWeight = x.WoTotalWeight,
+            WoDeliveryState = x.WoDeliveryState,
+            WoTotalItemCount = x.WoTotalItemCount,
+        }).ToList();
+
         return new PagedResult<PurchaseOrderDto>
         {
-            Items = items,
+            Items = dtos,
             TotalCount = totalCount,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
@@ -217,105 +258,109 @@ public class PurchaseOrderService : IPurchaseOrderService
                            join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
                            from w in wj.DefaultIfEmpty()
                            orderby p.OrderDate, p.OrderNo
-                           select new PurchaseOrderDto
+                           select new
                            {
-                               Id = p.Id,
-                               OrderNo = p.OrderNo,
-                               SupplierId = p.SupplierId,
-                               SupplierName = p.SupplierName,
-                               OrderDate = p.OrderDate,
-                               Status = p.Status,
-                               IsForceCompleted = p.IsForceCompleted,
-                               MaterialCategory = p.MaterialCategory,
-                               PlantGrade = p.PlantGrade,
-                               Specification = p.Specification,
-                               UnitWeight = p.UnitWeight,
-                               Quantity = p.Quantity,
-                               Weight = p.Weight,
-                               RequiredDate = p.RequiredDate,
-                               UnitPrice = p.UnitPrice,
-                               TotalAmount = p.TotalAmount,
-                               LastArrivalDate = p.LastArrivalDate,
-                               ReceivedQuantity = p.ReceivedQuantity,
-                               ReceivedWeight = p.ReceivedWeight,
-                               SourceWorkOrderNo = p.SourceWorkOrderNo,
-                               InputMultiple = p.InputMultiple,
-                               Remark = p.Remark,
-                               CreatedTime = p.CreatedTime,
-                               WoSalesOrderNo = w.SalesOrderNo,
-                               WoProductionMainNo = w.ProductionMainNo,
-                               WoProductionSubNo = w.ProductionSubNo,
-                               WoSignDate = (DateTime?)w.SignDate,
-                               WoSalesman = w.Salesman,
-                               WoEndCustomer = w.EndCustomer,
-                               WoDeliveryDate = (DateTime?)w.DeliveryDate,
-                               WoDelayPenalty = w != null && w.DelayPenalty,
-                               WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
-                               WoPlantGrade = w.PlantGrade,
-                               WoSpecification = w.Specification,
-                               WoLengthStatus = (LengthStatus?)w.LengthStatus,
-                               WoMaxLength = w.MaxLength,
-                               WoTotalQuantity = (int?)w.TotalQuantity,
-                               WoTotalWeight = (decimal?)w.TotalWeight,
-                               WoDeliveryState = (DeliveryState?)w.DeliveryState,
-                               WoTotalItemCount = (int?)w.TotalItemCount,
+                               p, w, MaterialCategory = p.MaterialCategory
                            }).ToListAsync();
 
-        return items;
+        return items.Select(x => new PurchaseOrderDto
+        {
+            Id = x.p.Id,
+            OrderNo = x.p.OrderNo,
+            SupplierId = x.p.SupplierId,
+            SupplierName = x.p.SupplierName ?? "",
+            OrderDate = x.p.OrderDate,
+            Status = x.p.Status,
+            IsForceCompleted = x.p.IsForceCompleted,
+            MaterialCategory = !string.IsNullOrEmpty(x.MaterialCategory) && Enum.TryParse<MaterialCategory>(x.MaterialCategory, out var mc) ? mc : default,
+            PlantGrade = x.p.PlantGrade,
+            Specification = x.p.Specification,
+            UnitWeight = x.p.UnitWeight,
+            Quantity = x.p.Quantity,
+            Weight = x.p.Weight,
+            RequiredDate = x.p.RequiredDate,
+            UnitPrice = x.p.UnitPrice,
+            TotalAmount = x.p.TotalAmount,
+            LastArrivalDate = x.p.LastArrivalDate,
+            ReceivedQuantity = x.p.ReceivedQuantity,
+            ReceivedWeight = x.p.ReceivedWeight,
+            SourceWorkOrderNo = x.p.SourceWorkOrderNo,
+            InputMultiple = x.p.InputMultiple,
+            Remark = x.p.Remark,
+            CreatedTime = x.p.CreatedTime,
+            WoSalesOrderNo = x.w?.SalesOrderNo,
+            WoProductionMainNo = x.w?.ProductionMainNo,
+            WoProductionSubNo = x.w?.ProductionSubNo,
+            WoSignDate = x.w != null ? (DateTime?)x.w.SignDate : null,
+            WoSalesman = x.w?.Salesman,
+            WoEndCustomer = x.w?.EndCustomer,
+            WoDeliveryDate = x.w != null ? (DateTime?)x.w.DeliveryDate : null,
+            WoDelayPenalty = x.w != null && x.w.DelayPenalty,
+            WoSettlementMethod = x.w != null ? (SettlementMethod?)x.w.SettlementMethod : null,
+            WoPlantGrade = x.w?.PlantGrade,
+            WoSpecification = x.w?.Specification,
+            WoLengthStatus = x.w != null ? (LengthStatus?)x.w.LengthStatus : null,
+            WoMaxLength = x.w?.MaxLength,
+            WoTotalQuantity = x.w != null ? (int?)x.w.TotalQuantity : null,
+            WoTotalWeight = x.w != null ? (decimal?)x.w.TotalWeight : null,
+            WoDeliveryState = x.w != null ? (DeliveryState?)x.w.DeliveryState : null,
+            WoTotalItemCount = x.w != null ? (int?)x.w.TotalItemCount : null,
+        }).ToList();
     }
 
     public async Task<PurchaseOrderDto> GetByIdAsync(int id)
     {
-        var dto = await (from p in _context.PurchaseOrders.AsNoTracking()
-                         join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
-                         from w in wj.DefaultIfEmpty()
-                         where p.Id == id
-                         select new PurchaseOrderDto
-                         {
-                             Id = p.Id,
-                             OrderNo = p.OrderNo,
-                             SupplierId = p.SupplierId,
-                             SupplierName = p.SupplierName,
-                             OrderDate = p.OrderDate,
-                             Status = p.Status,
-                             IsForceCompleted = p.IsForceCompleted,
-                             MaterialCategory = p.MaterialCategory,
-                             PlantGrade = p.PlantGrade,
-                             Specification = p.Specification,
-                             UnitWeight = p.UnitWeight,
-                             Quantity = p.Quantity,
-                             Weight = p.Weight,
-                             RequiredDate = p.RequiredDate,
-                             UnitPrice = p.UnitPrice,
-                             TotalAmount = p.TotalAmount,
-                             LastArrivalDate = p.LastArrivalDate,
-                             ReceivedQuantity = p.ReceivedQuantity,
-                             ReceivedWeight = p.ReceivedWeight,
-                             SourceWorkOrderNo = p.SourceWorkOrderNo,
-                             InputMultiple = p.InputMultiple,
-                             Remark = p.Remark,
-                             CreatedTime = p.CreatedTime,
-                             WoSalesOrderNo = w.SalesOrderNo,
-                             WoProductionMainNo = w.ProductionMainNo,
-                             WoProductionSubNo = w.ProductionSubNo,
-                             WoSignDate = (DateTime?)w.SignDate,
-                             WoSalesman = w.Salesman,
-                             WoEndCustomer = w.EndCustomer,
-                             WoDeliveryDate = (DateTime?)w.DeliveryDate,
-                             WoDelayPenalty = w != null && w.DelayPenalty,
-                             WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
-                             WoPlantGrade = w.PlantGrade,
-                             WoSpecification = w.Specification,
-                             WoLengthStatus = (LengthStatus?)w.LengthStatus,
-                             WoMaxLength = w.MaxLength,
-                             WoTotalQuantity = (int?)w.TotalQuantity,
-                             WoTotalWeight = (decimal?)w.TotalWeight,
-                             WoDeliveryState = (DeliveryState?)w.DeliveryState,
-                             WoTotalItemCount = (int?)w.TotalItemCount,
-                         }).FirstOrDefaultAsync();
+        var item = await (from p in _context.PurchaseOrders.AsNoTracking()
+                          join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
+                          from w in wj.DefaultIfEmpty()
+                          where p.Id == id
+                          select new { p, w, MaterialCategory = p.MaterialCategory }).FirstOrDefaultAsync();
 
-        if (dto == null) throw new BusinessException("采购单不存在");
-        return dto;
+        if (item == null) throw new BusinessException("采购单不存在");
+
+        return new PurchaseOrderDto
+        {
+            Id = item.p.Id,
+            OrderNo = item.p.OrderNo,
+            SupplierId = item.p.SupplierId,
+            SupplierName = item.p.SupplierName ?? "",
+            OrderDate = item.p.OrderDate,
+            Status = item.p.Status,
+            IsForceCompleted = item.p.IsForceCompleted,
+            MaterialCategory = !string.IsNullOrEmpty(item.MaterialCategory) && Enum.TryParse<MaterialCategory>(item.MaterialCategory, out var mc) ? mc : default,
+            PlantGrade = item.p.PlantGrade,
+            Specification = item.p.Specification,
+            UnitWeight = item.p.UnitWeight,
+            Quantity = item.p.Quantity,
+            Weight = item.p.Weight,
+            RequiredDate = item.p.RequiredDate,
+            UnitPrice = item.p.UnitPrice,
+            TotalAmount = item.p.TotalAmount,
+            LastArrivalDate = item.p.LastArrivalDate,
+            ReceivedQuantity = item.p.ReceivedQuantity,
+            ReceivedWeight = item.p.ReceivedWeight,
+            SourceWorkOrderNo = item.p.SourceWorkOrderNo,
+            InputMultiple = item.p.InputMultiple,
+            Remark = item.p.Remark,
+            CreatedTime = item.p.CreatedTime,
+            WoSalesOrderNo = item.w?.SalesOrderNo,
+            WoProductionMainNo = item.w?.ProductionMainNo,
+            WoProductionSubNo = item.w?.ProductionSubNo,
+            WoSignDate = (DateTime?)item.w?.SignDate,
+            WoSalesman = item.w?.Salesman,
+            WoEndCustomer = item.w?.EndCustomer,
+            WoDeliveryDate = (DateTime?)item.w?.DeliveryDate,
+            WoDelayPenalty = item.w != null && item.w.DelayPenalty,
+            WoSettlementMethod = item.w != null ? (SettlementMethod?)item.w.SettlementMethod : null,
+            WoPlantGrade = item.w?.PlantGrade,
+            WoSpecification = item.w?.Specification,
+            WoLengthStatus = item.w != null ? (LengthStatus?)item.w.LengthStatus : null,
+            WoMaxLength = item.w?.MaxLength,
+            WoTotalQuantity = (int?)item.w?.TotalQuantity,
+            WoTotalWeight = (decimal?)item.w?.TotalWeight,
+            WoDeliveryState = item.w != null ? (DeliveryState?)item.w.DeliveryState : null,
+            WoTotalItemCount = (int?)item.w?.TotalItemCount,
+        };
     }
 
     public async Task<PurchaseOrderDto> CreateAsync(CreatePurchaseOrderRequest request)
@@ -339,7 +384,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                     SupplierId = request.SupplierId,
                     SupplierName = supplierName,
                     OrderDate = request.OrderDate,
-                    MaterialCategory = request.MaterialCategory,
+                    MaterialCategory = request.MaterialCategory.ToString(),
                     PlantGrade = request.PlantGrade,
                     Specification = request.Specification,
                     UnitWeight = request.UnitWeight,
@@ -417,7 +462,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                         SupplierId = request.SupplierId,
                         SupplierName = supplierNames.GetValueOrDefault(request.SupplierId),
                         OrderDate = request.OrderDate,
-                        MaterialCategory = request.MaterialCategory,
+                        MaterialCategory = request.MaterialCategory.ToString(),
                         PlantGrade = request.PlantGrade,
                         Specification = request.Specification,
                         UnitWeight = request.UnitWeight,
@@ -518,7 +563,7 @@ public class PurchaseOrderService : IPurchaseOrderService
     private static void MapUpdateFields(PurchaseOrder entity, UpdatePurchaseOrderRequest request)
     {
         entity.SupplierId = request.SupplierId;
-        entity.MaterialCategory = request.MaterialCategory;
+        entity.MaterialCategory = request.MaterialCategory.ToString();
         entity.PlantGrade = request.PlantGrade;
         entity.Specification = request.Specification;
         entity.UnitWeight = request.UnitWeight ?? entity.UnitWeight;
@@ -667,11 +712,11 @@ public class PurchaseOrderService : IPurchaseOrderService
         Id = entity.Id,
         OrderNo = entity.OrderNo,
         SupplierId = entity.SupplierId,
-        SupplierName = entity.SupplierName,
+        SupplierName = entity.SupplierName ?? "",
         OrderDate = entity.OrderDate,
         Status = entity.Status,
         IsForceCompleted = entity.IsForceCompleted,
-        MaterialCategory = entity.MaterialCategory,
+        MaterialCategory = !string.IsNullOrEmpty(entity.MaterialCategory) && Enum.TryParse<MaterialCategory>(entity.MaterialCategory, out var mc) ? mc : default,
         PlantGrade = entity.PlantGrade,
         Specification = entity.Specification,
         UnitWeight = entity.UnitWeight,
@@ -1080,51 +1125,51 @@ public class PurchaseOrderService : IPurchaseOrderService
                            join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
                            from w in wj.DefaultIfEmpty()
                            where ids.Contains(p.Id)
-                           select new PurchaseOrderDto
-                           {
-                               Id = p.Id,
-                               OrderNo = p.OrderNo,
-                               SupplierId = p.SupplierId,
-                               SupplierName = p.SupplierName,
-                               OrderDate = p.OrderDate,
-                               Status = p.Status,
-                               IsForceCompleted = p.IsForceCompleted,
-                               MaterialCategory = p.MaterialCategory,
-                               PlantGrade = p.PlantGrade,
-                               Specification = p.Specification,
-                               UnitWeight = p.UnitWeight,
-                               Quantity = p.Quantity,
-                               Weight = p.Weight,
-                               RequiredDate = p.RequiredDate,
-                               UnitPrice = p.UnitPrice,
-                               TotalAmount = p.TotalAmount,
-                               LastArrivalDate = p.LastArrivalDate,
-                               ReceivedQuantity = p.ReceivedQuantity,
-                               ReceivedWeight = p.ReceivedWeight,
-                               SourceWorkOrderNo = p.SourceWorkOrderNo,
-                               InputMultiple = p.InputMultiple,
-                               Remark = p.Remark,
-                               CreatedTime = p.CreatedTime,
-                               WoSalesOrderNo = w.SalesOrderNo,
-                               WoProductionMainNo = w.ProductionMainNo,
-                               WoProductionSubNo = w.ProductionSubNo,
-                               WoSignDate = (DateTime?)w.SignDate,
-                               WoSalesman = w.Salesman,
-                               WoEndCustomer = w.EndCustomer,
-                               WoDeliveryDate = (DateTime?)w.DeliveryDate,
-                               WoDelayPenalty = w != null && w.DelayPenalty,
-                               WoSettlementMethod = (SettlementMethod?)w.SettlementMethod,
-                               WoPlantGrade = w.PlantGrade,
-                               WoSpecification = w.Specification,
-                               WoLengthStatus = (LengthStatus?)w.LengthStatus,
-                               WoMaxLength = w.MaxLength,
-                               WoTotalQuantity = (int?)w.TotalQuantity,
-                               WoTotalWeight = (decimal?)w.TotalWeight,
-                               WoDeliveryState = (DeliveryState?)w.DeliveryState,
-                               WoTotalItemCount = (int?)w.TotalItemCount,
-                           }).ToListAsync();
+                           select new { p, w, MaterialCategory = p.MaterialCategory }).ToListAsync();
 
-        return items;
+        return items.Select(x => new PurchaseOrderDto
+        {
+            Id = x.p.Id,
+            OrderNo = x.p.OrderNo,
+            SupplierId = x.p.SupplierId,
+            SupplierName = x.p.SupplierName ?? "",
+            OrderDate = x.p.OrderDate,
+            Status = x.p.Status,
+            IsForceCompleted = x.p.IsForceCompleted,
+            MaterialCategory = !string.IsNullOrEmpty(x.MaterialCategory) && Enum.TryParse<MaterialCategory>(x.MaterialCategory, out var mc) ? mc : default,
+            PlantGrade = x.p.PlantGrade,
+            Specification = x.p.Specification,
+            UnitWeight = x.p.UnitWeight,
+            Quantity = x.p.Quantity,
+            Weight = x.p.Weight,
+            RequiredDate = x.p.RequiredDate,
+            UnitPrice = x.p.UnitPrice,
+            TotalAmount = x.p.TotalAmount,
+            LastArrivalDate = x.p.LastArrivalDate,
+            ReceivedQuantity = x.p.ReceivedQuantity,
+            ReceivedWeight = x.p.ReceivedWeight,
+            SourceWorkOrderNo = x.p.SourceWorkOrderNo,
+            InputMultiple = x.p.InputMultiple,
+            Remark = x.p.Remark,
+            CreatedTime = x.p.CreatedTime,
+            WoSalesOrderNo = x.w?.SalesOrderNo,
+            WoProductionMainNo = x.w?.ProductionMainNo,
+            WoProductionSubNo = x.w?.ProductionSubNo,
+            WoSignDate = x.w != null ? (DateTime?)x.w.SignDate : null,
+            WoSalesman = x.w?.Salesman,
+            WoEndCustomer = x.w?.EndCustomer,
+            WoDeliveryDate = x.w != null ? (DateTime?)x.w.DeliveryDate : null,
+            WoDelayPenalty = x.w != null && x.w.DelayPenalty,
+            WoSettlementMethod = x.w != null ? (SettlementMethod?)x.w.SettlementMethod : null,
+            WoPlantGrade = x.w?.PlantGrade,
+            WoSpecification = x.w?.Specification,
+            WoLengthStatus = x.w != null ? (LengthStatus?)x.w.LengthStatus : null,
+            WoMaxLength = x.w?.MaxLength,
+            WoTotalQuantity = x.w != null ? (int?)x.w.TotalQuantity : null,
+            WoTotalWeight = x.w != null ? (decimal?)x.w.TotalWeight : null,
+            WoDeliveryState = x.w != null ? (DeliveryState?)x.w.DeliveryState : null,
+            WoTotalItemCount = x.w != null ? (int?)x.w.TotalItemCount : null,
+        }).ToList();
     }
 
     public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null)

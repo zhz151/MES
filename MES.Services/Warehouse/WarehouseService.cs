@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -21,7 +21,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -31,7 +31,7 @@ using MES.Data;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -39,7 +39,6 @@ using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Warehouse;
 using MES.Services.Helpers;
-using MES.Services.Mapping;
 
 namespace MES.Services.Warehouse;
 
@@ -82,7 +81,15 @@ public class WarehouseService : IWarehouseService
         var items = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(w => w.ToDto())
+            .Select(w => new WarehouseDto
+            {
+                Id = w.Id,
+                Code = w.Code,
+                Name = w.Name,
+                SortOrder = w.SortOrder,
+                IsActive = w.IsActive,
+                Remark = w.Remark
+            })
             .ToListAsync();
 
         return new PagedResult<WarehouseDto>
@@ -106,7 +113,15 @@ public class WarehouseService : IWarehouseService
 
         return await query
             .OrderBy(w => w.SortOrder)
-            .Select(w => w.ToDto())
+            .Select(w => new WarehouseDto
+            {
+                Id = w.Id,
+                Code = w.Code,
+                Name = w.Name,
+                SortOrder = w.SortOrder,
+                IsActive = w.IsActive,
+                Remark = w.Remark
+            })
             .ToListAsync();
     }
 
@@ -119,8 +134,18 @@ public class WarehouseService : IWarehouseService
         if (entity == null)
             throw new BusinessException("仓库不存在");
 
-        return entity.ToDto();
+        return ToDto(entity);
     }
+
+    private static WarehouseDto ToDto(MES.Data.Entities.Warehouse.Warehouse entity) => new()
+    {
+        Id = entity.Id,
+        Code = entity.Code,
+        Name = entity.Name,
+        SortOrder = entity.SortOrder,
+        IsActive = entity.IsActive,
+        Remark = entity.Remark
+    };
 
     public async Task<WarehouseDto> CreateAsync(CreateWarehouseRequest request)
     {
@@ -142,7 +167,7 @@ public class WarehouseService : IWarehouseService
         _context.Warehouses.Add(entity);
         await _context.SaveChangesAsync();
 
-        return entity.ToDto();
+        return ToDto(entity);
     }
 
     public async Task<WarehouseDto> UpdateAsync(int id, UpdateWarehouseRequest request)
@@ -172,7 +197,7 @@ public class WarehouseService : IWarehouseService
             entity.Remark = request.Remark;
 
         await _context.SaveChangesAsync();
-        return entity.ToDto();
+        return ToDto(entity);
     }
 
     public async Task DeleteAsync(int id)

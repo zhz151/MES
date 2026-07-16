@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -22,7 +22,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -33,7 +33,7 @@ using MES.Data.Entities;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -142,35 +142,38 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
     public async Task<MaterialReceiveCheckDto?> GetMaterialReceiveCheckAsync(int batchId)
     {
-        return await _context.MaterialReceiveChecks
+        var m = await _context.MaterialReceiveChecks
             .AsNoTracking()
-            .Where(m => m.ProductionBatchId == batchId)
-            .Select(m => new MaterialReceiveCheckDto
-            {
-                Id = m.Id,
-                ProductionBatchId = m.ProductionBatchId,
-                ReceiveDate = m.ReceiveDate,
-                Shift = m.Shift,
-                Checker = m.Checker,
-                Remark = m.Remark,
-                BatchNo = m.BatchNo!,
-                ManufacturingItem = m.ManufacturingItem,
-                TagNo = m.TagNo,
-                WorkOrderNo = m.WorkOrderNo,
-                SalesOrderNo = m.SalesOrderNo,
-                SourceUnit = m.SourceUnit,
-                FurnaceNo = m.FurnaceNo,
-                PlantGrade = m.PlantGrade,
-                Specification = m.Specification,
-                ProductionType = m.ProductionType,
-                IsForceCompleted = m.IsForceCompleted,
-                DataSource = m.DataSource,
-                Salesman = m.Salesman,
-                DeliveryState = m.DeliveryState,
-                CreatedTime = m.CreatedTime,
-                UpdatedTime = m.UpdatedTime
-            })
+            .Where(x => x.ProductionBatchId == batchId)
             .FirstOrDefaultAsync();
+
+        if (m == null) return null;
+
+        return new MaterialReceiveCheckDto
+        {
+            Id = m.Id,
+            ProductionBatchId = m.ProductionBatchId,
+            ReceiveDate = m.ReceiveDate,
+            Shift = m.Shift,
+            Checker = m.Checker,
+            Remark = m.Remark,
+            BatchNo = m.BatchNo!,
+            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(m.ManufacturingItem, out var r) ? r : null,
+            TagNo = m.TagNo,
+            WorkOrderNo = m.WorkOrderNo,
+            SalesOrderNo = m.SalesOrderNo,
+            SourceUnit = m.SourceUnit,
+            FurnaceNo = m.FurnaceNo,
+            PlantGrade = m.PlantGrade,
+            Specification = m.Specification,
+            ProductionType = m.ProductionType != null && Enum.TryParse<ProductionType>(m.ProductionType, out var rPt) ? rPt : null,
+            IsForceCompleted = m.IsForceCompleted,
+            DataSource = m.DataSource,
+            Salesman = m.Salesman,
+            DeliveryState = m.DeliveryState != null && Enum.TryParse<DeliveryState>(m.DeliveryState, out var rDs) ? rDs : null,
+            CreatedTime = m.CreatedTime,
+            UpdatedTime = m.UpdatedTime
+        };
     }
 
     public async Task<MaterialReceiveCheckDto> CreateMaterialReceiveCheckAsync(CreateMaterialReceiveCheckRequest request)
@@ -243,7 +246,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Checker = entity.Checker,
             Remark = entity.Remark,
             BatchNo = entity.BatchNo,
-            ManufacturingItem = entity.ManufacturingItem,
+            ManufacturingItem = entity.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(entity.ManufacturingItem, out var rMi) ? rMi : null,
             TagNo = entity.TagNo,
             WorkOrderNo = entity.WorkOrderNo,
             SalesOrderNo = entity.SalesOrderNo,
@@ -251,8 +254,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             FurnaceNo = entity.FurnaceNo,
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
-            ProductionType = entity.ProductionType,
-            LengthStatus = entity.LengthStatus,
+            ProductionType = entity.ProductionType != null && Enum.TryParse<ProductionType>(entity.ProductionType, out var rPt) ? rPt : null,
+            LengthStatus = entity.LengthStatus != null && Enum.TryParse<LengthStatus>(entity.LengthStatus, out var rLs) ? rLs : null,
             ProductionWeight = entity.ProductionWeight,
             IsForceCompleted = entity.IsForceCompleted,
             DataSource = entity.DataSource,
@@ -364,7 +367,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Checker = e.Checker,
             Remark = e.Remark,
             BatchNo = e.BatchNo,
-            ManufacturingItem = e.ManufacturingItem,
+            ManufacturingItem = e.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(e.ManufacturingItem, out var rMi) ? rMi : null,
             TagNo = e.TagNo,
             WorkOrderNo = e.WorkOrderNo,
             SalesOrderNo = e.SalesOrderNo,
@@ -372,12 +375,12 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             FurnaceNo = e.FurnaceNo,
             PlantGrade = e.PlantGrade,
             Specification = e.Specification,
-            ProductionType = e.ProductionType,
-            LengthStatus = e.LengthStatus,
+            ProductionType = e.ProductionType != null && Enum.TryParse<ProductionType>(e.ProductionType, out var rPt) ? rPt : null,
+            LengthStatus = e.LengthStatus != null && Enum.TryParse<LengthStatus>(e.LengthStatus, out var rLs) ? rLs : null,
             ProductionWeight = e.ProductionWeight,
             IsForceCompleted = e.IsForceCompleted,
             Salesman = e.Salesman,
-            DeliveryState = e.DeliveryState,
+            DeliveryState = e.DeliveryState != null && Enum.TryParse<DeliveryState>(e.DeliveryState, out var rDs) ? rDs : null,
             DataSource = e.DataSource,
             CreatedTime = e.CreatedTime,
             UpdatedTime = e.UpdatedTime
@@ -411,7 +414,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Checker = entity.Checker,
             Remark = entity.Remark,
             BatchNo = entity.BatchNo,
-            ManufacturingItem = entity.ManufacturingItem,
+            ManufacturingItem = entity.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(entity.ManufacturingItem, out var rMi) ? rMi : null,
             TagNo = entity.TagNo,
             WorkOrderNo = entity.WorkOrderNo,
             SalesOrderNo = entity.SalesOrderNo,
@@ -419,7 +422,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             FurnaceNo = entity.FurnaceNo,
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
-            ProductionType = entity.ProductionType,
+            ProductionType = entity.ProductionType != null && Enum.TryParse<ProductionType>(entity.ProductionType, out var rPt) ? rPt : null,
             IsForceCompleted = entity.IsForceCompleted,
             DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
@@ -544,38 +547,49 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 : queryable.OrderBy(m => m.CreatedTime)
         };
 
-        var items = await queryable
+        var rawItems = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(m => new MaterialReceiveCheckDto
+            .Select(m => new
             {
-                Id = m.Id,
-                ProductionBatchId = m.ProductionBatchId,
-                ReceiveDate = m.ReceiveDate,
-                Shift = m.Shift,
-                Checker = m.Checker,
-                Remark = m.Remark,
-                DataSource = m.DataSource,
-                BatchNo = m.BatchNo!,
-                ManufacturingItem = m.ManufacturingItem!,
-                TagNo = m.TagNo,
-                WorkOrderNo = m.WorkOrderNo,
-                SalesOrderNo = m.SalesOrderNo,
-                SourceUnit = m.SourceUnit,
-                FurnaceNo = m.FurnaceNo,
-                PlantGrade = m.PlantGrade!,
-                Specification = m.Specification!,
-                ProductionType = m.ProductionType!,
-                ProductionCutQuantity = m.ProductionCutQuantity,
-                ProductionWeight = m.ProductionWeight,
-                LengthStatus = m.LengthStatus!,
-                IsForceCompleted = m.IsForceCompleted,
-                Salesman = m.Salesman,
-                DeliveryState = m.DeliveryState,
-                CreatedTime = m.CreatedTime,
-                UpdatedTime = m.UpdatedTime
+                m.Id, m.ProductionBatchId, m.ReceiveDate, m.Shift, m.Checker,
+                m.Remark, m.DataSource,
+                m.BatchNo, m.ManufacturingItem, m.TagNo, m.WorkOrderNo, m.SalesOrderNo,
+                m.SourceUnit, m.FurnaceNo, m.PlantGrade, m.Specification, m.ProductionType,
+                m.ProductionCutQuantity, m.ProductionWeight, m.LengthStatus,
+                m.IsForceCompleted, m.Salesman, m.DeliveryState,
+                m.CreatedTime, m.UpdatedTime
             })
             .ToListAsync();
+
+        var items = rawItems.Select(m => new MaterialReceiveCheckDto
+        {
+            Id = m.Id,
+            ProductionBatchId = m.ProductionBatchId,
+            ReceiveDate = m.ReceiveDate,
+            Shift = m.Shift,
+            Checker = m.Checker,
+            Remark = m.Remark,
+            DataSource = m.DataSource,
+            BatchNo = m.BatchNo!,
+            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(m.ManufacturingItem, out var r) ? r : null,
+            TagNo = m.TagNo,
+            WorkOrderNo = m.WorkOrderNo,
+            SalesOrderNo = m.SalesOrderNo,
+            SourceUnit = m.SourceUnit,
+            FurnaceNo = m.FurnaceNo,
+            PlantGrade = m.PlantGrade!,
+            Specification = m.Specification!,
+            ProductionType = m.ProductionType != null && Enum.TryParse<ProductionType>(m.ProductionType, out var rPt) ? rPt : null,
+            ProductionCutQuantity = m.ProductionCutQuantity,
+            ProductionWeight = m.ProductionWeight,
+            LengthStatus = m.LengthStatus != null && Enum.TryParse<LengthStatus>(m.LengthStatus, out var rLs) ? rLs : null,
+            IsForceCompleted = m.IsForceCompleted,
+            Salesman = m.Salesman,
+            DeliveryState = m.DeliveryState != null && Enum.TryParse<DeliveryState>(m.DeliveryState, out var rDs) ? rDs : null,
+            CreatedTime = m.CreatedTime,
+            UpdatedTime = m.UpdatedTime
+        }).ToList();
 
         return new PagedResult<MaterialReceiveCheckDto>
         {
@@ -588,38 +602,49 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
     public async Task<List<MaterialReceiveCheckDto>> GetAllMaterialReceiveCheckListAsync()
     {
-        return await _context.MaterialReceiveChecks
+        var raw = await _context.MaterialReceiveChecks
             .AsNoTracking()
             .OrderByDescending(rc => rc.Id)
-            .Select(rc => new MaterialReceiveCheckDto
+            .Select(rc => new
             {
-                Id = rc.Id,
-                ProductionBatchId = rc.ProductionBatchId,
-                BatchNo = rc.BatchNo!,
-                ManufacturingItem = rc.ManufacturingItem!,
-                TagNo = rc.TagNo,
-                WorkOrderNo = rc.WorkOrderNo,
-                SalesOrderNo = rc.SalesOrderNo,
-                SourceUnit = rc.SourceUnit,
-                FurnaceNo = rc.FurnaceNo,
-                PlantGrade = rc.PlantGrade!,
-                Specification = rc.Specification!,
-                ProductionType = rc.ProductionType!,
-                DataSource = rc.DataSource,
-                ProductionCutQuantity = rc.ProductionCutQuantity,
-                ProductionWeight = rc.ProductionWeight,
-                LengthStatus = rc.LengthStatus!,
-                IsForceCompleted = rc.IsForceCompleted,
-                Salesman = rc.Salesman,
-                DeliveryState = rc.DeliveryState,
-                ReceiveDate = rc.ReceiveDate,
-                Shift = rc.Shift,
-                Checker = rc.Checker,
-                Remark = rc.Remark,
-                CreatedTime = rc.CreatedTime,
-                UpdatedTime = rc.UpdatedTime
+                rc.Id, rc.ProductionBatchId, rc.BatchNo, rc.ManufacturingItem,
+                rc.TagNo, rc.WorkOrderNo, rc.SalesOrderNo, rc.SourceUnit,
+                rc.FurnaceNo, rc.PlantGrade, rc.Specification, rc.ProductionType,
+                rc.DataSource, rc.ProductionCutQuantity, rc.ProductionWeight,
+                rc.LengthStatus, rc.IsForceCompleted, rc.Salesman, rc.DeliveryState,
+                rc.ReceiveDate, rc.Shift, rc.Checker, rc.Remark,
+                rc.CreatedTime, rc.UpdatedTime
             })
             .ToListAsync();
+
+        return raw.Select(rc => new MaterialReceiveCheckDto
+        {
+            Id = rc.Id,
+            ProductionBatchId = rc.ProductionBatchId,
+            BatchNo = rc.BatchNo!,
+            ManufacturingItem = rc.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(rc.ManufacturingItem, out var rMi) ? rMi : null,
+            TagNo = rc.TagNo,
+            WorkOrderNo = rc.WorkOrderNo,
+            SalesOrderNo = rc.SalesOrderNo,
+            SourceUnit = rc.SourceUnit,
+            FurnaceNo = rc.FurnaceNo,
+            PlantGrade = rc.PlantGrade!,
+            Specification = rc.Specification!,
+            ProductionType = rc.ProductionType != null && Enum.TryParse<ProductionType>(rc.ProductionType, out var rPt) ? rPt : null,
+            DataSource = rc.DataSource,
+            ProductionCutQuantity = rc.ProductionCutQuantity,
+            ProductionWeight = rc.ProductionWeight,
+            LengthStatus = rc.LengthStatus != null && Enum.TryParse<LengthStatus>(rc.LengthStatus, out var rLs) ? rLs : null,
+            IsForceCompleted = rc.IsForceCompleted,
+            Salesman = rc.Salesman,
+            DeliveryState = rc.DeliveryState != null && Enum.TryParse<DeliveryState>(rc.DeliveryState, out var rDs) ? rDs : null,
+            ReceiveDate = rc.ReceiveDate,
+            Shift = rc.Shift,
+            Checker = rc.Checker,
+            Remark = rc.Remark,
+            CreatedTime = rc.CreatedTime,
+            UpdatedTime = rc.UpdatedTime
+        }).ToList();
     }
 
     public async Task<List<PendingMaterialCheckDto>> GetPendingMaterialChecksAsync()
@@ -771,36 +796,46 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
     public async Task<byte[]> PrintMaterialCheckBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
-        var items = await _context.MaterialReceiveChecks
+        var raw = await _context.MaterialReceiveChecks
             .AsNoTracking()
             .Where(m => ids.Contains(m.Id))
-            .Select(m => new MaterialReceiveCheckDto
+            .Select(m => new
             {
-                Id = m.Id,
-                ProductionBatchId = m.ProductionBatchId,
-                ReceiveDate = m.ReceiveDate,
-                Shift = m.Shift,
-                Checker = m.Checker,
-                Remark = m.Remark,
-                BatchNo = m.BatchNo!,
-                ManufacturingItem = m.ManufacturingItem!,
-                TagNo = m.TagNo,
-                WorkOrderNo = m.WorkOrderNo,
-                SalesOrderNo = m.SalesOrderNo,
-                SourceUnit = m.SourceUnit,
-                FurnaceNo = m.FurnaceNo,
-                PlantGrade = m.PlantGrade!,
-                Specification = m.Specification!,
-                ProductionType = m.ProductionType!,
-                DataSource = m.DataSource,
-                ProductionCutQuantity = m.ProductionCutQuantity,
-                ProductionWeight = m.ProductionWeight,
-                LengthStatus = m.LengthStatus!,
-                IsForceCompleted = m.IsForceCompleted,
-                CreatedTime = m.CreatedTime,
-                UpdatedTime = m.UpdatedTime
+                m.Id, m.ProductionBatchId, m.ReceiveDate, m.Shift, m.Checker,
+                m.Remark, m.DataSource,
+                m.BatchNo, m.ManufacturingItem, m.TagNo, m.WorkOrderNo, m.SalesOrderNo,
+                m.SourceUnit, m.FurnaceNo, m.PlantGrade, m.Specification, m.ProductionType,
+                m.ProductionCutQuantity, m.ProductionWeight, m.LengthStatus,
+                m.IsForceCompleted, m.CreatedTime, m.UpdatedTime
             })
             .ToListAsync();
+
+        var items = raw.Select(m => new MaterialReceiveCheckDto
+        {
+            Id = m.Id,
+            ProductionBatchId = m.ProductionBatchId,
+            ReceiveDate = m.ReceiveDate,
+            Shift = m.Shift,
+            Checker = m.Checker,
+            Remark = m.Remark,
+            BatchNo = m.BatchNo!,
+            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(m.ManufacturingItem, out var r) ? r : null,
+            TagNo = m.TagNo,
+            WorkOrderNo = m.WorkOrderNo,
+            SalesOrderNo = m.SalesOrderNo,
+            SourceUnit = m.SourceUnit,
+            FurnaceNo = m.FurnaceNo,
+            PlantGrade = m.PlantGrade!,
+            Specification = m.Specification!,
+            ProductionType = m.ProductionType != null && Enum.TryParse<ProductionType>(m.ProductionType, out var rPt) ? rPt : null,
+            DataSource = m.DataSource,
+            ProductionCutQuantity = m.ProductionCutQuantity,
+            ProductionWeight = m.ProductionWeight,
+            LengthStatus = m.LengthStatus != null && Enum.TryParse<LengthStatus>(m.LengthStatus, out var rLs) ? rLs : null,
+            IsForceCompleted = m.IsForceCompleted,
+            CreatedTime = m.CreatedTime,
+            UpdatedTime = m.UpdatedTime
+        }).ToList();
 
         return MaterialCheckPrintHelper.GenerateBatchPdf(items, columns);
     }

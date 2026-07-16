@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Batch;
 
 /// <summary>
@@ -9,5 +11,5 @@ public class SaveBatchResponse
     public byte[] RowVersion { get; set; } = null!;
 
     /// <summary>更新后的批次状态</summary>
-    public string Status { get; set; } = null!;
+    public BatchStatus Status { get; set; }
 }

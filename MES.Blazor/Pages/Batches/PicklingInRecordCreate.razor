@@ -295,7 +295,7 @@
             {
                 BatchNo = r.BatchNo.Trim(),
                 ProcessName = r.ProcessName.Trim(),
-                ManufacturingSpec = r.ManufacturingSpec?.Trim(),
+                ManufacturingSpec = r.ManufacturingSpec?.Trim()!,
                 SectionName = r.SectionName.Trim(),
                 InDate = r.InDate ?? DateTime.Today,
                 EquipmentName = r.EquipmentName?.Trim(),

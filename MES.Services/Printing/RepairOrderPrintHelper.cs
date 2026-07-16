@@ -1,17 +1,17 @@
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Helpers;
 
 namespace MES.Services.Printing;
 
@@ -37,8 +37,8 @@ public static class RepairOrderPrintHelper
                 ["EquipmentLocation"] = m.EquipmentLocation ?? "",
                 ["FaultDescription"] = m.FaultDescription ?? "",
                 ["FaultType"] = m.FaultType ?? "",
-                ["Priority"] = m.Priority ?? "",
-                ["RepairStatus"] = m.RepairStatus ?? "",
+                ["Priority"] = EnumHelper.GetDisplayName(m.Priority),
+                ["RepairStatus"] = EnumHelper.GetDisplayName(m.RepairStatus),
                 ["ReportPerson"] = m.ReportPerson ?? "",
                 ["ReportTime"] = m.ReportTime.ToString("yyyy-MM-dd HH:mm"),
                 ["RepairPerson"] = m.RepairPerson ?? "",

@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Batch;
 
 /// <summary>
@@ -8,7 +10,7 @@ namespace MES.Core.DTOs.Batch;
 public class UpdateBatchStatusRequest
 {
     [Required(ErrorMessage = "状态不能为空")]
-    public string Status { get; set; } = null!;
+    public BatchStatus Status { get; set; }
 
     [Required(ErrorMessage = "RowVersion不能为空")]
     public byte[] RowVersion { get; set; } = null!;

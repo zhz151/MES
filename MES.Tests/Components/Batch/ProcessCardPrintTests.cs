@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Blazor.Pages.Batches;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Batch;
+using MES.Core.Enums;
 
 namespace MES.Tests.Components;
 
@@ -49,9 +50,9 @@ public class ProcessCardPrintTests : TestBase
                 {
                     Id = 1,
                     BatchNo = "BATCH001",
-                    Status = "None",
+                    Status = BatchStatus.None,
                     WorkOrderNo = "WO001",
-                    ManufacturingItem = "订单成品",
+                    ManufacturingItem = ManufacturingItem.OrderFinishedProduct,
                     PlantGrade = "304",
                     Specification = "219*8",
                     TotalWeight = 2500m,

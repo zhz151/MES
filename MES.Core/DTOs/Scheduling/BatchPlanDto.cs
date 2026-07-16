@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs.Scheduling;
 
@@ -20,9 +21,9 @@ public class BatchPlanDto
     public string WorkOrderNo { get; set; } = string.Empty;
     public string? Salesman { get; set; }
     public DateTime DeliveryDate { get; set; }
-    public string? DeliveryState { get; set; }
+    public DeliveryState? DeliveryState { get; set; }
     public string Specification { get; set; } = string.Empty;
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
 

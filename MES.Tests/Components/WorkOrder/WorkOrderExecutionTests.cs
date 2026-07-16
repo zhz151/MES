@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Blazor.Pages.WorkOrders;
 using MES.Blazor.Services;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Enums;
 
 namespace MES.Tests.Components;
 
@@ -57,9 +58,9 @@ public class WorkOrderExecutionTests : TestBase
                     PlantGrade = "304",
                     Specification = "219*8",
                     MaterialName = "无缝管",
-                    DeliveryState = "固溶酸洗",
-                    SettlementMethod = "理算",
-                    LengthStatus = "Fixed",
+                    DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+                    SettlementMethod = SettlementMethod.Theoretical,
+                    LengthStatus = LengthStatus.Fixed,
                     TotalQuantity = 100,
                     TotalMeters = 600m,
                     TotalWeight = 2500m,

@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
 using MES.Shared.Constants;
-using MES.Core.DTOs.ProductionStandard;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
+using MES.Core.Interfaces.StandardRegister;
 
-namespace MES.Api.Controllers.ProductionStandard;
+namespace MES.Api.Controllers.StandardRegister;
 
 [ApiController]
 [Route(ApiEndpoints.StandardRegister)]
@@ -77,9 +77,9 @@ public class StandardRegisterController : ControllerBase
     public async Task<ActionResult<ApiResponse<string?>>> ResolveName([FromQuery] string? standardNo)
     {
         if (string.IsNullOrWhiteSpace(standardNo))
-            return Ok(ApiResponse<string?>.Ok(null));
+            return Ok(ApiResponse<string>.Ok(data: string.Empty));
         var result = await _service.ResolveNameAsync(standardNo);
-        return Ok(ApiResponse<string?>.Ok(result));
+        return Ok(ApiResponse<string>.Ok(data: result ?? string.Empty));
     }
 
     [HttpGet("filter-contexts")]
@@ -117,5 +117,25 @@ public class StandardRegisterController : ControllerBase
     {
         var count = await _service.CleanupOrphanedItemsAsync();
         return Ok(ApiResponse<int>.Ok(count));
+    }
+
+    // ========== 打印 ==========
+
+    /// <summary>批量打印选中记录（PDF 文件）</summary>
+    [HttpPost("print-batch-file")]
+    public async Task<IActionResult> PrintBatchFile([FromBody] StandardRegisterPrintBatchRequest request)
+    {
+        if (request.Ids.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("请至少选择一条记录"));
+        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "标准号-选中.pdf");
+    }
+
+    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
+    [HttpPost("print-all-file")]
+    public async Task<IActionResult> PrintAllFile([FromBody] StandardRegisterPrintAllRequest request)
+    {
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
+        return File(pdfBytes, "application/pdf", "标准号-全部.pdf");
     }
 }

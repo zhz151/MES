@@ -1,9 +1,9 @@
 using Bunit;
 using FluentAssertions;
 using MES.Core.Models;
-using MES.Blazor.Pages.ProductionStandard;
+using MES.Blazor.Pages.StandardRegister;
 using MES.Blazor.Services;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 
 namespace MES.Tests.Components;
 

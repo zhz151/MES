@@ -1,8 +1,8 @@
 using MES.Core.Models;
 
 using MES.Core.DTOs.Shared;
-using MES.Core.DTOs.ProductionStandard;
-namespace MES.Core.Interfaces.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
+namespace MES.Core.Interfaces.StandardRegister;
 
 /// <summary>
 /// 标准号检验项要求 Service 接口

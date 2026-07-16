@@ -1,4 +1,4 @@
-namespace MES.Data.Entities.ProductionStandard;
+namespace MES.Data.Entities.StandardRegister;
 
 /// <summary>
 /// 标准牌号映射 — 客户标准牌号与工厂内部牌号的对照关系

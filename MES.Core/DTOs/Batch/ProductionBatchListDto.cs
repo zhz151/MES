@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Batch;
 
 /// <summary>
@@ -15,8 +17,8 @@ public class ProductionBatchListDto
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
     public string? ProductionType { get; set; }
-    public string ManufacturingItem { get; set; } = null!;
-    public string Status { get; set; } = null!;
+    public ManufacturingItem ManufacturingItem { get; set; }
+    public BatchStatus Status { get; set; }
     public int ProductionRatio { get; set; }
     public DateTime? CurrentExecDate { get; set; }
     public string? CurrentGroupName { get; set; }
@@ -41,12 +43,12 @@ public class ProductionBatchListDto
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
     public string MaterialName { get; set; } = null!;
-    public string SettlementMethod { get; set; } = null!;
+    public SettlementMethod SettlementMethod { get; set; }
     public string StandardCode { get; set; } = null!;
-    public string DeliveryState { get; set; } = null!;
+    public DeliveryState DeliveryState { get; set; }
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
     public int TotalQuantity { get; set; }
     public decimal TotalMeters { get; set; }
     public decimal TotalWeight { get; set; }

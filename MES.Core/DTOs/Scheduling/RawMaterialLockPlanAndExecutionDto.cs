@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Scheduling;
 
 /// <summary>
@@ -15,15 +17,15 @@ public class RawMaterialLockPlanAndExecutionDto
     public DateTime SignDate { get; set; }
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
-    public string SettlementMethod { get; set; } = null!;
+    public SettlementMethod SettlementMethod { get; set; }
     public string SalesOrderNo { get; set; } = null!;
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
     public string MaterialName { get; set; } = null!;
-    public string DeliveryState { get; set; } = null!;
+    public DeliveryState DeliveryState { get; set; }
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalItemCount { get; set; }
@@ -34,9 +36,9 @@ public class RawMaterialLockPlanAndExecutionDto
     // ========== G2: 用料计划 ==========
     public DateTime? LatestPlanDate { get; set; }
     public decimal MaterialPlanRate { get; set; }
-    public int MaterialPlanStatus { get; set; }
+    public MaterialPlanStatus MaterialPlanStatus { get; set; }
     public decimal MainNoMaterialPlanRate { get; set; }
-    public int MainNoMaterialPlanStatus { get; set; }
+    public MaterialPlanStatus MainNoMaterialPlanStatus { get; set; }
     public int ProcessCycle { get; set; }
 
     /// <summary>用料占比：4种料态中有做计划的种数(0-4)</summary>

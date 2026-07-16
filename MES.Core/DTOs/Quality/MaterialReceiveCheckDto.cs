@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
 using MES.Core.DTOs.Shared;
+using MES.Core.Enums;
 namespace MES.Core.DTOs.Quality;
 
 // ========== 检验到料 ==========
@@ -20,7 +21,7 @@ public class MaterialReceiveCheckDto
 
     // ========== 批次冗余字段 ==========
     public string? BatchNo { get; set; }
-    public string? ManufacturingItem { get; set; }
+    public ManufacturingItem? ManufacturingItem { get; set; }
     public string? TagNo { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
@@ -28,7 +29,7 @@ public class MaterialReceiveCheckDto
     public string? FurnaceNo { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
 
     // ========== 汇总计算字段 ==========
     public int ProductionCutQuantity { get; set; }
@@ -38,11 +39,11 @@ public class MaterialReceiveCheckDto
     public bool IsForceCompleted { get; set; }
 
     // ========== 批次冗余字段 ==========
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
 
     // ========== 工单冗余字段 ==========
     public string? Salesman { get; set; }
-    public string? DeliveryState { get; set; }
+    public DeliveryState? DeliveryState { get; set; }
 
     /// <summary>创建时间</summary>
     public DateTimeOffset CreatedTime { get; set; }

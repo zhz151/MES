@@ -1,14 +1,14 @@
-// 文件路径: MES.Api/Controllers/GradeMappingController.cs
+// 文件路径: MES.Api/Controllers/StandardRegister/GradeMappingController.cs
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
 using MES.Shared.Constants;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
+using MES.Core.Interfaces.StandardRegister;
 
-namespace MES.Api.Controllers.ProductionStandard;
+namespace MES.Api.Controllers.StandardRegister;
 
 /// <summary>
 /// 牌号对照控制器
@@ -114,7 +114,7 @@ public class GradeMappingController : ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids, null);
+        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids, []);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
@@ -143,7 +143,7 @@ public class GradeMappingController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids, null);
+        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids, []);
         return File(pdfBytes, "application/pdf", "牌号对照打印.pdf");
     }
 

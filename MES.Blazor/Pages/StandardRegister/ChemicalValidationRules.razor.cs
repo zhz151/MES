@@ -6,11 +6,11 @@ using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.Models;
 using MES.Blazor.Shared;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
-namespace MES.Blazor.Pages.ProductionStandard;
+namespace MES.Blazor.Pages.StandardRegister;
 
 public partial class ChemicalValidationRules
 {

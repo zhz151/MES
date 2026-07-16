@@ -3,6 +3,7 @@ using Microsoft.JSInterop;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
+using MES.Core.Enums;
 using MudBlazor;
 
 namespace MES.Blazor.Pages.Equipment;
@@ -161,7 +162,7 @@ public partial class EquipmentRepair : IDisposable
                     : $"{_selectedFaultType}：{_faultDescription}",
                 ReportPerson = _reportPerson,
                 ReportTime = DateTime.Now,
-                Priority = nameof(MES.Core.Enums.RepairPriority.Normal),
+                Priority = RepairPriority.Normal,
             };
 
             var response = await RepairOrderService.CreateAsync(request);

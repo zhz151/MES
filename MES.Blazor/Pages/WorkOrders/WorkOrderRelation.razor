@@ -99,8 +99,8 @@
                                             <MudText Typo="Typo.body2"><strong>外径公差：</strong>@DisplayHelper.FormatTolerance(workOrder.OuterDiameterNegative, workOrder.OuterDiameterPositive)</MudText>
                                             <MudText Typo="Typo.body2"><strong>壁厚公差：</strong>@DisplayHelper.FormatTolerance(workOrder.WallThicknessNegative, workOrder.WallThicknessPositive)</MudText>
                                             <MudText Typo="Typo.body2"><strong>交货日期：</strong>@workOrder.DeliveryDate.ToString("yyyy-MM-dd")</MudText>
-                                            <MudText Typo="Typo.body2"><strong>交货状态：</strong>@DisplayHelper.GetDeliveryStateText(Enum.Parse<DeliveryState>(workOrder.DeliveryState))</MudText>
-                                            <MudText Typo="Typo.body2"><strong>长度状态：</strong>@DisplayHelper.GetLengthStatusText(Enum.Parse<LengthStatus>(workOrder.LengthStatus))</MudText>
+                                            <MudText Typo="Typo.body2"><strong>交货状态：</strong>@DisplayHelper.GetDeliveryStateText(workOrder.DeliveryState)</MudText>
+                                            <MudText Typo="Typo.body2"><strong>长度状态：</strong>@DisplayHelper.GetLengthStatusText(workOrder.LengthStatus)</MudText>
                                             <MudText Typo="Typo.body2"><strong>总支数：</strong>@workOrder.TotalQuantity 支</MudText>
                                             <MudText Typo="Typo.body2"><strong>总重量：</strong>@DisplayHelper.FormatDecimal(workOrder.TotalWeight) kg</MudText>
                                         </div>

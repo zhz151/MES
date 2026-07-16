@@ -7,10 +7,11 @@ using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Blazor.Shared;
 using MES.Core.Models;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
-namespace MES.Blazor.Pages.ProductionStandard;
+namespace MES.Blazor.Pages.StandardRegister;
 
 public partial class StandardInspectionRequirements
 {
@@ -27,6 +28,44 @@ public partial class StandardInspectionRequirements
     // 排序状态
     private string sortColumn = "StandardNo";
     private bool sortDescending = true;
+
+    // ========== 选择/打印 ==========
+    private HashSet<int> selectedIds = new();
+    private bool allSelected => _pageItems.Count > 0 && _pageItems.All(i => selectedIds.Contains(i.Id));
+
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _allColumns.Where(c => c.Visible).Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any()) { Snackbar.Add("请先选择要打印的记录", Severity.Warning); return; }
+        try
+        {
+            var request = new StandardInspectionRequirementPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
+            var apiUrl = $"{Http.BaseAddress}api/standard-inspection-requirement/print-batch-file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            var request = new StandardInspectionRequirementPrintAllRequest
+            {
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
+                Columns = GetPrintColumnDefs()
+            };
+            var apiUrl = $"{Http.BaseAddress}api/standard-inspection-requirement/print-all-file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+        }
+        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+    }
 
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();

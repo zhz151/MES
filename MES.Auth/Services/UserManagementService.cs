@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs.Auth;
+using MES.Core.Interfaces.Auth;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;

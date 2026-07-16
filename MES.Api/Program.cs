@@ -8,10 +8,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Text.Json.Serialization;
 using MES.Api.Middlewares;
 using MES.Api.Services;
 using MES.Api.Utils;
 using MES.Auth.Services;
+using MES.Core.Interfaces.Auth;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Auth;
@@ -28,7 +30,7 @@ using MES.Services.DataExchange;
 using MES.Services.DataFix;
 using MES.Services.Order;
 using MES.Services.Configuration;
-using MES.Services.ProductionStandard;
+using MES.Services.StandardRegister;
 using MES.Services.Report;
 using MES.Services.Scheduling;
 using QuestPDF.Infrastructure;
@@ -40,7 +42,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -110,7 +112,11 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger configuration (supports JWT authentication)
@@ -178,6 +184,9 @@ builder.Services.AddScoped<IWorkOrderListSummaryRefreshService, WorkOrderListSum
 builder.Services.AddScoped<IMaterialPlanService, MaterialPlanService>();
 builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
+builder.Services.AddScoped<IInventoryBatchWriteService, InventoryBatchWriteService>();
+builder.Services.AddScoped<IOutboundWriteService, OutboundWriteService>();
+builder.Services.AddScoped<IInventorySyncService, InventorySyncService>();
 builder.Services.AddScoped<IPendingDeliveryQueryService, PendingDeliveryQueryService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 
@@ -216,6 +225,8 @@ builder.Services.AddScoped<IMaintenanceOrderService, MaintenanceOrderService>();
 builder.Services.AddScoped<IInspectionRecordService, InspectionRecordService>();
 
 // 数据导入导出服务
+builder.Services.AddScoped<IDataImportService, DataImportService>();
+builder.Services.AddScoped<IDataExportService, DataExportService>();
 builder.Services.AddScoped<IDataExchangeService, DataExchangeService>();
 
 // 数据修复服务
@@ -255,11 +266,14 @@ builder.Services.AddScoped<ReportService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUserService>();
 
+var corsOrigins = builder.Configuration.GetValue<string>("CorsOrigins")?
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    ?? new[] { "https://localhost:5001", "http://localhost:5000" };
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazor", policy =>
     {
-        policy.WithOrigins("https://localhost:5001", "http://localhost:5000")
+        policy.WithOrigins(corsOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -274,6 +288,8 @@ QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 // ========== 初始化数据库 ==========
 using (var scope = app.Services.CreateScope())
 {
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await DatabaseMigrator.ApplyMigrationsAsync(db);
     await DbInitializer.InitializeAsync(scope.ServiceProvider);
 
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
@@ -315,7 +331,11 @@ recurringJobManager.AddOrUpdate<HangfireJobService>(
     service => service.RefreshQualityProcessTrackingJob(),
     "7 * * * *");
 
-app.UseHttpsRedirection();
+// 开发环境不启用 HTTPS 重定向（API 仅 HTTP 端口时避免预检请求重定向导致 CORS 失败）
+if (app.Environment.IsProduction())
+{
+    app.UseHttpsRedirection();
+}
 app.UseCors("AllowBlazor");
 
 // Use custom middleware

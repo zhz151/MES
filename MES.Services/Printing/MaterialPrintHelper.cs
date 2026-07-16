@@ -2,19 +2,20 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Services.Printing;
 
@@ -102,7 +103,7 @@ public static class MaterialPrintHelper
                 seq++;
                 table.Cell().Element(CellStyle).Text(seq.ToString()).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(m.MaterialCode).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(m.MaterialCategory).FontSize(8);
+                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(m.MaterialCategory)).FontSize(8);
                 table.Cell().Element(CellStyle).Text(m.PlantGrade).FontSize(8);
                 table.Cell().Element(CellStyle).Text(m.Specification).FontSize(8);
                 table.Cell().Element(CellStyle).Text(m.IsActive ? "启用" : "停用").FontSize(8).AlignCenter();

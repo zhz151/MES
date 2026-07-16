@@ -206,7 +206,7 @@
                     <MudTd Class="col-selection-td" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedIds.Contains(item.Id)"
-                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     @foreach (var col in _visibleColumns)
@@ -713,8 +713,8 @@
         "ProductionMainNo" => item.ProductionMainNo,
         "ProductionSubNo" => item.ProductionSubNo,
         "ProductionType" => item.ProductionType,
-        "ManufacturingItem" => item.ManufacturingItem,
-        "Status" => item.Status,
+        "ManufacturingItem" => item.ManufacturingItem.ToString(),
+        "Status" => item.Status.ToString(),
         "CurrentExecDate" => item.CurrentExecDate?.ToString("yyyy-MM-dd"),
         "CurrentGroupName" => item.CurrentGroupName,
         "CurrentSectionName" => item.CurrentSectionName,

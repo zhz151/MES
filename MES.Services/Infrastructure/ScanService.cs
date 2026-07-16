@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -22,7 +22,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -33,7 +33,7 @@ using MES.Data.Entities;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -118,7 +118,7 @@ public class ScanService : IScanService
         return new ScanBatchResolveResultDto
         {
             BatchNo = batch.BatchNo,
-            Status = GetStatusText(batch.Status),
+            Status = batch.Status,
             PlantGrade = batch.PlantGrade,
             Specification = batch.Specification,
             TagNo = batch.TagNo,
@@ -236,7 +236,7 @@ public class ScanService : IScanService
         return new ScanResolveResultDto
         {
             BatchNo = batch.BatchNo,
-            Status = GetStatusText(batch.Status),
+            Status = batch.Status,
             PlantGrade = batch.PlantGrade,
             Specification = batch.Specification,
             TagNo = batch.TagNo,

@@ -210,7 +210,7 @@ public partial class StandardWorkDayDeliveryStates
         var newItem = new StandardWorkDayDeliveryStateDto
         {
             Id = newId,
-            DeliveryState = "",
+            DeliveryState = null,
             ExtraDays = 0
         };
 
@@ -250,7 +250,7 @@ public partial class StandardWorkDayDeliveryStates
         if (!_editingIds.Add(item.Id)) return;
         _editCache[item.Id] = new EditCache
         {
-            DeliveryState = item.DeliveryState,
+            DeliveryState = item.DeliveryState?.ToString() ?? "",
             ExtraDays = item.ExtraDays,
             Remark = item.Remark
         };
@@ -284,7 +284,7 @@ public partial class StandardWorkDayDeliveryStates
             var dto = new StandardWorkDayDeliveryStateDto
             {
                 Id = IsNewItem(item.Id) ? 0 : item.Id,
-                DeliveryState = cache.DeliveryState,
+                DeliveryState = string.IsNullOrEmpty(cache.DeliveryState) ? null : Enum.Parse<DeliveryState>(cache.DeliveryState),
                 ExtraDays = cache.ExtraDays,
                 Remark = cache.Remark
             };
@@ -324,9 +324,9 @@ public partial class StandardWorkDayDeliveryStates
             return;
         }
 
-        var display = string.IsNullOrEmpty(item.DeliveryState)
+        var display = item.DeliveryState == null
             ? "【默认】"
-            : DisplayHelper.GetDeliveryStateText(item.DeliveryState);
+            : DisplayHelper.GetDeliveryStateText(item.DeliveryState.Value);
 
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
@@ -359,10 +359,10 @@ public partial class StandardWorkDayDeliveryStates
 
     // ========== 单元格渲染 ==========
 
-    private string GetDeliveryStateDisplay(string? state)
+    private string GetDeliveryStateDisplay(DeliveryState? state)
     {
-        if (string.IsNullOrEmpty(state)) return "【默认】";
-        return DisplayHelper.GetDeliveryStateText(state);
+        if (state == null) return "【默认】";
+        return DisplayHelper.GetDeliveryStateText(state.Value);
     }
 
     // ========== 持久化 ==========

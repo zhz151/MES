@@ -1,4 +1,5 @@
 using MES.Core.DTOs.Warehouse;
+using MES.Core.Enums;
 namespace MES.Core.DTOs.WorkOrder;
 
 /// <summary>
@@ -84,7 +85,7 @@ public class InventoryPlanDto
     /// <summary>
     /// 计划状态值
     /// </summary>
-    public int PlanStatus { get; set; }
+    public InventoryPlanStatus PlanStatus { get; set; }
 
     /// <summary>
     /// 计划状态文本
@@ -99,7 +100,7 @@ public class InventoryPlanDto
     /// <summary>
     /// 改制类型
     /// </summary>
-    public string? ReworkType { get; set; }
+    public ReworkType? ReworkType { get; set; }
 
     /// <summary>
     /// 改制类型文本
@@ -188,7 +189,7 @@ public class CreateInventoryPlanRequest
     /// <summary>
     /// 改制类型
     /// </summary>
-    public string? ReworkType { get; set; }
+    public ReworkType? ReworkType { get; set; }
 
 }
 

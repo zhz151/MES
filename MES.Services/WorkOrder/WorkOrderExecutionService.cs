@@ -9,7 +9,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -23,7 +23,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -33,7 +33,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
@@ -143,15 +143,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 SignDate = e.SignDate,
                 DeliveryDate = e.DeliveryDate,
                 DelayPenalty = e.DelayPenalty,
-                SettlementMethod = e.SettlementMethod,
+                SettlementMethod = string.IsNullOrEmpty(e.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(e.SettlementMethod),
                 SalesOrderNo = e.SalesOrderNo,
                 ProductionMainNo = e.ProductionMainNo,
                 ProductionSubNo = e.ProductionSubNo,
                 MaterialName = e.MaterialName,
-                DeliveryState = e.DeliveryState,
+                DeliveryState = string.IsNullOrEmpty(e.DeliveryState) ? default : Enum.Parse<DeliveryState>(e.DeliveryState),
                 PlantGrade = e.PlantGrade,
                 Specification = e.Specification,
-                LengthStatus = e.LengthStatus,
+                LengthStatus = string.IsNullOrEmpty(e.LengthStatus) ? default : Enum.Parse<LengthStatus>(e.LengthStatus),
                 MinLength = e.MinLength,
                 MaxLength = e.MaxLength,
                 TotalItemCount = e.TotalItemCount,
@@ -162,9 +162,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 // Group 2
                 LatestPlanDate = e.LatestPlanDate,
                 MaterialPlanRate = e.MaterialPlanRate,
-                MaterialPlanStatus = e.MaterialPlanStatus,
+                MaterialPlanStatus = (MaterialPlanStatus)e.MaterialPlanStatus,
                 MainNoMaterialPlanRate = e.MainNoMaterialPlanRate,
-                MainNoMaterialPlanStatus = e.MainNoMaterialPlanStatus,
+                MainNoMaterialPlanStatus = (MaterialPlanStatus)e.MainNoMaterialPlanStatus,
                 ProcessCycle = e.ProcessCycle,
                 MaterialPlanCoveredCount = e.MaterialPlanCoveredCount,
                 MaterialPlanProportion = e.MaterialPlanProportion,
@@ -802,14 +802,14 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             }
 
             // Type C: 计划未执行 — G2 主号计划状态=满足(3)或超量(4)
-            if (summary.MainNoMaterialPlanStatus == 3 || summary.MainNoMaterialPlanStatus == 4)
+            if ((MaterialPlanStatus)summary.MainNoMaterialPlanStatus == MaterialPlanStatus.Satisfied || (MaterialPlanStatus)summary.MainNoMaterialPlanStatus == MaterialPlanStatus.Excess)
             {
                 summary.RawMaterialLockRemark = "C计划未执行";
                 continue;
             }
 
             // Type D: 未完善计划 — G2 主号计划状态=未计划(0)或部分(1)
-            if (summary.MainNoMaterialPlanStatus == 0 || summary.MainNoMaterialPlanStatus == 1)
+            if ((MaterialPlanStatus)summary.MainNoMaterialPlanStatus == MaterialPlanStatus.NotPlanned || (MaterialPlanStatus)summary.MainNoMaterialPlanStatus == MaterialPlanStatus.Partial)
             {
                 summary.RawMaterialLockRemark = "D未完善计划";
                 continue;
@@ -1206,9 +1206,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 var isTypeB = (g5Ratio + mainNoFlowRatio) >= supplySatisfiedRate;
                 if (isTypeB)
                     summary.RawMaterialLockRemark = "B已购未回";
-                else if (summary.MainNoMaterialPlanStatus == 3 || summary.MainNoMaterialPlanStatus == 4)
+                else if ((MaterialPlanStatus)summary.MainNoMaterialPlanStatus == MaterialPlanStatus.Satisfied || (MaterialPlanStatus)summary.MainNoMaterialPlanStatus == MaterialPlanStatus.Excess)
                     summary.RawMaterialLockRemark = "C计划未执行";
-                else if (summary.MainNoMaterialPlanStatus == 0 || summary.MainNoMaterialPlanStatus == 1)
+                else if ((MaterialPlanStatus)summary.MainNoMaterialPlanStatus == MaterialPlanStatus.NotPlanned || (MaterialPlanStatus)summary.MainNoMaterialPlanStatus == MaterialPlanStatus.Partial)
                     summary.RawMaterialLockRemark = "D未完善计划";
             }
         }
@@ -2506,7 +2506,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         // 排序
         q = ApplySorting(q, sortBy ?? "LastRefreshTime", isDescending);
 
-        var items = await q.Select(e => new WorkOrderExecutionSummaryDto
+        var rawEntities = await q.ToListAsync();
+
+        var items = rawEntities.Select(e => new WorkOrderExecutionSummaryDto
         {
             Id = e.Id,
             WorkOrderId = e.WorkOrderId,
@@ -2517,15 +2519,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             SignDate = e.SignDate,
             DeliveryDate = e.DeliveryDate,
             DelayPenalty = e.DelayPenalty,
-            SettlementMethod = e.SettlementMethod,
+            SettlementMethod = string.IsNullOrEmpty(e.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(e.SettlementMethod),
             SalesOrderNo = e.SalesOrderNo,
             ProductionMainNo = e.ProductionMainNo,
             ProductionSubNo = e.ProductionSubNo,
             MaterialName = e.MaterialName,
-            DeliveryState = e.DeliveryState,
+            DeliveryState = string.IsNullOrEmpty(e.DeliveryState) ? default : Enum.Parse<DeliveryState>(e.DeliveryState),
             PlantGrade = e.PlantGrade,
             Specification = e.Specification,
-            LengthStatus = e.LengthStatus,
+            LengthStatus = string.IsNullOrEmpty(e.LengthStatus) ? default : Enum.Parse<LengthStatus>(e.LengthStatus),
             MinLength = e.MinLength,
             MaxLength = e.MaxLength,
             TotalItemCount = e.TotalItemCount,
@@ -2534,9 +2536,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             TotalWeight = e.TotalWeight,
             LatestPlanDate = e.LatestPlanDate,
             MaterialPlanRate = e.MaterialPlanRate,
-            MaterialPlanStatus = e.MaterialPlanStatus,
+            MaterialPlanStatus = (MaterialPlanStatus)e.MaterialPlanStatus,
             MainNoMaterialPlanRate = e.MainNoMaterialPlanRate,
-            MainNoMaterialPlanStatus = e.MainNoMaterialPlanStatus,
+            MainNoMaterialPlanStatus = (MaterialPlanStatus)e.MainNoMaterialPlanStatus,
             ProcessCycle = e.ProcessCycle,
             MaterialPlanCoveredCount = e.MaterialPlanCoveredCount,
             MaterialPlanProportion = e.MaterialPlanProportion,
@@ -2623,7 +2625,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             IsPaused = e.IsPaused,
             AdjustmentRemark = e.AdjustmentRemark,
             ProductionFlowProperty = e.ProductionFlowProperty,
-        }).ToListAsync();
+        }).ToList();
 
         var resolvedItems = items.Select(item =>
         {
@@ -2641,10 +2643,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     private static object ResolvePrintValue(WorkOrderExecutionSummaryDto item, string key) => key switch
     {
         // 枚举→中文
-        "SettlementMethod" => GetSettlementMethodText(item.SettlementMethod),
+        "SettlementMethod" => GetSettlementMethodText(item.SettlementMethod.ToString()),
         "MaterialName" => GetPipeManufacturingTypeText(item.MaterialName),
-        "DeliveryState" => GetDeliveryStateText(item.DeliveryState),
-        "LengthStatus" => GetLengthStatusText(item.LengthStatus),
+        "DeliveryState" => GetDeliveryStateText(item.DeliveryState.ToString()),
+        "LengthStatus" => GetLengthStatusText(item.LengthStatus.ToString()),
         // Bool→中文
         "DelayPenalty" => item.DelayPenaltyText,
         "IsUrging" => item.IsUrging ? "是" : "否",

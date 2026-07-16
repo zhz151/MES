@@ -12,6 +12,7 @@ using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
+using MES.Core.Enums;
 
 namespace MES.Blazor.Pages.Batches;
 
@@ -673,7 +674,7 @@ public partial class PicklingInRecords
                 builder.AddContent(0, item.PlantGrade);
                 break;
             case "Status":
-                if (item.Status == "Completed")
+                if (item.Status == PicklingStatus.Completed)
                 {
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);

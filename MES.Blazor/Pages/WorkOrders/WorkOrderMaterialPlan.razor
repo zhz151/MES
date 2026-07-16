@@ -96,7 +96,7 @@
                             </HeaderContent>
                             <RowTemplate Context="plan">
                                 <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
-                                <MudTd>@GetRawMaterialTypeText(plan.RawMaterialType)</MudTd>
+                                <MudTd>@DisplayHelper.GetRawMaterialTypeText(plan.RawMaterialType)</MudTd>
                                 <MudTd>@plan.PlantGrade</MudTd>
                                 <MudTd>@plan.RoundBarSpec</MudTd>
                                 <MudTd>@plan.PiercingSpec</MudTd>
@@ -150,7 +150,7 @@
                             </HeaderContent>
                             <RowTemplate Context="plan">
                                 <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
-                                <MudTd>@GetRawMaterialTypeText(plan.RawMaterialType)</MudTd>
+                                <MudTd>@DisplayHelper.GetRawMaterialTypeText(plan.RawMaterialType)</MudTd>
                                 <MudTd>@plan.PlantGrade</MudTd>
                                 <MudTd>@plan.RawMaterialSpec</MudTd>
                                 <MudTd>@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
@@ -932,7 +932,7 @@
 
     private static string GetRawMaterialTypeText(string type) => DisplayHelper.GetRawMaterialTypeText(type);
 
-    private static string GetProductTypeText(string type) => DisplayHelper.GetProductInspectionTypeText(type);
+    private static string GetProductTypeText(FinishedProductType type) => DisplayHelper.GetProductInspectionTypeText(type.ToString());
 
     private static string FormatTolerance(decimal neg, decimal pos)
     {

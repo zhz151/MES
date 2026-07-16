@@ -1,7 +1,7 @@
 using MES.Core.Models;
 
 using MES.Core.DTOs.Shared;
-namespace MES.Core.DTOs.ProductionStandard;
+namespace MES.Core.DTOs.StandardRegister;
 
 public class GradeChemicalCompositionPrintBatchRequest
 {

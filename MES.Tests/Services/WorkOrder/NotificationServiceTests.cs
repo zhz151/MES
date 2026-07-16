@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Enums;
 using MES.Data.Entities;
 using MES.Data;
 using MES.Services.WorkOrder;
@@ -119,7 +120,7 @@ public class NotificationServiceTests : TestBase
 
         var dto = result.Items[0];
         dto.Id.Should().Be(n.Id);
-        dto.NotificationType.Should().Be("WorkOrderDeleted");
+        dto.NotificationType.Should().Be(NotificationType.WorkOrderDeleted);
         dto.TargetId.Should().Be(123);
         dto.Title.Should().Be("工单删除");
         dto.Content.Should().Be("工单GD20260101001已删除");
@@ -279,7 +280,7 @@ public class NotificationServiceTests : TestBase
         var result = await svc.GetUnreadByTypeAsync("OrderChanged");
 
         result.Should().HaveCount(2);
-        result.Should().OnlyContain(n => n.NotificationType == "OrderChanged" && !n.IsRead);
+        result.Should().OnlyContain(n => n.NotificationType == NotificationType.OrderChanged && !n.IsRead);
     }
 
     [Fact]

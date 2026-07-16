@@ -566,7 +566,7 @@ public partial class QualityProcessTracking
                 break;
 
             case "ManufacturingItem":
-                builder.AddContent(0, DisplayHelper.GetManufacturingItemText(item.ManufacturingItem));
+                builder.AddContent(0, DisplayHelper.GetManufacturingItemText(item.ManufacturingItem?.ToString()));
                 break;
 
             case "PlantGrade":
@@ -606,7 +606,7 @@ public partial class QualityProcessTracking
                 break;
 
             case "ProductionType":
-                builder.AddContent(0, DisplayHelper.GetProductionTypeText(item.ProductionType));
+                builder.AddContent(0, DisplayHelper.GetProductionTypeText(item.ProductionType?.ToString()));
                 break;
 
             case "Salesman":
@@ -614,11 +614,11 @@ public partial class QualityProcessTracking
                 break;
 
             case "DeliveryState":
-                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState?.ToString()));
                 break;
 
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus?.ToString()));
                 break;
 
             case "ProductionWeight":

@@ -216,7 +216,7 @@
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedSalesOrderNos.Contains(item.SalesOrderNo)"
-                                     ValueChanged="@((v) => { if(v) selectedSalesOrderNos.Add(item.SalesOrderNo); else selectedSalesOrderNos.Remove(item.SalesOrderNo); _allSelected = _pageItems.Any() && _pageItems.All(i => selectedSalesOrderNos.Contains(i.SalesOrderNo)); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedSalesOrderNos.Add(item.SalesOrderNo); else selectedSalesOrderNos.Remove(item.SalesOrderNo); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     @foreach (var col in _visibleColumns)

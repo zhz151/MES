@@ -7,7 +7,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -22,7 +22,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -32,7 +32,7 @@ using MES.Data.Entities;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -40,7 +40,7 @@ using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.WorkOrder;
 using MES.Core.Exceptions;
-using MES.Services.Mapping;
+using System.Linq.Expressions;
 
 namespace MES.Services.WorkOrder;
 
@@ -62,6 +62,131 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
         _configService = configService;
     }
 
+    private static readonly Expression<Func<SemiPlanProcessGroup, MaterialPlanProcessGroupDto>> SemiToDtoExpr = e => new MaterialPlanProcessGroupDto
+    {
+        Id = e.Id,
+        ParentPlanId = e.PurchaseSemiPlanId,
+        SequenceNumber = e.SequenceNumber,
+        ProcessName = e.ProcessName,
+        ManufacturingSpec = e.ManufacturingSpec,
+        OuterDiameterTolerance = e.OuterDiameterTolerance,
+        WallThicknessTolerance = e.WallThicknessTolerance,
+        ManufacturingLength = e.ManufacturingLength,
+        CuttingTreatment = e.CuttingTreatment,
+        ManufacturingMultiple = e.ManufacturingMultiple,
+        Remark = e.Remark,
+        ColdRollDraw = e.ColdRollDraw,
+        OilPipeCut = e.OilPipeCut,
+        Degrease = e.Degrease,
+        Solution = e.Solution,
+        Straighten = e.Straighten,
+        Cut = e.Cut,
+        ThicknessMeasure = e.ThicknessMeasure,
+        Pickle = e.Pickle,
+        OuterPolish = e.OuterPolish,
+        InnerGrinding = e.InnerGrinding,
+        OuterSpotGrinding = e.OuterSpotGrinding,
+        Inspection = e.Inspection,
+        WeldingHead = e.WeldingHead,
+        Lubrication = e.Lubrication,
+        Warehouse = e.Warehouse,
+        CreatedTime = e.CreatedTime,
+        CreatedBy = e.CreatedBy
+    };
+    private static readonly Expression<Func<InventoryPlanProcessGroup, MaterialPlanProcessGroupDto>> InventoryToDtoExpr = e => new MaterialPlanProcessGroupDto
+    {
+        Id = e.Id,
+        ParentPlanId = e.InventoryPlanId,
+        SequenceNumber = e.SequenceNumber,
+        ProcessName = e.ProcessName,
+        ManufacturingSpec = e.ManufacturingSpec,
+        OuterDiameterTolerance = e.OuterDiameterTolerance,
+        WallThicknessTolerance = e.WallThicknessTolerance,
+        ManufacturingLength = e.ManufacturingLength,
+        CuttingTreatment = e.CuttingTreatment,
+        ManufacturingMultiple = e.ManufacturingMultiple,
+        Remark = e.Remark,
+        ColdRollDraw = e.ColdRollDraw,
+        OilPipeCut = e.OilPipeCut,
+        Degrease = e.Degrease,
+        Solution = e.Solution,
+        Straighten = e.Straighten,
+        Cut = e.Cut,
+        ThicknessMeasure = e.ThicknessMeasure,
+        Pickle = e.Pickle,
+        OuterPolish = e.OuterPolish,
+        InnerGrinding = e.InnerGrinding,
+        OuterSpotGrinding = e.OuterSpotGrinding,
+        Inspection = e.Inspection,
+        WeldingHead = e.WeldingHead,
+        Lubrication = e.Lubrication,
+        Warehouse = e.Warehouse,
+        CreatedTime = e.CreatedTime,
+        CreatedBy = e.CreatedBy
+    };
+    private static readonly Expression<Func<InProcessReworkPlanProcessGroup, MaterialPlanProcessGroupDto>> ReworkToDtoExpr = e => new MaterialPlanProcessGroupDto
+    {
+        Id = e.Id,
+        ParentPlanId = e.InProcessReworkPlanId,
+        SequenceNumber = e.SequenceNumber,
+        ProcessName = e.ProcessName,
+        ManufacturingSpec = e.ManufacturingSpec,
+        OuterDiameterTolerance = e.OuterDiameterTolerance,
+        WallThicknessTolerance = e.WallThicknessTolerance,
+        ManufacturingLength = e.ManufacturingLength,
+        CuttingTreatment = e.CuttingTreatment,
+        ManufacturingMultiple = e.ManufacturingMultiple,
+        Remark = e.Remark,
+        ColdRollDraw = e.ColdRollDraw,
+        OilPipeCut = e.OilPipeCut,
+        Degrease = e.Degrease,
+        Solution = e.Solution,
+        Straighten = e.Straighten,
+        Cut = e.Cut,
+        ThicknessMeasure = e.ThicknessMeasure,
+        Pickle = e.Pickle,
+        OuterPolish = e.OuterPolish,
+        InnerGrinding = e.InnerGrinding,
+        OuterSpotGrinding = e.OuterSpotGrinding,
+        Inspection = e.Inspection,
+        WeldingHead = e.WeldingHead,
+        Lubrication = e.Lubrication,
+        Warehouse = e.Warehouse,
+        CreatedTime = e.CreatedTime,
+        CreatedBy = e.CreatedBy
+    };
+    private static readonly Expression<Func<PiercingPlanProcessGroup, MaterialPlanProcessGroupDto>> PiercingToDtoExpr = e => new MaterialPlanProcessGroupDto
+    {
+        Id = e.Id,
+        ParentPlanId = e.RoundBarPiercingPlanId,
+        SequenceNumber = e.SequenceNumber,
+        ProcessName = e.ProcessName,
+        ManufacturingSpec = e.ManufacturingSpec,
+        OuterDiameterTolerance = e.OuterDiameterTolerance,
+        WallThicknessTolerance = e.WallThicknessTolerance,
+        ManufacturingLength = e.ManufacturingLength,
+        CuttingTreatment = e.CuttingTreatment,
+        ManufacturingMultiple = e.ManufacturingMultiple,
+        Remark = e.Remark,
+        ColdRollDraw = e.ColdRollDraw,
+        OilPipeCut = e.OilPipeCut,
+        Degrease = e.Degrease,
+        Solution = e.Solution,
+        Straighten = e.Straighten,
+        Cut = e.Cut,
+        ThicknessMeasure = e.ThicknessMeasure,
+        Pickle = e.Pickle,
+        OuterPolish = e.OuterPolish,
+        InnerGrinding = e.InnerGrinding,
+        OuterSpotGrinding = e.OuterSpotGrinding,
+        Inspection = e.Inspection,
+        WeldingHead = e.WeldingHead,
+        Lubrication = e.Lubrication,
+        Warehouse = e.Warehouse,
+        CreatedTime = e.CreatedTime,
+        CreatedBy = e.CreatedBy
+    };
+
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
     {
         var map = await _configService.GetConfigMapAsync(category);
@@ -76,28 +201,28 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
                 .AsNoTracking()
                 .Where(e => e.PurchaseSemiPlanId == planId)
                 .OrderBy(e => e.SequenceNumber)
-                .Select(e => e.ToDto())
+                .Select(SemiToDtoExpr)
                 .ToListAsync(),
 
             3 => await _context.InventoryPlanProcessGroups
                 .AsNoTracking()
                 .Where(e => e.InventoryPlanId == planId)
                 .OrderBy(e => e.SequenceNumber)
-                .Select(e => e.ToDto())
+                .Select(InventoryToDtoExpr)
                 .ToListAsync(),
 
             6 => await _context.InProcessReworkPlanProcessGroups
                 .AsNoTracking()
                 .Where(e => e.InProcessReworkPlanId == planId)
                 .OrderBy(e => e.SequenceNumber)
-                .Select(e => e.ToDto())
+                .Select(ReworkToDtoExpr)
                 .ToListAsync(),
 
             4 => await _context.PiercingPlanProcessGroups
                 .AsNoTracking()
                 .Where(e => e.RoundBarPiercingPlanId == planId)
                 .OrderBy(e => e.SequenceNumber)
-                .Select(e => e.ToDto())
+                .Select(PiercingToDtoExpr)
                 .ToListAsync(),
 
             _ => throw new BusinessException($"无效的用料计划类型: {planType}")

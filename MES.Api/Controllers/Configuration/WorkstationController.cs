@@ -80,4 +80,24 @@ public class WorkstationController : ControllerBase
         var result = await _workstationService.DeleteAsync(id);
         return Ok(ApiResponse<bool>.Ok(result));
     }
+
+    // ========== 打印 ==========
+
+    [HttpPost("print-batch-file")]
+    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    public async Task<IActionResult> PrintBatchFile([FromBody] WorkstationPrintBatchRequest request)
+    {
+        if (request.Ids.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("请至少选择一条记录"));
+        var pdfBytes = await _workstationService.PrintBatchAsync(request.Ids, request.Columns);
+        return File(pdfBytes, "application/pdf", "工位信息-选中.pdf");
+    }
+
+    [HttpPost("print-all-file")]
+    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    public async Task<IActionResult> PrintAllFile([FromBody] WorkstationPrintAllRequest request)
+    {
+        var pdfBytes = await _workstationService.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
+        return File(pdfBytes, "application/pdf", "工位信息-全部.pdf");
+    }
 }

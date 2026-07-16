@@ -6,6 +6,7 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
+using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Shared;
@@ -1227,13 +1228,13 @@ public partial class WorkOrderExecution
         return cls;
     }
 
-    private static Color GetPlanStatusColor(int status) => status switch
+    private static Color GetPlanStatusColor(MaterialPlanStatus status) => status switch
     {
-        0 => Color.Default,
-        1 => Color.Warning,
-        2 => Color.Info,
-        3 => Color.Success,
-        4 => Color.Error,
+        MaterialPlanStatus.NotPlanned => Color.Default,
+        MaterialPlanStatus.Partial => Color.Warning,
+        MaterialPlanStatus.TheoreticalSatisfied => Color.Info,
+        MaterialPlanStatus.Satisfied => Color.Success,
+        MaterialPlanStatus.Excess => Color.Error,
         _ => Color.Default
     };
 

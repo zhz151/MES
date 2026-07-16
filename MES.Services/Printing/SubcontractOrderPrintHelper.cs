@@ -2,14 +2,13 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -140,7 +139,7 @@ public static class SubcontractOrderPrintHelper
                 row.RelativeItem(2).Text(t =>
                 {
                     t.Span("物料分类：").Bold().FontSize(9);
-                    t.Span(order.OutMaterialCategory).FontSize(9);
+                    t.Span(EnumHelper.GetDisplayName(order.OutMaterialCategory)).FontSize(9);
                 });
                 row.RelativeItem(2).Text(t =>
                 {
@@ -221,7 +220,7 @@ public static class SubcontractOrderPrintHelper
             foreach (var item in items.OrderBy(i => i.Sequence))
             {
                 table.Cell().Element(CellStyle).Text(item.Sequence.ToString()).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(item.MaterialCategory).FontSize(7);
+                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.MaterialCategory)).FontSize(7);
                 table.Cell().Element(CellStyle).Text(item.PlantGrade ?? "-").FontSize(7);
                 table.Cell().Element(CellStyle).Text(item.ProcessSpecification).FontSize(7);
                 table.Cell().Element(CellStyle).Text(FormatNullableDecimal(item.UnitWeight)).FontSize(7).AlignCenter();

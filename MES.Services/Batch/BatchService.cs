@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -23,7 +23,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -37,7 +37,7 @@ using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -204,70 +204,71 @@ public class BatchService : IBatchService
         var items = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(b => new ProductionBatchListDto
-            {
-                Id = b.Id,
-                BatchNo = b.BatchNo,
-                TagNo = b.TagNo,
-                CreatedTime = b.CreatedTime,
-                UpdatedTime = b.UpdatedTime,
-                WorkOrderNo = b.WorkOrderNo,
-                SalesOrderNo = b.SalesOrderNo,
-                ProductionMainNo = b.ProductionMainNo,
-                ProductionSubNo = b.ProductionSubNo,
-                ProductionType = b.ProductionType,
-                ManufacturingItem = b.ManufacturingItem,
-                Status = b.Status.ToString(),
-                ProductionRatio = b.ProductionRatio,
-                CurrentExecDate = b.CurrentExecDate,
-                CurrentGroupName = b.CurrentGroupName,
-                CurrentSectionName = b.CurrentSectionName,
-                CurrentEquipmentName = b.CurrentEquipmentName,
-                CurrentOutsource = b.CurrentOutsource,
-                CurrentSpec = b.CurrentSpec,
-                NextSectionName = b.NextSectionName,
-                CorrespondingSpec = b.CorrespondingSpec,
-                NextProcess = b.NextProcess,
-                CurrentSectionCompleted = b.CurrentSectionCompleted,
-                RemainingWorkDays = b.RemainingWorkDays,
-                TotalWorkDays = b.TotalWorkDays,
-                CurrentValidQty = b.CurrentValidQty,
-                CurrentValidWeight = b.CurrentValidWeight,
-                CreatedBy = b.CreatedBy,
-                SignDate = b.SignDate,
-                Salesman = b.Salesman,
-                EndCustomer = b.EndCustomer,
-                DeliveryDate = b.DeliveryDate,
-                DelayPenalty = b.DelayPenalty,
-                MaterialName = b.MaterialName,
-                SettlementMethod = b.SettlementMethod,
-                StandardCode = b.StandardCode,
-                DeliveryState = b.DeliveryState,
-                PlantGrade = b.PlantGrade,
-                Specification = b.Specification,
-                LengthStatus = b.LengthStatus,
-                TotalQuantity = b.TotalQuantity,
-                TotalMeters = b.TotalMeters,
-                TotalWeight = b.TotalWeight,
-                TechnicalRequirements = b.TechnicalRequirements,
-                Remark = b.Remark,
-                SourceHeatNo = b.SourceHeatNo,
-                TotalItemCount = b.TotalItemCount,
-                SourceSpecification = b.SourceSpecification,
-                InputQuantity = b.InputQuantity,
-                InputWeight = b.InputWeight,
-                SolutionParams = b.SolutionParams,
-                QualityRemark = b.QualityRemark,
-                SourceMaterialType = b.SourceMaterialType,
-                SourceName = b.SourceName,
-                InboundDate = b.InboundDate,
-                ValidInputQuestion = b.ValidInputQuestion
-            })
             .ToListAsync();
+
+        var mappedItems = items.Select(b => new ProductionBatchListDto
+        {
+            Id = b.Id,
+            BatchNo = b.BatchNo,
+            TagNo = b.TagNo,
+            CreatedTime = b.CreatedTime,
+            UpdatedTime = b.UpdatedTime,
+            WorkOrderNo = b.WorkOrderNo,
+            SalesOrderNo = b.SalesOrderNo,
+            ProductionMainNo = b.ProductionMainNo,
+            ProductionSubNo = b.ProductionSubNo,
+            ProductionType = b.ProductionType,
+            ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(b.ManufacturingItem, out var r221) ? r221 : default,
+            Status = b.Status,
+            ProductionRatio = b.ProductionRatio,
+            CurrentExecDate = b.CurrentExecDate,
+            CurrentGroupName = b.CurrentGroupName,
+            CurrentSectionName = b.CurrentSectionName,
+            CurrentEquipmentName = b.CurrentEquipmentName,
+            CurrentOutsource = b.CurrentOutsource,
+            CurrentSpec = b.CurrentSpec,
+            NextSectionName = b.NextSectionName,
+            CorrespondingSpec = b.CorrespondingSpec,
+            NextProcess = b.NextProcess,
+            CurrentSectionCompleted = b.CurrentSectionCompleted,
+            RemainingWorkDays = b.RemainingWorkDays,
+            TotalWorkDays = b.TotalWorkDays,
+            CurrentValidQty = b.CurrentValidQty,
+            CurrentValidWeight = b.CurrentValidWeight,
+            CreatedBy = b.CreatedBy,
+            SignDate = b.SignDate,
+            Salesman = b.Salesman,
+            EndCustomer = b.EndCustomer,
+            DeliveryDate = b.DeliveryDate,
+            DelayPenalty = b.DelayPenalty,
+            MaterialName = b.MaterialName,
+            SettlementMethod = string.IsNullOrEmpty(b.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(b.SettlementMethod),
+            StandardCode = b.StandardCode,
+            DeliveryState = string.IsNullOrEmpty(b.DeliveryState) ? default : Enum.Parse<DeliveryState>(b.DeliveryState),
+            PlantGrade = b.PlantGrade,
+            Specification = b.Specification,
+            LengthStatus = string.IsNullOrEmpty(b.LengthStatus) ? default : Enum.Parse<LengthStatus>(b.LengthStatus),
+            TotalQuantity = b.TotalQuantity,
+            TotalMeters = b.TotalMeters,
+            TotalWeight = b.TotalWeight,
+            TechnicalRequirements = b.TechnicalRequirements,
+            Remark = b.Remark,
+            SourceHeatNo = b.SourceHeatNo,
+            TotalItemCount = b.TotalItemCount,
+            SourceSpecification = b.SourceSpecification,
+            InputQuantity = b.InputQuantity,
+            InputWeight = b.InputWeight,
+            SolutionParams = b.SolutionParams,
+            QualityRemark = b.QualityRemark,
+            SourceMaterialType = b.SourceMaterialType,
+            SourceName = b.SourceName,
+            InboundDate = b.InboundDate,
+            ValidInputQuestion = b.ValidInputQuestion
+        }).ToList();
 
         return new PagedResult<ProductionBatchListDto>
         {
-            Items = items,
+            Items = mappedItems,
             TotalCount = totalCount,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
@@ -281,68 +282,69 @@ public class BatchService : IBatchService
             .AsQueryable();
 
         var items = await queryable
-            .Select(b => new ProductionBatchListDto
-            {
-                Id = b.Id,
-                BatchNo = b.BatchNo,
-                TagNo = b.TagNo,
-                CreatedTime = b.CreatedTime,
-                UpdatedTime = b.UpdatedTime,
-                WorkOrderNo = b.WorkOrderNo,
-                SalesOrderNo = b.SalesOrderNo,
-                ProductionMainNo = b.ProductionMainNo,
-                ProductionSubNo = b.ProductionSubNo,
-                ProductionType = b.ProductionType,
-                ManufacturingItem = b.ManufacturingItem,
-                Status = b.Status.ToString(),
-                ProductionRatio = b.ProductionRatio,
-                CurrentExecDate = b.CurrentExecDate,
-                CurrentGroupName = b.CurrentGroupName,
-                CurrentSectionName = b.CurrentSectionName,
-                CurrentEquipmentName = b.CurrentEquipmentName,
-                CurrentOutsource = b.CurrentOutsource,
-                CurrentSpec = b.CurrentSpec,
-                NextSectionName = b.NextSectionName,
-                CorrespondingSpec = b.CorrespondingSpec,
-                NextProcess = b.NextProcess,
-                CurrentSectionCompleted = b.CurrentSectionCompleted,
-                RemainingWorkDays = b.RemainingWorkDays,
-                TotalWorkDays = b.TotalWorkDays,
-                CurrentValidQty = b.CurrentValidQty,
-                CurrentValidWeight = b.CurrentValidWeight,
-                CreatedBy = b.CreatedBy,
-                SignDate = b.SignDate,
-                Salesman = b.Salesman,
-                EndCustomer = b.EndCustomer,
-                DeliveryDate = b.DeliveryDate,
-                DelayPenalty = b.DelayPenalty,
-                MaterialName = b.MaterialName,
-                SettlementMethod = b.SettlementMethod,
-                StandardCode = b.StandardCode,
-                DeliveryState = b.DeliveryState,
-                PlantGrade = b.PlantGrade,
-                Specification = b.Specification,
-                LengthStatus = b.LengthStatus,
-                TotalQuantity = b.TotalQuantity,
-                TotalMeters = b.TotalMeters,
-                TotalWeight = b.TotalWeight,
-                TechnicalRequirements = b.TechnicalRequirements,
-                Remark = b.Remark,
-                SourceHeatNo = b.SourceHeatNo,
-                TotalItemCount = b.TotalItemCount,
-                SourceSpecification = b.SourceSpecification,
-                InputQuantity = b.InputQuantity,
-                InputWeight = b.InputWeight,
-                SolutionParams = b.SolutionParams,
-                QualityRemark = b.QualityRemark,
-                SourceMaterialType = b.SourceMaterialType,
-                SourceName = b.SourceName,
-                InboundDate = b.InboundDate,
-                ValidInputQuestion = b.ValidInputQuestion
-            })
             .ToListAsync();
 
-        return items;
+        var mappedItems = items.Select(b => new ProductionBatchListDto
+        {
+            Id = b.Id,
+            BatchNo = b.BatchNo,
+            TagNo = b.TagNo,
+            CreatedTime = b.CreatedTime,
+            UpdatedTime = b.UpdatedTime,
+            WorkOrderNo = b.WorkOrderNo,
+            SalesOrderNo = b.SalesOrderNo,
+            ProductionMainNo = b.ProductionMainNo,
+            ProductionSubNo = b.ProductionSubNo,
+            ProductionType = b.ProductionType,
+            ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(b.ManufacturingItem, out var r299) ? r299 : default,
+            Status = b.Status,
+            ProductionRatio = b.ProductionRatio,
+            CurrentExecDate = b.CurrentExecDate,
+            CurrentGroupName = b.CurrentGroupName,
+            CurrentSectionName = b.CurrentSectionName,
+            CurrentEquipmentName = b.CurrentEquipmentName,
+            CurrentOutsource = b.CurrentOutsource,
+            CurrentSpec = b.CurrentSpec,
+            NextSectionName = b.NextSectionName,
+            CorrespondingSpec = b.CorrespondingSpec,
+            NextProcess = b.NextProcess,
+            CurrentSectionCompleted = b.CurrentSectionCompleted,
+            RemainingWorkDays = b.RemainingWorkDays,
+            TotalWorkDays = b.TotalWorkDays,
+            CurrentValidQty = b.CurrentValidQty,
+            CurrentValidWeight = b.CurrentValidWeight,
+            CreatedBy = b.CreatedBy,
+            SignDate = b.SignDate,
+            Salesman = b.Salesman,
+            EndCustomer = b.EndCustomer,
+            DeliveryDate = b.DeliveryDate,
+            DelayPenalty = b.DelayPenalty,
+            MaterialName = b.MaterialName,
+            SettlementMethod = string.IsNullOrEmpty(b.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(b.SettlementMethod),
+            StandardCode = b.StandardCode,
+            DeliveryState = string.IsNullOrEmpty(b.DeliveryState) ? default : Enum.Parse<DeliveryState>(b.DeliveryState),
+            PlantGrade = b.PlantGrade,
+            Specification = b.Specification,
+            LengthStatus = string.IsNullOrEmpty(b.LengthStatus) ? default : Enum.Parse<LengthStatus>(b.LengthStatus),
+            TotalQuantity = b.TotalQuantity,
+            TotalMeters = b.TotalMeters,
+            TotalWeight = b.TotalWeight,
+            TechnicalRequirements = b.TechnicalRequirements,
+            Remark = b.Remark,
+            SourceHeatNo = b.SourceHeatNo,
+            TotalItemCount = b.TotalItemCount,
+            SourceSpecification = b.SourceSpecification,
+            InputQuantity = b.InputQuantity,
+            InputWeight = b.InputWeight,
+            SolutionParams = b.SolutionParams,
+            QualityRemark = b.QualityRemark,
+            SourceMaterialType = b.SourceMaterialType,
+            SourceName = b.SourceName,
+            InboundDate = b.InboundDate,
+            ValidInputQuestion = b.ValidInputQuestion
+        }).ToList();
+
+        return mappedItems;
     }
 
     public async Task<ProductionBatchDetailDto> GetByIdAsync(int id)
@@ -459,6 +461,20 @@ public class BatchService : IBatchService
         if (!GradeSubstitutes.IsSubstitutable(request.PlantGrade, request.SourcePlantGrade))
             throw new BusinessException("仓库工厂牌号与工单工厂牌号不一致，且不可替代（仅允许高代低）");
 
+        // ========== 枚举字符串值有效性验证 ==========
+        if (!Enum.TryParse<ProductionType>(request.ProductionType, out _))
+            throw new BusinessException($"无效的生产类型: {request.ProductionType}");
+        if (!Enum.TryParse<ManufacturingItem>(request.ManufacturingItem, out _))
+            throw new BusinessException($"无效的制造物品: {request.ManufacturingItem}");
+        if (!Enum.TryParse<DeliveryState>(request.DeliveryState, out _))
+            throw new BusinessException($"无效的交货状态: {request.DeliveryState}");
+        if (!Enum.TryParse<PipeManufacturingType>(request.MaterialName, out _))
+            throw new BusinessException($"无效的物料名称: {request.MaterialName}");
+        if (!Enum.TryParse<LengthStatus>(request.LengthStatus, out _))
+            throw new BusinessException($"无效的长度状态: {request.LengthStatus}");
+        if (!string.IsNullOrEmpty(request.SourceLengthStatus) && !Enum.TryParse<LengthStatus>(request.SourceLengthStatus, out _))
+            throw new BusinessException($"无效的来源长度状态: {request.SourceLengthStatus}");
+
         // ========== 有工单路径额外验证 ==========
         if (request.WorkOrderNo != NotWorkOrder)
         {
@@ -468,6 +484,10 @@ public class BatchService : IBatchService
                 throw new BusinessException("产品标准编码不能为空");
             if (string.IsNullOrWhiteSpace(request.TechnicalRequirements))
                 throw new BusinessException("技术要求不能为空");
+            if (!Enum.TryParse<SettlementMethod>(request.SettlementMethod, out _))
+                throw new BusinessException($"无效的结算方式: {request.SettlementMethod}");
+            if (!Enum.TryParse<RequirementType>(request.TechnicalRequirements, out _))
+                throw new BusinessException($"无效的技术要求: {request.TechnicalRequirements}");
         }
 
         var entity = new ProductionBatch
@@ -600,7 +620,7 @@ public class BatchService : IBatchService
         {
             Id = entity.Id,
             BatchNo = entity.BatchNo,
-            Status = entity.Status.ToString(),
+            Status = entity.Status,
             TagNo = entity.TagNo,
             WorkOrderNo = entity.WorkOrderNo,
             CreatedTime = entity.CreatedTime,
@@ -632,6 +652,24 @@ public class BatchService : IBatchService
         var effectiveSourcePlantGrade = request.SourcePlantGrade ?? entity.SourcePlantGrade;
         if (!GradeSubstitutes.IsSubstitutable(effectivePlantGrade, effectiveSourcePlantGrade))
             throw new BusinessException("仓库工厂牌号与工单工厂牌号不一致，且不可替代（仅允许高代低）");
+
+        // ========== 枚举字符串值有效性验证（仅验证本次更新的字段） ==========
+        if (!Enum.TryParse<ProductionType>(request.ProductionType, out _))
+            throw new BusinessException($"无效的生产类型: {request.ProductionType}");
+        if (!Enum.TryParse<ManufacturingItem>(request.ManufacturingItem, out _))
+            throw new BusinessException($"无效的制造物品: {request.ManufacturingItem}");
+        if (!string.IsNullOrEmpty(request.MaterialName) && !Enum.TryParse<PipeManufacturingType>(request.MaterialName, out _))
+            throw new BusinessException($"无效的物料名称: {request.MaterialName}");
+        if (!string.IsNullOrEmpty(request.SettlementMethod) && !Enum.TryParse<SettlementMethod>(request.SettlementMethod, out _))
+            throw new BusinessException($"无效的结算方式: {request.SettlementMethod}");
+        if (!string.IsNullOrEmpty(request.DeliveryState) && !Enum.TryParse<DeliveryState>(request.DeliveryState, out _))
+            throw new BusinessException($"无效的交货状态: {request.DeliveryState}");
+        if (!string.IsNullOrEmpty(request.LengthStatus) && !Enum.TryParse<LengthStatus>(request.LengthStatus, out _))
+            throw new BusinessException($"无效的长度状态: {request.LengthStatus}");
+        if (!string.IsNullOrEmpty(request.TechnicalRequirements) && !Enum.TryParse<RequirementType>(request.TechnicalRequirements, out _))
+            throw new BusinessException($"无效的技术要求: {request.TechnicalRequirements}");
+        if (!string.IsNullOrEmpty(request.SourceLengthStatus) && !Enum.TryParse<LengthStatus>(request.SourceLengthStatus, out _))
+            throw new BusinessException($"无效的来源长度状态: {request.SourceLengthStatus}");
 
         // 更新可修改字段（所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖）
         entity.TagNo = request.TagNo ?? entity.TagNo;
@@ -804,9 +842,7 @@ public class BatchService : IBatchService
         if (!request.RowVersion.SequenceEqual(entity.RowVersion))
             throw new BusinessException("数据已被其他用户修改，请刷新后重试");
 
-        if (!Enum.TryParse<BatchStatus>(request.Status, out var newStatus))
-            throw new BusinessException($"无效的批次状态: {request.Status}");
-
+        var newStatus = request.Status;
         var oldStatus = entity.Status;
 
         // 状态流转验证
@@ -1294,7 +1330,7 @@ public class BatchService : IBatchService
         return new SaveBatchResponse
         {
             RowVersion = entity.RowVersion,
-            Status = entity.Status.ToString()
+            Status = entity.Status
         };
     }
 
@@ -1715,7 +1751,7 @@ public class BatchService : IBatchService
     private static object GetBatchFieldValue(ProductionBatch b, string key)
     {
         // 使用 switch 表达式处理字段映射 + 枚举转换
-        return key switch
+        return (key switch
         {
             // 批次基本信息
             "BatchNo" => b.BatchNo,
@@ -1790,7 +1826,7 @@ public class BatchService : IBatchService
 
             // 默认
             _ => ""
-        };
+        })!;
     }
 
     /// <summary>
@@ -1999,10 +2035,10 @@ public class BatchService : IBatchService
         {
             Id = entity.Id,
             BatchNo = entity.BatchNo,
-            Status = entity.Status.ToString(),
+            Status = entity.Status,
             TagNo = entity.TagNo,
             ProductionType = entity.ProductionType,
-            ManufacturingItem = entity.ManufacturingItem,
+            ManufacturingItem = !string.IsNullOrEmpty(entity.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(entity.ManufacturingItem, out var r2005) ? r2005 : default,
             ProductionRatio = entity.ProductionRatio,
             IsForceCompleted = entity.IsForceCompleted,
             QualityRemark = entity.QualityRemark,
@@ -2033,16 +2069,16 @@ public class BatchService : IBatchService
             DeliveryDate = entity.DeliveryDate,
             DelayPenalty = entity.DelayPenalty,
             MaterialName = entity.MaterialName,
-            SettlementMethod = entity.SettlementMethod,
+            SettlementMethod = string.IsNullOrEmpty(entity.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(entity.SettlementMethod),
             StandardCode = entity.StandardCode,
-            DeliveryState = entity.DeliveryState,
+            DeliveryState = string.IsNullOrEmpty(entity.DeliveryState) ? default : Enum.Parse<DeliveryState>(entity.DeliveryState),
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
             OuterDiameterNegative = entity.OuterDiameterNegative,
             OuterDiameterPositive = entity.OuterDiameterPositive,
             WallThicknessNegative = entity.WallThicknessNegative,
             WallThicknessPositive = entity.WallThicknessPositive,
-            LengthStatus = entity.LengthStatus,
+            LengthStatus = string.IsNullOrEmpty(entity.LengthStatus) ? default : Enum.Parse<LengthStatus>(entity.LengthStatus),
             MinLength = entity.MinLength,
             MaxLength = entity.MaxLength,
             TotalQuantity = entity.TotalQuantity,

@@ -172,7 +172,7 @@ public class WorkOrderDetailDto
     /// <summary>
     /// 用料计划状态
     /// </summary>
-    public int MaterialPlanStatus { get; set; }
+    public MaterialPlanStatus MaterialPlanStatus { get; set; }
 
     /// <summary>
     /// 用料计划满足率(%)

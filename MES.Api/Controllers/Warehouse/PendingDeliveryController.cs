@@ -112,7 +112,7 @@ public class PendingDeliveryController : ControllerBase
     /// </summary>
     [HttpPost("print-all-file")]
     [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Admin}")]
-    public async Task<IActionResult> PrintAllFile([FromBody] PendingDeliveryPrintRequest request)
+    public IActionResult PrintAllFile([FromBody] PendingDeliveryPrintRequest request)
     {
         var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "待发货订单成品-全部.pdf");

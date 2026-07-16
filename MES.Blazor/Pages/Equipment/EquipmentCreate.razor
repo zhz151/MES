@@ -2,6 +2,7 @@
 @using MES.Blazor.Services
 @using MES.Blazor.Helpers
 @using MES.Core.DTOs.Equipment
+@using MES.Core.Enums
 @using Microsoft.AspNetCore.Authorization
 @inject EquipmentService EquipmentService
 @inject NavigationManager Navigation
@@ -207,8 +208,8 @@
         public string InstallationDate { get; set; } = string.Empty;
         public string? Location { get; set; }
         public string? RelatedSection { get; set; }
-        public string LifecycleStatus { get; set; } = "Active";
-        public string UsageType { get; set; } = "Primary";
+        public LifecycleStatus LifecycleStatus { get; set; } = LifecycleStatus.Active;
+        public UsageType UsageType { get; set; } = UsageType.Primary;
         public bool NeedInspection { get; set; }
         public string? InspectionPerson { get; set; }
         public int? InspectionCycleDays { get; set; } = 7;
@@ -315,7 +316,7 @@
                 Manufacturer = r.Manufacturer,
                 InstallationDate = string.IsNullOrWhiteSpace(r.InstallationDate) ? null : DateTime.Parse(r.InstallationDate),
                 Remark = r.Remark,
-                Location = r.Location,
+                Location = r.Location!,
                 RelatedSection = r.RelatedSection,
                 NeedInspection = r.NeedInspection,
                 InspectionPerson = r.InspectionPerson,
@@ -442,48 +443,48 @@
                 builder.CloseComponent();
                 break;
             case "LifecycleStatus":
-                builder.OpenComponent<MudSelect<string>>(0);
+                builder.OpenComponent<MudSelect<LifecycleStatus>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "Value", r.LifecycleStatus);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.LifecycleStatus = v));
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<LifecycleStatus>(this, v => r.LifecycleStatus = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Active");
+                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
+                    cb.AddAttribute(1, "Value", LifecycleStatus.Active);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "在用")));
                     cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Standby");
+                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
+                    cb.AddAttribute(1, "Value", LifecycleStatus.Standby);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "备用")));
                     cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Scrapped");
+                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
+                    cb.AddAttribute(1, "Value", LifecycleStatus.Scrapped);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "报废")));
                     cb.CloseComponent();
                 }));
                 builder.CloseComponent();
                 break;
             case "UsageType":
-                builder.OpenComponent<MudSelect<string>>(0);
+                builder.OpenComponent<MudSelect<UsageType>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "Value", r.UsageType);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.UsageType = v));
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<UsageType>(this, v => r.UsageType = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Primary");
+                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
+                    cb.AddAttribute(1, "Value", UsageType.Primary);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "主生产")));
                     cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Secondary");
+                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
+                    cb.AddAttribute(1, "Value", UsageType.Secondary);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "辅生产")));
                     cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<string>>(0);
-                    cb.AddAttribute(1, "Value", "Other");
+                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
+                    cb.AddAttribute(1, "Value", UsageType.Other);
                     cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "其它")));
                     cb.CloseComponent();
                 }));

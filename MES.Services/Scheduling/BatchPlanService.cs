@@ -8,7 +8,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -22,7 +22,7 @@ using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.ProductionStandard;
+using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
@@ -33,7 +33,7 @@ using MES.Data.Entities;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.ProductionStandard;
+using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
@@ -208,9 +208,9 @@ public class BatchPlanService : IBatchPlanService
             WorkOrderNo = x.b.WorkOrderNo,
             Salesman = x.b.Salesman,
             DeliveryDate = x.b.DeliveryDate,
-            DeliveryState = x.b.DeliveryState,
+            DeliveryState = string.IsNullOrEmpty(x.b.DeliveryState) ? null : Enum.Parse<DeliveryState>(x.b.DeliveryState),
             Specification = x.b.Specification,
-            LengthStatus = x.b.LengthStatus,
+            LengthStatus = string.IsNullOrEmpty(x.b.LengthStatus) ? null : Enum.Parse<LengthStatus>(x.b.LengthStatus),
             MinLength = x.b.MinLength,
             MaxLength = x.b.MaxLength,
 
@@ -572,9 +572,9 @@ public class BatchPlanService : IBatchPlanService
             WorkOrderNo = x.b.WorkOrderNo,
             Salesman = x.b.Salesman,
             DeliveryDate = x.b.DeliveryDate,
-            DeliveryState = x.b.DeliveryState,
+            DeliveryState = string.IsNullOrEmpty(x.b.DeliveryState) ? null : Enum.Parse<DeliveryState>(x.b.DeliveryState),
             Specification = x.b.Specification,
-            LengthStatus = x.b.LengthStatus,
+            LengthStatus = string.IsNullOrEmpty(x.b.LengthStatus) ? null : Enum.Parse<LengthStatus>(x.b.LengthStatus),
             MinLength = x.b.MinLength,
             MaxLength = x.b.MaxLength,
             CurrentExecDate = x.b.CurrentExecDate,

@@ -390,7 +390,7 @@
             byte[] fileData;
             using (var ms = new MemoryStream())
             {
-                await selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+                await selectedFile!.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
                 fileData = ms.ToArray();
             }
 

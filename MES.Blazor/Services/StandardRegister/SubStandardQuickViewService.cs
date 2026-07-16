@@ -1,7 +1,7 @@
 using System.Text.Json;
 using MES.Core.Models;
 using MES.Shared.Constants;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 
 namespace MES.Blazor.Services;
 

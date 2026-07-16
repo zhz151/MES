@@ -122,12 +122,12 @@ public class WorkOrderRelationDto
     /// <summary>
     /// 交货状态
     /// </summary>
-    public string DeliveryState { get; set; } = null!;
+    public DeliveryState DeliveryState { get; set; }
 
     /// <summary>
     /// 长度状态
     /// </summary>
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
 
     /// <summary>
     /// 交货日期
@@ -173,7 +173,7 @@ public class OrderItemBriefDto
     /// <summary>
     /// 长度状态
     /// </summary>
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
 
     /// <summary>
     /// 最小长度(mm)

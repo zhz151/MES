@@ -7,6 +7,7 @@ using MES.Services.Equipment;
 using MES.Tests.Tests;
 using MES.Data.Entities.Equipment;
 using MES.Core.DTOs.Equipment;
+using MES.Core.Enums;
 
 namespace MES.Tests.Services;
 
@@ -181,7 +182,7 @@ public class RepairOrderServiceTests : TestBase
         result.RepairOrderNo.Should().StartWith("WX-");
         result.FaultDescription.Should().Be("设备异响");
         result.ReportPerson.Should().Be("王五");
-        result.RepairStatus.Should().Be("Pending");
+        result.RepairStatus.Should().Be(RepairOrderStatus.Pending);
     }
 
     // ========== UpdateAsync ==========
@@ -203,7 +204,7 @@ public class RepairOrderServiceTests : TestBase
         });
 
         result.RepairContent.Should().Be("更换完毕，测试正常");
-        result.RepairStatus.Should().Be("Completed");
+        result.RepairStatus.Should().Be(RepairOrderStatus.Completed);
     }
 
     // ========== DeleteAsync ==========

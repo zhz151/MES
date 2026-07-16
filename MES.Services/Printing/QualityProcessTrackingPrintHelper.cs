@@ -1,12 +1,11 @@
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
-using MES.Core.DTOs.ProductionStandard;
+using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -30,18 +29,18 @@ public static class QualityProcessTrackingPrintHelper
             {
                 // G1: 批次信息
                 ["BatchNo"] = dto.BatchNo ?? "",
-                ["ManufacturingItem"] = !string.IsNullOrEmpty(dto.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(dto.ManufacturingItem, out var mi) ? EnumHelper.GetDisplayName(mi) : (dto.ManufacturingItem ?? ""),
+                ["ManufacturingItem"] = dto.ManufacturingItem.HasValue ? EnumHelper.GetDisplayName(dto.ManufacturingItem.Value) : "",
                 ["PlantGrade"] = dto.PlantGrade ?? "",
                 ["Specification"] = dto.Specification ?? "",
-                ["LengthStatus"] = !string.IsNullOrEmpty(dto.LengthStatus) && Enum.TryParse<LengthStatus>(dto.LengthStatus, out var ls) ? EnumHelper.GetDisplayName(ls) : (dto.LengthStatus ?? ""),
+                ["LengthStatus"] = dto.LengthStatus.HasValue ? EnumHelper.GetDisplayName(dto.LengthStatus.Value) : "",
                 ["TagNo"] = dto.TagNo ?? "",
                 ["WorkOrderNo"] = dto.WorkOrderNo ?? "",
                 ["SalesOrderNo"] = dto.SalesOrderNo ?? "",
                 ["FurnaceNo"] = dto.FurnaceNo ?? "",
                 ["SourceUnit"] = dto.SourceUnit ?? "",
-                ["ProductionType"] = !string.IsNullOrEmpty(dto.ProductionType) && Enum.TryParse<ProductionType>(dto.ProductionType, out var pt) ? EnumHelper.GetDisplayName(pt) : (dto.ProductionType ?? ""),
+                ["ProductionType"] = dto.ProductionType.HasValue ? EnumHelper.GetDisplayName(dto.ProductionType.Value) : "",
                 ["Salesman"] = dto.Salesman ?? "",
-                ["DeliveryState"] = !string.IsNullOrEmpty(dto.DeliveryState) && Enum.TryParse<DeliveryState>(dto.DeliveryState, out var ds) ? EnumHelper.GetDisplayName(ds) : (dto.DeliveryState ?? ""),
+                ["DeliveryState"] = dto.DeliveryState.HasValue ? EnumHelper.GetDisplayName(dto.DeliveryState.Value) : "",
                 ["ProductionWeight"] = dto.ProductionWeight?.ToString("G29") ?? "",
                 ["ProductionCutQuantity"] = dto.ProductionCutQuantity.ToString(),
 

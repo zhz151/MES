@@ -1,4 +1,4 @@
-namespace MES.Data.Entities.ProductionStandard;
+namespace MES.Data.Entities.StandardRegister;
 
 /// <summary>
 /// 牌号验证 — 工厂牌号的各化学元素成分验证规则（含上下限和公式）

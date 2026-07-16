@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Batch;
 
 /// <summary>
@@ -8,10 +10,10 @@ public class ProductionBatchDetailDto
     // ========== 批次自身 ==========
     public int Id { get; set; }
     public string BatchNo { get; set; } = null!;
-    public string Status { get; set; } = null!;
+    public BatchStatus Status { get; set; }
     public string? TagNo { get; set; }
     public string? ProductionType { get; set; }
-    public string ManufacturingItem { get; set; } = null!;
+    public ManufacturingItem ManufacturingItem { get; set; }
     public int ProductionRatio { get; set; }
     public bool IsForceCompleted { get; set; }
     public string? QualityRemark { get; set; }
@@ -42,16 +44,16 @@ public class ProductionBatchDetailDto
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
     public string MaterialName { get; set; } = null!;
-    public string SettlementMethod { get; set; } = null!;
+    public SettlementMethod SettlementMethod { get; set; }
     public string StandardCode { get; set; } = null!;
-    public string DeliveryState { get; set; } = null!;
+    public DeliveryState DeliveryState { get; set; }
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public decimal OuterDiameterNegative { get; set; }
     public decimal OuterDiameterPositive { get; set; }
     public decimal WallThicknessNegative { get; set; }
     public decimal WallThicknessPositive { get; set; }
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalQuantity { get; set; }

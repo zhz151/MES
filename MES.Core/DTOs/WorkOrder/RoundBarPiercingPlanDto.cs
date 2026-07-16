@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.WorkOrder;
 
 /// <summary>
@@ -63,7 +65,7 @@ public class RoundBarPiercingPlanDto
     /// <summary>
     /// 原料类型
     /// </summary>
-    public string RawMaterialType { get; set; } = null!;
+    public RawMaterialType RawMaterialType { get; set; }
 
     /// <summary>
     /// 圆棒规格

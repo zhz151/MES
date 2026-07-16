@@ -1,3 +1,4 @@
+using MES.Core.Enums;
 namespace MES.Core.DTOs.Quality;
 
 /// <summary>
@@ -9,7 +10,7 @@ public class QualityProcessTrackingDto
     public int Id { get; set; }
     public int ProductionBatchId { get; set; }
     public string? BatchNo { get; set; }
-    public string? ManufacturingItem { get; set; }
+    public ManufacturingItem? ManufacturingItem { get; set; }
     public string? TagNo { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
@@ -17,14 +18,14 @@ public class QualityProcessTrackingDto
     public string? FurnaceNo { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
-    public string? ProductionType { get; set; }
-    public string? LengthStatus { get; set; }
+    public ProductionType? ProductionType { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
     public decimal? ProductionWeight { get; set; }
     public DateTime ReceiveDate { get; set; }
     public string? Shift { get; set; }
     public string? Checker { get; set; }
     public string? Salesman { get; set; }
-    public string? DeliveryState { get; set; }
+    public DeliveryState? DeliveryState { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
     public DateTimeOffset UpdatedTime { get; set; }
 

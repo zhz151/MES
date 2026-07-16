@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Blazor.Pages.Batches;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Batch;
+using MES.Core.Enums;
 
 namespace MES.Tests.Components;
 
@@ -31,10 +32,10 @@ public class SectionOutsourcesTests : TestBase
     }
 
     [Theory]
-    [InlineData("PendingRecovery", "待回收")]
-    [InlineData("Recovered", "已回收")]
-    [InlineData("InProgress", "在轧")]
-    public void StatusColumn_DisplaysCorrectText(string status, string expectedText)
+    [InlineData(SectionOutsourceStatus.PendingRecovery, "待回收")]
+    [InlineData(SectionOutsourceStatus.Recovered, "已回收")]
+    [InlineData(SectionOutsourceStatus.InProgress, "在轧")]
+    public void StatusColumn_DisplaysCorrectText(SectionOutsourceStatus status, string expectedText)
     {
         ConfigureListResponse(status);
         var cut = Ctx.RenderComponent<SectionOutsources>();
@@ -42,7 +43,7 @@ public class SectionOutsourcesTests : TestBase
         cut.Markup.Should().Contain(expectedText);
     }
 
-    private void ConfigureListResponse(string status)
+    private void ConfigureListResponse(SectionOutsourceStatus status)
     {
         ConfigureEmptyResponse("/api/section-outsource/list");
         ConfigureEmptyResponse("/api/section-outsource/recoveries/filter-contexts");

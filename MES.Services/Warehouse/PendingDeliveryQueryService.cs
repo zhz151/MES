@@ -308,7 +308,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
             {
                 var items = await _context.Set<MES.Data.Entities.Order.OrderItem>()
                     .AsNoTracking()
-                    .Where(oi => orderNos.Contains(oi.OrderNumber) && allSequences.Contains(oi.Sequence))
+                    .Where(oi => orderNos.Contains(oi.OrderNumber ?? "") && allSequences.Contains(oi.Sequence))
                     .Select(oi => new OrderItemInfo
                     {
                         OrderNumber = oi.OrderNumber ?? "",
