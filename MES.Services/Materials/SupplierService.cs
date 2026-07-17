@@ -306,6 +306,7 @@ public class SupplierService : ISupplierService
                 .Select(v => EnumHelper.GetDisplayName<MaterialType>(v))),
         ["ContactPerson"] = (object?)dto.ContactPerson ?? "",
         ["ContactPhone"] = (object?)dto.ContactPhone ?? "",
+        ["Address"] = (object?)dto.Address ?? "",
         ["IsActive"] = dto.IsActive ? "启用" : "停用",
         ["Remark"] = (object?)dto.Remark ?? "",
     };

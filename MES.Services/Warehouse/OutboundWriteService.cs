@@ -134,6 +134,21 @@ public class OutboundWriteService : IOutboundWriteService
                 if (!batches.TryGetValue(item.InventoryBatchId, out var batch))
                     throw new BusinessException($"批次ID={item.InventoryBatchId}不存在");
 
+                // 委外穿孔号验证：委外出库+圆棒时必须填写有效的委外单号
+                var resolvedOutboundType = item.OutboundType ?? request.OutboundType;
+                var resolvedSourceOrderNo = item.SourceOrderNo ?? request.SourceOrderNo;
+                if (resolvedOutboundType == OutboundType.SubcontractOut
+                    && string.Equals(batch.MaterialType, nameof(MaterialType.RoundBar), StringComparison.OrdinalIgnoreCase)
+                    && string.IsNullOrWhiteSpace(resolvedSourceOrderNo))
+                    throw new BusinessException($"批次{batch.BatchNo}：出库类型为委外出库且物料为圆棒时，委外穿孔号必填");
+
+                if (!string.IsNullOrWhiteSpace(resolvedSourceOrderNo))
+                {
+                    var orderExists = await _context.SubcontractOrders.AnyAsync(o => o.OrderNo == resolvedSourceOrderNo);
+                    if (!orderExists)
+                        throw new BusinessException($"委外穿孔号「{resolvedSourceOrderNo}」不存在");
+                }
+
                 if (batch.RemainingQuantity < item.OutboundQuantity)
                     throw new BusinessException($"批次{batch.BatchNo}剩余支数不足（剩余{batch.RemainingQuantity}，出库{item.OutboundQuantity}）");
 
@@ -210,7 +225,6 @@ public class OutboundWriteService : IOutboundWriteService
             var oldOutboundMeters = entity.OutboundMeters;
 
             if (request.OutboundType != null) entity.OutboundType = EnumHelper.TryParse<OutboundType>(request.OutboundType) ?? default;
-            entity.SourceOrderNo = request.SourceOrderNo ?? entity.SourceOrderNo;
             entity.TargetCompany = request.TargetCompany ?? entity.TargetCompany;
             if (request.OutboundQuantity.HasValue) entity.OutboundQuantity = request.OutboundQuantity.Value;
             if (request.OutboundWeight.HasValue) entity.OutboundWeight = request.OutboundWeight.Value;

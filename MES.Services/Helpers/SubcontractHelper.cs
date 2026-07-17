@@ -11,13 +11,13 @@ public static class SubcontractHelper
 {
     /// <summary>
     /// 根据库存批次同步委外回收项的数量/重量，并自动重算状态。
+    /// batches 需已按 SourceOrderNo 过滤（由调用方 SyncSourceOrdersAsync 保证）。
+    /// 匹配键为 SourceOrderSequence → SubcontractReturnItem.Sequence。
     /// </summary>
     public static void SyncReturnItemFromBatches(SubcontractReturnItem item, List<InventoryBatch> batches)
     {
-        if (string.IsNullOrEmpty(item.SourceWorkOrderNo)) return;
-
         var itemBatches = batches
-            .Where(b => b.WorkOrderNo == item.SourceWorkOrderNo)
+            .Where(b => b.SourceOrderSequence.HasValue && b.SourceOrderSequence.Value == item.Sequence)
             .ToList();
 
         item.ReturnedQuantity = itemBatches.Sum(b => b.InitialQuantity);

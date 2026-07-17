@@ -76,6 +76,7 @@ public static class QualityProcessTrackingPrintHelper
 
                 // G6: 执行状态
                 ["QualityStatus"] = dto.IsForceCompleted ? "异常完成" : (dto.QualityStatus ?? ""),
+                ["UpdatedTime"] = dto.UpdatedTime.ToString("yyyy-MM-dd HH:mm"),
             };
             return dict;
         }).ToList();

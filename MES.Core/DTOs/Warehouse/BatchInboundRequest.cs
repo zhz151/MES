@@ -49,6 +49,7 @@ public class BatchInboundRequest
     public string? SalesOrderNo { get; set; }
     public string? OrderItemIds { get; set; }
     public string? SourceOrderNo { get; set; }
+    public int? SourceOrderSequence { get; set; }
 }
 
 /// <summary>
@@ -94,6 +95,7 @@ public class InboundRow
     public bool? IsLinkedToWorkOrder { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? SourceOrderNo { get; set; }
+    public int? SourceOrderSequence { get; set; }
 }
 
 /// <summary>

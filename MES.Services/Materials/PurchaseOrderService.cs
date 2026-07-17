@@ -1204,7 +1204,25 @@ public class PurchaseOrderService : IPurchaseOrderService
         ["RequiredDate"] = dto.RequiredDate,
         ["SupplierName"] = dto.SupplierName,
         ["Status"] = dto.Status,
-        ["ArrivalSummary"] = $"{dto.ReceivedQuantity}支/{dto.ReceivedWeight:G29}kg",
+        ["Received"] = $"{dto.ReceivedQuantity}支/{dto.ReceivedWeight:G29}kg",
+        // 来源销售订单字段
+        ["WoSalesOrderNo"] = (object?)dto.WoSalesOrderNo ?? "",
+        ["WoProductionMainNo"] = (object?)dto.WoProductionMainNo ?? "",
+        ["WoProductionSubNo"] = (object?)dto.WoProductionSubNo ?? "",
+        ["WoSignDate"] = (object?)dto.WoSignDate ?? "",
+        ["WoSalesman"] = (object?)dto.WoSalesman ?? "",
+        ["WoEndCustomer"] = (object?)dto.WoEndCustomer ?? "",
+        ["WoDeliveryDate"] = (object?)dto.WoDeliveryDate ?? "",
+        ["WoDelayPenalty"] = dto.WoDelayPenalty,
+        ["WoSettlementMethod"] = (object?)dto.WoSettlementMethod ?? "",
+        ["WoPlantGrade"] = (object?)dto.WoPlantGrade ?? "",
+        ["WoSpecification"] = (object?)dto.WoSpecification ?? "",
+        ["WoLengthStatus"] = (object?)dto.WoLengthStatus ?? "",
+        ["WoMaxLength"] = (object?)dto.WoMaxLength ?? "",
+        ["WoTotalQuantity"] = (object?)dto.WoTotalQuantity ?? "",
+        ["WoTotalWeight"] = (object?)dto.WoTotalWeight ?? "",
+        ["WoDeliveryState"] = (object?)dto.WoDeliveryState ?? "",
+        ["WoTotalItemCount"] = (object?)dto.WoTotalItemCount ?? "",
     };
 
     /// <summary>

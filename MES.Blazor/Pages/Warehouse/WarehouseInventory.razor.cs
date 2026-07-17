@@ -81,7 +81,7 @@ public partial class WarehouseInventory
         new() { Key = "BatchNo",             Label = "仓库批次", SortKey = "BatchNo", FilterType = "string", Width = "120" },
         new() { Key = "InboundDate",         Label = "入库日期", SortKey = "InboundDate", FilterType = "date", Width = "120" },
         new() { Key = "InboundSource",       Label = "来源",     SortKey = "InboundSource", FilterType = "string", Width = "120" },
-        new() { Key = "SourceOrderNo",       Label = "物料单号", SortKey = "SourceOrderNo", FilterType = "string", Width = "120" },
+        new() { Key = "SourceOrderNo",       Label = "来源单号", SortKey = "SourceOrderNo", FilterType = "string", Width = "120" },
         new() { Key = "MaterialType",        Label = "物料",     SortKey = "MaterialType", FilterType = "string", Width = "120" },
         new() { Key = "SourceName",          Label = "来料单位", SortKey = "SourceName", FilterType = "string", Width = "120" },
         new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "SurfaceCondition", FilterType = "string", Width = "120" },
@@ -136,6 +136,8 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "OriginalSupplier");
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
+                SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "OrderItemIds");
                 break;
             case "FG":
                 SetNotApplicable(cols, "DefectReason");

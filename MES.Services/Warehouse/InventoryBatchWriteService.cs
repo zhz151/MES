@@ -63,7 +63,8 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         WorkOrderNo = b.WorkOrderNo,
         SalesOrderNo = b.SalesOrderNo,
         OrderItemIds = b.OrderItemIds,
-        SourceOrderNo = b.SourceOrderNo
+        SourceOrderNo = b.SourceOrderNo,
+        SourceOrderSequence = b.SourceOrderSequence
     };
 
     public InventoryBatchWriteService(
@@ -193,7 +194,8 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             WorkOrderNo = request.WorkOrderNo,
             SalesOrderNo = request.SalesOrderNo,
             OrderItemIds = request.OrderItemIds,
-            SourceOrderNo = request.SourceOrderNo
+            SourceOrderNo = request.SourceOrderNo,
+            SourceOrderSequence = request.SourceOrderSequence
         };
 
         if (!string.IsNullOrEmpty(entity.WorkOrderNo))
@@ -284,11 +286,12 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                         OriginalSupplier = row.OriginalSupplier ?? request.OriginalSupplier,
                         TagNo = row.TagNo ?? request.TagNo,
                         DefectRemark = row.DefectRemark ?? request.DefectRemark,
-                        IsLinkedToWorkOrder = row.IsLinkedToWorkOrder ?? request.IsLinkedToWorkOrder ?? false,
-                        WorkOrderNo = row.WorkOrderNo ?? request.WorkOrderNo,
-                        SalesOrderNo = row.SalesOrderNo ?? request.SalesOrderNo,
-                        OrderItemIds = row.OrderItemIds ?? request.OrderItemIds,
-                        SourceOrderNo = row.SourceOrderNo ?? request.SourceOrderNo
+                        IsLinkedToWorkOrder = row.IsLinkedToWorkOrder ?? false,
+                        WorkOrderNo = row.WorkOrderNo,
+                        SalesOrderNo = row.SalesOrderNo,
+                        OrderItemIds = row.OrderItemIds,
+                        SourceOrderNo = row.SourceOrderNo ?? request.SourceOrderNo,
+                        SourceOrderSequence = row.SourceOrderSequence ?? request.SourceOrderSequence
                     };
 
                     AutoFillWorkOrderInfo(entity, workOrders);
@@ -332,52 +335,24 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         if (entity == null)
             throw new BusinessException("入库批次不存在");
 
-        var oldSourceOrderNo = entity.SourceOrderNo;
         var oldQuantity = entity.InitialQuantity;
         var oldWeight = entity.InitialWeight;
         var oldMeters = entity.Meters;
         var oldRemainingMeters = entity.RemainingMeters;
 
+        // 仅允许变更 Group 3（手动输入）字段，Group 1（来源信息）和 Group 2（自动填充）只读
         entity.BatchNo = request.BatchNo ?? entity.BatchNo;
-        entity.MaterialType = request.MaterialType?.ToString() ?? entity.MaterialType;
-        entity.PlantGrade = request.PlantGrade ?? entity.PlantGrade;
-        entity.Specification = request.Specification ?? entity.Specification;
-        entity.InboundSource = request.InboundSource?.ToString() ?? entity.InboundSource;
-        entity.SourceName = request.SourceName ?? entity.SourceName;
         if (request.InboundDate.HasValue) entity.InboundDate = request.InboundDate.Value;
         entity.HeatNo = request.HeatNo ?? entity.HeatNo;
-        entity.ProductionBatchNo = request.ProductionBatchNo ?? entity.ProductionBatchNo;
         entity.LengthStatus = request.LengthStatus ?? entity.LengthStatus;
         entity.MinLength = request.MinLength ?? entity.MinLength;
         entity.MaxLength = request.MaxLength ?? entity.MaxLength;
         entity.UnitWeight = request.UnitWeight ?? entity.UnitWeight;
         entity.Meters = request.Meters ?? entity.Meters;
-        entity.ActualSpecification = request.ActualSpecification ?? entity.ActualSpecification;
         entity.SurfaceCondition = request.SurfaceCondition ?? entity.SurfaceCondition;
         entity.LocationArea = request.LocationArea ?? entity.LocationArea;
         entity.LocationRack = request.LocationRack ?? entity.LocationRack;
         entity.Remark = request.Remark ?? entity.Remark;
-        entity.DefectReason = request.DefectReason ?? entity.DefectReason;
-        entity.LiabilityType = request.LiabilityType ?? entity.LiabilityType;
-        entity.OriginalSupplier = request.OriginalSupplier ?? entity.OriginalSupplier;
-        entity.TagNo = request.TagNo ?? entity.TagNo;
-        entity.DefectRemark = request.DefectRemark ?? entity.DefectRemark;
-        if (request.IsLinkedToWorkOrder.HasValue) entity.IsLinkedToWorkOrder = request.IsLinkedToWorkOrder.Value;
-        entity.WorkOrderNo = request.WorkOrderNo ?? entity.WorkOrderNo;
-        if (request.WorkOrderNo != null)
-        {
-            var woEntity = await _context.WorkOrders
-                .AsNoTracking()
-                .FirstOrDefaultAsync(w => w.WorkOrderNo == request.WorkOrderNo);
-            if (woEntity != null)
-            {
-                entity.SalesOrderNo = woEntity.SalesOrderNo;
-                entity.OrderItemIds = woEntity.OrderItemIds;
-            }
-        }
-        entity.SalesOrderNo = request.SalesOrderNo ?? entity.SalesOrderNo;
-        entity.OrderItemIds = request.OrderItemIds ?? entity.OrderItemIds;
-        entity.SourceOrderNo = request.SourceOrderNo ?? entity.SourceOrderNo;
 
         if (request.InitialQuantity.HasValue)
         {
@@ -411,6 +386,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
         await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
         await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchNo);
+        await TrySyncSourceOrderAsync(entity.SourceOrderNo);
 
         var dto = BatchToDto(entity);
         return dto;
@@ -437,6 +413,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
         await TryRefreshExecutionSummaryAsync(workOrderNo);
         await TryRefreshQualityProcessTrackingAsync(productionBatchNo);
+        await TrySyncSourceOrderAsync(sourceOrderNo);
     }
 
     private async Task<string> GenerateBatchNoAsync()

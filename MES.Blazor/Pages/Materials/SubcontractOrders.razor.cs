@@ -61,7 +61,7 @@ public partial class SubcontractOrders : IAsyncDisposable
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "OutQuantity", "OutWeight", "Returned",
+        "OutQuantity", "OutWeight", "ActualOutboundWeight", "Returned",
     };
 
     private string sortColumn = "OrderDate";
@@ -100,6 +100,7 @@ public partial class SubcontractOrders : IAsyncDisposable
         new() { Key = "SupplierName",        Label = "供应商",       SortKey = "SupplierName",        FilterType = "string",   Width = "150" },
         new() { Key = "Status",              Label = "状态",         SortKey = "Status",              FilterType = "enum",     Width = "100",
             EnumOptions = new() { new("Sent", "已发出"), new("PartialReturned", "部分收回"), new("Completed", "已完成") } },
+        new() { Key = "ActualOutboundWeight",Label = "实发量",                                                                 Width = "90"  },
         new() { Key = "Returned",            Label = "已回收",                                                                 Width = "130" },
     };
 
@@ -150,6 +151,15 @@ public partial class SubcontractOrders : IAsyncDisposable
             {
                 var sum = _pageItems.Sum(item => item.InWeight ?? 0m);
                 _pageSums[col.Key] = ((int)sum).ToString();
+                continue;
+            }
+
+            // 特殊处理: "ActualOutboundWeight" 列汇总支数+重量
+            if (col.Key == "ActualOutboundWeight")
+            {
+                var qtySum = _pageItems.Sum(item => item.ActualOutboundQuantity ?? 0);
+                var wgtSum = _pageItems.Sum(item => item.ActualOutboundWeight ?? 0m);
+                _pageSums[col.Key] = $"{qtySum}支/{((int)wgtSum).ToString()}kg";
                 continue;
             }
 
@@ -452,6 +462,11 @@ public partial class SubcontractOrders : IAsyncDisposable
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(item.Status))));
                 builder.CloseComponent();
                 break;
+            case "ActualOutboundWeight":
+                builder.AddContent(0, item.ActualOutboundQuantity.HasValue
+                    ? $"{item.ActualOutboundQuantity.Value}支/{((int)(item.ActualOutboundWeight ?? 0)).ToString()}kg"
+                    : "-");
+                break;
             case "Returned":
                 builder.AddContent(0, $"{item.InQuantity?.ToString() ?? "0"}支/{((int)(item.InWeight ?? 0)).ToString()}kg");
                 break;
@@ -684,6 +699,7 @@ public partial class SubcontractOrders : IAsyncDisposable
                     await InvokeAsync(async () =>
                     {
                         await LoadProcurementStatus();
+                        if (table != null) await table.ReloadServerData();
                         StateHasChanged();
                     });
                 }

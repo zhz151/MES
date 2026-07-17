@@ -36,7 +36,7 @@ public class OutboundRecord : IAuditableEntity
     public OutboundType OutboundType { get; set; }
 
     /// <summary>
-    /// 物料单号（委外关联）
+    /// 委外穿孔号（委外出库+圆棒时关联委外单号）
     /// </summary>
     public string? SourceOrderNo { get; set; }
 

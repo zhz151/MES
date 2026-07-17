@@ -32,15 +32,18 @@
             width: 100%;
             min-width: 0;
         }
-        /* 表头不换行，但不设固定宽度 */
+        /* 表头不换行 */
         .inbound-edit-table th.mud-table-cell {
             white-space: nowrap;
         }
-        /* 滚动容器 */
-        .inbound-table-scroll {
+        /* 表格容器（仅约束高度，滚动由 MudTable FixedHeader 内部处理） */
+        #inbound-table-wrapper {
             max-height: calc(100vh - 310px);
-            overflow-y: auto;
-            overflow-x: auto;
+            overflow: hidden;
+        }
+        /* 分组标题栏本身不额外滚动 */
+        #inbound-table-wrapper .col-group-header-scroll {
+            overflow: visible !important;
         }
     </style>
     <MudCard>
@@ -95,13 +98,31 @@
                         重置
                     </MudButton>
                 </div>
-                <div class="inbound-table-scroll">
+                <div id="inbound-table-wrapper">
+                @* 分组标题栏 *@
+                <div class="col-group-header-scroll">
+                    <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                        @foreach (var gh in _groupHeaders)
+                        {
+                            <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                                <span class="col-group-badge">@gh.GroupName</span>
+                            </div>
+                        }
+                        <div class="col-group-header-item" style="width:90px;flex:none;"></div>
+                    </div>
+                </div>
                 <MudTable Items="@_rows" Dense="true" Hover="true" Elevation="0" Striped="true"
                           Class="inbound-edit-table auto-table" SortMode="SortMode.None" FixedHeader="true">
                     <HeaderContent>
+                        @{
+                            int? _prevGk = null;
+                        }
                         @foreach (var col in _visibleColumns)
                         {
-                            <MudTh Style="@($"width:{GetColWidth(col.Key)}px")">
+                            var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                            _prevGk = col.GroupKey;
+                            var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                            <MudTh Class="@_headerClass" Style="@($"width:{GetColWidth(col.Key)}px")">
                                 @col.Label
                                 @if (col.IsRequired)
                                 {
@@ -112,9 +133,15 @@
                         <MudTh Style="width:90px;">操作</MudTh>
                     </HeaderContent>
                     <RowTemplate Context="r">
+                        @{
+                            int? _prevGk2 = null;
+                        }
                         @foreach (var col in _visibleColumns)
                         {
-                            <MudTd Class="@GetCellClass(col.Key)">
+                            var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                            _prevGk2 = col.GroupKey;
+                            var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                            <MudTd Class="@($"{_cellClass} {GetCellClass(col.Key)}")">
                                 @RenderInlineEditor(r, col)
                             </MudTd>
                         }
@@ -138,9 +165,15 @@
                         </MudTd>
                     </RowTemplate>
                     <FooterContent>
+                        @{
+                            int? _prevGk3 = null;
+                        }
                         @foreach (var col in _visibleColumns)
                         {
-                            <MudTd Class="@GetCellClass(col.Key)">
+                            var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                            _prevGk3 = col.GroupKey;
+                            var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3);
+                            <MudTd Class="@($"{_footerClass} {GetCellClass(col.Key)}")">
                                 @RenderFooter(col)
                             </MudTd>
                         }
@@ -241,44 +274,58 @@
     {
         return new List<ColumnDef>
         {
-            new() { Key = "InboundDateStr",      Label = "入库日期",       IsCommon = true, Visible = false, IsRequired = true },
-            new() { Key = "InboundSource",       Label = "入库来源",       IsCommon = true, Visible = false },
-            new() { Key = "SourceOrderNo",       Label = "来源单号",       IsCommon = true, Visible = false },
-            new() { Key = "SourceOrderSequence", Label = "来源序号",       IsCommon = true, Visible = false },
-            new() { Key = "MaterialType",        Label = "物料名称",       IsCommon = true, Visible = true,  IsRequired = true },
-            new() { Key = "SourceName",          Label = "来料单位或部门", IsCommon = true, Visible = false },
-            new() { Key = "SurfaceCondition",    Label = "物料状态",       IsCommon = true, Visible = true  },
-            new() { Key = "LocationArea",        Label = "放置区域",       IsCommon = true, Visible = false },
-            new() { Key = "LocationRack",        Label = "放置框架",       IsCommon = true, Visible = false },
-            new() { Key = "HeatNo",              Label = "炉号",           IsCommon = true, Visible = false },
-            new() { Key = "PlantGrade",          Label = "工厂牌号",       IsCommon = true, Visible = false, IsRequired = true },
-            new() { Key = "Specification",       Label = "名义规格",       IsCommon = true, Visible = true,  IsRequired = true },
-            new() { Key = "LengthStatus",        Label = "长度状态",       IsCommon = true, Visible = true  },
+            // ========== 第一组：来源信息 ==========
+            new() { Key = "InboundDateStr",      Label = "入库日期",       IsCommon = true, Visible = false, IsRequired = true, GroupKey = 1, GroupName = "来源信息" },
+            new() { Key = "InboundSource",       Label = "来源类型",       IsCommon = true, Visible = false, GroupKey = 1, GroupName = "来源信息" },
+            new() { Key = "SourceOrderNo",       Label = "来源单号",       IsCommon = true, Visible = false, GroupKey = 1, GroupName = "来源信息" },
+            new() { Key = "SourceOrderSequence", Label = "委外序号",       IsCommon = true, Visible = false, GroupKey = 1, GroupName = "来源信息" },
+
+            // ========== 第二组：自动可填充（来源单号查询后回填，可修改） ==========
+            new() { Key = "MaterialType",        Label = "物料",           IsCommon = true, Visible = true,  IsRequired = true, GroupKey = 2, GroupName = "自动填充" },
+            new() { Key = "PlantGrade",          Label = "工厂牌号",       IsCommon = true, Visible = false, IsRequired = true, GroupKey = 2, GroupName = "自动填充" },
+            new() { Key = "Specification",       Label = "名义规格",       IsCommon = true, Visible = true,  IsRequired = true, GroupKey = 2, GroupName = "自动填充" },
+            new() { Key = "SourceName",          Label = "来料单位",       IsCommon = true, Visible = false, GroupKey = 2, GroupName = "自动填充" },
+            new() { Key = "IsLinkedToWorkOrder", Label = "关联工单",       IsCommon = true, Visible = false, GroupKey = 2, GroupName = "自动填充" },
+            new() { Key = "WorkOrderNo",         Label = "工单号",         IsCommon = true, Visible = false, GroupKey = 2, GroupName = "自动填充" },
+
+            // ========== 第三组：手工填写 ==========
+            new() { Key = "InitialQuantity",     Label = "支数",           IsCommon = true, Visible = true,  IsRequired = true, GroupKey = 3, GroupName = "手工填写" },
+            new() { Key = "InitialWeight",       Label = "重量(kg)",       IsCommon = true, Visible = true,  IsRequired = true, GroupKey = 3, GroupName = "手工填写" },
+            new() { Key = "UnitWeight",          Label = "单支重",         IsCommon = true, Visible = false, GroupKey = 3, GroupName = "手工填写" },
+            new() { Key = "LengthStatus",        Label = "长度状态",       IsCommon = true, Visible = true,  GroupKey = 3, GroupName = "手工填写" },
+            new() { Key = "HeatNo",              Label = "炉号",           IsCommon = true, Visible = false, GroupKey = 3, GroupName = "手工填写" },
+            new() { Key = "SurfaceCondition",    Label = "物料状态",       IsCommon = true, Visible = true,  GroupKey = 3, GroupName = "手工填写" },
+            new() { Key = "LocationArea",        Label = "区域",           IsCommon = true, Visible = false, GroupKey = 3, GroupName = "手工填写" },
+            new() { Key = "LocationRack",        Label = "框架",           IsCommon = true, Visible = false, GroupKey = 3, GroupName = "手工填写" },
+            new() { Key = "Remark",              Label = "备注",           IsCommon = true, Visible = false, GroupKey = 3, GroupName = "手工填写" },
+
+            // ========== 不适用（各仓库模板控制显隐） ==========
             new() { Key = "MinLength",           Label = "最小长度",       IsCommon = true, Visible = false },
             new() { Key = "MaxLength",           Label = "最大长度",       IsCommon = true, Visible = false },
-            new() { Key = "InitialQuantity",     Label = "支数",           IsCommon = true, Visible = true,  IsRequired = true },
-            new() { Key = "InitialWeight",       Label = "重量",           IsCommon = true, Visible = true,  IsRequired = true },
-            new() { Key = "UnitWeight",          Label = "理论单支重",     IsCommon = true, Visible = false },
             new() { Key = "Meters",              Label = "米数",           IsCommon = true, Visible = false },
-            new() { Key = "Remark",              Label = "物料备注",       IsCommon = true, Visible = false },
-            new() { Key = "IsLinkedToWorkOrder", Label = "关联工单",       IsCommon = true, Visible = false },
-            new() { Key = "WorkOrderNo",         Label = "工单号",         IsCommon = true, Visible = false },
-            new() { Key = "SalesOrderNo",        Label = "订单号",         IsCommon = true, Visible = false },
-            new() { Key = "OrderItemIds",        Label = "项次ID列表",     IsCommon = true, Visible = false },
             new() { Key = "ProductionBatchNo",   Label = "生产批号",       IsCommon = true, Visible = false },
             new() { Key = "ActualSpecification", Label = "实际规格",       IsCommon = true, Visible = false },
             new() { Key = "DefectReason",        Label = "次品原因",       IsCommon = true, Visible = false },
             new() { Key = "LiabilityType",       Label = "责任类型",       IsCommon = true, Visible = false },
-            new() { Key = "OriginalSupplier",    Label = "原始来料单位",   IsCommon = true, Visible = false },
+            new() { Key = "OriginalSupplier",    Label = "原始来料",       IsCommon = true, Visible = false },
             new() { Key = "TagNo",               Label = "挂牌号",         IsCommon = true, Visible = false },
             new() { Key = "DefectRemark",        Label = "次品备注",       IsCommon = true, Visible = false },
+            new() { Key = "SalesOrderNo",        Label = "订单号",         IsCommon = true, Visible = false },
+            new() { Key = "OrderItemIds",        Label = "项次",           IsCommon = true, Visible = false },
         };
     }
 
-    private readonly List<(string Value, string Text)> _inboundSourceOptions =
-        Enum.GetValues<InboundSource>()
-            .Select(v => (v.ToString(), DisplayHelper.GetInboundSourceText(v)))
-            .ToList();
+    private List<(string Value, string Text)> _inboundSourceOptions =>
+        _warehouseCode == "RAW"
+            ? new List<(string, string)>
+            {
+                (InboundSource.Purchase.ToString(), DisplayHelper.GetInboundSourceText(InboundSource.Purchase)),
+                (InboundSource.Subcontract.ToString(), DisplayHelper.GetInboundSourceText(InboundSource.Subcontract)),
+                (InboundSource.Other.ToString(), DisplayHelper.GetInboundSourceText(InboundSource.Other)),
+            }
+            : Enum.GetValues<InboundSource>()
+                .Select(v => (v.ToString(), DisplayHelper.GetInboundSourceText(v)))
+                .ToList();
 
     private readonly List<(string Value, string Text)> _lengthStatusOptions =
         Enum.GetValues<LengthStatus>()
@@ -297,9 +344,76 @@
         }
     }
 
+    // ========== B23 分组列标题栏（同待发货项页面） ==========
+
+    private int _totalTableWidth =>
+        _visibleColumns.Sum(c => GetColWidth(c.Key)) + 90; // +90px 操作列
+
+    private List<GroupHeaderInfo> _groupHeaders => GetGroupHeaders();
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null; int totalWidth = 0;
+        var groupKey = 0; var groupName = ""; var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk; groupName = col.GroupName ?? "";
+            totalWidth += GetColWidth(col.Key);
+            count++; lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
     private static int GetColWidth(string key) => key switch
     {
-        "SourceOrderSequence" => 90,
+        "SourceOrderNo" => 180,
+        "SourceOrderSequence" => 65,
         "InitialQuantity" => 90,
         "InitialWeight" => 120,
         "UnitWeight" => 120,
@@ -330,7 +444,7 @@
         switch (whCode)
         {
             case "RAW":
-                // 原料库不含：长度/米数/实际规格/生产批号/次品
+                // 原料库不含：长度/米数/实际规格/生产批号/次品/订单关联
                 SetNotApplicable(cols, "MinLength");
                 SetNotApplicable(cols, "MaxLength");
                 SetNotApplicable(cols, "Meters");
@@ -341,6 +455,8 @@
                 SetNotApplicable(cols, "OriginalSupplier");
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
+                SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "OrderItemIds");
                 break;
             case "FG":
                 // 成品库不含：次品
@@ -482,10 +598,15 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#inbound-table-wrapper");
+        }
+        catch { }
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", ".inbound-table-scroll"))
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#inbound-table-wrapper"))
                 _isArrowNavSetup = false;
         }
     }
@@ -716,6 +837,24 @@
         }
     };
 
+    // ========== 自动填充标记 ==========
+    /// <summary>支持自动填充的入库来源（Group 2 字段只读）</summary>
+    private static readonly HashSet<string> _autoFillSources = new()
+    {
+        InboundSource.Purchase.ToString(),
+        InboundSource.Subcontract.ToString()
+    };
+
+    /// <summary>Group 2 自动填充字段</summary>
+    private static readonly HashSet<string> _autoFillFields = new()
+    {
+        "MaterialType", "PlantGrade", "Specification",
+        "SourceName", "IsLinkedToWorkOrder", "WorkOrderNo"
+    };
+
+    private bool IsAutoFillReadOnly(InboundRowModel row, string key) =>
+        _autoFillSources.Contains(row.InboundSource ?? "") && _autoFillFields.Contains(key);
+
     // ========== 表格内联编辑 ==========
 
     private static string GetColumnType(string key) => key switch
@@ -731,6 +870,13 @@
 
     private RenderFragment RenderInlineEditor(InboundRowModel row, ColumnDef col) => builder =>
     {
+        // Group 2 字段在来源为外购/委外时只读显示（由自动填充填入）
+        if (IsAutoFillReadOnly(row, col.Key))
+        {
+            RenderCell(row, col)(builder);
+            return;
+        }
+
         switch (GetColumnType(col.Key))
         {
             case "select":
@@ -778,13 +924,16 @@
                 break;
 
             case "nullable-int":
-                builder.OpenComponent<MudNumericField<int?>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "HideSpinButtons", true);
-                builder.AddAttribute(3, "Value", row.SourceOrderSequence);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => row.SourceOrderSequence = v));
-                builder.AddAttribute(5, "Clearable", true);
-                builder.CloseComponent();
+                // 来源序号仅委外时显示编辑控件
+                if (row.InboundSource == InboundSource.Subcontract.ToString())
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "HideSpinButtons", true);
+                    builder.AddAttribute(3, "Value", row.SourceOrderSequence);
+                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { row.SourceOrderSequence = v; _ = TriggerAutoFillAsync(row); }));
+                    builder.CloseComponent();
+                }
                 break;
 
             case "int":
@@ -792,7 +941,12 @@
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "HideSpinButtons", true);
                 builder.AddAttribute(3, "Value", row.InitialQuantity);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<int>(this, v => row.InitialQuantity = v));
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<int>(this, v =>
+                {
+                    row.InitialQuantity = v;
+                    if (row.InitialWeight > 0 && v > 0)
+                        row.UnitWeight = Math.Round(row.InitialWeight / (decimal)v, 1, MidpointRounding.AwayFromZero);
+                }));
                 builder.CloseComponent();
                 break;
 
@@ -814,7 +968,12 @@
                     builder.AddAttribute(2, "HideSpinButtons", true);
                     builder.AddAttribute(3, "Format", "G29");
                     builder.AddAttribute(4, "Value", row.InitialWeight);
-                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => row.InitialWeight = v));
+                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v =>
+                    {
+                        row.InitialWeight = v;
+                        if (row.InitialQuantity > 0 && v > 0)
+                            row.UnitWeight = Math.Round(v / row.InitialQuantity, 1, MidpointRounding.AwayFromZero);
+                    }));
                     builder.CloseComponent();
                 }
                 break;
@@ -864,7 +1023,7 @@
         switch (key)
         {
             case "MaterialType": row.MaterialType = value; break;
-            case "InboundSource": row.InboundSource = value; break;
+            case "InboundSource": row.InboundSource = value; if (value != InboundSource.Subcontract.ToString()) row.SourceOrderSequence = null; _ = TriggerAutoFillAsync(row); break;
             case "SourceName": row.SourceName = value; break;
             case "InboundDateStr": row.InboundDateStr = value; break;
             case "HeatNo": row.HeatNo = value; break;
@@ -878,7 +1037,7 @@
             case "WorkOrderNo": row.WorkOrderNo = value; break;
             case "SalesOrderNo": row.SalesOrderNo = value; break;
             case "OrderItemIds": row.OrderItemIds = value; break;
-            case "SourceOrderNo": row.SourceOrderNo = value; break;
+            case "SourceOrderNo": row.SourceOrderNo = value; _ = TriggerAutoFillAsync(row); break;
             case "ActualSpecification": row.ActualSpecification = value; break;
             case "ProductionBatchNo": row.ProductionBatchNo = value; break;
             case "DefectReason": row.DefectReason = value; break;
@@ -1008,6 +1167,14 @@
         for (int i = 0; i < _rows.Count; i++)
         {
             var r = _rows[i];
+            if (string.IsNullOrEmpty(r.InboundDateStr))
+                errors.Add($"第{i + 1}行：入库日期必填");
+            if (string.IsNullOrEmpty(r.InboundSource))
+                errors.Add($"第{i + 1}行：入库来源必填");
+            if (r.InboundSource == InboundSource.Subcontract.ToString() && string.IsNullOrEmpty(r.SourceOrderNo))
+                errors.Add($"第{i + 1}行：入库来源为「委外」时，来源单号必填");
+            if (r.InboundSource == InboundSource.Subcontract.ToString() && !r.SourceOrderSequence.HasValue)
+                errors.Add($"第{i + 1}行：入库来源为「委外」时，来源序号必填");
             if (r.InitialQuantity < 1)
                 errors.Add($"第{i + 1}行：支数必须大于0");
             if (r.InitialWeight <= 0)
@@ -1088,6 +1255,7 @@
                     IsLinkedToWorkOrder = r.IsLinkedToWorkOrder ? true : null,
                     WorkOrderNo = r.WorkOrderNo,
                     SourceOrderNo = r.SourceOrderNo,
+                    SourceOrderSequence = r.SourceOrderSequence,
                 }).ToList()
             };
 
@@ -1122,6 +1290,37 @@
     };
 
     // ========== 来源单号自动填充 ==========
+
+    private CancellationTokenSource? _autoFillCts;
+
+    private async Task TriggerAutoFillAsync(InboundRowModel row)
+    {
+        // 防抖：来源单号/序号连续变化时只触发最后一次
+        _autoFillCts?.Cancel();
+        _autoFillCts = new CancellationTokenSource();
+        var token = _autoFillCts.Token;
+        try
+        {
+            // 入库来源必填
+            if (string.IsNullOrEmpty(row.InboundSource))
+                return;
+            // 外购：来源单号必填；委外：来源单号+委外序号必填
+            if (row.InboundSource == InboundSource.Subcontract.ToString())
+            {
+                if (string.IsNullOrEmpty(row.SourceOrderNo) || !row.SourceOrderSequence.HasValue)
+                    return;
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(row.SourceOrderNo))
+                    return;
+            }
+            await Task.Delay(300, token);
+            if (!token.IsCancellationRequested)
+                await InvokeAsync(async () => await LookupSourceOrder(row));
+        }
+        catch (TaskCanceledException) { }
+    }
 
     private async Task LookupSourceOrder(InboundRowModel row)
     {
@@ -1159,6 +1358,15 @@
                 row.IsLinkedToWorkOrder = true;
                 filled.Add("来源工单号");
                 filled.Add("关联工单");
+            }
+            else
+            {
+                // 来源单无关联工单 → 清空上次残留的工单号
+                if (!string.IsNullOrEmpty(row.WorkOrderNo) || row.IsLinkedToWorkOrder)
+                {
+                    row.WorkOrderNo = null;
+                    row.IsLinkedToWorkOrder = false;
+                }
             }
 
             if (filled.Any())

@@ -38,4 +38,5 @@ public class UpdateInventoryBatchRequest
     public string? SalesOrderNo { get; set; }
     public string? OrderItemIds { get; set; }
     public string? SourceOrderNo { get; set; }
+    public int? SourceOrderSequence { get; set; }
 }

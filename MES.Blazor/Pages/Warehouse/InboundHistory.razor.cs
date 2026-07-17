@@ -13,6 +13,7 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using System.Reflection;
 using System.Text.Json;
+using Microsoft.AspNetCore.Components.Rendering;
 
 namespace MES.Blazor.Pages.Warehouse;
 
@@ -60,6 +61,16 @@ public partial class InboundHistory
     private int? _savingItemId;
     private int? _editingRowId;
     private MudTable<InventoryBatchDto>? _table;
+
+    /// <summary>Group 3（手动输入）字段 — 入库历史中唯一可编辑的字段集合</summary>
+    private static readonly HashSet<string> _editableFields = new()
+    {
+        "InboundDate", "LengthStatus", "MinLength", "MaxLength",
+        "InitialQuantity", "InitialWeight", "UnitWeight", "Meters",
+        "SurfaceCondition", "LocationArea", "LocationRack", "HeatNo", "Remark"
+    };
+
+    private static bool IsEditable(string key) => _editableFields.Contains(key);
 
     /// <summary>内联编辑中按 item.Id 暂存的入库日期字符串</summary>
     private Dictionary<int, string> _editDateStrings = new();
@@ -135,35 +146,64 @@ public partial class InboundHistory
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",             Label = "仓库批次", SortKey = "BatchNo", FilterType = "string", Width = "120" },
-        new() { Key = "InboundDate",         Label = "入库日期", SortKey = "InboundDate",    IsRequired = true, Width = "120" },
-        new() { Key = "InboundSource",       Label = "来源",     SortKey = "InboundSource", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Purchase", "外购"), new("Subcontract", "委外"), new("ReturnIn", "退货入库"), new("ProductionInbound", "生产入库"), new("InspectionInbound", "检验入库"), new("TransferIn", "移库入库"), new("Other", "其它") } },
-        new() { Key = "SourceOrderNo",       Label = "物料单号", SortKey = "SourceOrderNo", FilterType = "string", Width = "120" },
-        new() { Key = "MaterialType",        Label = "物料",     SortKey = "MaterialType",    IsRequired = true, FilterType = "string", Width = "120" },
-        new() { Key = "SourceName",          Label = "来料单位", SortKey = "SourceName", FilterType = "string", Width = "120" },
-        new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "SurfaceCondition", FilterType = "string", Width = "120" },
-        new() { Key = "LocationArea",        Label = "区域", SortKey = "LocationArea", FilterType = "string", Width = "120" },
-        new() { Key = "LocationRack",        Label = "框架", SortKey = "LocationRack", FilterType = "string", Width = "120" },
-        new() { Key = "HeatNo",              Label = "炉号",     SortKey = "HeatNo", FilterType = "string", Width = "120" },
-        new() { Key = "PlantGrade",          Label = "工厂牌号", SortKey = "PlantGrade",      IsRequired = true, FilterType = "string", Width = "120" },
-        new() { Key = "Specification",       Label = "名义规格", SortKey = "Specification",   IsRequired = true, FilterType = "string", Width = "120" },
-        new() { Key = "LengthStatus",        Label = "长度状态", SortKey = "LengthStatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") } },
-        new() { Key = "MinLength",           Label = "最小长度", SortKey = "MinLength", FilterType = null, Width = "80" },
-        new() { Key = "MaxLength",           Label = "最大长度", SortKey = "MaxLength", FilterType = null, Width = "80" },
-        new() { Key = "InitialQuantity",     Label = "支数",     SortKey = "InitialQuantity", IsRequired = true, FilterType = null, Width = "80" },
-        new() { Key = "InitialWeight",       Label = "重量(kg)", SortKey = "InitialWeight",   IsRequired = true, FilterType = null, Width = "80" },
-        new() { Key = "UnitWeight",          Label = "单支重",   SortKey = "UnitWeight", FilterType = null, Width = "80" },
-        new() { Key = "Meters",              Label = "米数", SortKey = "Meters", FilterType = null, Width = "80" },
-        new() { Key = "Remark",              Label = "备注", SortKey = "Remark", FilterType = "string", Width = "120" },
+        new() { Key = "BatchNo",             Label = "仓库批次", SortKey = "BatchNo", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "来源信息" },
+
+        // ========== 第一组：来源信息 ==========
+        new() { Key = "InboundDate",         Label = "入库日期", SortKey = "InboundDate",    IsRequired = true, Width = "120",
+            GroupKey = 1, GroupName = "来源信息" },
+        new() { Key = "InboundSource",       Label = "来源类型",     SortKey = "InboundSource", FilterType = "enum", Width = "120",
+            EnumOptions = new() { new("Purchase", "外购"), new("Subcontract", "委外"), new("ReturnIn", "退货入库"), new("ProductionInbound", "生产入库"), new("InspectionInbound", "检验入库"), new("TransferIn", "移库入库"), new("Other", "其它") },
+            GroupKey = 1, GroupName = "来源信息" },
+        new() { Key = "SourceOrderNo",       Label = "来源单号", SortKey = "SourceOrderNo", FilterType = "string", Width = "180",
+            GroupKey = 1, GroupName = "来源信息" },
+        new() { Key = "SourceOrderSequence", Label = "委外序号", SortKey = "SourceOrderSequence", FilterType = null, Width = "65",
+            GroupKey = 1, GroupName = "来源信息" },
+
+        // ========== 第二组：自动填充 ==========
+        new() { Key = "MaterialType",        Label = "物料", SortKey = "MaterialType",    IsRequired = true, FilterType = "string", Width = "130",
+            GroupKey = 2, GroupName = "自动填充" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号", SortKey = "PlantGrade",      IsRequired = true, FilterType = "string", Width = "130",
+            GroupKey = 2, GroupName = "自动填充" },
+        new() { Key = "Specification",       Label = "名义规格", SortKey = "Specification",   IsRequired = true, FilterType = "string", Width = "160",
+            GroupKey = 2, GroupName = "自动填充" },
+        new() { Key = "SourceName",          Label = "来料单位", SortKey = "SourceName", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "自动填充" },
         new() { Key = "IsLinkedToWorkOrder", Label = "关联工单", SortKey = "IsLinkedToWorkOrder", FilterType = "boolean", Width = "120",
-            BoolTrueLabel = "是", BoolFalseLabel = "否" },
-        new() { Key = "WorkOrderNo",         Label = "工单号",   SortKey = "WorkOrderNo", FilterType = "string", Width = "120" },
+            BoolTrueLabel = "是", BoolFalseLabel = "否",
+            GroupKey = 2, GroupName = "自动填充" },
+        new() { Key = "WorkOrderNo",         Label = "工单号",   SortKey = "WorkOrderNo", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "自动填充" },
+
+        // ========== 第三组：手工填写 ==========
+        new() { Key = "InitialQuantity",     Label = "支数",     SortKey = "InitialQuantity", IsRequired = true, FilterType = null, Width = "90",
+            GroupKey = 3, GroupName = "手工填写" },
+        new() { Key = "InitialWeight",       Label = "重量(kg)", SortKey = "InitialWeight",   IsRequired = true, FilterType = null, Width = "120",
+            GroupKey = 3, GroupName = "手工填写" },
+        new() { Key = "UnitWeight",          Label = "单支重",   SortKey = "UnitWeight", FilterType = null, Width = "80",
+            GroupKey = 3, GroupName = "手工填写" },
+        new() { Key = "LengthStatus",        Label = "长度状态", SortKey = "LengthStatus", FilterType = "enum", Width = "100",
+            EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") },
+            GroupKey = 3, GroupName = "手工填写" },
+        new() { Key = "HeatNo",              Label = "炉号",     SortKey = "HeatNo", FilterType = "string", Width = "120",
+            GroupKey = 3, GroupName = "手工填写" },
+        new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "SurfaceCondition", FilterType = "string", Width = "110",
+            GroupKey = 3, GroupName = "手工填写" },
+        new() { Key = "LocationArea",        Label = "区域", SortKey = "LocationArea", FilterType = "string", Width = "120",
+            GroupKey = 3, GroupName = "手工填写" },
+        new() { Key = "LocationRack",        Label = "框架", SortKey = "LocationRack", FilterType = "string", Width = "120",
+            GroupKey = 3, GroupName = "手工填写" },
+        new() { Key = "Remark",              Label = "备注", SortKey = "Remark", FilterType = "string", Width = "120",
+            GroupKey = 3, GroupName = "手工填写" },
+
+        // ========== 不通用（各仓库模板控制显隐） ==========
         new() { Key = "SalesOrderNo",        Label = "订单号",   SortKey = "SalesOrderNo", FilterType = "string", Width = "120" },
         new() { Key = "OrderItemIds",        Label = "项次", SortKey = "OrderItemIds", FilterType = "string", Width = "120" },
         new() { Key = "ProductionBatchNo",   Label = "生产批号", SortKey = "ProductionBatchNo", FilterType = "string", Width = "120" },
         new() { Key = "ActualSpecification", Label = "实际规格", SortKey = "ActualSpecification", FilterType = "string", Width = "120" },
+        new() { Key = "MinLength",           Label = "最小长度", SortKey = "MinLength", FilterType = null, Width = "80" },
+        new() { Key = "MaxLength",           Label = "最大长度", SortKey = "MaxLength", FilterType = null, Width = "80" },
+        new() { Key = "Meters",              Label = "米数", SortKey = "Meters", FilterType = null, Width = "80" },
         new() { Key = "DefectReason",        Label = "次品原因", SortKey = "DefectReason", FilterType = "string", Width = "120" },
         new() { Key = "LiabilityType",       Label = "责任类型", SortKey = "LiabilityType", FilterType = "string", Width = "120" },
         new() { Key = "OriginalSupplier",    Label = "原始来料", SortKey = "OriginalSupplier", FilterType = "string", Width = "120" },
@@ -182,6 +222,8 @@ public partial class InboundHistory
         switch (whCode)
         {
             case "RAW":
+                SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "OrderItemIds");
                 SetNotApplicable(cols, "MinLength");
                 SetNotApplicable(cols, "MaxLength");
                 SetNotApplicable(cols, "Meters");
@@ -204,6 +246,7 @@ public partial class InboundHistory
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
                 SetNotApplicable(cols, "SourceOrderNo");
+                SetNotApplicable(cols, "SourceOrderSequence");
                 break;
             case "WIP":
                 SetNotApplicable(cols, "IsLinkedToWorkOrder");
@@ -217,6 +260,7 @@ public partial class InboundHistory
                 SetNotApplicable(cols, "DefectRemark");
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "SourceOrderNo");
+                SetNotApplicable(cols, "SourceOrderSequence");
                 break;
         }
     }
@@ -230,6 +274,90 @@ public partial class InboundHistory
             c.Visible = false;
         }
     }
+
+    // ========== B23 分组列标题栏 ==========
+
+    private int _totalTableWidth =>
+        40 + _visibleColumns.Sum(c => GetColWidth(c.Key)) + 150;
+
+    private List<GroupHeaderInfo> _groupHeaders => GetGroupHeaders();
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null; int totalWidth = 0;
+        var groupKey = 0; var groupName = ""; var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk; groupName = col.GroupName ?? "";
+            totalWidth += GetColWidth(col.Key);
+            count++; lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
+    private static int GetColWidth(string key) => key switch
+    {
+        "SourceOrderNo" => 180,
+        "SourceOrderSequence" => 65,
+        "InitialQuantity" => 90,
+        "InitialWeight" => 120,
+        "UnitWeight" => 80,
+        "LengthStatus" => 100,
+        "InboundDate" => 120,
+        "Specification" => 160,
+        "MaterialType" => 130,
+        "PlantGrade" => 130,
+        "HeatNo" => 120,
+        "SurfaceCondition" => 110,
+        "BatchNo" => 120,
+        _ => 120
+    };
 
     // ========== 列选择操作 ==========
 
@@ -522,6 +650,13 @@ public partial class InboundHistory
             return;
         }
 
+        // Group 1（来源信息）和 Group 2（自动填充）字段只读显示
+        if (!IsEditable(col.Key))
+        {
+            RenderCellContent(builder, item, col);
+            return;
+        }
+
         switch (GetEditorType(col.Key))
         {
             case "select":
@@ -628,7 +763,7 @@ public partial class InboundHistory
 
     // ========== 只读单元格渲染 ==========
 
-    private RenderFragment RenderCell(InventoryBatchDto item, ColumnDef col) => builder =>
+    private void RenderCellContent(RenderTreeBuilder builder, InventoryBatchDto item, ColumnDef col)
     {
         switch (col.Key)
         {
@@ -689,6 +824,10 @@ public partial class InboundHistory
                 if (!string.IsNullOrEmpty(item.SourceOrderNo))
                     builder.AddContent(0, item.SourceOrderNo);
                 break;
+            case "SourceOrderSequence":
+                if (item.SourceOrderSequence.HasValue)
+                    builder.AddContent(0, item.SourceOrderSequence.Value.ToString());
+                break;
             case "LengthStatus":
                 if (!string.IsNullOrEmpty(item.LengthStatus))
                     builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
@@ -699,6 +838,11 @@ public partial class InboundHistory
                     builder.AddContent(0, val);
                 break;
         }
+    }
+
+    private RenderFragment RenderCell(InventoryBatchDto item, ColumnDef col) => builder =>
+    {
+        RenderCellContent(builder, item, col);
     };
 
     // ========== 编辑状态管理 ==========
@@ -748,6 +892,7 @@ public partial class InboundHistory
         "SalesOrderNo" => item.SalesOrderNo,
         "OrderItemIds" => item.OrderItemIds,
         "SourceOrderNo" => item.SourceOrderNo,
+        "SourceOrderSequence" => item.SourceOrderSequence?.ToString(),
         _ => null
     };
 
@@ -848,10 +993,15 @@ public partial class InboundHistory
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#inbound-history-table-wrapper");
+        }
+        catch { }
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#inbound-history-list-table"))
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#inbound-history-table-wrapper"))
                 _isArrowNavSetup = false;
         }
     }
@@ -967,14 +1117,8 @@ public partial class InboundHistory
             var request = new UpdateInventoryBatchRequest
             {
                 BatchNo = item.BatchNo,
-                MaterialType = item.MaterialType,
-                PlantGrade = item.PlantGrade,
-                Specification = item.Specification,
-                InboundSource = item.InboundSource,
-                SourceName = item.SourceName,
                 InboundDate = parsedDate,
                 HeatNo = string.IsNullOrEmpty(item.HeatNo) ? null : item.HeatNo,
-                ProductionBatchNo = string.IsNullOrEmpty(item.ProductionBatchNo) ? null : item.ProductionBatchNo,
                 LengthStatus = string.IsNullOrEmpty(item.LengthStatus) ? null : item.LengthStatus,
                 MinLength = item.MinLength,
                 MaxLength = item.MaxLength,
@@ -986,17 +1130,6 @@ public partial class InboundHistory
                 LocationArea = string.IsNullOrEmpty(item.LocationArea) ? null : item.LocationArea,
                 LocationRack = string.IsNullOrEmpty(item.LocationRack) ? null : item.LocationRack,
                 Remark = string.IsNullOrEmpty(item.Remark) ? null : item.Remark,
-                ActualSpecification = string.IsNullOrEmpty(item.ActualSpecification) ? null : item.ActualSpecification,
-                DefectReason = string.IsNullOrEmpty(item.DefectReason) ? null : item.DefectReason,
-                LiabilityType = string.IsNullOrEmpty(item.LiabilityType) ? null : item.LiabilityType,
-                OriginalSupplier = string.IsNullOrEmpty(item.OriginalSupplier) ? null : item.OriginalSupplier,
-                TagNo = string.IsNullOrEmpty(item.TagNo) ? null : item.TagNo,
-                DefectRemark = string.IsNullOrEmpty(item.DefectRemark) ? null : item.DefectRemark,
-                IsLinkedToWorkOrder = item.IsLinkedToWorkOrder,
-                WorkOrderNo = string.IsNullOrEmpty(item.WorkOrderNo) ? null : item.WorkOrderNo,
-                SalesOrderNo = string.IsNullOrEmpty(item.SalesOrderNo) ? null : item.SalesOrderNo,
-                OrderItemIds = string.IsNullOrEmpty(item.OrderItemIds) ? null : item.OrderItemIds,
-                SourceOrderNo = string.IsNullOrEmpty(item.SourceOrderNo) ? null : item.SourceOrderNo,
             };
 
             var result = await InventoryService.UpdateInventoryBatchAsync(item.Id, request);

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using MES.Core.Constants;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.Enums;
@@ -16,10 +17,12 @@ namespace MES.Services.Warehouse;
 public class PendingDeliveryQueryService : IPendingDeliveryQueryService
 {
     private readonly AppDbContext _context;
+    private readonly IMemoryCache _cache;
 
-    public PendingDeliveryQueryService(AppDbContext context)
+    public PendingDeliveryQueryService(AppDbContext context, IMemoryCache cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<List<PendingDeliveryItemDto>> GetPendingItemsAsync(
@@ -27,7 +30,11 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         string? productStandard = null,
         string? deliveryStatus = null)
     {
-        var dtos = await LoadDtosAsync(orderNo);
+        var dtos = await GetCachedDtosAsync();
+
+        // 订单号筛选（缓存已包含全部数据，内存过滤）
+        if (!string.IsNullOrEmpty(orderNo))
+            dtos = dtos.Where(d => string.Equals(d.SalesOrderNo, orderNo, StringComparison.OrdinalIgnoreCase)).ToList();
 
         // 筛选：产品标准
         if (!string.IsNullOrEmpty(productStandard))
@@ -42,10 +49,8 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
 
     public async Task<PagedResult<PendingDeliveryItemDto>> GetPagedAsync(QueryParams query)
     {
-        // 1. 加载 DTO（SQL 层 + 内存 JOIN）
-        // 注意：keyword 不在 SQL 层传递，因为跨表字段（CustomerName/Salesman 等）
-        // 无法在 InventoryBatch 的 WHERE 中过滤。改为在第 2 步全字段内存匹配。
-        var allDtos = await LoadDtosAsync(orderNo: null, keyword: null);
+        // 1. 从缓存加载 DTO 列表
+        var allDtos = await GetCachedDtosAsync();
 
         if (allDtos.Count == 0)
             return new PagedResult<PendingDeliveryItemDto>
@@ -134,7 +139,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
 
     public async Task<List<CertificateHeaderOptionDto>> GetHeaderOptionsAsync()
     {
-        var dtos = await LoadDtosAsync();
+        var dtos = await GetCachedDtosAsync();
 
         return dtos
             .GroupBy(d => new { d.SalesOrderNo, d.CustomerName, d.ProductStandard, d.DeliveryStatus })
@@ -151,7 +156,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var dtos = await LoadDtosAsync();
+        var dtos = await GetCachedDtosAsync();
 
         var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
@@ -190,6 +195,20 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         AddDistinct("StandardGrade", dtos.Select(d => d.StandardGrade));
 
         return result;
+    }
+
+    private const string CacheKey = "PendingDeliveryQueryService:LoadDtos";
+
+    /// <summary>
+    /// 缓存包装：30 秒缓存避免频繁全量加载，翻页/排序/筛选在缓存数据上操作
+    /// </summary>
+    private async Task<List<PendingDeliveryItemDto>> GetCachedDtosAsync()
+    {
+        return await _cache.GetOrCreateAsync(CacheKey, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
+            return await LoadDtosAsync();
+        }) ?? new List<PendingDeliveryItemDto>();
     }
 
     /// <summary>

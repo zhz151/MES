@@ -333,6 +333,7 @@ public class GradeMappingService : IGradeMappingService
         ["Density"] = dto.Density.ToString("F4"),
         ["HeatTreatment"] = (object?)dto.HeatTreatment ?? "",
         ["SpecialMaterial"] = dto.SpecialMaterial ? "特殊" : "常规",
+        ["SpecialNote"] = (object?)dto.SpecialNote ?? "",
         ["SteelProperty"] = dto.SteelProperty,
         ["Remark"] = (object?)dto.Remark ?? "",
     };

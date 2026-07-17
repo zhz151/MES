@@ -200,6 +200,11 @@ public class InventoryBatch : BaseEntity
     /// </summary>
     public string? SourceOrderNo { get; set; }
 
+    /// <summary>
+    /// 来源序号（委外时对应 SubcontractReturnItem.Sequence，采购时为空）
+    /// </summary>
+    public int? SourceOrderSequence { get; set; }
+
     // ========== 乐观并发控制 ==========
 
     /// <summary>

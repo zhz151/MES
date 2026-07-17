@@ -66,4 +66,5 @@ public class InventoryBatchDto
 
     // 跨上下文关联
     public string? SourceOrderNo { get; set; }
+    public int? SourceOrderSequence { get; set; }
 }

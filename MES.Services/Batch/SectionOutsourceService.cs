@@ -1046,7 +1046,9 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["RecoveryRemark"] = s.OutsourceRecoveries
                 .OrderByDescending(r => r.RecoveryDate)
                 .Select(r => r.Remark)
-                .FirstOrDefault() ?? ""
+                .FirstOrDefault() ?? "",
+            ["DataSource"] = s.DataSource ?? "",
+            ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
         }).ToList();
 
         return TablePrintHelper.GeneratePdf("工段委外列表", data, columns);
@@ -1094,7 +1096,9 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["TotalUnprocessedQuantity"] = s.TotalUnprocessedQuantity ?? 0,
             ["TotalUnprocessedWeight"] = s.TotalUnprocessedWeight ?? 0,
             ["ActualRecoveryDate"] = s.ActualRecoveryDate?.ToString("yyyy-MM-dd") ?? "",
-            ["RecoveryRemark"] = s.RecoveryRemark ?? ""
+            ["RecoveryRemark"] = s.RecoveryRemark ?? "",
+            ["DataSource"] = s.DataSource ?? "",
+            ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
         }).ToList();
 
         return TablePrintHelper.GeneratePdf("工段委外列表", data, columns);

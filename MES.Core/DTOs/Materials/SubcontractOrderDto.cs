@@ -22,6 +22,10 @@ public class SubcontractOrderDto
     public string OutSpecification { get; set; } = null!;
     public int OutQuantity { get; set; }
     public decimal OutWeight { get; set; }
+    /// <summary>实发支数（仓库实际出库汇总）</summary>
+    public int? ActualOutboundQuantity { get; set; }
+    /// <summary>实发重量（仓库实际出库汇总）</summary>
+    public decimal? ActualOutboundWeight { get; set; }
     public DateTime? ReturnDeadline { get; set; }
     public int? InQuantity { get; set; }
     public decimal? InWeight { get; set; }

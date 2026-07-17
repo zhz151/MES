@@ -45,7 +45,9 @@ public static class RepairOrderPrintHelper
                 ["RepairStartTime"] = m.RepairStartTime?.ToString("yyyy-MM-dd HH:mm") ?? "",
                 ["RepairEndTime"] = m.RepairEndTime?.ToString("yyyy-MM-dd HH:mm") ?? "",
                 ["RepairContent"] = m.RepairContent ?? "",
-                ["SparePartUsed"] = m.SparePartUsed ?? ""
+                ["SparePartUsed"] = m.SparePartUsed ?? "",
+                ["RepairCategory"] = m.RepairCategory ?? "",
+                ["OtherRepairPersons"] = m.OtherRepairPersons != null ? string.Join(", ", m.OtherRepairPersons) : ""
             };
             return dict;
         }).ToList();

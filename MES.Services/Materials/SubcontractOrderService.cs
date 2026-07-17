@@ -202,6 +202,23 @@ public class SubcontractOrderService : ISubcontractOrderService
 
         var items = entityList.Select(ToDto).ToList();
 
+        // 批量查询实发量（仓库出库汇总）
+        var orderNos = items.Select(i => i.OrderNo).ToList();
+        var outboundWeights = await _context.OutboundRecords
+            .Where(r => r.OutboundType == OutboundType.SubcontractOut
+                && r.SourceOrderNo != null
+                && orderNos.Contains(r.SourceOrderNo))
+            .GroupBy(r => r.SourceOrderNo)
+            .Select(g => new { OrderNo = g.Key, Quantity = g.Sum(r => (int?)r.OutboundQuantity), Weight = g.Sum(r => (decimal?)r.OutboundWeight) })
+            .ToListAsync();
+        var weightMap = outboundWeights.ToDictionary(x => x.OrderNo!, x => (decimal?)x.Weight, StringComparer.OrdinalIgnoreCase);
+        var quantityMap = outboundWeights.ToDictionary(x => x.OrderNo!, x => (int?)x.Quantity, StringComparer.OrdinalIgnoreCase);
+        foreach (var item in items)
+        {
+            item.ActualOutboundWeight = weightMap.GetValueOrDefault(item.OrderNo);
+            item.ActualOutboundQuantity = quantityMap.GetValueOrDefault(item.OrderNo);
+        }
+
         return new PagedResult<SubcontractOrderDto>
         {
             Items = items,
