@@ -1,6 +1,6 @@
 # MES 前端页面结构参考
 
-> 生成日期：2026-07-15（V17）
+> 生成日期：2026-07-17（V18）
 > 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
 
 ---
@@ -17,7 +17,7 @@
 | 计划排程 | 计划排程 | 所有 | 8 | 7 |
 | 批次 | 批次管理 | BatchStaff/Director | 14 | 6 |
 | 质量 | 质量管理 | QualityStaff/Director | 32 | 16 |
-| 物料 | 物料管理 | MaterialStaff/Director | 10 | 4 |
+| 物料 | 物料管理 | MaterialStaff/Director | 11 | 5 |
 | 仓库 | 仓库管理 | WarehouseStaff/Director | 6 | 4 |
 | 设备 | 设备管理 | EquipmentStaff/Director | 8 | 4 |
 | 生产标准 | 生产标准 | StandardRead/StandardWrite | 16 | 8 |
@@ -234,13 +234,15 @@
 │  SubcontractOrderCreate.razor /subcontract-orders/create [创建页]│
 │  SubcontractOrderDetail.razor /subcontract-orders/{id:int} [详情页]│
 │                                                           │
+│  SubcontractReturnItems.razor /subcontract-return-items [列表页] │
+│                                                           │
 │  Suppliers.razor             /suppliers           [列表页]   │
 │  SupplierCreate.razor        /suppliers/create    [创建页]   │
 │                                                           │
 │  Materials.razor             /materials           [列表页]   │
 │  MaterialCreate.razor        /materials/create    [创建页]   │
 │                                                           │
-│  列表页: PurchaseOrders, SubcontractOrders,                │
+│  列表页: PurchaseOrders, SubcontractOrders, SubcontractReturnItems,│
 │          Suppliers, Materials                               │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -508,6 +510,7 @@
 | 62 | ProductionOutput.razor | /reports/production-output | 报表 | | 产量报表，服务端数据模式 |
 | 63 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页 |
 | 64 | PendingDelivery.razor | /warehouse/pending-delivery | 仓库 | | 待发货项列表页 |
+| 65 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选 |
 
 ---
 
