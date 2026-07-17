@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.Enums;
 using MES.Core.Interfaces.Configuration;
+using MES.Services.Helpers;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Data;
@@ -279,7 +280,7 @@ public class InventorySyncService : IInventorySyncService
                 order.InWeight = orderBatches.Sum(b => b.InitialWeight);
 
                 foreach (var item in order.ReturnItems)
-                    SyncReturnItemFromBatches(item, orderBatches);
+                    SubcontractHelper.SyncReturnItemFromBatches(item, orderBatches);
 
                 if (order.IsForceCompleted)
                 {
@@ -313,27 +314,4 @@ public class InventorySyncService : IInventorySyncService
         }
     }
 
-    private static void SyncReturnItemFromBatches(SubcontractReturnItem item, List<InventoryBatch> batches)
-    {
-        if (string.IsNullOrEmpty(item.SourceWorkOrderNo)) return;
-
-        var itemBatches = batches
-            .Where(b => b.WorkOrderNo == item.SourceWorkOrderNo)
-            .ToList();
-
-        item.ReturnedQuantity = itemBatches.Sum(b => b.InitialQuantity);
-        item.ReturnedWeight = itemBatches.Sum(b => b.InitialWeight);
-
-        if (!item.IsForceCompleted)
-        {
-            if (item.ReturnedQuantity <= 0 && item.ReturnedWeight <= 0)
-                item.ProcessStatus = SubcontractOrderStatus.Sent.ToString();
-            else if (item.RequiredQuantity.HasValue && item.ReturnedQuantity >= item.RequiredQuantity.Value)
-                item.ProcessStatus = SubcontractOrderStatus.Completed.ToString();
-            else if (item.RequiredWeight.HasValue && item.ReturnedWeight >= item.RequiredWeight.Value)
-                item.ProcessStatus = SubcontractOrderStatus.Completed.ToString();
-            else
-                item.ProcessStatus = SubcontractOrderStatus.PartialReturned.ToString();
-        }
-    }
 }

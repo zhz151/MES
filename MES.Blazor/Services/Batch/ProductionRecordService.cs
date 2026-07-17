@@ -264,40 +264,4 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<BatchTrackingVisualDto>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    // ========== 打印 ==========
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
-    {
-        try
-        {
-            var request = new ProductionRecordPrintBatchRequest { Ids = ids, Columns = columns };
-            var response = await _http.PostAsJsonAsync<ProductionRecordPrintBatchRequest, ApiResponse<string>>(
-                $"{BaseUrl}/print-batch", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = true, List<PrintColumnDef>? columns = null, DateTime? execDateFrom = null, DateTime? execDateTo = null)
-    {
-        try
-        {
-            var request = new ProductionRecordPrintAllRequest
-            {
-                Keyword = keyword,
-                SortBy = sortBy,
-                IsDescending = isDescending,
-                Columns = columns ?? new(),
-                ExecDateFrom = execDateFrom,
-                ExecDateTo = execDateTo
-            };
-            var response = await _http.PostAsJsonAsync<ProductionRecordPrintAllRequest, ApiResponse<string>>(
-                $"{BaseUrl}/print-all", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
 }

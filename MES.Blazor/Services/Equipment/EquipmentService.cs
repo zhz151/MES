@@ -105,40 +105,4 @@ public class EquipmentService
         catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
-    {
-        try
-        {
-            var request = new EquipmentPrintBatchRequest { Ids = ids, Columns = columns };
-            return await _http.PostAsJsonAsync<EquipmentPrintBatchRequest, ApiResponse<string>>($"{BaseUrl}/print-batch", request)
-                   ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintAllAsync(EquipmentQueryParams query, List<PrintColumnDef> columns)
-    {
-        try
-        {
-            var request = new EquipmentPrintAllRequest
-            {
-                Keyword = query.Keyword,
-                SortBy = query.SortBy,
-                IsDescending = query.IsDescending,
-                LifecycleStatus = query.LifecycleStatus,
-                UsageType = query.UsageType,
-                RunningStatus = query.RunningStatus,
-                InspectionStatus = query.InspectionStatus,
-                MaintStatus = query.MaintStatus,
-                Location = query.Location,
-                RelatedSection = query.RelatedSection,
-                Columns = columns
-            };
-            return await _http.PostAsJsonAsync<EquipmentPrintAllRequest, ApiResponse<string>>($"{BaseUrl}/print-all", request)
-                   ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
 }

@@ -128,38 +128,4 @@ public class RepairOrderService
         catch (Exception ex) { return ApiResponse<RepairOrderListDto>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
-    {
-        try
-        {
-            var request = new RepairOrderPrintBatchRequest { Ids = ids, Columns = columns };
-            return await _http.PostAsJsonAsync<RepairOrderPrintBatchRequest, ApiResponse<string>>($"{BaseUrl}/print-batch", request)
-                   ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintAllAsync(RepairOrderQueryParams query, List<PrintColumnDef> columns)
-    {
-        try
-        {
-            var request = new RepairOrderPrintAllRequest
-            {
-                Keyword = query.Keyword,
-                SortBy = query.SortBy,
-                IsDescending = query.IsDescending,
-                EquipmentId = query.EquipmentId,
-                RepairStatus = query.RepairStatus,
-                Priority = query.Priority,
-                ReportTimeFrom = query.ReportTimeFrom,
-                ReportTimeTo = query.ReportTimeTo,
-                Columns = columns
-            };
-            return await _http.PostAsJsonAsync<RepairOrderPrintAllRequest, ApiResponse<string>>($"{BaseUrl}/print-all", request)
-                   ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
 }

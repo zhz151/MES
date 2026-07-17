@@ -208,53 +208,7 @@ public class BatchService
         catch (Exception ex) { return ApiResponse<List<BatchWorkOrderMismatchDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    // ========== 打印 ==========
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintBatchAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/{id}/print");
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintBatchAllAsync(BatchPrintAllRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<BatchPrintAllRequest, ApiResponse<string>>($"{BaseUrl}/print-all", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintBatchSelectedAsync(int[] ids)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<int[], ApiResponse<string>>($"{BaseUrl}/print-selected", ids);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintProcessCardAsync(ProcessCardPrintRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<ProcessCardPrintRequest, ApiResponse<string>>($"{BaseUrl}/print-process-card", request);
-            return response ?? ApiResponse<string>.Fail("打印工艺卡失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    // ========== 按批次号调取工序组 ==========
+// ========== 按批次号调取工序组 ==========
 
     public async Task<ApiResponse<List<CreateProcessGroupRequest>>> GetProcessGroupsByBatchNoAsync(string batchNo)
     {

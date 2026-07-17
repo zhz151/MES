@@ -88,38 +88,7 @@ public class MaintenanceOrderService
         catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
-    {
-        try
-        {
-            var request = new MaintenanceOrderPrintBatchRequest { Ids = ids, Columns = columns };
-            return await _http.PostAsJsonAsync<MaintenanceOrderPrintBatchRequest, ApiResponse<string>>($"{BaseUrl}/print-batch", request)
-                   ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintAllAsync(MaintenanceOrderQueryParams query, List<PrintColumnDef> columns)
-    {
-        try
-        {
-            var request = new MaintenanceOrderPrintAllRequest
-            {
-                Keyword = query.Keyword,
-                SortBy = query.SortBy,
-                IsDescending = query.IsDescending,
-                EquipmentId = query.EquipmentId,
-                Columns = columns
-            };
-            return await _http.PostAsJsonAsync<MaintenanceOrderPrintAllRequest, ApiResponse<string>>($"{BaseUrl}/print-all", request)
-                   ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<PagedResult<MaintenanceOrderListDto>>> GetPagedAsync(int pageIndex, int pageSize, string? keyword, string? sortBy, bool isDescending, string? filters)
+public async Task<ApiResponse<PagedResult<MaintenanceOrderListDto>>> GetPagedAsync(int pageIndex, int pageSize, string? keyword, string? sortBy, bool isDescending, string? filters)
     {
         try
         {

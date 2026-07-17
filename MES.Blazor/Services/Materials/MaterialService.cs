@@ -140,41 +140,4 @@ public class MaterialService
         catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    // ========== 打印 ==========
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintMaterialAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/{id}/print");
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintMaterialBatchAsync(int[] ids)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<OrderPrintBatchRequest, ApiResponse<string>>(
-                $"{BaseUrl}/print-batch", new OrderPrintBatchRequest { Ids = ids });
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintMaterialAllAsync(string? keyword = null, string? sortBy = null, bool isDescending = false)
-    {
-        try
-        {
-            var request = new OrderPrintAllRequest { Keyword = keyword, SortBy = sortBy, IsDescending = isDescending };
-            var response = await _http.PostAsJsonAsync<OrderPrintAllRequest, ApiResponse<string>>(
-                $"{BaseUrl}/print-all", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
 }

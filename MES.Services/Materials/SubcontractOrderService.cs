@@ -499,7 +499,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             // 同步每个 ReturnItem 的回收数据
             foreach (var item in order.ReturnItems)
             {
-                SyncReturnItemFromBatches(item, orderBatches);
+                SubcontractHelper.SyncReturnItemFromBatches(item, orderBatches);
             }
 
             // 主表强制完成 → 子表全部强制完成
@@ -534,7 +534,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         // 同步每个 ReturnItem 的回收数据
         foreach (var item in order.ReturnItems)
         {
-            SyncReturnItemFromBatches(item, batches);
+            SubcontractHelper.SyncReturnItemFromBatches(item, batches);
         }
 
         // 主表强制完成 → 子表全部强制完成
@@ -549,42 +549,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             await TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
     }
 
-    private static void SyncReturnItemFromBatches(SubcontractReturnItem item, List<InventoryBatch> batches)
-    {
-        if (string.IsNullOrEmpty(item.SourceWorkOrderNo)) return;
-
-        var itemBatches = batches
-            .Where(b => b.WorkOrderNo == item.SourceWorkOrderNo)
-            .ToList();
-
-        item.ReturnedQuantity = itemBatches.Sum(b => b.InitialQuantity);
-        item.ReturnedWeight = itemBatches.Sum(b => b.InitialWeight);
-
-        if (!item.IsForceCompleted)
-            RecalcReturnItemStatus(item);
-    }
-
-    private static void RecalcReturnItemStatus(SubcontractReturnItem item)
-    {
-        if (item.ReturnedQuantity <= 0 && item.ReturnedWeight <= 0)
-        {
-            item.ProcessStatus = SubcontractOrderStatus.Sent.ToString();
-        }
-        else if (item.RequiredQuantity.HasValue && item.ReturnedQuantity >= item.RequiredQuantity.Value)
-        {
-            item.ProcessStatus = SubcontractOrderStatus.Completed.ToString();
-        }
-        else if (item.RequiredWeight.HasValue && item.ReturnedWeight >= item.RequiredWeight.Value)
-        {
-            item.ProcessStatus = SubcontractOrderStatus.Completed.ToString();
-        }
-        else
-        {
-            item.ProcessStatus = SubcontractOrderStatus.PartialReturned.ToString();
-        }
-    }
-
-    public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
+public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
     {
         var entity = await _context.SubcontractOrders
             .Include(s => s.ReturnItems)
@@ -606,7 +571,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             foreach (var item in entity.ReturnItems)
             {
                 item.IsForceCompleted = false;
-                RecalcReturnItemStatus(item);
+                SubcontractHelper.RecalcReturnItemStatus(item);
             }
         }
 

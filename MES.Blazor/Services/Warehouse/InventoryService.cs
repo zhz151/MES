@@ -281,53 +281,7 @@ public class InventoryService
         catch (Exception ex) { return ApiResponse<List<BatchWorkOrderMismatchDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    // ========== 打印 ==========
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintInventoryAllAsync(InventoryPrintAllRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<InventoryPrintAllRequest, ApiResponse<string>>($"{BaseUrl}/print-inventory-all", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintInventorySelectedAsync(InventoryPrintSelectedRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<InventoryPrintSelectedRequest, ApiResponse<string>>($"{BaseUrl}/print-inventory-selected", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintOutboundAllAsync(OutboundPrintAllRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<OutboundPrintAllRequest, ApiResponse<string>>($"{BaseUrl}/print-outbound-all", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]
-    public async Task<ApiResponse<string>> PrintOutboundSelectedAsync(OutboundPrintSelectedRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<OutboundPrintSelectedRequest, ApiResponse<string>>($"{BaseUrl}/print-outbound-selected", request);
-            return response ?? ApiResponse<string>.Fail("打印失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    // ========== 筛选上下文 ==========
+// ========== 筛选上下文 ==========
 
     /// <summary>
     /// 获取出库记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
