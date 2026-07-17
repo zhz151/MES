@@ -10,6 +10,8 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
+using MES.Core.Enums;
+using MES.Core.Helpers;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Materials;
@@ -71,7 +73,7 @@ public partial class Suppliers
     {
         new() { Key = "SupplierCode",    Label = "供应商编码", SortKey = "suppliercode",    FilterType = "string",  Width = "130" },
         new() { Key = "SupplierName",    Label = "供应商名称", SortKey = "suppliername",    FilterType = "string",  Width = "160" },
-        new() { Key = "MaterialCategory",Label = "物料分类",   SortKey = "materialcategory",FilterType = "string",  Width = "100" },
+        new() { Key = "MaterialCategory",Label = "物料分类",   SortKey = "materialcategory",FilterType = "enum",   Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialType>() },
         new() { Key = "ContactPerson",   Label = "联系人",     SortKey = "contactperson",   FilterType = "string",  Width = "100" },
         new() { Key = "ContactPhone",    Label = "联系电话",   SortKey = "contactphone",    FilterType = "string",  Width = "130" },
         new() { Key = "Address",         Label = "地址",         SortKey = "address",       FilterType = "string",  Width = "200" },
@@ -192,6 +194,15 @@ public partial class Suppliers
             foreach (var opt in isActiveOptions)
             {
                 opt.Display = opt.Value == "True" ? "启用" : "停用";
+            }
+        }
+
+        // MaterialCategory 列显示中文
+        if (_filterContextOptions.TryGetValue("MaterialCategory", out var materialCatOptions))
+        {
+            foreach (var opt in materialCatOptions)
+            {
+                opt.Display = DisplayHelper.GetMaterialTypeText(opt.Value);
             }
         }
 
@@ -524,17 +535,27 @@ public partial class Suppliers
             case "MaterialCategory":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.OpenComponent<MudSelect<MaterialType>>(0);
                     builder.AddAttribute(1, "Dense", true);
                     builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.MaterialCategory);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.MaterialCategory = v ?? ""));
+                    builder.AddAttribute(3, "Value", EnumHelper.TryParse<MaterialType>(cache.MaterialCategory) ?? MaterialType.Finished);
+                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<MaterialType>(this, v => cache.MaterialCategory = v.ToString()));
                     builder.AddAttribute(5, "Class", "compact-input");
+                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
+                    {
+                        foreach (MaterialType cat in Enum.GetValues<MaterialType>())
+                        {
+                            b2.OpenComponent<MudSelectItem<MaterialType>>(0);
+                            b2.AddAttribute(1, "Value", cat);
+                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetMaterialTypeText(cat))));
+                            b2.CloseComponent();
+                        }
+                    }));
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, item.MaterialCategory);
+                    builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.MaterialCategory));
                 }
                 break;
 
@@ -645,7 +666,11 @@ public partial class Suppliers
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var ids = selectedIds.ToArray();
-            var request = new OrderPrintBatchRequest { Ids = ids };
+            var request = new OrderPrintBatchRequest
+            {
+                Ids = ids,
+                Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
+            };
             var apiUrl = $"{Navigation.BaseUri}api/supplier/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -665,7 +690,8 @@ public partial class Suppliers
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortColumn,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
             };
             var apiUrl = $"{Navigation.BaseUri}api/supplier/print-all-file";
             var json = JsonSerializer.Serialize(request);

@@ -26,6 +26,7 @@ public partial class Ncrs
     [Inject] private IJSRuntime JS { get; set; } = null!;
     [Inject] private PageStateService PageState { get; set; } = null!;
     [Inject] private ColumnPrefsService ColumnPrefs { get; set; } = null!;
+    [Inject] private HttpClient Http { get; set; } = null!;
 
     private MudTable<NcrDto>? table;
     private List<NcrDto> _pageItems = new();
@@ -49,31 +50,16 @@ public partial class Ncrs
     private async Task PrintSelected()
     {
         if (!selectedIds.Any()) { Snackbar.Add("请先选择要打印的记录", Severity.Warning); return; }
-        try
-        {
-            var ids = selectedIds.ToArray();
-            var result = await NcrService.PrintSelectedAsync(ids, GetPrintColumnDefs());
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-                await JS.InvokeVoidAsync("printRawHtml", result.Data, "不合格报告", "portrait");
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Ncr}/print-selected-file";
+        var json = JsonSerializer.Serialize(new { ids = selectedIds.ToArray(), columns = GetPrintColumnDefs() });
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
     private async Task PrintAll()
     {
-        try
-        {
-            var result = await NcrService.PrintAllAsync(
-                string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                GetPrintColumnDefs());
-            if (result.Success && !string.IsNullOrEmpty(result.Data))
-                await JS.InvokeVoidAsync("printRawHtml", result.Data, "不合格报告", "portrait");
-            else
-                Snackbar.Add(result.Message ?? "打印失败", Severity.Error);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Ncr}/print-all-file";
+        var json = JsonSerializer.Serialize(new { keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword, columns = GetPrintColumnDefs() });
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
     // 待处理卡片
@@ -473,11 +459,6 @@ public partial class Ncrs
     private void EditItem(int id)
     {
         Navigation.NavigateTo($"/quality/ncr/{id}");
-    }
-
-    private void PrintItem(int id)
-    {
-        Navigation.NavigateTo($"/quality/ncr/print/{id}");
     }
 
     private async Task DeleteItem(int id)

@@ -287,7 +287,7 @@ public class InventorySyncService : IInventorySyncService
                     foreach (var item in order.ReturnItems)
                     {
                         item.IsForceCompleted = true;
-                        item.ProcessStatus = SubcontractOrderStatus.Completed;
+                        item.ProcessStatus = SubcontractOrderStatus.Completed.ToString();
                     }
                 }
                 else
@@ -327,13 +327,13 @@ public class InventorySyncService : IInventorySyncService
         if (!item.IsForceCompleted)
         {
             if (item.ReturnedQuantity <= 0 && item.ReturnedWeight <= 0)
-                item.ProcessStatus = SubcontractOrderStatus.Sent;
+                item.ProcessStatus = SubcontractOrderStatus.Sent.ToString();
             else if (item.RequiredQuantity.HasValue && item.ReturnedQuantity >= item.RequiredQuantity.Value)
-                item.ProcessStatus = SubcontractOrderStatus.Completed;
+                item.ProcessStatus = SubcontractOrderStatus.Completed.ToString();
             else if (item.RequiredWeight.HasValue && item.ReturnedWeight >= item.RequiredWeight.Value)
-                item.ProcessStatus = SubcontractOrderStatus.Completed;
+                item.ProcessStatus = SubcontractOrderStatus.Completed.ToString();
             else
-                item.ProcessStatus = SubcontractOrderStatus.PartialReturned;
+                item.ProcessStatus = SubcontractOrderStatus.PartialReturned.ToString();
         }
     }
 }

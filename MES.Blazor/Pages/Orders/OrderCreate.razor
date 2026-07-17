@@ -690,8 +690,8 @@
         if (effectiveOd <= effectiveWall) effectiveOd = effectiveWall + 0.001m;
 
         var weight = grade.Density * pi * effectiveWall * (effectiveOd - effectiveWall) * meters / 1000;
-        item.TheoreticalWeight = Math.Round(weight < 0 ? 0 : weight, 2);
-        
+        item.TheoreticalWeight = Math.Round(weight < 0 ? 0 : weight, 1, MidpointRounding.AwayFromZero);
+
         // 定尺模式下设置最大长度等于最小长度
         if (item.LengthStatus == LengthStatus.Fixed && item.MinLength.HasValue)
         {
@@ -880,11 +880,11 @@
                     
                     if (ratio < lowerBound)
                     {
-                        warnings.Add($"项次 {seq}: 合同重量 {item.ContractWeight:F2} kg 低于理算重量 {item.TheoreticalWeight:F2} kg 的94%，可能亏损，是否继续？");
+                        warnings.Add($"项次 {seq}: 合同重量 {item.ContractWeight:F1} kg 低于理算重量 {item.TheoreticalWeight:F1} kg 的94%，可能亏损，是否继续？");
                     }
                     else if (ratio > upperBound)
                     {
-                        warnings.Add($"项次 {seq}: 合同重量 {item.ContractWeight:F2} kg 高于理算重量 {item.TheoreticalWeight:F2} kg 的106%，请确认");
+                        warnings.Add($"项次 {seq}: 合同重量 {item.ContractWeight:F1} kg 高于理算重量 {item.TheoreticalWeight:F1} kg 的106%，请确认");
                     }
                 }
             }

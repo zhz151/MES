@@ -14,6 +14,8 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
+using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -260,13 +262,13 @@ public class SupplierService : ISupplierService
         }) ?? new Dictionary<string, List<string>>();
     }
 
-    public async Task<byte[]> PrintSupplierAsync(int id)
+    public async Task<byte[]> PrintSupplierAsync(int id, List<PrintColumnDef>? columns = null)
     {
         var dto = await GetByIdAsync(id);
-        return SupplierPrintHelper.GeneratePdf(dto);
+        return TablePrintHelper.GeneratePdf("供应商档案列表", new List<Dictionary<string, object>> { ToPrintDict(dto) }, columns ?? []);
     }
 
-    public async Task<byte[]> PrintSupplierBatchAsync(int[] ids)
+    public async Task<byte[]> PrintSupplierBatchAsync(int[] ids, List<PrintColumnDef>? columns = null)
     {
         var result = new List<SupplierProfileDto>();
         foreach (var id in ids)
@@ -277,10 +279,10 @@ public class SupplierService : ISupplierService
             }
             catch (BusinessException) { /* 跳过不存在的供应商 */ }
         }
-        return SupplierPrintHelper.GenerateBatchPdf(result);
+        return TablePrintHelper.GeneratePdf("供应商档案列表", result.Select(ToPrintDict).ToList(), columns ?? []);
     }
 
-    public async Task<byte[]> PrintSupplierAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)
+    public async Task<byte[]> PrintSupplierAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null)
     {
         var query = new QueryParams
         {
@@ -291,8 +293,22 @@ public class SupplierService : ISupplierService
             IsDescending = isDescending
         };
         var paged = await GetPagedAsync(query);
-        return SupplierPrintHelper.GenerateBatchPdf(paged.Items);
+        return TablePrintHelper.GeneratePdf("供应商档案列表", paged.Items.Select(ToPrintDict).ToList(), columns ?? []);
     }
+
+    private static Dictionary<string, object> ToPrintDict(SupplierProfileDto dto) => new()
+    {
+        ["SupplierCode"] = dto.SupplierCode,
+        ["SupplierName"] = dto.SupplierName,
+        ["MaterialCategory"] = string.Join(", ",
+            (dto.MaterialCategory ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(v => EnumHelper.GetDisplayName<MaterialType>(v))),
+        ["ContactPerson"] = (object?)dto.ContactPerson ?? "",
+        ["ContactPhone"] = (object?)dto.ContactPhone ?? "",
+        ["IsActive"] = dto.IsActive ? "启用" : "停用",
+        ["Remark"] = (object?)dto.Remark ?? "",
+    };
 
     private static SupplierProfileDto ToDto(SupplierProfile entity) => new()
     {

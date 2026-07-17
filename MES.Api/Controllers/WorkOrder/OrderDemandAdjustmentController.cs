@@ -60,7 +60,7 @@ public class OrderDemandAdjustmentController : ControllerBase
     [HttpPost("print-file")]
     public IActionResult PrintFile([FromBody] OrderDemandAdjustmentPrintRequest request)
     {
-        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = OrderDemandAdjustmentPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "工单需求调整.pdf");
     }
 

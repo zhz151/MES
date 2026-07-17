@@ -1,6 +1,6 @@
 using MES.Core.Models;
-
 using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Shared;
 namespace MES.Core.Interfaces.Materials;
 
 public interface ISupplierService
@@ -15,12 +15,12 @@ public interface ISupplierService
     Task DeleteAsync(int id);
 
     /// <summary>
-    /// 获取筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
+    /// 获取筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     // ========== 打印 ==========
-    Task<byte[]> PrintSupplierAsync(int id);
-    Task<byte[]> PrintSupplierBatchAsync(int[] ids);
-    Task<byte[]> PrintSupplierAllAsync(string? keyword, string? sortBy = null, bool isDescending = false);
+    Task<byte[]> PrintSupplierAsync(int id, List<PrintColumnDef>? columns = null);
+    Task<byte[]> PrintSupplierBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
+    Task<byte[]> PrintSupplierAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null);
 }

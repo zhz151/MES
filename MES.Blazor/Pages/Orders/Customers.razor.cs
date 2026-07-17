@@ -672,7 +672,7 @@ public partial class Customers
         try
         {
             var ids = selectedIds.ToArray();
-            var request = new { Ids = ids };
+            var request = new OrderPrintBatchRequest { Ids = ids, Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList() };
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var apiUrl = $"{Http.BaseAddress}api/customer/print-batch-file";
             var json = JsonSerializer.Serialize(request);
@@ -689,11 +689,12 @@ public partial class Customers
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "customercode";
-            var request = new
+            var request = new OrderPrintAllRequest
             {
-                keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortBy,
-                isDescending = sortDescending
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortBy,
+                IsDescending = sortDescending,
+                Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var apiUrl = $"{Http.BaseAddress}api/customer/print-all-file";

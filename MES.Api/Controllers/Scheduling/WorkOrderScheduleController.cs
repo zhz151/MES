@@ -70,7 +70,7 @@ public class WorkOrderScheduleController : ControllerBase
     [HttpPost("print-file")]
     public IActionResult PrintFile([FromBody] WorkOrderSchedulePrintRequest request)
     {
-        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = WorkOrderSchedulePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "工单计划.pdf");
     }
 }

@@ -153,10 +153,10 @@ public class CustomerControllerTests : ControllerTestBase
     public async Task PrintCustomer_ReturnsOk()
     {
         // Arrange
-        _serviceMock.Setup(x => x.PrintCustomerAsync(1)).ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
+        _serviceMock.Setup(x => x.PrintCustomerAsync(1, null)).ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
 
         // Act
-        var result = await _controller.PrintCustomer(1);
+        var result = await _controller.PrintCustomerSingle(new OrderPrintSingleRequest { Id = 1 });
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<string>>(result);
@@ -182,7 +182,7 @@ public class CustomerControllerTests : ControllerTestBase
     public async Task PrintCustomerBatch_ReturnsOk()
     {
         // Arrange
-        _serviceMock.Setup(x => x.PrintCustomerBatchAsync(It.IsAny<int[]>()))
+        _serviceMock.Setup(x => x.PrintCustomerBatchAsync(It.IsAny<int[]>(), null))
             .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
 
         // Act
@@ -212,7 +212,7 @@ public class CustomerControllerTests : ControllerTestBase
     public async Task PrintCustomerAll_ReturnsOk()
     {
         // Arrange
-        _serviceMock.Setup(x => x.PrintCustomerAllAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>()))
+        _serviceMock.Setup(x => x.PrintCustomerAllAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), null))
             .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
 
         // Act

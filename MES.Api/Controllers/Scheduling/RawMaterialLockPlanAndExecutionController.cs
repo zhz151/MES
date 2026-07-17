@@ -49,14 +49,14 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     [HttpPost("print")]
     public ActionResult<ApiResponse<string>> Print([FromBody] RawMaterialLockPlanPrintRequest request)
     {
-        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = RawMaterialLockPlanPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return Ok(ApiResponse<string>.Ok(data: Convert.ToBase64String(pdfBytes)));
     }
 
     [HttpPost("print-file")]
     public IActionResult PrintFile([FromBody] RawMaterialLockPlanPrintRequest request)
     {
-        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = RawMaterialLockPlanPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "原锁计划.pdf");
     }
 }

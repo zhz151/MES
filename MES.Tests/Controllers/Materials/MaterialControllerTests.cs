@@ -4,6 +4,7 @@ using Moq;
 using MES.Api.Controllers.Materials;
 using MES.Core.Models;
 using MES.Core.DTOs.Materials;
+using MES.Core.DTOs.Order;
 using MES.Core.Enums;
 using MES.Core.Interfaces.Materials;
 
@@ -153,10 +154,10 @@ public class MaterialControllerTests : ControllerTestBase
     public async Task PrintMaterial_ReturnsOk()
     {
         // Arrange
-        _serviceMock.Setup(x => x.PrintMaterialAsync(1)).ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
+        _serviceMock.Setup(x => x.PrintMaterialAsync(1, null)).ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
 
         // Act
-        var result = await _controller.PrintMaterial(1);
+        var result = await _controller.PrintMaterialSingle(new OrderPrintSingleRequest { Id = 1 });
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<string>>(result);

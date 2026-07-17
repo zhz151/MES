@@ -137,25 +137,25 @@ public class NcrController : ControllerBase
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
 
-    /// <summary>打印选中 NCR（生成 HTML）</summary>
+    /// <summary>打印选中 NCR（生成 PDF）</summary>
     [HttpPost("print-selected-file")]
     [Authorize(Roles = Roles.Policies.QualityWrite)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintSelectedFile([FromBody] NcrPrintSelectedRequest request)
+    public async Task<IActionResult> PrintSelectedFile([FromBody] NcrPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var html = await _ncrService.PrintSelectedAsync(request.Ids, request.Columns);
-        return Ok(ApiResponse<string>.Ok(data: html));
+        var pdf = await _ncrService.PrintSelectedAsync(request.Ids, request.Columns);
+        return File(pdf, "application/pdf", $"NCR_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
     }
 
-    /// <summary>打印全部 NCR（生成 HTML）</summary>
+    /// <summary>打印全部 NCR（生成 PDF）</summary>
     [HttpPost("print-all-file")]
     [Authorize(Roles = Roles.Policies.QualityWrite)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintAllFile([FromBody] NcrPrintAllRequest request)
+    public async Task<IActionResult> PrintAllFile([FromBody] NcrPrintAllRequest request)
     {
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var html = await _ncrService.PrintAllAsync(request);
-        return Ok(ApiResponse<string>.Ok(data: html));
+        var pdf = await _ncrService.PrintAllAsync(request);
+        return File(pdf, "application/pdf", $"NCR_All_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
     }
 }

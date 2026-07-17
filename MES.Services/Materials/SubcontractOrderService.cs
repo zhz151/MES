@@ -268,7 +268,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                 SourceWorkOrderNo = r.SourceWorkOrderNo,
                 ReturnedQuantity = r.ReturnedQuantity,
                 ReturnedWeight = r.ReturnedWeight,
-                ProcessStatus = r.ProcessStatus,
+                ProcessStatus = Enum.TryParse<SubcontractOrderStatus>(r.ProcessStatus, out var ps) ? ps : default,
                 IsForceCompleted = r.IsForceCompleted
             };
 
@@ -375,7 +375,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             SourceWorkOrderNo = r.SourceWorkOrderNo,
             ReturnedQuantity = r.ReturnedQuantity,
             ReturnedWeight = r.ReturnedWeight,
-            ProcessStatus = r.ProcessStatus,
+            ProcessStatus = Enum.TryParse<SubcontractOrderStatus>(r.ProcessStatus, out var ps) ? ps : default,
             IsForceCompleted = r.IsForceCompleted
         }).ToList();
 
@@ -465,7 +465,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             SourceWorkOrderNo = r.SourceWorkOrderNo,
             ReturnedQuantity = r.ReturnedQuantity,
             ReturnedWeight = r.ReturnedWeight,
-            ProcessStatus = r.ProcessStatus,
+            ProcessStatus = Enum.TryParse<SubcontractOrderStatus>(r.ProcessStatus, out var ps) ? ps : default,
             IsForceCompleted = r.IsForceCompleted
         }).ToList();
 
@@ -566,19 +566,19 @@ public class SubcontractOrderService : ISubcontractOrderService
     {
         if (item.ReturnedQuantity <= 0 && item.ReturnedWeight <= 0)
         {
-            item.ProcessStatus = SubcontractOrderStatus.Sent;
+            item.ProcessStatus = SubcontractOrderStatus.Sent.ToString();
         }
         else if (item.RequiredQuantity.HasValue && item.ReturnedQuantity >= item.RequiredQuantity.Value)
         {
-            item.ProcessStatus = SubcontractOrderStatus.Completed;
+            item.ProcessStatus = SubcontractOrderStatus.Completed.ToString();
         }
         else if (item.RequiredWeight.HasValue && item.ReturnedWeight >= item.RequiredWeight.Value)
         {
-            item.ProcessStatus = SubcontractOrderStatus.Completed;
+            item.ProcessStatus = SubcontractOrderStatus.Completed.ToString();
         }
         else
         {
-            item.ProcessStatus = SubcontractOrderStatus.PartialReturned;
+            item.ProcessStatus = SubcontractOrderStatus.PartialReturned.ToString();
         }
     }
 
@@ -619,7 +619,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         foreach (var item in order.ReturnItems)
         {
             item.IsForceCompleted = true;
-            item.ProcessStatus = SubcontractOrderStatus.Completed;
+            item.ProcessStatus = SubcontractOrderStatus.Completed.ToString();
         }
     }
 
@@ -805,7 +805,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                     SourceWorkOrderNo = r.SourceWorkOrderNo,
                     ReturnedQuantity = r.ReturnedQuantity,
                     ReturnedWeight = r.ReturnedWeight,
-                    ProcessStatus = r.ProcessStatus,
+                    ProcessStatus = Enum.TryParse<SubcontractOrderStatus>(r.ProcessStatus, out var ps) ? ps : default,
                     IsForceCompleted = r.IsForceCompleted
                 };
                 if (r.SourceWorkOrderNo != null && workOrders.TryGetValue(r.SourceWorkOrderNo, out var wo))

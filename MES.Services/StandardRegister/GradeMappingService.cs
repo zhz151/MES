@@ -291,13 +291,13 @@ public class GradeMappingService : IGradeMappingService
 
     // ========== 打印 ==========
 
-    public async Task<byte[]> PrintGradeMappingAsync(int id)
+    public async Task<byte[]> PrintGradeMappingAsync(int id, List<PrintColumnDef>? columns = null)
     {
         var dto = await GetByIdAsync(id);
-        return GradeMappingPrintHelper.GeneratePdf(dto);
+        return TablePrintHelper.GeneratePdf("牌号对照列表", new List<Dictionary<string, object>> { ToPrintDict(dto) }, columns ?? []);
     }
 
-    public async Task<byte[]> PrintGradeMappingBatchAsync(int[] ids, List<PrintColumnDef> columns)
+    public async Task<byte[]> PrintGradeMappingBatchAsync(int[] ids, List<PrintColumnDef>? columns = null)
     {
         var result = new List<StandardGradeMappingDto>();
         foreach (var id in ids)
@@ -308,7 +308,7 @@ public class GradeMappingService : IGradeMappingService
             }
             catch (BusinessException) { /* 跳过不存在的牌号映射 */ }
         }
-        return GradeMappingPrintHelper.GenerateBatchPdf(result);
+        return TablePrintHelper.GeneratePdf("牌号对照列表", result.Select(ToPrintDict).ToList(), columns ?? []);
     }
 
     public async Task<byte[]> PrintGradeMappingAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null)
@@ -322,8 +322,20 @@ public class GradeMappingService : IGradeMappingService
             IsDescending = isDescending
         };
         var paged = await GetPagedAsync(query);
-        return GradeMappingPrintHelper.GenerateBatchPdf(paged.Items);
+        return TablePrintHelper.GeneratePdf("牌号对照列表", paged.Items.Select(ToPrintDict).ToList(), columns ?? []);
     }
+
+    private static Dictionary<string, object> ToPrintDict(StandardGradeMappingDto dto) => new()
+    {
+        ["StandardGrade"] = dto.StandardGrade,
+        ["StandardGradeCategory"] = (object?)dto.StandardGradeCategory ?? "",
+        ["PlantGrade"] = dto.PlantGrade,
+        ["Density"] = dto.Density.ToString("F4"),
+        ["HeatTreatment"] = (object?)dto.HeatTreatment ?? "",
+        ["SpecialMaterial"] = dto.SpecialMaterial ? "特殊" : "常规",
+        ["SteelProperty"] = dto.SteelProperty,
+        ["Remark"] = (object?)dto.Remark ?? "",
+    };
 
     // ========== 筛选上下文 ==========
 

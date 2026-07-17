@@ -92,7 +92,12 @@ public static class TablePrintHelper
             {
                 columnsDef.ConstantColumn(28); // 序号
                 foreach (var col in columns)
-                    columnsDef.RelativeColumn();
+                {
+                    if (col.Width is > 0)
+                        columnsDef.ConstantColumn(col.Width.Value);
+                    else
+                        columnsDef.RelativeColumn();
+                }
             });
 
             // 表头

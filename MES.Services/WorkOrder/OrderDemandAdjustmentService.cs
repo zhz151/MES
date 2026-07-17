@@ -352,7 +352,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
             return dict;
         }).ToList();
 
-        return TablePrintHelper.GeneratePdf("工单需求调整", resolvedItems, columns);
+        return OrderDemandAdjustmentPrintHelper.GeneratePdf("工单需求调整", resolvedItems, columns);
     }
 
     private static object ResolvePrintValue(OrderDemandAdjustmentDto item, string key) => key switch

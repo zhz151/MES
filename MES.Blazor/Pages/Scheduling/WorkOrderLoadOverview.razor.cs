@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
 
-namespace MES.Blazor.Shared;
+namespace MES.Blazor.Pages.Scheduling;
 
 public partial class WorkOrderLoadOverview : ComponentBase
 {

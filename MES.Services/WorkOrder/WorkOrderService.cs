@@ -1389,7 +1389,7 @@ public class WorkOrderService : IWorkOrderService
 
                 if (item.Quantity.HasValue && item.Quantity > 0 && item.MaxLength.HasValue && item.MaxLength > 0)
                 {
-                    itemDetailsBuilder.Append($"{item.Sequence}项,{item.MaxLength}mm,{item.Quantity}支;");
+                    itemDetailsBuilder.Append($"{item.Sequence}项,{item.MaxLength:G29}mm,{item.Quantity}支;");
                 }
             }
             else

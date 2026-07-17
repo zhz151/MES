@@ -29,7 +29,7 @@ public class FinalInspectionPlanController : ControllerBase
     [HttpPost("print-file")]
     public IActionResult PrintFile([FromBody] FinalInspectionPlanPrintRequest request)
     {
-        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = FinalInspectionPlanPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "成检计划.pdf");
     }
 }

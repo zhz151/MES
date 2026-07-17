@@ -1451,7 +1451,7 @@ public class OrderService : IOrderService
 
         var weight = density * pi * effectiveWallThickness * (effectiveOuterDiameter - effectiveWallThickness) * meters / 1000;
         if (weight < 0) weight = 0;
-        return weight;
+        return Math.Round(weight, 1, MidpointRounding.AwayFromZero);
     }
 
     private static void SetOrderItemFields(OrderItem item,

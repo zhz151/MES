@@ -640,8 +640,6 @@ public partial class FurnaceRegistrations
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/quality/furnace/create");
-    private void ViewDetail(FurnaceRegistrationDto item) => Navigation.NavigateTo($"/quality/furnace/{item.Id}");
-
     // ========== 打印 ==========
 
     private List<PrintColumnDef> GetPrintColumnDefs() =>

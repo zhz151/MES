@@ -1,3 +1,5 @@
+using MES.Core.DTOs.Shared;
+
 namespace MES.Core.DTOs.Order;
 
 /// <summary>
@@ -9,6 +11,11 @@ public class OrderPrintBatchRequest
     /// 订单ID列表
     /// </summary>
     public int[] Ids { get; set; } = Array.Empty<int>();
+
+    /// <summary>
+    /// 打印列定义列表（为空则打印全部列）
+    /// </summary>
+    public List<PrintColumnDef>? Columns { get; set; }
 }
 
 /// <summary>
@@ -42,6 +49,11 @@ public class OrderPrintAllRequest
     public bool IsDescending { get; set; }
 
     /// <summary>
+    /// 打印列定义列表（为空则打印全部列）
+    /// </summary>
+    public List<PrintColumnDef>? Columns { get; set; }
+
+    /// <summary>
     /// 日期范围筛选-开始（仅采购/委外使用）
     /// </summary>
     public DateTime? DateFrom { get; set; }
@@ -50,4 +62,20 @@ public class OrderPrintAllRequest
     /// 日期范围筛选-结束（仅采购/委外使用）
     /// </summary>
     public DateTime? DateTo { get; set; }
+}
+
+/// <summary>
+/// 单条打印请求
+/// </summary>
+public class OrderPrintSingleRequest
+{
+    /// <summary>
+    /// 记录 ID
+    /// </summary>
+    public int Id { get; set; }
+
+    /// <summary>
+    /// 打印列定义列表（为空则打印全部列）
+    /// </summary>
+    public List<PrintColumnDef>? Columns { get; set; }
 }

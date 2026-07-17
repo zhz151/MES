@@ -2637,7 +2637,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             return dict;
         }).ToList();
 
-        return TablePrintHelper.GeneratePdf("工单执行状况", resolvedItems, columns);
+        return WorkOrderExecutionPrintHelper.GeneratePdf("工单执行状况", resolvedItems, columns);
     }
 
     private static object ResolvePrintValue(WorkOrderExecutionSummaryDto item, string key) => key switch

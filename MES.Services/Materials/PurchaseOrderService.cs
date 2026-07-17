@@ -27,6 +27,7 @@ using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Helpers;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
@@ -1107,16 +1108,16 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     // ========== 打印 ==========
 
-    public async Task<byte[]> PrintOrderAsync(int id)
+    public async Task<byte[]> PrintOrderAsync(int id, List<PrintColumnDef>? columns = null)
     {
         var dto = await GetByIdAsync(id);
-        return PurchaseOrderPrintHelper.GeneratePdf(dto);
+        return TablePrintHelper.GeneratePdf("采购订单列表", new List<Dictionary<string, object>> { ToPrintDict(dto) }, columns ?? []);
     }
 
-    public async Task<byte[]> PrintOrderBatchAsync(int[] ids)
+    public async Task<byte[]> PrintOrderBatchAsync(int[] ids, List<PrintColumnDef>? columns = null)
     {
         var orders = await GetByIdsAsync(ids);
-        return PurchaseOrderPrintHelper.GenerateBatchPdf(orders);
+        return TablePrintHelper.GeneratePdf("采购订单列表", orders.Select(ToPrintDict).ToList(), columns ?? []);
     }
 
     public async Task<List<PurchaseOrderDto>> GetByIdsAsync(int[] ids)
@@ -1172,7 +1173,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         }).ToList();
     }
 
-    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null)
+    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null, List<PrintColumnDef>? columns = null)
     {
         var query = new PurchaseOrderQueryParams
         {
@@ -1185,8 +1186,26 @@ public class PurchaseOrderService : IPurchaseOrderService
             DateTo = dateTo
         };
         var paged = await GetPagedAsync(query);
-        return PurchaseOrderPrintHelper.GenerateBatchPdf(paged.Items);
+        return TablePrintHelper.GeneratePdf("采购订单列表", paged.Items.Select(ToPrintDict).ToList(), columns ?? []);
     }
+
+    private static Dictionary<string, object> ToPrintDict(PurchaseOrderDto dto) => new()
+    {
+        ["OrderNo"] = dto.OrderNo,
+        ["OrderDate"] = dto.OrderDate,
+        ["SourceWorkOrderNo"] = (object?)dto.SourceWorkOrderNo ?? "",
+        ["MaterialCategory"] = EnumHelper.GetDisplayName(dto.MaterialCategory),
+        ["PlantGrade"] = dto.PlantGrade,
+        ["Specification"] = dto.Specification,
+        ["UnitWeight"] = (object?)dto.UnitWeight ?? "",
+        ["Quantity"] = (object?)dto.Quantity ?? "",
+        ["InputMultiple"] = (object?)dto.InputMultiple ?? "",
+        ["Weight"] = dto.Weight,
+        ["RequiredDate"] = dto.RequiredDate,
+        ["SupplierName"] = dto.SupplierName,
+        ["Status"] = dto.Status,
+        ["ArrivalSummary"] = $"{dto.ReceivedQuantity}支/{dto.ReceivedWeight:G29}kg",
+    };
 
     /// <summary>
     /// 判断执行量是否达到完成阈值：

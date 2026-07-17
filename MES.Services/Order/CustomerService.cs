@@ -29,6 +29,7 @@ using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Services.Printing;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.WorkOrder;
@@ -356,13 +357,13 @@ public class CustomerService : ICustomerService
 
     // ========== 打印 ==========
 
-    public async Task<byte[]> PrintCustomerAsync(int id)
+    public async Task<byte[]> PrintCustomerAsync(int id, List<PrintColumnDef>? columns = null)
     {
         var dto = await GetByIdAsync(id);
-        return CustomerPrintHelper.GeneratePdf(dto);
+        return TablePrintHelper.GeneratePdf("客户档案列表", new List<CustomerProfileDto> { dto }, columns ?? []);
     }
 
-    public async Task<byte[]> PrintCustomerBatchAsync(int[] ids)
+    public async Task<byte[]> PrintCustomerBatchAsync(int[] ids, List<PrintColumnDef>? columns = null)
     {
         var result = new List<CustomerProfileDto>();
         foreach (var id in ids)
@@ -373,10 +374,10 @@ public class CustomerService : ICustomerService
             }
             catch (BusinessException) { /* 跳过不存在的客户 */ }
         }
-        return CustomerPrintHelper.GenerateBatchPdf(result);
+        return TablePrintHelper.GeneratePdf("客户档案列表", result, columns ?? []);
     }
 
-    public async Task<byte[]> PrintCustomerAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)
+    public async Task<byte[]> PrintCustomerAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null)
     {
         var query = new QueryParams
         {
@@ -387,7 +388,7 @@ public class CustomerService : ICustomerService
             IsDescending = isDescending
         };
         var paged = await GetPagedAsync(query);
-        return CustomerPrintHelper.GenerateBatchPdf(paged.Items);
+        return TablePrintHelper.GeneratePdf("客户档案列表", paged.Items, columns ?? []);
     }
 
     private static CustomerProfileDto ToDto(CustomerProfile entity) => new()

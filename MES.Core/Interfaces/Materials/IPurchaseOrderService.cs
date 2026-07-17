@@ -1,7 +1,7 @@
 using MES.Core.Models;
-
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
+using MES.Core.DTOs.Shared;
 namespace MES.Core.Interfaces.Materials;
 
 public interface IPurchaseOrderService
@@ -25,7 +25,7 @@ public interface IPurchaseOrderService
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     // ========== 打印 ==========
-    Task<byte[]> PrintOrderAsync(int id);
-    Task<byte[]> PrintOrderBatchAsync(int[] ids);
-    Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null);
+    Task<byte[]> PrintOrderAsync(int id, List<PrintColumnDef>? columns = null);
+    Task<byte[]> PrintOrderBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
+    Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null, List<PrintColumnDef>? columns = null);
 }

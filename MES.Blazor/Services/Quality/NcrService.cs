@@ -110,27 +110,4 @@ public class NcrService
         catch (Exception ex) { return ApiResponse<List<NcrPendingCheckDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    // ========== 打印（HTML） ==========
-
-    public async Task<ApiResponse<string>> PrintSelectedAsync(int[] ids, List<PrintColumnDef> columns)
-    {
-        try
-        {
-            var request = new { ids, columns };
-            return await _http.PostAsJsonAsync<object, ApiResponse<string>>($"{BaseUrl}/print-selected-file", request)
-                   ?? ApiResponse<string>.Fail("打印请求失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<string>> PrintAllAsync(string? keyword, List<PrintColumnDef> columns)
-    {
-        try
-        {
-            var request = new { keyword, columns };
-            return await _http.PostAsJsonAsync<object, ApiResponse<string>>($"{BaseUrl}/print-all-file", request)
-                   ?? ApiResponse<string>.Fail("打印请求失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
 }

@@ -95,9 +95,9 @@ public class SubcontractReturnItem : BaseEntity
     public decimal ReturnedWeight { get; set; }
 
     /// <summary>
-    /// 加工状态
+    /// 加工状态（SubcontractOrderStatus 枚举名，DB 存 string 兼容旧 Pending→Sent）
     /// </summary>
-    public SubcontractOrderStatus ProcessStatus { get; set; } = SubcontractOrderStatus.Sent;
+    public string ProcessStatus { get; set; } = SubcontractOrderStatus.Sent.ToString();
 
     /// <summary>
     /// 强制完成（true时状态固定为已完成，false时自动计算）

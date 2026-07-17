@@ -143,7 +143,7 @@ public partial class AppDbContext
             entity.Property(e => e.SourceWorkOrderNo).HasMaxLength(50);
             entity.Property(e => e.ReturnedQuantity).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.ReturnedWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.ProcessStatus).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(SubcontractOrderStatus.Sent);
+            entity.Property(e => e.ProcessStatus).IsRequired().HasMaxLength(20).HasDefaultValue(SubcontractOrderStatus.Sent.ToString());
             entity.Property(e => e.IsForceCompleted).IsRequired().HasDefaultValue(false);
             entity.HasIndex(e => new { e.SubcontractOrderId, e.Sequence })
                 .IsUnique()

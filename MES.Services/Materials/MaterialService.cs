@@ -27,6 +27,7 @@ using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
+using MES.Core.Helpers;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.WorkOrder;
@@ -341,13 +342,13 @@ public class MaterialService : IMaterialService
         }) ?? new Dictionary<string, List<string>>();
     }
 
-    public async Task<byte[]> PrintMaterialAsync(int id)
+    public async Task<byte[]> PrintMaterialAsync(int id, List<PrintColumnDef>? columns = null)
     {
         var dto = await GetByIdAsync(id);
-        return MaterialPrintHelper.GeneratePdf(dto);
+        return TablePrintHelper.GeneratePdf("物料档案列表", new List<Dictionary<string, object>> { ToPrintDict(dto) }, columns ?? []);
     }
 
-    public async Task<byte[]> PrintMaterialBatchAsync(int[] ids)
+    public async Task<byte[]> PrintMaterialBatchAsync(int[] ids, List<PrintColumnDef>? columns = null)
     {
         var result = new List<MaterialDto>();
         foreach (var id in ids)
@@ -358,10 +359,10 @@ public class MaterialService : IMaterialService
             }
             catch (BusinessException) { /* 跳过不存在的物料 */ }
         }
-        return MaterialPrintHelper.GenerateBatchPdf(result);
+        return TablePrintHelper.GeneratePdf("物料档案列表", result.Select(ToPrintDict).ToList(), columns ?? []);
     }
 
-    public async Task<byte[]> PrintMaterialAllAsync(string? keyword, string? sortBy = null, bool isDescending = false)
+    public async Task<byte[]> PrintMaterialAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null)
     {
         var query = new QueryParams
         {
@@ -372,8 +373,18 @@ public class MaterialService : IMaterialService
             IsDescending = isDescending
         };
         var paged = await GetPagedAsync(query);
-        return MaterialPrintHelper.GenerateBatchPdf(paged.Items);
+        return TablePrintHelper.GeneratePdf("物料档案列表", paged.Items.Select(ToPrintDict).ToList(), columns ?? []);
     }
+
+    private static Dictionary<string, object> ToPrintDict(MaterialDto dto) => new()
+    {
+        ["MaterialCode"] = dto.MaterialCode,
+        ["MaterialCategory"] = EnumHelper.GetDisplayName(dto.MaterialCategory),
+        ["PlantGrade"] = dto.PlantGrade,
+        ["Specification"] = dto.Specification,
+        ["IsActive"] = dto.IsActive ? "启用" : "停用",
+        ["Remark"] = (object?)dto.Remark ?? "",
+    };
 
     private static MaterialDto ToDto(Material entity) => new()
     {

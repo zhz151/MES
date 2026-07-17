@@ -18,6 +18,7 @@ using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
 using MES.Core.Interfaces.Batch;
+using MES.Services.Printing;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
 using MES.Core.Interfaces.Equipment;
@@ -625,9 +626,9 @@ public class NcrService : INcrService
         return results;
     }
 
-    // ========== 打印（HTML 打印样式） ==========
+    // ========== 打印（PDF - QuestPDF） ==========
 
-    public async Task<string> PrintSelectedAsync(int[] ids, List<PrintColumnDef> columns)
+    public async Task<byte[]> PrintSelectedAsync(int[] ids, List<PrintColumnDef> columns)
     {
         var entities = await _context.Ncrs
             .AsNoTracking()
@@ -638,10 +639,10 @@ public class NcrService : INcrService
         if (entities.Count == 0)
             throw new BusinessException("未找到选中的 NCR 报告数据");
 
-        return BuildNcrPrintHtml(entities);
+        return NcrPrintHelper.GeneratePdf(entities);
     }
 
-    public async Task<string> PrintAllAsync(NcrPrintAllRequest request)
+    public async Task<byte[]> PrintAllAsync(NcrPrintAllRequest request)
     {
         var queryable = _context.Ncrs.AsNoTracking().AsQueryable();
 
@@ -661,199 +662,8 @@ public class NcrService : INcrService
             .OrderByDescending(n => n.CreatedTime)
             .ToListAsync();
 
-        return BuildNcrPrintHtml(entities);
+        return NcrPrintHelper.GeneratePdf(entities);
     }
-
-    private static string BuildNcrPrintHtml(List<Ncr> entities)
-    {
-        var html = new System.Text.StringBuilder();
-        html.AppendLine("<!DOCTYPE html><html><head>");
-        html.AppendLine("<meta charset=\"utf-8\">");
-        html.AppendLine("<title>不合格品报告</title>");
-        html.AppendLine("<style>");
-        html.AppendLine(GetPrintStyles());
-        html.AppendLine("</style></head><body>");
-
-        for (int i = 0; i < entities.Count; i++)
-        {
-            var n = entities[i];
-            html.AppendLine("<div class=\"ncr-print-report\">");
-            AppendNcrReport(html, n);
-            html.AppendLine("</div>");
-            if (i < entities.Count - 1)
-                html.AppendLine("<div class=\"page-break\"></div>");
-        }
-
-        html.AppendLine("</body></html>");
-        return html.ToString();
-    }
-
-    private static void AppendNcrReport(System.Text.StringBuilder html, Ncr n)
-    {
-        // 报告头
-        html.AppendLine("<div class=\"ncr-print-header\">");
-        html.AppendLine("<h1>不合格报告</h1>");
-        html.AppendLine($"<div class=\"ncr-print-id\">编号: NCR-{n.Id:D4}</div>");
-        html.AppendLine($"<div class=\"ncr-print-status\"><span class=\"ncr-status-badge ncr-status-{GetStatusCss(n.Status)}\">{GetStatusText(n.Status)}</span></div>");
-        html.AppendLine("</div>");
-
-        // G1 问题反馈
-        html.AppendLine("<div class=\"ncr-print-section\">");
-        html.AppendLine("<h2 class=\"ncr-section-title ncr-section-g1\">G1 问题反馈</h2>");
-        html.AppendLine("<table class=\"ncr-print-table\">");
-        AppendFieldRow(html, "反馈日期", n.ReportDate.ToString("yyyy-MM-dd"), "反馈部门", n.ReportDepartment ?? "");
-        AppendFieldRow(html, "反馈人", n.Reporter ?? "", "钢管类别", GetPipeCategoryText(n.PipeCategory));
-        AppendFieldRow(html, "生产编号", n.BatchNo, "工单号", n.WorkOrderNo ?? "");
-        AppendFieldRow(html, "牌号", n.PlantGrade ?? "", "规格", n.Specification ?? "");
-        AppendFieldRow(html, "不合格支数", n.DefectiveQuantity?.ToString("G29") ?? "0", "", "");
-        AppendFieldSpan(html, "问题描述", n.ProblemDescription ?? "");
-        html.AppendLine("</table></div>");
-
-        // G2 不合格品处置
-        html.AppendLine("<div class=\"ncr-print-section\">");
-        html.AppendLine("<h2 class=\"ncr-section-title ncr-section-g2\">G2 不合格品处置</h2>");
-        html.AppendLine("<table class=\"ncr-print-table\">");
-        AppendFieldRow(html, "处置方式", GetDisposalMethodText(n.DisposalMethod), "处置完结", n.DisposalIsCompleted ? "是" : "否");
-        AppendFieldRow(html, "处置完结日期", FormatDate(n.DisposalCompleteDate), "", "");
-        AppendFieldSpan(html, "处置备注", n.DisposalRemark ?? "");
-        html.AppendLine("</table></div>");
-
-        // G3 原因分析
-        html.AppendLine("<div class=\"ncr-print-section\">");
-        html.AppendLine("<h2 class=\"ncr-section-title ncr-section-g3\">G3 原因分析</h2>");
-        html.AppendLine("<table class=\"ncr-print-table\">");
-        AppendFieldRow(html, "严重程度", GetSeverityText(n.Severity), "分析确认人", n.AnalysisConfirmer ?? "");
-        AppendFieldRow(html, "确认日期", FormatDate(n.AnalysisConfirmDate), "", "");
-        AppendFieldSpan(html, "原因分析", n.RootCauseAnalysis ?? "");
-        html.AppendLine("</table></div>");
-
-        // G4 责任人及处理
-        html.AppendLine("<div class=\"ncr-print-section\">");
-        html.AppendLine("<h2 class=\"ncr-section-title ncr-section-g4\">G4 责任人及处理</h2>");
-        html.AppendLine("<table class=\"ncr-print-table\">");
-        AppendFieldRow(html, "责任类别", GetResponsibilityCategoryText(n.ResponsibilityCategory), "责任部门", n.ResponsibleDept ?? "");
-        AppendFieldRow(html, "责任人", n.ResponsiblePerson ?? "", "操作日期", FormatDate(n.OperationDate));
-        AppendFieldRow(html, "处理完结", n.PersonIsCompleted ? "是" : "否", "完结日期", FormatDate(n.PersonCompleteDate));
-        AppendFieldSpan(html, "对责任人的处理", n.PersonDisposition ?? "");
-        html.AppendLine("</table></div>");
-
-        // G5 纠正预防措施及结果验证
-        html.AppendLine("<div class=\"ncr-print-section\">");
-        html.AppendLine("<h2 class=\"ncr-section-title ncr-section-g5\">G5 纠正预防措施及结果验证</h2>");
-        html.AppendLine("<table class=\"ncr-print-table\">");
-        AppendFieldRow(html, "计划人", n.ActionPlanner ?? "", "计划日期", FormatDate(n.ActionPlanDate));
-        AppendFieldRow(html, "验证人", n.ActionVerifier ?? "", "验证日期", FormatDate(n.ActionVerifyDate));
-        AppendFieldRow(html, "验证结论", GetVerifyResultText(n.VerifyResult), "结果判定", n.ActionResult ?? "");
-        AppendFieldSpan(html, "纠正预防措施", n.CorrectiveAction ?? "");
-        html.AppendLine("</table></div>");
-
-        // 页脚
-        html.AppendLine("<div class=\"ncr-print-footer\">");
-        html.AppendLine($"<div class=\"ncr-print-audit\">创建时间: {n.CreatedTime:yyyy-MM-dd HH:mm} | 更新时间: {n.UpdatedTime:yyyy-MM-dd HH:mm}</div>");
-        html.AppendLine("</div>");
-    }
-
-    private static void AppendFieldRow(System.Text.StringBuilder html, string label1, string value1, string label2, string value2)
-    {
-        html.Append("<tr>");
-        html.Append($"<td class=\"ncr-label\">{EscapeHtml(label1)}</td>");
-        html.Append($"<td style=\"width:25%\">{EscapeHtml(value1)}</td>");
-        html.Append($"<td class=\"ncr-label\">{EscapeHtml(label2)}</td>");
-        html.Append($"<td style=\"width:25%\">{EscapeHtml(value2)}</td>");
-        html.AppendLine("</tr>");
-    }
-
-    private static void AppendFieldSpan(System.Text.StringBuilder html, string label, string value)
-    {
-        html.Append("<tr>");
-        html.Append($"<td class=\"ncr-label\">{EscapeHtml(label)}</td>");
-        html.Append($"<td colspan=\"3\">{EscapeHtml(value)}</td>");
-        html.AppendLine("</tr>");
-    }
-
-    private static string EscapeHtml(string text) => System.Net.WebUtility.HtmlEncode(text ?? "");
-
-    private static string GetPrintStyles()
-    {
-        return @"
-    body { font-family: ""Helvetica Neue"", Helvetica, Arial, ""Microsoft YaHei"", sans-serif; font-size: 12px; color: #222; margin: 0; padding: 0; }
-    .ncr-print-report { max-width: 210mm; margin: 0 auto; padding: 20px 10px; }
-    .ncr-print-header { text-align: center; border-bottom: 2px solid #d32f2f; margin-bottom: 16px; padding-bottom: 10px; }
-    .ncr-print-header h1 { font-size: 22px; font-weight: bold; margin: 0 0 6px; color: #d32f2f; }
-    .ncr-print-id { font-size: 13px; color: #555; margin-bottom: 4px; }
-    .ncr-print-status { font-size: 12px; }
-    .ncr-status-badge { display: inline-block; padding: 2px 12px; border-radius: 3px; font-weight: 600; }
-    .ncr-status-processing { background-color: #fff3e0; color: #e65100; }
-    .ncr-status-closed { background-color: #e8f5e9; color: #2e7d32; }
-    .ncr-section-title { font-size: 13px; font-weight: bold; padding: 5px 10px; margin: 14px 0 8px; border-left: 4px solid #999; }
-    .ncr-section-g1 { border-left-color: #d32f2f; background: #fff5f5; }
-    .ncr-section-g2 { border-left-color: #f57c00; background: #fff8e1; }
-    .ncr-section-g3 { border-left-color: #1976d2; background: #e3f2fd; }
-    .ncr-section-g4 { border-left-color: #5c6bc0; background: #e8eaf6; }
-    .ncr-section-g5 { border-left-color: #388e3c; background: #e8f5e9; }
-    .ncr-print-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-    .ncr-print-table td { border: 1px solid #ccc; padding: 5px 8px; vertical-align: top; }
-    .ncr-label { background-color: #f5f5f5; font-weight: 600; white-space: nowrap; width: 110px; }
-    .ncr-print-footer { margin-top: 24px; padding-top: 8px; border-top: 1px solid #ccc; }
-    .ncr-print-audit { font-size: 10px; color: #888; text-align: center; }
-    .page-break { page-break-after: always; }
-    @@media print {
-        @@page { size: portrait; margin: 15mm 12mm; }
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .ncr-print-section { page-break-inside: avoid; }
-    }";
-    }
-
-    private static string GetStatusText(NcrStatus status) => status switch
-    {
-        NcrStatus.Processing => "处理中",
-        NcrStatus.Closed => "已关闭",
-        _ => status.ToString()
-    };
-
-    private static string GetStatusCss(NcrStatus status) => status switch
-    {
-        NcrStatus.Processing => "processing",
-        NcrStatus.Closed => "closed",
-        _ => ""
-    };
-
-    private static string GetPipeCategoryText(MaterialType category) => EnumHelper.GetDisplayName(category);
-
-    private static string GetDisposalMethodText(DisposalMethod? method) => method switch
-    {
-        DisposalMethod.Rework => "返整",
-        DisposalMethod.WarehouseEntry => "入库",
-        DisposalMethod.Scrap => "报废",
-        _ => ""
-    };
-
-    private static string GetSeverityText(SeverityLevel? severity) => severity switch
-    {
-        SeverityLevel.Critical => "严重",
-        SeverityLevel.General => "一般",
-        _ => ""
-    };
-
-    private static string GetResponsibilityCategoryText(ResponsibilityCategory? category) => category switch
-    {
-        ResponsibilityCategory.ProductionInternal => "生产-厂内",
-        ResponsibilityCategory.ProductionOutsource => "生产-外协",
-        ResponsibilityCategory.MaterialTubeBlank => "原料-荒管",
-        ResponsibilityCategory.MaterialPurchased => "原料-外购成品",
-        ResponsibilityCategory.MaterialSurplus => "原料-余库料",
-        _ => ""
-    };
-
-    private static string GetVerifyResultText(VerifyResult? result) => result switch
-    {
-        VerifyResult.Passed => "通过",
-        VerifyResult.NeedsRectification => "需整改",
-        VerifyResult.NotApplicable => "不适用",
-        _ => ""
-    };
-
-    private static string FormatDate(DateTime? dt) => dt?.ToString("yyyy-MM-dd") ?? "";
 
     /// <summary>
     /// 批量查询 ProductionBatch 信息

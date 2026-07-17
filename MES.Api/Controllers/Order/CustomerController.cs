@@ -141,13 +141,21 @@ public class CustomerController : ControllerBase
     /// <summary>
     /// 打印单个客户
     /// </summary>
-    [HttpGet("{id}/print")]
+    [HttpPost("print-single")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<string>>> PrintCustomer(int id)
+    public async Task<ActionResult<ApiResponse<string>>> PrintCustomerSingle([FromBody] OrderPrintSingleRequest request)
     {
-        var pdfBytes = await _customerService.PrintCustomerAsync(id);
+        var pdfBytes = await _customerService.PrintCustomerAsync(request.Id, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+    }
+
+    [HttpPost("print-single-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<IActionResult> PrintCustomerSingleFile([FromBody] OrderPrintSingleRequest request)
+    {
+        var pdfBytes = await _customerService.PrintCustomerAsync(request.Id, request.Columns);
+        return File(pdfBytes, "application/pdf", "客户打印.pdf");
     }
 
     /// <summary>
@@ -160,7 +168,7 @@ public class CustomerController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _customerService.PrintCustomerBatchAsync(request.Ids);
+        var pdfBytes = await _customerService.PrintCustomerBatchAsync(request.Ids, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
@@ -175,7 +183,7 @@ public class CustomerController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _customerService.PrintCustomerAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var pdfBytes = await _customerService.PrintCustomerAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
         var base64 = Convert.ToBase64String(pdfBytes);
         return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
@@ -190,7 +198,7 @@ public class CustomerController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _customerService.PrintCustomerBatchAsync(request.Ids);
+        var pdfBytes = await _customerService.PrintCustomerBatchAsync(request.Ids, request.Columns);
         return File(pdfBytes, "application/pdf", "客户打印.pdf");
     }
 
@@ -204,7 +212,7 @@ public class CustomerController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
 
-        var pdfBytes = await _customerService.PrintCustomerAllAsync(request.Keyword, request.SortBy, request.IsDescending);
+        var pdfBytes = await _customerService.PrintCustomerAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
         return File(pdfBytes, "application/pdf", "客户列表.pdf");
     }
 

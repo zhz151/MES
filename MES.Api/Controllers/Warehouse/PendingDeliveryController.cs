@@ -103,7 +103,7 @@ public class PendingDeliveryController : ControllerBase
     [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Admin}")]
     public IActionResult PrintFile([FromBody] PendingDeliveryPrintRequest request)
     {
-        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = PendingDeliveryPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "待发货订单成品.pdf");
     }
 
@@ -114,7 +114,7 @@ public class PendingDeliveryController : ControllerBase
     [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Admin}")]
     public IActionResult PrintAllFile([FromBody] PendingDeliveryPrintRequest request)
     {
-        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = PendingDeliveryPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "待发货订单成品-全部.pdf");
     }
 }

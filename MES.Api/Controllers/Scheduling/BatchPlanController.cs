@@ -63,7 +63,7 @@ public class BatchPlanController : ControllerBase
     [HttpPost("print-file")]
     public IActionResult PrintFile([FromBody] BatchPlanPrintRequest request)
     {
-        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = BatchPlanPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "批次计划.pdf");
     }
 

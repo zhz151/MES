@@ -632,7 +632,7 @@ public partial class Materials
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var ids = selectedIds.ToArray();
-            var request = new OrderPrintBatchRequest { Ids = ids };
+            var request = new OrderPrintBatchRequest { Ids = ids, Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList() };
             var apiUrl = $"{Navigation.BaseUri}api/material/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -653,7 +653,8 @@ public partial class Materials
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortBy,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
             };
             var apiUrl = $"{Navigation.BaseUri}api/material/print-all-file";
             var json = JsonSerializer.Serialize(request);

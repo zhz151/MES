@@ -226,10 +226,6 @@
                     }
                     <MudTd Class="@GetCellGroupCss(null, false)">
                         <AuthorizeView Roles="@Roles.Policies.QualityWrite">
-                            <MudIconButton Icon="@Icons.Material.Filled.Print"
-                                           Size="Size.Small" Color="Color.Default"
-                                           Title="打印"
-                                           OnClick='() => PrintItem(item.Id)' />
                             <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                            Size="Size.Small" Color="Color.Warning"
                                            Title="编辑"

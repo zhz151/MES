@@ -642,7 +642,7 @@ public partial class GradeMappings
         try
         {
             var ids = selectedIds.ToArray();
-            var request = new OrderPrintBatchRequest { Ids = ids };
+            var request = new OrderPrintBatchRequest { Ids = ids, Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList() };
             var apiUrl = $"{Http.BaseAddress}api/grade-mapping/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -661,7 +661,8 @@ public partial class GradeMappings
             {
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortColumn,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
             };
             var apiUrl = $"{Http.BaseAddress}api/grade-mapping/print-all-file";
             var json = JsonSerializer.Serialize(request);

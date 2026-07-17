@@ -105,7 +105,7 @@ public class WorkOrderExecutionController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public IActionResult PrintFile([FromBody] WorkOrderExecutionPrintRequest request)
     {
-        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = WorkOrderExecutionPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "工单执行状况.pdf");
     }
 

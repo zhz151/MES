@@ -114,22 +114,23 @@ public static class MaterialPlanPrintHelper
         {
             table.ColumnsDefinition(columns =>
             {
-                columns.ConstantColumn(75);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(65);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(55);
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
                 columns.RelativeColumn();
             });
 
             table.Header(header =>
             {
-                string[] headers = { "工单号", "计划日期", "生产编号", "挂牌号", "工厂牌号", "规格", "长度状态", "投料制成倍", "使用支数", "使用重量(kg)", "改制类型" };
+                string[] headers = { "工单号", "计划日期", "生产编号", "挂牌号", "工厂牌号", "规格", "长度状态", "投料制成倍", "使用支数", "使用重量(kg)", "改制类型", "备注" };
                 foreach (var h in headers)
                     header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
             });
@@ -149,6 +150,7 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text(plan.UsedQuantity?.ToString() is string q ? $"{q} 支" : "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);
                 table.Cell().Element(CellStyle).Text(reworkTypeText).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
             }
         });
     }
@@ -217,17 +219,17 @@ public static class MaterialPlanPrintHelper
         {
             table.ColumnsDefinition(columns =>
             {
-                columns.ConstantColumn(75);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(40);
-                columns.ConstantColumn(60);
-                columns.ConstantColumn(65);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(40);
-                columns.ConstantColumn(50);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(50);
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
             });
 
             table.Header(header =>
@@ -290,20 +292,20 @@ public static class MaterialPlanPrintHelper
         {
             table.ColumnsDefinition(columns =>
             {
-                columns.ConstantColumn(75);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(50);
-                columns.ConstantColumn(50);
-                columns.ConstantColumn(40);
-                columns.ConstantColumn(50);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(40);
-                columns.ConstantColumn(50);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(50);
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
                 columns.RelativeColumn();
             });
 
@@ -376,21 +378,22 @@ public static class MaterialPlanPrintHelper
         {
             table.ColumnsDefinition(columns =>
             {
-                columns.ConstantColumn(75);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(70);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(60);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(55);
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
                 columns.RelativeColumn();
             });
 
             table.Header(header =>
             {
-                string[] headers = { "工单号", "计划日期", "批次号", "物料名称", "工厂牌号", "规格", "使用模式", "出库支数", "出库重量(kg)", "放置框架" };
+                string[] headers = { "工单号", "计划日期", "批次号", "物料名称", "工厂牌号", "规格", "使用模式", "出库支数", "出库重量(kg)", "放置框架", "备注" };
                 foreach (var h in headers)
                     header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
             });
@@ -417,6 +420,7 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text(qtyText).FontSize(8);
                 table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);
                 table.Cell().Element(CellStyle).Text(location).FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
             }
         });
     }
@@ -460,17 +464,18 @@ public static class MaterialPlanPrintHelper
         {
             table.ColumnsDefinition(columns =>
             {
-                columns.ConstantColumn(75);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(40);
-                columns.ConstantColumn(60);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(40);
-                columns.ConstantColumn(50);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(50);
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
             });
 
             table.Header(header =>
@@ -486,6 +491,7 @@ public static class MaterialPlanPrintHelper
                 header.Cell().Element(CellHeaderStyle).Text("需求重量").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("投料制成倍").FontSize(8).AlignCenter();
                 header.Cell().Element(CellHeaderStyle).Text("要求到货日").FontSize(8).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("备注").FontSize(8).AlignCenter();
             });
 
             foreach (var (plan, workOrder) in items)
@@ -503,6 +509,7 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text($"{plan.RequiredWeight:G29} kg").FontSize(8);
                 table.Cell().Element(CellStyle).Text($"{plan.InputMultiple}").FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.RequiredDate.ToString("yyyy-MM-dd")).FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
             }
         });
     }
@@ -533,22 +540,23 @@ public static class MaterialPlanPrintHelper
         {
             table.ColumnsDefinition(columns =>
             {
-                columns.ConstantColumn(75);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(65);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(60);
-                columns.ConstantColumn(45);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(55);
-                columns.ConstantColumn(50);
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
             });
 
             table.Header(header =>
             {
-                string[] headers = { "工单号", "计划日期", "批次号", "物料名称", "工厂牌号", "规格", "使用模式", "出库支数", "出库重量(kg)", "放置框架", "改制类型" };
+                string[] headers = { "工单号", "计划日期", "批次号", "物料名称", "工厂牌号", "规格", "使用模式", "出库支数", "出库重量(kg)", "放置框架", "改制类型", "备注" };
                 foreach (var h in headers)
                     header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
             });
@@ -578,6 +586,7 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);
                 table.Cell().Element(CellStyle).Text(location).FontSize(8);
                 table.Cell().Element(CellStyle).Text(reworkTypeText).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
             }
         });
     }
