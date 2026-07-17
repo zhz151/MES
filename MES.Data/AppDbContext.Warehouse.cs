@@ -59,8 +59,6 @@ public partial class AppDbContext
 
             // 实际规格
             entity.Property(e => e.ActualSpecification).HasMaxLength(100);
-            entity.Property(e => e.ActualOuterDiameter).HasColumnType("decimal(18,3)");
-            entity.Property(e => e.ActualWallThickness).HasColumnType("decimal(18,3)");
 
             // 位置与状态
             entity.Property(e => e.SurfaceCondition).HasMaxLength(50);

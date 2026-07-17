@@ -373,7 +373,7 @@
             {
                 BatchNo = r.BatchNo,
                 ReceiveDate = DateTime.Parse(r.ReceiveDate),
-                Shift = r.Shift,
+                Shift = string.IsNullOrEmpty(r.Shift) ? null : Enum.Parse<ShiftType>(r.Shift),
                 Checker = r.Checker,
                 Remark = r.Remark,
                 DataSource = "MANUAL",

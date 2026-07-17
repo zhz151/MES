@@ -94,7 +94,7 @@ public class MaterialService : IMaterialService
         {
             Id = m.Id,
             MaterialCode = m.MaterialCode,
-            MaterialCategory = !string.IsNullOrEmpty(m.MaterialCategory) && Enum.TryParse<MaterialCategory>(m.MaterialCategory, out var mc) ? mc : default,
+            MaterialCategory = !string.IsNullOrEmpty(m.MaterialCategory) && Enum.TryParse<MaterialType>(m.MaterialCategory, out var mc) ? mc : default,
             PlantGrade = m.PlantGrade,
             Specification = m.Specification,
             IsActive = m.IsActive,
@@ -128,7 +128,7 @@ public class MaterialService : IMaterialService
         {
             Id = m.Id,
             MaterialCode = m.MaterialCode,
-            MaterialCategory = !string.IsNullOrEmpty(m.MaterialCategory) && Enum.TryParse<MaterialCategory>(m.MaterialCategory, out var mc) ? mc : default,
+            MaterialCategory = !string.IsNullOrEmpty(m.MaterialCategory) && Enum.TryParse<MaterialType>(m.MaterialCategory, out var mc) ? mc : default,
             PlantGrade = m.PlantGrade,
             Specification = m.Specification,
             IsActive = m.IsActive,
@@ -379,7 +379,7 @@ public class MaterialService : IMaterialService
     {
         Id = entity.Id,
         MaterialCode = entity.MaterialCode,
-        MaterialCategory = !string.IsNullOrEmpty(entity.MaterialCategory) && Enum.TryParse<MaterialCategory>(entity.MaterialCategory, out var mc) ? mc : default,
+        MaterialCategory = !string.IsNullOrEmpty(entity.MaterialCategory) && Enum.TryParse<MaterialType>(entity.MaterialCategory, out var mc) ? mc : default,
         PlantGrade = entity.PlantGrade,
         Specification = entity.Specification,
         IsActive = entity.IsActive,

@@ -227,8 +227,6 @@
         public decimal? MaxLength { get; set; }
         public decimal? Meters { get; set; }
         public string? ActualSpecification { get; set; }
-        public decimal? ActualOuterDiameter { get; set; }
-        public decimal? ActualWallThickness { get; set; }
         public string? ProductionBatchNo { get; set; }
         public string? DefectReason { get; set; }
         public string? LiabilityType { get; set; }
@@ -269,8 +267,6 @@
             new() { Key = "OrderItemIds",        Label = "项次ID列表",     IsCommon = true, Visible = false },
             new() { Key = "ProductionBatchNo",   Label = "生产批号",       IsCommon = true, Visible = false },
             new() { Key = "ActualSpecification", Label = "实际规格",       IsCommon = true, Visible = false },
-            new() { Key = "ActualOuterDiameter", Label = "实际外径",       IsCommon = true, Visible = false },
-            new() { Key = "ActualWallThickness", Label = "实际壁厚",       IsCommon = true, Visible = false },
             new() { Key = "DefectReason",        Label = "次品原因",       IsCommon = true, Visible = false },
             new() { Key = "LiabilityType",       Label = "责任类型",       IsCommon = true, Visible = false },
             new() { Key = "OriginalSupplier",    Label = "原始来料单位",   IsCommon = true, Visible = false },
@@ -279,27 +275,27 @@
         };
     }
 
-    private readonly List<(string Value, string Text)> _inboundSourceOptions = new()
-    {
-        ("Purchase", "外购"),
-        ("Subcontract", "委外"),
-        ("ReturnIn", "退货入库"),
-        ("ProductionInbound", "生产入库"),
-        ("InspectionInbound", "检验入库"),
-        ("TransferIn", "移库入库"),
-        ("Other", "其它"),
-    };
+    private readonly List<(string Value, string Text)> _inboundSourceOptions =
+        Enum.GetValues<InboundSource>()
+            .Select(v => (v.ToString(), DisplayHelper.GetInboundSourceText(v)))
+            .ToList();
 
-    private readonly List<(string Value, string Text)> _lengthStatusOptions = new()
-    {
-        ("Fixed", "定尺"),
-        ("Range", "范围尺"),
-        ("NonFixed", "非定尺"),
-    };
+    private readonly List<(string Value, string Text)> _lengthStatusOptions =
+        Enum.GetValues<LengthStatus>()
+            .Select(v => (v.ToString(), DisplayHelper.GetLengthStatusText(v)))
+            .ToList();
 
-    private readonly List<(string Value, string Text)> _materialTypeOptions = Enum.GetValues<PipeManufacturingType>()
-        .Select(v => (v.ToString(), DisplayHelper.GetPipeManufacturingTypeText(v)))
-        .ToList();
+    private List<(string Value, string Text)> _materialTypeOptions
+    {
+        get
+        {
+            var allowed = !string.IsNullOrEmpty(_warehouseCode)
+                ? MES.Core.Constants.InventoryMaterialTypes.GetAllowedTypes(_warehouseCode)
+                : null;
+            IEnumerable<MaterialType> types = allowed ?? (IEnumerable<MaterialType>)Enum.GetValues<MaterialType>();
+            return types.Select(v => (v.ToString(), DisplayHelper.GetMaterialTypeText(v))).ToList();
+        }
+    }
 
     private static int GetColWidth(string key) => key switch
     {
@@ -339,8 +335,6 @@
                 SetNotApplicable(cols, "MaxLength");
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
-                SetNotApplicable(cols, "ActualOuterDiameter");
-                SetNotApplicable(cols, "ActualWallThickness");
                 SetNotApplicable(cols, "ProductionBatchNo");
                 SetNotApplicable(cols, "DefectReason");
                 SetNotApplicable(cols, "LiabilityType");
@@ -360,8 +354,6 @@
                 // 次品库不含：米数/实际规格/外径/壁厚
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
-                SetNotApplicable(cols, "ActualOuterDiameter");
-                SetNotApplicable(cols, "ActualWallThickness");
                 break;
             case "WIP":
                 // 在制品库不含：工单关联/次品/米数
@@ -542,8 +534,6 @@
                     case "MaxLength": newRow.MaxLength = source.MaxLength; break;
                     case "Meters": newRow.Meters = source.Meters; break;
                     case "ActualSpecification": newRow.ActualSpecification = source.ActualSpecification; break;
-                    case "ActualOuterDiameter": newRow.ActualOuterDiameter = source.ActualOuterDiameter; break;
-                    case "ActualWallThickness": newRow.ActualWallThickness = source.ActualWallThickness; break;
                     case "ProductionBatchNo": newRow.ProductionBatchNo = source.ProductionBatchNo; break;
                     case "DefectReason": newRow.DefectReason = source.DefectReason; break;
                     case "LiabilityType": newRow.LiabilityType = source.LiabilityType; break;
@@ -591,7 +581,7 @@
         {
             case "MaterialType":
                 if (!string.IsNullOrEmpty(row.MaterialType))
-                    builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(row.MaterialType));
+                    builder.AddContent(0, DisplayHelper.GetMaterialTypeText(row.MaterialType));
                 break;
             case "InboundSource":
                 if (!string.IsNullOrEmpty(row.InboundSource))
@@ -682,14 +672,6 @@
                 if (!string.IsNullOrEmpty(row.ActualSpecification))
                     builder.AddContent(0, row.ActualSpecification);
                 break;
-            case "ActualOuterDiameter":
-                if (row.ActualOuterDiameter.HasValue)
-                    builder.AddContent(0, row.ActualOuterDiameter.Value.ToString("G29"));
-                break;
-            case "ActualWallThickness":
-                if (row.ActualWallThickness.HasValue)
-                    builder.AddContent(0, row.ActualWallThickness.Value.ToString("G29"));
-                break;
             case "ProductionBatchNo":
                 if (!string.IsNullOrEmpty(row.ProductionBatchNo))
                     builder.AddContent(0, row.ProductionBatchNo);
@@ -743,8 +725,7 @@
         "InitialQuantity" => "int",
         "SourceOrderSequence" => "nullable-int",
         "InitialWeight" => "decimal",
-        "UnitWeight" or "MinLength" or "MaxLength" or "Meters"
-            or "ActualOuterDiameter" or "ActualWallThickness" => "decimal",
+        "UnitWeight" or "MinLength" or "MaxLength" or "Meters" => "decimal",
         _ => "text"
     };
 
@@ -816,7 +797,7 @@
                 break;
 
             case "decimal":
-                if (col.Key is "UnitWeight" or "MinLength" or "MaxLength" or "Meters" or "ActualOuterDiameter" or "ActualWallThickness")
+                if (col.Key is "UnitWeight" or "MinLength" or "MaxLength" or "Meters")
                 {
                     builder.OpenComponent<MudNumericField<decimal?>>(0);
                     builder.AddAttribute(1, "Dense", true);
@@ -914,8 +895,6 @@
         "MinLength" => row.MinLength,
         "MaxLength" => row.MaxLength,
         "Meters" => row.Meters,
-        "ActualOuterDiameter" => row.ActualOuterDiameter,
-        "ActualWallThickness" => row.ActualWallThickness,
         _ => null
     };
 
@@ -927,8 +906,6 @@
             case "MinLength": row.MinLength = value; break;
             case "MaxLength": row.MaxLength = value; break;
             case "Meters": row.Meters = value; break;
-            case "ActualOuterDiameter": row.ActualOuterDiameter = value; break;
-            case "ActualWallThickness": row.ActualWallThickness = value; break;
         }
     }
 
@@ -963,8 +940,6 @@
         row.MaxLength = source.MaxLength;
         row.Meters = source.Meters;
         row.ActualSpecification = source.ActualSpecification;
-        row.ActualOuterDiameter = source.ActualOuterDiameter;
-        row.ActualWallThickness = source.ActualWallThickness;
         row.ProductionBatchNo = source.ProductionBatchNo;
         row.DefectReason = source.DefectReason;
         row.LiabilityType = source.LiabilityType;
@@ -983,7 +958,7 @@
         var first = _rows[0];
         var inboundSource = first.InboundSource;
         var sourceOrderNo = first.SourceOrderNo;
-        if ((inboundSource == "Purchase" || inboundSource == "Subcontract")
+        if ((inboundSource == InboundSource.Purchase.ToString() || inboundSource == InboundSource.Subcontract.ToString())
             && !string.IsNullOrEmpty(sourceOrderNo))
         {
             var validation = await InventoryService.ValidateSourceOrderAsync(sourceOrderNo, inboundSource);
@@ -1054,10 +1029,10 @@
             {
                 WarehouseId = _warehouseId,
                 // 公共字段（取第1行）
-                InboundSource = first.InboundSource,
+                InboundSource = first.InboundSource != null ? Enum.Parse<InboundSource>(first.InboundSource) : null,
                 SourceName = first.SourceName,
                 InboundDate = ParseDate(first.InboundDateStr),
-                MaterialType = first.MaterialType,
+                MaterialType = !string.IsNullOrEmpty(first.MaterialType) ? Enum.Parse<MaterialType>(first.MaterialType) : null,
                 PlantGrade = first.PlantGrade,
                 Specification = first.Specification,
                 HeatNo = first.HeatNo,
@@ -1071,8 +1046,6 @@
                 LocationRack = first.LocationRack,
                 ProductionBatchNo = first.ProductionBatchNo,
                 ActualSpecification = first.ActualSpecification,
-                ActualOuterDiameter = first.ActualOuterDiameter,
-                ActualWallThickness = first.ActualWallThickness,
                 DefectReason = first.DefectReason,
                 LiabilityType = first.LiabilityType,
                 OriginalSupplier = first.OriginalSupplier,
@@ -1102,16 +1075,14 @@
                     OriginalSupplier = r.OriginalSupplier,
                     TagNo = r.TagNo,
                     DefectRemark = r.DefectRemark,
-                    MaterialType = r.MaterialType,
+                    MaterialType = !string.IsNullOrEmpty(r.MaterialType) ? Enum.Parse<MaterialType>(r.MaterialType) : null,
                     PlantGrade = r.PlantGrade,
                     Specification = r.Specification,
                     HeatNo = r.HeatNo,
-                    InboundSource = r.InboundSource,
+                    InboundSource = r.InboundSource != null ? Enum.Parse<InboundSource>(r.InboundSource) : null,
                     SourceName = r.SourceName,
                     ProductionBatchNo = r.ProductionBatchNo,
                     ActualSpecification = r.ActualSpecification,
-                    ActualOuterDiameter = r.ActualOuterDiameter,
-                    ActualWallThickness = r.ActualWallThickness,
                     SalesOrderNo = string.IsNullOrEmpty(r.SalesOrderNo) ? null : r.SalesOrderNo,
                     OrderItemIds = string.IsNullOrEmpty(r.OrderItemIds) ? null : r.OrderItemIds,
                     IsLinkedToWorkOrder = r.IsLinkedToWorkOrder ? true : null,

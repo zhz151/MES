@@ -156,8 +156,8 @@
                                 </HeaderContent>
                                 <RowTemplate Context="batch">
                                     <MudTd @onclick="() => FillFromAvailableBatch(batch)" Style="cursor:pointer;color:#1976D2;"><b>@batch.BatchNo</b></MudTd>
-                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.MaterialType</MudTd>
-                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@DisplayHelper.GetInboundSourceText(batch.InboundSource)</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@DisplayHelper.GetMaterialTypeText(batch.MaterialType)</MudTd>
+                                    <MudTd @onclick="() => FillFromAvailableBatch(batch)">@DisplayHelper.GetInboundSourceText(batch.InboundSource?.ToString())</MudTd>
                                     <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.SourceName</MudTd>
                                     <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.InboundDate?.ToString("yyyy-MM-dd")</MudTd>
                                     <MudTd @onclick="() => FillFromAvailableBatch(batch)">@batch.HeatNo</MudTd>
@@ -201,8 +201,14 @@
                     <tbody>
                         <tr>
                             <td><MudTextField T="string" @bind-Value="request.SourceBatchNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
-                            <td><MudTextField T="string" @bind-Value="request.SourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
-                            <td><MudSelect T="string" @bind-Value="request.InboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                            <td><MudSelect T="MaterialType?" @bind-Value="request.SourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                    <MudSelectItem Value="@((MaterialType?)null)">请选择</MudSelectItem>
+                                    @foreach (var val in Enum.GetValues<MaterialType>())
+                                    {
+                                        <MudSelectItem Value="@((MaterialType?)val)">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>
+                                    }
+                                </MudSelect></td>
+                            <td><MudSelect T="string" @bind-Value="formInboundSource" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
                                     <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
                                     <MudSelectItem Value="@("Purchase")">外购</MudSelectItem>
                                     <MudSelectItem Value="@("Subcontract")">委外</MudSelectItem>
@@ -221,7 +227,7 @@
                                     <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
                                     @foreach (var val in Enum.GetValues<LengthStatus>())
                                     {
-                                        <MudSelectItem Value="@val">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                        <MudSelectItem Value="@((LengthStatus?)val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
                                     }
                                 </MudSelect></td>
                             <td><MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td>
@@ -288,7 +294,7 @@
                                 @if (GetCol("EndCustomer").Visible) { <th style="width:120px;">最终用户</th> }
                                 @if (GetCol("DeliveryDate").Visible) { <th style="width:120px;">交货日期</th> }
                                 @if (GetCol("DelayPenalty").Visible) { <th style="width:80px;">延期罚款</th> }
-                                @if (GetCol("MaterialName").Visible) { <th style="width:140px;">物料名称</th> }
+                                @if (GetCol("MaterialName").Visible) { <th style="width:140px;">钢管制造</th> }
                                 @if (GetCol("SettlementMethod").Visible) { <th style="width:140px;">结算方式</th> }
                                 @if (GetCol("StandardCode").Visible) { <th style="width:140px;">产品标准编码</th> }
                                 @if (GetCol("DeliveryState").Visible) { <th style="width:200px;">交货状态</th> }
@@ -327,7 +333,7 @@
                                             <MudSelectItem Value="@((PipeManufacturingType?)null)">请选择</MudSelectItem>
                                             @foreach (var val in Enum.GetValues<PipeManufacturingType>())
                                             {
-                                                <MudSelectItem Value="@val">@DisplayHelper.GetPipeManufacturingTypeText(val)</MudSelectItem>
+                                                <MudSelectItem Value="@((PipeManufacturingType?)val)">@DisplayHelper.GetPipeManufacturingTypeText(val)</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
@@ -339,7 +345,7 @@
                                             <MudSelectItem Value="@((SettlementMethod?)null)">请选择</MudSelectItem>
                                             @foreach (var val in Enum.GetValues<SettlementMethod>())
                                             {
-                                                <MudSelectItem Value="@val">@DisplayHelper.GetSettlementMethodText(val)</MudSelectItem>
+                                                <MudSelectItem Value="@((SettlementMethod?)val)">@DisplayHelper.GetSettlementMethodText(val)</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
@@ -352,7 +358,7 @@
                                             <MudSelectItem Value="@((DeliveryState?)null)">请选择</MudSelectItem>
                                             @foreach (var val in Enum.GetValues<DeliveryState>())
                                             {
-                                                <MudSelectItem Value="@val">@DisplayHelper.GetDeliveryStateText(val)</MudSelectItem>
+                                                <MudSelectItem Value="@((DeliveryState?)val)">@DisplayHelper.GetDeliveryStateText(val)</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
@@ -367,7 +373,7 @@
                                             <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
                                             @foreach (var val in Enum.GetValues<LengthStatus>())
                                             {
-                                                <MudSelectItem Value="@val">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                                <MudSelectItem Value="@((LengthStatus?)val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
@@ -390,7 +396,7 @@
                                             <MudSelectItem Value="@((RequirementType?)null)">请选择</MudSelectItem>
                                             @foreach (var val in Enum.GetValues<RequirementType>())
                                             {
-                                                <MudSelectItem Value="@val">@DisplayHelper.GetTechnicalRequirementsText(val)</MudSelectItem>
+                                                <MudSelectItem Value="@((RequirementType?)val)">@DisplayHelper.GetTechnicalRequirementsText(val)</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
@@ -443,10 +449,10 @@
                                 </MudSelect>
                             </td>
                             <td>
-                                <MudSelect T="ManufacturingItem" @bind-Value="formManufacturingItem" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
-                                    @foreach (var val in Enum.GetValues<ManufacturingItem>())
+                                <MudSelect T="MaterialType" @bind-Value="formManufacturingItem" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                    @foreach (var val in Enum.GetValues<MaterialType>())
                                     {
-                                        <MudSelectItem Value="@val">@DisplayHelper.GetManufacturingItemText(val)</MudSelectItem>
+                                        <MudSelectItem Value="@val">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>
                                     }
                                 </MudSelect>
                             </td>
@@ -516,8 +522,8 @@
                     <MudTable T="CreateProcessGroupRequest" Items="@request.ProcessGroups" Dense="true" Hover="true" Elevation="0" Class="auto-table compact-table">
                         <HeaderContent>
                             <MudTh Style="width:40px;">#</MudTh>
-                            @if (GetPgCol("ProcessName").Visible) { <MudTh Style="width:120px;">工序名称</MudTh> }
-                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:120px;">制造规格</MudTh> }
+                            @if (GetPgCol("ProcessName").Visible) { <MudTh Style="width:120px;">工序名称<span class="required-star">*</span></MudTh> }
+                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:120px;">制造规格<span class="required-star">*</span></MudTh> }
                             @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTh Style="width:80px;">外径公差</MudTh> }
                             @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTh Style="width:80px;">壁厚公差</MudTh> }
                             @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:80px;">制造长度</MudTh> }
@@ -613,8 +619,8 @@
                 ? availableBatches
                 : availableBatches.Where(b =>
                     (b.BatchNo?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.MaterialType?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.InboundSource?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.MaterialType?.ToString()?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.InboundSource?.ToString()?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (b.SourceName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (b.InboundDate?.ToString("yyyy-MM-dd")?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (b.HeatNo?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
@@ -714,10 +720,10 @@
         get => string.IsNullOrEmpty(request.ProductionType) ? default : Enum.Parse<ProductionType>(request.ProductionType);
         set => request.ProductionType = value.ToString();
     }
-    private ManufacturingItem formManufacturingItem
+    private MaterialType formManufacturingItem
     {
-        get => string.IsNullOrEmpty(request.ManufacturingItem) ? default : Enum.Parse<ManufacturingItem>(request.ManufacturingItem);
-        set => request.ManufacturingItem = value.ToString();
+        get => request.ManufacturingItem ?? default;
+        set => request.ManufacturingItem = value;
     }
     private PipeManufacturingType? formMaterialName
     {
@@ -743,6 +749,12 @@
     {
         get => string.IsNullOrEmpty(request.TechnicalRequirements) ? null : Enum.Parse<RequirementType>(request.TechnicalRequirements);
         set => request.TechnicalRequirements = value?.ToString();
+    }
+
+    private string? formInboundSource
+    {
+        get => request.InboundSource?.ToString();
+        set => request.InboundSource = value != null ? Enum.Parse<InboundSource>(value) : null;
     }
 
     private bool lastBatchLoading;
@@ -865,11 +877,37 @@
     {
         if (string.IsNullOrWhiteSpace(request.WorkOrderNo))
         {
-            // 工单号为空：工厂牌号默认与仓库一致，物料名称默认"SeamlessPipe"，其它字段清空
+            // 工单号为空：默认"非工单"，工厂牌号从仓库继承，物料名称默认"SeamlessPipe"
+            request.WorkOrderNo = "非工单";
             request.PlantGrade = request.SourcePlantGrade;
             request.MaterialName = "SeamlessPipe";
+
+            // 保留以下字段不变：规格、外径公差、壁厚公差、长度状态、最小/最大长度
+            var savedSpec = request.Specification;
+            var savedOdNeg = request.OuterDiameterNegative;
+            var savedOdPos = request.OuterDiameterPositive;
+            var savedWtNeg = request.WallThicknessNegative;
+            var savedWtPos = request.WallThicknessPositive;
+            var savedLenStatus = request.LengthStatus;
+            var savedMinLen = request.MinLength;
+            var savedMaxLen = request.MaxLength;
+
             ClearWorkOrderFields();
-            request.ProductionRatio = 0;
+
+            request.Specification = savedSpec;
+            request.OuterDiameterNegative = savedOdNeg;
+            request.OuterDiameterPositive = savedOdPos;
+            request.WallThicknessNegative = savedWtNeg;
+            request.WallThicknessPositive = savedWtPos;
+            request.LengthStatus = savedLenStatus;
+            request.MinLength = savedMinLen;
+            request.MaxLength = savedMaxLen;
+
+            // 交货状态默认"固溶酸洗"
+            request.DeliveryState = "SolutionAnnealedAndPickled";
+            // 制造物品默认"备料成品"
+            request.ManufacturingItem = MaterialType.Finished;
+
             Snackbar.Add("工单号为空，已设置默认值（可手工修改）", Severity.Info);
             return;
         }
@@ -1041,7 +1079,7 @@
             new() { Key = "EndCustomer", Label = "最终用户", Visible = true },
             new() { Key = "DeliveryDate", Label = "交货日期", Visible = true },
             new() { Key = "DelayPenalty", Label = "延期罚款", Visible = true },
-            new() { Key = "MaterialName", Label = "物料名称", Visible = true },
+            new() { Key = "MaterialName", Label = "钢管制造", Visible = true },
             new() { Key = "SettlementMethod", Label = "结算方式", Visible = true },
             new() { Key = "StandardCode", Label = "产品标准编码", Visible = true },
             new() { Key = "DeliveryState", Label = "交货状态", Visible = true },
@@ -1285,7 +1323,7 @@
         if (string.IsNullOrWhiteSpace(request.ProductionType))
             errors.Add("生产类型不能为空");
         // 制造物品必填
-        if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
+        if (request.ManufacturingItem == null)
             errors.Add("制造物品不能为空");
 
         // 工单规格必填
@@ -1296,7 +1334,7 @@
         if (string.IsNullOrWhiteSpace(request.DeliveryState))
             errors.Add("交货状态不能为空");
         if (string.IsNullOrWhiteSpace(request.MaterialName))
-            errors.Add("物料名称不能为空");
+            errors.Add("钢管制造不能为空");
         if (string.IsNullOrWhiteSpace(request.LengthStatus))
             errors.Add("长度状态不能为空");
         if (request.TotalWeight == null || request.TotalWeight <= 0)

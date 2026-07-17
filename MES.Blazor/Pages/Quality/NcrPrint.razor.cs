@@ -68,7 +68,7 @@ public partial class NcrPrint
         _ => ""
     };
 
-    private static string GetPipeCategoryText(PipeCategory category) => DisplayHelper.GetPipeCategoryText(category);
+    private static string GetPipeCategoryText(MaterialType category) => DisplayHelper.GetMaterialTypeText(category);
 
     private static string GetDisposalMethodText(DisposalMethod? method) =>
         method.HasValue ? DisplayHelper.GetDisposalMethodText(method.Value) : "";

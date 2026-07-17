@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Data;
-using System.Linq.Expressions;
 using MES.Core.DTOs.Warehouse;
+using MES.Core.Helpers;
 using MES.Core.DTOs.Batch;
+using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.WorkOrder;
@@ -24,15 +25,15 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
     private readonly ILogger<InventoryBatchWriteService> _logger;
     private static readonly SemaphoreSlim _batchNoLock = new(1, 1);
 
-    private static readonly Expression<Func<InventoryBatch, InventoryBatchDto>> BatchToDtoExpr = b => new InventoryBatchDto
+    private static InventoryBatchDto BatchToDto(InventoryBatch b) => new()
     {
         Id = b.Id,
         BatchNo = b.BatchNo,
         WarehouseId = b.WarehouseId,
-        MaterialType = b.MaterialType,
+        MaterialType = !string.IsNullOrEmpty(b.MaterialType) ? EnumHelper.TryParse<MaterialType>(b.MaterialType) ?? default : default,
         PlantGrade = b.PlantGrade,
         Specification = b.Specification,
-        InboundSource = b.InboundSource,
+        InboundSource = !string.IsNullOrEmpty(b.InboundSource) ? EnumHelper.TryParse<InboundSource>(b.InboundSource) ?? default : default,
         SourceName = b.SourceName,
         InboundDate = b.InboundDate,
         HeatNo = b.HeatNo,
@@ -48,8 +49,6 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         RemainingQuantity = b.RemainingQuantity,
         RemainingWeight = b.RemainingWeight,
         ActualSpecification = b.ActualSpecification,
-        ActualOuterDiameter = b.ActualOuterDiameter,
-        ActualWallThickness = b.ActualWallThickness,
         SurfaceCondition = b.SurfaceCondition,
         LocationArea = b.LocationArea,
         LocationRack = b.LocationRack,
@@ -65,7 +64,6 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         OrderItemIds = b.OrderItemIds,
         SourceOrderNo = b.SourceOrderNo
     };
-    private static readonly Func<InventoryBatch, InventoryBatchDto> BatchToDto = BatchToDtoExpr.Compile();
 
     public InventoryBatchWriteService(
         AppDbContext context,
@@ -147,10 +145,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         {
             BatchNo = batchNo,
             WarehouseId = request.WarehouseId,
-            MaterialType = request.MaterialType,
+            MaterialType = request.MaterialType.ToString(),
             PlantGrade = request.PlantGrade,
             Specification = request.Specification,
-            InboundSource = request.InboundSource,
+            InboundSource = request.InboundSource.ToString(),
             SourceName = request.SourceName,
             InboundDate = request.InboundDate,
             HeatNo = request.HeatNo,
@@ -166,8 +164,6 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             RemainingQuantity = request.InitialQuantity,
             RemainingWeight = request.InitialWeight,
             ActualSpecification = request.ActualSpecification,
-            ActualOuterDiameter = request.ActualOuterDiameter,
-            ActualWallThickness = request.ActualWallThickness,
             SurfaceCondition = request.SurfaceCondition,
             LocationArea = request.LocationArea,
             LocationRack = request.LocationRack,
@@ -243,10 +239,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                     {
                         BatchNo = batchNo,
                         WarehouseId = request.WarehouseId,
-                        MaterialType = row.MaterialType ?? request.MaterialType ?? string.Empty,
+                        MaterialType = (row.MaterialType ?? request.MaterialType)?.ToString() ?? string.Empty,
                         PlantGrade = row.PlantGrade ?? request.PlantGrade ?? string.Empty,
                         Specification = row.Specification ?? request.Specification ?? string.Empty,
-                        InboundSource = row.InboundSource ?? request.InboundSource ?? string.Empty,
+                        InboundSource = (row.InboundSource ?? request.InboundSource).ToString() ?? string.Empty,
                         SourceName = row.SourceName ?? request.SourceName ?? string.Empty,
                         InboundDate = request.InboundDate ?? DateTime.Today,
                         HeatNo = row.HeatNo ?? request.HeatNo,
@@ -262,8 +258,6 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                         RemainingQuantity = row.InitialQuantity,
                         RemainingWeight = row.InitialWeight,
                         ActualSpecification = row.ActualSpecification ?? request.ActualSpecification,
-                        ActualOuterDiameter = row.ActualOuterDiameter ?? request.ActualOuterDiameter,
-                        ActualWallThickness = row.ActualWallThickness ?? request.ActualWallThickness,
                         SurfaceCondition = row.SurfaceCondition ?? request.SurfaceCondition,
                         LocationArea = row.LocationArea ?? request.LocationArea,
                         LocationRack = row.LocationRack ?? request.LocationRack,
@@ -319,10 +313,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         var oldRemainingMeters = entity.RemainingMeters;
 
         entity.BatchNo = request.BatchNo ?? entity.BatchNo;
-        entity.MaterialType = request.MaterialType ?? entity.MaterialType;
+        entity.MaterialType = request.MaterialType?.ToString() ?? entity.MaterialType;
         entity.PlantGrade = request.PlantGrade ?? entity.PlantGrade;
         entity.Specification = request.Specification ?? entity.Specification;
-        entity.InboundSource = request.InboundSource ?? entity.InboundSource;
+        entity.InboundSource = request.InboundSource?.ToString() ?? entity.InboundSource;
         entity.SourceName = request.SourceName ?? entity.SourceName;
         if (request.InboundDate.HasValue) entity.InboundDate = request.InboundDate.Value;
         entity.HeatNo = request.HeatNo ?? entity.HeatNo;
@@ -333,8 +327,6 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         entity.UnitWeight = request.UnitWeight ?? entity.UnitWeight;
         entity.Meters = request.Meters ?? entity.Meters;
         entity.ActualSpecification = request.ActualSpecification ?? entity.ActualSpecification;
-        entity.ActualOuterDiameter = request.ActualOuterDiameter ?? entity.ActualOuterDiameter;
-        entity.ActualWallThickness = request.ActualWallThickness ?? entity.ActualWallThickness;
         entity.SurfaceCondition = request.SurfaceCondition ?? entity.SurfaceCondition;
         entity.LocationArea = request.LocationArea ?? entity.LocationArea;
         entity.LocationRack = request.LocationRack ?? entity.LocationRack;

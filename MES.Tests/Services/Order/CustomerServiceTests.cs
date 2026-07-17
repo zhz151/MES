@@ -46,8 +46,7 @@ public class CustomerServiceTests : TestBase
 {
     private CustomerService CreateService(AppDbContext ctx)
     {
-        var orderServiceMock = new Mock<IOrderService>();
-        return new(ctx, orderServiceMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        return new(ctx, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task SeedCustomerAsync(AppDbContext ctx, string code = "C001", string unit = "测试客户",
@@ -358,7 +357,7 @@ public class CustomerServiceTests : TestBase
         // 种子 2 个不同客户
         ctx.CustomerProfiles.AddRange(
             new CustomerProfile { CustomerCode = "C001", CustomerUnit = "客户A", Salesman = "张三", EndCustomer = "最终A", ContactPerson = "李四", ContactPhone = "13800138001", Address = "北京", Remark = "备注A", Status = CustomerStatus.Active },
-            new CustomerProfile { CustomerCode = "C002", CustomerUnit = "客户B", Salesman = "王五", EndCustomer = null, ContactPerson = null, ContactPhone = null, Address = null, Remark = null, Status = CustomerStatus.Active }
+            new CustomerProfile { CustomerCode = "C002", CustomerUnit = "客户B", Salesman = "王五", EndCustomer = string.Empty, ContactPerson = null, ContactPhone = null, Address = null, Remark = null, Status = CustomerStatus.Active }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

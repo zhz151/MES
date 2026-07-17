@@ -14,14 +14,14 @@ public class MaterialReceiveCheckDto
     public int Id { get; set; }
     public int ProductionBatchId { get; set; }
     public DateTime ReceiveDate { get; set; }
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
     public string? Checker { get; set; }
     public string? Remark { get; set; }
     public string? DataSource { get; set; }
 
     // ========== 批次冗余字段 ==========
     public string? BatchNo { get; set; }
-    public ManufacturingItem? ManufacturingItem { get; set; }
+    public MaterialType? ManufacturingItem { get; set; }
     public string? TagNo { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
@@ -94,8 +94,7 @@ public class CreateMaterialReceiveCheckRequest
     [Required(ErrorMessage = "到料日期不能为空")]
     public DateTime ReceiveDate { get; set; }
 
-    [MaxLength(10)]
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
 
     [MaxLength(50)]
     public string? Checker { get; set; }
@@ -118,8 +117,7 @@ public class UpdateMaterialReceiveCheckRequest
     [Required(ErrorMessage = "到料日期不能为空")]
     public DateTime ReceiveDate { get; set; }
 
-    [MaxLength(10)]
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
 
     [MaxLength(50)]
     public string? Checker { get; set; }

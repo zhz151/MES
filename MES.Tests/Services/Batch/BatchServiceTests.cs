@@ -165,7 +165,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-001",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -200,7 +200,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = workOrderNo,
             TagNo = "TAG-WO-001",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -254,7 +254,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-PG",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -310,7 +310,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-RATIO",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -347,7 +347,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-DETAIL",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -395,7 +395,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-OLD",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -416,7 +416,7 @@ public class BatchServiceTests : TestBase
         {
             TagNo = "TAG-NEW",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             Remark = "备注已更新",
             RowVersion = detail.RowVersion
         });
@@ -436,7 +436,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-CONFLICT",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -486,7 +486,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-WO-UPDATE",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -508,7 +508,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "WO-MANUAL",
             SalesOrderNo = "SO-MANUAL",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "304",
             SourcePlantGrade = "304",
             Specification = "219*8",
@@ -534,7 +534,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-STATUS",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -572,7 +572,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-ROLLBACK",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -622,7 +622,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-DEL",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -670,7 +670,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-ADD-PG",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -725,7 +725,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-DEL-PG",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -776,7 +776,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "SEARCH-TAG",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -813,7 +813,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "STATUS-FILTER",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -858,7 +858,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "SORT-A",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -877,7 +877,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "SORT-B",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -927,7 +927,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "SEQ-NO-1",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -989,7 +989,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "COPY-SRC",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -1031,7 +1031,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "PRINT-TEST",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -1077,7 +1077,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "PRINT-ALL",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -1110,7 +1110,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "CARD-PRINT",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -1152,7 +1152,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "CARD-ALL",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = "SolutionAnnealedAndPickled",
@@ -1204,8 +1204,8 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-1", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
-        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-2", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-1", ProductionType = "RoughTube", ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-2", ProductionType = "RoughTube", ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
 
         var entity1 = await ctx.ProductionBatches.FindAsync(b1.Id);
         entity1!.CurrentSpec = "B-Spec";
@@ -1226,8 +1226,8 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-1", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
-        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-2", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-1", ProductionType = "RoughTube", ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-2", ProductionType = "RoughTube", ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
 
         var entity1 = await ctx.ProductionBatches.FindAsync(b1.Id);
         entity1!.CorrespondingSpec = "B-Corr";
@@ -1248,7 +1248,7 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "CREATOR-TEST", ProductionType = "RoughTube", ManufacturingItem = "OrderFinishedProduct", PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "CREATOR-TEST", ProductionType = "RoughTube", ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = "SolutionAnnealedAndPickled", MaterialName = "SeamlessPipe", LengthStatus = "NonFixed", TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
         var entity = await ctx.ProductionBatches.FirstAsync(b => b.TagNo == "CREATOR-TEST");
         entity.CreatedBy = "测试创建人";
         await ctx.SaveChangesAsync();
@@ -1418,7 +1418,6 @@ public class BatchServiceTests : TestBase
         {
             OrderNumber = "SO-CUSTOM",
             SignDate = new DateTime(2025, 1, 1),
-            CustomerId = 1,
             Status = SalesOrderStatus.Confirmed,
             CustomerName = "测试客户",
             Salesman = "订单业务员",
@@ -1448,7 +1447,7 @@ public class BatchServiceTests : TestBase
         string workOrderNo = "WO-001",
         string salesOrderNo = "SO-001",
         string productionMainNo = "PM-001",
-        string manufacturingItem = "OrderFinishedProduct",
+        string manufacturingItem = "OrderFinished",
         string materialName = "不锈钢管",
         string settlementMethod = "Weighing",
         string standardCode = "GB/T 8163",
@@ -1504,7 +1503,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-ENUM-VALID",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             MaterialName = "SeamlessPipe",
             SettlementMethod = "Theoretical",
             DeliveryState = "Hard",
@@ -1527,7 +1526,7 @@ public class BatchServiceTests : TestBase
         var detail = await svc.GetByIdAsync(result.Id);
         detail.Should().NotBeNull();
         detail!.ProductionType.Should().Be("RoughTube");
-        detail.ManufacturingItem.Should().Be(ManufacturingItem.OrderFinishedProduct);
+        detail.ManufacturingItem.Should().Be(MaterialType.OrderFinished);
         detail.MaterialName.Should().Be("SeamlessPipe");
         detail.SettlementMethod.Should().Be(SettlementMethod.Theoretical);
         detail.DeliveryState.Should().Be(DeliveryState.Hard);
@@ -1550,7 +1549,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-CHINESE-REJECT",
             ProductionType = "荒管生产",
-            ManufacturingItem = "订单成品",
+            ManufacturingItem = null,
             MaterialName = "无缝管",
             SettlementMethod = "过磅",
             DeliveryState = "光亮",
@@ -1566,7 +1565,7 @@ public class BatchServiceTests : TestBase
         });
 
         await act.Should().ThrowAsync<BusinessException>()
-            .WithMessage("*无效的*");
+            .WithMessage("*制造物品不能为空*");
     }
 
     /// <summary>
@@ -1584,7 +1583,7 @@ public class BatchServiceTests : TestBase
             WorkOrderNo = "非工单",
             TagNo = "TAG-INVALID-FIELD",
             ProductionType = "RoughTube",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = MaterialType.OrderFinished,
             MaterialName = "SeamlessPipe",
             SettlementMethod = "Theoretical",
             DeliveryState = "光亮", // 只有这个字段是中文！

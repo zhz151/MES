@@ -152,11 +152,11 @@
                                 }
                             </MudTd>
                             <MudTd>
-                                <MudSelect T="MaterialCategory" @bind-Value="row.MaterialCategory"
+                                <MudSelect T="MaterialType" @bind-Value="row.MaterialCategory"
                                            Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                    @foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>())
+                                    @foreach (MaterialType cat in Enum.GetValues<MaterialType>())
                                     {
-                                        <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialCategoryText(cat)</MudSelectItem>
+                                        <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialTypeText(cat)</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
@@ -260,7 +260,7 @@
         public string SupplierName { get; set; } = string.Empty;
         public SupplierProfileDto? SelectedSupplier { get; set; }
         public string RequiredDateStr { get; set; } = string.Empty;
-        public MaterialCategory MaterialCategory { get; set; }
+        public MaterialType MaterialCategory { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public string UnitWeightStr { get; set; } = string.Empty;
@@ -312,14 +312,14 @@
         }
 
         var plan = result.Data;
-        var planCategory = EnumHelper.TryParse<MaterialCategory>(plan.MaterialCategory ?? "") ?? MaterialCategory.RoundBar;
+        var planCategory = EnumHelper.TryParse<MaterialType>(plan.MaterialCategory ?? "") ?? MaterialType.RoundBar;
         var existingRow = rows.FirstOrDefault(r =>
             r.SourceWorkOrderNo == plan.WorkOrderNo &&
             r.MaterialCategory == planCategory);
 
         if (existingRow != null)
         {
-            Snackbar.Add($"工单 {plan.WorkOrderNo}（{DisplayHelper.GetMaterialCategoryText(planCategory)}）已在列表中，可继续添加", Severity.Info);
+            Snackbar.Add($"工单 {plan.WorkOrderNo}（{DisplayHelper.GetMaterialTypeText(planCategory)}）已在列表中，可继续添加", Severity.Info);
         }
 
         rows.Add(new PurchaseOrderRow
@@ -337,7 +337,7 @@
             Remark = plan.Remark,
             RequiredDateStr = plan.RequiredDate?.ToString("yyyy-MM-dd") ?? string.Empty
         });
-        Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{DisplayHelper.GetMaterialCategoryText(planCategory)}）", Severity.Success);
+        Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{DisplayHelper.GetMaterialTypeText(planCategory)}）", Severity.Success);
     }
 
     private string FormatSupplier(SupplierProfileDto? s) =>
@@ -346,7 +346,7 @@
     private Task<IEnumerable<SupplierProfileDto>> FilterSuppliers(PurchaseOrderRow row, string search)
     {
         var query = allSuppliers.AsEnumerable();
-        var catDisplay = DisplayHelper.GetMaterialCategoryText(row.MaterialCategory);
+        var catDisplay = DisplayHelper.GetMaterialTypeText(row.MaterialCategory);
         if (!string.IsNullOrWhiteSpace(catDisplay))
             query = query.Where(s => s.MaterialCategory != null &&
                 s.MaterialCategory.Equals(catDisplay, StringComparison.OrdinalIgnoreCase));
@@ -432,7 +432,7 @@
             var batchResult = await MaterialService.BatchMatchAsync(
                 matchItems.Select(x => new BatchMaterialMatchItem
                 {
-                    Category = DisplayHelper.GetMaterialCategoryText(x.Row.MaterialCategory),
+                    Category = DisplayHelper.GetMaterialTypeText(x.Row.MaterialCategory),
                     Grade = x.Row.PlantGrade,
                     Spec = x.Row.Specification
                 }).ToList());
@@ -445,7 +445,7 @@
 
                 foreach (var x in matchItems)
                 {
-                    var catDisplay = DisplayHelper.GetMaterialCategoryText(x.Row.MaterialCategory);
+                    var catDisplay = DisplayHelper.GetMaterialTypeText(x.Row.MaterialCategory);
                     var key = $"{catDisplay}|{x.Row.PlantGrade}|{x.Row.Specification}";
                     if (unmatchedSet.Contains(key))
                         unmatched.Add((x.Index, catDisplay, x.Row.PlantGrade, x.Row.Specification));
@@ -478,8 +478,8 @@
         var newSupplierEntries = rows
             .Select((r, i) => (
                 Index: i + 1,
-                Key: $"{r.SupplierName.Trim()}|{DisplayHelper.GetMaterialCategoryText(r.MaterialCategory)}",
-                Display: $"{r.SupplierName.Trim()}（{DisplayHelper.GetMaterialCategoryText(r.MaterialCategory)}）"))
+                Key: $"{r.SupplierName.Trim()}|{DisplayHelper.GetMaterialTypeText(r.MaterialCategory)}",
+                Display: $"{r.SupplierName.Trim()}（{DisplayHelper.GetMaterialTypeText(r.MaterialCategory)}）"))
             .Where(x => !supplierLookup.ContainsKey(x.Key))
             .GroupBy(x => x.Key)
             .Select(g => g.First())
@@ -507,7 +507,7 @@
         {
             var r = rows[i];
             var supplierName = r.SupplierName.Trim();
-            var catDisplay = DisplayHelper.GetMaterialCategoryText(r.MaterialCategory);
+            var catDisplay = DisplayHelper.GetMaterialTypeText(r.MaterialCategory);
             var lookupKey = $"{supplierName}|{catDisplay}";
             int supplierId;
 

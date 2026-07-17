@@ -58,26 +58,26 @@ public class EnumWrapperGuardTests
     }
 
     [Theory]
-    [InlineData(ManufacturingItem.OrderFinishedProduct)]
-    [InlineData(ManufacturingItem.PreparedMaterial)]
-    [InlineData(ManufacturingItem.SurplusStock)]
-    [InlineData(ManufacturingItem.SpecialDeliveryStatus)]
-    public void ManufacturingItem_包装器Get_英文名解析正确(ManufacturingItem expected)
+    [InlineData(MaterialType.OrderFinished)]
+    [InlineData(MaterialType.Finished)]
+    [InlineData(MaterialType.Surplus)]
+    [InlineData(MaterialType.SpecialDeliveryStatus)]
+    public void ManufacturingItem_包装器Get_英文名解析正确(MaterialType expected)
     {
         var dbString = expected.ToString();
         if (string.IsNullOrEmpty(dbString))
             return;
 
-        var parsed = Enum.Parse<ManufacturingItem>(dbString);
+        var parsed = Enum.Parse<MaterialType>(dbString);
         parsed.Should().Be(expected);
     }
 
     [Theory]
-    [InlineData(ManufacturingItem.OrderFinishedProduct, "OrderFinishedProduct")]
-    [InlineData(ManufacturingItem.PreparedMaterial, "PreparedMaterial")]
-    [InlineData(ManufacturingItem.SurplusStock, "SurplusStock")]
-    [InlineData(ManufacturingItem.SpecialDeliveryStatus, "SpecialDeliveryStatus")]
-    public void ManufacturingItem_包装器Set_存入英文(ManufacturingItem enumVal, string expectedDbString)
+    [InlineData(MaterialType.OrderFinished, "OrderFinished")]
+    [InlineData(MaterialType.Finished, "Finished")]
+    [InlineData(MaterialType.Surplus, "Surplus")]
+    [InlineData(MaterialType.SpecialDeliveryStatus, "SpecialDeliveryStatus")]
+    public void ManufacturingItem_包装器Set_存入英文(MaterialType enumVal, string expectedDbString)
     {
         enumVal.ToString().Should().Be(expectedDbString);
     }
@@ -206,7 +206,7 @@ public class EnumWrapperGuardTests
     {
         // (显示文本, 枚举类型示例值, 应包含的中文关键词)
         CreateCase(ProductionType.RoughTube, "荒管"),
-        CreateCase(ManufacturingItem.OrderFinishedProduct, "订单"),
+        CreateCase(MaterialType.OrderFinished, "订单"),
         CreateCase(PipeManufacturingType.SeamlessPipe, "无缝"),
         CreateCase(SettlementMethod.Theoretical, "理算"),
         CreateCase(DeliveryState.SolutionAnnealedAndPickled, "固溶"),
@@ -243,7 +243,7 @@ public class EnumWrapperGuardTests
     /// </summary>
     [Theory]
     [InlineData("RoughTube", typeof(ProductionType), "荒管")]
-    [InlineData("OrderFinishedProduct", typeof(ManufacturingItem), "订单")]
+    [InlineData("OrderFinished", typeof(MaterialType), "订单")]
     [InlineData("SeamlessPipe", typeof(PipeManufacturingType), "无缝")]
     [InlineData("Theoretical", typeof(SettlementMethod), "理算")]
     [InlineData("SolutionAnnealedAndPickled", typeof(DeliveryState), "固溶")]
@@ -282,10 +282,10 @@ public class EnumWrapperGuardTests
     [Fact]
     public void ManufacturingItem_所有值可安全Roundtrip()
     {
-        foreach (ManufacturingItem val in Enum.GetValues<ManufacturingItem>())
+        foreach (MaterialType val in Enum.GetValues<MaterialType>())
         {
             var str = val.ToString();
-            var back = Enum.Parse<ManufacturingItem>(str);
+            var back = Enum.Parse<MaterialType>(str);
             back.Should().Be(val);
         }
     }
@@ -353,7 +353,7 @@ public class EnumWrapperGuardTests
     {
         // 通过已知映射调用对应的 DisplayHelper 方法
         if (enumType == typeof(ProductionType)) return DisplayHelper.GetProductionTypeText(Enum.Parse<ProductionType>(enumName));
-        if (enumType == typeof(ManufacturingItem)) return DisplayHelper.GetManufacturingItemText(Enum.Parse<ManufacturingItem>(enumName));
+        if (enumType == typeof(MaterialType)) return DisplayHelper.GetMaterialTypeText(Enum.Parse<MaterialType>(enumName));
         if (enumType == typeof(PipeManufacturingType)) return DisplayHelper.GetPipeManufacturingTypeText(Enum.Parse<PipeManufacturingType>(enumName));
         if (enumType == typeof(SettlementMethod)) return DisplayHelper.GetSettlementMethodText(Enum.Parse<SettlementMethod>(enumName));
         if (enumType == typeof(DeliveryState)) return DisplayHelper.GetDeliveryStateText(Enum.Parse<DeliveryState>(enumName));
@@ -366,7 +366,7 @@ public class EnumWrapperGuardTests
     {
         // 调用 DisplayHelper 的 string? 重载
         if (enumType == typeof(ProductionType)) return DisplayHelper.GetProductionTypeText(enumName);
-        if (enumType == typeof(ManufacturingItem)) return DisplayHelper.GetManufacturingItemText(enumName);
+        if (enumType == typeof(MaterialType)) return DisplayHelper.GetMaterialTypeText(enumName);
         if (enumType == typeof(PipeManufacturingType)) return DisplayHelper.GetPipeManufacturingTypeText(enumName);
         if (enumType == typeof(SettlementMethod)) return DisplayHelper.GetSettlementMethodText(enumName);
         if (enumType == typeof(DeliveryState)) return DisplayHelper.GetDeliveryStateText(enumName);

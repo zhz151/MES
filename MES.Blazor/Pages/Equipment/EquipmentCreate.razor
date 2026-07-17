@@ -451,18 +451,13 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<LifecycleStatus>(this, v => r.LifecycleStatus = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
-                    cb.AddAttribute(1, "Value", LifecycleStatus.Active);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "在用")));
-                    cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
-                    cb.AddAttribute(1, "Value", LifecycleStatus.Standby);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "备用")));
-                    cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
-                    cb.AddAttribute(1, "Value", LifecycleStatus.Scrapped);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "报废")));
-                    cb.CloseComponent();
+                    foreach (var val in Enum.GetValues<LifecycleStatus>())
+                    {
+                        cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
+                        cb.AddAttribute(1, "Value", val);
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLifecycleStatusText(val))));
+                        cb.CloseComponent();
+                    }
                 }));
                 builder.CloseComponent();
                 break;
@@ -475,18 +470,13 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<UsageType>(this, v => r.UsageType = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
-                    cb.AddAttribute(1, "Value", UsageType.Primary);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "主生产")));
-                    cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
-                    cb.AddAttribute(1, "Value", UsageType.Secondary);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "辅生产")));
-                    cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
-                    cb.AddAttribute(1, "Value", UsageType.Other);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "其它")));
-                    cb.CloseComponent();
+                    foreach (var val in Enum.GetValues<UsageType>())
+                    {
+                        cb.OpenComponent<MudSelectItem<UsageType>>(0);
+                        cb.AddAttribute(1, "Value", val);
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetUsageTypeText(val))));
+                        cb.CloseComponent();
+                    }
                 }));
                 builder.CloseComponent();
                 break;

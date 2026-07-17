@@ -48,11 +48,11 @@
                             <MudText Typo="Typo.body2">@row.Sequence</MudText>
                         </MudTd>
                         <MudTd>
-                            <MudSelect T="MaterialCategory" @bind-Value="row.MaterialCategory"
+                            <MudSelect T="MaterialType" @bind-Value="row.MaterialCategory"
                                        Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                 @foreach (var cat in materialCategories)
                                 {
-                                    <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialCategoryText(cat)</MudSelectItem>
+                                    <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialTypeText(cat)</MudSelectItem>
                                 }
                             </MudSelect>
                         </MudTd>
@@ -102,13 +102,13 @@
 @code {
     private List<MaterialRow> rows = new();
     private bool isSubmitting;
-    private List<MaterialCategory> materialCategories = new();
+    private List<MaterialType> materialCategories = new();
     private bool _isArrowNavSetup;
 
     private class MaterialRow
     {
         public int Sequence { get; set; }
-        public MaterialCategory MaterialCategory { get; set; }
+        public MaterialType MaterialCategory { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
@@ -117,7 +117,7 @@
 
     protected override Task OnInitializedAsync()
     {
-        materialCategories = Enum.GetValues<MaterialCategory>().ToList();
+        materialCategories = Enum.GetValues<MaterialType>().ToList();
         AddRow();
         return Task.CompletedTask;
     }

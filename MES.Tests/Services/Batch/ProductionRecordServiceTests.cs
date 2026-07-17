@@ -77,7 +77,7 @@ public class ProductionRecordServiceTests : TestBase
             Specification = "219*8",
             Status = BatchStatus.InProgress,
             ProductionType = "Internal",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = "OrderFinished",
             WorkOrderNo = "WO-001",
             SalesOrderNo = "SO-001",
             ProductionMainNo = "M-001",

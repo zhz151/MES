@@ -24,11 +24,6 @@ public class SalesOrderDetailDto
     public DateTime SignDate { get; set; }
 
     /// <summary>
-    /// 客户ID
-    /// </summary>
-    public int CustomerId { get; set; }
-
-    /// <summary>
     /// 客户名称
     /// </summary>
     public string CustomerName { get; set; } = null!;

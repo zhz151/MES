@@ -23,7 +23,7 @@ public class SubcontractReturnItem : BaseEntity
     public int Sequence { get; set; }
 
     /// <summary>
-    /// 加工后物料分类
+    /// 加工后物料分类（MaterialType 枚举名）
     /// </summary>
     public string MaterialCategory { get; set; } = null!;
 
@@ -97,7 +97,7 @@ public class SubcontractReturnItem : BaseEntity
     /// <summary>
     /// 加工状态
     /// </summary>
-    public SubcontractProcessStatus ProcessStatus { get; set; } = SubcontractProcessStatus.Pending;
+    public SubcontractOrderStatus ProcessStatus { get; set; } = SubcontractOrderStatus.Sent;
 
     /// <summary>
     /// 强制完成（true时状态固定为已完成，false时自动计算）

@@ -253,7 +253,7 @@ public class MaterialPlanControllerTests : ControllerTestBase
     public async Task CreateInventoryPlan_ReturnsOk()
     {
         // Arrange
-        var request = new CreateInventoryPlanRequest { MaterialType = "库存" };
+        var request = new CreateInventoryPlanRequest { MaterialType = "Surplus" };
         var dto = new InventoryPlanDto { Id = 1, PlantGrade = "库存" };
         _serviceMock.Setup(x => x.CreateInventoryPlanAsync(request)).ReturnsAsync(dto);
 
@@ -269,7 +269,7 @@ public class MaterialPlanControllerTests : ControllerTestBase
     public async Task CreateInventoryPlanBatch_ReturnsOk()
     {
         // Arrange
-        var requests = new List<CreateInventoryPlanRequest> { new() { MaterialType = "库存" } };
+        var requests = new List<CreateInventoryPlanRequest> { new() { MaterialType = "Surplus" } };
         var dtos = new List<InventoryPlanDto> { new() { Id = 1, PlantGrade = "库存" } };
         _serviceMock.Setup(x => x.CreateInventoryPlanBatchAsync(requests)).ReturnsAsync(dtos);
 

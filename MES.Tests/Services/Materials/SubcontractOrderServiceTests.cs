@@ -217,7 +217,7 @@ public class SubcontractOrderServiceTests : TestBase
         {
             SupplierId = sid,
             OrderDate = DateTime.Today,
-            OutMaterialCategory = MaterialCategory.RoughTube,
+            OutMaterialCategory = MaterialType.RoughTube,
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
             OutQuantity = 100,
@@ -228,7 +228,7 @@ public class SubcontractOrderServiceTests : TestBase
             {
                 new()
                 {
-                    MaterialCategory = MaterialCategory.RoughTube,
+                    MaterialCategory = MaterialType.RoughTube,
                     ProcessSpecification = "219*8",
                     ProcessUnitPrice = 10m,
                     ProcessTotalAmount = 1000m,
@@ -259,7 +259,7 @@ public class SubcontractOrderServiceTests : TestBase
             SupplierId = sid,
             OrderDate = DateTime.Today,
             ProcessType = SubcontractProcessType.Threading,
-            OutMaterialCategory = MaterialCategory.RoughTube,
+            OutMaterialCategory = MaterialType.RoughTube,
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
             OutQuantity = 100,
@@ -284,7 +284,7 @@ public class SubcontractOrderServiceTests : TestBase
         {
             SupplierId = sid,
             ProcessType = SubcontractProcessType.Polishing,
-            OutMaterialCategory = MaterialCategory.RoundBar,
+            OutMaterialCategory = MaterialType.RoundBar,
             OutPlantGrade = "304",
             OutSpecification = "273*10",
             OutQuantity = 200,
@@ -294,14 +294,14 @@ public class SubcontractOrderServiceTests : TestBase
             {
                 new()
                 {
-                    MaterialCategory = MaterialCategory.RoundBar,
+                    MaterialCategory = MaterialType.RoundBar,
                     ProcessSpecification = "273*10",
                     ProcessUnitPrice = 20m,
                     ProcessTotalAmount = 4000m
                 },
                 new()
                 {
-                    MaterialCategory = MaterialCategory.RoundBar,
+                    MaterialCategory = MaterialType.RoundBar,
                     ProcessSpecification = "273*10",
                     ProcessUnitPrice = 15m,
                     ProcessTotalAmount = 3000m
@@ -329,7 +329,7 @@ public class SubcontractOrderServiceTests : TestBase
         {
             SupplierId = sid,
             ProcessType = SubcontractProcessType.Threading,
-            OutMaterialCategory = MaterialCategory.RoughTube,
+            OutMaterialCategory = MaterialType.RoughTube,
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
             OutQuantity = 100,
@@ -357,7 +357,7 @@ public class SubcontractOrderServiceTests : TestBase
         {
             SupplierId = sid,
             ProcessType = SubcontractProcessType.Polishing, // 请求中试图修改，但已完成状态不应生效
-            OutMaterialCategory = MaterialCategory.RoundBar,
+            OutMaterialCategory = MaterialType.RoundBar,
             OutPlantGrade = "304",
             OutSpecification = "273*10",
             OutQuantity = 200,

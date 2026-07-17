@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Blazor.Pages.Warehouse;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Warehouse;
+using MES.Core.Enums;
 
 namespace MES.Tests.Components;
 
@@ -68,8 +69,8 @@ public class InboundHistoryTests : TestBase
                     InitialWeight = 5000m,
                     RemainingQuantity = 100,
                     RemainingWeight = 5000m,
-                    MaterialType = "管坯",
-                    InboundSource = "采购入库",
+                    MaterialType = MaterialType.RoughTube,
+                    InboundSource = InboundSource.Purchase,
                     SourceName = "PO-001"
                 }
             },

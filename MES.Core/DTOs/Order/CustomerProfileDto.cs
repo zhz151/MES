@@ -32,7 +32,7 @@ public class CustomerProfileDto
     /// <summary>
     /// 最终用户
     /// </summary>
-    public string? EndCustomer { get; set; }
+    public string EndCustomer { get; set; } = string.Empty;
 
     /// <summary>
     /// 联系人

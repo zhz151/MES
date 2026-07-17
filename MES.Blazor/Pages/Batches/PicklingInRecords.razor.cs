@@ -59,7 +59,7 @@ public partial class PicklingInRecords
     {
         public string? EquipmentName { get; set; }
         public string? Operator { get; set; }
-        public string? Shift { get; set; }
+        public ShiftType? Shift { get; set; }
         public int? Quantity { get; set; }
         public decimal? Weight { get; set; }
         public string? Remark { get; set; }
@@ -67,7 +67,7 @@ public partial class PicklingInRecords
         // 备份原始值用于取消
         public string? OriginalEquipmentName { get; set; }
         public string? OriginalOperator { get; set; }
-        public string? OriginalShift { get; set; }
+        public ShiftType? OriginalShift { get; set; }
         public int? OriginalQuantity { get; set; }
         public decimal? OriginalWeight { get; set; }
         public string? OriginalRemark { get; set; }
@@ -612,15 +612,26 @@ public partial class PicklingInRecords
             case "Shift":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", cache.Shift);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Shift = v));
+                    builder.OpenComponent<MudSelect<ShiftType>>(0);
+                    builder.AddAttribute(1, "Value", cache.Shift ?? default(ShiftType));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<ShiftType>(this, v => cache.Shift = v));
                     builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "ChildContent", (RenderFragment)(b =>
+                    {
+                        foreach (var val in Enum.GetValues<ShiftType>())
+                        {
+                            b.OpenComponent<MudSelectItem<ShiftType>>(0);
+                            b.AddAttribute(1, "Value", val);
+                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                                b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                            b.CloseComponent();
+                        }
+                    }));
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, item.Shift);
+                    builder.AddContent(0, DisplayHelper.GetShiftTypeText(item.Shift));
                 }
                 break;
             case "Quantity":

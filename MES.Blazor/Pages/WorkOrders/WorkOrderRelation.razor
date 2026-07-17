@@ -92,7 +92,7 @@
                                     <MudPaper Class="pa-3 mb-4" Elevation="0" Style="background-color: #fafafa;">
                                         @* 横向列表模式：字段水平排列 *@
                                         <div class="d-flex flex-wrap" style="gap: 0.5rem 2rem;">
-                                            <MudText Typo="Typo.body2"><strong>物料名称：</strong>@DisplayHelper.GetPipeManufacturingTypeText(Enum.Parse<PipeManufacturingType>(workOrder.MaterialName))</MudText>
+                                            <MudText Typo="Typo.body2"><strong>钢管制造：</strong>@DisplayHelper.GetPipeManufacturingTypeText(Enum.Parse<PipeManufacturingType>(workOrder.MaterialName))</MudText>
                                             <MudText Typo="Typo.body2"><strong>标准牌号：</strong>@workOrder.StandardGrade</MudText>
                                             <MudText Typo="Typo.body2"><strong>工厂牌号：</strong>@workOrder.PlantGrade</MudText>
                                             <MudText Typo="Typo.body2"><strong>规格：</strong>@DisplayHelper.FormatSpecification(workOrder.Specification)</MudText>

@@ -107,8 +107,6 @@ public partial class WarehouseInventory
         new() { Key = "OrderItemIds",        Label = "项次", SortKey = "OrderItemIds", FilterType = "string", Width = "120" },
         new() { Key = "ProductionBatchNo",   Label = "生产批号", SortKey = "ProductionBatchNo", FilterType = "string", Width = "120" },
         new() { Key = "ActualSpecification", Label = "实际规格", SortKey = "ActualSpecification", FilterType = "string", Width = "120" },
-        new() { Key = "ActualOuterDiameter", Label = "外径", SortKey = "ActualOuterDiameter", Width = "80" },
-        new() { Key = "ActualWallThickness", Label = "壁厚", SortKey = "ActualWallThickness", Width = "80" },
         new() { Key = "DefectReason",        Label = "次品原因", SortKey = "DefectReason", FilterType = "string", Width = "120" },
         new() { Key = "LiabilityType",       Label = "责任类型", SortKey = "LiabilityType", FilterType = "string", Width = "120" },
         new() { Key = "OriginalSupplier",    Label = "原始来料", SortKey = "OriginalSupplier", FilterType = "string", Width = "120" },
@@ -132,8 +130,6 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "RemainingMeters");
                 SetNotApplicable(cols, "ActualSpecification");
-                SetNotApplicable(cols, "ActualOuterDiameter");
-                SetNotApplicable(cols, "ActualWallThickness");
                 SetNotApplicable(cols, "ProductionBatchNo");
                 SetNotApplicable(cols, "DefectReason");
                 SetNotApplicable(cols, "LiabilityType");
@@ -152,8 +148,6 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "RemainingMeters");
                 SetNotApplicable(cols, "ActualSpecification");
-                SetNotApplicable(cols, "ActualOuterDiameter");
-                SetNotApplicable(cols, "ActualWallThickness");
                 SetNotApplicable(cols, "SourceOrderNo");
                 break;
             case "WIP":
@@ -194,7 +188,7 @@ public partial class WarehouseInventory
                     builder.AddContent(0, item.BatchNo);
                 break;
             case "MaterialType":
-                builder.AddContent(0, item.MaterialType);
+                builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.MaterialType));
                 break;
             case "InboundSource":
                 builder.AddContent(0, DisplayHelper.GetInboundSourceText(item.InboundSource));
@@ -259,14 +253,6 @@ public partial class WarehouseInventory
                 break;
             case "ActualSpecification":
                 builder.AddContent(0, item.ActualSpecification);
-                break;
-            case "ActualOuterDiameter":
-                if (item.ActualOuterDiameter.HasValue)
-                    builder.AddContent(0, item.ActualOuterDiameter.Value.ToString("G29"));
-                break;
-            case "ActualWallThickness":
-                if (item.ActualWallThickness.HasValue)
-                    builder.AddContent(0, item.ActualWallThickness.Value.ToString("G29"));
                 break;
             case "SurfaceCondition":
                 builder.AddContent(0, item.SurfaceCondition);
@@ -500,8 +486,16 @@ public partial class WarehouseInventory
             var allowedTypes = MES.Core.Constants.InventoryMaterialTypes.GetAllowedTypes(warehouseCode);
             if (allowedTypes != null)
             {
-                materialOptions.RemoveAll(opt => !allowedTypes.Contains(opt.Value));
+                var allowedTypeNames = allowedTypes.Select(t => t.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                materialOptions.RemoveAll(opt => !allowedTypeNames.Contains(opt.Value));
             }
+        }
+
+        // MaterialType 筛选选项中文显示
+        if (_filterContextOptions.TryGetValue("MaterialType", out var materialOptionsDisplay))
+        {
+            foreach (var opt in materialOptionsDisplay)
+                opt.Display = DisplayHelper.GetMaterialTypeText(opt.Value);
         }
 
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）

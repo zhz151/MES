@@ -17,7 +17,7 @@ public class CreatePurchaseSemiPlanRequest
 
     // 采购信息
     public string PlantGrade { get; set; } = null!;
-    public RawMaterialType RawMaterialType { get; set; }
+    public MaterialType RawMaterialType { get; set; }
     public string RawMaterialSpec { get; set; } = null!;
     public decimal? RequiredUnitWeight { get; set; }
     public int? RequiredPieces { get; set; }

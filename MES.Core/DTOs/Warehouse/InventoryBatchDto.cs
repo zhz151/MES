@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Warehouse;
 
 /// <summary>
@@ -12,12 +14,12 @@ public class InventoryBatchDto
     public int WarehouseId { get; set; }
 
     // 物料
-    public string MaterialType { get; set; } = string.Empty;
+    public MaterialType MaterialType { get; set; }
     public string PlantGrade { get; set; } = string.Empty;
     public string Specification { get; set; } = string.Empty;
 
     // 来源
-    public string InboundSource { get; set; } = string.Empty;
+    public InboundSource InboundSource { get; set; }
     public string SourceName { get; set; } = string.Empty;
     public DateTime InboundDate { get; set; }
 
@@ -39,8 +41,6 @@ public class InventoryBatchDto
 
     // 实际规格
     public string? ActualSpecification { get; set; }
-    public decimal? ActualOuterDiameter { get; set; }
-    public decimal? ActualWallThickness { get; set; }
 
     // 位置状态
     public string? SurfaceCondition { get; set; }

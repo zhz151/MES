@@ -553,15 +553,15 @@ public partial class Equipments
         "InstallationDate" => item.InstallationDate?.ToString("yyyy-MM-dd"),
         "Location" => item.Location,
         "RelatedSection" => item.RelatedSection,
-        "LifecycleStatus" => item.LifecycleStatus.ToString(),
-        "UsageType" => item.UsageType.ToString(),
-        "RunningStatus" => item.RunningStatus.ToString(),
-        "InspectionStatus" => item.InspectionStatus.ToString(),
+        "LifecycleStatus" => DisplayHelper.GetLifecycleStatusText(item.LifecycleStatus),
+        "UsageType" => DisplayHelper.GetUsageTypeText(item.UsageType),
+        "RunningStatus" => DisplayHelper.GetRunningStatusText(item.RunningStatus),
+        "InspectionStatus" => DisplayHelper.GetEquipmentTaskStatusText(item.InspectionStatus),
         "NeedInspection" => item.NeedInspection.ToString(),
         "InspectionPerson" => item.InspectionPerson,
         "InspectionCycleDays" => item.InspectionCycleDays.ToString(),
         "CurrentInspectionStartDate" => item.CurrentInspectionStartDate?.ToString("yyyy-MM-dd"),
-        "MaintStatus" => item.MaintStatus.ToString(),
+        "MaintStatus" => DisplayHelper.GetEquipmentTaskStatusText(item.MaintStatus),
         "NeedMaintenance" => item.NeedMaintenance.ToString(),
         "MaintPerson" => item.MaintPerson,
         "MaintCycleDays" => item.MaintCycleDays.ToString(),
@@ -837,18 +837,13 @@ public partial class Equipments
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<LifecycleStatus>(this, v => cache.LifecycleStatus = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
-                    cb.AddAttribute(1, "Value", LifecycleStatus.Active);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "在用")));
-                    cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
-                    cb.AddAttribute(1, "Value", LifecycleStatus.Standby);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "备用")));
-                    cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
-                    cb.AddAttribute(1, "Value", LifecycleStatus.Scrapped);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "报废")));
-                    cb.CloseComponent();
+                    foreach (var val in Enum.GetValues<LifecycleStatus>())
+                    {
+                        cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
+                        cb.AddAttribute(1, "Value", val);
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLifecycleStatusText(val))));
+                        cb.CloseComponent();
+                    }
                 }));
                 builder.CloseComponent();
                 break;
@@ -861,18 +856,13 @@ public partial class Equipments
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<UsageType>(this, v => cache.UsageType = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
-                    cb.AddAttribute(1, "Value", UsageType.Primary);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "主生产")));
-                    cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
-                    cb.AddAttribute(1, "Value", UsageType.Secondary);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "辅生产")));
-                    cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<UsageType>>(0);
-                    cb.AddAttribute(1, "Value", UsageType.Other);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "其它")));
-                    cb.CloseComponent();
+                    foreach (var val in Enum.GetValues<UsageType>())
+                    {
+                        cb.OpenComponent<MudSelectItem<UsageType>>(0);
+                        cb.AddAttribute(1, "Value", val);
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetUsageTypeText(val))));
+                        cb.CloseComponent();
+                    }
                 }));
                 builder.CloseComponent();
                 break;

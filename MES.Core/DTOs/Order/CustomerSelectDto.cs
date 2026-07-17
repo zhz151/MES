@@ -8,5 +8,5 @@ public class CustomerSelectDto
     public int Id { get; set; }
     public string CustomerUnit { get; set; } = string.Empty;
     public string Salesman { get; set; } = string.Empty;
-    public string? EndCustomer { get; set; }
+    public string EndCustomer { get; set; } = string.Empty;
 }

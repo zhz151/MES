@@ -6,6 +6,7 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Blazor.Shared;
+using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Shared;
@@ -114,6 +115,24 @@ public partial class InboundHistory
         ("Range", "范围尺"),
     };
 
+    private List<(string Value, string Text)> _materialTypeOptions =>
+        GetMaterialTypeOptions();
+
+    private List<(string Value, string Text)> GetMaterialTypeOptions()
+    {
+        IEnumerable<MaterialType> types;
+        if (!string.IsNullOrEmpty(_lastResolvedWarehouseCode))
+        {
+            var allowed = MES.Core.Constants.InventoryMaterialTypes.GetAllowedTypes(_lastResolvedWarehouseCode);
+            types = allowed ?? (IEnumerable<MaterialType>)Enum.GetValues<MaterialType>();
+        }
+        else
+        {
+            types = Enum.GetValues<MaterialType>();
+        }
+        return types.Select(t => (t.ToString(), DisplayHelper.GetMaterialTypeText(t))).ToList();
+    }
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "BatchNo",             Label = "仓库批次", SortKey = "BatchNo", FilterType = "string", Width = "120" },
@@ -145,8 +164,6 @@ public partial class InboundHistory
         new() { Key = "OrderItemIds",        Label = "项次", SortKey = "OrderItemIds", FilterType = "string", Width = "120" },
         new() { Key = "ProductionBatchNo",   Label = "生产批号", SortKey = "ProductionBatchNo", FilterType = "string", Width = "120" },
         new() { Key = "ActualSpecification", Label = "实际规格", SortKey = "ActualSpecification", FilterType = "string", Width = "120" },
-        new() { Key = "ActualOuterDiameter", Label = "外径", SortKey = "ActualOuterDiameter", FilterType = null, Width = "80" },
-        new() { Key = "ActualWallThickness", Label = "壁厚", SortKey = "ActualWallThickness", FilterType = null, Width = "80" },
         new() { Key = "DefectReason",        Label = "次品原因", SortKey = "DefectReason", FilterType = "string", Width = "120" },
         new() { Key = "LiabilityType",       Label = "责任类型", SortKey = "LiabilityType", FilterType = "string", Width = "120" },
         new() { Key = "OriginalSupplier",    Label = "原始来料", SortKey = "OriginalSupplier", FilterType = "string", Width = "120" },
@@ -169,8 +186,6 @@ public partial class InboundHistory
                 SetNotApplicable(cols, "MaxLength");
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
-                SetNotApplicable(cols, "ActualOuterDiameter");
-                SetNotApplicable(cols, "ActualWallThickness");
                 SetNotApplicable(cols, "ProductionBatchNo");
                 SetNotApplicable(cols, "DefectReason");
                 SetNotApplicable(cols, "LiabilityType");
@@ -188,8 +203,6 @@ public partial class InboundHistory
             case "DEFECT":
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
-                SetNotApplicable(cols, "ActualOuterDiameter");
-                SetNotApplicable(cols, "ActualWallThickness");
                 SetNotApplicable(cols, "SourceOrderNo");
                 break;
             case "WIP":
@@ -395,7 +408,8 @@ public partial class InboundHistory
             var allowedTypes = MES.Core.Constants.InventoryMaterialTypes.GetAllowedTypes(_lastResolvedWarehouseCode);
             if (allowedTypes != null)
             {
-                materialOptions.RemoveAll(opt => !allowedTypes.Contains(opt.Value));
+                var allowedTypeNames = allowedTypes.Select(t => t.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                materialOptions.RemoveAll(opt => !allowedTypeNames.Contains(opt.Value));
             }
         }
 
@@ -484,16 +498,16 @@ public partial class InboundHistory
 
     // ========== 编辑器类型推断 ==========
 
-    private static string GetEditorType(string key) => key switch
+    private string GetEditorType(string key) => key switch
     {
         "InboundSource" => "select",
         "LengthStatus" => "select",
+        "MaterialType" => "select",
         "IsLinkedToWorkOrder" => "bool",
         "InitialQuantity" => "int",
         "InitialWeight" => "decimal",
         "InboundDate" => "date",
-        "UnitWeight" or "MinLength" or "MaxLength" or "Meters"
-            or "ActualOuterDiameter" or "ActualWallThickness" => "nullableDecimal",
+        "UnitWeight" or "MinLength" or "MaxLength" or "Meters" => "nullableDecimal",
         _ => "text"
     };
 
@@ -511,7 +525,12 @@ public partial class InboundHistory
         switch (GetEditorType(col.Key))
         {
             case "select":
-                var options = col.Key == "LengthStatus" ? _lengthStatusOptions : _inboundSourceOptions;
+                var options = col.Key switch
+                {
+                    "LengthStatus" => _lengthStatusOptions,
+                    "MaterialType" => _materialTypeOptions,
+                    _ => _inboundSourceOptions
+                };
                 var selVal = GetCellStringValue(item, col.Key);
                 builder.OpenComponent<MudSelect<string>>(0);
                 builder.AddAttribute(1, "Dense", true);
@@ -623,7 +642,7 @@ public partial class InboundHistory
                 builder.AddContent(0, DisplayHelper.GetInboundSourceText(item.InboundSource));
                 break;
             case "MaterialType":
-                builder.AddContent(0, item.MaterialType);
+                builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.MaterialType));
                 break;
             case "PlantGrade":
                 builder.AddContent(0, item.PlantGrade);
@@ -658,14 +677,6 @@ public partial class InboundHistory
             case "Meters":
                 if (item.Meters.HasValue)
                     builder.AddContent(0, ((int)item.Meters.Value).ToString());
-                break;
-            case "ActualOuterDiameter":
-                if (item.ActualOuterDiameter.HasValue)
-                    builder.AddContent(0, item.ActualOuterDiameter.Value.ToString("G29"));
-                break;
-            case "ActualWallThickness":
-                if (item.ActualWallThickness.HasValue)
-                    builder.AddContent(0, item.ActualWallThickness.Value.ToString("G29"));
                 break;
             case "IsLinkedToWorkOrder":
                 builder.OpenComponent<MudChip>(0);
@@ -715,8 +726,8 @@ public partial class InboundHistory
 
     private string? GetCellStringValue(InventoryBatchDto item, string key) => key switch
     {
-        "MaterialType" => item.MaterialType,
-        "InboundSource" => item.InboundSource,
+        "MaterialType" => item.MaterialType.ToString(),
+        "InboundSource" => item.InboundSource.ToString(),
         "SourceName" => item.SourceName,
         "HeatNo" => item.HeatNo,
         "PlantGrade" => item.PlantGrade,
@@ -744,8 +755,8 @@ public partial class InboundHistory
     {
         switch (key)
         {
-            case "MaterialType": item.MaterialType = value ?? ""; break;
-            case "InboundSource": item.InboundSource = value ?? ""; break;
+            case "MaterialType": item.MaterialType = !string.IsNullOrEmpty(value) ? Enum.Parse<MaterialType>(value) : default; break;
+            case "InboundSource": item.InboundSource = Enum.Parse<InboundSource>(value ?? "Purchase"); break;
             case "SourceName": item.SourceName = value ?? ""; break;
             case "HeatNo": item.HeatNo = value; break;
             case "PlantGrade": item.PlantGrade = value ?? ""; break;
@@ -775,8 +786,6 @@ public partial class InboundHistory
         "MinLength" => item.MinLength,
         "MaxLength" => item.MaxLength,
         "Meters" => item.Meters,
-        "ActualOuterDiameter" => item.ActualOuterDiameter,
-        "ActualWallThickness" => item.ActualWallThickness,
         _ => null
     };
 
@@ -788,8 +797,6 @@ public partial class InboundHistory
             case "MinLength": item.MinLength = value; break;
             case "MaxLength": item.MaxLength = value; break;
             case "Meters": item.Meters = value; break;
-            case "ActualOuterDiameter": item.ActualOuterDiameter = value; break;
-            case "ActualWallThickness": item.ActualWallThickness = value; break;
         }
     }
 
@@ -980,8 +987,6 @@ public partial class InboundHistory
                 LocationRack = string.IsNullOrEmpty(item.LocationRack) ? null : item.LocationRack,
                 Remark = string.IsNullOrEmpty(item.Remark) ? null : item.Remark,
                 ActualSpecification = string.IsNullOrEmpty(item.ActualSpecification) ? null : item.ActualSpecification,
-                ActualOuterDiameter = item.ActualOuterDiameter,
-                ActualWallThickness = item.ActualWallThickness,
                 DefectReason = string.IsNullOrEmpty(item.DefectReason) ? null : item.DefectReason,
                 LiabilityType = string.IsNullOrEmpty(item.LiabilityType) ? null : item.LiabilityType,
                 OriginalSupplier = string.IsNullOrEmpty(item.OriginalSupplier) ? null : item.OriginalSupplier,

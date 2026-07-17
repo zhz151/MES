@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs.Warehouse;
 
@@ -11,8 +12,7 @@ public class CreateInboundRequest
     public int WarehouseId { get; set; }
 
     [Required(ErrorMessage = "物料名称不能为空")]
-    [StringLength(30)]
-    public string MaterialType { get; set; } = string.Empty;
+    public MaterialType MaterialType { get; set; }
 
     [Required(ErrorMessage = "钢种不能为空")]
     [StringLength(50)]
@@ -23,7 +23,7 @@ public class CreateInboundRequest
     public string Specification { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "入库来源不能为空")]
-    public string InboundSource { get; set; } = string.Empty;
+    public InboundSource InboundSource { get; set; }
 
     [Required(ErrorMessage = "来料单位不能为空")]
     [StringLength(200)]
@@ -47,8 +47,6 @@ public class CreateInboundRequest
     public decimal? UnitWeight { get; set; }
     public decimal? Meters { get; set; }
     public string? ActualSpecification { get; set; }
-    public decimal? ActualOuterDiameter { get; set; }
-    public decimal? ActualWallThickness { get; set; }
     public string? SurfaceCondition { get; set; }
     public string? LocationArea { get; set; }
     public string? LocationRack { get; set; }

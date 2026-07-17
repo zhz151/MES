@@ -484,7 +484,7 @@ public partial class PendingDelivery
             "remainingweight" => item.RemainingWeight.ToString("G29"),
             "remainingmeters" => item.RemainingMeters?.ToString("G29") ?? "-",
             "inbounddate" => item.InboundDate.ToString("yyyy-MM-dd"),
-            "materialtype" => item.MaterialType,
+            "materialtype" => DisplayHelper.GetMaterialTypeText(item.MaterialType),
             _ => GetRawPropertyValue(item, col.Key) ?? "-"
         };
     }
@@ -492,7 +492,7 @@ public partial class PendingDelivery
     private object? GetRawPropertyValue(PendingDeliveryItemDto item, string key) => key switch
     {
         "inventorybatchno" => item.InventoryBatchNo,
-        "materialtype" => item.MaterialType,
+        "materialtype" => DisplayHelper.GetMaterialTypeText(item.MaterialType),
         "inboundsource" => item.InboundSource,
         "sourcename" => item.SourceName,
         "productionbatchno" => item.ProductionBatchNo,
@@ -645,7 +645,7 @@ public partial class PendingDelivery
                 builder.AddContent(0, item.RemainingQuantity);
                 break;
             case "materialtype":
-                builder.AddContent(0, item.MaterialType);
+                builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.MaterialType));
                 break;
             case "sourcename":
                 builder.AddContent(0, item.SourceName);

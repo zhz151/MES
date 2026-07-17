@@ -18,11 +18,6 @@ public class SalesOrder : BaseEntity
     public DateTime SignDate { get; set; }
 
     /// <summary>
-    /// 客户ID（外键）
-    /// </summary>
-    public int CustomerId { get; set; }
-
-    /// <summary>
     /// 订单状态
     /// </summary>
     public SalesOrderStatus Status { get; set; }
@@ -38,24 +33,19 @@ public class SalesOrder : BaseEntity
     public DateTimeOffset? LastItemChangeTime { get; set; }
 
     /// <summary>
-    /// 客户名称（订单签约时的快照，从 CustomerProfile 复制）
+    /// 客户名称（订单签约时的快照，从 CustomerProfile 复制，后续独立维护）
     /// </summary>
     public string CustomerName { get; set; } = string.Empty;
 
     /// <summary>
-    /// 业务员（订单签约时的快照，从 CustomerProfile 复制）
+    /// 业务员（订单签约时的快照，从 CustomerProfile 复制，后续独立维护）
     /// </summary>
     public string Salesman { get; set; } = string.Empty;
 
     /// <summary>
-    /// 最终用户（订单签约时的快照，从 CustomerProfile 复制）
+    /// 最终用户（订单签约时的快照，从 CustomerProfile 复制，后续独立维护）
     /// </summary>
     public string? EndCustomer { get; set; }
-
-    /// <summary>
-    /// 客户信息
-    /// </summary>
-    public CustomerProfile Customer { get; set; } = null!;
 
     /// <summary>
     /// 订单项次列表

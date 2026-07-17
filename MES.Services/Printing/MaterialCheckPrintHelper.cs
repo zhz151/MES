@@ -32,7 +32,7 @@ public static class MaterialCheckPrintHelper
             {
                 ["BatchNo"] = m.BatchNo ?? "",
                 ["ReceiveDate"] = m.ReceiveDate.ToString("yyyy-MM-dd"),
-                ["ManufacturingItem"] = m.ManufacturingItem.HasValue ? EnumHelper.GetDisplayName(typeof(ManufacturingItem), m.ManufacturingItem.Value) : "",
+                ["ManufacturingItem"] = m.ManufacturingItem.HasValue ? EnumHelper.GetDisplayName(typeof(MaterialType), m.ManufacturingItem.Value) : "",
                 ["PlantGrade"] = m.PlantGrade ?? "",
                 ["Specification"] = m.Specification ?? "",
                 ["TagNo"] = m.TagNo ?? "",
@@ -41,7 +41,7 @@ public static class MaterialCheckPrintHelper
                 ["FurnaceNo"] = m.FurnaceNo ?? "",
                 ["SourceUnit"] = m.SourceUnit ?? "",
                 ["ProductionType"] = m.ProductionType.HasValue ? EnumHelper.GetDisplayName(typeof(ProductionType), m.ProductionType.Value) : "",
-                ["Shift"] = m.Shift ?? "",
+                ["Shift"] = EnumHelper.GetDisplayName<ShiftType>(m.Shift?.ToString()),
                 ["Checker"] = m.Checker ?? "",
                 ["ProductionCutQuantity"] = m.ProductionCutQuantity.ToString(),
                 ["ProductionWeight"] = m.ProductionWeight?.ToString("G29") ?? "",

@@ -3,7 +3,7 @@
 window.enableTableArrowNav = function (containerSelector) {
     const container = document.querySelector(containerSelector);
     if (!container) {
-        console.warn('[ArrowNav] Container not found:', containerSelector);
+        console.debug('[ArrowNav] Container not found (retrying in 500ms):', containerSelector);
         setTimeout(function () {
             const retryContainer = document.querySelector(containerSelector);
             if (retryContainer && retryContainer.dataset.arrowNavEnabled !== 'true') {

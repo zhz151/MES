@@ -13,7 +13,7 @@ public class ProductionBatchDetailDto
     public BatchStatus Status { get; set; }
     public string? TagNo { get; set; }
     public string? ProductionType { get; set; }
-    public ManufacturingItem ManufacturingItem { get; set; }
+    public MaterialType ManufacturingItem { get; set; }
     public int ProductionRatio { get; set; }
     public bool IsForceCompleted { get; set; }
     public string? QualityRemark { get; set; }
@@ -66,8 +66,8 @@ public class ProductionBatchDetailDto
     // ========== 仓库冗余 ==========
     public string? SourceBatchNo { get; set; }
     public int? WarehouseId { get; set; }
-    public string? SourceMaterialType { get; set; }
-    public string? InboundSource { get; set; }
+    public MaterialType? SourceMaterialType { get; set; }
+    public InboundSource? InboundSource { get; set; }
     public string? SourceName { get; set; }
     public DateTime? InboundDate { get; set; }
     public string? SourceHeatNo { get; set; }

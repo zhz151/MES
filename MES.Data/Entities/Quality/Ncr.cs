@@ -19,7 +19,7 @@ public class Ncr : BaseEntity
     public string? Reporter { get; set; }
 
     /// <summary>钢管类别</summary>
-    public PipeCategory PipeCategory { get; set; }
+    public MaterialType PipeCategory { get; set; }
 
     /// <summary>生产编号（用户输入）</summary>
     public string BatchNo { get; set; } = null!;

@@ -64,9 +64,9 @@ public class RoundBarPiercingPlan : BaseEntity
     public string PlantGrade { get; set; } = null!;
 
     /// <summary>
-    /// 原料类型（圆棒）
+    /// 原料类型（MaterialType 枚举名）
     /// </summary>
-    public RawMaterialType RawMaterialType { get; set; }
+    public MaterialType RawMaterialType { get; set; }
 
     /// <summary>
     /// 圆棒规格

@@ -1,6 +1,5 @@
 using MES.Shared.Constants;
 using MES.Core.DTOs.Scheduling;
-using System.Net.Http.Json;
 
 namespace MES.Blazor.Services;
 
@@ -9,9 +8,9 @@ namespace MES.Blazor.Services;
 /// </summary>
 public class FinalInspectionPlanService
 {
-    private readonly HttpClient _http;
+    private readonly AuthHttpClient _http;
 
-    public FinalInspectionPlanService(HttpClient http)
+    public FinalInspectionPlanService(AuthHttpClient http)
     {
         _http = http;
     }

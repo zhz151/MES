@@ -38,7 +38,7 @@ public class PurchaseOrder : BaseEntity
     public bool IsForceCompleted { get; set; }
 
     /// <summary>
-    /// 物料分类
+    /// 物料分类（MaterialType 枚举名）
     /// </summary>
     public string MaterialCategory { get; set; } = null!;
 

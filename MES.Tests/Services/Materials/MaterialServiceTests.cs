@@ -73,7 +73,7 @@ public class MaterialServiceTests : TestBase
         var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "Rough" });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].MaterialCategory.Should().Be(MaterialCategory.RoughTube);
+        result.Items[0].MaterialCategory.Should().Be(MaterialType.RoughTube);
     }
 
     [Fact]
@@ -141,8 +141,8 @@ public class MaterialServiceTests : TestBase
         var result = await svc.GetPagedAsync(new QueryParams
         { PageIndex = 1, PageSize = 20, SortBy = "MaterialCategory", IsDescending = false });
 
-        result.Items[0].MaterialCategory.Should().Be(MaterialCategory.RoughTube);
-        result.Items[1].MaterialCategory.Should().Be(MaterialCategory.RoundBar);
+        result.Items[0].MaterialCategory.Should().Be(MaterialType.RoughTube);
+        result.Items[1].MaterialCategory.Should().Be(MaterialType.RoundBar);
     }
 
     // ========== GetByIdAsync ==========
@@ -158,7 +158,7 @@ public class MaterialServiceTests : TestBase
         var result = await svc.GetByIdAsync(id);
 
         result.Should().NotBeNull();
-        result.MaterialCategory.Should().Be(MaterialCategory.RoughTube);
+        result.MaterialCategory.Should().Be(MaterialType.RoughTube);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public class MaterialServiceTests : TestBase
         var result = await svc.GetActiveAsync();
 
         result.Should().HaveCount(1);
-        result[0].MaterialCategory.Should().Be(MaterialCategory.RoundBar);
+        result[0].MaterialCategory.Should().Be(MaterialType.RoundBar);
     }
 
     // ========== GetCategoriesAsync ==========
@@ -229,7 +229,7 @@ public class MaterialServiceTests : TestBase
         var result = await svc.MatchAsync("RoughTube", "20#", "219*8");
 
         result.Should().NotBeNull();
-        result!.MaterialCategory.Should().Be(MaterialCategory.RoughTube);
+        result!.MaterialCategory.Should().Be(MaterialType.RoughTube);
     }
 
     [Fact]
@@ -254,14 +254,14 @@ public class MaterialServiceTests : TestBase
 
         var result = await svc.CreateAsync(new CreateMaterialRequest
         {
-            MaterialCategory = MaterialCategory.RoughTube,
+            MaterialCategory = MaterialType.RoughTube,
             PlantGrade = "20#",
             Specification = "219*8",
             Remark = "测试"
         });
 
         result.Should().NotBeNull();
-        result.MaterialCategory.Should().Be(MaterialCategory.RoughTube);
+        result.MaterialCategory.Should().Be(MaterialType.RoughTube);
         result.PlantGrade.Should().Be("20#");
         result.Specification.Should().Be("219*8");
 
@@ -278,7 +278,7 @@ public class MaterialServiceTests : TestBase
 
         var act = () => svc.CreateAsync(new CreateMaterialRequest
         {
-            MaterialCategory = MaterialCategory.RoughTube,
+            MaterialCategory = MaterialType.RoughTube,
             PlantGrade = "20#",
             Specification = "219*8"
         });
@@ -315,7 +315,7 @@ public class MaterialServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var act = () => svc.UpdateAsync(999, new UpdateMaterialRequest { MaterialCategory = MaterialCategory.RoughTube });
+        var act = () => svc.UpdateAsync(999, new UpdateMaterialRequest { MaterialCategory = MaterialType.RoughTube });
         await act.Should().ThrowAsync<BusinessException>().WithMessage("物料不存在");
     }
 
@@ -420,7 +420,7 @@ public class MaterialServiceTests : TestBase
         });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].MaterialCategory.Should().Be(MaterialCategory.RoughTube);
+        result.Items[0].MaterialCategory.Should().Be(MaterialType.RoughTube);
     }
 
     [Fact]

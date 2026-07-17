@@ -13,6 +13,7 @@ using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
+using MES.Core.Helpers;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
@@ -253,7 +254,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                 Id = r.Id,
                 SubcontractOrderId = r.SubcontractOrderId,
                 Sequence = r.Sequence,
-                MaterialCategory = !string.IsNullOrEmpty(r.MaterialCategory) && Enum.TryParse<MaterialCategory>(r.MaterialCategory, out var rc) ? rc : default,
+                MaterialCategory = !string.IsNullOrEmpty(r.MaterialCategory) && Enum.TryParse<MaterialType>(r.MaterialCategory, out var rc) ? rc : default,
                 PlantGrade = r.PlantGrade,
                 ProcessSpecification = r.ProcessSpecification,
                 UnitWeight = r.UnitWeight,
@@ -360,7 +361,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             Id = r.Id,
             SubcontractOrderId = r.SubcontractOrderId,
             Sequence = r.Sequence,
-            MaterialCategory = string.IsNullOrEmpty(r.MaterialCategory) ? default : Enum.Parse<MaterialCategory>(r.MaterialCategory),
+            MaterialCategory = string.IsNullOrEmpty(r.MaterialCategory) ? default : EnumHelper.TryParse<MaterialType>(r.MaterialCategory) ?? default,
             PlantGrade = r.PlantGrade,
             ProcessSpecification = r.ProcessSpecification,
             UnitWeight = r.UnitWeight,
@@ -451,7 +452,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             Id = r.Id,
             SubcontractOrderId = r.SubcontractOrderId,
             Sequence = r.Sequence,
-            MaterialCategory = string.IsNullOrEmpty(r.MaterialCategory) ? default : Enum.Parse<MaterialCategory>(r.MaterialCategory),
+            MaterialCategory = string.IsNullOrEmpty(r.MaterialCategory) ? default : EnumHelper.TryParse<MaterialType>(r.MaterialCategory) ?? default,
             PlantGrade = r.PlantGrade,
             ProcessSpecification = r.ProcessSpecification,
             UnitWeight = r.UnitWeight,
@@ -565,19 +566,19 @@ public class SubcontractOrderService : ISubcontractOrderService
     {
         if (item.ReturnedQuantity <= 0 && item.ReturnedWeight <= 0)
         {
-            item.ProcessStatus = SubcontractProcessStatus.Pending;
+            item.ProcessStatus = SubcontractOrderStatus.Sent;
         }
         else if (item.RequiredQuantity.HasValue && item.ReturnedQuantity >= item.RequiredQuantity.Value)
         {
-            item.ProcessStatus = SubcontractProcessStatus.Completed;
+            item.ProcessStatus = SubcontractOrderStatus.Completed;
         }
         else if (item.RequiredWeight.HasValue && item.ReturnedWeight >= item.RequiredWeight.Value)
         {
-            item.ProcessStatus = SubcontractProcessStatus.Completed;
+            item.ProcessStatus = SubcontractOrderStatus.Completed;
         }
         else
         {
-            item.ProcessStatus = SubcontractProcessStatus.PartialReturned;
+            item.ProcessStatus = SubcontractOrderStatus.PartialReturned;
         }
     }
 
@@ -618,7 +619,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         foreach (var item in order.ReturnItems)
         {
             item.IsForceCompleted = true;
-            item.ProcessStatus = SubcontractProcessStatus.Completed;
+            item.ProcessStatus = SubcontractOrderStatus.Completed;
         }
     }
 
@@ -791,7 +792,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                     Id = r.Id,
                     SubcontractOrderId = r.SubcontractOrderId,
                     Sequence = r.Sequence,
-                    MaterialCategory = !string.IsNullOrEmpty(r.MaterialCategory) && Enum.TryParse<MaterialCategory>(r.MaterialCategory, out var rc) ? rc : default,
+                    MaterialCategory = !string.IsNullOrEmpty(r.MaterialCategory) && Enum.TryParse<MaterialType>(r.MaterialCategory, out var rc) ? rc : default,
                     PlantGrade = r.PlantGrade,
                     ProcessSpecification = r.ProcessSpecification,
                     UnitWeight = r.UnitWeight,
@@ -877,7 +878,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         IsForceCompleted = entity.IsForceCompleted,
         FurnaceNumber = entity.FurnaceNumber,
         ProcessType = Enum.TryParse<SubcontractProcessType>(entity.ProcessType, out var pt) ? pt : default,
-        OutMaterialCategory = !string.IsNullOrEmpty(entity.OutMaterialCategory) && Enum.TryParse<MaterialCategory>(entity.OutMaterialCategory, out var category) ? category : default,
+        OutMaterialCategory = !string.IsNullOrEmpty(entity.OutMaterialCategory) && Enum.TryParse<MaterialType>(entity.OutMaterialCategory, out var category) ? category : default,
         OutPlantGrade = entity.OutPlantGrade,
         OutSpecification = entity.OutSpecification,
         OutQuantity = entity.OutQuantity,

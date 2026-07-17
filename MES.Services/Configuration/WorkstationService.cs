@@ -29,6 +29,7 @@ using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities.Configuration;
+using MES.Core.Enums;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
@@ -78,21 +79,32 @@ public class WorkstationService : IWorkstationService
         var items = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(w => new WorkstationDto
+            .Select(w => new
             {
-                Id = w.Id,
-                Code = w.Code,
-                Name = w.Name,
-                EquipmentName = w.EquipmentName,
-                SectionName = w.SectionName,
-                ReportType = w.ReportType,
-                IsActive = w.IsActive
+                w.Id,
+                w.Code,
+                w.Name,
+                w.EquipmentName,
+                w.SectionName,
+                w.ReportType,
+                w.IsActive
             })
             .ToListAsync();
 
+        var dtos = items.Select(w => new WorkstationDto
+        {
+            Id = w.Id,
+            Code = w.Code,
+            Name = w.Name,
+            EquipmentName = w.EquipmentName,
+            SectionName = w.SectionName,
+            ReportType = Enum.Parse<ReportTemplateType>(w.ReportType),
+            IsActive = w.IsActive
+        }).ToList();
+
         return new PagedResult<WorkstationDto>
         {
-            Items = items,
+            Items = dtos,
             TotalCount = totalCount,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
@@ -101,19 +113,32 @@ public class WorkstationService : IWorkstationService
 
     public async Task<WorkstationDto?> GetByCodeAsync(string code)
     {
-        return await _context.Workstations
+        var entity = await _context.Workstations
             .Where(ws => ws.Code == code && ws.IsActive)
-            .Select(ws => new WorkstationDto
+            .Select(ws => new
             {
-                Id = ws.Id,
-                Code = ws.Code,
-                Name = ws.Name,
-                EquipmentName = ws.EquipmentName,
-                SectionName = ws.SectionName,
-                ReportType = ws.ReportType,
-                IsActive = ws.IsActive
+                ws.Id,
+                ws.Code,
+                ws.Name,
+                ws.EquipmentName,
+                ws.SectionName,
+                ws.ReportType,
+                ws.IsActive
             })
             .FirstOrDefaultAsync();
+
+        if (entity == null) return null;
+
+        return new WorkstationDto
+        {
+            Id = entity.Id,
+            Code = entity.Code,
+            Name = entity.Name,
+            EquipmentName = entity.EquipmentName,
+            SectionName = entity.SectionName,
+            ReportType = Enum.Parse<ReportTemplateType>(entity.ReportType),
+            IsActive = entity.IsActive
+        };
     }
 
     public async Task<bool> SaveAsync(WorkstationDto dto)
@@ -131,7 +156,7 @@ public class WorkstationService : IWorkstationService
             entity.Name = dto.Name;
             entity.EquipmentName = dto.EquipmentName;
             entity.SectionName = dto.SectionName;
-            entity.ReportType = dto.ReportType;
+            entity.ReportType = dto.ReportType.ToString();
             entity.IsActive = dto.IsActive;
         }
         else
@@ -143,7 +168,7 @@ public class WorkstationService : IWorkstationService
                 Name = dto.Name,
                 EquipmentName = dto.EquipmentName,
                 SectionName = dto.SectionName,
-                ReportType = dto.ReportType,
+                ReportType = dto.ReportType.ToString(),
                 IsActive = dto.IsActive
             };
             _context.Workstations.Add(entity);

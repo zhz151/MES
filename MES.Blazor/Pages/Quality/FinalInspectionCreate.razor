@@ -325,7 +325,7 @@
                     Specification = r.Specification,
                     FixedLength = r.FixedLength,
                     EquipmentName = r.EquipmentName,
-                    Shift = r.Shift,
+                    Shift = string.IsNullOrEmpty(r.Shift) ? null : Enum.Parse<ShiftType>(r.Shift),
                     Operator = r.Operator,
                     Quantity = r.Quantity,
                     Weight = r.Weight,
@@ -402,15 +402,10 @@
         }));
         builder.AddAttribute(10, "ChildContent", (RenderFragment)(cb =>
         {
-            RenderSelectItem(cb, InspectionItem.PMIInspection);
-            RenderSelectItem(cb, InspectionItem.VisualInspection);
-            RenderSelectItem(cb, InspectionItem.Dimension);
-            RenderSelectItem(cb, InspectionItem.Endoscopy);
-            RenderSelectItem(cb, InspectionItem.HydrostaticPressure);
-            RenderSelectItem(cb, InspectionItem.UnderwaterPneumatic);
-            RenderSelectItem(cb, InspectionItem.EddyCurrent);
-            RenderSelectItem(cb, InspectionItem.Ultrasonic);
-            RenderSelectItem(cb, InspectionItem.PortColoring);
+            foreach (var val in Enum.GetValues<InspectionItem>())
+            {
+                RenderSelectItem(cb, val);
+            }
         }));
         builder.CloseComponent();
     };

@@ -76,9 +76,9 @@
                                 <MudTh Style="width:120px;">规格<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:120px;">外径公差</MudTh>
                                 <MudTh Style="width:120px;">壁厚公差</MudTh>
-                                <MudTh Style="width:120px;">长度状态</MudTh>
+                                <MudTh Style="width:120px;">长度状态<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:170px;">长度(mm)</MudTh>
-                                <MudTh Style="width:120px;">交货状态</MudTh>
+                                <MudTh Style="width:120px;">交货状态<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:80px;">需用支数</MudTh>
                                 <MudTh Style="width:80px;">需用重量<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:80px;">投料制成倍</MudTh>
@@ -94,8 +94,10 @@
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
                                                Class="my-n2" Style="width:115px;">
-                                        <MudSelectItem Value="@(FinishedProductType.Order)">@DisplayHelper.GetFinishedProductTypeText(FinishedProductType.Order)</MudSelectItem>
-                                        <MudSelectItem Value="@(FinishedProductType.Critical)">@DisplayHelper.GetFinishedProductTypeText(FinishedProductType.Critical)</MudSelectItem>
+                                        @foreach (var val in new[] { FinishedProductType.Critical, FinishedProductType.Order, FinishedProductType.SpecialDeliveryStatus })
+                                        {
+                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetFinishedProductTypeText(val)</MudSelectItem>
+                                        }
                                     </MudSelect>
                                 </MudTd>
                                 <MudTd>
@@ -137,9 +139,10 @@
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
                                                Class="my-n2" Style="width:115px;">
-                                        <MudSelectItem Value="@(LengthStatus.Fixed)">@DisplayHelper.GetLengthStatusText(LengthStatus.Fixed)</MudSelectItem>
-                                        <MudSelectItem Value="@(LengthStatus.Range)">@DisplayHelper.GetLengthStatusText(LengthStatus.Range)</MudSelectItem>
-                                        <MudSelectItem Value="@(LengthStatus.NonFixed)">@DisplayHelper.GetLengthStatusText(LengthStatus.NonFixed)</MudSelectItem>
+                                        @foreach (var val in Enum.GetValues<LengthStatus>())
+                                        {
+                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                        }
                                     </MudSelect>
                                 </MudTd>
                                 <MudTd>
@@ -166,9 +169,10 @@
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
                                                Class="my-n2" Style="width:115px;">
-                                        <MudSelectItem Value="@(DeliveryState.SolutionAnnealedAndPickled)">@DisplayHelper.GetDeliveryStateText(DeliveryState.SolutionAnnealedAndPickled)</MudSelectItem>
-                                        <MudSelectItem Value="@(DeliveryState.Bright)">@DisplayHelper.GetDeliveryStateText(DeliveryState.Bright)</MudSelectItem>
-                                        <MudSelectItem Value="@(DeliveryState.Hard)">@DisplayHelper.GetDeliveryStateText(DeliveryState.Hard)</MudSelectItem>
+                                        @foreach (var val in Enum.GetValues<DeliveryState>())
+                                        {
+                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetDeliveryStateText(val)</MudSelectItem>
+                                        }
                                     </MudSelect>
                                 </MudTd>
                                 <MudTd>
@@ -261,7 +265,7 @@
 
     private class FinishPlanRow
     {
-        public FinishedProductType ProductType { get; set; } = FinishedProductType.Order;
+        public FinishedProductType ProductType { get; set; } = FinishedProductType.Critical;
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public string OdToleranceStr { get; set; } = string.Empty;

@@ -20,7 +20,7 @@ public class ProcessInspectionDto
     public DateTime InspectionDate { get; set; }
     public string? EquipmentName { get; set; }
     public string? Inspector { get; set; }
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
     public string? InspectionItem { get; set; }
@@ -106,8 +106,7 @@ public class CreateProcessInspectionRequest
     [MaxLength(50)]
     public string? Inspector { get; set; }
 
-    [MaxLength(10)]
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
 
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
@@ -160,8 +159,7 @@ public class UpdateProcessInspectionRequest
     [MaxLength(50)]
     public string? Inspector { get; set; }
 
-    [MaxLength(10)]
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
 
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }

@@ -13,7 +13,7 @@ public class SubcontractOrderDto
     public SubcontractOrderStatus Status { get; set; }
     public bool IsForceCompleted { get; set; }
     public string? FurnaceNumber { get; set; }
-    public MaterialCategory OutMaterialCategory { get; set; }
+    public MaterialType OutMaterialCategory { get; set; }
     public string OutPlantGrade { get; set; } = null!;
     public string OutSpecification { get; set; } = null!;
     public int OutQuantity { get; set; }
@@ -51,7 +51,7 @@ public class SubcontractReturnItemDto
     public int Id { get; set; }
     public int SubcontractOrderId { get; set; }
     public int Sequence { get; set; }
-    public MaterialCategory MaterialCategory { get; set; }
+    public MaterialType MaterialCategory { get; set; }
     public string? PlantGrade { get; set; }
     public string ProcessSpecification { get; set; } = null!;
     public decimal? UnitWeight { get; set; }
@@ -67,7 +67,7 @@ public class SubcontractReturnItemDto
     // ========== 回收执行数据 ==========
     public int ReturnedQuantity { get; set; }
     public decimal ReturnedWeight { get; set; }
-    public SubcontractProcessStatus ProcessStatus { get; set; }
+    public SubcontractOrderStatus ProcessStatus { get; set; }
     public bool IsForceCompleted { get; set; }
 
     // ========== 工单来源字段（按每个SourceWorkOrderNo各自关联） ==========
@@ -96,7 +96,7 @@ public class CreateSubcontractOrderRequest
     public DateTime OrderDate { get; set; }
     public SubcontractProcessType ProcessType { get; set; }
     public string? FurnaceNumber { get; set; }
-    public MaterialCategory OutMaterialCategory { get; set; }
+    public MaterialType OutMaterialCategory { get; set; }
     public string OutPlantGrade { get; set; } = null!;
     public string OutSpecification { get; set; } = null!;
     public int OutQuantity { get; set; }
@@ -108,7 +108,7 @@ public class CreateSubcontractOrderRequest
 
 public class CreateReturnItemRequest
 {
-    public MaterialCategory MaterialCategory { get; set; }
+    public MaterialType MaterialCategory { get; set; }
     public string? PlantGrade { get; set; }
     public string ProcessSpecification { get; set; } = null!;
     public decimal? UnitWeight { get; set; }
@@ -128,7 +128,7 @@ public class UpdateSubcontractOrderRequest
     public int SupplierId { get; set; }
     public SubcontractProcessType ProcessType { get; set; }
     public string? FurnaceNumber { get; set; }
-    public MaterialCategory OutMaterialCategory { get; set; }
+    public MaterialType OutMaterialCategory { get; set; }
     public string OutPlantGrade { get; set; } = null!;
     public string OutSpecification { get; set; } = null!;
     public int OutQuantity { get; set; }

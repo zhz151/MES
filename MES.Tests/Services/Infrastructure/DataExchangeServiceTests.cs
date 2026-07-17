@@ -618,7 +618,7 @@ public class DataExchangeServiceTests : TestBase
             {
                 "B2026001",
                 EnumHelper.GetDisplayName(typeof(BatchStatus), BatchStatus.InProgress),       // 状态
-                EnumHelper.GetDisplayName(typeof(ManufacturingItem), ManufacturingItem.OrderFinishedProduct), // 制造物品
+                EnumHelper.GetDisplayName(typeof(MaterialType), MaterialType.OrderFinished), // 制造物品
                 "是",                                                                         // 强制完成
                 "WO001", "SO2026001", "D01",
                 "2026-01-15", "张三", "2026-06-01",
@@ -646,7 +646,7 @@ public class DataExchangeServiceTests : TestBase
         var saved = await ctx.ProductionBatches.FirstAsync(b => b.BatchNo == "B2026001");
         saved.BatchNo.Should().Be("B2026001");
         saved.Status.Should().Be(BatchStatus.InProgress);
-        saved.ManufacturingItem.Should().Be(nameof(ManufacturingItem.OrderFinishedProduct));
+        saved.ManufacturingItem.Should().Be(nameof(MaterialType.OrderFinished));
         saved.IsForceCompleted.Should().BeTrue();
         saved.WorkOrderNo.Should().Be("WO001");
         saved.SalesOrderNo.Should().Be("SO2026001");

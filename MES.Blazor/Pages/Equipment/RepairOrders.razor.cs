@@ -445,18 +445,13 @@ public partial class RepairOrders
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<RepairPriority>(this, v => cache.Priority = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    cb.OpenComponent<MudSelectItem<RepairPriority>>(0);
-                    cb.AddAttribute(1, "Value", RepairPriority.Normal);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "普通")));
-                    cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<RepairPriority>>(0);
-                    cb.AddAttribute(1, "Value", RepairPriority.Urgent);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "紧急")));
-                    cb.CloseComponent();
-                    cb.OpenComponent<MudSelectItem<RepairPriority>>(0);
-                    cb.AddAttribute(1, "Value", RepairPriority.Emergency);
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "特急")));
-                    cb.CloseComponent();
+                    foreach (var val in Enum.GetValues<RepairPriority>())
+                    {
+                        cb.OpenComponent<MudSelectItem<RepairPriority>>(0);
+                        cb.AddAttribute(1, "Value", val);
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetRepairPriorityText(val))));
+                        cb.CloseComponent();
+                    }
                 }));
                 builder.CloseComponent();
                 break;

@@ -41,7 +41,7 @@ public class BatchPlanServiceTests : TestBase
             StandardCode = "GB/T 8163",
             DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Fixed",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = "OrderFinished",
             PlantGrade = "304",
             Specification = "219*8",
             TotalQuantity = 100,

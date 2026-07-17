@@ -85,5 +85,11 @@ public class AvailableInProcessBatchDto
     /// <summary>生产类型</summary>
     public string? ProductionType { get; set; }
     /// <summary>制造物品</summary>
-    public ManufacturingItem ManufacturingItem { get; set; }
+    public MaterialType ManufacturingItem { get; set; }
+    /// <summary>当前工序</summary>
+    public string? CurrentGroupName { get; set; }
+    /// <summary>当前工段</summary>
+    public string? CurrentSectionName { get; set; }
+    /// <summary>当前规格</summary>
+    public string? CurrentSpec { get; set; }
 }

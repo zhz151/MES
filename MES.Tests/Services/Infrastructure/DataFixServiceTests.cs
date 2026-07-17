@@ -50,7 +50,7 @@ public class DataFixServiceTests : TestBase
             WorkOrderNo = "WO-TEST",
             SalesOrderNo = "SO-TEST",
             ProductionMainNo = "M-TEST",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = "OrderFinished",
             MaterialName = "无缝管",
             SettlementMethod = "Weighing",
             StandardCode = "GB/T 8163",

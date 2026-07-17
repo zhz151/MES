@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs.Warehouse;
 
@@ -21,10 +22,10 @@ public class BatchInboundRequest
 
     // ========== 以下为公共字段，填写后自动应用到所有行 ==========
 
-    public string? InboundSource { get; set; }
+    public InboundSource? InboundSource { get; set; }
     public string? SourceName { get; set; }
     public DateTime? InboundDate { get; set; }
-    public string? MaterialType { get; set; }
+    public MaterialType? MaterialType { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
     public string? HeatNo { get; set; }
@@ -35,8 +36,6 @@ public class BatchInboundRequest
     public decimal? UnitWeight { get; set; }
     public decimal? Meters { get; set; }
     public string? ActualSpecification { get; set; }
-    public decimal? ActualOuterDiameter { get; set; }
-    public decimal? ActualWallThickness { get; set; }
     public string? SurfaceCondition { get; set; }
     public string? LocationArea { get; set; }
     public string? LocationRack { get; set; }
@@ -82,16 +81,14 @@ public class InboundRow
     public string? DefectRemark { get; set; }
 
     // 原仅公共字段，现支持行级覆盖（row ?? common 回退）
-    public string? MaterialType { get; set; }
+    public MaterialType? MaterialType { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
     public string? HeatNo { get; set; }
-    public string? InboundSource { get; set; }
+    public InboundSource? InboundSource { get; set; }
     public string? SourceName { get; set; }
     public string? ProductionBatchNo { get; set; }
     public string? ActualSpecification { get; set; }
-    public decimal? ActualOuterDiameter { get; set; }
-    public decimal? ActualWallThickness { get; set; }
     public string? SalesOrderNo { get; set; }
     public string? OrderItemIds { get; set; }
     public bool? IsLinkedToWorkOrder { get; set; }

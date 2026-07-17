@@ -32,10 +32,10 @@ public class CreateCustomerRequest
     public string CustomerUnit { get; set; } = string.Empty;
 
     /// <summary>
-    /// 最终用户
+    /// 最终用户（为空时默认取客户单位）
     /// </summary>
     [StringLength(200, ErrorMessage = "最终用户长度不能超过200")]
-    public string? EndCustomer { get; set; }
+    public string EndCustomer { get; set; } = string.Empty;
 
     /// <summary>
     /// 联系人

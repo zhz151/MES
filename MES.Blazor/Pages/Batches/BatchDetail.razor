@@ -74,7 +74,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">生产编号</MudText><MudText Typo="Typo.body2">@batch.BatchNo</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">挂牌号</MudText><MudText Typo="Typo.body2">@(batch.TagNo ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">生产类型</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetProductionTypeText(batch.ProductionType))</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制造物品</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetManufacturingItemText(batch.ManufacturingItem))</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制造物品</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetMaterialTypeText(batch.ManufacturingItem))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制成倍数</MudText><MudText Typo="Typo.body2">@(batch.ProductionRatio.ToString())</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">备注</MudText><MudText Typo="Typo.body2">@(batch.Remark ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetBatchStatusText(batch.Status)</MudText></div>
@@ -283,7 +283,7 @@
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来源库存批次</MudText><MudText Typo="Typo.body2">@(batch.SourceBatchNo ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来源工单号</MudText><MudText Typo="Typo.body2">@(batch.WorkOrderNo ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料类型</MudText><MudText Typo="Typo.body2">@(batch.SourceMaterialType ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料类型</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialTypeText(batch.SourceMaterialType)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">入库来源</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetInboundSourceText(batch.InboundSource)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来料单位</MudText><MudText Typo="Typo.body2">@(batch.SourceName ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">入库日期</MudText><MudText Typo="Typo.body2">@(batch.InboundDate?.ToString("yyyy-MM-dd") ?? "-")</MudText></div>
@@ -337,7 +337,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">最终用户</MudText><MudText Typo="Typo.body2">@(batch.EndCustomer ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">交货日期</MudText><MudText Typo="Typo.body2">@FmtDate(batch.DeliveryDate)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">延期罚款</MudText><MudText Typo="Typo.body2">@(batch.DelayPenalty ? "是" : "否")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">物料名称</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetPipeManufacturingTypeText(batch.MaterialName))</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">钢管制造</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetPipeManufacturingTypeText(batch.MaterialName))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">结算方式</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetSettlementMethodText(batch.SettlementMethod))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">标准编码</MudText><MudText Typo="Typo.body2">@FmtStr(batch.StandardCode)</MudText></div>
             </div>

@@ -77,8 +77,8 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                     (d.ProductStandard ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.DeliveryStatus ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.StandardGrade ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
-                    (d.MaterialType ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
-                    (d.InboundSource ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
+                    d.MaterialType.ToString().Contains(kw, StringComparison.OrdinalIgnoreCase) ||
+                    (d.InboundSource.ToString() ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.SourceName ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
@@ -179,8 +179,8 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         AddDistinct("CustomerName", dtos.Select(d => d.CustomerName));
         AddDistinct("ProductStandard", dtos.Select(d => d.ProductStandard));
         AddDistinct("DeliveryStatus", dtos.Select(d => d.DeliveryStatus));
-        AddDistinct("MaterialType", dtos.Select(d => d.MaterialType));
-        AddDistinct("InboundSource", dtos.Select(d => d.InboundSource));
+        AddDistinct("MaterialType", dtos.Select(d => d.MaterialType.ToString()));
+        AddDistinct("InboundSource", dtos.Select(d => d.InboundSource.ToString()));
         AddDistinct("SourceName", dtos.Select(d => d.SourceName));
         AddDistinct("OrderItemIds", dtos.Select(d => d.OrderItemIds));
         AddDistinct("WorkOrderNo", dtos.Select(d => d.WorkOrderNo));
@@ -402,8 +402,8 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
             result.Add(new PendingDeliveryItemDto
             {
                 InventoryBatchNo = batch.BatchNo,
-                MaterialType = batch.MaterialType,
-                InboundSource = batch.InboundSource,
+                MaterialType = EnumHelper.TryParse<MaterialType>(batch.MaterialType) ?? default,
+                InboundSource = string.IsNullOrEmpty(batch.InboundSource) ? default : EnumHelper.TryParse<InboundSource>(batch.InboundSource) ?? default,
                 SourceName = batch.SourceName,
                 ProductionBatchNo = batch.ProductionBatchNo,
                 HeatNo = !string.IsNullOrEmpty(batch.HeatNo)

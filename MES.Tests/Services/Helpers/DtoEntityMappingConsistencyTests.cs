@@ -25,7 +25,7 @@ public class DtoEntityMappingConsistencyTests
     private static readonly (string FieldName, Type EnumType, bool IsNullable)[] EntityEnumStringFields =
     {
         (nameof(ProductionBatch.ProductionType), typeof(ProductionType), true),
-        (nameof(ProductionBatch.ManufacturingItem), typeof(ManufacturingItem), false),
+        (nameof(ProductionBatch.ManufacturingItem), typeof(MaterialType), false),
         (nameof(ProductionBatch.MaterialName), typeof(PipeManufacturingType), false),
         (nameof(ProductionBatch.SettlementMethod), typeof(SettlementMethod), false),
         (nameof(ProductionBatch.DeliveryState), typeof(DeliveryState), false),

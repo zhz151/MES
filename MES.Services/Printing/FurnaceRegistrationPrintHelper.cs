@@ -20,7 +20,7 @@ public static class FurnaceRegistrationPrintHelper
 {
     private static readonly Dictionary<string, Func<object?, string>> ValueResolvers = new()
     {
-        ["RawMaterialType"] = v => v is RawMaterialType rmt ? EnumHelper.GetDisplayName(rmt) : (v?.ToString() ?? "")
+        ["RawMaterialType"] = v => v is MaterialType rmt ? EnumHelper.GetDisplayName(rmt) : (v?.ToString() ?? "")
     };
 
     public static byte[] GenerateBatchPdf(List<FurnaceRegistrationDto> items, List<PrintColumnDef> columns)

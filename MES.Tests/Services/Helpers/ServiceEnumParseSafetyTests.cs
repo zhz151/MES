@@ -32,11 +32,9 @@ public class ServiceEnumParseSafetyTests
         typeof(SalesOrderStatus),
         typeof(PipeManufacturingType),
         typeof(ReworkType),
-        typeof(RawMaterialType),
         typeof(FinishedProductType),
         typeof(ProductionType),
-        typeof(ManufacturingItem),
-        typeof(MaterialCategory),
+        typeof(MaterialType),
         typeof(OutboundType),
         typeof(CustomerStatus),
         typeof(RequirementType),
@@ -53,7 +51,6 @@ public class ServiceEnumParseSafetyTests
         typeof(RepairOrderStatus),
         typeof(EquipmentTaskStatus),
         typeof(TaskOrderStatus),
-        typeof(SubcontractProcessStatus),
         typeof(InspectionItem),
         typeof(DisposalMethod),
         typeof(NcrStatus),
@@ -61,7 +58,6 @@ public class ServiceEnumParseSafetyTests
         typeof(ResponsibilityCategory),
         typeof(SeverityLevel),
         typeof(VerifyResult),
-        typeof(PipeCategory),
         typeof(SectionStatus)
     };
 
@@ -183,9 +179,9 @@ public class ServiceEnumParseSafetyTests
     public void 空字符串_容错模式_返回Default(string? emptyValue)
     {
         // 模拟 BatchService/MaterialPlanService 等中的标准容错模式
-        // ManufacturingItem default = OrderFinishedProduct(index 0)
-        var mi = string.IsNullOrEmpty(emptyValue) ? default : Enum.Parse<ManufacturingItem>(emptyValue);
-        mi.Should().Be(default(ManufacturingItem));
+        // MaterialType default = OrderFinished(index 0)
+        var mi = string.IsNullOrEmpty(emptyValue) ? default : Enum.Parse<MaterialType>(emptyValue);
+        mi.Should().Be(default(MaterialType));
 
         // LengthStatus default = Fixed(index 0)
         var ls = string.IsNullOrEmpty(emptyValue) ? default : Enum.Parse<LengthStatus>(emptyValue);
@@ -231,16 +227,16 @@ public class ServiceEnumParseSafetyTests
             typeof(WorkOrderStatus), typeof(MaterialPlanStatus), typeof(InventoryPlanStatus),
             typeof(LengthStatus), typeof(DeliveryState), typeof(SettlementMethod),
             typeof(SalesOrderStatus), typeof(PipeManufacturingType), typeof(ReworkType),
-            typeof(RawMaterialType), typeof(FinishedProductType), typeof(ProductionType),
-            typeof(ManufacturingItem), typeof(MaterialCategory), typeof(OutboundType),
+            typeof(FinishedProductType), typeof(ProductionType),
+            typeof(MaterialType), typeof(OutboundType),
             typeof(CustomerStatus), typeof(RequirementType), typeof(NotificationType),
             typeof(NotificationChangeType), typeof(BatchStatus), typeof(PurchaseOrderStatus),
             typeof(SubcontractOrderStatus), typeof(SectionOutsourceStatus), typeof(RepairPriority),
             typeof(LifecycleStatus), typeof(UsageType), typeof(RunningStatus),
             typeof(RepairOrderStatus), typeof(EquipmentTaskStatus), typeof(TaskOrderStatus),
-            typeof(SubcontractProcessStatus), typeof(InspectionItem), typeof(DisposalMethod),
+            typeof(InspectionItem), typeof(DisposalMethod),
             typeof(NcrStatus), typeof(PicklingStatus), typeof(ResponsibilityCategory),
-            typeof(SeverityLevel), typeof(VerifyResult), typeof(PipeCategory), typeof(SectionStatus)
+            typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus)
         };
 
         AllServiceLayerEnumTypes.Should().BeEquivalentTo(enumHelperTypes,

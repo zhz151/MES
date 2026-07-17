@@ -67,7 +67,7 @@ public partial class Materials
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
-    private static List<EnumOption> GetMaterialCategoryOptions() => DisplayHelper.GetEnumFilterOptions<MaterialCategory>();
+    private static List<EnumOption> GetMaterialCategoryOptions() => DisplayHelper.GetEnumFilterOptions<MaterialType>();
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
@@ -372,7 +372,7 @@ public partial class Materials
     private string? GetCellRawValue(MaterialDto item, string key) => key switch
     {
         "MaterialCode" => item.MaterialCode,
-        "MaterialCategory" => item.MaterialCategory.ToString(),
+        "MaterialCategory" => DisplayHelper.GetMaterialTypeText(item.MaterialCategory),
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
         "Remark" => item.Remark,
@@ -382,7 +382,7 @@ public partial class Materials
 
     private string? GetCellDisplayText(MaterialDto item, string key) => key switch
     {
-        "MaterialCategory" => DisplayHelper.GetMaterialCategoryText(item.MaterialCategory),
+        "MaterialCategory" => DisplayHelper.GetMaterialTypeText(item.MaterialCategory),
         "IsActive" => item.IsActive ? "启用" : "停用",
         _ => GetCellRawValue(item, key) ?? ""
     };
@@ -397,7 +397,7 @@ public partial class Materials
 
     private class EditCache
     {
-        public MaterialCategory MaterialCategory { get; set; }
+        public MaterialType MaterialCategory { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public bool IsActive { get; set; }
@@ -519,18 +519,18 @@ public partial class Materials
             case "MaterialCategory":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudSelect<MaterialCategory>>(0);
+                    builder.OpenComponent<MudSelect<MaterialType>>(0);
                     builder.AddAttribute(1, "Dense", true);
                     builder.AddAttribute(2, "Variant", Variant.Outlined);
                     builder.AddAttribute(3, "Value", cache.MaterialCategory);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<MaterialCategory>(this, v => cache.MaterialCategory = v));
+                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<MaterialType>(this, v => cache.MaterialCategory = v));
                     builder.AddAttribute(5, "ChildContent", (RenderFragment)(cb =>
                     {
-                        foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>())
+                        foreach (MaterialType cat in Enum.GetValues<MaterialType>())
                         {
-                            cb.OpenComponent<MudSelectItem<MaterialCategory>>(0);
+                            cb.OpenComponent<MudSelectItem<MaterialType>>(0);
                             cb.AddAttribute(1, "Value", cat);
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialCategoryText(cat))));
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialTypeText(cat))));
                             cb.CloseComponent();
                         }
                     }));
@@ -538,7 +538,7 @@ public partial class Materials
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.GetMaterialCategoryText(item.MaterialCategory));
+                    builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.MaterialCategory));
                 }
                 break;
 

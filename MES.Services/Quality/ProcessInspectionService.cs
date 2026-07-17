@@ -44,6 +44,7 @@ using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using Microsoft.Extensions.Caching.Memory;
+using MES.Core.Helpers;
 
 namespace MES.Services.Quality;
 
@@ -144,7 +145,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 InspectionDate = r.InspectionDate,
                 EquipmentName = r.EquipmentName,
                 Inspector = r.Inspector,
-                Shift = r.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 InspectionItem = r.InspectionItem,
@@ -194,7 +195,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 SequenceNumber = pi.SequenceNumber,
                 EquipmentName = pi.EquipmentName,
                 Inspector = pi.Inspector,
-                Shift = pi.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(pi.Shift),
                 Quantity = pi.Quantity,
                 Weight = pi.Weight,
                 InspectionItem = pi.InspectionItem,
@@ -389,7 +390,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 InspectionDate = request.InspectionDate,
                 EquipmentName = request.EquipmentName,
                 Inspector = request.Inspector,
-                Shift = request.Shift,
+                Shift = request.Shift?.ToString(),
                 Quantity = request.Quantity,
                 Weight = request.Weight,
                 InspectionItem = request.InspectionItem?.ToString(),
@@ -438,7 +439,7 @@ public class ProcessInspectionService : IProcessInspectionService
             InspectionDate = e.InspectionDate,
             EquipmentName = e.EquipmentName,
             Inspector = e.Inspector,
-            Shift = e.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(e.Shift),
             Quantity = e.Quantity,
             Weight = e.Weight,
             InspectionItem = e.InspectionItem,
@@ -470,7 +471,7 @@ public class ProcessInspectionService : IProcessInspectionService
         entity.InspectionDate = request.InspectionDate;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
         entity.Inspector = request.Inspector ?? entity.Inspector;
-        entity.Shift = request.Shift ?? entity.Shift;
+        entity.Shift = request.Shift?.ToString() ?? entity.Shift;
         entity.Quantity = request.Quantity ?? entity.Quantity;
         entity.Weight = request.Weight ?? entity.Weight;
         entity.InspectionItem = request.InspectionItem?.ToString() ?? entity.InspectionItem;
@@ -504,7 +505,7 @@ public class ProcessInspectionService : IProcessInspectionService
             InspectionDate = entity.InspectionDate,
             EquipmentName = entity.EquipmentName,
             Inspector = entity.Inspector,
-            Shift = entity.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Quantity = entity.Quantity,
             Weight = entity.Weight,
             InspectionItem = entity.InspectionItem,

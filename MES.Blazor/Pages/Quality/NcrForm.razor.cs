@@ -60,7 +60,7 @@ public partial class NcrForm
         else
         {
             _formData.ReportDate = DateTime.Today;
-            _formData.PipeCategory = PipeCategory.TubeBlank;
+            _formData.PipeCategory = MaterialType.RoughTube;
 
             // 加载待处理卡片（非编辑模式）
             await LoadPendingChecksAsync();
@@ -125,8 +125,8 @@ public partial class NcrForm
             if (sourceType == "ProcessInspection")
             {
                 _formData.PipeCategory = processName?.Contains("荒管处理") == true
-                    ? PipeCategory.TubeBlank
-                    : PipeCategory.WorkInProgress;
+                    ? MaterialType.RoughTube
+                    : MaterialType.WorkInProgress;
             }
             else if (sourceType == "FinalInspection")
             {
@@ -180,8 +180,8 @@ public partial class NcrForm
             if (item.SourceType == "ProcessInspection")
             {
                 _formData.PipeCategory = item.ProcessName?.Contains("荒管处理") == true
-                    ? PipeCategory.TubeBlank
-                    : PipeCategory.WorkInProgress;
+                    ? MaterialType.RoughTube
+                    : MaterialType.WorkInProgress;
             }
             else if (item.SourceType == "FinalInspection")
             {
@@ -204,20 +204,20 @@ public partial class NcrForm
         return item; // ProcessInspection: 直接显示原始文本
     }
 
-    private static PipeCategory MapMaterialNameToPipeCategory(string? materialName)
+    private static MaterialType MapMaterialNameToPipeCategory(string? materialName)
     {
-        if (string.IsNullOrEmpty(materialName)) return PipeCategory.TubeBlank;
+        if (string.IsNullOrEmpty(materialName)) return MaterialType.RoughTube;
 
         // 根据物料名称映射钢管类别
-        if (materialName.Contains("荒管")) return PipeCategory.TubeBlank;
-        if (materialName.Contains("在制")) return PipeCategory.WorkInProgress;
-        if (materialName.Contains("备料")) return PipeCategory.PreparedFinished;
-        if (materialName.Contains("余库")) return PipeCategory.SurplusInventory;
-        if (materialName.Contains("临界")) return PipeCategory.CriticalFinished;
-        if (materialName.Contains("成品")) return PipeCategory.OrderFinished;
-        if (materialName.Contains("特定") || materialName.Contains("特殊")) return PipeCategory.SpecialDelivery;
+        if (materialName.Contains("荒管")) return MaterialType.RoughTube;
+        if (materialName.Contains("在制")) return MaterialType.WorkInProgress;
+        if (materialName.Contains("备料")) return MaterialType.Finished;
+        if (materialName.Contains("余库")) return MaterialType.Surplus;
+        if (materialName.Contains("临界")) return MaterialType.CriticalFinished;
+        if (materialName.Contains("成品")) return MaterialType.OrderFinished;
+        if (materialName.Contains("特定") || materialName.Contains("特殊")) return MaterialType.SpecialDeliveryStatus;
 
-        return PipeCategory.TubeBlank;
+        return MaterialType.RoughTube;
     }
 
     private async Task LoadExistingAsync()
@@ -425,46 +425,6 @@ public partial class NcrForm
 
     // ========== 枚举选项 ==========
 
-    private static List<SelectOption<PipeCategory>> GetPipeCategoryOptions() => new()
-    {
-        new(PipeCategory.TubeBlank, "荒管"),
-        new(PipeCategory.WorkInProgress, "在制品"),
-        new(PipeCategory.SurplusInventory, "余库料"),
-        new(PipeCategory.CriticalFinished, "临界成品"),
-        new(PipeCategory.PreparedFinished, "备料成品"),
-        new(PipeCategory.OrderFinished, "订单成品"),
-        new(PipeCategory.SpecialDelivery, "特定交态成品"),
-    };
-
-    private static List<SelectOption<DisposalMethod?>> GetDisposalMethodOptions() => new()
-    {
-        new(DisposalMethod.Rework, "返整"),
-        new(DisposalMethod.WarehouseEntry, "入库"),
-        new(DisposalMethod.Scrap, "报废"),
-    };
-
-    private static List<SelectOption<SeverityLevel?>> GetSeverityOptions() => new()
-    {
-        new(SeverityLevel.Critical, "严重"),
-        new(SeverityLevel.General, "一般"),
-    };
-
-    private static List<SelectOption<ResponsibilityCategory?>> GetResponsibilityCategoryOptions() => new()
-    {
-        new(ResponsibilityCategory.ProductionInternal, "生产-厂内"),
-        new(ResponsibilityCategory.ProductionOutsource, "生产-外协"),
-        new(ResponsibilityCategory.MaterialTubeBlank, "原料-荒管"),
-        new(ResponsibilityCategory.MaterialPurchased, "原料-外购成品"),
-        new(ResponsibilityCategory.MaterialSurplus, "原料-余库料"),
-    };
-
-    private static List<SelectOption<VerifyResult?>> GetVerifyResultOptions() => new()
-    {
-        new(VerifyResult.Passed, "通过"),
-        new(VerifyResult.NeedsRectification, "需整改"),
-        new(VerifyResult.NotApplicable, "不适用"),
-    };
-
     private string GetStatusText(NcrStatus status) => DisplayHelper.GetNcrStatusText(status);
 
     private static string GetSourceTypeText(string sourceType) => sourceType switch
@@ -489,7 +449,4 @@ public partial class NcrForm
         _ => Color.Default
     };
 
-    // ========== 辅助类型 ==========
-
-    public record SelectOption<T>(T Value, string Text);
 }

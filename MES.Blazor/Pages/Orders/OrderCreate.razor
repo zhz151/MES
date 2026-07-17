@@ -48,7 +48,7 @@
                     <MudTable Items="@_headerDummy" Dense="true" Hover="true" Elevation="0" Class="auto-table">
                         <HeaderContent>
                             <MudTh>订单号<span class="required-star">*</span></MudTh>
-                            <MudTh>签订日期</MudTh>
+                            <MudTh>签订日期<span class="required-star">*</span></MudTh>
                             <MudTh>业务员</MudTh>
                             <MudTh>客户单位</MudTh>
                             <MudTh>最终客户</MudTh>
@@ -132,23 +132,23 @@
                                 <MudTh Style="width:45px">项次</MudTh>
                                 <MudTh Style="width:120px">交货日期<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:60px">延期罚款</MudTh>
-                                <MudTh Style="width:120px">结算方式</MudTh>
-                                <MudTh Style="width:120px">物料名称</MudTh>
+                                <MudTh Style="width:120px">结算方式<span class="required-star">*</span></MudTh>
+                                <MudTh Style="width:120px">钢管制造</MudTh>
                                 <MudTh Style="width:120px">产品标准</MudTh>
-                                <MudTh Style="width:120px">交货状态</MudTh>
+                                <MudTh Style="width:120px">交货状态<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:120px">标准牌号<span class="required-star">*</span></MudTh>
-                                <MudTh Style="width:80px">外径</MudTh>
-                                <MudTh Style="width:80px">壁厚</MudTh>
+                                <MudTh Style="width:80px">外径<span class="required-star">*</span></MudTh>
+                                <MudTh Style="width:80px">壁厚<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:80px">外径下差</MudTh>
                                 <MudTh Style="width:80px">外径上差</MudTh>
                                 <MudTh Style="width:80px">壁厚下差</MudTh>
                                 <MudTh Style="width:80px">壁厚上差</MudTh>
-                                <MudTh Style="width:120px">长度状态</MudTh>
+                                <MudTh Style="width:120px">长度状态<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:80px">最小长度</MudTh>
                                 <MudTh Style="width:80px">最大长度</MudTh>
                                 <MudTh Style="width:80px">支数</MudTh>
                                 <MudTh Style="width:80px">米数</MudTh>
-                                <MudTh Style="width:80px">合同重量</MudTh>
+                                <MudTh Style="width:80px">合同重量<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:80px">理算重量</MudTh>
                                 <MudTh Style="width:60px">操作</MudTh>
                             </HeaderContent>
@@ -179,17 +179,20 @@
                                 <!-- 结算方式 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="SettlementMethod" @bind-Value="item.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="SettlementMethod.Theoretical">@DisplayHelper.GetSettlementMethodText(SettlementMethod.Theoretical)</MudSelectItem>
-                                        <MudSelectItem Value="SettlementMethod.Weighing">@DisplayHelper.GetSettlementMethodText(SettlementMethod.Weighing)</MudSelectItem>
-                                        <MudSelectItem Value="SettlementMethod.WeighingNegative">@DisplayHelper.GetSettlementMethodText(SettlementMethod.WeighingNegative)</MudSelectItem>
+                                        @foreach (var val in Enum.GetValues<SettlementMethod>())
+                                        {
+                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetSettlementMethodText(val)</MudSelectItem>
+                                        }
                                     </MudSelect>
                                 </MudTd>
 
-                                <!-- 物料名称 - 下拉选择 -->
+                                <!-- 钢管制造 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="PipeManufacturingType" @bind-Value="item.PipeManufacturingType" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="PipeManufacturingType.SeamlessPipe">@DisplayHelper.GetPipeManufacturingTypeText(PipeManufacturingType.SeamlessPipe)</MudSelectItem>
-                                        <MudSelectItem Value="PipeManufacturingType.WeldedPipe">@DisplayHelper.GetPipeManufacturingTypeText(PipeManufacturingType.WeldedPipe)</MudSelectItem>
+                                        @foreach (var val in Enum.GetValues<PipeManufacturingType>())
+                                        {
+                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetPipeManufacturingTypeText(val)</MudSelectItem>
+                                        }
                                     </MudSelect>
                                 </MudTd>
 
@@ -206,9 +209,10 @@
                                 <!-- 交货状态 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="DeliveryState" @bind-Value="item.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="DeliveryState.SolutionAnnealedAndPickled">@DisplayHelper.GetDeliveryStateText(DeliveryState.SolutionAnnealedAndPickled)</MudSelectItem>
-                                        <MudSelectItem Value="DeliveryState.Bright">@DisplayHelper.GetDeliveryStateText(DeliveryState.Bright)</MudSelectItem>
-                                        <MudSelectItem Value="DeliveryState.Hard">@DisplayHelper.GetDeliveryStateText(DeliveryState.Hard)</MudSelectItem>
+                                        @foreach (var val in Enum.GetValues<DeliveryState>())
+                                        {
+                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetDeliveryStateText(val)</MudSelectItem>
+                                        }
                                     </MudSelect>
                                 </MudTd>
 
@@ -285,9 +289,10 @@
                                 <!-- 长度状态 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="LengthStatus" @bind-Value="item.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        <MudSelectItem Value="LengthStatus.Fixed">@DisplayHelper.GetLengthStatusText(LengthStatus.Fixed)</MudSelectItem>
-                                        <MudSelectItem Value="LengthStatus.Range">@DisplayHelper.GetLengthStatusText(LengthStatus.Range)</MudSelectItem>
-                                        <MudSelectItem Value="LengthStatus.NonFixed">@DisplayHelper.GetLengthStatusText(LengthStatus.NonFixed)</MudSelectItem>
+                                        @foreach (var val in Enum.GetValues<LengthStatus>())
+                                        {
+                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                        }
                                     </MudSelect>
                                 </MudTd>
 

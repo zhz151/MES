@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs.Batch;
 
@@ -23,11 +24,9 @@ public class SaveBatchRequest
     [MaxLength(500)]
     public string? Remark { get; set; }
 
-    [MaxLength(30)]
-    public string? ManufacturingItem { get; set; }
+    public MaterialType? ManufacturingItem { get; set; }
 
-    [MaxLength(30)]
-    public string? InboundSource { get; set; }
+    public InboundSource? InboundSource { get; set; }
 
     public DateTime? InboundDate { get; set; }
 
@@ -37,8 +36,7 @@ public class SaveBatchRequest
 
     public int? WarehouseId { get; set; }
 
-    [MaxLength(30)]
-    public string? SourceMaterialType { get; set; }
+    public MaterialType? SourceMaterialType { get; set; }
 
     [MaxLength(200)]
     public string? SourceName { get; set; }

@@ -78,7 +78,7 @@ public partial class SubcontractOrders : IAsyncDisposable
     // ========== 状态面板定时轮询 ==========
     private CancellationTokenSource? _pollingCts;
 
-    private static List<EnumOption> GetMaterialCategoryOptions() => DisplayHelper.GetEnumFilterOptions<MaterialCategory>();
+    private static List<EnumOption> GetMaterialCategoryOptions() => DisplayHelper.GetEnumFilterOptions<MaterialType>();
     private static List<EnumOption> GetProcessTypeOptions() => DisplayHelper.GetEnumFilterOptions<SubcontractProcessType>();
 
     // ========== 列定义 ==========
@@ -318,7 +318,7 @@ public partial class SubcontractOrders : IAsyncDisposable
         {
             foreach (var opt in categoryOptions)
             {
-                opt.Display = DisplayHelper.GetMaterialCategoryText(opt.Value);
+                opt.Display = DisplayHelper.GetMaterialTypeText(opt.Value);
             }
         }
 
@@ -426,7 +426,7 @@ public partial class SubcontractOrders : IAsyncDisposable
                 builder.AddContent(0, DisplayHelper.GetSubcontractProcessTypeText(item.ProcessType));
                 break;
             case "OutMaterialCategory":
-                builder.AddContent(0, DisplayHelper.GetMaterialCategoryText(item.OutMaterialCategory));
+                builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.OutMaterialCategory));
                 break;
             case "OutPlantGrade":
                 builder.AddContent(0, item.OutPlantGrade);

@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.Models;
 
 /// <summary>
@@ -40,7 +42,7 @@ public class InventoryQueryParams : QueryParams
     /// <summary>
     /// 入库来源筛选
     /// </summary>
-    public string? InboundSource { get; set; }
+    public InboundSource? InboundSource { get; set; }
 
     /// <summary>
     /// 来料单位筛选

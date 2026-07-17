@@ -410,7 +410,7 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.BatchNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.MaterialType).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName<MaterialType>(plan.MaterialType) ?? plan.MaterialType).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.Specification).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(usageMode).FontSize(8).AlignCenter();
@@ -570,7 +570,7 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.BatchNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.MaterialType).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName<MaterialType>(plan.MaterialType) ?? plan.MaterialType).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.Specification).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(usageMode).FontSize(8).AlignCenter();

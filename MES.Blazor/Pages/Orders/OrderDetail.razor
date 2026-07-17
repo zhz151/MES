@@ -214,7 +214,6 @@
     {
         public string OrderNumber { get; set; } = string.Empty;
         public string SignDateStr { get; set; } = string.Empty;
-        public int CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         public string Salesman { get; set; } = string.Empty;
         public string? EndCustomer { get; set; }
@@ -309,7 +308,7 @@
             new() { Key = "deliverydate", Label = "交货日期", Visible = true, IsRequired = true, Width = "120" },
             new() { Key = "delaypenalty", Label = "延期罚款", Visible = true, Width = "60" },
             new() { Key = "settlementmethod", Label = "结算方式", Visible = true, Width = "120" },
-            new() { Key = "materialname", Label = "物料名称", Visible = true, Width = "120" },
+            new() { Key = "materialname", Label = "钢管制造", Visible = true, Width = "120" },
             new() { Key = "productionstandard", Label = "产品标准", Visible = true, Width = "120" },
             new() { Key = "deliverystate", Label = "交货状态", Visible = true, Width = "120" },
             new() { Key = "standardgrade", Label = "标准牌号", Visible = true, Width = "120" },
@@ -423,7 +422,6 @@
         {
             OrderNumber = _order.OrderNumber,
             SignDateStr = _order.SignDate.ToString("yyyy-MM-dd"),
-            CustomerId = _order.CustomerId,
             CustomerName = _order.CustomerName,
             Salesman = _order.Salesman,
             EndCustomer = _order.EndCustomer,
@@ -557,14 +555,12 @@
         _headerEditItem.SelectedCustomerUnit = string.Empty;
         _headerEditItem.SelectedEndCustomer = string.Empty;
         _headerEditItem.CustomerName = string.Empty;
-        _headerEditItem.CustomerId = 0;
     }
 
     private void OnCustomerUnitValueChanged(string value)
     {
         _headerEditItem.SelectedCustomerUnit = value;
         _headerEditItem.SelectedEndCustomer = string.Empty;
-        _headerEditItem.CustomerId = 0;
 
         if (_isEndCustomerAuto)
         {
@@ -572,7 +568,6 @@
             if (matched != null)
             {
                 _headerEditItem.SelectedEndCustomer = matched.EndCustomer!;
-                _headerEditItem.CustomerId = matched.Id;
                 _headerEditItem.CustomerName = matched.CustomerUnit;
                 _headerEditItem.Salesman = matched.Salesman;
             }
@@ -585,7 +580,6 @@
         var matched = _matchedCustomers.FirstOrDefault(c => c.EndCustomer == value);
         if (matched != null)
         {
-            _headerEditItem.CustomerId = matched.Id;
             _headerEditItem.CustomerName = matched.CustomerUnit;
             _headerEditItem.Salesman = matched.Salesman;
         }
@@ -760,7 +754,7 @@
             Snackbar.Add("签订日期格式无效", Severity.Warning);
             return;
         }
-        if (_headerEditItem.CustomerId <= 0)
+        if (string.IsNullOrEmpty(_headerEditItem.CustomerName))
         {
             Snackbar.Add("请选择有效的客户信息（业务员→客户单位→最终客户）", Severity.Warning);
             return;
@@ -897,7 +891,6 @@
             {
                 OrderNumber = _headerEditItem.OrderNumber,
                 SignDate = signDate,
-                CustomerId = _headerEditItem.CustomerId,
                 CustomerName = _headerEditItem.CustomerName,
                 Salesman = _headerEditItem.SelectedSalesman,
                 EndCustomer = _headerEditItem.SelectedEndCustomer,
@@ -1136,18 +1129,13 @@
 
                     builder.AddAttribute(7, "ChildContent", (RenderFragment)(cb =>
                     {
-                        cb.OpenComponent<MudSelectItem<SettlementMethod>>(0);
-                        cb.AddAttribute(1, "Value", SettlementMethod.Theoretical);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetSettlementMethodText(SettlementMethod.Theoretical))));
-                        cb.CloseComponent();
-                        cb.OpenComponent<MudSelectItem<SettlementMethod>>(0);
-                        cb.AddAttribute(1, "Value", SettlementMethod.Weighing);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetSettlementMethodText(SettlementMethod.Weighing))));
-                        cb.CloseComponent();
-                        cb.OpenComponent<MudSelectItem<SettlementMethod>>(0);
-                        cb.AddAttribute(1, "Value", SettlementMethod.WeighingNegative);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetSettlementMethodText(SettlementMethod.WeighingNegative))));
-                        cb.CloseComponent();
+                        foreach (var val in Enum.GetValues<SettlementMethod>())
+                        {
+                            cb.OpenComponent<MudSelectItem<SettlementMethod>>(0);
+                            cb.AddAttribute(1, "Value", val);
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetSettlementMethodText(val))));
+                            cb.CloseComponent();
+                        }
                     }));
                     builder.CloseComponent();
                 }
@@ -1164,14 +1152,13 @@
                     builder.AddAttribute(5, "Size", Size.Small);
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        cb.OpenComponent<MudSelectItem<PipeManufacturingType>>(0);
-                        cb.AddAttribute(1, "Value", PipeManufacturingType.SeamlessPipe);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(PipeManufacturingType.SeamlessPipe))));
-                        cb.CloseComponent();
-                        cb.OpenComponent<MudSelectItem<PipeManufacturingType>>(0);
-                        cb.AddAttribute(1, "Value", PipeManufacturingType.WeldedPipe);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(PipeManufacturingType.WeldedPipe))));
-                        cb.CloseComponent();
+                        foreach (var val in Enum.GetValues<PipeManufacturingType>())
+                        {
+                            cb.OpenComponent<MudSelectItem<PipeManufacturingType>>(0);
+                            cb.AddAttribute(1, "Value", val);
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(val))));
+                            cb.CloseComponent();
+                        }
                     }));
                     builder.CloseComponent();
                 }
@@ -1211,18 +1198,13 @@
                     builder.AddAttribute(5, "Size", Size.Small);
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        cb.OpenComponent<MudSelectItem<DeliveryState>>(0);
-                        cb.AddAttribute(1, "Value", DeliveryState.SolutionAnnealedAndPickled);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetDeliveryStateText(DeliveryState.SolutionAnnealedAndPickled))));
-                        cb.CloseComponent();
-                        cb.OpenComponent<MudSelectItem<DeliveryState>>(0);
-                        cb.AddAttribute(1, "Value", DeliveryState.Bright);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetDeliveryStateText(DeliveryState.Bright))));
-                        cb.CloseComponent();
-                        cb.OpenComponent<MudSelectItem<DeliveryState>>(0);
-                        cb.AddAttribute(1, "Value", DeliveryState.Hard);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetDeliveryStateText(DeliveryState.Hard))));
-                        cb.CloseComponent();
+                        foreach (var val in Enum.GetValues<DeliveryState>())
+                        {
+                            cb.OpenComponent<MudSelectItem<DeliveryState>>(0);
+                            cb.AddAttribute(1, "Value", val);
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetDeliveryStateText(val))));
+                            cb.CloseComponent();
+                        }
                     }));
                     builder.CloseComponent();
                 }
@@ -1358,18 +1340,13 @@
                     builder.AddAttribute(5, "Size", Size.Small);
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        cb.OpenComponent<MudSelectItem<LengthStatus>>(0);
-                        cb.AddAttribute(1, "Value", LengthStatus.Fixed);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLengthStatusText(LengthStatus.Fixed))));
-                        cb.CloseComponent();
-                        cb.OpenComponent<MudSelectItem<LengthStatus>>(0);
-                        cb.AddAttribute(1, "Value", LengthStatus.Range);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLengthStatusText(LengthStatus.Range))));
-                        cb.CloseComponent();
-                        cb.OpenComponent<MudSelectItem<LengthStatus>>(0);
-                        cb.AddAttribute(1, "Value", LengthStatus.NonFixed);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLengthStatusText(LengthStatus.NonFixed))));
-                        cb.CloseComponent();
+                        foreach (var val in Enum.GetValues<LengthStatus>())
+                        {
+                            cb.OpenComponent<MudSelectItem<LengthStatus>>(0);
+                            cb.AddAttribute(1, "Value", val);
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLengthStatusText(val))));
+                            cb.CloseComponent();
+                        }
                     }));
                     builder.CloseComponent();
                 }

@@ -9,6 +9,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Core.Enums;
 
 namespace MES.Blazor.Pages.Configuration;
 
@@ -293,7 +294,7 @@ public partial class Workstations
         public string? Name { get; set; }
         public string? EquipmentName { get; set; }
         public string SectionName { get; set; } = null!;
-        public string ReportType { get; set; } = null!;
+        public ReportTemplateType ReportType { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
@@ -332,7 +333,7 @@ public partial class Workstations
         var errors = new List<string>();
         if (string.IsNullOrWhiteSpace(cache.Code)) errors.Add("工位编码不能为空");
         if (string.IsNullOrWhiteSpace(cache.SectionName)) errors.Add("工段不能为空");
-        if (string.IsNullOrWhiteSpace(cache.ReportType)) errors.Add("报工模板类型不能为空");
+        if (cache.ReportType == default) errors.Add("报工模板类型不能为空");
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
         _isSaving = true;

@@ -267,14 +267,4 @@ public class AvailableInventoryBatchDto
     /// 放置架号
     /// </summary>
     public string? LocationRack { get; set; }
-
-    /// <summary>
-    /// 实际外径(mm)
-    /// </summary>
-    public decimal? ActualOuterDiameter { get; set; }
-
-    /// <summary>
-    /// 实际壁厚(mm)
-    /// </summary>
-    public decimal? ActualWallThickness { get; set; }
 }

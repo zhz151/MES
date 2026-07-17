@@ -355,7 +355,6 @@ public class WorkOrderExecutionServiceTests : TestBase
         {
             OrderNumber = "SO001",
             SignDate = DateTime.Today,
-            CustomerId = cust.Id,
             Status = SalesOrderStatus.Confirmed,
             RowVersion = new byte[8],
             CustomerName = "测试客户",
@@ -396,7 +395,7 @@ public class WorkOrderExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx, "测试客户");
-        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, CustomerId = cust.Id, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
         ctx.SalesOrders.Add(so);
 
         var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed,
@@ -422,7 +421,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             StandardCode = "GB/T 8163",
             DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Fixed",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = "OrderFinished",
             PlantGrade = "304",
             Specification = "219*8",
             TotalQuantity = 100,
@@ -465,7 +464,7 @@ public class WorkOrderExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx, "测试客户");
-        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, CustomerId = cust.Id, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
         ctx.SalesOrders.Add(so);
 
         var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed,
@@ -490,7 +489,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             StandardCode = "GB/T 8163",
             DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Unlimited",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = "OrderFinished",
             PlantGrade = "304",
             Specification = "219*8",
             TotalQuantity = 100,
@@ -526,7 +525,7 @@ public class WorkOrderExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx, "测试客户");
-        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, CustomerId = cust.Id, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
         ctx.SalesOrders.Add(so);
 
         var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed,
@@ -552,7 +551,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             StandardCode = "GB/T 8163",
             DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Fixed",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = "OrderFinished",
             PlantGrade = "304",
             Specification = "219*8",
             TotalQuantity = 100,
@@ -588,7 +587,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             StandardCode = "GB/T 8163",
             DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Fixed",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = "OrderFinished",
             PlantGrade = "304",
             Specification = "219*8",
             TotalQuantity = 100,
@@ -629,7 +628,7 @@ public class WorkOrderExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx, "测试客户");
-        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, CustomerId = cust.Id, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
         ctx.SalesOrders.Add(so);
 
         var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed,
@@ -643,7 +642,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             WorkOrderId = wo.Id,
             PlanDate = new DateTime(2026, 6, 15),
             PlantGrade = "304",
-            RawMaterialType = RawMaterialType.RoughTube,
+            RawMaterialType = MaterialType.RoughTube,
             RawMaterialSpec = "245*10",
             RequiredWeight = 1000,
             RequiredDate = new DateTime(2026, 6, 15),
@@ -709,8 +708,8 @@ public class WorkOrderExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx, "测试客户");
-        var so1 = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, CustomerId = cust.Id, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
-        var so2 = new SalesOrder { OrderNumber = "SO002", SignDate = DateTime.Today, CustomerId = cust.Id, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so1 = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so2 = new SalesOrder { OrderNumber = "SO002", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
         ctx.SalesOrders.AddRange(so1, so2);
 
         var wo1 = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01");
@@ -734,7 +733,7 @@ public class WorkOrderExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx, "测试客户");
-        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, CustomerId = cust.Id, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
         ctx.SalesOrders.Add(so);
 
         var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01");
@@ -778,7 +777,7 @@ public class WorkOrderExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx, "测试客户");
-        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, CustomerId = cust.Id, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
         ctx.SalesOrders.Add(so);
         var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01");
         ctx.WorkOrders.Add(wo);
@@ -818,7 +817,7 @@ public class WorkOrderExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx, "测试客户");
-        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, CustomerId = cust.Id, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
         ctx.SalesOrders.Add(so);
 
         // 同一主号(D01)下的两个工单
@@ -879,7 +878,7 @@ public class WorkOrderExecutionServiceTests : TestBase
                 StandardCode = "GB/T 8163",
                 DeliveryState = "SolutionAnnealedAndPickled",
                 LengthStatus = "Fixed",
-                ManufacturingItem = "OrderFinishedProduct",
+                ManufacturingItem = "OrderFinished",
                 PlantGrade = "304",
                 Specification = "219*8",
                 TotalQuantity = wo.TotalQuantity,
@@ -969,7 +968,7 @@ public class WorkOrderExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx, "测试客户");
-        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, CustomerId = cust.Id, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
         ctx.SalesOrders.Add(so);
 
         var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed,
@@ -997,7 +996,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             StandardCode = "GB/T 8163",
             DeliveryState = "SolutionAnnealedAndPickled",
             LengthStatus = "Unlimited",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = "OrderFinished",
             PlantGrade = "304",
             Specification = "219*8",
             TotalQuantity = 100,

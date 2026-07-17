@@ -87,14 +87,6 @@ public class EnumHelperTests
     }
 
     [Fact]
-    public void GetDisplayName_RawMaterialType()
-    {
-        EnumHelper.GetDisplayName(RawMaterialType.RoughTube).Should().Be("荒管");
-        EnumHelper.GetDisplayName(RawMaterialType.SemiProduct).Should().Be("半成品");
-        EnumHelper.GetDisplayName(RawMaterialType.RoundBar).Should().Be("圆棒");
-    }
-
-    [Fact]
     public void GetDisplayName_FinishedProductType()
     {
         EnumHelper.GetDisplayName(FinishedProductType.Critical).Should().Be("临界成品");
@@ -116,29 +108,30 @@ public class EnumHelperTests
     [Fact]
     public void GetDisplayName_ManufacturingItem()
     {
-        EnumHelper.GetDisplayName(ManufacturingItem.OrderFinishedProduct).Should().Be("订单成品");
-        EnumHelper.GetDisplayName(ManufacturingItem.PreparedMaterial).Should().Be("备料成品");
-        EnumHelper.GetDisplayName(ManufacturingItem.SurplusStock).Should().Be("余库料");
-        EnumHelper.GetDisplayName(ManufacturingItem.SpecialDeliveryStatus).Should().Be("特定交态成品");
+        EnumHelper.GetDisplayName(MaterialType.OrderFinished).Should().Be("订单成品");
+        EnumHelper.GetDisplayName(MaterialType.Finished).Should().Be("备料成品");
+        EnumHelper.GetDisplayName(MaterialType.Surplus).Should().Be("余库料");
+        EnumHelper.GetDisplayName(MaterialType.SpecialDeliveryStatus).Should().Be("特定交态成品");
     }
 
     [Fact]
-    public void GetDisplayName_MaterialCategory()
+    public void GetDisplayName_MaterialType()
     {
-        EnumHelper.GetDisplayName(MaterialCategory.RoundBar).Should().Be("圆棒");
-        EnumHelper.GetDisplayName(MaterialCategory.RoughTube).Should().Be("荒管");
-        EnumHelper.GetDisplayName(MaterialCategory.SemiProduct).Should().Be("半成品");
-        EnumHelper.GetDisplayName(MaterialCategory.OrderFinished).Should().Be("订单成品");
-        EnumHelper.GetDisplayName(MaterialCategory.PreparedFinished).Should().Be("备料成品");
-        EnumHelper.GetDisplayName(MaterialCategory.CriticalFinished).Should().Be("临界成品");
-        EnumHelper.GetDisplayName(MaterialCategory.DefectRoundBar).Should().Be("次品圆棒");
-        EnumHelper.GetDisplayName(MaterialCategory.DefectRoughTube).Should().Be("次品荒管");
-        EnumHelper.GetDisplayName(MaterialCategory.DefectSemiProduct).Should().Be("次品半成品");
-        EnumHelper.GetDisplayName(MaterialCategory.DefectFinished).Should().Be("次品成品");
-        EnumHelper.GetDisplayName(MaterialCategory.Scrap).Should().Be("报废品");
-        EnumHelper.GetDisplayName(MaterialCategory.Surplus).Should().Be("余库料");
-        EnumHelper.GetDisplayName(MaterialCategory.SpecialDeliveryFinished).Should().Be("特定交态成品");
-        EnumHelper.GetDisplayName(MaterialCategory.DefectWIP).Should().Be("次品在制");
+        EnumHelper.GetDisplayName(MaterialType.RoundBar).Should().Be("圆棒");
+        EnumHelper.GetDisplayName(MaterialType.RoughTube).Should().Be("荒管");
+        EnumHelper.GetDisplayName(MaterialType.SemiFinished).Should().Be("半成品");
+        EnumHelper.GetDisplayName(MaterialType.OrderFinished).Should().Be("订单成品");
+        EnumHelper.GetDisplayName(MaterialType.Finished).Should().Be("备料成品");
+        EnumHelper.GetDisplayName(MaterialType.CriticalFinished).Should().Be("临界成品");
+        EnumHelper.GetDisplayName(MaterialType.DefectRoundBar).Should().Be("次品圆棒");
+        EnumHelper.GetDisplayName(MaterialType.DefectRoughTube).Should().Be("次品荒管");
+        EnumHelper.GetDisplayName(MaterialType.DefectSemi).Should().Be("次品半成品");
+        EnumHelper.GetDisplayName(MaterialType.DefectFinished).Should().Be("次品成品");
+        EnumHelper.GetDisplayName(MaterialType.Scrap).Should().Be("报废品");
+        EnumHelper.GetDisplayName(MaterialType.Surplus).Should().Be("余库料");
+        EnumHelper.GetDisplayName(MaterialType.SpecialDeliveryStatus).Should().Be("特定交态成品");
+        EnumHelper.GetDisplayName(MaterialType.WorkInProgress).Should().Be("在制品");
+        EnumHelper.GetDisplayName(MaterialType.DefectWIP).Should().Be("次品在制");
     }
 
     [Fact]
@@ -282,7 +275,7 @@ public class EnumHelperTests
         EnumHelper.Parse<BatchStatus>("在产").Should().Be(BatchStatus.InProgress);
         EnumHelper.Parse<LengthStatus>("定尺").Should().Be(LengthStatus.Fixed);
         EnumHelper.Parse<DeliveryState>("光亮").Should().Be(DeliveryState.Bright);
-        EnumHelper.Parse<MaterialCategory>("圆棒").Should().Be(MaterialCategory.RoundBar);
+        EnumHelper.Parse<MaterialType>("圆棒").Should().Be(MaterialType.RoundBar);
         EnumHelper.Parse<ProductionType>("荒管生产").Should().Be(ProductionType.RoughTube);
     }
 
@@ -354,16 +347,16 @@ public class EnumHelperTests
             typeof(WorkOrderStatus), typeof(MaterialPlanStatus), typeof(InventoryPlanStatus),
             typeof(LengthStatus), typeof(DeliveryState), typeof(SettlementMethod),
             typeof(SalesOrderStatus), typeof(PipeManufacturingType), typeof(ReworkType),
-            typeof(RawMaterialType), typeof(FinishedProductType), typeof(ProductionType),
-            typeof(ManufacturingItem), typeof(MaterialCategory), typeof(OutboundType),
+            typeof(FinishedProductType), typeof(ProductionType),
+            typeof(MaterialType), typeof(OutboundType),
             typeof(CustomerStatus), typeof(RequirementType), typeof(NotificationType),
             typeof(NotificationChangeType), typeof(BatchStatus), typeof(PurchaseOrderStatus),
             typeof(SubcontractOrderStatus), typeof(SectionOutsourceStatus), typeof(RepairPriority),
             typeof(LifecycleStatus), typeof(UsageType), typeof(RunningStatus),
             typeof(RepairOrderStatus), typeof(EquipmentTaskStatus), typeof(TaskOrderStatus),
-            typeof(SubcontractProcessStatus), typeof(InspectionItem), typeof(DisposalMethod),
+            typeof(InspectionItem), typeof(DisposalMethod),
             typeof(NcrStatus), typeof(PicklingStatus), typeof(ResponsibilityCategory),
-            typeof(SeverityLevel), typeof(VerifyResult), typeof(PipeCategory), typeof(SectionStatus)
+            typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus)
         };
 
         foreach (var enumType in enumTypes)
@@ -403,7 +396,6 @@ public class EnumHelperTests
         ("BatchStatus", typeof(BatchStatus)),
         ("SectionOutsourceStatus", typeof(SectionOutsourceStatus)),
         ("ProductionType", typeof(ProductionType)),
-        ("ManufacturingItem", typeof(ManufacturingItem)),
         ("InspectionItem", typeof(InspectionItem)),
         ("LifecycleStatus", typeof(LifecycleStatus)),
         ("UsageType", typeof(UsageType)),
@@ -412,16 +404,15 @@ public class EnumHelperTests
         ("RepairOrderStatus", typeof(RepairOrderStatus)),
         ("Priority", typeof(RepairPriority)),         // GetPriorityText(RepairPriority)
         ("TaskOrderStatus", typeof(TaskOrderStatus)),
-        ("SubcontractProcessStatus", typeof(SubcontractProcessStatus)),
+        ("SubcontractProcessStatus", typeof(SubcontractOrderStatus)),
         ("SubcontractOrderStatus", typeof(SubcontractOrderStatus)),
         ("OutboundType", typeof(OutboundType)),
         ("MaterialPlanStatus", typeof(MaterialPlanStatus)),
-        ("RawMaterialType", typeof(RawMaterialType)),
         ("RequirementType", typeof(RequirementType)),  // GetRequirementTypeText(RequirementType) — 注意：是枚举版本委托 EnumHelper
         ("InventoryPlanStatus", typeof(InventoryPlanStatus)),
         ("ReworkType", typeof(ReworkType)),
         ("FinishedProductType", typeof(FinishedProductType)),
-        ("MaterialCategory", typeof(MaterialCategory)),
+        ("MaterialType", typeof(MaterialType)),
         ("CustomerStatus", typeof(CustomerStatus)),
         ("NotificationType", typeof(NotificationType)),
         ("NotificationChangeType", typeof(NotificationChangeType)),
@@ -431,7 +422,7 @@ public class EnumHelperTests
         ("ResponsibilityCategory", typeof(ResponsibilityCategory)),
         ("SeverityLevel", typeof(SeverityLevel)),
         ("VerifyResult", typeof(VerifyResult)),
-        ("PipeCategory", typeof(PipeCategory)),
+        ("PipeCategory", typeof(MaterialType)),
         ("SectionStatus", typeof(SectionStatus)),
     };
 

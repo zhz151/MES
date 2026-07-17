@@ -15,6 +15,7 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
@@ -192,7 +193,7 @@ public class PicklingService : IPicklingService
                 Status = s.Status,
                 EquipmentName = s.EquipmentName,
                 Operator = s.Operator,
-                Shift = s.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(s.Shift),
                 Quantity = s.Quantity,
                 Weight = s.Weight,
                 ProductStatus = s.ProductStatus,
@@ -263,7 +264,7 @@ public class PicklingService : IPicklingService
             Status = PicklingStatus.Soaking,
             EquipmentName = request.EquipmentName,
             Operator = request.Operator,
-            Shift = request.Shift,
+            Shift = request.Shift?.ToString(),
             Quantity = request.Quantity,
             Weight = request.Weight,
             TagNo = request.TagNo ?? batch.TagNo,
@@ -291,7 +292,7 @@ public class PicklingService : IPicklingService
             Status = entity.Status,
             EquipmentName = entity.EquipmentName,
             Operator = entity.Operator,
-            Shift = entity.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Quantity = entity.Quantity,
             Weight = entity.Weight,
             ProductStatus = entity.ProductStatus,
@@ -329,7 +330,7 @@ public class PicklingService : IPicklingService
         if (request.Operator != null)
             entity.Operator = request.Operator;
         if (request.Shift != null)
-            entity.Shift = request.Shift;
+            entity.Shift = request.Shift.ToString();
         if (request.Quantity.HasValue)
             entity.Quantity = request.Quantity.Value;
         if (request.Weight.HasValue)
@@ -353,7 +354,7 @@ public class PicklingService : IPicklingService
             Status = entity.Status,
             EquipmentName = entity.EquipmentName,
             Operator = entity.Operator,
-            Shift = entity.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Quantity = entity.Quantity,
             Weight = entity.Weight,
             ProductStatus = entity.ProductStatus,
@@ -407,7 +408,7 @@ public class PicklingService : IPicklingService
                 PlantGrade = r.PlantGrade,
                 EquipmentName = r.EquipmentName,
                 Operator = r.Operator,
-                Shift = r.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 ProductStatus = r.ProductStatus
@@ -498,7 +499,7 @@ public class PicklingService : IPicklingService
                 PlantGrade = r.PlantGrade,
                 EquipmentName = r.EquipmentName,
                 Operator = r.Operator,
-                Shift = r.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 ProductStatus = r.ProductStatus
@@ -567,7 +568,7 @@ public class PicklingService : IPicklingService
             PlantGrade = entity.PlantGrade,
             EquipmentName = entity.EquipmentName,
             Operator = entity.Operator,
-            Shift = entity.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Quantity = entity.Quantity,
             Weight = entity.Weight,
             ProductStatus = entity.ProductStatus
@@ -607,7 +608,7 @@ public class PicklingService : IPicklingService
             PlantGrade = entity.PlantGrade,
             EquipmentName = entity.EquipmentName,
             Operator = entity.Operator,
-            Shift = entity.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Quantity = entity.Quantity,
             Weight = entity.Weight,
             ProductStatus = entity.ProductStatus
@@ -652,7 +653,7 @@ public class PicklingService : IPicklingService
             ["SectionName"] = s.SectionName,
             ["EquipmentName"] = s.EquipmentName ?? "",
             ["Operator"] = s.Operator ?? "",
-            ["Shift"] = s.Shift ?? "",
+            ["Shift"] = s.Shift?.ToString() ?? "",
             ["Quantity"] = s.Quantity ?? 0,
             ["Weight"] = s.Weight ?? 0,
             ["ProductStatus"] = s.ProductStatus ?? "在制",
@@ -697,7 +698,7 @@ public class PicklingService : IPicklingService
             ["SectionName"] = s.SectionName,
             ["EquipmentName"] = s.EquipmentName ?? "",
             ["Operator"] = s.Operator ?? "",
-            ["Shift"] = s.Shift ?? "",
+            ["Shift"] = s.Shift?.ToString() ?? "",
             ["Quantity"] = s.Quantity ?? 0,
             ["Weight"] = s.Weight ?? 0,
             ["ProductStatus"] = s.ProductStatus ?? "在制",
@@ -736,7 +737,7 @@ public class PicklingService : IPicklingService
             ["CompleteDate"] = s.CompleteDate.ToString("yyyy-MM-dd"),
             ["EquipmentName"] = s.EquipmentName ?? "",
             ["Operator"] = s.Operator ?? "",
-            ["Shift"] = s.Shift ?? "",
+            ["Shift"] = s.Shift?.ToString() ?? "",
             ["Quantity"] = s.Quantity ?? 0,
             ["Weight"] = s.Weight ?? 0,
             ["ProductStatus"] = s.ProductStatus ?? "在制",
@@ -803,7 +804,7 @@ public class PicklingService : IPicklingService
             ["CompleteDate"] = s.CompleteDate.ToString("yyyy-MM-dd"),
             ["EquipmentName"] = s.EquipmentName ?? "",
             ["Operator"] = s.Operator ?? "",
-            ["Shift"] = s.Shift ?? "",
+            ["Shift"] = s.Shift?.ToString() ?? "",
             ["Quantity"] = s.Quantity ?? 0,
             ["Weight"] = s.Weight ?? 0,
             ["ProductStatus"] = s.ProductStatus ?? "在制",
@@ -968,7 +969,7 @@ public class PicklingService : IPicklingService
                 Status = s.Status,
                 EquipmentName = s.EquipmentName,
                 Operator = s.Operator,
-                Shift = s.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(s.Shift),
                 Quantity = s.Quantity,
                 Weight = s.Weight,
                 ProductStatus = s.ProductStatus,

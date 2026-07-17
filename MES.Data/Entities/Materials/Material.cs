@@ -8,7 +8,7 @@ public class Material : BaseEntity
     public string MaterialCode { get; set; } = null!;
 
     /// <summary>
-    /// 物料分类（兼作物料名称）
+    /// 物料分类（MaterialType 枚举名，兼作物料名称）
     /// </summary>
     public string MaterialCategory { get; set; } = null!;
 

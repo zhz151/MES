@@ -14,9 +14,6 @@ public class SaveAllOrderRequest
     /// <summary>签订日期（为 null 表示不修改）</summary>
     public DateTime? SignDate { get; set; }
 
-    /// <summary>客户ID（为 null 表示不修改）</summary>
-    public int? CustomerId { get; set; }
-
     /// <summary>客户名称（手动输入，为 null 表示不修改）</summary>
     public string? CustomerName { get; set; }
 

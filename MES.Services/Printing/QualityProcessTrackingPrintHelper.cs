@@ -46,7 +46,7 @@ public static class QualityProcessTrackingPrintHelper
 
                 // G2: 检验来料
                 ["ReceiveDate"] = dto.ReceiveDate.ToString("yyyy-MM-dd"),
-                ["Shift"] = dto.Shift ?? "",
+                ["Shift"] = EnumHelper.GetDisplayName<ShiftType>(dto.Shift?.ToString()),
                 ["Checker"] = dto.Checker ?? "",
                 ["IsForceCompleted"] = dto.IsForceCompleted ? "是" : "否",
 

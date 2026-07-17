@@ -43,7 +43,7 @@ public class SubcontractOrder : BaseEntity
     public bool IsForceCompleted { get; set; }
 
     /// <summary>
-    /// 发出物料分类
+    /// 发出物料分类（MaterialType 枚举名）
     /// </summary>
     public string OutMaterialCategory { get; set; } = null!;
 

@@ -544,7 +544,7 @@ public partial class PicklingOutRecords
                 builder.AddContent(0, item.Operator ?? "");
                 break;
             case "Shift":
-                builder.AddContent(0, item.Shift ?? "");
+                builder.AddContent(0, DisplayHelper.GetShiftTypeText(item.Shift));
                 break;
             case "Quantity":
                 builder.AddContent(0, DisplayHelper.FormatNullableInt(item.Quantity));

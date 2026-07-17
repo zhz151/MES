@@ -86,7 +86,7 @@ public partial class PurchaseOrders : IAsyncDisposable
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
-    private static List<EnumOption> GetMaterialCategoryOptions() => DisplayHelper.GetEnumFilterOptions<MaterialCategory>();
+    private static List<EnumOption> GetMaterialCategoryOptions() => DisplayHelper.GetEnumFilterOptions<MaterialType>();
 
     private static List<ColumnDef> GetAllColumnDefs()
     {
@@ -370,7 +370,7 @@ public partial class PurchaseOrders : IAsyncDisposable
         {
             foreach (var opt in materialCatOptions)
             {
-                opt.Display = DisplayHelper.GetMaterialCategoryText(opt.Value);
+                opt.Display = DisplayHelper.GetMaterialTypeText(opt.Value);
             }
         }
 
@@ -545,7 +545,7 @@ public partial class PurchaseOrders : IAsyncDisposable
                 builder.CloseComponent();
                 break;
             case "MaterialCategory":
-                builder.AddContent(0, DisplayHelper.GetMaterialCategoryText(item.MaterialCategory));
+                builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.MaterialCategory));
                 break;
             case "PlantGrade":
                 builder.AddContent(0, item.PlantGrade);

@@ -1,5 +1,6 @@
 @using MES.Blazor.Helpers
 @using MES.Core.DTOs.Batch
+@using MES.Core.Enums
 @inject ISnackbar Snackbar
 
 <MudDialog>
@@ -75,14 +76,15 @@
                                           Class="my-n2" Style="width:80px;" />
                         </MudTd>
                         <MudTd>
-                            <MudSelect T="string"
-                                       Value="@r.Shift"
-                                       ValueChanged="@((string? v) => r.Shift = v ?? "")"
+                            <MudSelect T="ShiftType"
+                                       Value="@(r.Shift ?? default(ShiftType))"
+                                       ValueChanged="@((ShiftType v) => r.Shift = v)"
                                        Size="Size.Small" Variant="Variant.Outlined"
                                        Class="my-n2" Style="width:70px;">
-                                <MudSelectItem Value="@("白班")" />
-                                <MudSelectItem Value="@("中班")" />
-                                <MudSelectItem Value="@("夜班")" />
+                                @foreach (var val in Enum.GetValues<ShiftType>())
+                                {
+                                    <MudSelectItem Value="@(val)">@DisplayHelper.GetShiftTypeText(val)</MudSelectItem>
+                                }
                             </MudSelect>
                         </MudTd>
                         <MudTd>
@@ -245,7 +247,7 @@
                     ExecDate = DateTime.Parse(r.ExecDate!),
                     EquipmentName = string.IsNullOrEmpty(r.EquipmentName) ? null : r.EquipmentName,
                     Operator = string.IsNullOrEmpty(r.Operator) ? null : r.Operator,
-                    Shift = string.IsNullOrEmpty(r.Shift) ? null : r.Shift,
+                    Shift = r.Shift,
                     Quantity = r.Quantity,
                     Weight = r.Weight,
                     CuttingMultiple = r.CuttingMultiple,
@@ -332,7 +334,7 @@
         public string? ExecDate { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
         public string? EquipmentName { get; set; }
         public string? Operator { get; set; }
-        public string? Shift { get; set; }
+        public ShiftType? Shift { get; set; }
         public int? Quantity { get; set; }
         public decimal? Weight { get; set; }
         public decimal? CuttingMultiple { get; set; }

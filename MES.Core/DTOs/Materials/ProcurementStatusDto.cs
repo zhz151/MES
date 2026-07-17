@@ -11,7 +11,7 @@ public class ProcurementStatusDto
     /// <summary>物料名称</summary>
     public string MaterialName { get; set; } = null!;
 
-    /// <summary>物料分类</summary>
+    /// <summary>物料分类（MaterialType 枚举名）</summary>
     public string? MaterialCategory { get; set; }
 
     /// <summary>计划总量(kg)</summary>

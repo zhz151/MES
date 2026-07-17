@@ -40,7 +40,7 @@ public class SubcontractOrdersTests : TestBase
             {
                 Id = 1, OrderNo = "SC-001", SupplierName = "测试供应商",
                 OrderDate = DateTime.Today, Status = SubcontractOrderStatus.Sent,
-                ProcessType = SubcontractProcessType.Cutting, OutMaterialCategory = MaterialCategory.RoughTube,
+                ProcessType = SubcontractProcessType.Cutting, OutMaterialCategory = MaterialType.RoughTube,
                 OutPlantGrade = "304", OutSpecification = "89×10",
                 OutQuantity = 100, OutWeight = 5000, SupplierId = 1,
                 IsForceCompleted = false
@@ -60,7 +60,7 @@ public class SubcontractOrdersTests : TestBase
             {
                 Id = 2, OrderNo = "SC-002", SupplierName = "测试供应商",
                 OrderDate = DateTime.Today, Status = SubcontractOrderStatus.PartialReturned,
-                ProcessType = SubcontractProcessType.Cutting, OutMaterialCategory = MaterialCategory.RoughTube,
+                ProcessType = SubcontractProcessType.Cutting, OutMaterialCategory = MaterialType.RoughTube,
                 OutPlantGrade = "304", OutSpecification = "89×10",
                 OutQuantity = 100, OutWeight = 5000, SupplierId = 1,
                 IsForceCompleted = false
@@ -80,7 +80,7 @@ public class SubcontractOrdersTests : TestBase
             {
                 Id = 3, OrderNo = "SC-003", SupplierName = "测试供应商",
                 OrderDate = DateTime.Today, Status = SubcontractOrderStatus.Completed,
-                ProcessType = SubcontractProcessType.Cutting, OutMaterialCategory = MaterialCategory.RoughTube,
+                ProcessType = SubcontractProcessType.Cutting, OutMaterialCategory = MaterialType.RoughTube,
                 OutPlantGrade = "304", OutSpecification = "89×10",
                 OutQuantity = 100, OutWeight = 5000, SupplierId = 1,
                 IsForceCompleted = false

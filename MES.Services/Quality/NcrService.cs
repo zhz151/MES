@@ -16,6 +16,7 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -817,17 +818,7 @@ public class NcrService : INcrService
         _ => ""
     };
 
-    private static string GetPipeCategoryText(PipeCategory category) => category switch
-    {
-        PipeCategory.TubeBlank => "荒管",
-        PipeCategory.WorkInProgress => "在制品",
-        PipeCategory.SurplusInventory => "余库料",
-        PipeCategory.CriticalFinished => "临界成品",
-        PipeCategory.PreparedFinished => "备料成品",
-        PipeCategory.OrderFinished => "订单成品",
-        PipeCategory.SpecialDelivery => "特定交态成品",
-        _ => category.ToString()
-    };
+    private static string GetPipeCategoryText(MaterialType category) => EnumHelper.GetDisplayName(category);
 
     private static string GetDisposalMethodText(DisposalMethod? method) => method switch
     {

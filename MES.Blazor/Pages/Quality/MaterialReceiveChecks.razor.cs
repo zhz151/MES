@@ -11,6 +11,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Core.Enums;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -72,7 +73,7 @@ public partial class MaterialReceiveChecks
     {
         new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate", FilterType = "date", Width = "120" },
         new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120" },
-        new() { Key = "ManufacturingItem", Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120", EnumOptions = new() { new("OrderFinishedProduct","订单成品"), new("PreparedMaterial","备料成品"), new("SurplusStock","余库料"), new("SpecialDeliveryStatus","特定交态成品") } },
+        new() { Key = "ManufacturingItem", Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120", EnumOptions = new() { new("OrderFinished","订单成品"), new("Finished","备料成品"), new("Surplus","余库料"), new("SpecialDeliveryStatus","特定交态成品") } },
         new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120" },
         new() { Key = "Specification",     Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120" },
         new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Visible = false, Width = "120" },
@@ -414,7 +415,7 @@ public partial class MaterialReceiveChecks
     private class EditCache
     {
         public string ReceiveDate { get; set; } = string.Empty;
-        public string? Shift { get; set; }
+        public ShiftType? Shift { get; set; }
         public string? Checker { get; set; }
         public string? Remark { get; set; }
     }
@@ -557,7 +558,7 @@ public partial class MaterialReceiveChecks
                 break;
 
             case "ManufacturingItem":
-                builder.AddContent(0, DisplayHelper.GetManufacturingItemText(item.ManufacturingItem?.ToString()));
+                builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.ManufacturingItem?.ToString()));
                 break;
 
             case "PlantGrade":
@@ -612,17 +613,28 @@ public partial class MaterialReceiveChecks
             case "Shift":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.OpenComponent<MudSelect<ShiftType>>(0);
                     builder.AddAttribute(1, "Dense", true);
                     builder.AddAttribute(2, "Variant", Variant.Outlined);
-                    builder.AddAttribute(3, "Value", cache.Shift);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.Shift = v));
+                    builder.AddAttribute(3, "Value", cache.Shift ?? default(ShiftType));
+                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<ShiftType>(this, v => cache.Shift = v));
                     builder.AddAttribute(5, "Class", "compact-input");
+                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                    {
+                        foreach (var val in Enum.GetValues<ShiftType>())
+                        {
+                            b.OpenComponent<MudSelectItem<ShiftType>>(0);
+                            b.AddAttribute(1, "Value", val);
+                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                                b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                            b.CloseComponent();
+                        }
+                    }));
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, item.Shift);
+                    builder.AddContent(0, DisplayHelper.GetShiftTypeText(item.Shift));
                 }
                 break;
 

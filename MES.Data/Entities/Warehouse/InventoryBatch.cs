@@ -123,16 +123,6 @@ public class InventoryBatch : BaseEntity
     /// </summary>
     public string? ActualSpecification { get; set; }
 
-    /// <summary>
-    /// 实际外径(mm)
-    /// </summary>
-    public decimal? ActualOuterDiameter { get; set; }
-
-    /// <summary>
-    /// 实际壁厚(mm)
-    /// </summary>
-    public decimal? ActualWallThickness { get; set; }
-
     // ========== 位置与状态 ==========
 
     /// <summary>

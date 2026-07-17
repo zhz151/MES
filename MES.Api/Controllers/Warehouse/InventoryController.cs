@@ -6,6 +6,7 @@ using MES.Shared.Constants;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Order;
 using MES.Core.DTOs.Warehouse;
+using MES.Core.Enums;
 using MES.Core.Interfaces.Warehouse;
 
 namespace MES.Api.Controllers.Warehouse;
@@ -68,7 +69,7 @@ public class InventoryController : ControllerBase
             OnlyWithStock = onlyWithStock,
             WorkOrderNo = workOrderNo,
             BatchNo = batchNo,
-            InboundSource = inboundSource,
+            InboundSource = string.IsNullOrEmpty(inboundSource) ? null : Enum.Parse<InboundSource>(inboundSource),
             SourceName = sourceName,
             InboundDateFrom = inboundDateFrom,
             InboundDateTo = inboundDateTo,
@@ -135,7 +136,7 @@ public class InventoryController : ControllerBase
             OnlyWithStock = onlyWithStock,
             WorkOrderNo = workOrderNo,
             BatchNo = batchNo,
-            InboundSource = inboundSource,
+            InboundSource = string.IsNullOrEmpty(inboundSource) ? null : Enum.Parse<InboundSource>(inboundSource),
             SourceName = sourceName,
             InboundDateFrom = inboundDateFrom,
             InboundDateTo = inboundDateTo,
@@ -323,7 +324,7 @@ public class InventoryController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<SourceOrderValidationResult>.Fail("请求参数无效"));
 
-        var result = await _service.ValidateSourceOrderAsync(request.SourceOrderNo, request.InboundSource, request.SourceOrderSequence);
+        var result = await _service.ValidateSourceOrderAsync(request.SourceOrderNo, request.InboundSource.ToString(), request.SourceOrderSequence);
         return Ok(ApiResponse<SourceOrderValidationResult>.Ok(result, "验证完成"));
     }
 

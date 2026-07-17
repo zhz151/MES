@@ -17,7 +17,7 @@ public class ProductionBatchListDto
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
     public string? ProductionType { get; set; }
-    public ManufacturingItem ManufacturingItem { get; set; }
+    public MaterialType ManufacturingItem { get; set; }
     public BatchStatus Status { get; set; }
     public int ProductionRatio { get; set; }
     public DateTime? CurrentExecDate { get; set; }
@@ -68,7 +68,7 @@ public class ProductionBatchListDto
     public decimal? InputWeight { get; set; }
     public string? SolutionParams { get; set; }
     public string? QualityRemark { get; set; }
-    public string? SourceMaterialType { get; set; }
+    public MaterialType? SourceMaterialType { get; set; }
     public string? SourceName { get; set; }
     public DateTime? InboundDate { get; set; }
 }

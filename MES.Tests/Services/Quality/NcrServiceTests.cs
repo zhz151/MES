@@ -63,7 +63,7 @@ public class NcrServiceTests : TestBase
             Specification = "219*8",
             Status = BatchStatus.InProgress,
             ProductionType = "Internal",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = "OrderFinished",
             WorkOrderNo = "WO-001",
             SalesOrderNo = "SO-001",
             ProductionMainNo = "M-001",
@@ -88,7 +88,7 @@ public class NcrServiceTests : TestBase
         {
             ReportDate = DateTime.Today,
             BatchNo = "BATCH001",
-            PipeCategory = PipeCategory.OrderFinished,
+            PipeCategory = MaterialType.OrderFinished,
             DefectiveQuantity = 10,
             Status = status
         };
@@ -117,7 +117,7 @@ public class NcrServiceTests : TestBase
         var ctx = CreateDbContext();
         await SeedNcrAsync(ctx);
         await SeedBatchAsync(ctx, "BATCH002");
-        ctx.Ncrs.Add(new Ncr { ReportDate = DateTime.Today, BatchNo = "BATCH002", PipeCategory = PipeCategory.OrderFinished, Status = NcrStatus.Processing });
+        ctx.Ncrs.Add(new Ncr { ReportDate = DateTime.Today, BatchNo = "BATCH002", PipeCategory = MaterialType.OrderFinished, Status = NcrStatus.Processing });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
@@ -146,7 +146,7 @@ public class NcrServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         await SeedNcrAsync(ctx);
-        ctx.Ncrs.Add(new Ncr { ReportDate = DateTime.Today, BatchNo = "BATCH002", PipeCategory = PipeCategory.OrderFinished, Status = NcrStatus.Processing });
+        ctx.Ncrs.Add(new Ncr { ReportDate = DateTime.Today, BatchNo = "BATCH002", PipeCategory = MaterialType.OrderFinished, Status = NcrStatus.Processing });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
@@ -194,7 +194,7 @@ public class NcrServiceTests : TestBase
         {
             ReportDate = DateTime.Today,
             BatchNo = "BATCH001",
-            PipeCategory = PipeCategory.OrderFinished,
+            PipeCategory = MaterialType.OrderFinished,
             DefectiveQuantity = 5,
             ProblemDescription = "表面裂纹"
         });
@@ -218,7 +218,7 @@ public class NcrServiceTests : TestBase
         {
             ReportDate = DateTime.Today,
             BatchNo = "BATCH001",
-            PipeCategory = PipeCategory.OrderFinished
+            PipeCategory = MaterialType.OrderFinished
         });
 
         result.WorkOrderNo.Should().Be("WO-001");
@@ -237,7 +237,7 @@ public class NcrServiceTests : TestBase
         {
             ReportDate = DateTime.Today,
             BatchNo = "BATCH001",
-            PipeCategory = PipeCategory.OrderFinished,
+            PipeCategory = MaterialType.OrderFinished,
             DisposalIsCompleted = true,
             PersonIsCompleted = true,
             VerifyResult = VerifyResult.Passed
@@ -404,7 +404,7 @@ public class NcrServiceTests : TestBase
         {
             ReportDate = DateTime.Today,
             BatchNo = "BATCH001",
-            PipeCategory = PipeCategory.OrderFinished,
+            PipeCategory = MaterialType.OrderFinished,
             Status = NcrStatus.Processing,
             ReportDepartment = "质检部",
             PlantGrade = "304"
@@ -413,7 +413,7 @@ public class NcrServiceTests : TestBase
         {
             ReportDate = DateTime.Today,
             BatchNo = "BATCH002",
-            PipeCategory = PipeCategory.WorkInProgress,
+            PipeCategory = MaterialType.WorkInProgress,
             Status = NcrStatus.Closed,
             ReportDepartment = "生产部",
             PlantGrade = "316L"
@@ -501,7 +501,7 @@ public class NcrServiceTests : TestBase
         {
             ReportDate = DateTime.Today,
             BatchNo = "BATCH001",
-            PipeCategory = PipeCategory.OrderFinished,
+            PipeCategory = MaterialType.OrderFinished,
             DisposalMethod = DisposalMethod.Rework,
             SourceInspectionItem = InspectionItem.Dimension.ToString(),
             Status = NcrStatus.Processing

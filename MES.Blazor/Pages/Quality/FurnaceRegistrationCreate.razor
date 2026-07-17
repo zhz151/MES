@@ -337,7 +337,7 @@
                 {
                     IncomingDate = date == default ? DateTime.Now : date,
                     RawMaterialUnit = r.RawMaterialUnit,
-                    RawMaterialType = Enum.TryParse<RawMaterialType>(r.RawMaterialType, true, out var rm) ? rm : default,
+                    RawMaterialType = Enum.TryParse<MaterialType>(r.RawMaterialType, true, out var rm) ? rm : default,
                     RegisteredGrade = r.RegisteredGrade,
                     RelatedPlantGrade = r.RelatedPlantGrade,
                     FurnaceNumber = r.FurnaceNumber,
@@ -424,12 +424,12 @@
                     b2.AddAttribute(1, "Value", (string)null!);
                     b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "请选择")));
                     b2.CloseComponent();
-                    foreach (var val in Enum.GetValues<MES.Core.Enums.RawMaterialType>())
+                    foreach (var val in Enum.GetValues<MES.Core.Enums.MaterialType>())
                     {
                         var enumName = val.ToString();
                         b2.OpenComponent<MudSelectItem<string>>(0);
                         b2.AddAttribute(1, "Value", enumName);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetRawMaterialTypeText(val))));
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetMaterialTypeText(val))));
                         b2.CloseComponent();
                     }
                 }));

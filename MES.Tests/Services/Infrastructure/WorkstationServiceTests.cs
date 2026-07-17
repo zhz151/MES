@@ -9,6 +9,7 @@ using MES.Services.Configuration;
 using MES.Tests.Tests;
 using MES.Data.Entities.Batch;
 using MES.Core.DTOs.Configuration;
+using MES.Core.Enums;
 
 namespace MES.Tests.Services;
 
@@ -27,7 +28,7 @@ public class WorkstationServiceTests : TestBase
             Code = code,
             Name = "测试工位",
             SectionName = sectionName,
-            ReportType = "PicklingInRecord",
+            ReportType = ReportTemplateType.PicklingInRecord.ToString(),
             IsActive = isActive
         };
         ctx.Workstations.Add(ws);
@@ -142,7 +143,7 @@ public class WorkstationServiceTests : TestBase
             Code = "WS001",
             Name = "酸洗工位",
             SectionName = "酸洗",
-            ReportType = "PicklingInRecord"
+            ReportType = ReportTemplateType.PicklingInRecord
         });
 
         result.Should().BeTrue();
@@ -164,7 +165,7 @@ public class WorkstationServiceTests : TestBase
             Code = "WS001",
             Name = "更新名称",
             SectionName = "去油",
-            ReportType = "PicklingInRecord",
+            ReportType = ReportTemplateType.PicklingInRecord,
             IsActive = true
         });
 
@@ -186,7 +187,7 @@ public class WorkstationServiceTests : TestBase
             Id = 999,
             Code = "WS001",
             SectionName = "酸洗",
-            ReportType = "PicklingInRecord"
+            ReportType = ReportTemplateType.PicklingInRecord
         });
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");

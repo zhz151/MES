@@ -136,7 +136,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             Id = e.Id,
             ProductionBatchId = e.ProductionBatchId,
             BatchNo = e.BatchNo,
-            ManufacturingItem = e.ManufacturingItemStr != null && Enum.TryParse<ManufacturingItem>(e.ManufacturingItemStr, out var r139) ? r139 : null,
+            ManufacturingItem = e.ManufacturingItemStr != null && Enum.TryParse<MaterialType>(e.ManufacturingItemStr, out var r139) ? r139 : null,
             TagNo = e.TagNo,
             WorkOrderNo = e.WorkOrderNo,
             SalesOrderNo = e.SalesOrderNo,
@@ -151,7 +151,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             Salesman = e.Salesman,
             DeliveryState = e.DeliveryStateStr != null ? Enum.Parse<DeliveryState>(e.DeliveryStateStr) : null,
             ReceiveDate = e.ReceiveDate,
-            Shift = e.Shift,
+            Shift = e.Shift != null && Enum.TryParse<ShiftType>(e.Shift, out var s) ? s : (ShiftType?)null,
             Checker = e.Checker,
             CreatedTime = e.CreatedTime,
             UpdatedTime = e.UpdatedTime,
@@ -411,7 +411,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         entity.Salesman = rc.Salesman ?? pb?.Salesman;
         entity.DeliveryState = rc.DeliveryState ?? pb?.DeliveryState;
         entity.ReceiveDate = rc.ReceiveDate;
-        entity.Shift = rc.Shift;
+        entity.Shift = rc.Shift?.ToString();
         entity.Checker = rc.Checker;
         entity.PbBatchNo = pb?.BatchNo;
 

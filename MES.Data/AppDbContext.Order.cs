@@ -20,10 +20,9 @@ public partial class AppDbContext
             entity.Property(e => e.Status).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(SalesOrderStatus.Pending);
             entity.Property(e => e.RowVersion).IsRequired().IsRowVersion();
             entity.HasIndex(e => e.OrderNumber).IsUnique().HasDatabaseName("UK_SalesOrder_OrderNumber");
-            entity.HasIndex(e => e.CustomerId).HasDatabaseName("IX_SalesOrder_CustomerId");
             entity.HasIndex(e => e.SignDate).HasDatabaseName("IX_SalesOrder_SignDate");
             entity.HasIndex(e => e.Status).HasDatabaseName("IX_SalesOrder_Status");
-            entity.HasOne(e => e.Customer).WithMany(c => c.SalesOrders).HasForeignKey(e => e.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            // CustomerId FK 已移除——订单不再维护与 CustomerProfile 的外键关系，仅保留快照字段
         });
     }
     private static void ConfigureOrderItem(ModelBuilder builder)
@@ -74,7 +73,7 @@ public partial class AppDbContext
             entity.Property(e => e.CustomerCode).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Salesman).IsRequired().HasMaxLength(50);
             entity.Property(e => e.CustomerUnit).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.EndCustomer).HasMaxLength(200);
+            entity.Property(e => e.EndCustomer).IsRequired().HasMaxLength(200);
             entity.Property(e => e.ContactPerson).HasMaxLength(50);
             entity.Property(e => e.ContactPhone).HasMaxLength(50);
             entity.Property(e => e.Address).HasMaxLength(500);

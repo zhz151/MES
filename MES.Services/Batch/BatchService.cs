@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -218,7 +217,7 @@ public class BatchService : IBatchService
             ProductionMainNo = b.ProductionMainNo,
             ProductionSubNo = b.ProductionSubNo,
             ProductionType = b.ProductionType,
-            ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(b.ManufacturingItem, out var r221) ? r221 : default,
+            ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var r221) ? r221 : default,
             Status = b.Status,
             ProductionRatio = b.ProductionRatio,
             CurrentExecDate = b.CurrentExecDate,
@@ -260,7 +259,7 @@ public class BatchService : IBatchService
             InputWeight = b.InputWeight,
             SolutionParams = b.SolutionParams,
             QualityRemark = b.QualityRemark,
-            SourceMaterialType = b.SourceMaterialType,
+            SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
             SourceName = b.SourceName,
             InboundDate = b.InboundDate,
             ValidInputQuestion = b.ValidInputQuestion
@@ -296,7 +295,7 @@ public class BatchService : IBatchService
             ProductionMainNo = b.ProductionMainNo,
             ProductionSubNo = b.ProductionSubNo,
             ProductionType = b.ProductionType,
-            ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(b.ManufacturingItem, out var r299) ? r299 : default,
+            ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var r299) ? r299 : default,
             Status = b.Status,
             ProductionRatio = b.ProductionRatio,
             CurrentExecDate = b.CurrentExecDate,
@@ -338,7 +337,7 @@ public class BatchService : IBatchService
             InputWeight = b.InputWeight,
             SolutionParams = b.SolutionParams,
             QualityRemark = b.QualityRemark,
-            SourceMaterialType = b.SourceMaterialType,
+            SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
             SourceName = b.SourceName,
             InboundDate = b.InboundDate,
             ValidInputQuestion = b.ValidInputQuestion
@@ -424,7 +423,7 @@ public class BatchService : IBatchService
         // 生产类型 / 制造物品
         if (string.IsNullOrWhiteSpace(request.ProductionType))
             throw new BusinessException("生产类型不能为空");
-        if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
+        if (request.ManufacturingItem == null)
             throw new BusinessException("制造物品不能为空");
 
         // 工单规格必填
@@ -464,7 +463,7 @@ public class BatchService : IBatchService
         // ========== 枚举字符串值有效性验证 ==========
         if (!Enum.TryParse<ProductionType>(request.ProductionType, out _))
             throw new BusinessException($"无效的生产类型: {request.ProductionType}");
-        if (!Enum.TryParse<ManufacturingItem>(request.ManufacturingItem, out _))
+        if (request.ManufacturingItem == null)
             throw new BusinessException($"无效的制造物品: {request.ManufacturingItem}");
         if (!Enum.TryParse<DeliveryState>(request.DeliveryState, out _))
             throw new BusinessException($"无效的交货状态: {request.DeliveryState}");
@@ -494,7 +493,7 @@ public class BatchService : IBatchService
             Status = BatchStatus.None,
             TagNo = request.TagNo,
             ProductionType = request.ProductionType,
-            ManufacturingItem = request.ManufacturingItem ?? "",
+            ManufacturingItem = request.ManufacturingItem?.ToString() ?? "",
             ProductionRatio = CalculateProductionRatio(request, workOrder),
             IsForceCompleted = false,
             QualityRemark = request.QualityRemark,
@@ -504,8 +503,8 @@ public class BatchService : IBatchService
             // 仓库来源
             SourceBatchNo = request.SourceBatchNo,
             WarehouseId = request.WarehouseId,
-            SourceMaterialType = request.SourceMaterialType,
-            InboundSource = request.InboundSource,
+            SourceMaterialType = request.SourceMaterialType?.ToString(),
+            InboundSource = request.InboundSource?.ToString(),
             SourceName = request.SourceName,
             InboundDate = request.InboundDate,
             SourceHeatNo = request.SourceHeatNo,
@@ -642,7 +641,7 @@ public class BatchService : IBatchService
         // 生产类型 / 制造物品 不允许为空
         if (string.IsNullOrWhiteSpace(request.ProductionType))
             throw new BusinessException("生产类型不能为空");
-        if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
+        if (request.ManufacturingItem == null)
             throw new BusinessException("制造物品不能为空");
 
         // 工厂牌号验证（高代低）- 仅当任一牌号被更新时校验
@@ -654,7 +653,7 @@ public class BatchService : IBatchService
         // ========== 枚举字符串值有效性验证（仅验证本次更新的字段） ==========
         if (!Enum.TryParse<ProductionType>(request.ProductionType, out _))
             throw new BusinessException($"无效的生产类型: {request.ProductionType}");
-        if (!Enum.TryParse<ManufacturingItem>(request.ManufacturingItem, out _))
+        if (request.ManufacturingItem == null)
             throw new BusinessException($"无效的制造物品: {request.ManufacturingItem}");
         if (!string.IsNullOrEmpty(request.MaterialName) && !Enum.TryParse<PipeManufacturingType>(request.MaterialName, out _))
             throw new BusinessException($"无效的物料名称: {request.MaterialName}");
@@ -670,13 +669,13 @@ public class BatchService : IBatchService
         // 更新可修改字段（所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖）
         entity.TagNo = request.TagNo ?? entity.TagNo;
         entity.ProductionType = request.ProductionType;
-        entity.ManufacturingItem = request.ManufacturingItem;
+        entity.ManufacturingItem = request.ManufacturingItem?.ToString() ?? entity.ManufacturingItem;
         entity.QualityRemark = request.QualityRemark ?? entity.QualityRemark;
         entity.SolutionParams = request.SolutionParams ?? entity.SolutionParams;
         entity.Remark = request.Remark ?? entity.Remark;
         entity.SourceBatchNo = request.SourceBatchNo ?? entity.SourceBatchNo;
         entity.WarehouseId = request.WarehouseId ?? entity.WarehouseId;
-        entity.SourceMaterialType = request.SourceMaterialType ?? entity.SourceMaterialType;
+        entity.SourceMaterialType = request.SourceMaterialType?.ToString() ?? entity.SourceMaterialType;
         entity.SourceName = request.SourceName ?? entity.SourceName;
         entity.SourceHeatNo = request.SourceHeatNo ?? entity.SourceHeatNo;
         entity.SourcePlantGrade = request.SourcePlantGrade ?? entity.SourcePlantGrade;
@@ -950,7 +949,7 @@ public class BatchService : IBatchService
         // 生产类型 / 制造物品
         if (string.IsNullOrWhiteSpace(request.ProductionType))
             throw new BusinessException("生产类型不能为空");
-        if (string.IsNullOrWhiteSpace(request.ManufacturingItem))
+        if (request.ManufacturingItem == null)
             throw new BusinessException("制造物品不能为空");
 
         // 工单规格必填（取请求值，未传则用实体现有值）
@@ -1029,13 +1028,13 @@ public class BatchService : IBatchService
         entity.QualityRemark = request.QualityRemark ?? entity.QualityRemark;
         entity.SolutionParams = request.SolutionParams ?? entity.SolutionParams;
         entity.ProductionType = request.ProductionType;
-        entity.InboundSource = request.InboundSource ?? entity.InboundSource;
+        entity.InboundSource = request.InboundSource?.ToString() ?? entity.InboundSource;
         entity.InboundDate = request.InboundDate ?? entity.InboundDate;
         entity.Remark = request.Remark ?? entity.Remark;
-        entity.ManufacturingItem = request.ManufacturingItem;
+        entity.ManufacturingItem = request.ManufacturingItem?.ToString() ?? entity.ManufacturingItem;
         entity.SourceBatchNo = request.SourceBatchNo ?? entity.SourceBatchNo;
         entity.WarehouseId = request.WarehouseId ?? entity.WarehouseId;
-        entity.SourceMaterialType = request.SourceMaterialType ?? entity.SourceMaterialType;
+        entity.SourceMaterialType = request.SourceMaterialType?.ToString() ?? entity.SourceMaterialType;
         entity.SourceName = request.SourceName ?? entity.SourceName;
         entity.SourceHeatNo = request.SourceHeatNo ?? entity.SourceHeatNo;
         entity.SourcePlantGrade = request.SourcePlantGrade ?? entity.SourcePlantGrade;
@@ -1451,8 +1450,8 @@ public class BatchService : IBatchService
                 BatchNo = x.ib.BatchNo,
                 WarehouseId = x.ib.WarehouseId,
                 WarehouseName = x.w.Name,
-                MaterialType = x.ib.MaterialType,
-                InboundSource = x.ib.InboundSource,
+                MaterialType = !string.IsNullOrEmpty(x.ib.MaterialType) ? EnumHelper.TryParse<MaterialType>(x.ib.MaterialType) : null,
+                InboundSource = !string.IsNullOrEmpty(x.ib.InboundSource) ? EnumHelper.TryParse<InboundSource>(x.ib.InboundSource) : null,
                 SourceName = x.ib.SourceName,
                 InboundDate = x.ib.InboundDate,
                 HeatNo = x.ib.HeatNo,
@@ -1754,7 +1753,7 @@ public class BatchService : IBatchService
             "TagNo" => (object?)b.TagNo ?? "",
             "Status" => EnumHelper.GetDisplayName(b.Status),
             "ProductionType" => TryGetEnumDisplay<ProductionType>(b.ProductionType),
-            "ManufacturingItem" => TryGetEnumDisplay<ManufacturingItem>(b.ManufacturingItem),
+            "ManufacturingItem" => TryGetEnumDisplay<MaterialType>(b.ManufacturingItem),
             "ProductionRatio" => b.ProductionRatio,
             "IsForceCompleted" => b.IsForceCompleted,
             "IsClosed" => b.IsClosed,
@@ -2034,7 +2033,7 @@ public class BatchService : IBatchService
             Status = entity.Status,
             TagNo = entity.TagNo,
             ProductionType = entity.ProductionType,
-            ManufacturingItem = !string.IsNullOrEmpty(entity.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(entity.ManufacturingItem, out var r2005) ? r2005 : default,
+            ManufacturingItem = !string.IsNullOrEmpty(entity.ManufacturingItem) ? EnumHelper.TryParse<MaterialType>(entity.ManufacturingItem) ?? default : default,
             ProductionRatio = entity.ProductionRatio,
             IsForceCompleted = entity.IsForceCompleted,
             QualityRemark = entity.QualityRemark,
@@ -2065,16 +2064,16 @@ public class BatchService : IBatchService
             DeliveryDate = entity.DeliveryDate,
             DelayPenalty = entity.DelayPenalty,
             MaterialName = entity.MaterialName,
-            SettlementMethod = string.IsNullOrEmpty(entity.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(entity.SettlementMethod),
+            SettlementMethod = !string.IsNullOrEmpty(entity.SettlementMethod) ? EnumHelper.TryParse<SettlementMethod>(entity.SettlementMethod) ?? default : default,
             StandardCode = entity.StandardCode,
-            DeliveryState = string.IsNullOrEmpty(entity.DeliveryState) ? default : Enum.Parse<DeliveryState>(entity.DeliveryState),
+            DeliveryState = !string.IsNullOrEmpty(entity.DeliveryState) ? EnumHelper.TryParse<DeliveryState>(entity.DeliveryState) ?? default : default,
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
             OuterDiameterNegative = entity.OuterDiameterNegative,
             OuterDiameterPositive = entity.OuterDiameterPositive,
             WallThicknessNegative = entity.WallThicknessNegative,
             WallThicknessPositive = entity.WallThicknessPositive,
-            LengthStatus = string.IsNullOrEmpty(entity.LengthStatus) ? default : Enum.Parse<LengthStatus>(entity.LengthStatus),
+            LengthStatus = !string.IsNullOrEmpty(entity.LengthStatus) ? EnumHelper.TryParse<LengthStatus>(entity.LengthStatus) ?? default : default,
             MinLength = entity.MinLength,
             MaxLength = entity.MaxLength,
             TotalQuantity = entity.TotalQuantity,
@@ -2087,8 +2086,8 @@ public class BatchService : IBatchService
             // 仓库冗余
             SourceBatchNo = entity.SourceBatchNo,
             WarehouseId = entity.WarehouseId,
-            SourceMaterialType = entity.SourceMaterialType,
-            InboundSource = entity.InboundSource,
+            SourceMaterialType = !string.IsNullOrEmpty(entity.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(entity.SourceMaterialType) : null,
+            InboundSource = !string.IsNullOrEmpty(entity.InboundSource) ? EnumHelper.TryParse<InboundSource>(entity.InboundSource) : null,
             SourceName = entity.SourceName,
             InboundDate = entity.InboundDate,
             SourceHeatNo = entity.SourceHeatNo,

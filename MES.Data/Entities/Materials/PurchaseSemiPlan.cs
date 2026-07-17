@@ -64,9 +64,9 @@ public class PurchaseSemiPlan : BaseEntity
     public string PlantGrade { get; set; } = null!;
 
     /// <summary>
-    /// 原料类型（荒管/半成品）
+    /// 原料类型（MaterialType 枚举名）
     /// </summary>
-    public RawMaterialType RawMaterialType { get; set; }
+    public MaterialType RawMaterialType { get; set; }
 
     /// <summary>
     /// 原料规格

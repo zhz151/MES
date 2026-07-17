@@ -87,7 +87,7 @@ public partial class WorkOrders : IAsyncDisposable
         new() { Key = "SettlementMethod",  Label = "结算方式", SortKey = "SettlementMethod",  FilterType = "enum", Width = "120",
                EnumOptions = new List<EnumOption> { new("Weighing", "过磅"), new("WeighingNegative", "过磅-负"), new("Theoretical", "理算") } },
         new() { Key = "PlantGrade",        Label = "工厂牌号", SortKey = "PlantGrade",        FilterType = "string", Width = "120" },
-        new() { Key = "MaterialName",      Label = "物料名称", SortKey = "MaterialName",      FilterType = "enum", Width = "120",
+        new() { Key = "MaterialName",      Label = "钢管制造", SortKey = "MaterialName",      FilterType = "enum", Width = "120",
                EnumOptions = new List<EnumOption> { new("SeamlessPipe", "无缝管"), new("WeldedPipe", "焊管") } },
         new() { Key = "Specification",     Label = "规格",     SortKey = "Specification",     FilterType = "string", Width = "120" },
         new() { Key = "LengthStatus",      Label = "长度状态", SortKey = "LengthStatus",      FilterType = "enum", Width = "120",

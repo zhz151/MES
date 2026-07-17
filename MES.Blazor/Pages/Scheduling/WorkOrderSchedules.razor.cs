@@ -91,7 +91,7 @@ public partial class WorkOrderSchedules
             new() { Key = "SalesOrderNo",            Label = "订单号",          SortKey = "SalesOrderNo",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "ProductionMainNo",        Label = "主号",            SortKey = "ProductionMainNo",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "ProductionSubNo",         Label = "次号",            SortKey = "ProductionSubNo",         FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "MaterialName",            Label = "物料名称",        SortKey = "MaterialName",            FilterType = "enum", Width = "120", EnumOptions = new() { new("SeamlessPipe","无缝管"), new("WeldedPipe","焊管") }, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MaterialName",            Label = "钢管制造",        SortKey = "MaterialName",            FilterType = "enum", Width = "120", EnumOptions = new() { new("SeamlessPipe","无缝管"), new("WeldedPipe","焊管") }, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "enum", Width = "120", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态") }, Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "PlantGrade",              Label = "工厂牌号",        SortKey = "PlantGrade",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Specification",           Label = "规格",            SortKey = "Specification",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
@@ -158,8 +158,8 @@ public partial class WorkOrderSchedules
         {
             new() { Key = "ConsistencyStatus",              Label = "实时一致性",  SortKey = "ConsistencyStatus",          FilterType = "enum", Width = "100", EnumOptions = new() { new("一致","一致"), new("进度调整","进度调整"), new("值存疑","值存疑"), new("错误","错误") }, GroupKey = 15, GroupName = "工单计划" },
             new() { Key = "PlanScheduleStage",               Label = "工单状态",     SortKey = "PlanScheduleStage",          FilterType = "enum", Width = "100", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 15, GroupName = "工单计划" },
-            new() { Key = "PlanUrgencyLevel",                Label = "紧急性",       SortKey = "PlanUrgencyLevel",           FilterType = "enum", Width = "100", EnumOptions = new() { new("A+急","A+急"), new("A急","A急"), new("B急","B急"), new("C急","C急"), new("B顺","B顺"), new("普通","普通") }, GroupKey = 15, GroupName = "工单计划" },
-            new() { Key = "PlanProductionAttentionProcess",  Label = "生产关注",     SortKey = "PlanProductionAttentionProcess", FilterType = "enum", Width = "120", EnumOptions = new() { new("荒管处理","荒管处理"), new("在制修检","在制修检"), new("60冷轧","60冷轧"), new("50冷轧","50冷轧"), new("30冷轧","30冷轧"), new("20冷轧","20冷轧"), new("三辊冷轧","三辊冷轧"), new("冷拔","冷拔"), new("收尾-成检","收尾-成检") }, GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanUrgencyLevel",                Label = "紧急性",       SortKey = "PlanUrgencyLevel",           FilterType = "string", Width = "100", GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanProductionAttentionProcess",  Label = "生产关注",     SortKey = "PlanProductionAttentionProcess", FilterType = "string", Width = "120", GroupKey = 15, GroupName = "工单计划" },
             new() { Key = "PlanProductionFlowProperty",      Label = "流转性",       SortKey = "PlanProductionFlowProperty",  FilterType = "string", Width = "100", GroupKey = 15, GroupName = "工单计划" },
         };
 
@@ -987,12 +987,15 @@ public partial class WorkOrderSchedules
                     b2.AddAttribute(1, "Value", "");
                     b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "空值")));
                     b2.CloseComponent();
-                    foreach (var opt in new[] { "A+急", "A急", "B急", "C急", "B顺", "普通" })
+                    if (_filterContextOptions.TryGetValue("PlanUrgencyLevel", out var urgencyOpts))
                     {
-                        b2.OpenComponent<MudSelectItem<string>>(0);
-                        b2.AddAttribute(1, "Value", opt);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt)));
-                        b2.CloseComponent();
+                        foreach (var opt in urgencyOpts.Where(x => x.Value != FilterNull))
+                        {
+                            b2.OpenComponent<MudSelectItem<string>>(0);
+                            b2.AddAttribute(1, "Value", opt.Value);
+                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Value)));
+                            b2.CloseComponent();
+                        }
                     }
                 }));
                 builder.CloseComponent();
@@ -1015,12 +1018,15 @@ public partial class WorkOrderSchedules
                     b2.AddAttribute(1, "Value", "");
                     b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "空值")));
                     b2.CloseComponent();
-                    foreach (var opt in new[] { "荒管处理", "在制修检", "60冷轧", "50冷轧", "30冷轧", "20冷轧", "三辊冷轧", "冷拔", "收尾-成检" })
+                    if (_filterContextOptions.TryGetValue("PlanProductionAttentionProcess", out var attentionOpts))
                     {
-                        b2.OpenComponent<MudSelectItem<string>>(0);
-                        b2.AddAttribute(1, "Value", opt);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt)));
-                        b2.CloseComponent();
+                        foreach (var opt in attentionOpts.Where(x => x.Value != FilterNull))
+                        {
+                            b2.OpenComponent<MudSelectItem<string>>(0);
+                            b2.AddAttribute(1, "Value", opt.Value);
+                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Value)));
+                            b2.CloseComponent();
+                        }
                     }
                 }));
                 builder.CloseComponent();

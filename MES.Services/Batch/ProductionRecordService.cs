@@ -16,6 +16,7 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -182,7 +183,7 @@ public class ProductionRecordService : IProductionRecordService
                 ExecDate = r.ExecDate,
                 EquipmentName = r.EquipmentName,
                 Operator = r.Operator,
-                Shift = r.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 SolutionTemperature = r.SolutionTemperature,
@@ -255,7 +256,7 @@ public class ProductionRecordService : IProductionRecordService
             ExecDate = request.ExecDate,
             EquipmentName = request.EquipmentName,
             Operator = request.Operator,
-            Shift = request.Shift,
+            Shift = request.Shift?.ToString(),
             Quantity = request.Quantity,
             Weight = request.Weight,
             SolutionTemperature = request.SolutionTemperature,
@@ -290,7 +291,7 @@ public class ProductionRecordService : IProductionRecordService
             ExecDate = entity.ExecDate,
             EquipmentName = entity.EquipmentName,
             Operator = entity.Operator,
-            Shift = entity.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Quantity = entity.Quantity,
             Weight = entity.Weight,
             SolutionTemperature = entity.SolutionTemperature,
@@ -585,7 +586,7 @@ public class ProductionRecordService : IProductionRecordService
                 ExecDate = request.ExecDate,
                 EquipmentName = request.EquipmentName,
                 Operator = request.Operator,
-                Shift = request.Shift,
+                Shift = request.Shift?.ToString(),
                 Quantity = request.Quantity,
                 Weight = request.Weight,
                 SolutionTemperature = request.SolutionTemperature,
@@ -624,7 +625,7 @@ public class ProductionRecordService : IProductionRecordService
             ExecDate = e.ExecDate,
             EquipmentName = e.EquipmentName,
             Operator = e.Operator,
-            Shift = e.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(e.Shift),
             Quantity = e.Quantity,
             Weight = e.Weight,
             SolutionTemperature = e.SolutionTemperature,
@@ -654,7 +655,7 @@ public class ProductionRecordService : IProductionRecordService
         entity.ExecDate = request.ExecDate;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
         entity.Operator = request.Operator ?? entity.Operator;
-        entity.Shift = request.Shift ?? entity.Shift;
+        entity.Shift = request.Shift?.ToString() ?? entity.Shift;
         entity.Quantity = request.Quantity ?? entity.Quantity;
         entity.Weight = request.Weight ?? entity.Weight;
         entity.SolutionTemperature = request.SolutionTemperature ?? entity.SolutionTemperature;
@@ -689,7 +690,7 @@ public class ProductionRecordService : IProductionRecordService
             ExecDate = entity.ExecDate,
             EquipmentName = entity.EquipmentName,
             Operator = entity.Operator,
-            Shift = entity.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Quantity = entity.Quantity,
             Weight = entity.Weight,
             SolutionTemperature = entity.SolutionTemperature,
@@ -1896,7 +1897,7 @@ public class ProductionRecordService : IProductionRecordService
                 ExecDate = r.ExecDate,
                 EquipmentName = r.EquipmentName,
                 Operator = r.Operator,
-                Shift = r.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 SolutionTemperature = r.SolutionTemperature,
@@ -1943,7 +1944,7 @@ public class ProductionRecordService : IProductionRecordService
                 ExecDate = r.ExecDate,
                 EquipmentName = r.EquipmentName,
                 Operator = r.Operator,
-                Shift = r.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 SolutionTemperature = r.SolutionTemperature,
@@ -2311,7 +2312,7 @@ public class ProductionRecordService : IProductionRecordService
                 ExecDate = r.ExecDate,
                 EquipmentName = r.EquipmentName,
                 Operator = r.Operator,
-                Shift = r.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 SolutionTemperature = r.SolutionTemperature,

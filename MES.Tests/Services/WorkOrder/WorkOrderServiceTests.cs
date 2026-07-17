@@ -145,7 +145,6 @@ public class WorkOrderServiceTests : TestBase
         {
             OrderNumber = "ORD-PENDING",
             SignDate = DateTime.Today,
-            CustomerId = cust.Id,
             Status = SalesOrderStatus.Pending
         };
         ctx.SalesOrders.Add(salesOrder);
@@ -416,7 +415,7 @@ public class WorkOrderServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "20#",
-            RawMaterialType = RawMaterialType.RoundBar,
+            RawMaterialType = MaterialType.RoundBar,
             RoundBarSpec = "250*8",
             PiercingSpec = "230*7",
             RequiredPieces = 10,
@@ -463,7 +462,7 @@ public class WorkOrderServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "20#",
-            RawMaterialType = RawMaterialType.RoundBar,
+            RawMaterialType = MaterialType.RoundBar,
             RoundBarSpec = "250*8",
             PiercingSpec = "230*7",
             RequiredPieces = 10,
@@ -477,7 +476,7 @@ public class WorkOrderServiceTests : TestBase
         var wo = await ctx.WorkOrders.FindAsync(generated[0].Id);
         var salesOrder = await ctx.SalesOrders.FirstAsync(so => so.OrderNumber == wo!.SalesOrderNo);
         var orderItem = await ctx.OrderItems.FirstAsync(oi => oi.SalesOrderId == salesOrder.Id);
-        var customer = await ctx.CustomerProfiles.FindAsync(salesOrder.CustomerId);
+        var customer = await ctx.CustomerProfiles.FirstOrDefaultAsync(c => c.CustomerUnit == salesOrder.CustomerName);
         ctx.Set<WorkOrderListSummary>().Add(new WorkOrderListSummary
         {
             WorkOrderId = wo!.Id,

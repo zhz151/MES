@@ -90,9 +90,9 @@ public class ScanService : IScanService
     /// </summary>
     private static bool IsFinishedManufacturingItem(string? manufacturingItem) => manufacturingItem switch
     {
-        nameof(ManufacturingItem.OrderFinishedProduct) => true,
-        nameof(ManufacturingItem.PreparedMaterial) => true,
-        nameof(ManufacturingItem.SpecialDeliveryStatus) => true,
+        nameof(MaterialType.OrderFinished) => true,
+        nameof(MaterialType.Finished) => true,
+        nameof(MaterialType.SpecialDeliveryStatus) => true,
         _ => false
     };
 

@@ -11,6 +11,8 @@ using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services.Printing;
@@ -58,7 +60,7 @@ public static class ProductionRecordPrintHelper
                 ["ExecDate"] = r.ExecDate.ToString("yyyy-MM-dd"),
                 ["EquipmentName"] = r.EquipmentName ?? "",
                 ["Operator"] = r.Operator ?? "",
-                ["Shift"] = r.Shift ?? "",
+                ["Shift"] = EnumHelper.GetDisplayName<ShiftType>(r.Shift?.ToString()),
                 ["Quantity"] = r.Quantity?.ToString("G29") ?? "",
                 ["Weight"] = r.Weight?.ToString("G29") ?? "",
                 ["ProductStatus"] = r.ProductStatus ?? "在制",

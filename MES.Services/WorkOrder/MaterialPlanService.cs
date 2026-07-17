@@ -1026,14 +1026,6 @@ public class MaterialPlanService : IMaterialPlanService
         {
             eligibleGrades.Add(substitute);
         }
-        // 反向检查：是否有其他牌号可以替代工单的牌号（即工单牌号是某高级牌号的低级版）
-        foreach (var kvp in GradeSubstitutes)
-        {
-            if (kvp.Value == workOrder.PlantGrade)
-            {
-                eligibleGrades.Add(kvp.Key);
-            }
-        }
 
         query = query.Where(b => eligibleGrades.Contains(b.PlantGrade));
 
@@ -1043,19 +1035,17 @@ public class MaterialPlanService : IMaterialPlanService
         var available = batches
             .Where(b =>
             {
-                // 条件③：外径符合
-                if (b.ActualOuterDiameter.HasValue)
-                {
-                    if (b.ActualOuterDiameter < odMin || b.ActualOuterDiameter > odMax)
-                        return false;
-                }
-
-                // 条件④：壁厚符合
-                if (b.ActualWallThickness.HasValue)
-                {
-                    if (b.ActualWallThickness < wtMin || b.ActualWallThickness > wtMax)
-                        return false;
-                }
+                // 条件③④：外径/壁厚符合
+                // 有实际规格则从中解析，否则从名义规格解析
+                var specForBatch = b.ActualSpecification ?? b.Specification;
+                var batchOd = SpecificationParser.ParseOuterDiameter(specForBatch);
+                var batchWt = SpecificationParser.ParseWallThickness(specForBatch);
+                if (batchOd == null || batchWt == null)
+                    return false;
+                if (batchOd < odMin || batchOd > odMax)
+                    return false;
+                if (batchWt < wtMin || batchWt > wtMax)
+                    return false;
 
                 // 条件⑤：长度符合 - 库存MinLength ≥ 工单MaxLength
                 if (b.MinLength.HasValue && workOrder.MaxLength.HasValue)
@@ -1089,8 +1079,6 @@ public class MaterialPlanService : IMaterialPlanService
                 SurfaceCondition = b.SurfaceCondition,
                 LocationArea = b.LocationArea,
                 LocationRack = b.LocationRack,
-                ActualOuterDiameter = b.ActualOuterDiameter,
-                ActualWallThickness = b.ActualWallThickness
             })
             .ToList();
 
@@ -1192,7 +1180,8 @@ public class MaterialPlanService : IMaterialPlanService
                 InventoryMaterialTypes.EmptyDrawingReworkUsable.Contains(b.MaterialType)
                 || (b.MaterialType == InventoryMaterialTypes.SemiFinished && !b.IsLinkedToWorkOrder)
                 || (b.MaterialType == InventoryMaterialTypes.DefectSemi && b.LiabilityType == "厂部")
-                || (b.MaterialType == InventoryMaterialTypes.DefectFinished && b.LiabilityType == "厂部")),
+                || (b.MaterialType == InventoryMaterialTypes.DefectFinished && b.LiabilityType == "厂部")
+                || (b.MaterialType == InventoryMaterialTypes.DefectWIP && b.LiabilityType == "厂部")),
             ReworkType.ManualSelect => query.Where(b =>
                 !InventoryMaterialTypes.ManualSelectReworkExcluded.Contains(b.MaterialType)),
             _ => query.Where(b => false) // 未知类型返回空
@@ -1233,19 +1222,16 @@ public class MaterialPlanService : IMaterialPlanService
         var available = batches
             .Where(b =>
             {
-                // 外径条件
-                if (reworkType != ReworkType.ManualSelect && b.ActualOuterDiameter.HasValue)
-                {
-                    if (b.ActualOuterDiameter < odMin || b.ActualOuterDiameter > odMax)
-                        return false;
-                }
-
-                // 壁厚条件
-                if (b.ActualWallThickness.HasValue)
-                {
-                    if (b.ActualWallThickness < wtMin || b.ActualWallThickness > wtMax)
-                        return false;
-                }
+                // 外径/壁厚条件：有实际规格则从中解析，否则从名义规格解析
+                var specForBatch = b.ActualSpecification ?? b.Specification;
+                var batchOd = SpecificationParser.ParseOuterDiameter(specForBatch);
+                var batchWt = SpecificationParser.ParseWallThickness(specForBatch);
+                if (batchOd == null || batchWt == null)
+                    return false;
+                if (reworkType != ReworkType.ManualSelect && (batchOd < odMin || batchOd > odMax))
+                    return false;
+                if (batchWt < wtMin || batchWt > wtMax)
+                    return false;
 
                 // 单支重量条件
                 if (b.UnitWeight.HasValue)
@@ -1272,8 +1258,6 @@ public class MaterialPlanService : IMaterialPlanService
                 SurfaceCondition = b.SurfaceCondition,
                 LocationArea = b.LocationArea,
                 LocationRack = b.LocationRack,
-                ActualOuterDiameter = b.ActualOuterDiameter,
-                ActualWallThickness = b.ActualWallThickness
             })
             .ToList();
 
@@ -1968,7 +1952,10 @@ public class MaterialPlanService : IMaterialPlanService
                         SourceHeatNo = b.SourceHeatNo,
                         SourceSpecification = b.SourceSpecification,
                         ProductionType = b.ProductionType,
-                        ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(b.ManufacturingItem, out var mi) ? mi : default,
+                        ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var mi) ? mi : default,
+                        CurrentGroupName = b.CurrentGroupName,
+                        CurrentSectionName = b.CurrentSectionName,
+                        CurrentSpec = b.CurrentSpec,
                     })
                     .OrderByDescending(b => b.CurrentValidWeight)
                     .ToList();
@@ -1998,7 +1985,10 @@ public class MaterialPlanService : IMaterialPlanService
                 SourceHeatNo = b.SourceHeatNo,
                 SourceSpecification = b.SourceSpecification,
                 ProductionType = b.ProductionType,
-                ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<ManufacturingItem>(b.ManufacturingItem, out var mi) ? mi : default,
+                ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var mi) ? mi : default,
+                CurrentGroupName = b.CurrentGroupName,
+                CurrentSectionName = b.CurrentSectionName,
+                CurrentSpec = b.CurrentSpec,
             })
             .OrderByDescending(b => b.CurrentValidWeight)
             .ToList();

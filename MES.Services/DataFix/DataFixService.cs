@@ -368,13 +368,13 @@ public class DataFixService : IDataFixService
         };
     }
 
-    private static string GetRawMaterialTypeChinese(RawMaterialType type)
+    private static string GetRawMaterialTypeChinese(MaterialType type)
     {
         return type switch
         {
-            RawMaterialType.RoughTube => "荒管",
-            RawMaterialType.SemiProduct => "半成品",
-            RawMaterialType.RoundBar => "圆棒",
+            MaterialType.RoughTube => "荒管",
+            MaterialType.SemiFinished => "半成品",
+            MaterialType.RoundBar => "圆棒",
             _ => type.ToString()
         };
     }
@@ -395,23 +395,18 @@ public class DataFixService : IDataFixService
     private async Task<int> FixSalesOrderSnapshotsAsync()
     {
         var salesOrders = await _context.SalesOrders
-            .Include(so => so.Customer)
             .Where(so => string.IsNullOrEmpty(so.CustomerName) || string.IsNullOrEmpty(so.Salesman) || string.IsNullOrEmpty(so.EndCustomer))
             .ToListAsync();
 
         int fixedCount = 0;
         foreach (var so in salesOrders)
         {
-            if (so.Customer == null) continue;
-
+            // CustomerId FK 已移除，快照字段已独立维护，此修复脚本保留骨架以备手动处理
             if (string.IsNullOrEmpty(so.CustomerName))
-                so.CustomerName = so.Customer.CustomerUnit;
+                so.CustomerName = "未知客户";
 
             if (string.IsNullOrEmpty(so.Salesman))
-                so.Salesman = so.Customer.Salesman;
-
-            if (string.IsNullOrEmpty(so.EndCustomer))
-                so.EndCustomer = so.Customer.EndCustomer;
+                so.Salesman = "未知";
 
             fixedCount++;
         }

@@ -92,7 +92,7 @@
                                                  ValueChanged="@((bool v) => OnSelectionChanged(context.Id, v))"
                                                  Color="Color.Primary" />
                                 </MudTd>
-                                <MudTd DataLabel="物料名称">@context.MaterialType</MudTd>
+                                <MudTd DataLabel="物料名称">@DisplayHelper.GetMaterialTypeText(context.MaterialType)</MudTd>
                                 <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
                                 <MudTd DataLabel="名义规格">@context.Specification</MudTd>
                                 <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>
@@ -103,8 +103,6 @@
                                 <MudTd DataLabel="理论单支重">@DisplayHelper.FormatNullableDecimal(context.UnitWeight)</MudTd>
                                 <MudTd DataLabel="物料状态">@context.SurfaceCondition</MudTd>
                                 <MudTd DataLabel="放置框架">@GetLocation(context)</MudTd>
-                                <MudTd DataLabel="实际外径">@DisplayHelper.FormatNullableDecimal(context.ActualOuterDiameter)</MudTd>
-                                <MudTd DataLabel="实际壁厚">@DisplayHelper.FormatNullableDecimal(context.ActualWallThickness)</MudTd>
                                 <MudTd DataLabel="投料制成倍" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))
                                     {

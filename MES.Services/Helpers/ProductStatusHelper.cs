@@ -56,13 +56,13 @@ public static class ProductStatusHelper
     }
 
     /// <summary>
-    /// 判断制造物品是否属于"成品"类别（OrderFinishedProduct/PreparedMaterial/SpecialDeliveryStatus）
+    /// 判断制造物品是否属于"成品"类别（OrderFinished/Finished/SpecialDeliveryStatus）
     /// </summary>
     public static bool IsFinishedManufacturingItem(string? manufacturingItem) => manufacturingItem switch
     {
-        nameof(ManufacturingItem.OrderFinishedProduct) => true,
-        nameof(ManufacturingItem.PreparedMaterial) => true,
-        nameof(ManufacturingItem.SpecialDeliveryStatus) => true,
+        nameof(MaterialType.OrderFinished) => true,
+        nameof(MaterialType.Finished) => true,
+        nameof(MaterialType.SpecialDeliveryStatus) => true,
         _ => false
     };
 }

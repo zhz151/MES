@@ -25,15 +25,17 @@ public class InventoryService : IInventoryService
     private readonly ILogger<InventoryService> _logger;
     private readonly IMemoryCache _cache;
 
-    private static readonly Expression<Func<InventoryBatch, InventoryBatchDto>> BatchToDtoExpr = b => new InventoryBatchDto
+    // ========== DTO 映射辅助 ==========
+
+    private static InventoryBatchDto ToDto(InventoryBatch b) => new()
     {
         Id = b.Id,
         BatchNo = b.BatchNo,
         WarehouseId = b.WarehouseId,
-        MaterialType = b.MaterialType,
+        MaterialType = EnumHelper.TryParse<MaterialType>(b.MaterialType) ?? default,
         PlantGrade = b.PlantGrade,
         Specification = b.Specification,
-        InboundSource = b.InboundSource,
+        InboundSource = !string.IsNullOrEmpty(b.InboundSource) ? EnumHelper.TryParse<InboundSource>(b.InboundSource) ?? default : default,
         SourceName = b.SourceName,
         InboundDate = b.InboundDate,
         HeatNo = b.HeatNo,
@@ -49,8 +51,6 @@ public class InventoryService : IInventoryService
         RemainingQuantity = b.RemainingQuantity,
         RemainingWeight = b.RemainingWeight,
         ActualSpecification = b.ActualSpecification,
-        ActualOuterDiameter = b.ActualOuterDiameter,
-        ActualWallThickness = b.ActualWallThickness,
         SurfaceCondition = b.SurfaceCondition,
         LocationArea = b.LocationArea,
         LocationRack = b.LocationRack,
@@ -66,7 +66,6 @@ public class InventoryService : IInventoryService
         OrderItemIds = b.OrderItemIds,
         SourceOrderNo = b.SourceOrderNo
     };
-    private static readonly Func<InventoryBatch, InventoryBatchDto> BatchToDto = BatchToDtoExpr.Compile();
 
     private static readonly Expression<Func<OutboundRecord, OutboundRecordDto>> OutboundToDtoExpr = r => new OutboundRecordDto
     {
@@ -109,11 +108,12 @@ public class InventoryService : IInventoryService
         var queryable = BuildInventoryQuery(query);
 
         var totalCount = await queryable.CountAsync();
-        var items = await queryable
+        var entities = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(BatchToDtoExpr)
             .ToListAsync();
+
+        var items = entities.Select(ToDto).ToList();
 
         return new PagedResult<InventoryBatchDto>
         {
@@ -128,11 +128,8 @@ public class InventoryService : IInventoryService
     {
         var queryable = BuildInventoryQuery(query);
 
-        var items = await queryable
-            .Select(BatchToDtoExpr)
-            .ToListAsync();
-
-        return items;
+        var entities = await queryable.ToListAsync();
+        return entities.Select(ToDto).ToList();
     }
 
     private IQueryable<InventoryBatch> BuildInventoryQuery(InventoryQueryParams query)
@@ -143,15 +140,26 @@ public class InventoryService : IInventoryService
 
         if (!string.IsNullOrEmpty(query.Keyword))
         {
-            var keywords = query.Keyword.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var kw in keywords)
+            // 预计算枚举显示名匹配 — 支持用户输入中文搜索
+            var currentKeywords = query.Keyword.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var kw in currentKeywords)
             {
                 var keyword = kw;
+                var matchedMaterialTypes = Enum.GetValues<MaterialType>()
+                    .Where(e => EnumHelper.GetDisplayName(e).Contains(keyword))
+                    .Select(e => e.ToString())
+                    .ToList();
+                var matchedInboundSources = Enum.GetValues<InboundSource>()
+                    .Where(e => EnumHelper.GetDisplayName(e).Contains(keyword))
+                    .Select(e => e.ToString())
+                    .ToList();
+
                 queryable = queryable.Where(b =>
                     b.BatchNo.Contains(keyword) ||
                     (b.SourceOrderNo != null && b.SourceOrderNo.Contains(keyword)) ||
                     (b.SourceName != null && b.SourceName.Contains(keyword)) ||
                     b.MaterialType.Contains(keyword) ||
+                    (matchedMaterialTypes.Count > 0 && matchedMaterialTypes.Contains(b.MaterialType)) ||
                     b.PlantGrade.Contains(keyword) ||
                     b.Specification.Contains(keyword) ||
                     (b.HeatNo != null && b.HeatNo.Contains(keyword)) ||
@@ -159,6 +167,7 @@ public class InventoryService : IInventoryService
                     (b.WorkOrderNo != null && b.WorkOrderNo.Contains(keyword)) ||
                     (b.ProductionBatchNo != null && b.ProductionBatchNo.Contains(keyword)) ||
                     b.InboundSource.Contains(keyword) ||
+                    (matchedInboundSources.Count > 0 && matchedInboundSources.Contains(b.InboundSource)) ||
                     (b.TagNo != null && b.TagNo.Contains(keyword)) ||
                     (b.DefectReason != null && b.DefectReason.Contains(keyword)) ||
                     (b.OriginalSupplier != null && b.OriginalSupplier.Contains(keyword)) ||
@@ -192,8 +201,8 @@ public class InventoryService : IInventoryService
         if (!string.IsNullOrEmpty(query.BatchNo))
             queryable = queryable.Where(b => b.BatchNo.Contains(query.BatchNo));
 
-        if (!string.IsNullOrEmpty(query.InboundSource))
-            queryable = queryable.Where(b => b.InboundSource == query.InboundSource);
+        if (query.InboundSource.HasValue)
+            queryable = queryable.Where(b => b.InboundSource == query.InboundSource.Value.ToString());
 
         if (!string.IsNullOrEmpty(query.SourceName))
             queryable = queryable.Where(b => b.SourceName != null && b.SourceName.Contains(query.SourceName));
@@ -304,12 +313,6 @@ public class InventoryService : IInventoryService
             "actualspecification" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.ActualSpecification ?? "")
                 : queryable.OrderBy(b => b.ActualSpecification ?? ""),
-            "actualouterdiameter" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.ActualOuterDiameter ?? 0)
-                : queryable.OrderBy(b => b.ActualOuterDiameter ?? 0),
-            "actualwallthickness" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.ActualWallThickness ?? 0)
-                : queryable.OrderBy(b => b.ActualWallThickness ?? 0),
             "locationarea" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.LocationArea ?? "")
                 : queryable.OrderBy(b => b.LocationArea ?? ""),
@@ -518,12 +521,12 @@ public class InventoryService : IInventoryService
 
     public async Task<byte[]> PrintInventorySelectedAsync(InventoryPrintSelectedRequest request)
     {
-        var items = await _context.InventoryBatches
+        var entities = await _context.InventoryBatches
             .AsNoTracking()
             .Where(b => request.Ids.Contains(b.Id))
-            .Select(BatchToDtoExpr)
             .ToListAsync();
 
+        var items = entities.Select(ToDto).ToList();
         return TablePrintHelper.GeneratePdf("入 库 批 次 打 印", items, request.Columns);
     }
 
@@ -545,12 +548,12 @@ public class InventoryService : IInventoryService
 
     public async Task<byte[]> PrintStockSelectedAsync(InventoryPrintSelectedRequest request)
     {
-        var items = await _context.InventoryBatches
+        var entities = await _context.InventoryBatches
             .AsNoTracking()
             .Where(b => request.Ids.Contains(b.Id))
-            .Select(BatchToDtoExpr)
             .ToListAsync();
 
+        var items = entities.Select(ToDto).ToList();
         return TablePrintHelper.GeneratePdf("库 存 批 次 打 印", items, request.Columns);
     }
 
@@ -572,12 +575,12 @@ public class InventoryService : IInventoryService
 
     public async Task<byte[]> PrintInboundSelectedAsync(InventoryPrintSelectedRequest request)
     {
-        var items = await _context.InventoryBatches
+        var entities = await _context.InventoryBatches
             .AsNoTracking()
             .Where(b => request.Ids.Contains(b.Id))
-            .Select(BatchToDtoExpr)
             .ToListAsync();
 
+        var items = entities.Select(ToDto).ToList();
         return TablePrintHelper.GeneratePdf("入 库 批 次 打 印", items, request.Columns);
     }
 
@@ -707,7 +710,7 @@ public class InventoryService : IInventoryService
                 ["OriginalSupplier"] = results.Where(x => x.OriginalSupplier != null).Select(x => x.OriginalSupplier!).Distinct().OrderBy(x => x).ToList(),
                 ["TagNo"] = results.Where(x => x.TagNo != null).Select(x => x.TagNo!).Distinct().OrderBy(x => x).ToList(),
                 ["DefectRemark"] = results.Where(x => x.DefectRemark != null).Select(x => x.DefectRemark!).Distinct().OrderBy(x => x).ToList(),
-                ["InboundSource"] = results.Select(x => x.InboundSource).Distinct().OrderBy(x => x).ToList(),
+                ["InboundSource"] = results.Select(x => x.InboundSource.ToString()).Distinct().OrderBy(x => x).ToList(),
                 ["LengthStatus"] = results.Where(x => x.LengthStatus != null).Select(x => x.LengthStatus!).Distinct().OrderBy(x => x).ToList(),
                 ["OrderItemIds"] = results.Where(x => x.OrderItemIds != null).Select(x => x.OrderItemIds!).Distinct().OrderBy(x => x).ToList(),
             };

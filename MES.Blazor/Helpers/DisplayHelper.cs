@@ -110,12 +110,6 @@ public static class DisplayHelper
     /// <summary>获取生产类型中文文本（枚举版本）</summary>
     public static string GetProductionTypeText(ProductionType productionType) => EnumHelper.GetDisplayName(productionType);
 
-    /// <summary>获取制造物品中文文本（字符串版本）</summary>
-    public static string GetManufacturingItemText(string? item) => EnumHelper.GetDisplayName<ManufacturingItem>(item);
-
-    /// <summary>获取制造物品中文文本（枚举版本）</summary>
-    public static string GetManufacturingItemText(ManufacturingItem item) => EnumHelper.GetDisplayName(item);
-
     /// <summary>获取成品检验项目中文文本</summary>
     public static string GetInspectionItemText(InspectionItem item) => EnumHelper.GetDisplayName(item);
 
@@ -136,6 +130,12 @@ public static class DisplayHelper
 
     /// <summary>获取设备运行状态中文文本（枚举版本）</summary>
     public static string GetRunningStatusText(RunningStatus status) => EnumHelper.GetDisplayName(status);
+
+    /// <summary>获取维修优先级中文文本（字符串版本）</summary>
+    public static string GetRepairPriorityText(string? priority) => EnumHelper.GetDisplayName<RepairPriority>(priority);
+
+    /// <summary>获取维修优先级中文文本（枚举版本）</summary>
+    public static string GetRepairPriorityText(RepairPriority priority) => EnumHelper.GetDisplayName(priority);
 
     /// <summary>获取设备任务状态中文文本（字符串版本）</summary>
     public static string GetEquipmentTaskStatusText(string? status) => EnumHelper.GetDisplayName<EquipmentTaskStatus>(status);
@@ -162,7 +162,7 @@ public static class DisplayHelper
     public static string GetTaskOrderStatusText(TaskOrderStatus status) => EnumHelper.GetDisplayName(status);
 
     /// <summary>获取委外加工明细状态中文文本</summary>
-    public static string GetSubcontractProcessStatusText(SubcontractProcessStatus status) => EnumHelper.GetDisplayName(status);
+    public static string GetSubcontractProcessStatusText(SubcontractOrderStatus status) => EnumHelper.GetDisplayName(status);
 
     /// <summary>获取外协加工类型中文文本（枚举版本）</summary>
     public static string GetSubcontractProcessTypeText(SubcontractProcessType type) => EnumHelper.GetDisplayName(type);
@@ -182,11 +182,14 @@ public static class DisplayHelper
     /// <summary>获取用料计划状态中文文本</summary>
     public static string GetMaterialPlanStatusText(MaterialPlanStatus status) => EnumHelper.GetDisplayName(status);
 
-    /// <summary>获取原料类型中文文本（枚举版本）</summary>
-    public static string GetRawMaterialTypeText(RawMaterialType type) => EnumHelper.GetDisplayName(type);
+    /// <summary>获取物料类型中文文本</summary>
+    public static string GetMaterialTypeText(MaterialType type) => EnumHelper.GetDisplayName(type);
 
-    /// <summary>获取原料类型中文文本（字符串版本）</summary>
-    public static string GetRawMaterialTypeText(string? type) => EnumHelper.GetDisplayName<RawMaterialType>(type);
+    /// <summary>获取物料类型中文文本（可空枚举版本）</summary>
+    public static string GetMaterialTypeText(MaterialType? type) => type.HasValue ? EnumHelper.GetDisplayName(type.Value) : "-";
+
+    /// <summary>获取物料类型中文文本（字符串版本）</summary>
+    public static string GetMaterialTypeText(string? type) => EnumHelper.GetDisplayName<MaterialType>(type);
 
     /// <summary>获取要求类型中文文本</summary>
     public static string GetRequirementTypeText(RequirementType type) => EnumHelper.GetDisplayName(type);
@@ -199,12 +202,6 @@ public static class DisplayHelper
 
     /// <summary>获取成品类型中文文本</summary>
     public static string GetFinishedProductTypeText(FinishedProductType type) => EnumHelper.GetDisplayName(type);
-
-    /// <summary>获取物料类别中文文本（枚举版本）</summary>
-    public static string GetMaterialCategoryText(MaterialCategory category) => EnumHelper.GetDisplayName(category);
-
-    /// <summary>获取物料类别中文文本（字符串版本）</summary>
-    public static string GetMaterialCategoryText(string? category) => EnumHelper.GetDisplayName<MaterialCategory>(category);
 
     /// <summary>获取客户状态中文文本</summary>
     public static string GetCustomerStatusText(CustomerStatus status) => EnumHelper.GetDisplayName(status);
@@ -234,7 +231,7 @@ public static class DisplayHelper
     public static string GetVerifyResultText(VerifyResult result) => EnumHelper.GetDisplayName(result);
 
     /// <summary>获取管类类别中文文本</summary>
-    public static string GetPipeCategoryText(PipeCategory category) => EnumHelper.GetDisplayName(category);
+    public static string GetPipeCategoryText(MaterialType category) => EnumHelper.GetDisplayName(category);
 
     /// <summary>获取工段状态中文文本</summary>
     public static string GetSectionStatusText(SectionStatus status) => EnumHelper.GetDisplayName(status);
@@ -259,20 +256,15 @@ public static class DisplayHelper
     /// <summary>
     /// 获取入库来源中文文本（数据库字符串字段）
     /// </summary>
-    public static string GetInboundSourceText(string? inboundSource)
-    {
-        return inboundSource switch
-        {
-            "Purchase" => "外购",
-            "Subcontract" => "委外",
-            "ReturnIn" => "退货入库",
-            "ProductionInbound" => "生产入库",
-            "InspectionInbound" => "检验入库",
-            "TransferIn" => "移库入库",
-            "Other" => "其它",
-            _ => inboundSource ?? ""
-        };
-    }
+    public static string GetInboundSourceText(string? inboundSource) => EnumHelper.GetDisplayName<InboundSource>(inboundSource);
+
+    /// <summary>
+    /// 获取入库来源中文文本（枚举版本）
+    /// </summary>
+    public static string GetInboundSourceText(InboundSource inboundSource) => EnumHelper.GetDisplayName(inboundSource);
+
+    /// <summary>获取入库来源中文文本（可空枚举版本）</summary>
+    public static string GetInboundSourceText(InboundSource? inboundSource) => inboundSource.HasValue ? EnumHelper.GetDisplayName(inboundSource.Value) : "-";
 
     /// <summary>
     /// 获取技术要求中文文本（数据库字符串字段）
@@ -667,18 +659,27 @@ public static class DisplayHelper
     };
 
     /// <summary>
-    /// 报工模板类型中文显示：ProductionRecord→普通报工, PicklingInRecord→入缸, 等
+    /// 报工模板类型中文显示（字符串版本）
     /// </summary>
-    public static string GetReportTypeText(string? reportType) => reportType switch
-    {
-        "ProductionRecord" => "普通报工",
-        "PicklingInRecord" => "入缸",
-        "PicklingOutRecord" => "出缸完工",
-        "SectionOutsource" => "工段委外",
-        "OutsourceRecovery" => "委外回收",
-        "ProcessInspection" => "过程检验",
-        "FinalInspection" => "成品检验",
-        "MaterialReceiveCheck" => "成检到料",
-        _ => reportType ?? ""
-    };
+    public static string GetReportTypeText(string? reportType) => EnumHelper.GetDisplayName<ReportTemplateType>(reportType);
+
+    /// <summary>
+    /// 报工模板类型中文显示（枚举版本）
+    /// </summary>
+    public static string GetReportTypeText(ReportTemplateType type) => EnumHelper.GetDisplayName(type);
+
+    /// <summary>
+    /// 班次中文显示（字符串版本）
+    /// </summary>
+    public static string GetShiftTypeText(string? shift) => EnumHelper.GetDisplayName<ShiftType>(shift);
+
+    /// <summary>
+    /// 班次中文显示（枚举版本）
+    /// </summary>
+    public static string GetShiftTypeText(ShiftType shift) => EnumHelper.GetDisplayName(shift);
+
+    /// <summary>
+    /// 班次中文显示（可空枚举版本）
+    /// </summary>
+    public static string GetShiftTypeText(ShiftType? shift) => shift.HasValue ? EnumHelper.GetDisplayName(shift.Value) : "";
 }

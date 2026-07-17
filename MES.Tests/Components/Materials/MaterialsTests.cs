@@ -52,7 +52,7 @@ public class MaterialsTests : TestBase
                 {
                     Id = 1,
                     MaterialCode = "M001",
-                    MaterialCategory = MaterialCategory.RoughTube,
+                    MaterialCategory = MaterialType.RoughTube,
                     PlantGrade = "304",
                     Specification = "219*8",
                     IsActive = isActive

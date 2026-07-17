@@ -137,7 +137,7 @@
     private class EditOrderModel
     {
         public int SupplierId { get; set; }
-        public MaterialCategory MaterialCategory { get; set; }
+        public MaterialType MaterialCategory { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public decimal? SourceUnitWeight { get; set; }
@@ -486,25 +486,25 @@
             case "materialcategory":
                 if (_isEditMode)
                 {
-                    builder.OpenComponent<MudSelect<MaterialCategory>>(0);
+                    builder.OpenComponent<MudSelect<MaterialType>>(0);
                     builder.AddAttribute(1, "Value", _editOrder.MaterialCategory);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<MaterialCategory>(this, v => _editOrder.MaterialCategory = v));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<MaterialType>(this, v => _editOrder.MaterialCategory = v));
                     builder.AddAttribute(3, "Dense", true);
                     builder.AddAttribute(4, "Variant", Variant.Outlined);
                     builder.AddAttribute(5, "Size", Size.Small);
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>())
+                        foreach (MaterialType cat in Enum.GetValues<MaterialType>())
                         {
-                            cb.OpenComponent<MudSelectItem<MaterialCategory>>(0);
+                            cb.OpenComponent<MudSelectItem<MaterialType>>(0);
                             cb.AddAttribute(1, "Value", cat);
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialCategoryText(cat))));
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialTypeText(cat))));
                             cb.CloseComponent();
                         }
                     }));
                     builder.CloseComponent();
                 }
-                else { builder.AddContent(0, DisplayHelper.GetMaterialCategoryText(item.MaterialCategory)); }
+                else { builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.MaterialCategory)); }
                 break;
             case "plantgrade":
                 if (_isEditMode)

@@ -317,7 +317,6 @@ public class OrderService : IOrderService
             Id = salesOrder.Id,
             OrderNumber = salesOrder.OrderNumber,
             SignDate = salesOrder.SignDate,
-            CustomerId = salesOrder.CustomerId,
             CustomerName = salesOrder.CustomerName,
             Salesman = salesOrder.Salesman,
             EndCustomer = salesOrder.EndCustomer,
@@ -381,7 +380,6 @@ public class OrderService : IOrderService
         {
             OrderNumber = request.OrderNumber,
             SignDate = request.SignDate,
-            CustomerId = request.CustomerId,
             Status = SalesOrderStatus.Pending,
             CustomerName = customer.CustomerUnit,
             Salesman = customer.Salesman,
@@ -433,14 +431,6 @@ public class OrderService : IOrderService
 
         if (request.SignDate.HasValue)
             salesOrder.SignDate = request.SignDate.Value;
-
-        if (request.CustomerId.HasValue && request.CustomerId.Value != salesOrder.CustomerId)
-        {
-            var customer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == request.CustomerId.Value);
-            if (customer == null)
-                throw new BusinessException("客户不存在");
-            salesOrder.CustomerId = request.CustomerId.Value;
-        }
 
         if (request.CustomerName != null)
             salesOrder.CustomerName = request.CustomerName;
@@ -976,13 +966,6 @@ public class OrderService : IOrderService
                 }
                 if (request.SignDate.HasValue)
                     salesOrder.SignDate = request.SignDate.Value;
-                if (request.CustomerId.HasValue && request.CustomerId.Value != salesOrder.CustomerId)
-                {
-                    var customer = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.Id == request.CustomerId.Value);
-                    if (customer == null) throw new BusinessException("客户不存在");
-                    salesOrder.CustomerId = request.CustomerId.Value;
-                }
-
                 if (request.CustomerName != null)
                     salesOrder.CustomerName = request.CustomerName;
 
@@ -1635,7 +1618,6 @@ public class OrderService : IOrderService
                 Id = so.Id,
                 OrderNumber = so.OrderNumber,
                 SignDate = so.SignDate,
-                CustomerId = so.CustomerId,
                 CustomerName = so.CustomerName,
                 Salesman = so.Salesman,
                 EndCustomer = so.EndCustomer,

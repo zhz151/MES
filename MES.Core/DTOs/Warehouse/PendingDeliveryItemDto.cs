@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Warehouse;
 
 /// <summary>
@@ -9,9 +11,9 @@ public class PendingDeliveryItemDto
     /// <summary>库存批次（仓库批次号）</summary>
     public string InventoryBatchNo { get; set; } = null!;
     /// <summary>物料</summary>
-    public string MaterialType { get; set; } = null!;
+    public MaterialType MaterialType { get; set; }
     /// <summary>来源</summary>
-    public string InboundSource { get; set; } = null!;
+    public InboundSource InboundSource { get; set; }
     /// <summary>来料单位</summary>
     public string SourceName { get; set; } = null!;
     /// <summary>生产批号</summary>

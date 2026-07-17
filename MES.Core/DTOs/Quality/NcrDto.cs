@@ -15,7 +15,7 @@ public class NcrDto
     public DateTime ReportDate { get; set; }
     public string? ReportDepartment { get; set; }
     public string? Reporter { get; set; }
-    public PipeCategory PipeCategory { get; set; }
+    public MaterialType PipeCategory { get; set; }
     public string BatchNo { get; set; } = null!;
     public string? WorkOrderNo { get; set; }
     public string? PlantGrade { get; set; }
@@ -73,7 +73,7 @@ public class CreateNcrRequest
     public DateTime ReportDate { get; set; }
     public string? ReportDepartment { get; set; }
     public string? Reporter { get; set; }
-    public PipeCategory PipeCategory { get; set; }
+    public MaterialType PipeCategory { get; set; }
     public string BatchNo { get; set; } = string.Empty;
     public string? WorkOrderNo { get; set; }
     public string? PlantGrade { get; set; }
@@ -122,7 +122,7 @@ public class UpdateNcrRequest
     public DateTime ReportDate { get; set; }
     public string? ReportDepartment { get; set; }
     public string? Reporter { get; set; }
-    public PipeCategory PipeCategory { get; set; }
+    public MaterialType PipeCategory { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }

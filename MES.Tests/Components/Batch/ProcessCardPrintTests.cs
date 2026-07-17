@@ -52,7 +52,7 @@ public class ProcessCardPrintTests : TestBase
                     BatchNo = "BATCH001",
                     Status = BatchStatus.None,
                     WorkOrderNo = "WO001",
-                    ManufacturingItem = ManufacturingItem.OrderFinishedProduct,
+                    ManufacturingItem = MaterialType.OrderFinished,
                     PlantGrade = "304",
                     Specification = "219*8",
                     TotalWeight = 2500m,

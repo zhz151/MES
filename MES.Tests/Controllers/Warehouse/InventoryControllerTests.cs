@@ -232,7 +232,7 @@ public class InventoryControllerTests : ControllerTestBase
     public async Task ValidateSourceOrder_ReturnsOk()
     {
         // Arrange
-        var request = new SourceOrderValidationRequest { SourceOrderNo = "SO001", InboundSource = "" };
+        var request = new SourceOrderValidationRequest { SourceOrderNo = "SO001", InboundSource = default };
         var dto = new SourceOrderValidationResult { IsValid = true };
         _serviceMock.Setup(x => x.ValidateSourceOrderAsync("SO001", It.IsAny<string>(), It.IsAny<int?>()))
             .ReturnsAsync(dto);

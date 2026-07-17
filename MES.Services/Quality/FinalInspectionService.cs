@@ -16,6 +16,7 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -127,7 +128,7 @@ public class FinalInspectionService : IFinalInspectionService
                 ProductionType = r.ProductionType,
                 FixedLength = r.FixedLength,
                 EquipmentName = r.EquipmentName,
-                Shift = r.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Operator = r.Operator,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
@@ -213,7 +214,7 @@ public class FinalInspectionService : IFinalInspectionService
                 ProductionType = r.ProductionType,
                 FixedLength = r.FixedLength,
                 EquipmentName = r.EquipmentName,
-                Shift = r.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Operator = r.Operator,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
@@ -269,7 +270,7 @@ public class FinalInspectionService : IFinalInspectionService
                 ProductionType = r.ProductionType,
                 FixedLength = r.FixedLength,
                 EquipmentName = r.EquipmentName,
-                Shift = r.Shift,
+                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Operator = r.Operator,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
@@ -358,7 +359,7 @@ public class FinalInspectionService : IFinalInspectionService
             FixedLength = request.FixedLength,
             ProductionType = request.ProductionType,
             EquipmentName = request.EquipmentName,
-            Shift = request.Shift,
+            Shift = request.Shift?.ToString(),
             Operator = request.Operator,
             Quantity = request.Quantity,
             Weight = request.Weight,
@@ -403,7 +404,7 @@ public class FinalInspectionService : IFinalInspectionService
             ProductionType = entity.ProductionType,
             FixedLength = entity.FixedLength,
             EquipmentName = entity.EquipmentName,
-            Shift = entity.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Operator = entity.Operator,
             Quantity = entity.Quantity,
             Weight = entity.Weight,
@@ -434,7 +435,7 @@ public class FinalInspectionService : IFinalInspectionService
 
         entity.InspectionDate = request.InspectionDate;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
-        entity.Shift = request.Shift ?? entity.Shift;
+        entity.Shift = request.Shift?.ToString() ?? entity.Shift;
         entity.Operator = request.Operator ?? entity.Operator;
         entity.Quantity = request.Quantity ?? entity.Quantity;
         entity.Weight = request.Weight ?? entity.Weight;
@@ -476,7 +477,7 @@ public class FinalInspectionService : IFinalInspectionService
             ProductionType = entity.ProductionType,
             FixedLength = entity.FixedLength,
             EquipmentName = entity.EquipmentName,
-            Shift = entity.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Operator = entity.Operator,
             Quantity = entity.Quantity,
             Weight = entity.Weight,
@@ -608,7 +609,7 @@ public class FinalInspectionService : IFinalInspectionService
                 ProductionType = r.ProductionType ?? batch.ProductionType,
                 FixedLength = r.FixedLength ?? (batch.LengthStatus == LengthStatus.Fixed.ToString() && batch.MinLength.HasValue ? $"{batch.MinLength.Value:G29}mm" : null),
                 EquipmentName = r.EquipmentName,
-                Shift = r.Shift,
+                Shift = r.Shift?.ToString(),
                 Operator = r.Operator,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
@@ -666,7 +667,7 @@ public class FinalInspectionService : IFinalInspectionService
             ProductionType = e.ProductionType,
             FixedLength = e.FixedLength,
             EquipmentName = e.EquipmentName,
-            Shift = e.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(e.Shift),
             Operator = e.Operator,
             Quantity = e.Quantity,
             Weight = e.Weight,

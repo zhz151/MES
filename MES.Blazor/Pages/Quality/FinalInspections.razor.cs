@@ -79,7 +79,7 @@ public partial class FinalInspections
         // G1: 生产批次
         new() { Key = "BatchNo",                Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120",
             GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "MaterialName",           Label = "物料名称",   SortKey = "materialname", FilterType = "string", Width = "120",
+        new() { Key = "MaterialName",           Label = "钢管制造",   SortKey = "materialname", FilterType = "string", Width = "120",
             GroupKey = 1, GroupName = "G1 生产批次" },
         new() { Key = "TagNo",                  Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Width = "120",
             GroupKey = 1, GroupName = "G1 生产批次" },
@@ -480,7 +480,7 @@ public partial class FinalInspections
     {
         public string InspectionDate { get; set; } = "";
         public string? EquipmentName { get; set; }
-        public string? Shift { get; set; }
+        public ShiftType? Shift { get; set; }
         public string? Operator { get; set; }
         public int? Quantity { get; set; }
         public decimal? Weight { get; set; }
@@ -622,7 +622,7 @@ public partial class FinalInspections
 
     private string? GetCellRawValue(FinalInspectionDto item, string key) => key switch
     {
-        "InspectionItem" => item.InspectionItem.ToString(),
+        "InspectionItem" => DisplayHelper.GetInspectionItemText(item.InspectionItem),
         "InspectionDate" => item.InspectionDate.ToString("yyyy-MM-dd"),
         "BatchNo" => item.BatchNo,
         "MaterialName" => item.MaterialName,
@@ -635,7 +635,7 @@ public partial class FinalInspections
         "Specification" => item.Specification,
         "FixedLength" => item.FixedLength,
         "EquipmentName" => item.EquipmentName,
-        "Shift" => item.Shift,
+        "Shift" => DisplayHelper.GetShiftTypeText(item.Shift),
         "Operator" => item.Operator,
         "Quantity" => item.Quantity?.ToString(),
         "Weight" => DisplayHelper.FormatNullableDecimalAsInt(item.Weight),
@@ -986,15 +986,26 @@ public partial class FinalInspections
             case "Shift":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", cache.Shift);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Shift = v));
+                    builder.OpenComponent<MudSelect<ShiftType>>(0);
+                    builder.AddAttribute(1, "Value", cache.Shift ?? default(ShiftType));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<ShiftType>(this, v => cache.Shift = v));
                     builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "ChildContent", (RenderFragment)(b =>
+                    {
+                        foreach (var val in Enum.GetValues<ShiftType>())
+                        {
+                            b.OpenComponent<MudSelectItem<ShiftType>>(0);
+                            b.AddAttribute(1, "Value", val);
+                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                                b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                            b.CloseComponent();
+                        }
+                    }));
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, item.Shift);
+                    builder.AddContent(0, DisplayHelper.GetShiftTypeText(item.Shift));
                 }
                 break;
             case "Operator":

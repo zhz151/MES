@@ -309,19 +309,19 @@ public class EnumHelperTests
     }
 
     [Theory]
-    [InlineData(RawMaterialType.RoughTube, "荒管")]
-    [InlineData(RawMaterialType.SemiProduct, "半成品")]
-    public void RawMaterialType_GetDisplayName(RawMaterialType value, string expected)
+    [InlineData(MaterialType.RoughTube, "荒管")]
+    [InlineData(MaterialType.SemiFinished, "半成品")]
+    public void MaterialType_GetDisplayName(MaterialType value, string expected)
     {
         EnumHelper.GetDisplayName(value).Should().Be(expected);
     }
 
     [Theory]
-    [InlineData("荒管", RawMaterialType.RoughTube)]
-    [InlineData("半成品", RawMaterialType.SemiProduct)]
-    public void RawMaterialType_Parse_Chinese(string chinese, RawMaterialType expected)
+    [InlineData("荒管", MaterialType.RoughTube)]
+    [InlineData("半成品", MaterialType.SemiFinished)]
+    public void MaterialType_Parse_Chinese(string chinese, MaterialType expected)
     {
-        EnumHelper.Parse<RawMaterialType>(chinese).Should().Be(expected);
+        EnumHelper.Parse<MaterialType>(chinese).Should().Be(expected);
     }
 
     [Theory]
@@ -510,8 +510,8 @@ public class EnumHelperTests
             yield return new object[] { typeof(CustomerStatus), value! };
         foreach (var value in Enum.GetValues<ReworkType>())
             yield return new object[] { typeof(ReworkType), value! };
-        foreach (var value in Enum.GetValues<RawMaterialType>())
-            yield return new object[] { typeof(RawMaterialType), value! };
+        foreach (var value in Enum.GetValues<MaterialType>())
+            yield return new object[] { typeof(MaterialType), value! };
         foreach (var value in Enum.GetValues<FinishedProductType>())
             yield return new object[] { typeof(FinishedProductType), value! };
         foreach (var value in Enum.GetValues<RepairPriority>())

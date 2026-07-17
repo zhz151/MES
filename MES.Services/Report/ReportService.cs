@@ -20,10 +20,10 @@ public class ReportService
     /// <summary>
     /// 获取产量报表数据（日期范围聚合）
     /// 数据来源：
-    ///   - 投料荒管 → ProductionBatch (SourceMaterialType="荒管", InputWeight)
+    ///   - 投料荒管 → ProductionBatch (SourceMaterialType=RoughTube, InputWeight)
     ///   - 各工段产量 → ProductionRecord.Weight + OutsourceRecovery.RecoveryWeight
     ///   - 过程检验 → ProcessInspection.Weight
-    ///   - 成品入库 → InventoryBatch (MaterialType="订单成品", InitialWeight)
+    ///   - 成品入库 → InventoryBatch (MaterialType=OrderFinished, InitialWeight)
     /// </summary>
     public async Task<DailyProductionReportResponse> GetDailyProductionReportAsync(DateTime fromDate, DateTime toDate)
     {
@@ -33,7 +33,7 @@ public class ReportService
         // 1. 投料荒管 — 批次中原料类型为"荒管"的投料重量，按 InboundDate 分组
         var roughTubeData = await _context.ProductionBatches
             .AsNoTracking()
-            .Where(b => b.SourceMaterialType == "荒管" && b.InboundDate.HasValue
+            .Where(b => b.SourceMaterialType == InventoryMaterialTypes.RoughTube && b.InboundDate.HasValue
                         && b.InboundDate >= rangeFrom && b.InboundDate < rangeTo)
             .GroupBy(b => b.InboundDate!.Value.Date)
             .Select(g => new { Date = g.Key, Weight = g.Sum(b => b.InputWeight ?? 0m) })
@@ -64,10 +64,10 @@ public class ReportService
             .Select(g => new { Date = g.Key, Weight = g.Sum(p => p.Weight ?? 0m) })
             .ToListAsync();
 
-        // 5. 成品入库 — InventoryBatch 中 MaterialType="订单成品"，按 InboundDate 分组
+        // 5. 成品入库 — InventoryBatch 中 MaterialType=OrderFinished，按 InboundDate 分组
         var finishedGoodsData = await _context.InventoryBatches
             .AsNoTracking()
-            .Where(i => i.MaterialType == "订单成品" && i.InboundDate >= rangeFrom && i.InboundDate < rangeTo)
+            .Where(i => i.MaterialType == InventoryMaterialTypes.OrderFinished && i.InboundDate >= rangeFrom && i.InboundDate < rangeTo)
             .GroupBy(i => i.InboundDate.Date)
             .Select(g => new { Date = g.Key, Weight = g.Sum(i => i.InitialWeight) })
             .ToListAsync();

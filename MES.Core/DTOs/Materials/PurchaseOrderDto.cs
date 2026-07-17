@@ -11,7 +11,7 @@ public class PurchaseOrderDto
     public DateTime OrderDate { get; set; }
     public PurchaseOrderStatus Status { get; set; }
     public bool IsForceCompleted { get; set; }
-    public MaterialCategory MaterialCategory { get; set; }
+    public MaterialType MaterialCategory { get; set; }
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public decimal? UnitWeight { get; set; }
@@ -52,7 +52,7 @@ public class CreatePurchaseOrderRequest
 {
     public int SupplierId { get; set; }
     public DateTime OrderDate { get; set; }
-    public MaterialCategory MaterialCategory { get; set; }
+    public MaterialType MaterialCategory { get; set; }
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public decimal? UnitWeight { get; set; }
@@ -68,7 +68,7 @@ public class CreatePurchaseOrderRequest
 public class UpdatePurchaseOrderRequest
 {
     public int SupplierId { get; set; }
-    public MaterialCategory MaterialCategory { get; set; }
+    public MaterialType MaterialCategory { get; set; }
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public decimal? UnitWeight { get; set; }

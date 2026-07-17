@@ -4,6 +4,7 @@ using MES.Api.Controllers.Configuration;
 using MES.Core.Models;
 using MES.Core.DTOs.Configuration;
 using MES.Core.Interfaces.Configuration;
+using MES.Core.Enums;
 
 namespace MES.Tests.Controllers;
 
@@ -59,7 +60,7 @@ public class WorkstationControllerTests : ControllerTestBase
     public async Task GetByCode_ReturnsOk()
     {
         // Arrange
-        var dto = new WorkstationDto { Code = "WS001", SectionName = "酸洗", ReportType = "PicklingInRecord" };
+        var dto = new WorkstationDto { Code = "WS001", SectionName = "酸洗", ReportType = ReportTemplateType.PicklingInRecord };
         _serviceMock.Setup(x => x.GetByCodeAsync("WS001")).ReturnsAsync(dto);
 
         // Act
@@ -100,7 +101,7 @@ public class WorkstationControllerTests : ControllerTestBase
     public async Task Save_ReturnsOk()
     {
         // Arrange
-        var dto = new WorkstationDto { Code = "WS001", SectionName = "酸洗", ReportType = "PicklingInRecord" };
+        var dto = new WorkstationDto { Code = "WS001", SectionName = "酸洗", ReportType = ReportTemplateType.PicklingInRecord };
         _serviceMock.Setup(x => x.SaveAsync(dto)).ReturnsAsync(true);
 
         // Act

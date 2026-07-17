@@ -97,8 +97,8 @@
                               Class="auto-table compact-table" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; width:max-content;">
                         <HeaderContent>
                             <MudTh Style="width:45px;">#</MudTh>
-                            <MudTh Style="width:120px;">工序名称</MudTh>
-                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:100px;">制造规格</MudTh> }
+                            <MudTh Style="width:120px;">工序名称<span class="required-star">*</span></MudTh>
+                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:100px;">制造规格<span class="required-star">*</span></MudTh> }
                             @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTh Style="width:80px;">外径公差</MudTh> }
                             @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTh Style="width:80px;">壁厚公差</MudTh> }
                             @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:80px;">制造长度</MudTh> }
@@ -205,7 +205,9 @@
                                 <MudTh Style="width:55px;">生产编号</MudTh>
                                 <MudTh Style="width:40px;">挂牌号</MudTh>
                                 <MudTh Style="width:50px;">工厂牌号</MudTh>
-                                <MudTh Style="width:55px;">规格</MudTh>
+                                <MudTh Style="width:50px;">当前工序</MudTh>
+                                <MudTh Style="width:50px;">当前工段</MudTh>
+                                <MudTh Style="width:55px;">当前规格</MudTh>
                                 <MudTh Style="width:40px;">长度状态</MudTh>
                                 <MudTh Style="width:50px;">可用支数</MudTh>
                                 <MudTh Style="width:55px;">可用重量(kg)</MudTh>
@@ -223,9 +225,11 @@
                                 <MudTd DataLabel="生产编号">@context.BatchNo</MudTd>
                                 <MudTd DataLabel="挂牌号">@(context.TagNo ?? "-")</MudTd>
                                 <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
-                                <MudTd DataLabel="规格">@context.Specification</MudTd>
+                                <MudTd DataLabel="当前工序">@(context.CurrentGroupName ?? "-")</MudTd>
+                                <MudTd DataLabel="当前工段">@(context.CurrentSectionName ?? "-")</MudTd>
+                                <MudTd DataLabel="当前规格">@(context.CurrentSpec ?? "-")</MudTd>
                                 <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>
-                                <MudTd DataLabel="可用支数">@context.CurrentValidQty?.ToString() ?? "-"</MudTd>
+                                <MudTd DataLabel="可用支数">@(context.CurrentValidQty?.ToString() ?? "-")</MudTd>
                                 <MudTd DataLabel="可用重量">@(context.CurrentValidWeight?.ToString("G29") ?? "-")</MudTd>
                                 <MudTd DataLabel="投料制成倍" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))

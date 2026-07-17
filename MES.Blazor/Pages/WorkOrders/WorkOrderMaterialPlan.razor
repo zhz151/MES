@@ -96,7 +96,7 @@
                             </HeaderContent>
                             <RowTemplate Context="plan">
                                 <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
-                                <MudTd>@DisplayHelper.GetRawMaterialTypeText(plan.RawMaterialType)</MudTd>
+                                <MudTd>@DisplayHelper.GetMaterialTypeText(plan.RawMaterialType)</MudTd>
                                 <MudTd>@plan.PlantGrade</MudTd>
                                 <MudTd>@plan.RoundBarSpec</MudTd>
                                 <MudTd>@plan.PiercingSpec</MudTd>
@@ -150,7 +150,7 @@
                             </HeaderContent>
                             <RowTemplate Context="plan">
                                 <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
-                                <MudTd>@DisplayHelper.GetRawMaterialTypeText(plan.RawMaterialType)</MudTd>
+                                <MudTd>@DisplayHelper.GetMaterialTypeText(plan.RawMaterialType)</MudTd>
                                 <MudTd>@plan.PlantGrade</MudTd>
                                 <MudTd>@plan.RawMaterialSpec</MudTd>
                                 <MudTd>@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
@@ -264,7 +264,7 @@
                             <RowTemplate Context="plan">
                                 <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@plan.BatchNo</MudTd>
-                                <MudTd>@plan.MaterialType</MudTd>
+                                <MudTd>@DisplayHelper.GetMaterialTypeText(plan.MaterialType)</MudTd>
                                 <MudTd>@plan.PlantGrade</MudTd>
                                 <MudTd>@plan.Specification</MudTd>
                                 <MudTd>@(plan.UsageMode == "All" ? "全部" : "部分")</MudTd>
@@ -325,7 +325,7 @@
                             <RowTemplate Context="plan">
                                 <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@plan.BatchNo</MudTd>
-                                <MudTd>@plan.MaterialType</MudTd>
+                                <MudTd>@DisplayHelper.GetMaterialTypeText(plan.MaterialType)</MudTd>
                                 <MudTd>@plan.PlantGrade</MudTd>
                                 <MudTd>@plan.Specification</MudTd>
                                 <MudTd>@(plan.UsageMode == "All" ? "全部" : "部分")</MudTd>
@@ -930,7 +930,7 @@
 
     // ===== 格式化辅助方法 =====
 
-    private static string GetRawMaterialTypeText(string type) => DisplayHelper.GetRawMaterialTypeText(type);
+    private static string GetMaterialTypeText(string type) => DisplayHelper.GetMaterialTypeText(type);
 
     private static string GetProductTypeText(FinishedProductType type) => DisplayHelper.GetProductInspectionTypeText(type.ToString());
 

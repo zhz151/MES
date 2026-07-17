@@ -684,7 +684,7 @@ public partial class OutboundHistory
     {
         "BatchNo" => item.BatchNo,
         "OutboundDate" => item.OutboundDate.ToString("yyyy-MM-dd"),
-        "OutboundType" => item.OutboundType.ToString(),
+        "OutboundType" => DisplayHelper.GetOutboundTypeText(item.OutboundType),
         "SourceOrderNo" => item.SourceOrderNo,
         "TargetCompany" => item.TargetCompany,
         "OutboundQuantity" => item.OutboundQuantity.ToString("G29"),

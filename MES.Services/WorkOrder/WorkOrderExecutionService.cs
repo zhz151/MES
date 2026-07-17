@@ -396,10 +396,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
         // 批量加载成品入库数据（InventoryBatch，用于 Group 11 成品入库）
-        // MaterialType 在仓库上下文中存储为中文文本值 "订单成品"
+        // MaterialType 存储枚举名 "OrderFinished"
         var inventoryBatches = await _context.InventoryBatches
             .AsNoTracking()
-            .Where(ib => ib.MaterialType == "订单成品"
+            .Where(ib => ib.MaterialType == InventoryMaterialTypes.OrderFinished
                       && ib.WorkOrderNo != null
                       && workOrderNos.Contains(ib.WorkOrderNo))
             .ToListAsync();
@@ -449,9 +449,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
                 // 荒管组：荒管 + 半成品（数据库存储中文值）
                 var roughTubePos = safePos.Where(po =>
-                    po.MaterialCategory == "荒管" || po.MaterialCategory == "半成品").ToList();
+                    po.MaterialCategory == "RoughTube" || po.MaterialCategory == "SemiFinished").ToList();
                 var roughTubeRis = safeRis.Where(ri =>
-                    ri.MaterialCategory == "荒管" || ri.MaterialCategory == "半成品").ToList();
+                    ri.MaterialCategory == "RoughTube" || ri.MaterialCategory == "SemiFinished").ToList();
                 summary.PendingRoughTubeQty = roughTubePos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
                     + roughTubeRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
                 summary.PendingRoughTubeWeight = roughTubePos.Sum(po => po.Weight - po.ReceivedWeight)
@@ -459,9 +459,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
                 // 外购成组：临界成品 + 订单成品（数据库存储中文值）
                 var finishPos = safePos.Where(po =>
-                    po.MaterialCategory == "临界成品" || po.MaterialCategory == "订单成品").ToList();
+                    po.MaterialCategory == "CriticalFinished" || po.MaterialCategory == "OrderFinished").ToList();
                 var finishRis = safeRis.Where(ri =>
-                    ri.MaterialCategory == "临界成品" || ri.MaterialCategory == "订单成品").ToList();
+                    ri.MaterialCategory == "CriticalFinished" || ri.MaterialCategory == "OrderFinished").ToList();
                 summary.PendingOutsourceFinishQty = finishPos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
                     + finishRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
                 summary.PendingOutsourceFinishWeight = finishPos.Sum(po => po.Weight - po.ReceivedWeight)
@@ -653,7 +653,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .SelectMany(b => b)
             .Where(b => b.Status == BatchStatus.Completed
                      && b.ProductionType != "Rework"
-                     && b.ManufacturingItem == "OrderFinishedProduct")
+                     && b.ManufacturingItem == "OrderFinished")
             .GroupBy(b => new { b.SalesOrderNo, b.ProductionMainNo })
             .ToDictionary(
                 g => g.Key,
@@ -963,7 +963,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         var inventoryBatches = await _context.InventoryBatches
             .AsNoTracking()
-            .Where(ib => ib.MaterialType == "订单成品" && ib.WorkOrderNo != null && allWoNos.Contains(ib.WorkOrderNo))
+            .Where(ib => ib.MaterialType == InventoryMaterialTypes.OrderFinished && ib.WorkOrderNo != null && allWoNos.Contains(ib.WorkOrderNo))
             .ToListAsync();
         var ibByWoNo = inventoryBatches
             .GroupBy(ib => ib.WorkOrderNo!)
@@ -1011,14 +1011,14 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 var safePos = woPos ?? new List<PurchaseOrder>();
                 var safeRis = woRis ?? new List<SubcontractReturnItem>();
-                var roughTubePos = safePos.Where(po => po.MaterialCategory == "荒管" || po.MaterialCategory == "半成品").ToList();
-                var roughTubeRis = safeRis.Where(ri => ri.MaterialCategory == "荒管" || ri.MaterialCategory == "半成品").ToList();
+                var roughTubePos = safePos.Where(po => po.MaterialCategory == "RoughTube" || po.MaterialCategory == "SemiFinished").ToList();
+                var roughTubeRis = safeRis.Where(ri => ri.MaterialCategory == "RoughTube" || ri.MaterialCategory == "SemiFinished").ToList();
                 summary.PendingRoughTubeQty = roughTubePos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
                     + roughTubeRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
                 summary.PendingRoughTubeWeight = roughTubePos.Sum(po => po.Weight - po.ReceivedWeight)
                     + roughTubeRis.Sum(ri => (ri.RequiredWeight ?? 0) - ri.ReturnedWeight);
-                var finishPos = safePos.Where(po => po.MaterialCategory == "临界成品" || po.MaterialCategory == "订单成品").ToList();
-                var finishRis = safeRis.Where(ri => ri.MaterialCategory == "临界成品" || ri.MaterialCategory == "订单成品").ToList();
+                var finishPos = safePos.Where(po => po.MaterialCategory == "CriticalFinished" || po.MaterialCategory == "OrderFinished").ToList();
+                var finishRis = safeRis.Where(ri => ri.MaterialCategory == "CriticalFinished" || ri.MaterialCategory == "OrderFinished").ToList();
                 summary.PendingOutsourceFinishQty = finishPos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
                     + finishRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
                 summary.PendingOutsourceFinishWeight = finishPos.Sum(po => po.Weight - po.ReceivedWeight)
@@ -1121,7 +1121,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var dailyEstimates = await _dailyOutputService.GetAllAsync();
         var completedBatchOutputByMainNo = batchesByWo.Values
             .SelectMany(b => b)
-            .Where(b => b.Status == BatchStatus.Completed && b.ProductionType != "Rework" && b.ManufacturingItem == "OrderFinishedProduct")
+            .Where(b => b.Status == BatchStatus.Completed && b.ProductionType != "Rework" && b.ManufacturingItem == "OrderFinished")
             .GroupBy(b => new { b.SalesOrderNo, b.ProductionMainNo })
             .ToDictionary(g => g.Key, g =>
             {
@@ -1299,9 +1299,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         // 已从 WorkOrderListSummary 预计算读取，由调用方在外层设置
 
         // Group 3: 目标批次（生产类型≠返整 且 制造物品=订单成品）
-        // 注意：DB 存储的是英文枚举值（如 "Rework"、"OrderFinishedProduct"），非中文
+        // 注意：DB 存储的是英文枚举值（如 "Rework"、"OrderFinished"），非中文
         var targetBatches = batches
-            .Where(b => b.ProductionType != "Rework" && b.ManufacturingItem == "OrderFinishedProduct")
+            .Where(b => b.ProductionType != "Rework" && b.ManufacturingItem == "OrderFinished")
             .ToList();
 
         // 投料起止日取批次的创建时间（非仓库入库日期）
@@ -1369,9 +1369,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         summary.ValidOutputQty = Math.Round(validTheorQty, 3);
         summary.ValidOutputWeight = Math.Round(validTheorWeight, 3);
 
-        // Group 6: 返整执行数据（ProductionType=Rework 且 ManufacturingItem=OrderFinishedProduct）
+        // Group 6: 返整执行数据（ProductionType=Rework 且 ManufacturingItem=OrderFinished）
         var reworkBatches = batches
-            .Where(b => b.ProductionType == "Rework" && b.ManufacturingItem == "OrderFinishedProduct")
+            .Where(b => b.ProductionType == "Rework" && b.ManufacturingItem == "OrderFinished")
             .ToList();
 
         var reworkDates = reworkBatches

@@ -59,7 +59,7 @@ public class BatchesTests : TestBase
                     WorkOrderNo = "WO001",
                     SalesOrderNo = "SO001",
                     ProductionMainNo = "D01",
-                    ManufacturingItem = ManufacturingItem.OrderFinishedProduct,
+                    ManufacturingItem = MaterialType.OrderFinished,
                     CreatedBy = "test",
                     SignDate = DateTime.Today,
                     Salesman = "测试",

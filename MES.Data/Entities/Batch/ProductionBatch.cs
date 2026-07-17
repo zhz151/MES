@@ -31,7 +31,7 @@ public class ProductionBatch : BaseEntity
     public string? ProductionType { get; set; }
 
     /// <summary>
-    /// 制造物品（订单成品/备料成品/余库料）
+    /// 制造物品（MaterialType 枚举名：OrderFinished/Finished/Surplus/SpecialDeliveryStatus）
     /// </summary>
     public string ManufacturingItem { get; set; } = null!;
 
@@ -191,7 +191,7 @@ public class ProductionBatch : BaseEntity
     public bool DelayPenalty { get; set; }
 
     /// <summary>
-    /// 物料名称
+    /// 钢管制造类别（SeamlessPipe/WeldedPipe）
     /// </summary>
     public string MaterialName { get; set; } = null!;
 

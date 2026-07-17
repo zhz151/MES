@@ -54,10 +54,10 @@ public class InventoryServiceTests : TestBase
         var act = () => svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = 999,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -76,10 +76,10 @@ public class InventoryServiceTests : TestBase
         var result = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m,
@@ -123,10 +123,10 @@ public class InventoryServiceTests : TestBase
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 5,
             InitialWeight = 500m
@@ -156,10 +156,10 @@ public class InventoryServiceTests : TestBase
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 5,
             InitialWeight = 500m
@@ -189,10 +189,10 @@ public class InventoryServiceTests : TestBase
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -230,10 +230,10 @@ public class InventoryServiceTests : TestBase
         var b1 = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 2,
             InitialWeight = 200m
@@ -242,10 +242,10 @@ public class InventoryServiceTests : TestBase
         var b2 = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 5,
             InitialWeight = 500m
@@ -281,7 +281,7 @@ public class InventoryServiceTests : TestBase
         var act = () => svc.BatchInboundAsync(new BatchInboundRequest
         {
             WarehouseId = 999,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             Rows = new List<InboundRow>
             {
                 new() { InitialQuantity = 1, InitialWeight = 100m }
@@ -301,10 +301,10 @@ public class InventoryServiceTests : TestBase
         var result = await svc.BatchInboundAsync(new BatchInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             Rows = new List<InboundRow>
             {
@@ -330,10 +330,10 @@ public class InventoryServiceTests : TestBase
         await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -342,10 +342,10 @@ public class InventoryServiceTests : TestBase
         await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "焊管",
+            MaterialType = MaterialType.Finished,
             PlantGrade = "Q235B",
             Specification = "159*6",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商B",
             InitialQuantity = 20,
             InitialWeight = 2000m
@@ -353,13 +353,13 @@ public class InventoryServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new InventoryQueryParams
         {
-            Keyword = "无缝管",
+            Keyword = "订单成品",
             PageIndex = 0,
             PageSize = 10
         });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].MaterialType.Should().Be("无缝管");
+        result.Items[0].MaterialType.Should().Be(MaterialType.OrderFinished);
     }
 
     [Fact]
@@ -372,10 +372,10 @@ public class InventoryServiceTests : TestBase
         await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -384,10 +384,10 @@ public class InventoryServiceTests : TestBase
         var b2 = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "焊管",
+            MaterialType = MaterialType.Finished,
             PlantGrade = "Q235B",
             Specification = "159*6",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商B",
             InitialQuantity = 5,
             InitialWeight = 500m
@@ -440,10 +440,10 @@ public class InventoryServiceTests : TestBase
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -483,10 +483,10 @@ public class InventoryServiceTests : TestBase
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -527,10 +527,10 @@ public class InventoryServiceTests : TestBase
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -580,10 +580,10 @@ public class InventoryServiceTests : TestBase
         await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -610,10 +610,10 @@ public class InventoryServiceTests : TestBase
         await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -639,10 +639,10 @@ public class InventoryServiceTests : TestBase
         await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -650,10 +650,10 @@ public class InventoryServiceTests : TestBase
         await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "焊管",
+            MaterialType = MaterialType.Finished,
             PlantGrade = "Q235B",
             Specification = "159*6",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商B",
             InitialQuantity = 20,
             InitialWeight = 2000m,
@@ -684,10 +684,10 @@ public class InventoryServiceTests : TestBase
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -736,10 +736,10 @@ public class InventoryServiceTests : TestBase
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -786,10 +786,10 @@ public class InventoryServiceTests : TestBase
         var batch = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = "无缝管",
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
-            InboundSource = "采购",
+            InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
             InitialWeight = 1000m
@@ -830,8 +830,8 @@ public class InventoryServiceTests : TestBase
         var wh = await SeedWarehouseAsync(ctx);
         // 直接插入 InventoryBatch
         ctx.InventoryBatches.AddRange(
-            new InventoryBatch { BatchNo = "CK001", WarehouseId = wh.Id, MaterialType = "无缝管", PlantGrade = "Q345B", Specification = "219*8", InboundSource = "采购", SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, IsLinkedToWorkOrder = false },
-            new InventoryBatch { BatchNo = "CK002", WarehouseId = wh.Id, MaterialType = "焊管", PlantGrade = "Q235B", Specification = "159*6", InboundSource = "采购", SourceName = "供应商B", InboundDate = DateTime.Today, InitialQuantity = 20, InitialWeight = 2000m, RemainingQuantity = 20, RemainingWeight = 2000m, IsLinkedToWorkOrder = true, SurfaceCondition = "酸洗", HeatNo = "H001", LocationArea = "A区", LocationRack = "R01" }
+            new InventoryBatch { BatchNo = "CK001", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, IsLinkedToWorkOrder = false },
+            new InventoryBatch { BatchNo = "CK002", WarehouseId = wh.Id, MaterialType = MaterialType.Finished.ToString(), PlantGrade = "Q235B", Specification = "159*6", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商B", InboundDate = DateTime.Today, InitialQuantity = 20, InitialWeight = 2000m, RemainingQuantity = 20, RemainingWeight = 2000m, IsLinkedToWorkOrder = true, SurfaceCondition = "酸洗", HeatNo = "H001", LocationArea = "A区", LocationRack = "R01" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -840,7 +840,7 @@ public class InventoryServiceTests : TestBase
 
         result.Should().ContainKeys("BatchNo", "InboundDate", "MaterialType", "SourceName", "PlantGrade", "Specification", "IsLinkedToWorkOrder");
         result["BatchNo"].Should().BeEquivalentTo(new[] { "CK001", "CK002" }, options => options.WithStrictOrdering());
-        result["MaterialType"].Should().BeEquivalentTo(new[] { "无缝管", "焊管" });
+        result["MaterialType"].Should().BeEquivalentTo(new[] { "OrderFinished", "Finished" });
         result["IsLinkedToWorkOrder"].Should().BeEquivalentTo(new[] { "False", "True" });
         result["SurfaceCondition"].Should().Contain("酸洗");
         result["HeatNo"].Should().Contain("H001");
@@ -868,7 +868,7 @@ public class InventoryServiceTests : TestBase
         var ctx = CreateDbContext();
         var wh = await SeedWarehouseAsync(ctx);
         // 需要 InventoryBatch 才能创建 OutboundRecord
-        var batch = new InventoryBatch { BatchNo = "CK001", WarehouseId = wh.Id, MaterialType = "无缝管", PlantGrade = "Q345B", Specification = "219*8", InboundSource = "采购", SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m };
+        var batch = new InventoryBatch { BatchNo = "CK001", WarehouseId = wh.Id, MaterialType = "无缝管", PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m };
         ctx.InventoryBatches.Add(batch);
         await ctx.SaveChangesAsync();
         ctx.OutboundRecords.AddRange(

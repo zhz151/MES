@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
 using MES.Core.DTOs.Shared;
+using MES.Core.Enums;
 namespace MES.Core.DTOs.Batch;
 
 // ========== 内部生产记录 ==========
@@ -20,7 +21,7 @@ public class ProductionRecordDto
     public DateTime ExecDate { get; set; }
     public string? EquipmentName { get; set; }
     public string? Operator { get; set; }
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
 
@@ -104,8 +105,7 @@ public class CreateProductionRecordRequest
     [MaxLength(50)]
     public string? Operator { get; set; }
 
-    [MaxLength(10)]
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
 
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
@@ -153,8 +153,7 @@ public class UpdateProductionRecordRequest
     [MaxLength(50)]
     public string? Operator { get; set; }
 
-    [MaxLength(10)]
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
 
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }

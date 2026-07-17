@@ -288,8 +288,8 @@
             EnumOptions = new() { new("RoughTube", "荒管生产"), new("InProcess", "在制生产"), new("Inventory", "库存"),
                 new("OutsourcedPurchased", "外购"), new("Rework", "返整"), new("Subcontract", "委外生产"), new("ExternalProcessing", "对外加工") } },
         new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
-            EnumOptions = new() { new("OrderFinishedProduct", "订单成品"), new("PreparedMaterial", "备料成品"),
-                new("SurplusStock", "余库料"), new("SpecialDeliveryStatus", "特定交态成品") } },
+            EnumOptions = new() { new("OrderFinished", "订单成品"), new("Finished", "备料成品"),
+                new("Surplus", "余库料"), new("SpecialDeliveryStatus", "特定交态成品") } },
         new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
 
         // ===== Group 2: 工单信息 =====
@@ -396,7 +396,7 @@
         new() { BlockKey = "WorkOrder", Key = "EndCustomer", Label = "最终用户", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "DeliveryDate", Label = "交货日期", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "DelayPenalty", Label = "延期罚款", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "MaterialName", Label = "物料名称", Visible = true },
+        new() { BlockKey = "WorkOrder", Key = "MaterialName", Label = "钢管制造", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "SettlementMethod", Label = "结算方式", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "StandardCode", Label = "标准编码", Visible = false },
         new() { BlockKey = "WorkOrder", Key = "DeliveryState", Label = "交货状态", Visible = true },
@@ -713,8 +713,8 @@
         "ProductionMainNo" => item.ProductionMainNo,
         "ProductionSubNo" => item.ProductionSubNo,
         "ProductionType" => item.ProductionType,
-        "ManufacturingItem" => item.ManufacturingItem.ToString(),
-        "Status" => item.Status.ToString(),
+        "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
+        "Status" => DisplayHelper.GetBatchStatusText(item.Status),
         "CurrentExecDate" => item.CurrentExecDate?.ToString("yyyy-MM-dd"),
         "CurrentGroupName" => item.CurrentGroupName,
         "CurrentSectionName" => item.CurrentSectionName,
@@ -774,7 +774,7 @@
         "CurrentSpec" => item.CurrentSpec ?? "",
         "NextSectionName" => item.NextSectionName ?? "",
         "CorrespondingSpec" => item.CorrespondingSpec ?? "",
-        "ManufacturingItem" => DisplayHelper.GetManufacturingItemText(item.ManufacturingItem),
+        "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
         _ => ""
     };
 

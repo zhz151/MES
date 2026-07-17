@@ -60,12 +60,9 @@ public static class EnumHelper
                               ("FewerPass", "少道次改制"),
                               ("ManualSelect", "人工选择改制"));
 
-        Register<RawMaterialType>(("RoughTube", "荒管"),
-                                   ("SemiProduct", "半成品"),
-                                   ("RoundBar", "圆棒"));
-
         Register<FinishedProductType>(("Critical", "临界成品"),
-                                       ("Order", "订单成品"));
+                                       ("Order", "订单成品"),
+                                       ("SpecialDeliveryStatus", "特定交态成品"));
 
         Register<ProductionType>(("RoughTube", "荒管生产"),
                                   ("InProcess", "在制生产"),
@@ -75,26 +72,6 @@ public static class EnumHelper
                                   ("Subcontract", "委外生产"),
                                   ("ExternalProcessing", "对外加工"));
 
-        Register<ManufacturingItem>(("OrderFinishedProduct", "订单成品"),
-                                     ("PreparedMaterial", "备料成品"),
-                                     ("SurplusStock", "余库料"),
-                                     ("SpecialDeliveryStatus", "特定交态成品"));
-
-        Register<MaterialCategory>(("RoundBar", "圆棒"),
-                                    ("RoughTube", "荒管"),
-                                    ("SemiProduct", "半成品"),
-                                    ("OrderFinished", "订单成品"),
-                                    ("PreparedFinished", "备料成品"),
-                                    ("CriticalFinished", "临界成品"),
-                                    ("DefectRoundBar", "次品圆棒"),
-                                    ("DefectRoughTube", "次品荒管"),
-                                    ("DefectSemiProduct", "次品半成品"),
-                                    ("DefectFinished", "次品成品"),
-                                    ("Scrap", "报废品"),
-                                    ("Surplus", "余库料"),
-                                    ("SpecialDeliveryFinished", "特定交态成品"),
-                                    ("DefectWIP", "次品在制"));
-
         Register<OutboundType>(("ProductionPick", "生产领用"),
                                 ("SalesOut", "销售出库"),
                                 ("ReturnOut", "退货出库"),
@@ -103,6 +80,14 @@ public static class EnumHelper
                                 ("InspectionPick", "检验领用"),
                                 ("TransferOut", "移库出库"),
                                 ("OtherOut", "其他出库"));
+
+        Register<InboundSource>(("Purchase", "外购"),
+                                 ("Subcontract", "委外"),
+                                 ("ReturnIn", "退货入库"),
+                                 ("ProductionInbound", "生产入库"),
+                                 ("InspectionInbound", "检验入库"),
+                                 ("TransferIn", "移库入库"),
+                                 ("Other", "其它"));
 
         Register<CustomerStatus>(("Active", "启用"),
                                   ("Inactive", "停用"));
@@ -167,10 +152,6 @@ public static class EnumHelper
                                    ("Completed", "已完成"),
                                    ("Overdue", "已逾期"));
 
-        Register<SubcontractProcessStatus>(("Pending", "待回收"),
-                                             ("PartialReturned", "部分回收"),
-                                             ("Completed", "已完成"));
-
         Register<InspectionItem>(("PMIInspection", "PMI检验"),
                                   ("VisualInspection", "表检"),
                                   ("Dimension", "尺寸"),
@@ -205,13 +186,6 @@ public static class EnumHelper
                                 ("NeedsRectification", "需整改"),
                                 ("NotApplicable", "不适用"));
 
-        Register<PipeCategory>(("TubeBlank", "荒管"),
-                                ("WorkInProgress", "在制品"),
-                                ("SurplusInventory", "余库料"),
-                                ("CriticalFinished", "临界成品"),
-                                ("OrderFinished", "订单成品"),
-                                ("PreparedFinished", "备料成品"),
-                                ("SpecialDelivery", "特定交态成品"));
 
         Register<SectionStatus>(("Completed", "已完成"),
                                  ("InProgress", "进行中"),
@@ -225,6 +199,35 @@ public static class EnumHelper
                                           ("Threading", "车丝"),
                                           ("Polishing", "抛光"),
                                           ("Cutting", "切割"));
+
+        Register<ShiftType>(("DayShift", "白班"),
+                             ("MiddleShift", "中班"),
+                             ("NightShift", "夜班"));
+
+        Register<MaterialType>(("Finished", "备料成品"),
+                                ("OrderFinished", "订单成品"),
+                                ("CriticalFinished", "临界成品"),
+                                ("Surplus", "余库料"),
+                                ("SemiFinished", "半成品"),
+                                ("DefectSemi", "次品半成品"),
+                                ("DefectFinished", "次品成品"),
+                                ("RoughTube", "荒管"),
+                                ("RoundBar", "圆棒"),
+                                ("DefectRoundBar", "次品圆棒"),
+                                ("DefectRoughTube", "次品荒管"),
+                                ("Scrap", "报废品"),
+                                ("SpecialDeliveryStatus", "特定交态成品"),
+                                ("WorkInProgress", "在制品"),
+                                ("DefectWIP", "次品在制"));
+
+        Register<ReportTemplateType>(("ProductionRecord", "普通报工"),
+                                      ("PicklingInRecord", "入缸"),
+                                      ("PicklingOutRecord", "出缸完工"),
+                                      ("SectionOutsource", "工段委外"),
+                                      ("OutsourceRecovery", "委外回收"),
+                                      ("ProcessInspection", "过程检验"),
+                                      ("FinalInspection", "成品检验"),
+                                      ("MaterialReceiveCheck", "成检到料"));
     }
 
     private static void Register<T>(params (string value, string display)[] mappings) where T : Enum
@@ -331,8 +334,9 @@ public static class EnumHelper
     /// <summary>
     /// 尝试将中文名解析为枚举值，失败返回 null
     /// </summary>
-    public static T? TryParse<T>(string text) where T : struct, Enum
+    public static T? TryParse<T>(string? text) where T : struct, Enum
     {
+        if (string.IsNullOrWhiteSpace(text)) return null;
         try { return Parse<T>(text); }
         catch { return null; }
     }

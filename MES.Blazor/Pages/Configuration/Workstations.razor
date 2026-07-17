@@ -1,5 +1,6 @@
 @page "/workstations"
 @using MES.Blazor.Services
+@using MES.Core.Enums
 @using MES.Core.Constants
 @using MES.Core.Models
 @using MES.Blazor.Helpers
@@ -160,21 +161,16 @@
                         {
                             if (rowEditing && rowCache != null)
                             {
-                                <MudSelect T="string"
+                                <MudSelect T="ReportTemplateType"
                                            Dense="true"
                                            Variant="Variant.Outlined"
-                                           Value="@rowCache.ReportType"
-                                           ValueChanged="@(v => rowCache.ReportType = v)"
+                                           @bind-Value="rowCache.ReportType"
                                            Class="compact-input"
                                            Label="报工模板类型">
-                                    <MudSelectItem Value="@("ProductionRecord")">普通报工</MudSelectItem>
-                                    <MudSelectItem Value="@("PicklingInRecord")">入缸</MudSelectItem>
-                                    <MudSelectItem Value="@("PicklingOutRecord")">出缸完工</MudSelectItem>
-                                    <MudSelectItem Value="@("SectionOutsource")">工段委外</MudSelectItem>
-                                    <MudSelectItem Value="@("OutsourceRecovery")">委外回收</MudSelectItem>
-                                    <MudSelectItem Value="@("ProcessInspection")">过程检验</MudSelectItem>
-                                    <MudSelectItem Value="@("FinalInspection")">成品检验</MudSelectItem>
-                                    <MudSelectItem Value="@("MaterialReceiveCheck")">成检到料</MudSelectItem>
+                                    @foreach (var val in Enum.GetValues<ReportTemplateType>())
+                                    {
+                                        <MudSelectItem Value="@(val)">@DisplayHelper.GetReportTypeText(val)</MudSelectItem>
+                                    }
                                 </MudSelect>
                             }
                             else

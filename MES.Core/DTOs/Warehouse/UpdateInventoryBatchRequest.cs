@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Warehouse;
 
 /// <summary>
@@ -6,10 +8,10 @@ namespace MES.Core.DTOs.Warehouse;
 public class UpdateInventoryBatchRequest
 {
     public string? BatchNo { get; set; }
-    public string? MaterialType { get; set; }
+    public MaterialType? MaterialType { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
-    public string? InboundSource { get; set; }
+    public InboundSource? InboundSource { get; set; }
     public string? SourceName { get; set; }
     public DateTime? InboundDate { get; set; }
     public string? HeatNo { get; set; }
@@ -22,8 +24,6 @@ public class UpdateInventoryBatchRequest
     public decimal? UnitWeight { get; set; }
     public decimal? Meters { get; set; }
     public string? ActualSpecification { get; set; }
-    public decimal? ActualOuterDiameter { get; set; }
-    public decimal? ActualWallThickness { get; set; }
     public string? SurfaceCondition { get; set; }
     public string? LocationArea { get; set; }
     public string? LocationRack { get; set; }

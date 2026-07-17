@@ -167,7 +167,7 @@ public class NcrPrintTests : TestBase
         ReportDate = new DateTime(2024, 6, 15),
         ReportDepartment = "质检部",
         Reporter = "张三",
-        PipeCategory = PipeCategory.OrderFinished,
+        PipeCategory = MaterialType.OrderFinished,
         BatchNo = "BATCH001",
         WorkOrderNo = "WO-001",
         PlantGrade = "304",

@@ -655,7 +655,7 @@ public partial class Orders
         "totalcontractweight" => item.TotalContractWeight.ToString(),
         "itemcount" => item.ItemCount.ToString(),
         "notech" => item.HasTechnicalRequirement.ToString(),
-        "status" => item.Status.ToString(),
+        "status" => GetStatusText(item.Status),
         "lastchangedate" => item.LastChangeDate?.ToString("yyyy-MM-dd HH:mm"),
         "schedulestage" => item.ScheduleStage?.ToString(),
         "urgencylevel" => item.UrgencyLevel,

@@ -66,7 +66,7 @@ public class MaterialReceiveCheckServiceTests : TestBase
             Specification = "219*8",
             Status = BatchStatus.InProgress,
             ProductionType = "InProcess",
-            ManufacturingItem = "OrderFinishedProduct",
+            ManufacturingItem = "OrderFinished",
             CurrentValidQty = 100,
             CurrentValidWeight = 5000m,
             Salesman = "张三",

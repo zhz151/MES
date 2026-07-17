@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Warehouse;
 using MES.Data;
@@ -208,7 +209,7 @@ public class OutboundWriteService : IOutboundWriteService
             var oldWt = entity.OutboundWeight;
             var oldOutboundMeters = entity.OutboundMeters;
 
-            if (request.OutboundType != null) entity.OutboundType = Enum.Parse<OutboundType>(request.OutboundType);
+            if (request.OutboundType != null) entity.OutboundType = EnumHelper.TryParse<OutboundType>(request.OutboundType) ?? default;
             entity.SourceOrderNo = request.SourceOrderNo ?? entity.SourceOrderNo;
             entity.TargetCompany = request.TargetCompany ?? entity.TargetCompany;
             if (request.OutboundQuantity.HasValue) entity.OutboundQuantity = request.OutboundQuantity.Value;

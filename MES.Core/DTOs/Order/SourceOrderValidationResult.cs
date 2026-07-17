@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Order;
 
 public class SourceOrderValidationResult
@@ -5,7 +7,7 @@ public class SourceOrderValidationResult
     public bool IsValid { get; set; }
     public List<string> Warnings { get; set; } = new();
     public string? ExpectedWorkOrderNo { get; set; }
-    /// <summary>物料分类（来源单号的物料分类）</summary>
+    /// <summary>物料分类（MaterialType 枚举名，来源单号的物料分类）</summary>
     public string? MaterialCategory { get; set; }
     /// <summary>厂内钢种（来源单号的工厂牌号）</summary>
     public string? PlantGrade { get; set; }
@@ -18,7 +20,7 @@ public class SourceOrderValidationResult
 public class SourceOrderValidationRequest
 {
     public string SourceOrderNo { get; set; } = null!;
-    public string InboundSource { get; set; } = null!;
+    public InboundSource InboundSource { get; set; }
     /// <summary>委外来源序号（SubcontractReturnItem.Sequence），采购可忽略</summary>
     public int? SourceOrderSequence { get; set; }
 }

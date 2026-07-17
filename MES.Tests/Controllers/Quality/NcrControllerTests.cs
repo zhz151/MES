@@ -25,7 +25,7 @@ public class NcrControllerTests : ControllerTestBase
         // Arrange
         var pagedResult = new PagedResult<NcrDto>
         {
-            Items = new List<NcrDto> { new() { Id = 1, BatchNo = "BATCH001", PipeCategory = PipeCategory.OrderFinished } },
+            Items = new List<NcrDto> { new() { Id = 1, BatchNo = "BATCH001", PipeCategory = MaterialType.OrderFinished } },
             TotalCount = 1,
             PageIndex = 1,
             PageSize = 20
@@ -60,7 +60,7 @@ public class NcrControllerTests : ControllerTestBase
     public async Task GetAllList_ReturnsOk()
     {
         // Arrange
-        var list = new List<NcrDto> { new() { Id = 1, BatchNo = "BATCH001", PipeCategory = PipeCategory.OrderFinished } };
+        var list = new List<NcrDto> { new() { Id = 1, BatchNo = "BATCH001", PipeCategory = MaterialType.OrderFinished } };
         _serviceMock.Setup(x => x.GetAllListAsync()).ReturnsAsync(list);
 
         // Act
@@ -75,7 +75,7 @@ public class NcrControllerTests : ControllerTestBase
     public async Task GetById_ReturnsOk()
     {
         // Arrange
-        var dto = new NcrDto { Id = 1, BatchNo = "BATCH001", PipeCategory = PipeCategory.OrderFinished };
+        var dto = new NcrDto { Id = 1, BatchNo = "BATCH001", PipeCategory = MaterialType.OrderFinished };
         _serviceMock.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(dto);
 
         // Act
@@ -106,7 +106,7 @@ public class NcrControllerTests : ControllerTestBase
     {
         // Arrange
         var request = new CreateNcrRequest { BatchNo = "BATCH001" };
-        var dto = new NcrDto { Id = 1, BatchNo = "BATCH001", PipeCategory = PipeCategory.OrderFinished, Status = NcrStatus.Processing };
+        var dto = new NcrDto { Id = 1, BatchNo = "BATCH001", PipeCategory = MaterialType.OrderFinished, Status = NcrStatus.Processing };
         _serviceMock.Setup(x => x.CreateAsync(request)).ReturnsAsync(dto);
 
         // Act

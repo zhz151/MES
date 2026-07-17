@@ -25,7 +25,7 @@ public class CustomerProfile : BaseEntity
     /// <summary>
     /// 最终用户
     /// </summary>
-    public string? EndCustomer { get; set; }
+    public string EndCustomer { get; set; } = string.Empty;
 
     /// <summary>
     /// 联系人
@@ -52,8 +52,5 @@ public class CustomerProfile : BaseEntity
     /// </summary>
     public string? Remark { get; set; }
 
-    /// <summary>
-    /// 销售订单列表
-    /// </summary>
-    public ICollection<SalesOrder> SalesOrders { get; set; } = new List<SalesOrder>();
+    // 销售订单导航已移除（订单仅通过快照字段引用客户，不维护 FK）
 }

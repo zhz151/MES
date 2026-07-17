@@ -15,6 +15,7 @@ public class QualityProcessTracking : BaseEntity
 
     // ========== G1: 批次信息（来自 MaterialReceiveCheck 冗余字段） ==========
     public string? BatchNo { get; set; }
+    /// <summary>制造物品（MaterialType 枚举名：OrderFinished/Finished/Surplus/SpecialDeliveryStatus）</summary>
     public string? ManufacturingItem { get; set; }
     public string? TagNo { get; set; }
     public string? WorkOrderNo { get; set; }

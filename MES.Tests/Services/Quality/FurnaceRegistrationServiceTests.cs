@@ -161,12 +161,12 @@ public class FurnaceRegistrationServiceTests : TestBase
         {
             new()
             {
-                IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂A", RawMaterialType = RawMaterialType.RoughTube,
+                IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂A", RawMaterialType = MaterialType.RoughTube,
                 RegisteredGrade = "Q345B", FurnaceNumber = "FUR001", Quantity = 10, Weight = 1000m
             },
             new()
             {
-                IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂B", RawMaterialType = RawMaterialType.RoughTube,
+                IncomingDate = DateTime.Today, RawMaterialUnit = "钢厂B", RawMaterialType = MaterialType.RoughTube,
                 RegisteredGrade = "20#", FurnaceNumber = "FUR002", Quantity = 20, Weight = 2000m
             }
         });
@@ -200,7 +200,7 @@ public class FurnaceRegistrationServiceTests : TestBase
         {
             IncomingDate = DateTime.Today,
             RawMaterialUnit = "新钢厂",
-            RawMaterialType = RawMaterialType.RoughTube,
+            RawMaterialType = MaterialType.RoughTube,
             RegisteredGrade = "304",
             FurnaceNumber = "FUR001-NEW",
             Quantity = 15
@@ -220,7 +220,7 @@ public class FurnaceRegistrationServiceTests : TestBase
         {
             IncomingDate = DateTime.Today,
             RawMaterialUnit = "钢厂",
-            RawMaterialType = RawMaterialType.RoughTube,
+            RawMaterialType = MaterialType.RoughTube,
             RegisteredGrade = "Q345B",
             FurnaceNumber = "FUR999"
         });

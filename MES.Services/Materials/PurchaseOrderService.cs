@@ -208,7 +208,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             OrderDate = x.OrderDate,
             Status = x.Status,
             IsForceCompleted = x.IsForceCompleted,
-            MaterialCategory = !string.IsNullOrEmpty(x.MaterialCategory) && Enum.TryParse<MaterialCategory>(x.MaterialCategory, out var mc) ? mc : default,
+            MaterialCategory = !string.IsNullOrEmpty(x.MaterialCategory) && Enum.TryParse<MaterialType>(x.MaterialCategory, out var mc) ? mc : default,
             PlantGrade = x.PlantGrade,
             Specification = x.Specification,
             UnitWeight = x.UnitWeight,
@@ -272,7 +272,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             OrderDate = x.p.OrderDate,
             Status = x.p.Status,
             IsForceCompleted = x.p.IsForceCompleted,
-            MaterialCategory = !string.IsNullOrEmpty(x.MaterialCategory) && Enum.TryParse<MaterialCategory>(x.MaterialCategory, out var mc) ? mc : default,
+            MaterialCategory = !string.IsNullOrEmpty(x.MaterialCategory) && Enum.TryParse<MaterialType>(x.MaterialCategory, out var mc) ? mc : default,
             PlantGrade = x.p.PlantGrade,
             Specification = x.p.Specification,
             UnitWeight = x.p.UnitWeight,
@@ -327,7 +327,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             OrderDate = item.p.OrderDate,
             Status = item.p.Status,
             IsForceCompleted = item.p.IsForceCompleted,
-            MaterialCategory = !string.IsNullOrEmpty(item.MaterialCategory) && Enum.TryParse<MaterialCategory>(item.MaterialCategory, out var mc) ? mc : default,
+            MaterialCategory = !string.IsNullOrEmpty(item.MaterialCategory) && Enum.TryParse<MaterialType>(item.MaterialCategory, out var mc) ? mc : default,
             PlantGrade = item.p.PlantGrade,
             Specification = item.p.Specification,
             UnitWeight = item.p.UnitWeight,
@@ -716,7 +716,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         OrderDate = entity.OrderDate,
         Status = entity.Status,
         IsForceCompleted = entity.IsForceCompleted,
-        MaterialCategory = !string.IsNullOrEmpty(entity.MaterialCategory) && Enum.TryParse<MaterialCategory>(entity.MaterialCategory, out var mc) ? mc : default,
+        MaterialCategory = !string.IsNullOrEmpty(entity.MaterialCategory) && Enum.TryParse<MaterialType>(entity.MaterialCategory, out var mc) ? mc : default,
         PlantGrade = entity.PlantGrade,
         Specification = entity.Specification,
         UnitWeight = entity.UnitWeight,
@@ -774,7 +774,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Select(g => new
             {
                 g.Key.WorkOrderId,
-                CategoryName = g.Key.RawMaterialType == RawMaterialType.RoughTube ? "荒管" : "半成品",
+                CategoryName = g.Key.RawMaterialType == MaterialType.RoughTube ? "RoughTube" : "SemiFinished",
                 PlanWeight = g.Sum(p => p.RequiredWeight)
             })
             .ToListAsync();
@@ -787,7 +787,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Select(g => new
             {
                 g.Key.WorkOrderId,
-                CategoryName = g.Key.ProductType == FinishedProductType.Critical ? "临界成品" : "订单成品",
+                CategoryName = g.Key.ProductType == FinishedProductType.Critical ? "CriticalFinished" : "OrderFinished",
                 PlanWeight = g.Sum(p => p.RequiredWeight)
             })
             .ToListAsync();
@@ -908,7 +908,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 {
                     WorkOrderNo = workOrderNo,
                     MaterialName = workOrderNo,
-                    MaterialCategory = "圆棒穿孔",
+                    MaterialCategory = "RoundBar",
                     PlanWeight = x.PlanWeight,
                     PurchaseWeight = 0,
                     SubcontractWeight = subW,
@@ -981,7 +981,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (workOrder == null) return null;
 
         // 原料采购（荒管/半成品）
-        if (materialCategory == "荒管" || materialCategory == "半成品")
+        if (materialCategory == "RoughTube" || materialCategory == "SemiFinished")
         {
             var semiPlan = await _context.PurchaseSemiPlans
                 .AsNoTracking()
@@ -1005,7 +1005,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
 
         // 成品采购（临界成品/订单成品）
-        if (materialCategory == "临界成品" || materialCategory == "订单成品" || materialCategory == "成品")
+        if (materialCategory == "CriticalFinished" || materialCategory == "OrderFinished")
         {
             var finishedPlan = await _context.PurchaseFinishedPlans
                 .AsNoTracking()
@@ -1037,7 +1037,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         return new PlanDetailDto
         {
             WorkOrderNo = workOrderNo,
-            MaterialCategory = "荒管", // 圆棒穿孔实际消耗的是荒管
+            MaterialCategory = "RoughTube", // 圆棒穿孔实际消耗的是荒管
             PlantGrade = piercingPlan.PlantGrade,
             Specification = piercingPlan.PiercingSpec,
             UnitWeight = piercingPlan.RequiredUnitWeight,
@@ -1136,7 +1136,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             OrderDate = x.p.OrderDate,
             Status = x.p.Status,
             IsForceCompleted = x.p.IsForceCompleted,
-            MaterialCategory = !string.IsNullOrEmpty(x.MaterialCategory) && Enum.TryParse<MaterialCategory>(x.MaterialCategory, out var mc) ? mc : default,
+            MaterialCategory = !string.IsNullOrEmpty(x.MaterialCategory) && Enum.TryParse<MaterialType>(x.MaterialCategory, out var mc) ? mc : default,
             PlantGrade = x.p.PlantGrade,
             Specification = x.p.Specification,
             UnitWeight = x.p.UnitWeight,

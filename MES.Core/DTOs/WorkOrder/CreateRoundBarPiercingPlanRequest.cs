@@ -17,7 +17,7 @@ public class CreateRoundBarPiercingPlanRequest
 
     // 采购信息
     public string PlantGrade { get; set; } = null!;
-    public RawMaterialType RawMaterialType { get; set; }
+    public MaterialType RawMaterialType { get; set; }
     public string RoundBarSpec { get; set; } = null!;
     public string PiercingSpec { get; set; } = null!;
     public decimal? RequiredUnitWeight { get; set; }

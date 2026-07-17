@@ -47,7 +47,7 @@ public partial class FurnaceRegistrations
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
-    private static List<EnumOption> GetRawMaterialTypeOptions() => DisplayHelper.GetEnumFilterOptions<RawMaterialType>();
+    private static List<EnumOption> GetRawMaterialTypeOptions() => DisplayHelper.GetEnumFilterOptions<MaterialType>();
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
@@ -193,7 +193,7 @@ public partial class FurnaceRegistrations
         {
             foreach (var opt in rawMatOptions)
             {
-                opt.Display = DisplayHelper.GetRawMaterialTypeText(opt.Value);
+                opt.Display = DisplayHelper.GetMaterialTypeText(opt.Value);
             }
         }
 
@@ -350,7 +350,7 @@ public partial class FurnaceRegistrations
             {
                 IncomingDate = cache.IncomingDate,
                 RawMaterialUnit = cache.RawMaterialUnit,
-                RawMaterialType = Enum.TryParse<RawMaterialType>(cache.RawMaterialType, true, out var rm) ? rm : default,
+                RawMaterialType = Enum.TryParse<MaterialType>(cache.RawMaterialType, true, out var rm) ? rm : default,
                 RegisteredGrade = cache.RegisteredGrade,
                 RelatedPlantGrade = cache.RelatedPlantGrade,
                 FurnaceNumber = cache.FurnaceNumber,
@@ -584,7 +584,7 @@ public partial class FurnaceRegistrations
     {
         "IncomingDate" => item.IncomingDate.ToString("yyyy-MM-dd"),
         "RawMaterialUnit" => item.RawMaterialUnit,
-        "RawMaterialType" => DisplayHelper.GetRawMaterialTypeText(item.RawMaterialType),
+        "RawMaterialType" => DisplayHelper.GetMaterialTypeText(item.RawMaterialType),
         "RegisteredGrade" => item.RegisteredGrade,
         "RelatedPlantGrade" => item.RelatedPlantGrade,
         "FurnaceNumber" => item.FurnaceNumber,
@@ -746,7 +746,7 @@ public partial class FurnaceRegistrations
                 RenderEditField(builder, isEditing, cache?.RawMaterialUnit, v => { if (cache != null) cache.RawMaterialUnit = v ?? ""; }, item.RawMaterialUnit);
                 break;
             case "RawMaterialType":
-                RenderEditField(builder, isEditing, cache?.RawMaterialType, v => { if (cache != null) cache.RawMaterialType = v ?? ""; }, DisplayHelper.GetRawMaterialTypeText(item.RawMaterialType));
+                RenderEditField(builder, isEditing, cache?.RawMaterialType, v => { if (cache != null) cache.RawMaterialType = v ?? ""; }, DisplayHelper.GetMaterialTypeText(item.RawMaterialType));
                 break;
             case "RegisteredGrade":
                 RenderEditField(builder, isEditing, cache?.RegisteredGrade, v => { if (cache != null) cache.RegisteredGrade = v ?? ""; }, item.RegisteredGrade);

@@ -128,7 +128,7 @@
                                     <MudSelectItem Value="@val.ToString()">@DisplayHelper.GetSubcontractProcessTypeText(val)</MudSelectItem>
                                 }
                             </MudSelect></td>
-                        <td><MudSelect T="MaterialCategory" @bind-Value="outMaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Margin="Margin.Dense">@foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>()) { <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialCategoryText(cat)</MudSelectItem> }</MudSelect></td>
+                        <td><MudSelect T="MaterialType" @bind-Value="outMaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Margin="Margin.Dense">@foreach (MaterialType cat in Enum.GetValues<MaterialType>()) { <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialTypeText(cat)</MudSelectItem> }</MudSelect></td>
                         <td><MudTextField T="string" @bind-Value="furnaceNumber" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
                         <td><MudTextField T="string" @bind-Value="outPlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
                         <td><MudTextField T="string" @bind-Value="outSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
@@ -211,7 +211,7 @@
                                     </div>
                                 }
                             </MudTd>
-                            <MudTd><MudSelect T="MaterialCategory" @bind-Value="item.MaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small">@foreach (MaterialCategory cat in Enum.GetValues<MaterialCategory>()) { <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialCategoryText(cat)</MudSelectItem> }</MudSelect></MudTd>
+                            <MudTd><MudSelect T="MaterialType" @bind-Value="item.MaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small">@foreach (MaterialType cat in Enum.GetValues<MaterialType>()) { <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialTypeText(cat)</MudSelectItem> }</MudSelect></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.PlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.ProcessSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.UnitWeightStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
@@ -244,7 +244,7 @@
     private string? remark;
 
     // 公共数据 — 发出物料
-    private MaterialCategory outMaterialCategory;
+    private MaterialType outMaterialCategory;
     private string? furnaceNumber;
     private string outPlantGrade = string.Empty;
     private string outSpecification = string.Empty;
@@ -261,7 +261,7 @@
     private class ReturnItemRow
     {
         public int Sequence { get; set; }
-        public MaterialCategory MaterialCategory { get; set; }
+        public MaterialType MaterialCategory { get; set; }
         public string? PlantGrade { get; set; }
         public string ProcessSpecification { get; set; } = string.Empty;
         public string UnitWeightStr { get; set; } = string.Empty;
@@ -342,7 +342,7 @@
         }
 
         var plan = result.Data;
-        var planCategory = EnumHelper.TryParse<MaterialCategory>(plan.MaterialCategory ?? "") ?? MaterialCategory.RoundBar;
+        var planCategory = EnumHelper.TryParse<MaterialType>(plan.MaterialCategory ?? "") ?? MaterialType.RoundBar;
         returnItems.Add(new ReturnItemRow
         {
             Sequence = returnItems.Count + 1,
@@ -356,7 +356,7 @@
             InputMultipleStr = plan.InputMultiple?.ToString() ?? "",
             Remark = plan.Remark
         });
-        Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{DisplayHelper.GetMaterialCategoryText(planCategory)}）", Severity.Success);
+        Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{DisplayHelper.GetMaterialTypeText(planCategory)}）", Severity.Success);
     }
 
     private string GetActiveMaterialCategory()
@@ -365,8 +365,8 @@
             .Select(r => r.MaterialCategory)
             .Distinct()
             .ToList();
-        if (categories.Count == 1) return DisplayHelper.GetMaterialCategoryText(categories[0]);
-        return DisplayHelper.GetMaterialCategoryText(outMaterialCategory);
+        if (categories.Count == 1) return DisplayHelper.GetMaterialTypeText(categories[0]);
+        return DisplayHelper.GetMaterialTypeText(outMaterialCategory);
     }
 
     private async Task ToggleWorkOrderInfo(ReturnItemRow item)
@@ -432,7 +432,7 @@
 
         // ========== 物料匹配检测 ==========
         var unmatched = false;
-        var outCatDisplay = DisplayHelper.GetMaterialCategoryText(outMaterialCategory);
+        var outCatDisplay = DisplayHelper.GetMaterialTypeText(outMaterialCategory);
         if (!string.IsNullOrWhiteSpace(outPlantGrade) &&
             !string.IsNullOrWhiteSpace(outSpecification))
         {

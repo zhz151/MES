@@ -334,7 +334,7 @@
                 InspectionDate = DateTime.Parse(r.InspectionDate!),
                 EquipmentName = r.EquipmentName,
                 Inspector = r.Inspector,
-                Shift = r.Shift,
+                Shift = string.IsNullOrEmpty(r.Shift) ? null : Enum.Parse<ShiftType>(r.Shift),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 InspectionItem = string.IsNullOrEmpty(r.InspectionItem) ? null : Enum.Parse<InspectionItem>(r.InspectionItem),

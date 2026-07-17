@@ -65,7 +65,7 @@ public partial class Customers
         public string CustomerCode { get; set; } = string.Empty;
         public string Salesman { get; set; } = string.Empty;
         public string CustomerUnit { get; set; } = string.Empty;
-        public string? EndCustomer { get; set; }
+        public string EndCustomer { get; set; } = string.Empty;
         public CustomerStatus Status { get; set; }
         public string? ContactPerson { get; set; }
         public string? ContactPhone { get; set; }
@@ -571,14 +571,13 @@ public partial class Customers
                     builder.AddAttribute(5, "Class", "compact-input");
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        cb.OpenComponent<MudSelectItem<string>>(0);
-                        cb.AddAttribute(1, "Value", CustomerStatus.Active.ToString());
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "启用")));
-                        cb.CloseComponent();
-                        cb.OpenComponent<MudSelectItem<string>>(0);
-                        cb.AddAttribute(1, "Value", CustomerStatus.Inactive.ToString());
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "停用")));
-                        cb.CloseComponent();
+                        foreach (var val in Enum.GetValues<CustomerStatus>())
+                        {
+                            cb.OpenComponent<MudSelectItem<string>>(0);
+                            cb.AddAttribute(1, "Value", val.ToString());
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetCustomerStatusText(val))));
+                            cb.CloseComponent();
+                        }
                     }));
                     builder.CloseComponent();
                 }

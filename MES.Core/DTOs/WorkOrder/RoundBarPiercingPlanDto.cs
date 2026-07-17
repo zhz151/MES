@@ -65,7 +65,7 @@ public class RoundBarPiercingPlanDto
     /// <summary>
     /// 原料类型
     /// </summary>
-    public RawMaterialType RawMaterialType { get; set; }
+    public MaterialType RawMaterialType { get; set; }
 
     /// <summary>
     /// 圆棒规格

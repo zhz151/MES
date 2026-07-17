@@ -58,7 +58,7 @@ public class FinalInspectionDto
     public string? EquipmentName { get; set; }
 
     /// <summary>班次</summary>
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
 
     /// <summary>操作员</summary>
     public string? Operator { get; set; }
@@ -200,8 +200,7 @@ public class CreateFinalInspectionRequest
     public string? ProductionType { get; set; }
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
-    [MaxLength(10)]
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
     [MaxLength(50)]
     public string? Operator { get; set; }
     public int? Quantity { get; set; }
@@ -244,8 +243,7 @@ public class UpdateFinalInspectionRequest
 
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
-    [MaxLength(10)]
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
     [MaxLength(50)]
     public string? Operator { get; set; }
     public int? Quantity { get; set; }

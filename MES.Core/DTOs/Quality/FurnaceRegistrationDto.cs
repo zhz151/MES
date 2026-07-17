@@ -16,7 +16,7 @@ public class FurnaceRegistrationDto
     public string RawMaterialUnit { get; set; } = null!;
 
     /// <summary>原料类型</summary>
-    public RawMaterialType RawMaterialType { get; set; }
+    public MaterialType RawMaterialType { get; set; }
 
     /// <summary>登记牌号</summary>
     public string RegisteredGrade { get; set; } = null!;
@@ -73,7 +73,7 @@ public class CreateFurnaceRegistrationRequest
     public string RawMaterialUnit { get; set; } = null!;
 
     [Required(ErrorMessage = "原料类型不能为空")]
-    public RawMaterialType RawMaterialType { get; set; }
+    public MaterialType RawMaterialType { get; set; }
 
     [Required(ErrorMessage = "登记牌号不能为空")]
     [MaxLength(100)]
@@ -124,7 +124,7 @@ public class UpdateFurnaceRegistrationRequest
     [MaxLength(100)]
     public string RawMaterialUnit { get; set; } = null!;
 
-    public RawMaterialType RawMaterialType { get; set; }
+    public MaterialType RawMaterialType { get; set; }
 
     [MaxLength(100)]
     public string RegisteredGrade { get; set; } = null!;

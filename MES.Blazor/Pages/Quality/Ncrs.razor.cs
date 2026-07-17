@@ -881,7 +881,7 @@ public partial class Ncrs
 
     private string GetStatusText(NcrStatus status) => DisplayHelper.GetNcrStatusText(status);
 
-    private string GetPipeCategoryText(PipeCategory category) => DisplayHelper.GetPipeCategoryText(category);
+    private string GetPipeCategoryText(MaterialType category) => DisplayHelper.GetMaterialTypeText(category);
 
     private string GetDisposalMethodText(DisposalMethod? method) => method.HasValue ? DisplayHelper.GetDisposalMethodText(method.Value) : "";
 

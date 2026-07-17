@@ -46,6 +46,7 @@ using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using Microsoft.Extensions.Caching.Memory;
+using MES.Core.Helpers;
 
 namespace MES.Services.Quality;
 
@@ -154,19 +155,11 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Id = m.Id,
             ProductionBatchId = m.ProductionBatchId,
             ReceiveDate = m.ReceiveDate,
-            Shift = m.Shift,
+            Shift = m.Shift != null && Enum.TryParse<ShiftType>(m.Shift, out var rShift) ? rShift : null,
             Checker = m.Checker,
             Remark = m.Remark,
             BatchNo = m.BatchNo!,
-            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(m.ManufacturingItem, out var r) ? r : null,
-            TagNo = m.TagNo,
-            WorkOrderNo = m.WorkOrderNo,
-            SalesOrderNo = m.SalesOrderNo,
-            SourceUnit = m.SourceUnit,
-            FurnaceNo = m.FurnaceNo,
-            PlantGrade = m.PlantGrade,
-            Specification = m.Specification,
-            ProductionType = m.ProductionType != null && Enum.TryParse<ProductionType>(m.ProductionType, out var rPt) ? rPt : null,
+            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<MaterialType>(m.ManufacturingItem, out var r) ? r : null,
             IsForceCompleted = m.IsForceCompleted,
             DataSource = m.DataSource,
             Salesman = m.Salesman,
@@ -202,7 +195,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         {
             ProductionBatchId = request.ProductionBatchId,
             ReceiveDate = request.ReceiveDate,
-            Shift = request.Shift,
+            Shift = request.Shift?.ToString(),
             Checker = request.Checker,
             Remark = request.Remark,
             DataSource = request.DataSource ?? "MANUAL",
@@ -242,11 +235,11 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Id = entity.Id,
             ProductionBatchId = entity.ProductionBatchId,
             ReceiveDate = entity.ReceiveDate,
-            Shift = entity.Shift,
+            Shift = entity.Shift != null && Enum.TryParse<ShiftType>(entity.Shift, out var rShift) ? rShift : null,
             Checker = entity.Checker,
             Remark = entity.Remark,
             BatchNo = entity.BatchNo,
-            ManufacturingItem = entity.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(entity.ManufacturingItem, out var rMi) ? rMi : null,
+            ManufacturingItem = entity.ManufacturingItem != null && Enum.TryParse<MaterialType>(entity.ManufacturingItem, out var rMi) ? rMi : null,
             TagNo = entity.TagNo,
             WorkOrderNo = entity.WorkOrderNo,
             SalesOrderNo = entity.SalesOrderNo,
@@ -324,7 +317,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             {
                 ProductionBatchId = request.ProductionBatchId,
                 ReceiveDate = request.ReceiveDate,
-                Shift = request.Shift,
+                Shift = request.Shift?.ToString(),
                 Checker = request.Checker,
                 Remark = request.Remark,
                 DataSource = "MANUAL",
@@ -363,11 +356,11 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Id = e.Id,
             ProductionBatchId = e.ProductionBatchId,
             ReceiveDate = e.ReceiveDate,
-            Shift = e.Shift,
+            Shift = e.Shift != null && Enum.TryParse<ShiftType>(e.Shift, out var rShift) ? rShift : null,
             Checker = e.Checker,
             Remark = e.Remark,
             BatchNo = e.BatchNo,
-            ManufacturingItem = e.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(e.ManufacturingItem, out var rMi) ? rMi : null,
+            ManufacturingItem = e.ManufacturingItem != null && Enum.TryParse<MaterialType>(e.ManufacturingItem, out var rMi) ? rMi : null,
             TagNo = e.TagNo,
             WorkOrderNo = e.WorkOrderNo,
             SalesOrderNo = e.SalesOrderNo,
@@ -394,7 +387,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
         if (request.ReceiveDate != default)
             entity.ReceiveDate = request.ReceiveDate;
-        entity.Shift = request.Shift ?? entity.Shift;
+        entity.Shift = request.Shift?.ToString() ?? entity.Shift;
         entity.Checker = request.Checker ?? entity.Checker;
         entity.Remark = request.Remark ?? entity.Remark;
         if (request.IsForceCompleted.HasValue)
@@ -410,11 +403,11 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Id = entity.Id,
             ProductionBatchId = entity.ProductionBatchId,
             ReceiveDate = entity.ReceiveDate,
-            Shift = entity.Shift,
+            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Checker = entity.Checker,
             Remark = entity.Remark,
             BatchNo = entity.BatchNo,
-            ManufacturingItem = entity.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(entity.ManufacturingItem, out var rMi) ? rMi : null,
+            ManufacturingItem = entity.ManufacturingItem != null && Enum.TryParse<MaterialType>(entity.ManufacturingItem, out var rMi) ? rMi : null,
             TagNo = entity.TagNo,
             WorkOrderNo = entity.WorkOrderNo,
             SalesOrderNo = entity.SalesOrderNo,
@@ -567,12 +560,12 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Id = m.Id,
             ProductionBatchId = m.ProductionBatchId,
             ReceiveDate = m.ReceiveDate,
-            Shift = m.Shift,
+            Shift = m.Shift != null && Enum.TryParse<ShiftType>(m.Shift, out var rShift) ? rShift : null,
             Checker = m.Checker,
             Remark = m.Remark,
             DataSource = m.DataSource,
             BatchNo = m.BatchNo!,
-            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(m.ManufacturingItem, out var r) ? r : null,
+            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<MaterialType>(m.ManufacturingItem, out var r) ? r : null,
             TagNo = m.TagNo,
             WorkOrderNo = m.WorkOrderNo,
             SalesOrderNo = m.SalesOrderNo,
@@ -622,7 +615,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Id = rc.Id,
             ProductionBatchId = rc.ProductionBatchId,
             BatchNo = rc.BatchNo!,
-            ManufacturingItem = rc.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(rc.ManufacturingItem, out var rMi) ? rMi : null,
+            ManufacturingItem = rc.ManufacturingItem != null && Enum.TryParse<MaterialType>(rc.ManufacturingItem, out var rMi) ? rMi : null,
             TagNo = rc.TagNo,
             WorkOrderNo = rc.WorkOrderNo,
             SalesOrderNo = rc.SalesOrderNo,
@@ -639,7 +632,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Salesman = rc.Salesman,
             DeliveryState = rc.DeliveryState != null && Enum.TryParse<DeliveryState>(rc.DeliveryState, out var rDs) ? rDs : null,
             ReceiveDate = rc.ReceiveDate,
-            Shift = rc.Shift,
+            Shift = rc.Shift != null && Enum.TryParse<ShiftType>(rc.Shift, out var rShift) ? rShift : null,
             Checker = rc.Checker,
             Remark = rc.Remark,
             CreatedTime = rc.CreatedTime,
@@ -815,11 +808,11 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Id = m.Id,
             ProductionBatchId = m.ProductionBatchId,
             ReceiveDate = m.ReceiveDate,
-            Shift = m.Shift,
+            Shift = m.Shift != null && Enum.TryParse<ShiftType>(m.Shift, out var rShift) ? rShift : null,
             Checker = m.Checker,
             Remark = m.Remark,
             BatchNo = m.BatchNo!,
-            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<ManufacturingItem>(m.ManufacturingItem, out var r) ? r : null,
+            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<MaterialType>(m.ManufacturingItem, out var r) ? r : null,
             TagNo = m.TagNo,
             WorkOrderNo = m.WorkOrderNo,
             SalesOrderNo = m.SalesOrderNo,

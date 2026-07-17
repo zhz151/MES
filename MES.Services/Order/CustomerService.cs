@@ -54,13 +54,11 @@ namespace MES.Services.Order;
 public class CustomerService : ICustomerService
 {
     private readonly AppDbContext _context;
-    private readonly IOrderService _orderService;
     private readonly IMemoryCache _cache;
 
-    public CustomerService(AppDbContext context, IOrderService orderService, IMemoryCache cache)
+    public CustomerService(AppDbContext context, IMemoryCache cache)
     {
         _context = context;
-        _orderService = orderService;
         _cache = cache;
     }
 
@@ -169,7 +167,7 @@ public class CustomerService : ICustomerService
             CustomerCode = request.CustomerCode,
             Salesman = request.Salesman,
             CustomerUnit = request.CustomerUnit,
-            EndCustomer = request.EndCustomer,
+            EndCustomer = string.IsNullOrEmpty(request.EndCustomer) ? request.CustomerUnit : request.EndCustomer,
             ContactPerson = request.ContactPerson,
             ContactPhone = request.ContactPhone,
             Address = request.Address,
@@ -258,16 +256,7 @@ public class CustomerService : ICustomerService
             throw new BusinessException("客户信息已被其他用户修改，请刷新后重试");
         }
 
-        // 客户信息变更后，刷新引用了该客户的所有订单读模型
-        var affectedOrders = await _context.SalesOrders
-            .Where(so => so.CustomerId == id)
-            .Select(so => so.Id)
-            .ToListAsync();
-        foreach (var orderId in affectedOrders)
-        {
-            await _orderService.RefreshByOrderIdAsync(orderId);
-        }
-
+        // 客户信息变更不再刷新订单读模型——订单快照字段独立维护
         return ToDto(entity);
     }
 
@@ -284,12 +273,7 @@ public class CustomerService : ICustomerService
             throw new BusinessException("客户不存在");
         }
 
-        // 检查是否有订单引用该客户
-        var hasOrders = await _context.SalesOrders
-            .AnyAsync(so => so.CustomerId == id);
-        if (hasOrders)
-            throw new BusinessException($"客户 {entity.CustomerUnit} 已被订单引用，无法删除");
-
+        // CustomerId FK 已移除，订单快照字段独立维护，可直接删除客户
         _context.CustomerProfiles.Remove(entity);
         await _context.SaveChangesAsync();
     }

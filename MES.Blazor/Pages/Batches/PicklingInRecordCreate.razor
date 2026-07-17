@@ -300,7 +300,7 @@
                 InDate = r.InDate ?? DateTime.Today,
                 EquipmentName = r.EquipmentName?.Trim(),
                 Operator = r.Operator?.Trim(),
-                Shift = r.Shift?.Trim(),
+                Shift = string.IsNullOrEmpty(r.Shift) ? null : Enum.Parse<ShiftType>(r.Shift.Trim()),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 TagNo = r.TagNo?.Trim(),

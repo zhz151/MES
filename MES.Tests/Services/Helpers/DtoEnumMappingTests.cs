@@ -95,21 +95,21 @@ public class DtoEnumMappingTests
     #region Enum.Parse 映射 — 模拟 Service 层转换
 
     /// <summary>
-    /// 模拟 PurchaseOrderService 中 MaterialCategory 字符串→枚举的映射
+    /// 模拟 PurchaseOrderService 中 MaterialType 字符串→枚举的映射
     /// </summary>
     [Fact]
-    public void PurchaseOrderService_MaterialCategory映射_字符串转枚举()
+    public void PurchaseOrderService_MaterialType映射_字符串转枚举()
     {
         // 模拟数据库中存储的字符串值
-        var dbStrings = new[] { "RoundBar", "RoughTube", "SemiProduct", "OrderFinished", "" };
+        var dbStrings = new[] { "RoundBar", "RoughTube", "SemiFinished", "OrderFinished", "" };
 
-        var results = dbStrings.Select(s => string.IsNullOrEmpty(s) ? default : Enum.Parse<MaterialCategory>(s)).ToList();
+        var results = dbStrings.Select(s => string.IsNullOrEmpty(s) ? default : Enum.Parse<MaterialType>(s)).ToList();
 
-        results[0].Should().Be(MaterialCategory.RoundBar);
-        results[1].Should().Be(MaterialCategory.RoughTube);
-        results[2].Should().Be(MaterialCategory.SemiProduct);
-        results[3].Should().Be(MaterialCategory.OrderFinished);
-        results[4].Should().Be(default(MaterialCategory)); // empty -> default (RoundBar)
+        results[0].Should().Be(MaterialType.RoundBar);
+        results[1].Should().Be(MaterialType.RoughTube);
+        results[2].Should().Be(MaterialType.SemiFinished);
+        results[3].Should().Be(MaterialType.OrderFinished);
+        results[4].Should().Be(default(MaterialType)); // empty -> default (RoundBar)
     }
 
     /// <summary>

@@ -51,7 +51,7 @@ public class FurnaceRegistrationsTests : TestBase
                     Id = 1,
                     IncomingDate = DateTime.Today,
                     RawMaterialUnit = "宝钢",
-                    RawMaterialType = RawMaterialType.RoughTube,
+                    RawMaterialType = MaterialType.RoughTube,
                     RegisteredGrade = "304",
                     RelatedPlantGrade = "S30408",
                     FurnaceNumber = "FUR-001",

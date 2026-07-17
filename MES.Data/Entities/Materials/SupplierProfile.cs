@@ -13,7 +13,7 @@ public class SupplierProfile : BaseEntity
     public string SupplierName { get; set; } = null!;
 
     /// <summary>
-    /// 物料分类（用于采购时按物料筛选供应商）
+    /// 物料分类（MaterialType 枚举名，用于采购时按物料筛选供应商）
     /// </summary>
     public string? MaterialCategory { get; set; }
 

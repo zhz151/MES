@@ -69,7 +69,7 @@ public class InventorySyncService : IInventorySyncService
             return result;
         }
 
-        if (inboundSource == "Purchase")
+        if (inboundSource == InboundSource.Purchase.ToString())
         {
             var order = await _context.PurchaseOrders
                 .AsNoTracking()
@@ -96,7 +96,7 @@ public class InventorySyncService : IInventorySyncService
                 }
             }
         }
-        else if (inboundSource == "Subcontract")
+        else if (inboundSource == InboundSource.Subcontract.ToString())
         {
             var order = await _context.SubcontractOrders
                 .AsNoTracking()
@@ -287,7 +287,7 @@ public class InventorySyncService : IInventorySyncService
                     foreach (var item in order.ReturnItems)
                     {
                         item.IsForceCompleted = true;
-                        item.ProcessStatus = SubcontractProcessStatus.Completed;
+                        item.ProcessStatus = SubcontractOrderStatus.Completed;
                     }
                 }
                 else
@@ -327,13 +327,13 @@ public class InventorySyncService : IInventorySyncService
         if (!item.IsForceCompleted)
         {
             if (item.ReturnedQuantity <= 0 && item.ReturnedWeight <= 0)
-                item.ProcessStatus = SubcontractProcessStatus.Pending;
+                item.ProcessStatus = SubcontractOrderStatus.Sent;
             else if (item.RequiredQuantity.HasValue && item.ReturnedQuantity >= item.RequiredQuantity.Value)
-                item.ProcessStatus = SubcontractProcessStatus.Completed;
+                item.ProcessStatus = SubcontractOrderStatus.Completed;
             else if (item.RequiredWeight.HasValue && item.ReturnedWeight >= item.RequiredWeight.Value)
-                item.ProcessStatus = SubcontractProcessStatus.Completed;
+                item.ProcessStatus = SubcontractOrderStatus.Completed;
             else
-                item.ProcessStatus = SubcontractProcessStatus.PartialReturned;
+                item.ProcessStatus = SubcontractOrderStatus.PartialReturned;
         }
     }
 }

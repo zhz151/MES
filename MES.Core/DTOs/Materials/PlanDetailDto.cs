@@ -1,4 +1,3 @@
-using MES.Core.Enums;
 namespace MES.Core.DTOs.Materials;
 
 /// <summary>
@@ -12,7 +11,7 @@ public class PlanDetailDto
     public string WorkOrderNo { get; set; } = null!;
 
     /// <summary>
-    /// 物料类别（DB 中文值，如"荒管"、"半成品"）
+    /// 物料分类（MaterialType 枚举名）
     /// </summary>
     public string MaterialCategory { get; set; } = null!;
 

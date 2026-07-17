@@ -274,7 +274,7 @@ public class PurchaseOrderServiceTests : TestBase
         {
             SupplierId = sid,
             OrderDate = DateTime.Today,
-            MaterialCategory = MaterialCategory.RoughTube,
+            MaterialCategory = MaterialType.RoughTube,
             PlantGrade = "20#",
             Specification = "219*8",
             Quantity = 100,
@@ -305,7 +305,7 @@ public class PurchaseOrderServiceTests : TestBase
         {
             SupplierId = sid,
             OrderDate = DateTime.Today,
-            MaterialCategory = MaterialCategory.RoughTube,
+            MaterialCategory = MaterialType.RoughTube,
             PlantGrade = "20#",
             Specification = "219*8",
             Quantity = null,
@@ -329,7 +329,7 @@ public class PurchaseOrderServiceTests : TestBase
         var result = await svc.UpdateAsync(order.Id, new UpdatePurchaseOrderRequest
         {
             SupplierId = sid,
-            MaterialCategory = MaterialCategory.RoughTube,
+            MaterialCategory = MaterialType.RoughTube,
             PlantGrade = "25#",
             Specification = "273*10",
             Quantity = 200,
@@ -353,7 +353,7 @@ public class PurchaseOrderServiceTests : TestBase
         var act = () => svc.UpdateAsync(order.Id, new UpdatePurchaseOrderRequest
         {
             SupplierId = sid,
-            MaterialCategory = MaterialCategory.RoughTube,
+            MaterialCategory = MaterialType.RoughTube,
             PlantGrade = "20#",
             Specification = "219*8",
             Quantity = 100,
@@ -535,7 +535,6 @@ public class PurchaseOrderServiceTests : TestBase
         {
             OrderNumber = $"PO-PIERCE-{Guid.NewGuid():N}"[..15],
             SignDate = DateTime.Today,
-            CustomerId = cust.Id,
             Status = SalesOrderStatus.Confirmed,
             RowVersion = new byte[8]
         };
@@ -611,7 +610,7 @@ public class PurchaseOrderServiceTests : TestBase
             InputMultiple = 1,
             QualifiedRate = 95m,
             PlantGrade = "20#",
-            RawMaterialType = RawMaterialType.RoundBar,
+            RawMaterialType = MaterialType.RoundBar,
             RoundBarSpec = "250*8",
             PiercingSpec = "230*7",
             RequiredPieces = 10,

@@ -316,7 +316,7 @@
                 ExecDate = DateTime.Parse(r.ExecDate),
                 EquipmentName = r.EquipmentName,
                 Operator = r.Operator,
-                Shift = r.Shift,
+                Shift = string.IsNullOrEmpty(r.Shift) ? null : Enum.Parse<ShiftType>(r.Shift),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 SolutionTemperature = r.SolutionTemperature,

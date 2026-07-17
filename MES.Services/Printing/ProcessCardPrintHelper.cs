@@ -330,7 +330,7 @@ public static class ProcessCardPrintHelper
             ["IsForceCompleted"] = ("强制完成", () => b.IsForceCompleted ? "是" : "否"),
             ["Remark"] = ("备注", () => b.Remark ?? "-"),
             ["CurrentExecDate"] = ("截止执行日", () => b.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "-"),
-            ["ManufacturingItem"] = ("制造物品", () => Enum.TryParse<ManufacturingItem>(b.ManufacturingItem, out var mi) ? EnumHelper.GetDisplayName(mi) : (b.ManufacturingItem ?? "-")),
+            ["ManufacturingItem"] = ("制造物品", () => Enum.TryParse<MaterialType>(b.ManufacturingItem, out var mi) ? EnumHelper.GetDisplayName(mi) : (b.ManufacturingItem ?? "-")),
             ["CurrentGroupName"] = ("当前工序", () => b.CurrentGroupName ?? "-"),
             ["CurrentSectionName"] = ("当前工段", () => b.CurrentSectionName ?? "-"),
             ["CurrentEquipmentName"] = ("当前设备", () => b.CurrentEquipmentName ?? "-"),
@@ -359,8 +359,8 @@ public static class ProcessCardPrintHelper
         var map = new Dictionary<string, (string Label, Func<string> Value)>
         {
             ["SourceBatchNo"] = ("来源库存批次号", () => b.SourceBatchNo ?? "-"),
-            ["SourceMaterialType"] = ("原料类型", () => b.SourceMaterialType ?? "-"),
-            ["InboundSource"] = ("入库来源", () => GetInboundSourceText(b.InboundSource) ?? "-"),
+            ["SourceMaterialType"] = ("原料类型", () => b.SourceMaterialType?.ToString() ?? "-"),
+            ["InboundSource"] = ("入库来源", () => EnumHelper.GetDisplayName<InboundSource>(b.InboundSource) ?? "-"),
             ["SourceName"] = ("来料单位", () => b.SourceName ?? "-"),
             ["InboundDate"] = ("入库日期", () => b.InboundDate?.ToString("yyyy-MM-dd") ?? "-"),
             ["SourceHeatNo"] = ("炉号", () => b.SourceHeatNo ?? "-"),
@@ -466,15 +466,4 @@ public static class ProcessCardPrintHelper
         return result;
     }
 
-    private static string? GetInboundSourceText(string? inboundSource) => inboundSource switch
-    {
-        "Purchase" => "外购",
-        "Subcontract" => "委外",
-        "ReturnIn" => "退货入库",
-        "ProductionInbound" => "生产入库",
-        "InspectionInbound" => "检验入库",
-        "TransferIn" => "移库入库",
-        "Other" => "其它",
-        _ => inboundSource
-    };
 }

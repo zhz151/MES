@@ -13,5 +13,10 @@ public enum FinishedProductType
     /// <summary>
     /// 订单成品（不需再检验）
     /// </summary>
-    Order = 2
+    Order = 2,
+
+    /// <summary>
+    /// 特定交态成品
+    /// </summary>
+    SpecialDeliveryStatus = 3
 }

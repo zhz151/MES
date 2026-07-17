@@ -36,7 +36,7 @@ public class PicklingInRecordDto
     /// <summary>操作人</summary>
     public string? Operator { get; set; }
     /// <summary>班次</summary>
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
     /// <summary>加工数量（支数）</summary>
     public int? Quantity { get; set; }
     /// <summary>加工重量(kg)</summary>
@@ -94,8 +94,7 @@ public class CreatePicklingInRecordRequest
     [MaxLength(50)]
     public string? Operator { get; set; }
     /// <summary>班次</summary>
-    [MaxLength(10)]
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
     /// <summary>加工数量（支数）</summary>
     public int? Quantity { get; set; }
     /// <summary>加工重量(kg)</summary>
@@ -124,8 +123,7 @@ public class UpdatePicklingInRecordRequest
     public string? EquipmentName { get; set; }
     [MaxLength(50)]
     public string? Operator { get; set; }
-    [MaxLength(10)]
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
 
@@ -158,7 +156,7 @@ public class PicklingOutRecordDto
     public string? PlantGrade { get; set; }
     public string? EquipmentName { get; set; }
     public string? Operator { get; set; }
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
     public string? ProductStatus { get; set; }

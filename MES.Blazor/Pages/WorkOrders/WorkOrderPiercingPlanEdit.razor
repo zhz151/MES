@@ -134,7 +134,7 @@
                     <MudTable Items="@materialRows" Class="auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" Style="table-layout:fixed;">
                         <HeaderContent>
                             <MudTh Style="width:110px;">原料类型</MudTh>
-                            <MudTh Style="width:90px;">工厂牌号</MudTh>
+                            <MudTh Style="width:90px;">工厂牌号<span class="required-star">*</span></MudTh>
                             <MudTh Style="width:100px;">圆棒规格<span class="required-star">*</span></MudTh>
                             <MudTh Style="width:100px;">穿孔规格<span class="required-star">*</span></MudTh>
                             <MudTh Style="width:90px;">需求单重(kg/支)</MudTh>
@@ -145,15 +145,16 @@
                         </HeaderContent>
                         <RowTemplate Context="item">
                             <MudTd>
-                                <MudSelect Dense="true" T="RawMaterialType"
+                                <MudSelect Dense="true" T="MaterialType"
                                            Value="@item.RawMaterialType"
-                                           ValueChanged="@((RawMaterialType v) => { item.RawMaterialType = v; })"
+                                           ValueChanged="@((MaterialType v) => { item.RawMaterialType = v; })"
                                            Size="Size.Small"
                                            Variant="Variant.Outlined"
                                            Class="my-n2" Style="width:110px;">
-                                    <MudSelectItem Value="@(RawMaterialType.RoughTube)">荒管</MudSelectItem>
-                                    <MudSelectItem Value="@(RawMaterialType.SemiProduct)">半成品</MudSelectItem>
-                                    <MudSelectItem Value="@(RawMaterialType.RoundBar)">圆棒</MudSelectItem>
+                                    @foreach (var val in Enum.GetValues<MaterialType>())
+                                    {
+                                        <MudSelectItem Value="@(val)">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>
+                                    }
                                 </MudSelect>
                             </MudTd>
                             <MudTd>
@@ -251,8 +252,8 @@
                               Class="auto-table compact-table" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; width:max-content;">
                         <HeaderContent>
                             <MudTh Style="width:45px;">#</MudTh>
-                            <MudTh Style="width:120px;">工序名称</MudTh>
-                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:100px;">制造规格</MudTh> }
+                            <MudTh Style="width:120px;">工序名称<span class="required-star">*</span></MudTh>
+                            @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:100px;">制造规格<span class="required-star">*</span></MudTh> }
                             @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTh Style="width:80px;">外径公差</MudTh> }
                             @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTh Style="width:80px;">壁厚公差</MudTh> }
                             @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:80px;">制造长度</MudTh> }
@@ -403,7 +404,7 @@
 
     private class MaterialRow
     {
-        public RawMaterialType RawMaterialType { get; set; } = RawMaterialType.RoundBar;
+        public MaterialType RawMaterialType { get; set; } = MaterialType.RoundBar;
         public string PlantGrade { get; set; } = string.Empty;
         public string? RoundBarSpec { get; set; }
         public string? PiercingSpec { get; set; }
