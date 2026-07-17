@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Scheduling;
 
@@ -22,8 +23,10 @@ public class BatchPlanDto
     public string? Salesman { get; set; }
     public DateTime DeliveryDate { get; set; }
     public DeliveryState? DeliveryState { get; set; }
+    public string? DeliveryStateDisplay => DeliveryState.HasValue ? EnumHelper.GetDisplayName(DeliveryState.Value) : null;
     public string Specification { get; set; } = string.Empty;
     public LengthStatus? LengthStatus { get; set; }
+    public string? LengthStatusDisplay => LengthStatus.HasValue ? EnumHelper.GetDisplayName(LengthStatus.Value) : null;
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
 
@@ -84,9 +87,6 @@ public class BatchPlanDto
     ///   其他(荒管/在制修检/收尾成检)：ExecutionSequence &lt; AttentionProcessSectionSequence
     /// </summary>
     public bool IsKeyBatch { get; set; }
-
-    // TEMP-DEBUG: 服务端 IsKeyBatch 计算过程
-    public string? DebugInfo { get; set; }
 
     // ===== G6：工单需求调整（来自 WorkOrderExecutionSummary 实体） =====
     public bool IsUrging { get; set; }

@@ -193,13 +193,6 @@ public static class EnumHelper
                                  ("Next", "待执行"),
                                  ("Pending", "待处理"));
 
-        Register<SubcontractProcessType>(("Piercing", "穿孔"),
-                                          ("ColdDrawing", "冷拔"),
-                                          ("HeatTreatment", "热处理"),
-                                          ("Threading", "车丝"),
-                                          ("Polishing", "抛光"),
-                                          ("Cutting", "切割"));
-
         Register<ShiftType>(("DayShift", "白班"),
                              ("MiddleShift", "中班"),
                              ("NightShift", "夜班"));

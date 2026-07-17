@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Quality;
 
@@ -14,6 +15,7 @@ public class FinalInspectionDto
 
     /// <summary>检验项目</summary>
     public InspectionItem InspectionItem { get; set; }
+    public string InspectionItemDisplay => EnumHelper.GetDisplayName(InspectionItem);
 
     /// <summary>检验日期</summary>
     public DateTime InspectionDate { get; set; }
@@ -59,6 +61,7 @@ public class FinalInspectionDto
 
     /// <summary>班次</summary>
     public ShiftType? Shift { get; set; }
+    public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
 
     /// <summary>操作员</summary>
     public string? Operator { get; set; }

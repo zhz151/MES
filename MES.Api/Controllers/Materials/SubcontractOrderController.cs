@@ -143,6 +143,73 @@ public class SubcontractOrderController : ControllerBase
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result, "查询成功"));
     }
 
+    // ========== 子项执行查询 ==========
+
+    [HttpGet("return-items/list")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PagedResult<SubcontractReturnItemListDto>>>> GetReturnItemList(
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? keyword = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool isDescending = true,
+        [FromQuery] string? status = null,
+        [FromQuery] string? filters = null)
+    {
+        if (pageSize > 5000) pageSize = 5000;
+        var query = new QueryParams
+        {
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            Keyword = keyword,
+            SortBy = string.IsNullOrEmpty(sortBy) ? "Id" : sortBy,
+            IsDescending = isDescending
+        };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
+        var result = await _service.GetReturnItemListAsync(query, status);
+        return Ok(ApiResponse<PagedResult<SubcontractReturnItemListDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("return-items/filter-contexts")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetReturnItemFilterContexts()
+    {
+        var result = await _service.GetReturnItemFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result, "查询成功"));
+    }
+
+    [HttpPost("return-items/print-all-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<IActionResult> PrintReturnItemListFile([FromBody] OrderPrintAllRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
+
+        var pdfBytes = await _service.PrintReturnItemListAsync(
+            request.Keyword, request.SortBy, request.IsDescending, null, null, request.Columns);
+        return File(pdfBytes, "application/pdf", $"子项查询.pdf");
+    }
+
+    [HttpPost("return-items/print-selected-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<IActionResult> PrintReturnItemSelectedFile([FromBody] OrderPrintBatchRequest request)
+    {
+        try
+        {
+            var pdfBytes = await _service.PrintReturnItemSelectedAsync(request.Ids, request.Columns);
+            return File(pdfBytes, "application/pdf", $"子项查询_选中.pdf");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "打印选中子项失败");
+            return StatusCode(500, ApiResponse<string>.Fail($"打印失败: {ex.Message}"));
+        }
+    }
+
     [HttpGet("mismatched-orders")]
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<OrderMismatchInfo>>>> GetMismatchedOrders()

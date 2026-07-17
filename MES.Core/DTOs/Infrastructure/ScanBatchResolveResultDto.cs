@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Infrastructure;
 
@@ -12,6 +13,9 @@ public class ScanBatchResolveResultDto
 
     /// <summary>批次状态</summary>
     public BatchStatus Status { get; set; }
+
+    /// <summary>批次状态中文显示</summary>
+    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
 
     /// <summary>工厂牌号（钢种）</summary>
     public string PlantGrade { get; set; } = null!;

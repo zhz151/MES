@@ -118,7 +118,15 @@
                     <ChildContent>
                         <div style="padding-left: 16px;">
                             <MudNavLink Href="/purchase-orders" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">采购订单</MudNavLink>
-                            <MudNavLink Href="/subcontract-orders" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">圆棒穿孔</MudNavLink>
+                            <MudExpansionPanel Style="background: transparent; color: #999;" Class="ml-4">
+                                <TitleContent><div style="padding: 8px 16px; font-size: 0.9rem;">圆棒穿孔</div></TitleContent>
+                                <ChildContent>
+                                    <div style="padding-left: 32px;">
+                                        <MudNavLink Href="/subcontract-orders" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">圆棒穿孔</MudNavLink>
+                                        <MudNavLink Href="/subcontract-return-items" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">子项查询</MudNavLink>
+                                    </div>
+                                </ChildContent>
+                            </MudExpansionPanel>
                             <MudNavLink Href="/suppliers" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">供应商管理</MudNavLink>
                             <MudNavLink Href="/materials" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">物料档案</MudNavLink>
                         </div>

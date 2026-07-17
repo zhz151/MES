@@ -1,5 +1,6 @@
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 namespace MES.Core.DTOs.Equipment;
 
 /// <summary>
@@ -16,7 +17,9 @@ public class RepairOrderListDto
     public string FaultDescription { get; set; } = null!;
     public string? FaultType { get; set; }
     public RepairPriority Priority { get; set; }
+    public string PriorityDisplay => EnumHelper.GetDisplayName(Priority);
     public RepairOrderStatus RepairStatus { get; set; } // 动态计算
+    public string RepairStatusDisplay => EnumHelper.GetDisplayName(RepairStatus);
     public string ReportPerson { get; set; } = null!;
     public DateTime ReportTime { get; set; }
     public string? RepairPerson { get; set; }
@@ -56,6 +59,7 @@ public class UpdateRepairOrderRequest
     public string? FaultDescription { get; set; }
     public string? FaultType { get; set; }
     public RepairPriority? Priority { get; set; }
+    public string? PriorityDisplay => Priority.HasValue ? EnumHelper.GetDisplayName(Priority.Value) : null;
     public string? ReportPerson { get; set; }
     public DateTime? ReportTime { get; set; }
     public string? RepairPerson { get; set; }

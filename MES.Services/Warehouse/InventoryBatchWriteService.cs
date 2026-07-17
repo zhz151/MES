@@ -23,6 +23,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
     private readonly ILogger<InventoryBatchWriteService> _logger;
+    private readonly IInventorySyncService _syncService;
     private static readonly SemaphoreSlim _batchNoLock = new(1, 1);
 
     private static InventoryBatchDto BatchToDto(InventoryBatch b) => new()
@@ -69,11 +70,13 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         AppDbContext context,
         IWorkOrderExecutionService workOrderExecutionService,
         IQualityProcessTrackingService qualityProcessTracking,
+        IInventorySyncService syncService,
         ILogger<InventoryBatchWriteService> logger)
     {
         _context = context;
         _workOrderExecutionService = workOrderExecutionService;
         _qualityProcessTracking = qualityProcessTracking;
+        _syncService = syncService;
         _logger = logger;
     }
 
@@ -100,6 +103,19 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "质量过程跟踪刷新失败（不影响主流程）: BatchNo={BatchNo}", batchNo);
+        }
+    }
+
+    private async Task TrySyncSourceOrderAsync(string? sourceOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(sourceOrderNo)) return;
+        try
+        {
+            await _syncService.SyncSourceOrdersAsync(new List<string> { sourceOrderNo });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "来源单同步失败（不影响主流程）: SourceOrderNo={SourceOrderNo}", sourceOrderNo);
         }
     }
 
@@ -196,6 +212,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         await _context.SaveChangesAsync();
 
         await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchNo);
+        await TrySyncSourceOrderAsync(entity.SourceOrderNo);
 
         return BatchToDto(entity);
     }
@@ -290,6 +307,15 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                 throw;
             }
         }
+
+        // 去重同步所有关联的来源单号
+        var sourceOrderNos = request.Rows
+            .Select(r => r.SourceOrderNo ?? request.SourceOrderNo)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct()
+            .ToList();
+        foreach (var son in sourceOrderNos)
+            await TrySyncSourceOrderAsync(son);
 
         return new BatchInboundResult
         {

@@ -64,7 +64,7 @@
                                             @context.WorkOrderNo
                                         </MudText>
                                     </MudTd>
-                                    <MudTd>@context.MaterialCategory</MudTd>
+                                    <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                     <MudTd Class="text-right">@context.PlanWeight.ToString("G29")</MudTd>
                                     <MudTd Class="text-right">@context.PurchaseWeight.ToString("G29")</MudTd>
                                     <MudTd Class="text-right">@context.SubcontractWeight.ToString("G29")</MudTd>
@@ -341,15 +341,15 @@
     }
 
     private string FormatSupplier(SupplierProfileDto? s) =>
-        s == null ? "" : $"{s.MaterialCategory} - {s.SupplierName}";
+        s == null ? "" : $"{s.MaterialCategoryDisplay ?? s.MaterialCategory} - {s.SupplierName}";
 
     private Task<IEnumerable<SupplierProfileDto>> FilterSuppliers(PurchaseOrderRow row, string search)
     {
         var query = allSuppliers.AsEnumerable();
-        var catDisplay = DisplayHelper.GetMaterialTypeText(row.MaterialCategory);
-        if (!string.IsNullOrWhiteSpace(catDisplay))
+        var catName = row.MaterialCategory.ToString();
+        if (!string.IsNullOrWhiteSpace(catName))
             query = query.Where(s => s.MaterialCategory != null &&
-                s.MaterialCategory.Equals(catDisplay, StringComparison.OrdinalIgnoreCase));
+                s.MaterialCategory.Equals(catName, StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(s => s.SupplierName.Contains(search, StringComparison.OrdinalIgnoreCase));
         return Task.FromResult(query.Take(30));

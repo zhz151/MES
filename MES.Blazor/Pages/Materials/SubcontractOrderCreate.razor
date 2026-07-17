@@ -83,7 +83,7 @@
                                                 @context.WorkOrderNo
                                             </MudText>
                                         </MudTd>
-                                        <MudTd>@context.MaterialCategory</MudTd>
+                                        <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                         <MudTd Class="text-right">@context.PlanWeight.ToString("G29")</MudTd>
                                         <MudTd Class="text-right">@context.SubcontractWeight.ToString("G29")</MudTd>
                                         <MudTd Class="text-right">@context.TotalWeight.ToString("G29")</MudTd>
@@ -106,7 +106,6 @@
                 <thead>
                     <tr>
                         <th>下单日期<span class="required-star">*</span></th>
-                        <th>加工类型<span class="required-star">*</span></th>
                         <th>物料分类<span class="required-star">*</span></th>
                         <th>炉号</th>
                         <th>工厂牌号<span class="required-star">*</span></th>
@@ -121,13 +120,6 @@
                 <tbody>
                     <tr>
                         <td><MudTextField T="string" @bind-Value="orderDateText" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Placeholder="yyyy-MM-dd" Margin="Margin.Dense" /></td>
-                        <td><MudSelect T="string" @bind-Value="processType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Margin="Margin.Dense">
-                                <MudSelectItem Value="@((string)null!)">请选择</MudSelectItem>
-                                @foreach (var val in Enum.GetValues<SubcontractProcessType>())
-                                {
-                                    <MudSelectItem Value="@val.ToString()">@DisplayHelper.GetSubcontractProcessTypeText(val)</MudSelectItem>
-                                }
-                            </MudSelect></td>
                         <td><MudSelect T="MaterialType" @bind-Value="outMaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Margin="Margin.Dense">@foreach (MaterialType cat in Enum.GetValues<MaterialType>()) { <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialTypeText(cat)</MudSelectItem> }</MudSelect></td>
                         <td><MudTextField T="string" @bind-Value="furnaceNumber" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
                         <td><MudTextField T="string" @bind-Value="outPlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
@@ -239,12 +231,11 @@
     private SupplierProfileDto? selectedSupplier;
     private string supplierName = string.Empty;
     private string orderDateText = DateTime.Today.ToString("yyyy-MM-dd");
-    private string? processType;
     private string returnDeadlineText = string.Empty;
     private string? remark;
 
     // 公共数据 — 发出物料
-    private MaterialType outMaterialCategory;
+    private MaterialType outMaterialCategory = MaterialType.RoundBar;
     private string? furnaceNumber;
     private string outPlantGrade = string.Empty;
     private string outSpecification = string.Empty;
@@ -261,7 +252,7 @@
     private class ReturnItemRow
     {
         public int Sequence { get; set; }
-        public MaterialType MaterialCategory { get; set; }
+        public MaterialType MaterialCategory { get; set; } = MaterialType.RoughTube;
         public string? PlantGrade { get; set; }
         public string ProcessSpecification { get; set; } = string.Empty;
         public string UnitWeightStr { get; set; } = string.Empty;
@@ -306,7 +297,7 @@
     private void ToggleProcurementStatus() => showProcurementStatus = !showProcurementStatus;
 
     private string FormatSupplier(SupplierProfileDto? s) =>
-        s == null ? "" : $"{s.MaterialCategory} - {s.SupplierName}";
+        s == null ? "" : $"{s.MaterialCategoryDisplay ?? s.MaterialCategory} - {s.SupplierName}";
 
     private Task<IEnumerable<SupplierProfileDto>> FilterSuppliers(string search)
     {
@@ -365,8 +356,8 @@
             .Select(r => r.MaterialCategory)
             .Distinct()
             .ToList();
-        if (categories.Count == 1) return DisplayHelper.GetMaterialTypeText(categories[0]);
-        return DisplayHelper.GetMaterialTypeText(outMaterialCategory);
+        if (categories.Count == 1) return categories[0].ToString();
+        return outMaterialCategory.ToString();
     }
 
     private async Task ToggleWorkOrderInfo(ReturnItemRow item)
@@ -417,7 +408,6 @@
             errors.Add("收回期限格式错误，请使用 yyyy-MM-dd");
         else if (string.IsNullOrWhiteSpace(returnDeadlineText))
             errors.Add("收回期限不能为空");
-        if (string.IsNullOrWhiteSpace(processType)) errors.Add("加工类型不能为空");
         if (string.IsNullOrWhiteSpace(outPlantGrade)) errors.Add("发出钢种不能为空");
         if (string.IsNullOrWhiteSpace(outSpecification)) errors.Add("发出规格不能为空");
         if (!string.IsNullOrWhiteSpace(outQuantityStr) && (!int.TryParse(outQuantityStr, out var parsedQty) || parsedQty <= 0))
@@ -523,7 +513,7 @@
             {
                 SupplierId = supplierId,
                 OrderDate = orderDate,
-                ProcessType = string.IsNullOrEmpty(processType) ? default : Enum.Parse<SubcontractProcessType>(processType),
+                ProcessType = "Piercing",
                 FurnaceNumber = string.IsNullOrWhiteSpace(furnaceNumber) ? null : furnaceNumber,
                 ReturnDeadline = string.IsNullOrWhiteSpace(returnDeadlineText) ? null : DateTime.Parse(returnDeadlineText),
                 OutMaterialCategory = outMaterialCategory,

@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 using MES.Core.DTOs.WorkOrder;
 namespace MES.Core.DTOs.Order;
@@ -22,6 +23,11 @@ public class OrderChangeNotificationDto
     /// 变更类型
     /// </summary>
     public NotificationChangeType ChangeType { get; set; }
+
+    /// <summary>
+    /// 变更类型中文显示
+    /// </summary>
+    public string ChangeTypeDisplay => EnumHelper.GetDisplayName(ChangeType);
 
     /// <summary>
     /// 变更类型文本

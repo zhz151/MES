@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 namespace MES.Core.DTOs.Warehouse;
 
 /// <summary>
@@ -10,6 +11,7 @@ public class OutboundRecordDto
     public int InventoryBatchId { get; set; }
     public string? BatchNo { get; set; }
     public OutboundType OutboundType { get; set; }
+    public string OutboundTypeDisplay => EnumHelper.GetDisplayName(OutboundType);
     public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
     public int OutboundQuantity { get; set; }

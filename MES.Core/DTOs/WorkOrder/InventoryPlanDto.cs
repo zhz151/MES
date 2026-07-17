@@ -1,5 +1,6 @@
 using MES.Core.DTOs.Warehouse;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 namespace MES.Core.DTOs.WorkOrder;
 
 /// <summary>
@@ -86,6 +87,7 @@ public class InventoryPlanDto
     /// 计划状态值
     /// </summary>
     public InventoryPlanStatus PlanStatus { get; set; }
+    public string PlanStatusDisplay => EnumHelper.GetDisplayName(PlanStatus);
 
     /// <summary>
     /// 计划状态文本
@@ -101,6 +103,7 @@ public class InventoryPlanDto
     /// 改制类型
     /// </summary>
     public ReworkType? ReworkType { get; set; }
+    public string? ReworkTypeDisplay => ReworkType.HasValue ? EnumHelper.GetDisplayName(ReworkType.Value) : null;
 
     /// <summary>
     /// 改制类型文本

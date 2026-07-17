@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Quality;
 
@@ -16,6 +17,7 @@ public class NcrDto
     public string? ReportDepartment { get; set; }
     public string? Reporter { get; set; }
     public MaterialType PipeCategory { get; set; }
+    public string PipeCategoryDisplay => EnumHelper.GetDisplayName(PipeCategory);
     public string BatchNo { get; set; } = null!;
     public string? WorkOrderNo { get; set; }
     public string? PlantGrade { get; set; }
@@ -28,6 +30,7 @@ public class NcrDto
 
     // G2: 不合格品处置
     public DisposalMethod? DisposalMethod { get; set; }
+    public string? DisposalMethodDisplay => DisposalMethod.HasValue ? EnumHelper.GetDisplayName(DisposalMethod.Value) : null;
     public string? DisposalRemark { get; set; }
     public bool DisposalIsCompleted { get; set; }
     public DateTime? DisposalCompleteDate { get; set; }
@@ -35,11 +38,13 @@ public class NcrDto
     // G3: 原因分析
     public string? RootCauseAnalysis { get; set; }
     public SeverityLevel? Severity { get; set; }
+    public string? SeverityDisplay => Severity.HasValue ? EnumHelper.GetDisplayName(Severity.Value) : null;
     public string? AnalysisConfirmer { get; set; }
     public DateTime? AnalysisConfirmDate { get; set; }
 
     // G4: 责任人及处理
     public ResponsibilityCategory? ResponsibilityCategory { get; set; }
+    public string? ResponsibilityCategoryDisplay => ResponsibilityCategory.HasValue ? EnumHelper.GetDisplayName(ResponsibilityCategory.Value) : null;
     public string? ResponsibleDept { get; set; }
     public DateTime? OperationDate { get; set; }
     public string? ResponsiblePerson { get; set; }
@@ -55,9 +60,11 @@ public class NcrDto
     public DateTime? ActionVerifyDate { get; set; }
     public string? ActionResult { get; set; }
     public VerifyResult? VerifyResult { get; set; }
+    public string? VerifyResultDisplay => VerifyResult.HasValue ? EnumHelper.GetDisplayName(VerifyResult.Value) : null;
 
     // 状态
     public NcrStatus Status { get; set; }
+    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
 
     // 审计
     public DateTimeOffset CreatedTime { get; set; }
@@ -84,6 +91,7 @@ public class CreateNcrRequest
 
     // G2: 不合格品处置
     public DisposalMethod? DisposalMethod { get; set; }
+    public string? DisposalMethodDisplay => DisposalMethod.HasValue ? EnumHelper.GetDisplayName(DisposalMethod.Value) : null;
     public string? DisposalRemark { get; set; }
     public bool DisposalIsCompleted { get; set; }
     public DateTime? DisposalCompleteDate { get; set; }
@@ -91,11 +99,13 @@ public class CreateNcrRequest
     // G3: 原因分析
     public string? RootCauseAnalysis { get; set; }
     public SeverityLevel? Severity { get; set; }
+    public string? SeverityDisplay => Severity.HasValue ? EnumHelper.GetDisplayName(Severity.Value) : null;
     public string? AnalysisConfirmer { get; set; }
     public DateTime? AnalysisConfirmDate { get; set; }
 
     // G4: 责任人及处理
     public ResponsibilityCategory? ResponsibilityCategory { get; set; }
+    public string? ResponsibilityCategoryDisplay => ResponsibilityCategory.HasValue ? EnumHelper.GetDisplayName(ResponsibilityCategory.Value) : null;
     public string? ResponsibleDept { get; set; }
     public DateTime? OperationDate { get; set; }
     public string? ResponsiblePerson { get; set; }
@@ -132,6 +142,7 @@ public class UpdateNcrRequest
 
     // G2: 不合格品处置
     public DisposalMethod? DisposalMethod { get; set; }
+    public string? DisposalMethodDisplay => DisposalMethod.HasValue ? EnumHelper.GetDisplayName(DisposalMethod.Value) : null;
     public string? DisposalRemark { get; set; }
     public bool DisposalIsCompleted { get; set; }
     public DateTime? DisposalCompleteDate { get; set; }
@@ -139,11 +150,13 @@ public class UpdateNcrRequest
     // G3: 原因分析
     public string? RootCauseAnalysis { get; set; }
     public SeverityLevel? Severity { get; set; }
+    public string? SeverityDisplay => Severity.HasValue ? EnumHelper.GetDisplayName(Severity.Value) : null;
     public string? AnalysisConfirmer { get; set; }
     public DateTime? AnalysisConfirmDate { get; set; }
 
     // G4: 责任人及处理
     public ResponsibilityCategory? ResponsibilityCategory { get; set; }
+    public string? ResponsibilityCategoryDisplay => ResponsibilityCategory.HasValue ? EnumHelper.GetDisplayName(ResponsibilityCategory.Value) : null;
     public string? ResponsibleDept { get; set; }
     public DateTime? OperationDate { get; set; }
     public string? ResponsiblePerson { get; set; }

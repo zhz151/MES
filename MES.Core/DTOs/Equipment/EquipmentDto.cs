@@ -1,5 +1,6 @@
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 namespace MES.Core.DTOs.Equipment;
 
 /// <summary>
@@ -25,6 +26,7 @@ public class EquipmentListDto
     public DateTime? LastInspectionDate { get; set; }
     public DateTime? CurrentInspectionStartDate { get; set; }
     public EquipmentTaskStatus InspectionStatus { get; set; }  // 物化存储
+    public string InspectionStatusDisplay => EnumHelper.GetDisplayName(InspectionStatus);
 
     // 保养
     public bool NeedMaintenance { get; set; }
@@ -33,14 +35,18 @@ public class EquipmentListDto
     public DateTime? LastMaintDate { get; set; }
     public DateTime? CurrentMaintStartDate { get; set; }
     public EquipmentTaskStatus MaintStatus { get; set; }  // 物化存储
+    public string MaintStatusDisplay => EnumHelper.GetDisplayName(MaintStatus);
 
     // 维修
     public DateTime? LastRepairDate { get; set; }
 
     // 状态
     public LifecycleStatus LifecycleStatus { get; set; }
+    public string LifecycleStatusDisplay => EnumHelper.GetDisplayName(LifecycleStatus);
     public UsageType UsageType { get; set; }
+    public string UsageTypeDisplay => EnumHelper.GetDisplayName(UsageType);
     public RunningStatus RunningStatus { get; set; }  // 物化存储
+    public string RunningStatusDisplay => EnumHelper.GetDisplayName(RunningStatus);
 
     public DateTimeOffset CreatedTime { get; set; }
     public DateTimeOffset UpdatedTime { get; set; }

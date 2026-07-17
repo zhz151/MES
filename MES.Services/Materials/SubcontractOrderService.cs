@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs.Auth;
@@ -308,7 +310,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                     SupplierId = request.SupplierId,
                     SupplierName = supplierName,
                     OrderDate = request.OrderDate,
-                    ProcessType = request.ProcessType.ToString(),
+                    ProcessType = "Piercing",
                     FurnaceNumber = request.FurnaceNumber,
                     OutMaterialCategory = request.OutMaterialCategory.ToString(),
                     OutPlantGrade = request.OutPlantGrade,
@@ -408,7 +410,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                 .Where(s => s.Id == request.SupplierId)
                 .Select(s => s.SupplierName)
                 .FirstOrDefaultAsync();
-            entity.ProcessType = request.ProcessType.ToString();
+            entity.ProcessType = "Piercing";
             entity.FurnaceNumber = request.FurnaceNumber ?? entity.FurnaceNumber;
             entity.OutMaterialCategory = request.OutMaterialCategory.ToString();
             entity.OutPlantGrade = request.OutPlantGrade;
@@ -745,6 +747,260 @@ public class SubcontractOrderService : ISubcontractOrderService
         }) ?? new Dictionary<string, List<string>>();
     }
 
+    // ========== 子项执行查询 ==========
+
+    public async Task<PagedResult<SubcontractReturnItemListDto>> GetReturnItemListAsync(QueryParams query, string? status = null)
+    {
+        var queryable = _context.SubcontractReturnItems
+            .AsNoTracking()
+            .AsQueryable();
+
+        // 关键字搜索（SQL 层保留，减少加载量）
+        if (!string.IsNullOrEmpty(query.Keyword))
+        {
+            var kw = query.Keyword;
+            queryable = queryable.Where(i =>
+                (i.OrderNo != null && i.OrderNo.Contains(kw)) ||
+                (i.SourceWorkOrderNo != null && i.SourceWorkOrderNo.Contains(kw)) ||
+                (i.SubcontractOrder.SupplierName != null && i.SubcontractOrder.SupplierName.Contains(kw)) ||
+                (i.PlantGrade != null && i.PlantGrade.Contains(kw)) ||
+                i.ProcessSpecification.Contains(kw));
+        }
+
+        // 状态筛选（SQL 层保留）
+        if (!string.IsNullOrEmpty(status))
+            queryable = queryable.Where(i => i.ProcessStatus == status);
+
+        // 全量加载到内存，后续筛选/排序/分页均在内存中完成
+        var allItems = await queryable
+            .Select(i => new SubcontractReturnItemListDto
+            {
+                Id = i.Id,
+                SubcontractOrderId = i.SubcontractOrderId,
+                OrderNo = i.OrderNo ?? i.SubcontractOrder.OrderNo,
+                SupplierName = i.SubcontractOrder.SupplierName,
+                SourceWorkOrderNo = i.SourceWorkOrderNo,
+                PlantGrade = i.PlantGrade,
+                ProcessSpecification = i.ProcessSpecification,
+                UnitWeight = i.UnitWeight,
+                RequiredQuantity = i.RequiredQuantity,
+                RequiredWeight = i.RequiredWeight,
+                ReturnDeadline = i.SubcontractOrder.ReturnDeadline,
+                ReturnedQuantity = i.ReturnedQuantity,
+                ReturnedWeight = i.ReturnedWeight,
+                ProcessStatus = i.ProcessStatus
+            })
+            .ToListAsync();
+
+        // 内存筛选 — 支持所有 DTO 属性（包括跨表字段如 OrderNo、ReturnDeadline）
+        if (query.Filters?.Count > 0)
+        {
+            var dtoType = typeof(SubcontractReturnItemListDto);
+            foreach (var filter in query.Filters)
+            {
+                var prop = dtoType.GetProperty(filter.Field, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                if (prop == null) continue;
+
+                var op = filter.Operator ?? "contains";
+                if (op == "in" && filter.Values?.Count > 0)
+                {
+                    var filterValues = filter.Values;
+                    allItems = allItems.Where(item =>
+                    {
+                        var val = prop.GetValue(item);
+                        if (val == null) return false;
+                        return filterValues.Contains(FormatFilterValue(val), StringComparer.OrdinalIgnoreCase);
+                    }).ToList();
+                }
+                else if (op == "contains" && !string.IsNullOrEmpty(filter.Value))
+                {
+                    var fv = filter.Value;
+                    allItems = allItems.Where(item =>
+                    {
+                        var val = prop.GetValue(item);
+                        if (val == null) return false;
+                        return val.ToString()?.Contains(fv, StringComparison.OrdinalIgnoreCase) == true;
+                    }).ToList();
+                }
+                else if (op == "equals" && !string.IsNullOrEmpty(filter.Value))
+                {
+                    var fv = filter.Value;
+                    allItems = allItems.Where(item =>
+                    {
+                        var val = prop.GetValue(item);
+                        if (val == null) return false;
+                        return string.Equals(FormatFilterValue(val), fv, StringComparison.OrdinalIgnoreCase);
+                    }).ToList();
+                }
+                else if (op == "range")
+                {
+                    allItems = allItems.Where(item =>
+                    {
+                        var val = prop.GetValue(item);
+                        if (val is DateTime dtVal)
+                        {
+                            if (filter.From is DateTime fromDt && dtVal < fromDt) return false;
+                            if (filter.To is DateTime toDt && dtVal > toDt) return false;
+                        }
+                        return true;
+                    }).ToList();
+                }
+            }
+        }
+
+        // 内存排序
+        var sorted = (query.SortBy?.ToLower(), query.IsDescending) switch
+        {
+            ("orderno", true) => allItems.OrderByDescending(i => i.OrderNo ?? ""),
+            ("orderno", false) => allItems.OrderBy(i => i.OrderNo ?? ""),
+            ("suppliername", true) => allItems.OrderByDescending(i => i.SupplierName ?? ""),
+            ("suppliername", false) => allItems.OrderBy(i => i.SupplierName ?? ""),
+            ("sourceworkorderno", true) => allItems.OrderByDescending(i => i.SourceWorkOrderNo ?? ""),
+            ("sourceworkorderno", false) => allItems.OrderBy(i => i.SourceWorkOrderNo ?? ""),
+            ("plantgrade", true) => allItems.OrderByDescending(i => i.PlantGrade ?? ""),
+            ("plantgrade", false) => allItems.OrderBy(i => i.PlantGrade ?? ""),
+            ("processspecification", true) => allItems.OrderByDescending(i => i.ProcessSpecification),
+            ("processspecification", false) => allItems.OrderBy(i => i.ProcessSpecification),
+            ("requiredquantity", true) => allItems.OrderByDescending(i => i.RequiredQuantity),
+            ("requiredquantity", false) => allItems.OrderBy(i => i.RequiredQuantity),
+            ("requiredweight", true) => allItems.OrderByDescending(i => i.RequiredWeight),
+            ("requiredweight", false) => allItems.OrderBy(i => i.RequiredWeight),
+            ("returndeadline", true) => allItems.OrderByDescending(i => i.ReturnDeadline),
+            ("returndeadline", false) => allItems.OrderBy(i => i.ReturnDeadline),
+            ("returnedquantity", true) => allItems.OrderByDescending(i => i.ReturnedQuantity),
+            ("returnedquantity", false) => allItems.OrderBy(i => i.ReturnedQuantity),
+            ("returnedweight", true) => allItems.OrderByDescending(i => i.ReturnedWeight),
+            ("returnedweight", false) => allItems.OrderBy(i => i.ReturnedWeight),
+            ("processstatus", true) => allItems.OrderByDescending(i => i.ProcessStatus),
+            ("processstatus", false) => allItems.OrderBy(i => i.ProcessStatus),
+            _ => allItems.OrderByDescending(i => i.Id)
+        };
+
+        var totalCount = sorted.Count();
+        var items = sorted.Skip(query.Skip).Take(query.PageSize).ToList();
+
+        return new PagedResult<SubcontractReturnItemListDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
+    }
+
+    private static string FormatFilterValue(object val)
+    {
+        return val switch
+        {
+            DateTime dt => dt.ToString("yyyy-MM-dd"),
+            DateTimeOffset dto => dto.ToString("yyyy-MM-dd"),
+            _ => val.ToString() ?? ""
+        };
+    }
+
+    public async Task<Dictionary<string, List<string>>> GetReturnItemFilterContextsAsync()
+    {
+        return await _cache.GetOrCreateAsync("SubcontractOrderService:ReturnItemFilterContexts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+
+            var all = await _context.SubcontractReturnItems
+                .AsNoTracking()
+                .Select(i => new
+                {
+                    i.OrderNo,
+                    i.SourceWorkOrderNo,
+                    i.PlantGrade,
+                    i.ProcessSpecification,
+                    i.ProcessStatus,
+                    SupplierName = i.SubcontractOrder.SupplierName,
+                    ParentOrderNo = i.SubcontractOrder.OrderNo,
+                    ReturnDeadline = i.SubcontractOrder.ReturnDeadline
+                })
+                .ToListAsync();
+
+            return new Dictionary<string, List<string>>
+            {
+                ["OrderNo"] = all.Where(x => x.OrderNo != null || x.ParentOrderNo != null)
+                    .Select(x => x.OrderNo ?? x.ParentOrderNo!).Distinct().OrderBy(x => x).ToList(),
+                ["SourceWorkOrderNo"] = all.Where(x => x.SourceWorkOrderNo != null).Select(x => x.SourceWorkOrderNo!).Distinct().OrderBy(x => x).ToList(),
+                ["SupplierName"] = all.Where(x => x.SupplierName != null).Select(x => x.SupplierName!).Distinct().OrderBy(x => x).ToList(),
+                ["PlantGrade"] = all.Where(x => x.PlantGrade != null).Select(x => x.PlantGrade!).Distinct().OrderBy(x => x).ToList(),
+                ["ProcessSpecification"] = all.Select(x => x.ProcessSpecification).Distinct().OrderBy(x => x).ToList(),
+                ["ProcessStatus"] = all.Select(x => x.ProcessStatus).Distinct().OrderBy(x => x).ToList(),
+                ["ReturnDeadline"] = all.Where(x => x.ReturnDeadline != null)
+                    .Select(x => x.ReturnDeadline!.Value.ToString("yyyy-MM-dd"))
+                    .Distinct().OrderBy(x => x).ToList(),
+            };
+        }) ?? new Dictionary<string, List<string>>();
+    }
+
+    public async Task<byte[]> PrintReturnItemListAsync(string? keyword, string? sortBy, bool isDescending, string? status, string? filters, List<PrintColumnDef>? columns)
+    {
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 10000,
+            Keyword = keyword,
+            SortBy = sortBy ?? "Id",
+            IsDescending = isDescending
+        };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
+
+        var result = await GetReturnItemListAsync(query, status);
+
+        var resolvers = new Dictionary<string, Func<object?, string>>
+        {
+            ["ProcessStatus"] = v => v is string ps
+                ? (EnumHelper.TryParse<SubcontractOrderStatus>(ps) is { } parsed
+                    ? EnumHelper.GetDisplayName(parsed)
+                    : ps)
+                : "-"
+        };
+
+        return TablePrintHelper.GeneratePdf("子项查询", result.Items, columns ?? new List<PrintColumnDef>(), resolvers);
+    }
+
+    public async Task<byte[]> PrintReturnItemSelectedAsync(int[] ids, List<PrintColumnDef>? columns)
+    {
+        var items = await _context.SubcontractReturnItems
+            .AsNoTracking()
+            .Where(i => ids.Contains(i.Id))
+            .Select(i => new SubcontractReturnItemListDto
+            {
+                Id = i.Id,
+                SubcontractOrderId = i.SubcontractOrderId,
+                OrderNo = i.OrderNo ?? i.SubcontractOrder.OrderNo,
+                SupplierName = i.SubcontractOrder.SupplierName,
+                SourceWorkOrderNo = i.SourceWorkOrderNo,
+                PlantGrade = i.PlantGrade,
+                ProcessSpecification = i.ProcessSpecification,
+                UnitWeight = i.UnitWeight,
+                RequiredQuantity = i.RequiredQuantity,
+                RequiredWeight = i.RequiredWeight,
+                ReturnDeadline = i.SubcontractOrder.ReturnDeadline,
+                ReturnedQuantity = i.ReturnedQuantity,
+                ReturnedWeight = i.ReturnedWeight,
+                ProcessStatus = i.ProcessStatus
+            })
+            .ToListAsync();
+
+        var resolvers = new Dictionary<string, Func<object?, string>>
+        {
+            ["ProcessStatus"] = v => v is string ps
+                ? (EnumHelper.TryParse<SubcontractOrderStatus>(ps) is { } parsed
+                    ? EnumHelper.GetDisplayName(parsed)
+                    : ps)
+                : "-"
+        };
+
+        return TablePrintHelper.GeneratePdf("子项查询", items, columns ?? new List<PrintColumnDef>(), resolvers);
+    }
+
     // ========== 打印 ==========
 
     public async Task<byte[]> PrintOrderAsync(int id)
@@ -877,7 +1133,7 @@ public class SubcontractOrderService : ISubcontractOrderService
         Status = entity.Status,
         IsForceCompleted = entity.IsForceCompleted,
         FurnaceNumber = entity.FurnaceNumber,
-        ProcessType = Enum.TryParse<SubcontractProcessType>(entity.ProcessType, out var pt) ? pt : default,
+        ProcessType = entity.ProcessType ?? "Piercing",
         OutMaterialCategory = !string.IsNullOrEmpty(entity.OutMaterialCategory) && Enum.TryParse<MaterialType>(entity.OutMaterialCategory, out var category) ? category : default,
         OutPlantGrade = entity.OutPlantGrade,
         OutSpecification = entity.OutSpecification,

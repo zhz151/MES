@@ -1,4 +1,6 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
+
 namespace MES.Core.DTOs.Materials;
 
 public class MaterialDto
@@ -6,6 +8,7 @@ public class MaterialDto
     public int Id { get; set; }
     public string MaterialCode { get; set; } = null!;
     public MaterialType MaterialCategory { get; set; }
+    public string MaterialCategoryDisplay => EnumHelper.GetDisplayName(MaterialCategory);
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public bool IsActive { get; set; }

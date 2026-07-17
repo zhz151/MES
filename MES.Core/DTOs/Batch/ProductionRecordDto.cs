@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 namespace MES.Core.DTOs.Batch;
 
 // ========== 内部生产记录 ==========
@@ -22,6 +23,7 @@ public class ProductionRecordDto
     public string? EquipmentName { get; set; }
     public string? Operator { get; set; }
     public ShiftType? Shift { get; set; }
+    public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
 

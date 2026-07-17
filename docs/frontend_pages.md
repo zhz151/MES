@@ -79,7 +79,6 @@
 │  WorkOrderInProcessReworkPlanCreate.razor /workorders/{id}/in-process-rework-plan/edit/{PlanId:int} │
 │                                                           │
 │  MaterialPlanOverview.razor /material-plan-overview [列表页]│
-│  WorkOrderOverview.razor    /workorder-overview    [只读聚合]│
 │                                                           │
 │  WorkOrderExecution.razor         /workorder-execution            [列表页]  │
 │                                                           │
@@ -183,7 +182,6 @@
 │  Ncrs.razor                      /quality/ncr                      [列表页+分页汇总]│
 │  NcrForm.razor                   /quality/ncr/create               [创建页]       │
 │  NcrForm.razor                   /quality/ncr/{Id:int}             [详情页]       │
-│  NcrPrint.razor                  /quality/ncr/print/{Id:int}      [打印页]       │
 │                                                           │
 │  --- 理化检测模块（V7.0 新增） ---                          │
 │  ChemicalAnalyses.razor          /quality/chemical-analysis    [列表页]      │
@@ -451,7 +449,6 @@
 | 3 | GradeMappings.razor | /grade-mappings | 生产标准 | | |
 | 4 | WorkOrders.razor | /workorders | 工单 | ✅ | |
 | 5 | MaterialPlanOverview.razor | /material-plan-overview | 工单 | | |
-| 6 | WorkOrderOverview.razor | /workorder-overview | 工单 | | 工单概况只读聚合 |
 | 7 | **Batches.razor** | /batches | 批次 | | ✅ 已过规范检查 |
 | 7 | **ProductionRecords.razor** | /production-records | 批次 | | 列分组4组（G1执行信息/G2产出数据/G3工艺参数/G4追溯信息）+ ExcelFilter + 内联编辑 + 分组标题栏 |
 | 8 | **SectionOutsources.razor** | /section-outsources | 批次 | | |
@@ -478,7 +475,6 @@
 | 29 | WorkOrderExecution.razor | /workorder-execution | 工单 | | ✅ 已过规范检查。列分组14组(G1-G14) + 复选框选择列 + 打印选中+打印全部 + 分组标题栏 + 底部聚合行 |
 | 30 | QualityProcessTracking.razor | /quality/process-tracking | 质量 | | 只读列表 |
 | 31 | Ncrs.razor | /quality/ncr | 质量 | | 列表页+分页汇总 |
-| 31b | NcrPrint.razor | /quality/ncr/print/{Id:int} | 质量 | | NCR 报告打印页 |
 | 32 | OrderDemandAdjustment.razor | /order-demand-adjustment | 工单 | ✅ | 内联编辑催单/分批/暂停开关及调整备注 |
 | 33 | RawMaterialLockPlanAndExecution.razor | /raw-material-lock-plan | 计划排程 | ✅ | 汇总栏（工单总数/成品在购/待投料 + 紧急性5档分解 + 预执行(外购/投料) 区分）+ G15 预执行 MudSwitch 内联编辑 + BudgetInputDate 日期输入 + 主号齐全系统计算（LEFT JOIN 实时查询，无计划安排按钮） |
 | 34 | StandardWorkDays.razor | /standard-work-days | 配置 | ✅ | 查改一体表 |

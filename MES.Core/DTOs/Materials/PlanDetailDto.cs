@@ -1,3 +1,6 @@
+using MES.Core.Enums;
+using MES.Core.Helpers;
+
 namespace MES.Core.DTOs.Materials;
 
 /// <summary>
@@ -14,6 +17,11 @@ public class PlanDetailDto
     /// 物料分类（MaterialType 枚举名）
     /// </summary>
     public string MaterialCategory { get; set; } = null!;
+
+    /// <summary>
+    /// 物料分类中文名
+    /// </summary>
+    public string MaterialCategoryDisplay => EnumHelper.GetDisplayName<MaterialType>(MaterialCategory);
 
     /// <summary>
     /// 工厂牌号

@@ -193,6 +193,15 @@ public partial class Materials
             }
         }
 
+        // MaterialCategory 列显示中文（服务端返回的是枚举名，需转为中文）
+        if (_filterContextOptions.TryGetValue("MaterialCategory", out var materialCatOptions))
+        {
+            foreach (var opt in materialCatOptions)
+            {
+                opt.Display = DisplayHelper.GetMaterialTypeText(opt.Value);
+            }
+        }
+
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
         foreach (var col in _allColumns)
         {
@@ -476,7 +485,7 @@ public partial class Materials
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除物料 \"{item.MaterialCategory}/{item.PlantGrade}/{item.Specification}\" 吗？\n\n删除后数据将不可恢复！",
+            ["ContentText"] = $"确定要删除物料 \"{DisplayHelper.GetMaterialTypeText(item.MaterialCategory)}/{item.PlantGrade}/{item.Specification}\" 吗？\n\n删除后数据将不可恢复！",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });

@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Configuration;
 
@@ -13,5 +14,6 @@ public class WorkstationDto
     public string? EquipmentName { get; set; }
     public string SectionName { get; set; } = null!;
     public ReportTemplateType ReportType { get; set; }
+    public string ReportTypeDisplay => EnumHelper.GetDisplayName(ReportType);
     public bool IsActive { get; set; } = true;
 }

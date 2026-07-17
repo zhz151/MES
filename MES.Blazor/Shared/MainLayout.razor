@@ -103,7 +103,10 @@
             <AuthorizeView Roles="@Roles.Policies.MaterialRead">
                 <MudNavGroup Title="物料管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/purchase-orders">采购订单</MudNavLink>
-                    <MudNavLink Href="/subcontract-orders">圆棒穿孔</MudNavLink>
+                    <MudNavGroup Title="圆棒穿孔" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                        <MudNavLink Href="/subcontract-orders">圆棒穿孔</MudNavLink>
+                        <MudNavLink Href="/subcontract-return-items">子项查询</MudNavLink>
+                    </MudNavGroup>
                     <MudNavLink Href="/suppliers">供应商管理</MudNavLink>
                     <MudNavLink Href="/materials">物料档案</MudNavLink>
                 </MudNavGroup>

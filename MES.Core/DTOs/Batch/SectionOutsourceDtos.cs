@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 namespace MES.Core.DTOs.Batch;
 
 // ========== 工段委外（SectionOutsource）==========
@@ -38,6 +39,7 @@ public class SectionOutsourceDto
     public decimal? SendWeight { get; set; }
     /// <summary>状态（PendingRecovery=待回收, Recovered=已回收）</summary>
     public SectionOutsourceStatus Status { get; set; }
+    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
     /// <summary>挂牌号</summary>
     public string? TagNo { get; set; }
     /// <summary>工厂牌号</summary>

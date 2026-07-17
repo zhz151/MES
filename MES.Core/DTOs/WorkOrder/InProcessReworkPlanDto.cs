@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.WorkOrder;
 
@@ -17,14 +18,17 @@ public class InProcessReworkPlanDto
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
+    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public int InputMultiple { get; set; }
     public int? UsedQuantity { get; set; }
     public decimal UsedWeight { get; set; }
     public DateTime? RequiredDate { get; set; }
     public InventoryPlanStatus PlanStatus { get; set; }
+    public string PlanStatusDisplay => EnumHelper.GetDisplayName(PlanStatus);
     public string PlanStatusText { get; set; } = null!;
     public string? Remark { get; set; }
     public ReworkType ReworkType { get; set; }
+    public string ReworkTypeDisplay => EnumHelper.GetDisplayName(ReworkType);
     public string ReworkTypeText { get; set; } = null!;
     public int StandardCycle { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
@@ -86,6 +90,7 @@ public class AvailableInProcessBatchDto
     public string? ProductionType { get; set; }
     /// <summary>制造物品</summary>
     public MaterialType ManufacturingItem { get; set; }
+    public string ManufacturingItemDisplay => EnumHelper.GetDisplayName(ManufacturingItem);
     /// <summary>当前工序</summary>
     public string? CurrentGroupName { get; set; }
     /// <summary>当前工段</summary>

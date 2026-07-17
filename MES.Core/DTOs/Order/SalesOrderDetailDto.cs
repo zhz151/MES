@@ -1,5 +1,6 @@
 // 文件路径: MES.Core/DTOs/SalesOrderDetailDto.cs
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Order;
 
@@ -42,6 +43,11 @@ public class SalesOrderDetailDto
     /// 订单状态（枚举值，用于逻辑判断）
     /// </summary>
     public SalesOrderStatus Status { get; set; }
+
+    /// <summary>
+    /// 订单状态中文显示
+    /// </summary>
+    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
 
     /// <summary>
     /// 乐观并发控制版本号

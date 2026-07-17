@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Order;
 
@@ -75,6 +76,11 @@ public class WorkOrderRelationDto
     public WorkOrderStatus Status { get; set; }
 
     /// <summary>
+    /// 工单状态中文显示
+    /// </summary>
+    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
+
+    /// <summary>
     /// 工单状态文本
     /// </summary>
     public string StatusText { get; set; } = null!;
@@ -125,9 +131,19 @@ public class WorkOrderRelationDto
     public DeliveryState DeliveryState { get; set; }
 
     /// <summary>
+    /// 交货状态中文显示
+    /// </summary>
+    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
+
+    /// <summary>
     /// 长度状态
     /// </summary>
     public LengthStatus LengthStatus { get; set; }
+
+    /// <summary>
+    /// 长度状态中文显示
+    /// </summary>
+    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
 
     /// <summary>
     /// 交货日期
@@ -174,6 +190,11 @@ public class OrderItemBriefDto
     /// 长度状态
     /// </summary>
     public LengthStatus LengthStatus { get; set; }
+
+    /// <summary>
+    /// 长度状态中文显示
+    /// </summary>
+    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
 
     /// <summary>
     /// 最小长度(mm)

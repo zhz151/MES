@@ -1,6 +1,7 @@
 // 文件路径: MES.Core/DTOs/OrderWorkOrderStatusDto.cs
 
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Order;
 
@@ -73,6 +74,11 @@ public class OrderWorkOrderStatusDto
     /// 工单状态
     /// </summary>
     public WorkOrderStatus WorkOrderStatus { get; set; }
+
+    /// <summary>
+    /// 工单状态中文显示
+    /// </summary>
+    public string WorkOrderStatusDisplay => EnumHelper.GetDisplayName(WorkOrderStatus);
 
     /// <summary>
     /// 工单状态文本

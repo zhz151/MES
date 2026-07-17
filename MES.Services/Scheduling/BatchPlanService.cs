@@ -767,15 +767,6 @@ public class BatchPlanService : IBatchPlanService
 
                 // ====== 目标序（必须在 IsKeyBatch 之后，因为 FlowTarget 的 _trigger 依赖 IsKeyBatch） ======
                 item.TargetSequence = ComputeTargetSequence(pgs, item.FlowTarget, item.FlowCRType);
-
-                // TEMP-DEBUG
-                var dbgUrgent = item.UrgencyLevel is "A+急" or "A急";
-                var dbgNormal = item.ProductionFlowProperty == "正常";
-                var dbgSeq = item.AttentionProcessSectionSequence;
-                var dbgExec = item.ExecutionSequence;
-                var dbgKey = item.IsKeyBatch;
-                var wo = item.WorkOrderNo ?? "";
-                item.DebugInfo = $"WO={wo}|Urgent={dbgUrgent}|Normal={dbgNormal}|AttnProc={item.MainNoAttentionProcess}|AttnSeq={dbgSeq}|ExecSeq={dbgExec}|Key={dbgKey}";
             }
         }
 

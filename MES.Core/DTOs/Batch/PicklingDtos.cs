@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 namespace MES.Core.DTOs.Batch;
 
 // ========== 入缸记录（PicklingInRecord）==========
@@ -30,6 +31,7 @@ public class PicklingInRecordDto
     public DateTime InDate { get; set; }
     /// <summary>状态（Soaking=浸泡中, Completed=已完工）</summary>
     public PicklingStatus Status { get; set; }
+    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
 
     /// <summary>设备名称</summary>
     public string? EquipmentName { get; set; }
@@ -37,6 +39,7 @@ public class PicklingInRecordDto
     public string? Operator { get; set; }
     /// <summary>班次</summary>
     public ShiftType? Shift { get; set; }
+    public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
     /// <summary>加工数量（支数）</summary>
     public int? Quantity { get; set; }
     /// <summary>加工重量(kg)</summary>
@@ -157,6 +160,7 @@ public class PicklingOutRecordDto
     public string? EquipmentName { get; set; }
     public string? Operator { get; set; }
     public ShiftType? Shift { get; set; }
+    public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
     public string? ProductStatus { get; set; }

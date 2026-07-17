@@ -56,6 +56,7 @@ public static class ApiEndpoints
     public const string Material = "api/material";
     public const string PurchaseOrder = "api/purchase-order";
     public const string Subcontract = "api/subcontract";
+    public const string SubcontractReturnItem = "api/subcontract/return-items";
     public const string Supplier = "api/supplier";
 
     // ===== Warehouse 仓库 =====

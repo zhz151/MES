@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Warehouse;
 
@@ -15,11 +16,13 @@ public class InventoryBatchDto
 
     // 物料
     public MaterialType MaterialType { get; set; }
+    public string MaterialTypeDisplay => EnumHelper.GetDisplayName(MaterialType);
     public string PlantGrade { get; set; } = string.Empty;
     public string Specification { get; set; } = string.Empty;
 
     // 来源
     public InboundSource InboundSource { get; set; }
+    public string InboundSourceDisplay => EnumHelper.GetDisplayName(InboundSource);
     public string SourceName { get; set; } = string.Empty;
     public DateTime InboundDate { get; set; }
 

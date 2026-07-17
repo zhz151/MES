@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Batch;
 
@@ -18,7 +19,9 @@ public class ProductionBatchListDto
     public string? ProductionSubNo { get; set; }
     public string? ProductionType { get; set; }
     public MaterialType ManufacturingItem { get; set; }
+    public string ManufacturingItemDisplay => EnumHelper.GetDisplayName(ManufacturingItem);
     public BatchStatus Status { get; set; }
+    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
     public int ProductionRatio { get; set; }
     public DateTime? CurrentExecDate { get; set; }
     public string? CurrentGroupName { get; set; }
@@ -44,11 +47,14 @@ public class ProductionBatchListDto
     public bool DelayPenalty { get; set; }
     public string MaterialName { get; set; } = null!;
     public SettlementMethod SettlementMethod { get; set; }
+    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
     public string StandardCode { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
+    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
+    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public int TotalQuantity { get; set; }
     public decimal TotalMeters { get; set; }
     public decimal TotalWeight { get; set; }
@@ -69,6 +75,7 @@ public class ProductionBatchListDto
     public string? SolutionParams { get; set; }
     public string? QualityRemark { get; set; }
     public MaterialType? SourceMaterialType { get; set; }
+    public string? SourceMaterialTypeDisplay => SourceMaterialType.HasValue ? EnumHelper.GetDisplayName(SourceMaterialType.Value) : null;
     public string? SourceName { get; set; }
     public DateTime? InboundDate { get; set; }
 }

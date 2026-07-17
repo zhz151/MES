@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Scheduling;
 
@@ -21,6 +22,7 @@ public class FinalInspectionPlanDto
     public DateTime? DeliveryDate { get; set; }        // 交货日期
     public string? Specification { get; set; }         // 成品规格
     public LengthStatus? LengthStatus { get; set; }
+    public string? LengthStatusDisplay => LengthStatus.HasValue ? EnumHelper.GetDisplayName(LengthStatus.Value) : null;
     public decimal? MinLength { get; set; }            // 最小长度
     public decimal? MaxLength { get; set; }            // 最大长度
 

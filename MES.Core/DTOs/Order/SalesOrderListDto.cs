@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Order;
 
@@ -66,6 +67,11 @@ public class SalesOrderListDto
     /// 订单状态
     /// </summary>
     public SalesOrderStatus Status { get; set; }
+
+    /// <summary>
+    /// 订单状态中文显示
+    /// </summary>
+    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
 
     /// <summary>
     /// 乐观并发控制版本号

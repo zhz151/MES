@@ -1,5 +1,6 @@
 // 文件路径: MES.Core/DTOs/OrderItemDto.cs
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Order;
 
@@ -34,9 +35,19 @@ public class OrderItemDto
     public SettlementMethod SettlementMethod { get; set; }
 
     /// <summary>
+    /// 结算方式中文显示
+    /// </summary>
+    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
+
+    /// <summary>
     /// 钢管制造类别
     /// </summary>
     public PipeManufacturingType PipeManufacturingType { get; set; }
+
+    /// <summary>
+    /// 钢管制造类别中文显示
+    /// </summary>
+    public string PipeManufacturingTypeDisplay => EnumHelper.GetDisplayName(PipeManufacturingType);
 
     /// <summary>
     /// 标准号（用于前端显示）
@@ -47,6 +58,11 @@ public class OrderItemDto
     /// 交货状态
     /// </summary>
     public DeliveryState DeliveryState { get; set; }
+
+    /// <summary>
+    /// 交货状态中文显示
+    /// </summary>
+    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
 
     /// <summary>
     /// 标准牌号
@@ -102,6 +118,11 @@ public class OrderItemDto
     /// 长度状态
     /// </summary>
     public LengthStatus LengthStatus { get; set; }
+
+    /// <summary>
+    /// 长度状态中文显示
+    /// </summary>
+    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
 
     /// <summary>
     /// 最小长度(mm)

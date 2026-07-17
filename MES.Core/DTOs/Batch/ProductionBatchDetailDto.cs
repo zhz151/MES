@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Batch;
 
@@ -11,9 +12,11 @@ public class ProductionBatchDetailDto
     public int Id { get; set; }
     public string BatchNo { get; set; } = null!;
     public BatchStatus Status { get; set; }
+    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
     public string? TagNo { get; set; }
     public string? ProductionType { get; set; }
     public MaterialType ManufacturingItem { get; set; }
+    public string ManufacturingItemDisplay => EnumHelper.GetDisplayName(ManufacturingItem);
     public int ProductionRatio { get; set; }
     public bool IsForceCompleted { get; set; }
     public string? QualityRemark { get; set; }
@@ -45,8 +48,10 @@ public class ProductionBatchDetailDto
     public bool DelayPenalty { get; set; }
     public string MaterialName { get; set; } = null!;
     public SettlementMethod SettlementMethod { get; set; }
+    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
     public string StandardCode { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
+    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public decimal OuterDiameterNegative { get; set; }
@@ -54,6 +59,7 @@ public class ProductionBatchDetailDto
     public decimal WallThicknessNegative { get; set; }
     public decimal WallThicknessPositive { get; set; }
     public LengthStatus LengthStatus { get; set; }
+    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalQuantity { get; set; }
@@ -67,7 +73,9 @@ public class ProductionBatchDetailDto
     public string? SourceBatchNo { get; set; }
     public int? WarehouseId { get; set; }
     public MaterialType? SourceMaterialType { get; set; }
+    public string? SourceMaterialTypeDisplay => SourceMaterialType.HasValue ? EnumHelper.GetDisplayName(SourceMaterialType.Value) : null;
     public InboundSource? InboundSource { get; set; }
+    public string? InboundSourceDisplay => InboundSource.HasValue ? EnumHelper.GetDisplayName(InboundSource.Value) : null;
     public string? SourceName { get; set; }
     public DateTime? InboundDate { get; set; }
     public string? SourceHeatNo { get; set; }

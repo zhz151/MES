@@ -1,6 +1,7 @@
 // 文件路径: MES.Core/DTOs/WorkOrderListDto.cs
 
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.WorkOrder;
 
@@ -63,6 +64,7 @@ public class WorkOrderListDto
     /// 结算方式
     /// </summary>
     public SettlementMethod SettlementMethod { get; set; }
+    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
 
     /// <summary>
     /// 工厂牌号
@@ -73,6 +75,7 @@ public class WorkOrderListDto
     /// 物料名称
     /// </summary>
     public PipeManufacturingType PipeManufacturingType { get; set; }
+    public string PipeManufacturingTypeDisplay => EnumHelper.GetDisplayName(PipeManufacturingType);
 
     /// <summary>
     /// 规格
@@ -83,6 +86,7 @@ public class WorkOrderListDto
     /// 长度状态
     /// </summary>
     public LengthStatus LengthStatus { get; set; }
+    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
 
     /// <summary>
     /// 最小长度
@@ -108,6 +112,7 @@ public class WorkOrderListDto
     /// 交货状态
     /// </summary>
     public DeliveryState DeliveryState { get; set; }
+    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
 
     /// <summary>
     /// 总项次数（含项次数）
@@ -118,11 +123,13 @@ public class WorkOrderListDto
     /// 工单状态
     /// </summary>
     public WorkOrderStatus Status { get; set; }
+    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
 
     /// <summary>
     /// 工单用料计划状态
     /// </summary>
     public MaterialPlanStatus MaterialPlanStatus { get; set; }
+    public string MaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MaterialPlanStatus);
 
     /// <summary>
     /// 工单满足率(%)
@@ -133,6 +140,7 @@ public class WorkOrderListDto
     /// 关联主号用料状态（同一订单+主号下所有工单聚合后的状态，使用原始标准不含"理论满足"）
     /// </summary>
     public MaterialPlanStatus MainNoMaterialPlanStatus { get; set; }
+    public string MainNoMaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MainNoMaterialPlanStatus);
 
     /// <summary>
     /// 主号满足率(%)
@@ -143,6 +151,7 @@ public class WorkOrderListDto
     /// 关联订单用料状态（同一订单下所有主号均无"部分"和"未计划"即为全部满足）
     /// </summary>
     public MaterialPlanStatus OrderMaterialPlanStatus { get; set; }
+    public string OrderMaterialPlanStatusDisplay => EnumHelper.GetDisplayName(OrderMaterialPlanStatus);
 
     /// <summary>
     /// 创建时间

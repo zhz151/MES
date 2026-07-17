@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Configuration;
 
@@ -9,6 +10,7 @@ public class StandardWorkDayDeliveryStateDto
 {
     public int Id { get; set; }
     public DeliveryState? DeliveryState { get; set; }
+    public string? DeliveryStateDisplay => DeliveryState.HasValue ? EnumHelper.GetDisplayName(DeliveryState.Value) : null;
     public double ExtraDays { get; set; }
     public string? PlantGradePrefix { get; set; }
     public string? Remark { get; set; }

@@ -87,16 +87,13 @@ public static class TablePrintHelper
 
         container.Table(table =>
         {
-            // 列定义：序号 + 动态列
+            // 列定义：序号（固定）+ 动态列（按比例分配，避免 CSS px 值转 ConstantColumn 溢出）
             table.ColumnsDefinition(columnsDef =>
             {
                 columnsDef.ConstantColumn(28); // 序号
                 foreach (var col in columns)
                 {
-                    if (col.Width is > 0)
-                        columnsDef.ConstantColumn(col.Width.Value);
-                    else
-                        columnsDef.RelativeColumn();
+                    columnsDef.RelativeColumn(col.Width ?? 1); // 用 Width 作为比例权重
                 }
             });
 

@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.WorkOrder;
 
@@ -21,14 +22,17 @@ public class WorkOrderExecutionSummaryDto
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
     public SettlementMethod SettlementMethod { get; set; }
+    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
     public string SalesOrderNo { get; set; } = null!;
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
     public string MaterialName { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
+    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
+    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalItemCount { get; set; }
@@ -40,8 +44,10 @@ public class WorkOrderExecutionSummaryDto
     public DateTime? LatestPlanDate { get; set; }
     public decimal MaterialPlanRate { get; set; }
     public MaterialPlanStatus MaterialPlanStatus { get; set; }
+    public string MaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MaterialPlanStatus);
     public decimal MainNoMaterialPlanRate { get; set; }
     public MaterialPlanStatus MainNoMaterialPlanStatus { get; set; }
+    public string MainNoMaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MainNoMaterialPlanStatus);
 
     /// <summary>工艺周期（天）</summary>
     public int ProcessCycle { get; set; }

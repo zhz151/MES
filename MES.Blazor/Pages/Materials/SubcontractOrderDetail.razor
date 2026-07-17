@@ -179,7 +179,7 @@
     private class EditOrderModel
     {
         public int SupplierId { get; set; }
-        public SubcontractProcessType ProcessType { get; set; }
+        public string ProcessType { get; set; } = "Piercing";
         public string? FurnaceNumber { get; set; }
         public MaterialType OutMaterialCategory { get; set; }
         public string OutPlantGrade { get; set; } = string.Empty;
@@ -651,28 +651,14 @@
             case "processtype":
                 if (_isEditMode)
                 {
-                    builder.OpenComponent<MudSelect<string>>(0);
-                    builder.AddAttribute(1, "Value", _editOrder.ProcessType.ToString());
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => _editOrder.ProcessType = string.IsNullOrEmpty(v) ? default : Enum.Parse<SubcontractProcessType>(v)));
-                    builder.AddAttribute(3, "Dense", true);
-                    builder.AddAttribute(4, "Variant", Variant.Outlined);
-                    builder.AddAttribute(5, "Size", Size.Small);
-                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
-                    {
-                        foreach (var val in Enum.GetValues<SubcontractProcessType>())
-                        {
-                            var enumName = val.ToString();
-                            b2.OpenComponent<MudSelectItem<string>>(0);
-                            b2.AddAttribute(1, "Value", enumName);
-                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetSubcontractProcessTypeText(val))));
-                            b2.CloseComponent();
-                        }
-                    }));
+                    builder.OpenComponent<MudText>(0);
+                    builder.AddAttribute(1, "Typo", Typo.body2);
+                    builder.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "穿孔")));
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.GetSubcontractProcessTypeText(item.ProcessType));
+                    builder.AddContent(0, "穿孔");
                 }
                 break;
             case "status":

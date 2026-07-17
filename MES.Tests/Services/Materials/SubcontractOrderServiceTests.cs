@@ -79,7 +79,7 @@ public class SubcontractOrderServiceTests : TestBase
             SupplierName = supplierName,
             OrderDate = orderDate ?? DateTime.Today,
             Status = status,
-            ProcessType = SubcontractProcessType.Threading.ToString(),
+            ProcessType = "Piercing",
             OutMaterialCategory = "RoughTube",
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
@@ -127,7 +127,7 @@ public class SubcontractOrderServiceTests : TestBase
             SupplierId = sid2,
             OrderDate = DateTime.Today,
             Status = SubcontractOrderStatus.Sent,
-            ProcessType = SubcontractProcessType.Threading.ToString(),
+            ProcessType = "Piercing",
             OutMaterialCategory = "RoundBar",
             OutPlantGrade = "304",
             OutSpecification = "273*10",
@@ -190,7 +190,7 @@ public class SubcontractOrderServiceTests : TestBase
         result.OrderNo.Should().Be(order.OrderNo);
         result.SupplierName.Should().Be("委外供应商");
         result.ReturnItems.Should().HaveCount(1);
-        result.ProcessType.Should().Be(SubcontractProcessType.Threading);
+        result.ProcessType.Should().Be("Piercing");
         result.ReturnItems[0].ProcessTotalAmount.Should().Be(1000m);
     }
 
@@ -223,7 +223,7 @@ public class SubcontractOrderServiceTests : TestBase
             OutQuantity = 100,
             OutWeight = 1000m,
             ReturnDeadline = DateTime.Today.AddDays(60),
-            ProcessType = SubcontractProcessType.Threading,
+            ProcessType = "Piercing",
             ReturnItems = new List<MES.Core.DTOs.Materials.CreateReturnItemRequest>
             {
                 new()
@@ -240,7 +240,7 @@ public class SubcontractOrderServiceTests : TestBase
         result.Should().NotBeNull();
         result.OrderNo.Should().StartWith("WW" + DateTime.Now.ToString("yyMMdd"));
         result.ReturnItems.Should().HaveCount(1);
-        result.ProcessType.Should().Be(SubcontractProcessType.Threading);
+        result.ProcessType.Should().Be("Piercing");
         result.ReturnItems[0].ProcessTotalAmount.Should().Be(1000m);
 
         var saved = await ctx.SubcontractOrders.Include(s => s.ReturnItems).FirstAsync(s => s.OrderNo == result.OrderNo);
@@ -258,7 +258,7 @@ public class SubcontractOrderServiceTests : TestBase
         {
             SupplierId = sid,
             OrderDate = DateTime.Today,
-            ProcessType = SubcontractProcessType.Threading,
+            ProcessType = "Piercing",
             OutMaterialCategory = MaterialType.RoughTube,
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
@@ -283,7 +283,7 @@ public class SubcontractOrderServiceTests : TestBase
         var result = await svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
         {
             SupplierId = sid,
-            ProcessType = SubcontractProcessType.Polishing,
+            ProcessType = "Piercing",
             OutMaterialCategory = MaterialType.RoundBar,
             OutPlantGrade = "304",
             OutSpecification = "273*10",
@@ -328,7 +328,7 @@ public class SubcontractOrderServiceTests : TestBase
         var act = () => svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
         {
             SupplierId = sid,
-            ProcessType = SubcontractProcessType.Threading,
+            ProcessType = "Piercing",
             OutMaterialCategory = MaterialType.RoughTube,
             OutPlantGrade = "20#",
             OutSpecification = "219*8",
@@ -349,14 +349,14 @@ public class SubcontractOrderServiceTests : TestBase
         var order = await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Completed);
         // 先确认种子数据
         ctx.Entry(order).Reload();
-        order.ProcessType.Should().Be("Threading", because: "种子数据默认ProcessType为Threading");
+        order.ProcessType.Should().Be("Piercing", because: "种子数据默认ProcessType为Piercing");
         var svc = CreateService(ctx);
 
         // 已完成状态：UpdateAsync应跳过主表字段，只允许改ReturnItems.SourceWorkOrderNo
         await svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
         {
             SupplierId = sid,
-            ProcessType = SubcontractProcessType.Polishing, // 请求中试图修改，但已完成状态不应生效
+            ProcessType = "Piercing", // 请求中试图修改，但已完成状态不应生效
             OutMaterialCategory = MaterialType.RoundBar,
             OutPlantGrade = "304",
             OutSpecification = "273*10",
@@ -367,7 +367,7 @@ public class SubcontractOrderServiceTests : TestBase
 
         // 验证主表字段未被修改（仍为种子数据的值）
         var updated = await ctx.SubcontractOrders.FirstAsync(s => s.Id == order.Id);
-        updated.ProcessType.Should().Be("Threading", because: "已完成状态下主表字段不应被修改");
+        updated.ProcessType.Should().Be("Piercing", because: "已完成状态下主表字段不应被修改");
     }
 
     // ========== SyncAllAsync / SyncSingleAsync ==========
@@ -600,7 +600,7 @@ public class SubcontractOrderServiceTests : TestBase
             SupplierId = sid2,
             OrderDate = DateTime.Today,
             Status = SubcontractOrderStatus.Sent,
-            ProcessType = SubcontractProcessType.Polishing.ToString(),
+            ProcessType = "Piercing",
             OutMaterialCategory = "RoughTube",
             OutPlantGrade = "304",
             OutSpecification = "273*10",
@@ -616,12 +616,12 @@ public class SubcontractOrderServiceTests : TestBase
             PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
-                new() { Field = "ProcessType", Operator = "in", Values = new List<string> { "Threading" } }
+                new() { Field = "ProcessType", Operator = "in", Values = new List<string> { "Piercing" } }
             }
         });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].ProcessType.Should().Be(SubcontractProcessType.Threading);
+        result.Items[0].ProcessType.Should().Be("Piercing");
     }
 
     [Fact]
@@ -660,7 +660,7 @@ public class SubcontractOrderServiceTests : TestBase
         contexts.Should().ContainKey("OrderNo");
         contexts["OrderNo"].Should().Contain(order.OrderNo);
         contexts.Should().ContainKey("ProcessType");
-        contexts["ProcessType"].Should().Contain("Threading");
+        contexts["ProcessType"].Should().Contain("Piercing");
         contexts["SupplierName"].Should().Contain("委外供应商A");
     }
 
@@ -688,7 +688,7 @@ public class SubcontractOrderServiceTests : TestBase
             SupplierId = sid,
             OrderDate = DateTime.Today,
             Status = SubcontractOrderStatus.Sent,
-            ProcessType = SubcontractProcessType.Threading.ToString(),
+            ProcessType = "Piercing",
             OutMaterialCategory = "RoughTube",
             OutPlantGrade = "20#",
             OutSpecification = "219*8",

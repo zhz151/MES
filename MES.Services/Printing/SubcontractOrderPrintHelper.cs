@@ -129,7 +129,7 @@ public static class SubcontractOrderPrintHelper
                 row.RelativeItem(1.5f).Text(t =>
                 {
                     t.Span("加工类型：").Bold().FontSize(9);
-                    t.Span(EnumHelper.GetDisplayName(order.ProcessType)).FontSize(9);
+                    t.Span("穿孔").FontSize(9);
                 });
                 row.RelativeItem(1.5f).Text(t =>
                 {

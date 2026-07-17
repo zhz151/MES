@@ -94,9 +94,6 @@
                     {
                         <MudText Typo="Typo.body2">未设置采购支数</MudText>
                     }
-                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" OnClick="SyncSingle" Disabled="@_isSyncing" StartIcon="@Icons.Material.Filled.Sync" Class="ml-4">
-                        即时更新
-                    </MudButton>
                 </div>
             </MudCardContent>
         </MudCard>
@@ -111,7 +108,6 @@
     private bool _isLoading = true;
     private bool _isEditMode;
     private bool _isSubmitting;
-    private bool _isSyncing;
     private bool _editIsForceCompleted;
     private bool _isArrowNavSetup;
 
@@ -387,20 +383,6 @@
             else { Snackbar.Add(result.Message ?? "状态更新失败", Severity.Error); }
         }
         catch (Exception ex) { Snackbar.Add($"状态更新失败: {ex.Message}", Severity.Error); }
-    }
-
-    // ========== 同步到货进度 ==========
-    private async Task SyncSingle()
-    {
-        _isSyncing = true; StateHasChanged();
-        try
-        {
-            var result = await PurchaseService.SyncSingleAsync(Id);
-            if (result.Success) { Snackbar.Add("同步完成", Severity.Success); await LoadData(); }
-            else { Snackbar.Add(result.Message ?? "同步失败", Severity.Error); }
-        }
-        catch (Exception ex) { Snackbar.Add($"同步失败: {ex.Message}", Severity.Error); }
-        finally { _isSyncing = false; StateHasChanged(); }
     }
 
     // ========== 导航 ==========

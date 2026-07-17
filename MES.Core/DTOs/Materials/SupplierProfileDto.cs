@@ -1,3 +1,6 @@
+using MES.Core.Enums;
+using MES.Core.Helpers;
+
 namespace MES.Core.DTOs.Materials;
 
 public class SupplierProfileDto
@@ -6,6 +9,7 @@ public class SupplierProfileDto
     public string SupplierCode { get; set; } = null!;
     public string SupplierName { get; set; } = null!;
     public string? MaterialCategory { get; set; }
+    public string? MaterialCategoryDisplay => MaterialCategory != null ? EnumHelper.GetDisplayName<MaterialType>(MaterialCategory) : null;
     public string? ContactPerson { get; set; }
     public string? ContactPhone { get; set; }
     public string? Address { get; set; }

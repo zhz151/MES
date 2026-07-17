@@ -142,6 +142,32 @@ public class SubcontractOrderService
         catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    // ========== 子项执行查询 ==========
+
+    public async Task<ApiResponse<PagedResult<SubcontractReturnItemListDto>>> GetReturnItemListAsync(QueryParams query, string? status = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/return-items/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
+            if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+            if (!string.IsNullOrEmpty(status)) url += $"&status={Uri.EscapeDataString(status)}";
+            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
+            return await _http.GetFromJsonAsync<ApiResponse<PagedResult<SubcontractReturnItemListDto>>>(url)
+                   ?? ApiResponse<PagedResult<SubcontractReturnItemListDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<PagedResult<SubcontractReturnItemListDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetReturnItemFilterContextsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/return-items/filter-contexts")
+                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 打印 ==========
 
     [Obsolete("请直接使用 openPdfFromApi 调用 -file 端点")]

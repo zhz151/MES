@@ -1,5 +1,5 @@
 using MES.Core.Models;
-
+using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
 namespace MES.Core.Interfaces.Materials;
@@ -16,15 +16,21 @@ public interface ISubcontractOrderService
     Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request);
     Task DeleteAsync(int id);
 
-    // ========== 用料计划执行状�?==========
+    // ========== 用料计划执行状�?==========
     Task<List<ProcurementStatusDto>> GetProcurementStatusAsync();
     Task<List<OrderMismatchInfo>> GetMismatchedSubcontractOrdersAsync();
     Task<PlanDetailDto?> GetPlanDetailAsync(string workOrderNo, string materialCategory);
+
+    // ========== 子项执行查询 ==========
+    Task<PagedResult<SubcontractReturnItemListDto>> GetReturnItemListAsync(QueryParams query, string? status = null);
+    Task<Dictionary<string, List<string>>> GetReturnItemFilterContextsAsync();
 
     // ========== 筛选上下文 ==========
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     // ========== 打印 ==========
+    Task<byte[]> PrintReturnItemListAsync(string? keyword, string? sortBy, bool isDescending, string? status, string? filters, List<PrintColumnDef>? columns);
+    Task<byte[]> PrintReturnItemSelectedAsync(int[] ids, List<PrintColumnDef>? columns);
     Task<byte[]> PrintOrderAsync(int id);
     Task<byte[]> PrintOrderBatchAsync(int[] ids);
     Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null);

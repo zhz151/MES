@@ -83,7 +83,7 @@
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd>@context.WorkOrderNo</MudTd>
-                                    <MudTd>@context.MaterialCategory</MudTd>
+                                    <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                     <MudTd Class="text-right">@(((int)context.PlanWeight).ToString())</MudTd>
                                     <MudTd Class="text-right">@(((int)context.PurchaseWeight).ToString())</MudTd>
                                     <MudTd Class="text-right">@(((int)context.SubcontractWeight).ToString())</MudTd>

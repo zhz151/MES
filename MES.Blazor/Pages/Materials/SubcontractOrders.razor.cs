@@ -79,7 +79,6 @@ public partial class SubcontractOrders : IAsyncDisposable
     private CancellationTokenSource? _pollingCts;
 
     private static List<EnumOption> GetMaterialCategoryOptions() => DisplayHelper.GetEnumFilterOptions<MaterialType>();
-    private static List<EnumOption> GetProcessTypeOptions() => DisplayHelper.GetEnumFilterOptions<SubcontractProcessType>();
 
     // ========== 列定义 ==========
 
@@ -91,7 +90,7 @@ public partial class SubcontractOrders : IAsyncDisposable
     {
         new() { Key = "OrderNo",             Label = "委外单号",     SortKey = "OrderNo",             FilterType = "string",   Width = "160" },
         new() { Key = "OrderDate",           Label = "下单日期",     SortKey = "OrderDate",           FilterType = "date",     Width = "120" },
-        new() { Key = "ProcessType",         Label = "加工类型",     SortKey = "ProcessType",         FilterType = "enum",   Width = "100", EnumOptions = GetProcessTypeOptions() },
+        new() { Key = "ProcessType",         Label = "加工类型",     SortKey = "ProcessType",         Width = "100" },
         new() { Key = "OutMaterialCategory", Label = "物料分类",     SortKey = "OutMaterialCategory", FilterType = "enum",   Width = "100", EnumOptions = GetMaterialCategoryOptions() },
         new() { Key = "OutPlantGrade",       Label = "工厂牌号",     SortKey = "OutPlantGrade",       FilterType = "string",   Width = "100" },
         new() { Key = "OutSpecification",    Label = "规格",         SortKey = "OutSpecification",    FilterType = "string",   Width = "120" },
@@ -423,7 +422,7 @@ public partial class SubcontractOrders : IAsyncDisposable
                 builder.CloseComponent();
                 break;
             case "ProcessType":
-                builder.AddContent(0, DisplayHelper.GetSubcontractProcessTypeText(item.ProcessType));
+                builder.AddContent(0, "穿孔");
                 break;
             case "OutMaterialCategory":
                 builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.OutMaterialCategory));

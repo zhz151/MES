@@ -1,4 +1,5 @@
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Order;
 
@@ -28,6 +29,11 @@ public class OrderItemForWorkOrderDto
     public PipeManufacturingType PipeManufacturingType { get; set; }
 
     /// <summary>
+    /// 钢管制造类别中文显示
+    /// </summary>
+    public string PipeManufacturingTypeDisplay => EnumHelper.GetDisplayName(PipeManufacturingType);
+
+    /// <summary>
     /// 交货日期
     /// </summary>
     public DateTime DeliveryDate { get; set; }
@@ -43,6 +49,11 @@ public class OrderItemForWorkOrderDto
     public SettlementMethod SettlementMethod { get; set; }
 
     /// <summary>
+    /// 结算方式中文显示
+    /// </summary>
+    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
+
+    /// <summary>
     /// 标准号
     /// </summary>
     public string StandardNo { get; set; } = null!;
@@ -51,6 +62,11 @@ public class OrderItemForWorkOrderDto
     /// 交货状态
     /// </summary>
     public DeliveryState DeliveryState { get; set; }
+
+    /// <summary>
+    /// 交货状态中文显示
+    /// </summary>
+    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
 
     /// <summary>
     /// 工厂牌号
@@ -88,6 +104,11 @@ public class OrderItemForWorkOrderDto
     public LengthStatus LengthStatus { get; set; }
 
     /// <summary>
+    /// 长度状态中文显示
+    /// </summary>
+    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
+
+    /// <summary>
     /// 最小长度
     /// </summary>
     public decimal? MinLength { get; set; }
@@ -121,6 +142,11 @@ public class OrderItemForWorkOrderDto
     /// 技术要求类型（Normal/Special）
     /// </summary>
     public RequirementType RequirementType { get; set; }
+
+    /// <summary>
+    /// 技术要求类型中文显示
+    /// </summary>
+    public string RequirementTypeDisplay => EnumHelper.GetDisplayName(RequirementType);
 
     /// <summary>
     /// 系统生成的主号（可修改）
