@@ -224,6 +224,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
         await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchNo);
         await TrySyncSourceOrderAsync(entity.SourceOrderNo);
+        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
 
         return BatchToDto(entity);
     }
@@ -239,6 +240,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
         var results = new List<string>();
         var productionBatchNos = new List<string?>();
+        var workOrderNos = new List<string?>();
         var transaction = await _context.Database.BeginTransactionAsync();
         using (transaction)
         {
@@ -308,6 +310,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                     _context.InventoryBatches.Add(entity);
                     results.Add(batchNo);
                     productionBatchNos.Add(row.ProductionBatchNo ?? request.ProductionBatchNo);
+                    workOrderNos.Add(row.WorkOrderNo);
                 }
 
                 await _context.SaveChangesAsync();
@@ -328,6 +331,14 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             .ToList();
         foreach (var son in sourceOrderNos)
             await TrySyncSourceOrderAsync(son);
+
+        // 去重刷新质量过程跟踪（按生产批号）
+        foreach (var pbn in productionBatchNos.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())
+            await TryRefreshQualityProcessTrackingAsync(pbn!);
+
+        // 去重刷新工单执行状况（按工单号）
+        foreach (var won in workOrderNos.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())
+            await TryRefreshExecutionSummaryAsync(won!);
 
         return new BatchInboundResult
         {

@@ -364,6 +364,13 @@ public class InventorySyncService : IInventorySyncService
         {
             await _context.SaveChangesAsync();
 
+            // 刷新采购单关联的工单执行状况
+            foreach (var woNo in purchaseOrders.Where(o => !string.IsNullOrWhiteSpace(o.SourceWorkOrderNo))
+                                     .Select(o => o.SourceWorkOrderNo)
+                                     .Distinct(StringComparer.OrdinalIgnoreCase))
+                await TryRefreshExecutionSummaryAsync(woNo!);
+
+            // 刷新委外单关联的工单执行状况
             foreach (var order in subcontractOrders)
                 foreach (var item in order.ReturnItems)
                     await TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);

@@ -59,6 +59,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
     private readonly ILogger<MaterialReceiveCheckService> _logger;
     private readonly IConfigParameterService _configService;
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
+    private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IMemoryCache _cache;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
@@ -66,12 +67,14 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         AppDbContext context,
         IConfigParameterService configService,
         IQualityProcessTrackingService qualityProcessTracking,
+        IWorkOrderExecutionService workOrderExecutionService,
         ILogger<MaterialReceiveCheckService> logger,
         IMemoryCache cache)
     {
         _context = context;
         _configService = configService;
         _qualityProcessTracking = qualityProcessTracking;
+        _workOrderExecutionService = workOrderExecutionService;
         _logger = logger;
         _cache = cache;
     }
@@ -85,6 +88,19 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "质量过程跟踪刷新失败（不影响主流程）: MrCheckId={MrCheckId}", mrCheckId);
+        }
+    }
+
+    private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(workOrderNo) || workOrderNo == "非工单") return;
+        try
+        {
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { workOrderNo });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: WorkOrderNo={WorkOrderNo}", workOrderNo);
         }
     }
 
@@ -229,6 +245,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         await _context.SaveChangesAsync();
 
         await TryRefreshQualityProcessTrackingAsync(entity.Id);
+        await TryRefreshExecutionSummaryAsync(batch.WorkOrderNo);
 
         return new MaterialReceiveCheckDto
         {
@@ -351,6 +368,12 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         foreach (var entity in entities)
             await TryRefreshQualityProcessTrackingAsync(entity.Id);
 
+        // 去重刷新工单执行状况
+        foreach (var woNo in modifiedBatches.Where(b => !string.IsNullOrWhiteSpace(b.WorkOrderNo) && b.WorkOrderNo != "非工单")
+                                 .Select(b => b.WorkOrderNo)
+                                 .Distinct(StringComparer.OrdinalIgnoreCase))
+            await TryRefreshExecutionSummaryAsync(woNo);
+
         return entities.Select(e => new MaterialReceiveCheckDto
         {
             Id = e.Id,
@@ -449,6 +472,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             _context.QualityProcessTrackings.Remove(existingQpt);
             await _context.SaveChangesAsync();
         }
+
+        await TryRefreshExecutionSummaryAsync(batch?.WorkOrderNo);
     }
 
     public async Task<PagedResult<MaterialReceiveCheckDto>> GetAllMaterialReceiveChecksAsync(QueryParams query)

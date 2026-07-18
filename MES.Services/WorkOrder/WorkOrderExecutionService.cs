@@ -1075,6 +1075,20 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.ProductionAttentionProcess = "收尾-成检";
         }
 
+        // MainNoAttentionProcess: 同(订单号+主号)下，取剩余工量最大值所在工单的生产关注工序
+        var mainNoAttentionMap = summaries
+            .Where(s => s.MaxBatchRemainingWorkDays.HasValue && s.ProductionAttentionProcess != null)
+            .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
+            .ToDictionary(
+                g => (g.Key.SalesOrderNo, g.Key.ProductionMainNo),
+                g => g.OrderByDescending(s => s.MaxBatchRemainingWorkDays)
+                      .First().ProductionAttentionProcess);
+        foreach (var summary in summaries)
+        {
+            var key = (summary.SalesOrderNo, summary.ProductionMainNo);
+            summary.MainNoAttentionProcess = mainNoAttentionMap.GetValueOrDefault(key);
+        }
+
         // G12/G13: 加载暂停和需求调整数据
         var pausedIdList = await _context.Set<OrderDemandAdjustment>()
             .AsNoTracking()

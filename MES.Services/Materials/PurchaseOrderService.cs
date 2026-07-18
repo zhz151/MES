@@ -612,6 +612,12 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
 
         await _context.SaveChangesAsync();
+
+        // 去重刷新关联工单的执行状况
+        foreach (var woNo in orders.Where(o => !string.IsNullOrWhiteSpace(o.SourceWorkOrderNo))
+                         .Select(o => o.SourceWorkOrderNo)
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
+            await TryRefreshExecutionSummaryAsync(woNo!);
     }
 
     public async Task SyncSingleAsync(int id)

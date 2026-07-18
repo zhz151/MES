@@ -54,12 +54,15 @@ public class PicklingService : IPicklingService
     private readonly AppDbContext _context;
     private readonly ILogger<PicklingService> _logger;
     private readonly IMemoryCache _cache;
+    private readonly IProductionRecordService _productionRecordService;
 
-    public PicklingService(AppDbContext context, ILogger<PicklingService> logger, IMemoryCache cache)
+    public PicklingService(AppDbContext context, ILogger<PicklingService> logger, IMemoryCache cache,
+        IProductionRecordService productionRecordService)
     {
         _context = context;
         _logger = logger;
         _cache = cache;
+        _productionRecordService = productionRecordService;
     }
 
     // ========== 入缸记录 ==========
@@ -277,6 +280,7 @@ public class PicklingService : IPicklingService
 
         _context.PicklingInRecords.Add(entity);
         await _context.SaveChangesAsync();
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(batch.Id);
 
         return new PicklingInRecordDto
         {
@@ -308,11 +312,25 @@ public class PicklingService : IPicklingService
     public async Task<List<PicklingInRecordDto>> BatchCreateAsync(List<CreatePicklingInRecordRequest> requests)
     {
         var results = new List<PicklingInRecordDto>();
+        var batchIds = new HashSet<int>();
         foreach (var request in requests)
         {
+            // 先查批次 ID 用于后续刷新
+            var batch = await _context.ProductionBatches
+                .Where(b => b.BatchNo == request.BatchNo)
+                .Select(b => new { b.Id })
+                .FirstOrDefaultAsync();
+            if (batch != null)
+                batchIds.Add(batch.Id);
+
             var dto = await CreateAsync(request);
             results.Add(dto);
         }
+
+        // 去重刷新批次追踪
+        foreach (var batchId in batchIds)
+            await _productionRecordService.RefreshBatchTrackingFieldsAsync(batchId);
+
         return results;
     }
 
@@ -339,6 +357,7 @@ public class PicklingService : IPicklingService
             entity.Remark = request.Remark;
 
         await _context.SaveChangesAsync();
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.ProductionBatchId);
 
         return new PicklingInRecordDto
         {
@@ -379,6 +398,7 @@ public class PicklingService : IPicklingService
 
         _context.PicklingInRecords.Remove(entity);
         await _context.SaveChangesAsync();
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.ProductionBatchId);
     }
 
     // ========== 完工记录 ==========
@@ -549,6 +569,7 @@ public class PicklingService : IPicklingService
 
         _context.PicklingOutRecords.Add(entity);
         await _context.SaveChangesAsync();
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(inRecord.ProductionBatchId);
 
         return new PicklingOutRecordDto
         {
@@ -589,6 +610,7 @@ public class PicklingService : IPicklingService
             entity.Remark = request.Remark;
 
         await _context.SaveChangesAsync();
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.PicklingInRecord.ProductionBatchId);
 
         return new PicklingOutRecordDto
         {
@@ -622,11 +644,14 @@ public class PicklingService : IPicklingService
             .FirstOrDefaultAsync(r => r.Id == id)
             ?? throw new BusinessException($"完工记录不存在: {id}");
 
+        var batchId = entity.PicklingInRecord.ProductionBatchId;
+
         // 恢复入缸状态为 Soaking
         entity.PicklingInRecord.Status = PicklingStatus.Soaking;
 
         _context.PicklingOutRecords.Remove(entity);
         await _context.SaveChangesAsync();
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(batchId);
     }
 
     // ========== 打印 ==========
