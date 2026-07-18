@@ -494,6 +494,9 @@ public class InventoryService : IInventoryService
     public async Task<SourceOrderValidationResult> ValidateSourceOrderAsync(string sourceOrderNo, string inboundSource, int? sourceOrderSequence = null)
         => await _syncService.ValidateSourceOrderAsync(sourceOrderNo, inboundSource, sourceOrderSequence);
 
+    public async Task<SourceOrderValidationResult> ValidateProductionBatchAsync(string productionBatchNo)
+        => await _syncService.ValidateProductionBatchAsync(productionBatchNo);
+
     public async Task<List<string>> ValidateWarehouseWorkOrderNosAsync(int warehouseId)
         => await _syncService.ValidateWarehouseWorkOrderNosAsync(warehouseId);
 
@@ -543,7 +546,11 @@ public class InventoryService : IInventoryService
             OnlyWithStock = true
         };
         var paged = await GetPagedAsync(query);
-        return TablePrintHelper.GeneratePdf("仓 库 库 存 列 表", paged.Items, request.Columns);
+        var resolvers = new Dictionary<string, Func<object?, string>>
+        {
+            ["LengthStatus"] = v => EnumHelper.GetDisplayName<LengthStatus>(v?.ToString())
+        };
+        return TablePrintHelper.GeneratePdf("仓 库 库 存 列 表", paged.Items, request.Columns, resolvers);
     }
 
     public async Task<byte[]> PrintStockSelectedAsync(InventoryPrintSelectedRequest request)
@@ -554,7 +561,11 @@ public class InventoryService : IInventoryService
             .ToListAsync();
 
         var items = entities.Select(ToDto).ToList();
-        return TablePrintHelper.GeneratePdf("库 存 批 次 打 印", items, request.Columns);
+        var resolvers = new Dictionary<string, Func<object?, string>>
+        {
+            ["LengthStatus"] = v => EnumHelper.GetDisplayName<LengthStatus>(v?.ToString())
+        };
+        return TablePrintHelper.GeneratePdf("库 存 批 次 打 印", items, request.Columns, resolvers);
     }
 
     public async Task<byte[]> PrintInboundAllAsync(InventoryPrintAllRequest request)
@@ -570,7 +581,11 @@ public class InventoryService : IInventoryService
             OnlyWithStock = false
         };
         var paged = await GetPagedAsync(query);
-        return TablePrintHelper.GeneratePdf("入 库 历 史 列 表", paged.Items, request.Columns);
+        var resolvers = new Dictionary<string, Func<object?, string>>
+        {
+            ["LengthStatus"] = v => EnumHelper.GetDisplayName<LengthStatus>(v?.ToString())
+        };
+        return TablePrintHelper.GeneratePdf("入 库 历 史 列 表", paged.Items, request.Columns, resolvers);
     }
 
     public async Task<byte[]> PrintInboundSelectedAsync(InventoryPrintSelectedRequest request)
@@ -581,7 +596,11 @@ public class InventoryService : IInventoryService
             .ToListAsync();
 
         var items = entities.Select(ToDto).ToList();
-        return TablePrintHelper.GeneratePdf("入 库 批 次 打 印", items, request.Columns);
+        var resolvers = new Dictionary<string, Func<object?, string>>
+        {
+            ["LengthStatus"] = v => EnumHelper.GetDisplayName<LengthStatus>(v?.ToString())
+        };
+        return TablePrintHelper.GeneratePdf("入 库 批 次 打 印", items, request.Columns, resolvers);
     }
 
     public async Task<byte[]> PrintOutboundAllAsync(OutboundPrintAllRequest request)

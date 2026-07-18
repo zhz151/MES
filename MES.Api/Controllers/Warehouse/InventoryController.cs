@@ -329,6 +329,21 @@ public class InventoryController : ControllerBase
     }
 
     /// <summary>
+    /// 验证生产批号（检验入库自动填充）
+    /// </summary>
+    [HttpPost("validate-production-batch")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<SourceOrderValidationResult>>> ValidateProductionBatch(
+        [FromBody] ProductionBatchValidationRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<SourceOrderValidationResult>.Fail("请求参数无效"));
+
+        var result = await _service.ValidateProductionBatchAsync(request.ProductionBatchNo);
+        return Ok(ApiResponse<SourceOrderValidationResult>.Ok(result, "验证完成"));
+    }
+
+    /// <summary>
     /// 验证仓库内入库数据中的工单号是否在工单管理上下文中存在
     /// </summary>
     [HttpGet("validate-workorder-nos/{warehouseId}")]

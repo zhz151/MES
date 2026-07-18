@@ -126,8 +126,12 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
     private static void AutoFillWorkOrderInfo(InventoryBatch entity, Dictionary<string, WoEntity> workOrders)
     {
         if (string.IsNullOrEmpty(entity.WorkOrderNo))
+        {
+            entity.IsLinkedToWorkOrder = false;
             return;
+        }
 
+        entity.IsLinkedToWorkOrder = true;
         if (workOrders.TryGetValue(entity.WorkOrderNo, out var workOrder))
         {
             entity.SalesOrderNo = workOrder.SalesOrderNo;
@@ -200,6 +204,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
         if (!string.IsNullOrEmpty(entity.WorkOrderNo))
         {
+            entity.IsLinkedToWorkOrder = true;
             var singleWo = await _context.WorkOrders
                 .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.WorkOrderNo == entity.WorkOrderNo);
@@ -208,6 +213,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                 entity.SalesOrderNo = singleWo.SalesOrderNo;
                 entity.OrderItemIds = singleWo.OrderItemIds;
             }
+        }
+        else
+        {
+            entity.IsLinkedToWorkOrder = false;
         }
 
         _context.InventoryBatches.Add(entity);
@@ -354,6 +363,32 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         entity.LocationRack = request.LocationRack ?? entity.LocationRack;
         entity.Remark = request.Remark ?? entity.Remark;
 
+        // 长度值逻辑验证：定尺 Min==Max>0，范围尺 Max>Min>0
+        var ls = request.LengthStatus ?? entity.LengthStatus;
+        if (!string.IsNullOrEmpty(ls))
+        {
+            var minLen = request.MinLength ?? entity.MinLength;
+            var maxLen = request.MaxLength ?? entity.MaxLength;
+            if (ls == "Fixed")
+            {
+                if (!minLen.HasValue || !maxLen.HasValue)
+                    throw new BusinessException("长度状态为「定尺」时，最小长度和最大长度必填");
+                if (minLen.Value <= 0 || maxLen.Value <= 0)
+                    throw new BusinessException("长度状态为「定尺」时，最小长度和最大长度必须大于0");
+                if (minLen.Value != maxLen.Value)
+                    throw new BusinessException("长度状态为「定尺」时，最小长度和最大长度必须相等");
+            }
+            else if (ls == "Range")
+            {
+                if (!minLen.HasValue || !maxLen.HasValue)
+                    throw new BusinessException("长度状态为「范围尺」时，最小长度和最大长度必填");
+                if (minLen.Value <= 0)
+                    throw new BusinessException("长度状态为「范围尺」时，最小长度必须大于0");
+                if (maxLen.Value <= minLen.Value)
+                    throw new BusinessException("长度状态为「范围尺」时，最大长度必须大于最小长度");
+            }
+        }
+
         if (request.InitialQuantity.HasValue)
         {
             var outboundTotalQty = entity.InitialQuantity - entity.RemainingQuantity;
@@ -380,6 +415,21 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             if (newRemainingM < 0)
                 throw new BusinessException($"批次{entity.BatchNo}已出库{outboundTotalM:G29}m，新米数{request.Meters.Value:G29}m不足覆盖（差额{Math.Abs(newRemainingM):G29}m），请先更正出库后再更改入库");
             entity.RemainingMeters = newRemainingM;
+        }
+
+        // IsLinkedToWorkOrder 级联：是→否（前端发送 IsLinkedToWorkOrder=false 触发）
+        if (request.IsLinkedToWorkOrder.HasValue && !request.IsLinkedToWorkOrder.Value)
+        {
+            entity.IsLinkedToWorkOrder = false;
+            if (request.WorkOrderNo == "") entity.WorkOrderNo = null;
+            if (request.SalesOrderNo == "") entity.SalesOrderNo = null;
+            if (request.OrderItemIds == "") entity.OrderItemIds = null;
+        }
+
+        // 前端显式传入 MaterialType 时触发物料变更（FG 级联）
+        if (request.MaterialType.HasValue)
+        {
+            entity.MaterialType = request.MaterialType.Value.ToString();
         }
 
         await _context.SaveChangesAsync();

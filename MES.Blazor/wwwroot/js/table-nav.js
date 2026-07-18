@@ -244,19 +244,8 @@ window.initGroupHeaders = function (tableSelector) {
     var groupItems = headerBar.querySelectorAll('.col-group-header-item');
     if (groupItems.length === 0) return false;
 
-    // 防重复注册 scroll 监听（仅首次调用注册一次）
-    if (!wrapper.dataset.woeScrollInited) {
-        wrapper.dataset.woeScrollInited = 'true';
-        var tableContainer = wrapper.querySelector('.mud-table-container');
-        if (tableContainer) {
-            tableContainer.addEventListener('scroll', function () {
-                headerScroll.scrollLeft = tableContainer.scrollLeft;
-            });
-        }
-    }
-
-    // requestAnimationFrame 确保布局已就绪再测量
-    requestAnimationFrame(function () {
+    // 同步逻辑函数：测量 <th> 实际宽度并应用到分组标题栏
+    function syncGroupWidths() {
         var tableContainer = wrapper.querySelector('.mud-table-container');
         if (!tableContainer) return;
 
@@ -272,17 +261,17 @@ window.initGroupHeaders = function (tableSelector) {
             return match ? parseInt(match[1]) : 0;
         }
 
-        // 按分组测量宽度
         var itemIndex = 0;
         var barTotalWidth = 0;
         var groupItemWidth = 0;
         var currentGk = null;
+        var liveGroupItems = headerBar.querySelectorAll('.col-group-header-item');
 
         thCells.forEach(function (th) {
             var gk = getGroupKey(th.className);
             if (gk !== currentGk && currentGk !== null) {
-                if (itemIndex < groupItems.length) {
-                    groupItems[itemIndex].style.width = groupItemWidth + 'px';
+                if (itemIndex < liveGroupItems.length) {
+                    liveGroupItems[itemIndex].style.width = groupItemWidth + 'px';
                     barTotalWidth += groupItemWidth;
                     itemIndex++;
                 }
@@ -291,14 +280,60 @@ window.initGroupHeaders = function (tableSelector) {
             currentGk = gk;
             groupItemWidth += th.offsetWidth;
         });
-        // 最后一个分组
-        if (itemIndex < groupItems.length) {
-            groupItems[itemIndex].style.width = groupItemWidth + 'px';
+        if (itemIndex < liveGroupItems.length) {
+            liveGroupItems[itemIndex].style.width = groupItemWidth + 'px';
             barTotalWidth += groupItemWidth;
         }
-
         headerBar.style.width = barTotalWidth + 'px';
-    });
+    }
+
+    // 防重复注册 scroll + observer（仅首次调用注册一次）
+    if (!wrapper.dataset.woeScrollInited) {
+        wrapper.dataset.woeScrollInited = 'true';
+
+        // 同步水平滚动：使用 transform 定位组标题栏
+        // 不用 scrollLeft 的原因是：
+        //   1. overflow:visible 时 scrollLeft 无效（非 scroll container）
+        //   2. 竖向滚动条会使表格视口变窄，scrollLeft 同步后标题会偏移
+        //  transform 直接根据表格 scrollLeft 平移组标题栏，无视视口宽度差
+        var tableContainer = wrapper.querySelector('.mud-table-container');
+        if (tableContainer) {
+            tableContainer.addEventListener('scroll', function () {
+                headerBar.style.transform = 'translateX(-' + tableContainer.scrollLeft + 'px)';
+            });
+        }
+
+        // 初始同步（requestAnimationFrame 确保布局已就绪）
+        requestAnimationFrame(syncGroupWidths);
+
+        // ResizeObserver 监听 <th> + 容器宽度变化 → 自动同步分组标题栏
+        // 监听容器可以捕获滚动条出现/消失导致的布局偏移
+        var ro = new ResizeObserver(function () {
+            requestAnimationFrame(syncGroupWidths);
+        });
+        if (tableContainer) {
+            ro.observe(tableContainer);
+        }
+        var thead = wrapper.querySelector('.mud-table-container thead');
+        if (thead) {
+            var headerRow = thead.querySelector('tr');
+            if (headerRow) {
+                headerRow.querySelectorAll('th').forEach(function (th) { ro.observe(th); });
+            }
+            // MutationObserver 监听 thead 增删列（列显隐/排序变化）
+            var mo = new MutationObserver(function () {
+                // 新列出现时重新注册 ResizeObserver
+                headerRow.querySelectorAll('th').forEach(function (th) { ro.observe(th); });
+                requestAnimationFrame(syncGroupWidths);
+            });
+            mo.observe(thead, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+            wrapper._groupMo = mo;
+        }
+        wrapper._groupRo = ro;
+    } else {
+        // 非首次调用：重新同步一次
+        requestAnimationFrame(syncGroupWidths);
+    }
 
     return true;
 };

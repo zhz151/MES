@@ -14,6 +14,11 @@ public interface IInventorySyncService
     Task<SourceOrderValidationResult> ValidateSourceOrderAsync(string sourceOrderNo, string inboundSource, int? sourceOrderSequence = null);
 
     /// <summary>
+    /// 验证生产批号（检验入库自动填充）
+    /// </summary>
+    Task<SourceOrderValidationResult> ValidateProductionBatchAsync(string productionBatchNo);
+
+    /// <summary>
     /// 验证仓库内入库数据的工单号是否在工单管理上下文中存在
     /// </summary>
     Task<List<string>> ValidateWarehouseWorkOrderNosAsync(int warehouseId);

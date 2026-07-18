@@ -24,6 +24,9 @@
         .inbound-edit-table th.mud-table-cell {
             padding: 1px 4px !important;
         }
+        .inbound-edit-table {
+            table-layout: fixed;
+        }
         .inbound-edit-table .mud-input-input-control {
             margin-top: 0;
         }
@@ -41,10 +44,8 @@
             max-height: calc(100vh - 310px);
             overflow: hidden;
         }
-        /* 分组标题栏本身不额外滚动 */
-        #inbound-table-wrapper .col-group-header-scroll {
-            overflow: visible !important;
-        }
+        /* 分组标题栏由 JS 用 transform 同步滚动，overflow:hidden 允许 scrollLeft 工作 */
+        /* 此处需保留 overflow:hidden（来自 app.css），不能设为 visible/programmatic scrollLeft 需要 scroll container */
     </style>
     <MudCard>
         <MudCardHeader>
@@ -91,6 +92,15 @@
                                          OnColumnToggle="OnColumnToggle"
                                          OnMoveUp="MoveColumnUp"
                                          OnMoveDown="MoveColumnDown" />
+                    @if (_warehouseCode == "FG" || _warehouseCode == "RAW")
+                    {
+                        <MudSwitch @bind-Value="_autoFillEnabled"
+                                   Color="Color.Primary"
+                                   OnValueChanged="OnAutoFillToggled"
+                                   Class="ml-4">
+                            <MudText Typo="Typo.body2">自动填充</MudText>
+                        </MudSwitch>
+                    }
                     <MudButton Variant="Variant.Text" Size="Size.Small"
                                Color="Color.Default"
                                StartIcon="@Icons.Material.Filled.RestartAlt"
@@ -141,7 +151,7 @@
                             var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                             _prevGk2 = col.GroupKey;
                             var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                            <MudTd Class="@($"{_cellClass} {GetCellClass(col.Key)}")">
+                            <MudTd Class="@($"{_cellClass} {GetCellClass(col.Key)}")" Style="@($"width:{GetColWidth(col.Key)}px")">
                                 @RenderInlineEditor(r, col)
                             </MudTd>
                         }
@@ -156,7 +166,7 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Search"
                                            Color="Color.Primary" Size="Size.Small"
                                            Title="获取来源信息"
-                                           OnClick="() => LookupSourceOrder(r)" />
+                                           OnClick="() => LookupFromSource(r)" />
                             <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
                                            Color="Color.Error" Size="Size.Small"
                                            Title="删除"
@@ -173,7 +183,7 @@
                             var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                             _prevGk3 = col.GroupKey;
                             var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3);
-                            <MudTd Class="@($"{_footerClass} {GetCellClass(col.Key)}")">
+                            <MudTd Class="@($"{_footerClass} {GetCellClass(col.Key)}")" Style="@($"width:{GetColWidth(col.Key)}px")">
                                 @RenderFooter(col)
                             </MudTd>
                         }
@@ -230,6 +240,8 @@
     // ========== 状态 ==========
     private bool _isSubmitting;
     private string _errorMessage = string.Empty;
+    /// <summary>成品库自动填充开关</summary>
+    private bool _autoFillEnabled = true;
     // ========== 行模型 ==========
 
     private class InboundRowModel
@@ -275,29 +287,29 @@
         return new List<ColumnDef>
         {
             // ========== 第一组：来源信息 ==========
-            new() { Key = "InboundDateStr",      Label = "入库日期",       IsCommon = true, Visible = false, IsRequired = true, GroupKey = 1, GroupName = "来源信息" },
-            new() { Key = "InboundSource",       Label = "来源类型",       IsCommon = true, Visible = false, GroupKey = 1, GroupName = "来源信息" },
-            new() { Key = "SourceOrderNo",       Label = "来源单号",       IsCommon = true, Visible = false, GroupKey = 1, GroupName = "来源信息" },
-            new() { Key = "SourceOrderSequence", Label = "委外序号",       IsCommon = true, Visible = false, GroupKey = 1, GroupName = "来源信息" },
+            new() { Key = "InboundDateStr",      Label = "入库日期",       IsCommon = true, Visible = false, IsRequired = true },
+            new() { Key = "InboundSource",       Label = "来源类型",       IsCommon = true, Visible = false },
+            new() { Key = "SourceOrderNo",       Label = "来源单号",       IsCommon = true, Visible = false },
+            new() { Key = "SourceOrderSequence", Label = "委外序号",       IsCommon = true, Visible = false },
 
             // ========== 第二组：自动可填充（来源单号查询后回填，可修改） ==========
-            new() { Key = "MaterialType",        Label = "物料",           IsCommon = true, Visible = true,  IsRequired = true, GroupKey = 2, GroupName = "自动填充" },
-            new() { Key = "PlantGrade",          Label = "工厂牌号",       IsCommon = true, Visible = false, IsRequired = true, GroupKey = 2, GroupName = "自动填充" },
-            new() { Key = "Specification",       Label = "名义规格",       IsCommon = true, Visible = true,  IsRequired = true, GroupKey = 2, GroupName = "自动填充" },
-            new() { Key = "SourceName",          Label = "来料单位",       IsCommon = true, Visible = false, GroupKey = 2, GroupName = "自动填充" },
-            new() { Key = "IsLinkedToWorkOrder", Label = "关联工单",       IsCommon = true, Visible = false, GroupKey = 2, GroupName = "自动填充" },
-            new() { Key = "WorkOrderNo",         Label = "工单号",         IsCommon = true, Visible = false, GroupKey = 2, GroupName = "自动填充" },
+            new() { Key = "MaterialType",        Label = "物料",           IsCommon = true, Visible = true,  IsRequired = true },
+            new() { Key = "PlantGrade",          Label = "工厂牌号",       IsCommon = true, Visible = false, IsRequired = true },
+            new() { Key = "Specification",       Label = "名义规格",       IsCommon = true, Visible = true,  IsRequired = true },
+            new() { Key = "SourceName",          Label = "来料单位",       IsCommon = true, Visible = false },
+            new() { Key = "IsLinkedToWorkOrder", Label = "关联工单",       IsCommon = true, Visible = false },
+            new() { Key = "WorkOrderNo",         Label = "工单号",         IsCommon = true, Visible = false },
 
             // ========== 第三组：手工填写 ==========
-            new() { Key = "InitialQuantity",     Label = "支数",           IsCommon = true, Visible = true,  IsRequired = true, GroupKey = 3, GroupName = "手工填写" },
-            new() { Key = "InitialWeight",       Label = "重量(kg)",       IsCommon = true, Visible = true,  IsRequired = true, GroupKey = 3, GroupName = "手工填写" },
-            new() { Key = "UnitWeight",          Label = "单支重",         IsCommon = true, Visible = false, GroupKey = 3, GroupName = "手工填写" },
-            new() { Key = "LengthStatus",        Label = "长度状态",       IsCommon = true, Visible = true,  GroupKey = 3, GroupName = "手工填写" },
-            new() { Key = "HeatNo",              Label = "炉号",           IsCommon = true, Visible = false, GroupKey = 3, GroupName = "手工填写" },
-            new() { Key = "SurfaceCondition",    Label = "物料状态",       IsCommon = true, Visible = true,  GroupKey = 3, GroupName = "手工填写" },
-            new() { Key = "LocationArea",        Label = "区域",           IsCommon = true, Visible = false, GroupKey = 3, GroupName = "手工填写" },
-            new() { Key = "LocationRack",        Label = "框架",           IsCommon = true, Visible = false, GroupKey = 3, GroupName = "手工填写" },
-            new() { Key = "Remark",              Label = "备注",           IsCommon = true, Visible = false, GroupKey = 3, GroupName = "手工填写" },
+            new() { Key = "InitialQuantity",     Label = "支数",           IsCommon = true, Visible = true,  IsRequired = true },
+            new() { Key = "InitialWeight",       Label = "重量(kg)",       IsCommon = true, Visible = true,  IsRequired = true },
+            new() { Key = "UnitWeight",          Label = "单支重",         IsCommon = true, Visible = false },
+            new() { Key = "LengthStatus",        Label = "长度状态",       IsCommon = true, Visible = true },
+            new() { Key = "HeatNo",              Label = "来料原始炉号",   IsCommon = true, Visible = false },
+            new() { Key = "SurfaceCondition",    Label = "物料状态",       IsCommon = true, Visible = true },
+            new() { Key = "LocationArea",        Label = "区域",           IsCommon = true, Visible = false },
+            new() { Key = "LocationRack",        Label = "框架",           IsCommon = true, Visible = false },
+            new() { Key = "Remark",              Label = "备注",           IsCommon = true, Visible = false },
 
             // ========== 不适用（各仓库模板控制显隐） ==========
             new() { Key = "MinLength",           Label = "最小长度",       IsCommon = true, Visible = false },
@@ -316,13 +328,18 @@
     }
 
     private List<(string Value, string Text)> _inboundSourceOptions =>
-        _warehouseCode == "RAW"
+        _warehouseCode == "RAW" && _autoFillEnabled
             ? new List<(string, string)>
             {
                 (InboundSource.Purchase.ToString(), DisplayHelper.GetInboundSourceText(InboundSource.Purchase)),
                 (InboundSource.Subcontract.ToString(), DisplayHelper.GetInboundSourceText(InboundSource.Subcontract)),
-                (InboundSource.Other.ToString(), DisplayHelper.GetInboundSourceText(InboundSource.Other)),
             }
+            : _warehouseCode == "FG" && _autoFillEnabled
+                ? new List<(string, string)>
+                {
+                    (InboundSource.Purchase.ToString(), DisplayHelper.GetInboundSourceText(InboundSource.Purchase)),
+                    (InboundSource.InspectionInbound.ToString(), DisplayHelper.GetInboundSourceText(InboundSource.InspectionInbound)),
+                }
             : Enum.GetValues<InboundSource>()
                 .Select(v => (v.ToString(), DisplayHelper.GetInboundSourceText(v)))
                 .ToList();
@@ -398,14 +415,14 @@
 
     private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
     {
-        var cls = groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", _ => "" };
+        var cls = groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", 4 => "col-g4", 5 => "col-g5", 6 => "col-g6", _ => "" };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
         return cls;
     }
 
     private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
     {
-        var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", _ => "" };
+        var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", 5 => "col-g5-cell", 6 => "col-g6-cell", _ => "" };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
         return cls;
     }
@@ -422,7 +439,7 @@
         "Specification" => 160,
         "MaterialType" => 130,
         "PlantGrade" => 130,
-        "HeatNo" => 120,
+        "HeatNo" => 140,
         "SurfaceCondition" => 110,
         _ => 130
     };
@@ -457,22 +474,34 @@
                 SetNotApplicable(cols, "DefectRemark");
                 SetNotApplicable(cols, "SalesOrderNo");
                 SetNotApplicable(cols, "OrderItemIds");
+                SetNotApplicable(cols, "IsLinkedToWorkOrder");
+                AssignRawGroups(cols);
                 break;
             case "FG":
-                // 成品库不含：次品
+                // 成品库不含：次品、委外序号、开关/订单/项次（由工单自动关联）
                 SetNotApplicable(cols, "DefectReason");
                 SetNotApplicable(cols, "LiabilityType");
                 SetNotApplicable(cols, "OriginalSupplier");
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
+                SetNotApplicable(cols, "SourceOrderSequence");
+                SetNotApplicable(cols, "IsLinkedToWorkOrder");
+                SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "OrderItemIds");
+                AssignFgGroups(cols);
                 break;
             case "DEFECT":
-                // 次品库不含：米数/实际规格/外径/壁厚
+                // 次品库不含：米数/实际规格/委外序号
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
+                SetNotApplicable(cols, "SourceOrderSequence");
+                AssignDefectGroups(cols);
                 break;
             case "WIP":
-                // 在制品库不含：工单关联/次品/米数
+                // 在制品库不含：来源单号/委外序号/来料单位/工单关联/次品/米数
+                SetNotApplicable(cols, "SourceOrderNo");
+                SetNotApplicable(cols, "SourceOrderSequence");
+                SetNotApplicable(cols, "SourceName");
                 SetNotApplicable(cols, "IsLinkedToWorkOrder");
                 SetNotApplicable(cols, "WorkOrderNo");
                 SetNotApplicable(cols, "SalesOrderNo");
@@ -483,8 +512,19 @@
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
                 SetNotApplicable(cols, "Meters");
+                AssignWipGroups(cols);
                 break;
         }
+
+        // 按分组排序以确保表格列顺序与分组一致
+        SortByGroup(cols);
+    }
+
+    private static void SortByGroup(List<ColumnDef> cols)
+    {
+        var sorted = cols.OrderBy(c => c.GroupKey ?? int.MaxValue).ToList();
+        cols.Clear();
+        cols.AddRange(sorted);
     }
 
     private static void SetNotApplicable(List<ColumnDef> cols, string key)
@@ -494,6 +534,122 @@
         {
             c.IsApplicable = false;
             c.Visible = false;
+        }
+    }
+
+    private static void AssignRawGroups(List<ColumnDef> cols)
+    {
+        SetGroup(cols, "InboundDateStr", 1, "来源信息");
+        SetGroup(cols, "InboundSource", 1, "来源信息");
+        SetGroup(cols, "SourceOrderNo", 1, "来源信息");
+        SetGroup(cols, "SourceOrderSequence", 1, "来源信息");
+        SetGroup(cols, "MaterialType", 2, "自动填充");
+        SetGroup(cols, "PlantGrade", 2, "自动填充");
+        SetGroup(cols, "Specification", 2, "自动填充");
+        SetGroup(cols, "SourceName", 2, "自动填充");
+        SetGroup(cols, "IsLinkedToWorkOrder", 2, "自动填充");
+        SetGroup(cols, "WorkOrderNo", 2, "自动填充");
+        SetGroup(cols, "InitialQuantity", 3, "手工填写");
+        SetGroup(cols, "InitialWeight", 3, "手工填写");
+        SetGroup(cols, "UnitWeight", 3, "手工填写");
+        SetGroup(cols, "LengthStatus", 3, "手工填写");
+        SetGroup(cols, "HeatNo", 3, "手工填写");
+        SetGroup(cols, "SurfaceCondition", 3, "手工填写");
+        SetGroup(cols, "LocationArea", 3, "手工填写");
+        SetGroup(cols, "LocationRack", 3, "手工填写");
+        SetGroup(cols, "Remark", 3, "手工填写");
+    }
+
+    private static void AssignFgGroups(List<ColumnDef> cols)
+    {
+        SetGroup(cols, "InboundDateStr", 1, "来源信息");
+        SetGroup(cols, "InboundSource", 1, "来源信息");
+        SetGroup(cols, "SourceOrderNo", 1, "来源信息");
+        SetGroup(cols, "ProductionBatchNo", 1, "来源信息");
+        SetGroup(cols, "SalesOrderNo", 2, "订单信息");
+        SetGroup(cols, "OrderItemIds", 2, "订单信息");
+        SetGroup(cols, "WorkOrderNo", 2, "订单信息");
+        SetGroup(cols, "IsLinkedToWorkOrder", 2, "订单信息");
+        SetGroup(cols, "MaterialType", 3, "物料信息");
+        SetGroup(cols, "PlantGrade", 3, "物料信息");
+        SetGroup(cols, "Specification", 3, "物料信息");
+        SetGroup(cols, "ActualSpecification", 4, "入库计量");
+        SetGroup(cols, "SourceName", 3, "物料信息");
+        SetGroup(cols, "HeatNo", 3, "物料信息");
+        SetGroup(cols, "SurfaceCondition", 3, "物料信息");
+        SetGroup(cols, "InitialQuantity", 4, "入库计量");
+        SetGroup(cols, "InitialWeight", 4, "入库计量");
+        SetGroup(cols, "UnitWeight", 4, "入库计量");
+        SetGroup(cols, "LengthStatus", 4, "入库计量");
+        SetGroup(cols, "Meters", 4, "入库计量");
+        SetGroup(cols, "MinLength", 4, "入库计量");
+        SetGroup(cols, "MaxLength", 4, "入库计量");
+        SetGroup(cols, "LocationArea", 5, "库位管理");
+        SetGroup(cols, "LocationRack", 5, "库位管理");
+        SetGroup(cols, "Remark", 5, "库位管理");
+    }
+
+    private static void AssignWipGroups(List<ColumnDef> cols)
+    {
+        SetGroup(cols, "InboundDateStr", 1, "来源信息");
+        SetGroup(cols, "InboundSource", 1, "来源信息");
+        SetGroup(cols, "ProductionBatchNo", 1, "来源信息");
+        SetGroup(cols, "MaterialType", 2, "物料信息");
+        SetGroup(cols, "PlantGrade", 2, "物料信息");
+        SetGroup(cols, "Specification", 2, "物料信息");
+        SetGroup(cols, "ActualSpecification", 2, "物料信息");
+        SetGroup(cols, "HeatNo", 2, "物料信息");
+        SetGroup(cols, "SurfaceCondition", 2, "物料信息");
+        SetGroup(cols, "LengthStatus", 3, "长度信息");
+        SetGroup(cols, "MinLength", 3, "长度信息");
+        SetGroup(cols, "MaxLength", 3, "长度信息");
+        SetGroup(cols, "InitialQuantity", 4, "库存计量");
+        SetGroup(cols, "InitialWeight", 4, "库存计量");
+        SetGroup(cols, "UnitWeight", 4, "库存计量");
+        SetGroup(cols, "LocationArea", 5, "库位管理");
+        SetGroup(cols, "LocationRack", 5, "库位管理");
+        SetGroup(cols, "Remark", 5, "库位管理");
+    }
+
+    private static void AssignDefectGroups(List<ColumnDef> cols)
+    {
+        SetGroup(cols, "InboundDateStr", 1, "来源信息");
+        SetGroup(cols, "InboundSource", 1, "来源信息");
+        SetGroup(cols, "SourceOrderNo", 1, "来源信息");
+        SetGroup(cols, "ProductionBatchNo", 1, "来源信息");
+        SetGroup(cols, "TagNo", 1, "来源信息");
+        SetGroup(cols, "MaterialType", 1, "来源信息");
+        SetGroup(cols, "LengthStatus", 2, "长度信息");
+        SetGroup(cols, "MinLength", 2, "长度信息");
+        SetGroup(cols, "MaxLength", 2, "长度信息");
+        SetGroup(cols, "InitialQuantity", 3, "库存计量");
+        SetGroup(cols, "InitialWeight", 3, "库存计量");
+        SetGroup(cols, "UnitWeight", 3, "库存计量");
+        SetGroup(cols, "LocationArea", 4, "库位管理");
+        SetGroup(cols, "LocationRack", 4, "库位管理");
+        SetGroup(cols, "Remark", 4, "库位管理");
+        SetGroup(cols, "DefectReason", 5, "次品信息");
+        SetGroup(cols, "LiabilityType", 5, "次品信息");
+        SetGroup(cols, "OriginalSupplier", 5, "次品信息");
+        SetGroup(cols, "DefectRemark", 5, "次品信息");
+        SetGroup(cols, "SalesOrderNo", 6, "可填充");
+        SetGroup(cols, "OrderItemIds", 6, "可填充");
+        SetGroup(cols, "IsLinkedToWorkOrder", 6, "可填充");
+        SetGroup(cols, "WorkOrderNo", 6, "可填充");
+        SetGroup(cols, "PlantGrade", 6, "可填充");
+        SetGroup(cols, "Specification", 6, "可填充");
+        SetGroup(cols, "SourceName", 6, "可填充");
+        SetGroup(cols, "HeatNo", 6, "可填充");
+        SetGroup(cols, "SurfaceCondition", 6, "可填充");
+    }
+
+    private static void SetGroup(List<ColumnDef> cols, string key, int groupKey, string groupName)
+    {
+        var c = cols.FirstOrDefault(x => x.Key == key);
+        if (c != null)
+        {
+            c.GroupKey = groupKey;
+            c.GroupName = groupName;
         }
     }
 
@@ -591,7 +747,13 @@
 
         // 自动初始化一行空数据
         if (!_rows.Any())
+        {
             _rows.Add(new InboundRowModel());
+            if (_warehouseCode == "WIP")
+                _rows[0].InboundSource = InboundSource.ProductionInbound.ToString();
+            if (_warehouseCode == "DEFECT")
+                _rows[0].InboundSource = InboundSource.InspectionInbound.ToString();
+        }
     }
 
     private bool _isArrowNavSetup;
@@ -618,11 +780,16 @@
         {
             _warehouseName = wh.Name;
             _warehouseCode = wh.Code.ToUpperInvariant();
+            _autoFillEnabled = true;
             _allColumns = GetAllColumnDefs();
             ApplyWarehouseDefaults(_allColumns, _warehouseCode);
             await LoadColumnPrefs();
             _rows.Clear();
             _rows.Add(new InboundRowModel());
+            if (_warehouseCode == "WIP")
+                _rows[0].InboundSource = InboundSource.ProductionInbound.ToString();
+            if (_warehouseCode == "DEFECT")
+                _rows[0].InboundSource = InboundSource.InspectionInbound.ToString();
             _errorMessage = string.Empty;
         }
     }
@@ -682,6 +849,7 @@
 
     private async Task ResetAll()
     {
+        _autoFillEnabled = true;
         _allColumns = GetAllColumnDefs();
         ApplyWarehouseDefaults(_allColumns, _warehouseCode);
         foreach (var c in _allColumns)
@@ -744,7 +912,7 @@
                 break;
             case "SurfaceCondition":
                 if (!string.IsNullOrEmpty(row.SurfaceCondition))
-                    builder.AddContent(0, row.SurfaceCondition);
+                    builder.AddContent(0, DisplayHelper.GetDeliveryStateText(row.SurfaceCondition));
                 break;
             case "LocationArea":
                 if (!string.IsNullOrEmpty(row.LocationArea))
@@ -842,18 +1010,27 @@
     private static readonly HashSet<string> _autoFillSources = new()
     {
         InboundSource.Purchase.ToString(),
-        InboundSource.Subcontract.ToString()
+        InboundSource.Subcontract.ToString(),
+        InboundSource.InspectionInbound.ToString()
     };
 
     /// <summary>Group 2 自动填充字段</summary>
     private static readonly HashSet<string> _autoFillFields = new()
     {
         "MaterialType", "PlantGrade", "Specification",
-        "SourceName", "IsLinkedToWorkOrder", "WorkOrderNo"
+        "SourceName", "IsLinkedToWorkOrder", "WorkOrderNo",
+        "SalesOrderNo", "OrderItemIds"
     };
 
     private bool IsAutoFillReadOnly(InboundRowModel row, string key) =>
-        _autoFillSources.Contains(row.InboundSource ?? "") && _autoFillFields.Contains(key);
+        (_warehouseCode == "RAW" && _autoFillEnabled &&
+         _autoFillSources.Contains(row.InboundSource ?? "") && _autoFillFields.Contains(key)) ||
+        (_warehouseCode == "FG" && _autoFillEnabled &&
+         _autoFillSources.Contains(row.InboundSource ?? "") && _autoFillFields.Contains(key)) ||
+        (_warehouseCode == "FG" && _autoFillEnabled &&
+         row.InboundSource == InboundSource.InspectionInbound.ToString() && key == "SourceOrderNo") ||
+        (_warehouseCode == "FG" && _autoFillEnabled &&
+         row.InboundSource == InboundSource.Purchase.ToString() && key == "ProductionBatchNo");
 
     // ========== 表格内联编辑 ==========
 
@@ -932,6 +1109,7 @@
                     builder.AddAttribute(2, "HideSpinButtons", true);
                     builder.AddAttribute(3, "Value", row.SourceOrderSequence);
                     builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { row.SourceOrderSequence = v; _ = TriggerAutoFillAsync(row); }));
+                    builder.AddAttribute(5, "Immediate", false);
                     builder.CloseComponent();
                 }
                 break;
@@ -985,6 +1163,8 @@
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Value", txtVal);
                 builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => SetRowStringValue(row, col.Key, v)));
+                if (col.Key is "SourceOrderNo" or "ProductionBatchNo")
+                    builder.AddAttribute(5, "Immediate", false);
                 builder.CloseComponent();
                 break;
         }
@@ -1034,12 +1214,12 @@
             case "LocationArea": row.LocationArea = value; break;
             case "LocationRack": row.LocationRack = value; break;
             case "Remark": row.Remark = value; break;
-            case "WorkOrderNo": row.WorkOrderNo = value; break;
+            case "WorkOrderNo": row.WorkOrderNo = value; row.IsLinkedToWorkOrder = !string.IsNullOrEmpty(value); break;
             case "SalesOrderNo": row.SalesOrderNo = value; break;
             case "OrderItemIds": row.OrderItemIds = value; break;
             case "SourceOrderNo": row.SourceOrderNo = value; _ = TriggerAutoFillAsync(row); break;
             case "ActualSpecification": row.ActualSpecification = value; break;
-            case "ProductionBatchNo": row.ProductionBatchNo = value; break;
+            case "ProductionBatchNo": row.ProductionBatchNo = value; if (row.InboundSource == InboundSource.InspectionInbound.ToString()) _ = TriggerAutoFillAsync(row); break;
             case "DefectReason": row.DefectReason = value; break;
             case "LiabilityType": row.LiabilityType = value; break;
             case "OriginalSupplier": row.OriginalSupplier = value; break;
@@ -1171,14 +1351,57 @@
                 errors.Add($"第{i + 1}行：入库日期必填");
             if (string.IsNullOrEmpty(r.InboundSource))
                 errors.Add($"第{i + 1}行：入库来源必填");
-            if (r.InboundSource == InboundSource.Subcontract.ToString() && string.IsNullOrEmpty(r.SourceOrderNo))
-                errors.Add($"第{i + 1}行：入库来源为「委外」时，来源单号必填");
-            if (r.InboundSource == InboundSource.Subcontract.ToString() && !r.SourceOrderSequence.HasValue)
-                errors.Add($"第{i + 1}行：入库来源为「委外」时，来源序号必填");
             if (r.InitialQuantity < 1)
                 errors.Add($"第{i + 1}行：支数必须大于0");
             if (r.InitialWeight <= 0)
                 errors.Add($"第{i + 1}行：重量必须大于0");
+            if (string.IsNullOrEmpty(r.LengthStatus))
+                errors.Add($"第{i + 1}行：长度状态必填");
+            if (string.IsNullOrEmpty(r.Specification))
+                errors.Add($"第{i + 1}行：名义规格必填");
+            if (!string.IsNullOrEmpty(_warehouseCode) && !string.IsNullOrEmpty(r.MaterialType))
+            {
+                var allowed = MES.Core.Constants.InventoryMaterialTypes.GetAllowedTypes(_warehouseCode);
+                if (allowed != null && Enum.TryParse<MaterialType>(r.MaterialType, out var mt) && !allowed.Contains(mt))
+                    errors.Add($"第{i + 1}行：物料「{DisplayHelper.GetMaterialTypeText(r.MaterialType)}」不属于当前仓库({_warehouseCode})允许的物料类型");
+            }
+            if (string.IsNullOrEmpty(r.PlantGrade))
+                errors.Add($"第{i + 1}行：工厂牌号必填");
+            if (_warehouseCode == "DEFECT" && string.IsNullOrEmpty(r.DefectReason))
+                errors.Add($"第{i + 1}行：次品原因必填");
+            if (_warehouseCode == "DEFECT" && string.IsNullOrEmpty(r.LiabilityType))
+                errors.Add($"第{i + 1}行：责任类型必填");
+        }
+
+        // 长度值逻辑验证（仅 FG/WIP 适用）
+        var minLenApplicable = _allColumns.FirstOrDefault(c => c.Key == "MinLength")?.IsApplicable ?? false;
+        if (minLenApplicable && (_warehouseCode == "FG" || _warehouseCode == "WIP"))
+        {
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                var r = _rows[i];
+                if (!string.IsNullOrEmpty(r.LengthStatus))
+            {
+                if (r.LengthStatus == LengthStatus.Fixed.ToString())
+                {
+                    if (!r.MinLength.HasValue || !r.MaxLength.HasValue)
+                        errors.Add($"第{i + 1}行：长度状态为「定尺」时，最小长度和最大长度必填");
+                    else if (r.MinLength.Value <= 0 || r.MaxLength.Value <= 0)
+                        errors.Add($"第{i + 1}行：长度状态为「定尺」时，最小长度和最大长度必须大于0");
+                    else if (r.MinLength.Value != r.MaxLength.Value)
+                        errors.Add($"第{i + 1}行：长度状态为「定尺」时，最小长度和最大长度必须相等");
+                }
+                else if (r.LengthStatus == LengthStatus.Range.ToString())
+                {
+                    if (!r.MinLength.HasValue || !r.MaxLength.HasValue)
+                        errors.Add($"第{i + 1}行：长度状态为「范围尺」时，最小长度和最大长度必填");
+                    else if (r.MinLength.Value <= 0)
+                        errors.Add($"第{i + 1}行：长度状态为「范围尺」时，最小长度必须大于0");
+                    else if (r.MaxLength.Value <= r.MinLength.Value)
+                        errors.Add($"第{i + 1}行：长度状态为「范围尺」时，最大长度必须大于最小长度");
+                }
+            }
+        }
         }
 
         if (errors.Any())
@@ -1199,7 +1422,7 @@
                 InboundSource = first.InboundSource != null ? Enum.Parse<InboundSource>(first.InboundSource) : null,
                 SourceName = first.SourceName,
                 InboundDate = ParseDate(first.InboundDateStr),
-                MaterialType = !string.IsNullOrEmpty(first.MaterialType) ? Enum.Parse<MaterialType>(first.MaterialType) : null,
+                MaterialType = !string.IsNullOrEmpty(first.MaterialType) ? EnumHelper.Parse<MaterialType>(first.MaterialType) : null,
                 PlantGrade = first.PlantGrade,
                 Specification = first.Specification,
                 HeatNo = first.HeatNo,
@@ -1242,7 +1465,7 @@
                     OriginalSupplier = r.OriginalSupplier,
                     TagNo = r.TagNo,
                     DefectRemark = r.DefectRemark,
-                    MaterialType = !string.IsNullOrEmpty(r.MaterialType) ? Enum.Parse<MaterialType>(r.MaterialType) : null,
+                    MaterialType = !string.IsNullOrEmpty(r.MaterialType) ? EnumHelper.Parse<MaterialType>(r.MaterialType) : null,
                     PlantGrade = r.PlantGrade,
                     Specification = r.Specification,
                     HeatNo = r.HeatNo,
@@ -1291,35 +1514,76 @@
 
     // ========== 来源单号自动填充 ==========
 
-    private CancellationTokenSource? _autoFillCts;
+    /// <summary>
+    /// 清空自动填充组字段（RAW:组2自动填充；FG:组2订单信息+组3物料信息）
+    /// 在 LookupSourceOrder / LookupProductionBatch 入口处调用，先清空再填充
+    /// </summary>
+    private void ClearAutoFillFields(InboundRowModel row)
+    {
+        // DEFECT 清空 G6（可填充），FG 清空 G2（订单信息）+G3（物料信息），其余清空 G2（自动填充）
+        int minGroupKey, maxGroupKey;
+        if (_warehouseCode == "DEFECT")
+        {
+            minGroupKey = 6;
+            maxGroupKey = 6;
+        }
+        else
+        {
+            minGroupKey = 2;
+            maxGroupKey = _warehouseCode == "FG" ? 3 : 2;
+        }
+
+        foreach (var col in _allColumns)
+        {
+            if (!col.IsApplicable || !col.Visible) continue;
+            if (!col.GroupKey.HasValue || col.GroupKey < minGroupKey || col.GroupKey > maxGroupKey) continue;
+
+            switch (col.Key)
+            {
+                case "MaterialType": row.MaterialType = null; break;
+                case "PlantGrade": row.PlantGrade = null; break;
+                case "Specification": row.Specification = null; break;
+                case "SourceName": row.SourceName = null; break;
+                case "WorkOrderNo": row.WorkOrderNo = null; break;
+                case "SalesOrderNo": row.SalesOrderNo = null; break;
+                case "OrderItemIds": row.OrderItemIds = null; break;
+                case "HeatNo": row.HeatNo = null; break;
+                case "SurfaceCondition": row.SurfaceCondition = null; break;
+            }
+        }
+
+        // IsLinkedToWorkOrder 始终跟随 WorkOrderNo，即使字段被隐藏也需先清空
+        row.IsLinkedToWorkOrder = false;
+    }
 
     private async Task TriggerAutoFillAsync(InboundRowModel row)
     {
-        // 防抖：来源单号/序号连续变化时只触发最后一次
-        _autoFillCts?.Cancel();
-        _autoFillCts = new CancellationTokenSource();
-        var token = _autoFillCts.Token;
-        try
+        if (!_autoFillEnabled)
+            return;
+
+        if (string.IsNullOrEmpty(row.InboundSource))
+            return;
+
+        if (row.InboundSource == InboundSource.InspectionInbound.ToString())
         {
-            // 入库来源必填
-            if (string.IsNullOrEmpty(row.InboundSource))
+            if (string.IsNullOrEmpty(row.ProductionBatchNo))
                 return;
-            // 外购：来源单号必填；委外：来源单号+委外序号必填
-            if (row.InboundSource == InboundSource.Subcontract.ToString())
-            {
-                if (string.IsNullOrEmpty(row.SourceOrderNo) || !row.SourceOrderSequence.HasValue)
-                    return;
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(row.SourceOrderNo))
-                    return;
-            }
-            await Task.Delay(300, token);
-            if (!token.IsCancellationRequested)
-                await InvokeAsync(async () => await LookupSourceOrder(row));
+            await InvokeAsync(() => LookupProductionBatch(row));
+            return;
         }
-        catch (TaskCanceledException) { }
+
+        // 外购：来源单号必填；委外：来源单号+委外序号必填
+        if (row.InboundSource == InboundSource.Subcontract.ToString())
+        {
+            if (string.IsNullOrEmpty(row.SourceOrderNo) || !row.SourceOrderSequence.HasValue)
+                return;
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(row.SourceOrderNo))
+                return;
+        }
+        await InvokeAsync(() => LookupSourceOrder(row));
     }
 
     private async Task LookupSourceOrder(InboundRowModel row)
@@ -1329,6 +1593,9 @@
             Snackbar.Add("请先填写「入库来源」和「来源单号」", Severity.Warning);
             return;
         }
+
+        // 新模式：先清空旧数据，再填充新数据
+        ClearAutoFillFields(row);
 
         try
         {
@@ -1348,7 +1615,17 @@
 
             // 填充当前行字段
             var filled = new List<string>();
-            if (!string.IsNullOrEmpty(data.MaterialCategory)) { row.MaterialType = data.MaterialCategory; filled.Add("物料分类"); }
+            if (!string.IsNullOrEmpty(data.MaterialCategory))
+            {
+                if (_warehouseCode == "DEFECT")
+                {
+                    // 次品库物料已选，不覆盖
+                }
+                else
+                {
+                    row.MaterialType = data.MaterialCategory; filled.Add("物料分类");
+                }
+            }
             if (!string.IsNullOrEmpty(data.PlantGrade)) { row.PlantGrade = data.PlantGrade; filled.Add("厂内钢种"); }
             if (!string.IsNullOrEmpty(data.Specification)) { row.Specification = data.Specification; filled.Add("规格"); }
             if (!string.IsNullOrEmpty(data.SupplierName)) { row.SourceName = data.SupplierName; filled.Add("供应商"); }
@@ -1378,6 +1655,119 @@
         {
             Snackbar.Add($"查询失败: {ex.Message}", Severity.Error);
         }
+        StateHasChanged();
+    }
+
+    private async Task LookupFromSource(InboundRowModel row)
+    {
+        if (_warehouseCode == "DEFECT")
+        {
+            // 次品库：优先按生产批号查询，其次按来源单号
+            if (!string.IsNullOrEmpty(row.ProductionBatchNo))
+            {
+                await LookupProductionBatch(row);
+            }
+            else if (!string.IsNullOrEmpty(row.SourceOrderNo))
+            {
+                await LookupSourceOrder(row);
+            }
+            else
+            {
+                Snackbar.Add("请先填写「生产批号」或「来源单号」", Severity.Warning);
+            }
+            return;
+        }
+
+        if (row.InboundSource == InboundSource.InspectionInbound.ToString())
+            await LookupProductionBatch(row);
+        else
+            await LookupSourceOrder(row);
+    }
+
+    private async Task LookupProductionBatch(InboundRowModel row)
+    {
+        if (string.IsNullOrEmpty(row.ProductionBatchNo))
+        {
+            Snackbar.Add("请先填写「生产批号」", Severity.Warning);
+            return;
+        }
+
+        // 新模式：先清空旧数据，再填充新数据
+        ClearAutoFillFields(row);
+
+        try
+        {
+            var result = await InventoryService.ValidateProductionBatchAsync(row.ProductionBatchNo);
+            if (!result.Success || result.Data == null)
+            {
+                Snackbar.Add(result.Message ?? "查询生产批号失败", Severity.Error);
+                return;
+            }
+
+            var data = result.Data;
+            if (!data.IsValid)
+            {
+                Snackbar.Add(string.Join("；", data.Warnings), Severity.Warning);
+                return;
+            }
+
+            // 填充当前行字段（MaterialType/SurfaceCondition 存储原始值，RenderCell 负责中文显示）
+            var filled = new List<string>();
+            if (!string.IsNullOrEmpty(data.MaterialCategory))
+            {
+                if (_warehouseCode == "DEFECT")
+                {
+                    // 次品库物料已选，不覆盖
+                }
+                else
+                {
+                    row.MaterialType = data.MaterialCategory; filled.Add("物料分类");
+                }
+            }
+            if (!string.IsNullOrEmpty(data.PlantGrade)) { row.PlantGrade = data.PlantGrade; filled.Add("厂内钢种"); }
+            if (!string.IsNullOrEmpty(data.Specification)) { row.Specification = data.Specification; filled.Add("规格"); }
+            if (!string.IsNullOrEmpty(data.SalesOrderNo)) { row.SalesOrderNo = data.SalesOrderNo; filled.Add("订单号"); }
+            if (!string.IsNullOrEmpty(data.OrderItemIds)) { row.OrderItemIds = data.OrderItemIds; filled.Add("项次"); }
+            if (!string.IsNullOrEmpty(data.HeatNo)) { row.HeatNo = data.HeatNo; filled.Add("炉号"); }
+            if (!string.IsNullOrEmpty(data.SurfaceCondition)) { row.SurfaceCondition = DisplayHelper.GetDeliveryStateText(data.SurfaceCondition); filled.Add("物料状态"); }
+            if (!string.IsNullOrEmpty(data.SupplierName)) { row.SourceName = data.SupplierName; filled.Add("来料单位"); }
+            if (!string.IsNullOrEmpty(data.ExpectedWorkOrderNo))
+            {
+                row.WorkOrderNo = data.ExpectedWorkOrderNo;
+                row.IsLinkedToWorkOrder = true;
+                filled.Add("来源工单号");
+                filled.Add("关联工单");
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(row.WorkOrderNo) || row.IsLinkedToWorkOrder)
+                {
+                    row.WorkOrderNo = null;
+                    row.IsLinkedToWorkOrder = false;
+                }
+            }
+
+            if (filled.Any())
+                Snackbar.Add($"已填充: {string.Join("、", filled)}", Severity.Success);
+            else
+                Snackbar.Add("生产批号存在，但无可填充的字段", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"查询失败: {ex.Message}", Severity.Error);
+        }
+        StateHasChanged();
+    }
+
+    // ========== 自动填充开关 ==========
+
+    private async Task OnAutoFillToggled(bool newValue)
+    {
+        _autoFillEnabled = newValue;
+        // 切换自动填充时清空行（来源选项会变化）
+        _rows.Clear();
+        _rows.Add(new InboundRowModel());
+        StateHasChanged();
     }
 
     // ========== 导航 ==========

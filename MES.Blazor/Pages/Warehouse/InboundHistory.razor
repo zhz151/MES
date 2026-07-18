@@ -34,6 +34,9 @@
     .inbound-history-edit-table th.mud-table-cell {
         white-space: nowrap;
     }
+    .inbound-history-edit-table {
+        table-layout: fixed;
+    }
     /* 分组标题栏与表格容器水平对齐 */
     #inbound-history-table-wrapper {
         overflow: hidden;
@@ -213,7 +216,7 @@
                             var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGkEdit;
                             _prevGkEdit = col.GroupKey;
                             var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                            <MudTd Class="@_cellClass">@RenderInlineEditor(item, col)</MudTd>
+                            <MudTd Class="@_cellClass" Style="@($"width:{GetColWidth(col.Key)}px")">@RenderInlineEditor(item, col)</MudTd>
                         }
                         <MudTd>
                             <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success"
@@ -238,7 +241,7 @@
                             var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGkView;
                             _prevGkView = col.GroupKey;
                             var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart3);
-                            <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
+                            <MudTd Class="@_cellClass" Style="@($"width:{GetColWidth(col.Key)}px")">@RenderCell(item, col)</MudTd>
                         }
                         <MudTd>
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
@@ -260,7 +263,7 @@
                         var _isGroupStart4 = col.GroupKey.HasValue && col.GroupKey != _prevGkFooter;
                         _prevGkFooter = col.GroupKey;
                         var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart4);
-                        <MudTd Class="@(_footerClass + " col-footer-cell")"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                        <MudTd Class="@(_footerClass + " col-footer-cell")" Style="@($"width:{GetColWidth(col.Key)}px")"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
                     }
                     <MudTd Class="col-footer-cell"></MudTd>
                 </FooterContent>

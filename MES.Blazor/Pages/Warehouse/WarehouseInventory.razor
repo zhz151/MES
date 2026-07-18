@@ -62,6 +62,15 @@
 }
 else
 {
+    <style>
+    /* 分组标题栏与表格容器水平对齐 */
+    #warehouse-inventory-table-wrapper {
+        overflow: hidden;
+    }
+    #warehouse-inventory-table-wrapper .col-group-header-scroll {
+        overflow: visible !important;
+    }
+    </style>
     @* ======== 单个仓库详情页 ======== *@
     <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
         <MudCard>
@@ -213,7 +222,19 @@ else
                     </div>
                 </div>
                 <!-- 数据表格 -->
-                <div id="warehouse-inventory-list-table" style="overflow-x:auto; max-width:100%;">
+                <div id="warehouse-inventory-table-wrapper">
+                @* 分组标题栏 *@
+                <div class="col-group-header-scroll">
+                    <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                        <div class="col-group-header-item" style="width:40px;flex:none;"></div>
+                        @foreach (var gh in _groupHeaders)
+                        {
+                            <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                                <span class="col-group-badge">@gh.GroupName</span>
+                            </div>
+                        }
+                    </div>
+                </div>
                 <MudTable @ref="table"
                           T="InventoryBatchDto"
                           ServerData="@LoadDataFromServer"
@@ -231,9 +252,16 @@ else
                                          ValueChanged="@((v) => { if(v) { foreach(var i in _pageItems) _selectedItems.Add(i); } else { foreach(var i in _pageItems) _selectedItems.Remove(i); } StateHasChanged(); })"
                                          Dense="true" />
                         </MudTh>
+                        @{
+                            int _prevGk = 0;
+                            bool _isGroupStart = true;
+                        }
                         @foreach (var col in _visibleColumns)
                         {
-                            <MudTh Style="@($"width:{col.Width}px")">
+                            _isGroupStart = col.GroupKey.HasValue && col.GroupKey > 0 && col.GroupKey != _prevGk;
+                            _prevGk = col.GroupKey ?? 0;
+                            var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                            <MudTh Class="@_headerClass" Style="@($"width:{GetColWidth(col.Key)}px")">
                                 <div style="display:inline-flex; align-items:center; gap:4px;">
                                     <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                     @if (col.FilterType != null)
@@ -257,16 +285,30 @@ else
                                          ValueChanged="@((v) => { ToggleItemSelection(item); })"
                                          Dense="true" />
                         </MudTd>
+                        @{
+                            int _prevGkCell = 0;
+                            bool _isGroupStartCell = true;
+                        }
                         @foreach (var col in _visibleColumns)
                         {
-                            <MudTd>@RenderCell(item, col)</MudTd>
+                            _isGroupStartCell = col.GroupKey.HasValue && col.GroupKey > 0 && col.GroupKey != _prevGkCell;
+                            _prevGkCell = col.GroupKey ?? 0;
+                            var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStartCell);
+                            <MudTd Class="@_cellClass" Style="@($"width:{GetColWidth(col.Key)}px")">@RenderCell(item, col)</MudTd>
                         }
                     </RowTemplate>
                     <FooterContent>
+                        @{
+                            int _prevGkFooter = 0;
+                            bool _isGroupStartFooter = true;
+                        }
                         <MudTd Class="col-footer-cell"></MudTd>
                         @foreach (var col in _visibleColumns)
                         {
-                            <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                            _isGroupStartFooter = col.GroupKey.HasValue && col.GroupKey > 0 && col.GroupKey != _prevGkFooter;
+                            _prevGkFooter = col.GroupKey ?? 0;
+                            var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStartFooter);
+                            <MudTd Class="@(_footerClass + " col-footer-cell")" Style="@($"width:{GetColWidth(col.Key)}px")"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
                         }
                     </FooterContent>
                     <PagerContent>

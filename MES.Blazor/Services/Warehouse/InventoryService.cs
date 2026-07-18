@@ -253,6 +253,21 @@ public class InventoryService
         }
     }
 
+    public async Task<ApiResponse<SourceOrderValidationResult>> ValidateProductionBatchAsync(string productionBatchNo)
+    {
+        try
+        {
+            return await _http.PostAsJsonAsync<object, ApiResponse<SourceOrderValidationResult>>(
+                $"{BaseUrl}/validate-production-batch",
+                new { productionBatchNo })
+                ?? ApiResponse<SourceOrderValidationResult>.Fail("验证失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<SourceOrderValidationResult>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     // ========== 工单号验证 ==========
 
     public async Task<ApiResponse<List<string>>> ValidateWorkOrderNosAsync(int warehouseId)

@@ -14,6 +14,7 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
+using MES.Core.Enums;
 
 namespace MES.Blazor.Pages.Warehouse;
 
@@ -138,6 +139,7 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "DefectRemark");
                 SetNotApplicable(cols, "SalesOrderNo");
                 SetNotApplicable(cols, "OrderItemIds");
+                AssignGroups(cols, whCode);
                 break;
             case "FG":
                 SetNotApplicable(cols, "DefectReason");
@@ -145,14 +147,16 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "OriginalSupplier");
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
+                AssignGroups(cols, whCode);
                 break;
             case "DEFECT":
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "RemainingMeters");
                 SetNotApplicable(cols, "ActualSpecification");
-                SetNotApplicable(cols, "SourceOrderNo");
+                AssignGroups(cols, whCode);
                 break;
             case "WIP":
+                SetNotApplicable(cols, "SourceName");
                 SetNotApplicable(cols, "IsLinkedToWorkOrder");
                 SetNotApplicable(cols, "WorkOrderNo");
                 SetNotApplicable(cols, "SalesOrderNo");
@@ -165,7 +169,81 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "RemainingMeters");
                 SetNotApplicable(cols, "SourceOrderNo");
+                AssignGroups(cols, whCode);
                 break;
+            default:
+                AssignGroups(cols, whCode);
+                break;
+        }
+    }
+
+    private static void AssignGroups(List<ColumnDef> cols, string whCode)
+    {
+        // G1 来源信息
+        SetGroup(cols, "BatchNo", 1, "来源信息");
+        SetGroup(cols, "InboundDate", 1, "来源信息");
+        SetGroup(cols, "InboundSource", 1, "来源信息");
+        SetGroup(cols, "SourceOrderNo", 1, "来源信息");
+        SetGroup(cols, "ProductionBatchNo", 1, "来源信息");
+        SetGroup(cols, "TagNo", 1, "来源信息");
+
+        // G2 订单信息
+        SetGroup(cols, "SalesOrderNo", 2, "订单信息");
+        SetGroup(cols, "OrderItemIds", 2, "订单信息");
+        SetGroup(cols, "WorkOrderNo", 2, "订单信息");
+        SetGroup(cols, "IsLinkedToWorkOrder", 2, "订单信息");
+
+        // G3 物料信息
+        SetGroup(cols, "MaterialType", 3, "物料信息");
+        SetGroup(cols, "PlantGrade", 3, "物料信息");
+        SetGroup(cols, "Specification", 3, "物料信息");
+        SetGroup(cols, "SourceName", 3, "物料信息");
+        SetGroup(cols, "SurfaceCondition", 3, "物料信息");
+        SetGroup(cols, "HeatNo", 3, "物料信息");
+        SetGroup(cols, "ActualSpecification", 3, "物料信息");
+
+        // G4 长度信息
+        SetGroup(cols, "LengthStatus", 4, "长度信息");
+        SetGroup(cols, "MinLength", 4, "长度信息");
+        SetGroup(cols, "MaxLength", 4, "长度信息");
+
+        // G5 库存计量
+        SetGroup(cols, "InitialQuantity", 5, "库存计量");
+        SetGroup(cols, "InitialWeight", 5, "库存计量");
+        SetGroup(cols, "UnitWeight", 5, "库存计量");
+        SetGroup(cols, "Meters", 5, "库存计量");
+        SetGroup(cols, "RemainingMeters", 5, "库存计量");
+        SetGroup(cols, "RemainingQuantity", 5, "库存计量");
+        SetGroup(cols, "RemainingWeight", 5, "库存计量");
+
+        // G6 库位管理
+        SetGroup(cols, "LocationArea", 6, "库位管理");
+        SetGroup(cols, "LocationRack", 6, "库位管理");
+        SetGroup(cols, "Remark", 6, "库位管理");
+
+        // G7 次品信息（仅次品库可见）
+        SetGroup(cols, "DefectReason", 7, "次品信息");
+        SetGroup(cols, "LiabilityType", 7, "次品信息");
+        SetGroup(cols, "OriginalSupplier", 7, "次品信息");
+        SetGroup(cols, "DefectRemark", 7, "次品信息");
+
+        SortByGroup(cols);
+    }
+
+    private static void SortByGroup(List<ColumnDef> cols)
+    {
+        var sorted = cols.OrderBy(c => c.GroupKey ?? int.MaxValue).ToList();
+        cols.Clear();
+        cols.AddRange(sorted);
+    }
+
+    private static void SetGroup(List<ColumnDef> cols, string key, int groupKey, string groupName)
+    {
+        var c = cols.FirstOrDefault(x => x.Key == key);
+        if (c != null)
+        {
+            c.GroupKey = groupKey;
+            c.GroupName = groupName;
         }
     }
 
@@ -463,9 +541,10 @@ public partial class WarehouseInventory
             }
         }
 
-        // LengthStatus 列显示中文
+        // LengthStatus 列显示中文并过滤非法值
         if (_filterContextOptions.TryGetValue("LengthStatus", out var lengthOptions))
         {
+            lengthOptions.RemoveAll(opt => !Enum.TryParse<LengthStatus>(opt.Value, out _));
             foreach (var opt in lengthOptions)
             {
                 opt.Display = DisplayHelper.GetLengthStatusText(opt.Value);
@@ -539,6 +618,111 @@ public partial class WarehouseInventory
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
+
+    // ========== B23 分组列标题栏 ==========
+
+    private int _totalTableWidth =>
+        40 + _visibleColumns.Sum(c => GetColWidth(c.Key));
+
+    private List<GroupHeaderInfo> _groupHeaders => GetGroupHeaders();
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null; int totalWidth = 0;
+        var groupKey = 0; var groupName = ""; var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk; groupName = col.GroupName ?? "";
+            totalWidth += GetColWidth(col.Key);
+            count++; lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", 4 => "col-g4", 5 => "col-g5", 6 => "col-g6", 7 => "col-g7", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", 5 => "col-g5-cell", 6 => "col-g6-cell", 7 => "col-g7-cell", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
+    private static int GetColWidth(string key) => key switch
+    {
+        "BatchNo" => 120,
+        "InboundDate" => 120,
+        "InboundSource" => 120,
+        "SourceOrderNo" => 120,
+        "ProductionBatchNo" => 120,
+        "SalesOrderNo" => 120,
+        "OrderItemIds" => 120,
+        "WorkOrderNo" => 120,
+        "IsLinkedToWorkOrder" => 120,
+        "MaterialType" => 120,
+        "PlantGrade" => 120,
+        "Specification" => 120,
+        "SourceName" => 120,
+        "SurfaceCondition" => 120,
+        "HeatNo" => 120,
+        "ActualSpecification" => 120,
+        "LengthStatus" => 120,
+        "MinLength" => 80,
+        "MaxLength" => 80,
+        "InitialQuantity" => 80,
+        "InitialWeight" => 80,
+        "UnitWeight" => 80,
+        "Meters" => 80,
+        "RemainingMeters" => 80,
+        "RemainingQuantity" => 80,
+        "RemainingWeight" => 80,
+        "LocationArea" => 120,
+        "LocationRack" => 120,
+        "Remark" => 120,
+        "DefectReason" => 120,
+        "LiabilityType" => 120,
+        "OriginalSupplier" => 120,
+        "TagNo" => 120,
+        "DefectRemark" => 120,
+        _ => 100
+    };
 
 
     private async Task ToggleSort(string sortKey)
@@ -659,11 +843,18 @@ public partial class WarehouseInventory
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // 分组标题栏宽度同步
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#warehouse-inventory-table-wrapper");
+        }
+        catch { }
+
         // 方向键导航
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#warehouse-inventory-list-table"))
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#warehouse-inventory-table-wrapper"))
                 _isArrowNavSetup = false;
         }
 

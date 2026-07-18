@@ -15,6 +15,14 @@ public class SourceOrderValidationResult
     public string? Specification { get; set; }
     /// <summary>供应商名称</summary>
     public string? SupplierName { get; set; }
+    /// <summary>订单号（生产批次查询时填充）</summary>
+    public string? SalesOrderNo { get; set; }
+    /// <summary>项次（生产批次查询时填充）</summary>
+    public string? OrderItemIds { get; set; }
+    /// <summary>炉号（生产批次查询时填充）</summary>
+    public string? HeatNo { get; set; }
+    /// <summary>物料状态/交货状态（生产批次查询时填充）</summary>
+    public string? SurfaceCondition { get; set; }
 }
 
 public class SourceOrderValidationRequest
@@ -23,4 +31,13 @@ public class SourceOrderValidationRequest
     public InboundSource InboundSource { get; set; }
     /// <summary>委外来源序号（SubcontractReturnItem.Sequence），采购可忽略</summary>
     public int? SourceOrderSequence { get; set; }
+}
+
+/// <summary>
+/// 生产批号验证请求
+/// </summary>
+public class ProductionBatchValidationRequest
+{
+    /// <summary>生产批号</summary>
+    public string ProductionBatchNo { get; set; } = null!;
 }

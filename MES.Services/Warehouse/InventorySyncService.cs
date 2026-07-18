@@ -8,6 +8,7 @@ using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Data;
 using MES.Data.Entities.Materials;
+using MES.Data.Entities.Batch;
 using MES.Data.Entities.Warehouse;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -20,6 +21,26 @@ public class InventorySyncService : IInventorySyncService
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly ILogger<InventorySyncService> _logger;
     private readonly IMemoryCache _cache;
+
+    /// <summary>
+    /// 旧枚举名 → 新枚举名映射（物料枚举合并/重命名后，DB 可能仍存旧值）
+    /// </summary>
+    private static readonly Dictionary<string, string> MaterialTypeNameMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["OrderFinishedProduct"] = "OrderFinished",
+        ["PreparedMaterial"] = "Finished",
+        ["PreparedFinished"] = "Finished",
+        ["SurplusStock"] = "Surplus",
+        ["IntermediateProduct"] = "SemiFinished",
+        ["StockFinished"] = "Finished",
+    };
+
+    /// <summary>映射旧 MaterialType 枚举名为新名称</summary>
+    private static string MapMaterialTypeName(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return name ?? "";
+        return MaterialTypeNameMap.TryGetValue(name, out var mapped) ? mapped : name;
+    }
 
     public InventorySyncService(
         AppDbContext context,
@@ -85,7 +106,7 @@ public class InventorySyncService : IInventorySyncService
             {
                 if (!string.IsNullOrEmpty(order.SourceWorkOrderNo))
                     result.ExpectedWorkOrderNo = order.SourceWorkOrderNo;
-                result.MaterialCategory = order.MaterialCategory;
+                result.MaterialCategory = MapMaterialTypeName(order.MaterialCategory);
                 result.PlantGrade = order.PlantGrade;
                 result.Specification = order.Specification;
                 if (order.SupplierId > 0)
@@ -121,7 +142,7 @@ public class InventorySyncService : IInventorySyncService
                 }
                 else
                 {
-                    result.MaterialCategory = item.MaterialCategory;
+                    result.MaterialCategory = MapMaterialTypeName(item.MaterialCategory);
                     result.PlantGrade = item.PlantGrade;
                     result.Specification = item.ProcessSpecification;
                     if (!string.IsNullOrEmpty(item.SourceWorkOrderNo))
@@ -137,7 +158,7 @@ public class InventorySyncService : IInventorySyncService
             }
             else
             {
-                result.MaterialCategory = order.OutMaterialCategory;
+                result.MaterialCategory = MapMaterialTypeName(order.OutMaterialCategory);
                 result.PlantGrade = order.OutPlantGrade;
                 result.Specification = order.OutSpecification;
                 if (order.SupplierId > 0)
@@ -150,6 +171,41 @@ public class InventorySyncService : IInventorySyncService
             }
         }
 
+        return result;
+    }
+
+    public async Task<SourceOrderValidationResult> ValidateProductionBatchAsync(string productionBatchNo)
+    {
+        var result = new SourceOrderValidationResult { IsValid = true };
+
+        if (string.IsNullOrEmpty(productionBatchNo))
+        {
+            result.Warnings.Add("生产批号为空");
+            result.IsValid = false;
+            return result;
+        }
+
+        var batch = await _context.ProductionBatches
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.BatchNo == productionBatchNo);
+
+        if (batch == null)
+        {
+            result.Warnings.Add($"生产批号「{productionBatchNo}」不存在");
+            result.IsValid = false;
+            return result;
+        }
+
+        if (!string.IsNullOrEmpty(batch.WorkOrderNo))
+            result.ExpectedWorkOrderNo = batch.WorkOrderNo;
+        result.MaterialCategory = MapMaterialTypeName(batch.ManufacturingItem);
+        result.PlantGrade = batch.PlantGrade;
+        result.Specification = batch.Specification;
+        result.SalesOrderNo = batch.SalesOrderNo;
+        result.OrderItemIds = batch.OrderItemIds;
+        result.HeatNo = batch.SourceHeatNo;
+        result.SurfaceCondition = batch.DeliveryState;
+        result.SupplierName = batch.SourceName;
         return result;
     }
 

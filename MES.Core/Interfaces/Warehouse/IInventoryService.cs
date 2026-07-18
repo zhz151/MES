@@ -13,7 +13,7 @@ public interface IInventoryService
     Task<PagedResult<InventoryBatchDto>> GetPagedAsync(InventoryQueryParams query);
 
     /// <summary>
-    /// 全量查询库存批次（无分页，供前端 Items 模式使用�?    /// </summary>
+    /// 全量查询库存批次（无分页，供前端 Items 模式使用�?    /// </summary>
     Task<List<InventoryBatchDto>> GetAllListAsync(InventoryQueryParams query);
 
     /// <summary>
@@ -52,7 +52,7 @@ public interface IInventoryService
     Task<InventoryBatchDto> UpdateInventoryBatchAsync(int id, UpdateInventoryBatchRequest request);
 
     /// <summary>
-    /// 物理删除入库批次（仅管理�?主任�?    /// </summary>
+    /// 物理删除入库批次（仅管理�?主任�?    /// </summary>
     Task HardDeleteInventoryBatchAsync(int id);
 
     /// <summary>
@@ -61,13 +61,18 @@ public interface IInventoryService
     Task<OutboundRecordDto> UpdateOutboundRecordAsync(long id, UpdateOutboundRecordRequest request);
 
     /// <summary>
-    /// 物理删除出库记录（仅管理�?主任�?    /// </summary>
+    /// 物理删除出库记录（仅管理�?主任�?    /// </summary>
     Task HardDeleteOutboundRecordAsync(long id);
 
     /// <summary>
     /// 验证来源单号
     /// </summary>
     Task<SourceOrderValidationResult> ValidateSourceOrderAsync(string sourceOrderNo, string inboundSource, int? sourceOrderSequence = null);
+
+    /// <summary>
+    /// 验证生产批号（检验入库自动填充）
+    /// </summary>
+    Task<SourceOrderValidationResult> ValidateProductionBatchAsync(string productionBatchNo);
 
     /// <summary>
     /// 验证仓库内入库数据的工单号是否在工单管理上下文中存在
@@ -92,7 +97,7 @@ public interface IInventoryService
     Task<byte[]> PrintInventorySelectedAsync(InventoryPrintSelectedRequest request);
 
     /// <summary>
-    /// 打印全部库存（只显示有库存的记录�?    /// </summary>
+    /// 打印全部库存（只显示有库存的记录�?    /// </summary>
     Task<byte[]> PrintStockAllAsync(InventoryPrintAllRequest request);
 
     /// <summary>
@@ -121,12 +126,12 @@ public interface IInventoryService
     Task<byte[]> PrintOutboundSelectedAsync(OutboundPrintSelectedRequest request);
 
     /// <summary>
-    /// 获取出库记录筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
+    /// 获取出库记录筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetOutboundFilterContextsAsync();
 
     /// <summary>
-    /// 获取库存批次筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
+    /// 获取库存批次筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetInventoryFilterContextsAsync();
 }

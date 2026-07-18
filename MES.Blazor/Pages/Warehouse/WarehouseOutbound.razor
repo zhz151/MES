@@ -1,6 +1,7 @@
 @page "/warehouse/outbound"
 @using MES.Core.Enums
 @using MES.Blazor.Helpers
+@using MES.Blazor.Models
 @using MES.Blazor.Services
 @using MES.Core.Models
 @using MES.Core.DTOs.Warehouse
@@ -10,6 +11,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
 @attribute [Authorize]
 
 
@@ -41,73 +43,43 @@
             else
             {
             <div class="inbound-table-scroll">
+                <!-- 工具栏：列显隐 -->
+                <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+                    <div class="d-flex align-center">
+                        <ColumnDisplaySelect Columns="_allColumns"
+                                             OnColumnToggle="OnColumnToggle"
+                                             OnMoveUp="MoveColumnUp"
+                                             OnMoveDown="MoveColumnDown" />
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.RestartAlt"
+                                   OnClick="ResetColumnDisplay" Class="ml-2">
+                            重置
+                        </MudButton>
+                    </div>
+                </div>
                 <MudTable Items="@_items" Dense="true" Hover="true" Elevation="0" Striped="true" Class="auto-table mb-4">
                     <HeaderContent>
-                        <MudTh>批次号</MudTh>
-                        <MudTh>工厂牌号</MudTh>
-                        <MudTh>规格</MudTh>
-                        <MudTh>剩余支数</MudTh>
-                        <MudTh>剩余重量(kg)</MudTh>
-                        <MudTh>出库日期<span class="required-star">*</span></MudTh>
-                        <MudTh>出库支数<span class="required-star">*</span></MudTh>
-                        <MudTh>出库重量(kg)<span class="required-star">*</span></MudTh>
-                        <MudTh>出库类型<span class="required-star">*</span></MudTh>
-                        <MudTh>委外穿孔号</MudTh>
-                        <MudTh>目标单位</MudTh>
-                        <MudTh>备注</MudTh>
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTh Style="@($"width:{col.Width}px")">
+                                @col.Label
+                                @if (col.IsRequired)
+                                {
+                                    <span class="required-star">*</span>
+                                }
+                            </MudTh>
+                        }
                         <MudTh Style="width:100px;">操作</MudTh>
                     </HeaderContent>
                     <RowTemplate Context="item">
                         @{
                             var idx = _items.IndexOf(item);
                         }
-                        <MudTd><small>@item.BatchNo</small></MudTd>
-                        <MudTd><small>@item.PlantGrade</small></MudTd>
-                        <MudTd><small>@item.Specification</small></MudTd>
-                        <MudTd><MudChip Size="Size.Small" Color="Color.Success">@item.RemainingQuantity</MudChip></MudTd>
-                        <MudTd><MudChip Size="Size.Small" Color="Color.Success">@item.RemainingWeight.ToString("G29")</MudChip></MudTd>
-                        <MudTd>
-                            <MudTextField T="string" @bind-Value="_dateText"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudTd>
-                        <MudTd>
-                            <MudNumericField T="int"
-                                             @bind-Value="item.OutboundQuantity"
-                                             Min="1" Max="@item.RemainingQuantity"
-                                             Variant="Variant.Outlined" Dense="true"
-                                             Class="qty-input" HideSpinButtons="true" />
-                        </MudTd>
-                        <MudTd>
-                            <MudNumericField T="decimal" Format="G29"
-                                             @bind-Value="item.OutboundWeight"
-                                             Min="0" Max="@item.RemainingWeight"
-                                             Variant="Variant.Outlined" Dense="true"
-                                             Class="qty-input" HideSpinButtons="true" />
-                        </MudTd>
-                        <MudTd>
-                            <MudSelect T="OutboundType" @bind-Value="item.OutboundType"
-                                        Variant="Variant.Outlined" Dense="true">
-                                <MudSelectItem Value="@(OutboundType.SalesOut)">@DisplayHelper.GetOutboundTypeText(OutboundType.SalesOut)</MudSelectItem>
-                                <MudSelectItem Value="@(OutboundType.SubcontractOut)">@DisplayHelper.GetOutboundTypeText(OutboundType.SubcontractOut)</MudSelectItem>
-                                <MudSelectItem Value="@(OutboundType.ReturnOut)">@DisplayHelper.GetOutboundTypeText(OutboundType.ReturnOut)</MudSelectItem>
-                                <MudSelectItem Value="@(OutboundType.ProductionPick)">@DisplayHelper.GetOutboundTypeText(OutboundType.ProductionPick)</MudSelectItem>
-                                <MudSelectItem Value="@(OutboundType.InspectionPick)">@DisplayHelper.GetOutboundTypeText(OutboundType.InspectionPick)</MudSelectItem>
-                                <MudSelectItem Value="@(OutboundType.TransferOut)">@DisplayHelper.GetOutboundTypeText(OutboundType.TransferOut)</MudSelectItem>
-                                <MudSelectItem Value="@(OutboundType.OtherOut)">@DisplayHelper.GetOutboundTypeText(OutboundType.OtherOut)</MudSelectItem>
-                            </MudSelect>
-                        </MudTd>
-                        <MudTd>
-                            <MudTextField T="string" @bind-Value="item.SourceOrderNo"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudTd>
-                        <MudTd>
-                            <MudTextField T="string" @bind-Value="item.TargetCompany"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudTd>
-                        <MudTd>
-                            <MudTextField T="string" @bind-Value="item.Remark"
-                                          Variant="Variant.Outlined" Dense="true" />
-                        </MudTd>
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTd>@RenderCell(item, col, idx)</MudTd>
+                        }
                         <MudTd>
                             <div class="d-flex flex-nowrap gap-1" style="gap:2px;">
                                 @if (idx > 0)
@@ -128,6 +100,10 @@
                 <!-- 合计 -->
                 <MudText Typo="Typo.body2" Class="font-weight-bold mb-4">
                     合计出库：@_items.Sum(i => i.OutboundQuantity) 支 / @_items.Sum(i => i.OutboundWeight).ToString("G29") kg
+                    @if (_items.Any(i => i.OutboundMeters.HasValue))
+                    {
+                        @:/ @_items.Sum(i => i.OutboundMeters ?? 0).ToString("G29") 米
+                    }
                 </MudText>
 
                 @if (!string.IsNullOrEmpty(_errorMessage))
@@ -165,13 +141,213 @@
         public string Specification { get; set; } = string.Empty;
         public int RemainingQuantity { get; set; }
         public decimal RemainingWeight { get; set; }
+        public decimal? RemainingMeters { get; set; }
         public int OutboundQuantity { get; set; }
         public decimal OutboundWeight { get; set; }
+        public decimal? OutboundMeters { get; set; }
         public OutboundType OutboundType { get; set; } = OutboundType.ProductionPick;
         public string? SourceOrderNo { get; set; }
         public string? TargetCompany { get; set; }
         public string? Remark { get; set; }
     }
+
+    // ========== 列定义 ==========
+
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.Visible).ToList();
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "BatchNo",             Label = "批次号", Width = "120" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号", Width = "120" },
+        new() { Key = "Specification",       Label = "规格", Width = "120" },
+        new() { Key = "RemainingQuantity",   Label = "剩余支数", Width = "80" },
+        new() { Key = "RemainingWeight",     Label = "剩余重量(kg)", Width = "80" },
+        new() { Key = "RemainingMeters",     Label = "剩余米数", Width = "80" },
+        new() { Key = "OutboundDate",        Label = "出库日期", IsRequired = true, Width = "120" },
+        new() { Key = "OutboundQuantity",    Label = "出库支数", IsRequired = true, Width = "80" },
+        new() { Key = "OutboundWeight",      Label = "出库重量(kg)", IsRequired = true, Width = "80" },
+        new() { Key = "OutboundMeters",      Label = "出库米数", Width = "80" },
+        new() { Key = "OutboundType",        Label = "出库类型", IsRequired = true, Width = "120" },
+        new() { Key = "SourceOrderNo",       Label = "委外穿孔号", Width = "120" },
+        new() { Key = "TargetCompany",       Label = "目标单位", Width = "120" },
+        new() { Key = "Remark",              Label = "备注", Width = "120" },
+    };
+
+    // ========== 列显隐操作 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("outbound_batch", "default", _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(OutboundItem item, ColumnDef col, int idx) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "BatchNo":
+                builder.OpenElement(0, "small");
+                builder.AddContent(1, item.BatchNo);
+                builder.CloseElement();
+                break;
+            case "PlantGrade":
+                builder.OpenElement(0, "small");
+                builder.AddContent(1, item.PlantGrade);
+                builder.CloseElement();
+                break;
+            case "Specification":
+                builder.OpenElement(0, "small");
+                builder.AddContent(1, item.Specification);
+                builder.CloseElement();
+                break;
+            case "RemainingQuantity":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", Color.Success);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.RemainingQuantity)));
+                builder.CloseComponent();
+                break;
+            case "RemainingWeight":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", Color.Success);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.RemainingWeight.ToString("G29"))));
+                builder.CloseComponent();
+                break;
+            case "RemainingMeters":
+                if (item.RemainingMeters.HasValue)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Success);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.RemainingMeters.Value.ToString("G29"))));
+                    builder.CloseComponent();
+                }
+                break;
+            case "OutboundDate":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Variant", Variant.Outlined);
+                builder.AddAttribute(2, "Dense", true);
+                builder.AddAttribute(3, "Value", _dateText);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => _dateText = v ?? DateTime.Today.ToString("yyyy-MM-dd")));
+                builder.CloseComponent();
+                break;
+            case "OutboundQuantity":
+                builder.OpenComponent<MudNumericField<int>>(0);
+                builder.AddAttribute(1, "Min", 1);
+                builder.AddAttribute(2, "Max", item.RemainingQuantity);
+                builder.AddAttribute(3, "Variant", Variant.Outlined);
+                builder.AddAttribute(4, "Dense", true);
+                builder.AddAttribute(5, "Class", "qty-input");
+                builder.AddAttribute(6, "HideSpinButtons", true);
+                builder.AddAttribute(7, "Value", item.OutboundQuantity);
+                builder.AddAttribute(8, "ValueChanged", EventCallback.Factory.Create<int>(this, v => item.OutboundQuantity = v));
+                builder.CloseComponent();
+                break;
+            case "OutboundWeight":
+                builder.OpenComponent<MudNumericField<decimal>>(0);
+                builder.AddAttribute(1, "Format", "G29");
+                builder.AddAttribute(2, "Min", 0m);
+                builder.AddAttribute(3, "Max", item.RemainingWeight);
+                builder.AddAttribute(4, "Variant", Variant.Outlined);
+                builder.AddAttribute(5, "Dense", true);
+                builder.AddAttribute(6, "Class", "qty-input");
+                builder.AddAttribute(7, "HideSpinButtons", true);
+                builder.AddAttribute(8, "Value", item.OutboundWeight);
+                builder.AddAttribute(9, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => item.OutboundWeight = v));
+                builder.CloseComponent();
+                break;
+            case "OutboundMeters":
+                builder.OpenComponent<MudNumericField<decimal>>(0);
+                builder.AddAttribute(1, "Format", "G29");
+                builder.AddAttribute(2, "Min", 0m);
+                builder.AddAttribute(3, "Variant", Variant.Outlined);
+                builder.AddAttribute(4, "Dense", true);
+                builder.AddAttribute(5, "Class", "qty-input");
+                builder.AddAttribute(6, "HideSpinButtons", true);
+                builder.AddAttribute(7, "Value", item.OutboundMeters ?? 0m);
+                builder.AddAttribute(8, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => item.OutboundMeters = v));
+                builder.CloseComponent();
+                break;
+            case "OutboundType":
+                builder.OpenComponent<MudSelect<OutboundType>>(0);
+                builder.AddAttribute(1, "Variant", Variant.Outlined);
+                builder.AddAttribute(2, "Dense", true);
+                builder.AddAttribute(3, "Value", item.OutboundType);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<OutboundType>(this, v => item.OutboundType = v));
+                builder.AddAttribute(5, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    foreach (var opt in _outboundTypeOptions)
+                    {
+                        b2.OpenComponent<MudSelectItem<OutboundType>>(0);
+                        b2.AddAttribute(1, "Value", opt.Value);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
+                        b2.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+            case "SourceOrderNo":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Variant", Variant.Outlined);
+                builder.AddAttribute(2, "Dense", true);
+                builder.AddAttribute(3, "Value", item.SourceOrderNo);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => item.SourceOrderNo = v));
+                builder.CloseComponent();
+                break;
+            case "TargetCompany":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Variant", Variant.Outlined);
+                builder.AddAttribute(2, "Dense", true);
+                builder.AddAttribute(3, "Value", item.TargetCompany);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => item.TargetCompany = v));
+                builder.CloseComponent();
+                break;
+            case "Remark":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Variant", Variant.Outlined);
+                builder.AddAttribute(2, "Dense", true);
+                builder.AddAttribute(3, "Value", item.Remark);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => item.Remark = v));
+                builder.CloseComponent();
+                break;
+        }
+    };
+
+    private readonly List<(OutboundType Value, string Text)> _outboundTypeOptions = new()
+    {
+        (OutboundType.SalesOut, "销售出库"),
+        (OutboundType.SubcontractOut, "委外出库"),
+        (OutboundType.ReturnOut, "退货出库"),
+        (OutboundType.ProductionPick, "生产领用"),
+        (OutboundType.InspectionPick, "检验领用"),
+        (OutboundType.TransferOut, "移库出库"),
+        (OutboundType.OtherOut, "其他出库"),
+    };
 
     // ========== 状态 ==========
 
@@ -185,6 +361,12 @@
 
     protected override void OnInitialized()
     {
+        // 列定义
+        _allColumns = GetAllColumnDefs();
+
+        // 加载用户偏好
+        _ = LoadColumnPrefsAsync();
+
         // 从共享状态读取选中的批次
         if (OutboundState.SelectedItems.Count > 0)
         {
@@ -199,10 +381,39 @@
                 Specification = s.Specification,
                 RemainingQuantity = s.RemainingQuantity,
                 RemainingWeight = s.RemainingWeight,
+                RemainingMeters = s.RemainingMeters,
                 // 初始默认值：出库数 = 剩余数
                 OutboundQuantity = s.RemainingQuantity,
                 OutboundWeight = s.RemainingWeight,
+                OutboundMeters = s.RemainingMeters,
             }).ToList();
+        }
+    }
+
+    private async Task LoadColumnPrefsAsync()
+    {
+        var saved = await ColumnPrefs.LoadAsync("outbound_batch", "default");
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
         }
     }
 
@@ -275,6 +486,7 @@
                     InventoryBatchId = i.Id,
                     OutboundQuantity = i.OutboundQuantity,
                     OutboundWeight = i.OutboundWeight,
+                    OutboundMeters = i.OutboundMeters,
                     OutboundType = i.OutboundType,
                     SourceOrderNo = string.IsNullOrEmpty(i.SourceOrderNo) ? null : i.SourceOrderNo,
                     TargetCompany = string.IsNullOrEmpty(i.TargetCompany) ? null : i.TargetCompany,
