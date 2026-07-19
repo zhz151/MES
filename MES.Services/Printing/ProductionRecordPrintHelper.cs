@@ -45,6 +45,7 @@ public static class ProductionRecordPrintHelper
                 new() { Key = "Quantity", Label = "加工支数" },
                 new() { Key = "Weight", Label = "加工重量" },
                 new() { Key = "ProductStatus", Label = "制造状态" },
+                new() { Key = "DataSource", Label = "数据来源" },
                 new() { Key = "Remark", Label = "备注" },
             };
         }
@@ -72,7 +73,12 @@ public static class ProductionRecordPrintHelper
                 ["SoakTime"] = r.SoakTime?.ToString() ?? "",
                 ["TagNo"] = r.TagNo ?? "",
                 ["PlantGrade"] = r.PlantGrade ?? "",
-                ["DataSource"] = r.DataSource ?? "",
+                ["DataSource"] = r.DataSource switch
+                {
+                    "SCAN" => "扫码",
+                    "MANUAL" => "手动",
+                    _ => ""
+                },
                 ["ProductStatus"] = r.ProductStatus ?? "在制",
                 ["Remark"] = r.Remark ?? "",
                 ["CreatedTime"] = r.CreatedTime.ToString("yyyy-MM-dd HH:mm"),

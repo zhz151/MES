@@ -30,4 +30,10 @@ public interface IPendingDeliveryQueryService
     /// 获取筛选上下文（各列的 DISTINCT 值，用于 ExcelFilter）
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
+    /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
+    Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns);
+
+    /// <summary>打印全部（Mode A：前端已准备数据）</summary>
+    Task<byte[]> PrintAllFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns);
 }

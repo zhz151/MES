@@ -1761,7 +1761,7 @@
 
     // ========== 自动填充开关 ==========
 
-    private async Task OnAutoFillToggled(bool newValue)
+    private void OnAutoFillToggled(bool newValue)
     {
         _autoFillEnabled = newValue;
         // 切换自动填充时清空行（来源选项会变化）

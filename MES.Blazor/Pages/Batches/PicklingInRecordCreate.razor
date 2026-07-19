@@ -3,6 +3,8 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Core.Constants
+@using MES.Core.Enums
+@using MES.Core.Helpers
 @using MES.Core.DTOs.Batch
 @inject PicklingService PicklingService
 @inject BatchService BatchService
@@ -30,9 +32,11 @@
             white-space: nowrap;
         }
         .table-scroll {
-            max-height: calc(100vh - 280px);
-            overflow-y: auto;
-            overflow-x: auto;
+            max-height: calc(100vh - 310px);
+            overflow: hidden;
+        }
+        .table-scroll .mud-table-container {
+            overflow-x: auto !important;
         }
     </style>
 
@@ -73,13 +77,31 @@
                             添加行
                         </MudButton>
                     </div>
-                    <div class="table-scroll">
+                    <div class="table-scroll" id="pickling-table-wrapper">
+                        @* 分组标题栏 *@
+                        <div class="col-group-header-scroll">
+                            <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                                @foreach (var gh in _groupHeaders)
+                                {
+                                    <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                                        <span class="col-group-badge">@gh.GroupName</span>
+                                    </div>
+                                }
+                                <div class="col-group-header-item" style="width:80px;flex:none;"></div>
+                            </div>
+                        </div>
                         <MudTable Items="@_rows" Dense="true" Hover="true" Elevation="0" Striped="true"
                                   Class="edit-table auto-table" SortMode="SortMode.None" FixedHeader="true">
                             <HeaderContent>
+                                @{
+                                    int? _prevGk = null;
+                                }
                                 @foreach (var col in _visibleColumns)
                                 {
-                                    <MudTh>
+                                    var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                                    _prevGk = col.GroupKey;
+                                    var _headerClass = col.GroupKey.HasValue ? GetHeaderGroupCss(col.GroupKey.Value, _isGroupStart) : "";
+                                    <MudTh Class="@_headerClass" Style="@($"width:{GetColWidth(col.Key)}px")">
                                         @col.Label
                                         @if (col.IsRequired)
                                         {
@@ -87,14 +109,29 @@
                                         }
                                     </MudTh>
                                 }
-                                <MudTh Style="width:60px;">操作</MudTh>
+                                <MudTh Style="width:80px;">操作</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="r">
+                                @{
+                                    int? _prevGk2 = null;
+                                }
                                 @foreach (var col in _visibleColumns)
                                 {
-                                    <MudTd>@RenderCell(r, col)</MudTd>
+                                    var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                                    _prevGk2 = col.GroupKey;
+                                    var _cellClass = col.GroupKey.HasValue ? GetCellGroupCss(col.GroupKey.Value, _isGroupStart2) : "";
+                                    <MudTd Class="@_cellClass" Style="@($"width:{GetColWidth(col.Key)}px")">
+                                        @RenderCell(r, col)
+                                    </MudTd>
                                 }
-                                <MudTd>
+                                <MudTd Style="white-space:nowrap;">
+                                    @if (_rows.IndexOf(r) > 0)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                                       Color="Color.Info" Size="Size.Small"
+                                                       Title="与上行相同"
+                                                       OnClick="() => CopyFromAbove(r, _rows.IndexOf(r))" />
+                                    }
                                     <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
                                                    Color="Color.Error" Size="Size.Small"
                                                    Title="删除"
@@ -103,7 +140,17 @@
                                 </MudTd>
                             </RowTemplate>
                             <FooterContent>
-                                <MudTd colspan="@(_visibleColumns.Count + 1)">
+                                @{
+                                    int? _prevGk3 = null;
+                                }
+                                @foreach (var col in _visibleColumns)
+                                {
+                                    var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                                    _prevGk3 = col.GroupKey;
+                                    var _footerClass = col.GroupKey.HasValue ? GetCellGroupCss(col.GroupKey.Value, _isGroupStart3) : "";
+                                    <MudTd Class="@_footerClass" Style="@($"width:{GetColWidth(col.Key)}px")"></MudTd>
+                                }
+                                <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
                                                    Color="Color.Warning" Size="Size.Small"
                                                    OnClick="AddRow" />
@@ -148,23 +195,464 @@
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    private int _totalTableWidth =>
+        _visibleColumns.Sum(c => GetColWidth(c.Key)) + 80; // +80px 操作列
+
+    private List<GroupHeaderInfo> _groupHeaders => GetGroupHeaders();
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null; int totalWidth = 0;
+        var groupKey = 0; var groupName = ""; var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo { GroupKey = groupKey, GroupName = groupName, TotalWidth = totalWidth, ColumnCount = count, CssClass = GetHeaderGroupCss(groupKey, true) });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk; groupName = col.GroupName ?? "";
+            totalWidth += GetColWidth(col.Key);
+            count++; lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo { GroupKey = groupKey, GroupName = groupName, TotalWidth = totalWidth, ColumnCount = count, CssClass = GetHeaderGroupCss(groupKey, true) });
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int groupKey, bool isGroupStart) =>
+        groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", 4 => "col-g4", _ => "" };
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart) =>
+        groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", _ => "" };
+
+    private static int GetColWidth(string key) => key switch
+    {
+        "InDate" => 140,
+        "BatchNo" => 150,
+        "ProcessName" => 170,
+        "SectionName" => 120,
+        "TagNo" => 130,
+        "PlantGrade" => 130,
+        "ManufacturingSpec" => 170,
+        "Shift" => 80,
+        "Operator" => 100,
+        "EquipmentName" => 120,
+        "Quantity" => 100,
+        "Weight" => 120,
+        "Remark" => 150,
+        _ => 130
+    };
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",           Label = "生产编号", IsRequired = true },
-        new() { Key = "ProcessName",       Label = "工序名称", IsRequired = true },
-        new() { Key = "ManufacturingSpec", Label = "制造规格", IsRequired = true },
-        new() { Key = "SectionName",       Label = "工段名称", IsRequired = true },
-        new() { Key = "InDate",            Label = "入缸日期", IsRequired = true },
-        new() { Key = "EquipmentName",     Label = "设备名称" },
-        new() { Key = "Operator",          Label = "操作人" },
-        new() { Key = "Shift",             Label = "班次" },
-        new() { Key = "Quantity",          Label = "加工数量" },
-        new() { Key = "Weight",            Label = "重量(kg)" },
-        new() { Key = "ProductStatus",     Label = "制造状态" },
-        new() { Key = "TagNo",             Label = "挂牌号" },
-        new() { Key = "PlantGrade",        Label = "工厂牌号" },
-        new() { Key = "Remark",            Label = "备注" },
+        // 组1：入缸信息
+        new() { Key = "InDate",            Label = "入缸日期", IsRequired = true, GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "BatchNo",           Label = "生产编号", IsRequired = true, GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "ProcessName",       Label = "工序名称", IsRequired = true, GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "SectionName",       Label = "工段名称", IsRequired = true, GroupKey = 1, GroupName = "入缸信息" },
+        // 组2：可填充
+        new() { Key = "TagNo",             Label = "挂牌号",                   GroupKey = 2, GroupName = "可填充" },
+        new() { Key = "PlantGrade",        Label = "工厂牌号", IsRequired = true, GroupKey = 2, GroupName = "可填充" },
+        new() { Key = "ManufacturingSpec", Label = "制造规格", IsRequired = true, GroupKey = 2, GroupName = "可填充" },
+        // 组3：人员设备
+        new() { Key = "Shift",             Label = "班次",                     GroupKey = 3, GroupName = "人员设备" },
+        new() { Key = "Operator",          Label = "操作人",                   GroupKey = 3, GroupName = "人员设备" },
+        new() { Key = "EquipmentName",     Label = "设备名称",                 GroupKey = 3, GroupName = "人员设备" },
+        // 组4：加工计量
+        new() { Key = "Quantity",          Label = "加工数量",                 GroupKey = 4, GroupName = "加工计量" },
+        new() { Key = "Weight",            Label = "重量(kg)",                GroupKey = 4, GroupName = "加工计量" },
+        new() { Key = "Remark",            Label = "备注",                     GroupKey = 4, GroupName = "加工计量" },
     };
+
+    private static readonly string[] _sectionOptions = { SectionDefs.Degrease, SectionDefs.Pickle };
+
+    private static readonly List<(string Value, string Text)> _shiftOptions =
+        Enum.GetValues<ShiftType>().Select(v => (v.ToString(), EnumHelper.GetDisplayName(v))).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allColumns = GetAllColumnDefs();
+        var saved = await ColumnPrefs.LoadAsync("pickling-in-record-create", null);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
+        if (!_rows.Any())
+            _rows.Add(new EditRow());
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#pickling-table-wrapper");
+        }
+        catch { }
+        if (!_isArrowNavSetup)
+        {
+            _isArrowNavSetup = true;
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#pickling-table-wrapper"))
+                _isArrowNavSetup = false;
+        }
+    }
+
+    // ========== 行操作 ==========
+
+    private void AddRow()
+    {
+        var newRow = new EditRow();
+        if (_rows.Any())
+        {
+            var source = _rows[^1];
+            newRow.InDateText = source.InDateText;
+            newRow.BatchNo = source.BatchNo;
+            newRow.ProcessName = source.ProcessName;
+            newRow.SectionName = source.SectionName;
+            newRow.TagNo = source.TagNo;
+            newRow.PlantGrade = source.PlantGrade;
+            newRow.ManufacturingSpec = source.ManufacturingSpec;
+            newRow.Shift = source.Shift;
+            newRow.Operator = source.Operator;
+            newRow.EquipmentName = source.EquipmentName;
+        }
+        _rows.Add(newRow);
+    }
+
+    private void RemoveRow(EditRow row)
+    {
+        if (_rows.Count <= 1) return;
+        _rows.Remove(row);
+    }
+
+    private void CopyFromAbove(EditRow row, int index)
+    {
+        if (index <= 0) return;
+        var source = _rows[index - 1];
+        row.BatchNo = source.BatchNo;
+        row.ProcessName = source.ProcessName;
+        row.SectionName = source.SectionName;
+        row.TagNo = source.TagNo;
+        row.PlantGrade = source.PlantGrade;
+        row.ManufacturingSpec = source.ManufacturingSpec;
+        row.Shift = source.Shift;
+        row.Operator = source.Operator;
+        row.EquipmentName = source.EquipmentName;
+    }
+
+    // ========== 自动填充 ==========
+
+    private async Task OnBatchNoChangedAsync(EditRow row)
+    {
+        if (string.IsNullOrWhiteSpace(row.BatchNo)) return;
+        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
+        if (!result.Success || result.Data == null)
+        {
+            row.TagNo = null; row.PlantGrade = null; row.ManufacturingSpec = null;
+            StateHasChanged(); return;
+        }
+        var batch = result.Data;
+        row.TagNo = batch.TagNo;
+        row.PlantGrade = batch.PlantGrade;
+        if (!string.IsNullOrWhiteSpace(row.ProcessName))
+        {
+            var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
+            row.ManufacturingSpec = pg?.ManufacturingSpec;
+        }
+        StateHasChanged();
+    }
+
+    private async Task OnProcessNameChangedAsync(EditRow row)
+    {
+        if (string.IsNullOrWhiteSpace(row.ProcessName))
+        {
+            row.ManufacturingSpec = null; StateHasChanged(); return;
+        }
+        if (string.IsNullOrWhiteSpace(row.BatchNo)) return;
+        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
+        if (!result.Success || result.Data == null)
+        {
+            row.ManufacturingSpec = null; StateHasChanged(); return;
+        }
+        var batch = result.Data;
+        var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
+        row.ManufacturingSpec = pg?.ManufacturingSpec;
+        StateHasChanged();
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(EditRow r, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "BatchNo":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.BatchNo);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.BatchNo = v ?? ""; await OnBatchNoChangedAsync(r); }));
+                builder.CloseComponent();
+                break;
+            case "ProcessName":
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.ProcessName);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnProcessNameChangedAsync(r); }));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                {
+                    foreach (var pn in ProcessNames.All)
+                    {
+                        b.OpenComponent<MudSelectItem<string>>(0);
+                        b.AddAttribute(1, "Value", pn);
+                        b.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+            case "SectionName":
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.SectionName);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.SectionName = v ?? ""));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                {
+                    foreach (var sn in _sectionOptions)
+                    {
+                        b.OpenComponent<MudSelectItem<string>>(0);
+                        b.AddAttribute(1, "Value", sn);
+                        b.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+            case "InDate":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.InDateText);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.InDateText = v));
+                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
+                builder.CloseComponent();
+                break;
+            case "TagNo":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.TagNo);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.TagNo = v));
+                builder.CloseComponent();
+                break;
+            case "PlantGrade":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.PlantGrade);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.PlantGrade = v));
+                builder.CloseComponent();
+                break;
+            case "ManufacturingSpec":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.ManufacturingSpec);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.ManufacturingSpec = v));
+                builder.CloseComponent();
+                break;
+            case "Shift":
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.Shift);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.Shift = v ?? ""));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                {
+                    foreach (var opt in _shiftOptions)
+                    {
+                        b.OpenComponent<MudSelectItem<string>>(0);
+                        b.AddAttribute(1, "Value", opt.Value);
+                        b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, opt.Text)));
+                        b.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+            case "Operator":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.Operator);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Operator = v));
+                builder.CloseComponent();
+                break;
+            case "EquipmentName":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.EquipmentName);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.EquipmentName = v));
+                builder.CloseComponent();
+                break;
+            case "Quantity":
+                builder.OpenComponent<MudNumericField<int?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "HideSpinButtons", true);
+                builder.AddAttribute(5, "Value", r.Quantity);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.Quantity = v));
+                builder.CloseComponent();
+                break;
+            case "Weight":
+                builder.OpenComponent<MudNumericField<decimal?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "HideSpinButtons", true);
+                builder.AddAttribute(5, "Format", "G29");
+                builder.AddAttribute(6, "Value", r.Weight);
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.Weight = v));
+                builder.CloseComponent();
+                break;
+            case "Remark":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.Remark);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Remark = v));
+                builder.CloseComponent();
+                break;
+            default:
+                builder.AddContent(0, "");
+                break;
+        }
+    };
+
+    // ========== 提交 ==========
+
+    private async Task Submit()
+    {
+        _errorMessage = string.Empty;
+
+        var errors = new List<string>();
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            var r = _rows[i];
+            if (string.IsNullOrWhiteSpace(r.BatchNo))
+                errors.Add($"第{i + 1}行：批次号不能为空");
+            if (string.IsNullOrWhiteSpace(r.ProcessName))
+                errors.Add($"第{i + 1}行：工序名称不能为空");
+            if (string.IsNullOrWhiteSpace(r.SectionName))
+                errors.Add($"第{i + 1}行：工段名称不能为空");
+            if (string.IsNullOrWhiteSpace(r.ManufacturingSpec))
+                errors.Add($"第{i + 1}行：制造规格不能为空");
+            if (string.IsNullOrWhiteSpace(r.PlantGrade))
+                errors.Add($"第{i + 1}行：工厂牌号不能为空");
+            if (!DateTime.TryParse(r.InDateText, out _))
+                errors.Add($"第{i + 1}行：入缸日期格式无效（请用 yyyy-MM-dd）");
+        }
+
+        if (errors.Any())
+        {
+            Snackbar.Add(string.Join("；", errors), Severity.Error);
+            return;
+        }
+
+        _isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var requests = _rows.Select(r => new CreatePicklingInRecordRequest
+            {
+                BatchNo = r.BatchNo.Trim(),
+                ProcessName = r.ProcessName.Trim(),
+                ManufacturingSpec = r.ManufacturingSpec?.Trim() ?? "",
+                SectionName = r.SectionName.Trim(),
+                InDate = DateTime.Parse(r.InDateText!),
+                EquipmentName = r.EquipmentName?.Trim(),
+                Operator = r.Operator?.Trim(),
+                Shift = string.IsNullOrEmpty(r.Shift) ? null : Enum.Parse<ShiftType>(r.Shift.Trim()),
+                Quantity = r.Quantity,
+                Weight = r.Weight,
+                TagNo = r.TagNo?.Trim(),
+                PlantGrade = r.PlantGrade?.Trim(),
+                Remark = r.Remark?.Trim(),
+                DataSource = "MANUAL"
+            }).ToList();
+
+            var result = await PicklingService.BatchCreateAsync(requests);
+
+            if (result.Success && result.Data != null)
+            {
+                Snackbar.Add($"成功创建 {result.Data.Count} 条入缸记录", Severity.Success);
+                Navigation.NavigateTo("/pickling-in-records");
+            }
+            else
+            {
+                _errorMessage = result.Message ?? "批量创建失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"网络错误: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/pickling-in-records");
+    }
+
+    // ========== 列显隐 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
     {
@@ -209,325 +697,4 @@
         public string? PlantGrade { get; set; }
         public string? Remark { get; set; }
     }
-
-    protected override async Task OnInitializedAsync()
-    {
-        _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("pickling-in-record-create", null);
-        if (saved.Count > 0)
-        {
-            foreach (var s in saved)
-            {
-                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                if (match != null)
-                    match.Visible = s.Visible;
-            }
-            var reordered = new List<ColumnDef>();
-            foreach (var s in saved)
-            {
-                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
-                if (match != null && !reordered.Contains(match))
-                    reordered.Add(match);
-            }
-            foreach (var c in _allColumns)
-            {
-                if (!reordered.Contains(c))
-                    reordered.Add(c);
-            }
-            _allColumns = reordered;
-        }
-
-        if (!_rows.Any())
-            _rows.Add(new EditRow());
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!_isArrowNavSetup)
-        {
-            _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#pickling-in-record-create-table"))
-                _isArrowNavSetup = false;
-        }
-    }
-
-    private void AddRow()
-    {
-        _rows.Add(new EditRow());
-    }
-
-    private void RemoveRow(EditRow row)
-    {
-        if (_rows.Count <= 1) return;
-        _rows.Remove(row);
-    }
-
-    private async Task Submit()
-    {
-        _errorMessage = string.Empty;
-
-        var errors = new List<string>();
-        for (int i = 0; i < _rows.Count; i++)
-        {
-            var r = _rows[i];
-            if (string.IsNullOrWhiteSpace(r.BatchNo))
-                errors.Add($"第{i + 1}行：批次号不能为空");
-            if (string.IsNullOrWhiteSpace(r.ProcessName))
-                errors.Add($"第{i + 1}行：工序名称不能为空");
-            if (string.IsNullOrWhiteSpace(r.SectionName))
-                errors.Add($"第{i + 1}行：工段名称不能为空");
-            if (string.IsNullOrWhiteSpace(r.ManufacturingSpec))
-                errors.Add($"第{i + 1}行：制造规格不能为空");
-        }
-
-        if (errors.Any())
-        {
-            Snackbar.Add(string.Join("；", errors), Severity.Error);
-            return;
-        }
-
-        _isSubmitting = true;
-        StateHasChanged();
-
-        try
-        {
-            var requests = _rows.Select(r => new CreatePicklingInRecordRequest
-            {
-                BatchNo = r.BatchNo.Trim(),
-                ProcessName = r.ProcessName.Trim(),
-                ManufacturingSpec = r.ManufacturingSpec?.Trim()!,
-                SectionName = r.SectionName.Trim(),
-                InDate = r.InDate ?? DateTime.Today,
-                EquipmentName = r.EquipmentName?.Trim(),
-                Operator = r.Operator?.Trim(),
-                Shift = string.IsNullOrEmpty(r.Shift) ? null : Enum.Parse<ShiftType>(r.Shift.Trim()),
-                Quantity = r.Quantity,
-                Weight = r.Weight,
-                TagNo = r.TagNo?.Trim(),
-                PlantGrade = r.PlantGrade?.Trim(),
-                Remark = r.Remark?.Trim(),
-                DataSource = "MANUAL"
-            }).ToList();
-
-            var result = await PicklingService.BatchCreateAsync(requests);
-
-            if (result.Success && result.Data != null)
-            {
-                Snackbar.Add($"成功创建 {result.Data.Count} 条入缸记录", Severity.Success);
-                Navigation.NavigateTo("/pickling-in-records");
-            }
-            else
-            {
-                _errorMessage = result.Message ?? "批量创建失败";
-            }
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = $"网络错误: {ex.Message}";
-        }
-        finally
-        {
-            _isSubmitting = false;
-            StateHasChanged();
-        }
-    }
-
-    private void GoBack()
-    {
-        Navigation.NavigateTo("/pickling-in-records");
-    }
-
-    // ========== 自动填充（批次号+制造规格 → 挂牌号/工序名称/工厂牌号） ==========
-
-    private async Task OnAutoFillAsync(EditRow row)
-    {
-        if (string.IsNullOrWhiteSpace(row.BatchNo) || string.IsNullOrWhiteSpace(row.ManufacturingSpec))
-            return;
-
-        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
-        if (!result.Success || result.Data == null)
-            return;
-
-        var batch = result.Data;
-        row.TagNo = batch.TagNo;
-        row.PlantGrade = batch.PlantGrade;
-
-        var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ManufacturingSpec == row.ManufacturingSpec);
-        if (pg != null)
-            row.ProcessName = pg.ProcessName;
-
-        StateHasChanged();
-    }
-
-    private async Task OnAutoFillByProcessNameAsync(EditRow row)
-    {
-        if (string.IsNullOrWhiteSpace(row.BatchNo) || string.IsNullOrWhiteSpace(row.ProcessName))
-            return;
-
-        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
-        if (!result.Success || result.Data == null)
-            return;
-
-        var batch = result.Data;
-        row.TagNo = batch.TagNo;
-        row.PlantGrade = batch.PlantGrade;
-
-        var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
-        if (pg != null)
-            row.ManufacturingSpec = pg.ManufacturingSpec;
-
-        StateHasChanged();
-    }
-
-    // ========== 单元格渲染 ==========
-
-    private RenderFragment RenderCell(EditRow r, ColumnDef col) => builder =>
-    {
-        switch (col.Key)
-        {
-            case "BatchNo":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.BatchNo);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.BatchNo = v ?? ""; await OnAutoFillAsync(r); }));
-                builder.CloseComponent();
-                break;
-            case "ProcessName":
-                builder.OpenComponent<MudSelect<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.ProcessName);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnAutoFillByProcessNameAsync(r); }));
-                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
-                {
-                    foreach (var pn in ProcessNames.All)
-                    {
-                        b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", pn);
-                        b.CloseComponent();
-                    }
-                }));
-                builder.CloseComponent();
-                break;
-            case "ManufacturingSpec":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.ManufacturingSpec);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, async v => { r.ManufacturingSpec = v; await OnAutoFillAsync(r); }));
-                builder.CloseComponent();
-                break;
-            case "SectionName":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.SectionName);
-                builder.AddAttribute(5, "Placeholder", "去油/酸洗");
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.SectionName = v ?? ""));
-                builder.CloseComponent();
-                break;
-            case "InDate":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.InDateText);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.InDateText = v));
-                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
-                builder.CloseComponent();
-                break;
-            case "TagNo":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.TagNo);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.TagNo = v));
-                builder.CloseComponent();
-                break;
-            case "PlantGrade":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.PlantGrade);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.PlantGrade = v));
-                builder.CloseComponent();
-                break;
-            case "EquipmentName":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.EquipmentName);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.EquipmentName = v));
-                builder.CloseComponent();
-                break;
-            case "Operator":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.Operator);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Operator = v));
-                builder.CloseComponent();
-                break;
-            case "Shift":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.Shift);
-                builder.AddAttribute(5, "Placeholder", "白班/中班/夜班");
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Shift = v));
-                builder.CloseComponent();
-                break;
-            case "Quantity":
-                builder.OpenComponent<MudNumericField<int?>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "HideSpinButtons", true);
-                builder.AddAttribute(5, "Value", r.Quantity);
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.Quantity = v));
-                builder.AddAttribute(7, "Clearable", true);
-                builder.CloseComponent();
-                break;
-            case "Weight":
-                builder.OpenComponent<MudNumericField<decimal?>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "HideSpinButtons", true);
-                builder.AddAttribute(5, "Format", "G29");
-                builder.AddAttribute(6, "Value", r.Weight);
-                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.Weight = v));
-                builder.AddAttribute(8, "Clearable", true);
-                builder.CloseComponent();
-                break;
-            case "ProductStatus":
-                builder.OpenComponent<MudText>(0);
-                builder.AddAttribute(1, "Typo", Typo.body2);
-                builder.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "自动计算")));
-                builder.CloseComponent();
-                break;
-            case "Remark":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.Remark);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Remark = v));
-                builder.CloseComponent();
-                break;
-            default:
-                builder.AddContent(0, "");
-                break;
-        }
-    };
 }

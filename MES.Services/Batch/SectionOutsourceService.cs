@@ -450,6 +450,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             .ToDictionary(g => g.Key, g => g.ToList());
 
         // 5) 重复校验：同批次+同工序组+同工段+同委外单位 → 重复
+        // 既查数据库已有记录，也查本次提交中前面的行（避免批量内重复）
+        var pendingKeys = new HashSet<(int batchId, int pgId, string section, string vendor)>();
         for (int i = 0; i < requests.Count; i++)
         {
             var request = requests[i];
@@ -469,13 +471,21 @@ public class SectionOutsourceService : ISectionOutsourceService
             if (string.IsNullOrWhiteSpace(request.OutsourceVendor))
                 continue;
 
+            // 查数据库已有记录
             var existing = existingOutsourceByBatch.GetValueOrDefault(batchId, new List<SectionOutsource>());
-            var dup = existing.Any(s =>
+            var dupInDb = existing.Any(s =>
                 s.ProcessGroupId == pgId.Value &&
                 s.SectionName == request.SectionName &&
                 s.OutsourceVendor == request.OutsourceVendor);
-            if (dup)
+
+            // 查本次提交中已处理的行
+            var key = (batchId, pgId.Value, request.SectionName, request.OutsourceVendor);
+            var dupInPending = pendingKeys.Contains(key);
+
+            if (dupInDb || dupInPending)
                 requestErrors.Add($"第{i + 1}行：该委外单位「{request.OutsourceVendor}」已在该批次该工序组该工段提交过委外，不能重复创建");
+            else
+                pendingKeys.Add(key);
         }
         if (requestErrors.Any())
             throw new BusinessException(string.Join("；", requestErrors));
@@ -1406,6 +1416,21 @@ public class SectionOutsourceService : ISectionOutsourceService
             _context.SectionOutsources.Update(outsource);
             await _context.SaveChangesAsync();
         }
+    }
+
+    // ========== 搜索委外单位（MudAutocomplete）==========
+
+    public async Task<List<string>> SearchVendorsAsync(string? keyword)
+    {
+        var query = _context.SectionOutsources
+            .AsNoTracking()
+            .Select(s => s.OutsourceVendor)
+            .Distinct();
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query = query.Where(v => v.Contains(keyword));
+
+        return await query.OrderBy(v => v).ToListAsync();
     }
 
     // ========== 按批次查询待回收记录 ==========

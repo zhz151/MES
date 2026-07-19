@@ -5,7 +5,6 @@ using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Models;
-using MES.Services.Printing;
 using MES.Shared.Constants;
 
 namespace MES.Api.Controllers.Warehouse;
@@ -101,9 +100,9 @@ public class PendingDeliveryController : ControllerBase
     /// </summary>
     [HttpPost("print-file")]
     [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Admin}")]
-    public IActionResult PrintFile([FromBody] PendingDeliveryPrintRequest request)
+    public async Task<IActionResult> PrintFile([FromBody] PendingDeliveryPrintRequest request)
     {
-        var pdfBytes = PendingDeliveryPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "待发货订单成品.pdf");
     }
 
@@ -112,9 +111,9 @@ public class PendingDeliveryController : ControllerBase
     /// </summary>
     [HttpPost("print-all-file")]
     [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Admin}")]
-    public IActionResult PrintAllFile([FromBody] PendingDeliveryPrintRequest request)
+    public async Task<IActionResult> PrintAllFile([FromBody] PendingDeliveryPrintRequest request)
     {
-        var pdfBytes = PendingDeliveryPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = await _service.PrintAllFileAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "待发货订单成品-全部.pdf");
     }
 }

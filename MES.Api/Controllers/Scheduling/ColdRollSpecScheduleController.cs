@@ -1,5 +1,6 @@
 using MES.Core.DTOs.Scheduling;
 using MES.Core.Interfaces.Scheduling;
+using MES.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -25,7 +26,7 @@ public class ColdRollSpecScheduleController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var data = await _service.GetAllAsync();
-        return Ok(new { Success = true, Data = data });
+        return Ok(ApiResponse<List<ColdRollSpecScheduleDto>>.Ok(data));
     }
 
     /// <summary>全量保存排程记录（增/改 + 删除不存在的维度）</summary>
@@ -33,6 +34,6 @@ public class ColdRollSpecScheduleController : ControllerBase
     public async Task<IActionResult> SaveAll([FromBody] List<ColdRollSpecScheduleDto> dtos)
     {
         await _service.SaveAllAsync(dtos);
-        return Ok(new { Success = true });
+        return Ok(ApiResponse.Ok("保存成功"));
     }
 }

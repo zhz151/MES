@@ -128,8 +128,9 @@ public class CreateProductionRecordRequest
     [MaxLength(50)]
     public string? TagNo { get; set; }
 
+    [Required(ErrorMessage = "工厂牌号不能为空")]
     [MaxLength(50)]
-    public string? PlantGrade { get; set; }
+    public string PlantGrade { get; set; } = string.Empty;
 
     [MaxLength(500)]
     public string? Remark { get; set; }
@@ -176,8 +177,9 @@ public class UpdateProductionRecordRequest
     [MaxLength(50)]
     public string? TagNo { get; set; }
 
+    [Required(ErrorMessage = "工厂牌号不能为空")]
     [MaxLength(50)]
-    public string? PlantGrade { get; set; }
+    public string PlantGrade { get; set; } = string.Empty;
 
     [MaxLength(500)]
     public string? Remark { get; set; }

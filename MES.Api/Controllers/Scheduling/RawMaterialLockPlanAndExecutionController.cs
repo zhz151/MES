@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
-using MES.Services.Printing;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Interfaces.Scheduling;
@@ -47,16 +46,16 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     }
 
     [HttpPost("print")]
-    public ActionResult<ApiResponse<string>> Print([FromBody] RawMaterialLockPlanPrintRequest request)
+    public async Task<ActionResult<ApiResponse<string>>> Print([FromBody] RawMaterialLockPlanPrintRequest request)
     {
-        var pdfBytes = RawMaterialLockPlanPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
         return Ok(ApiResponse<string>.Ok(data: Convert.ToBase64String(pdfBytes)));
     }
 
     [HttpPost("print-file")]
-    public IActionResult PrintFile([FromBody] RawMaterialLockPlanPrintRequest request)
+    public async Task<IActionResult> PrintFile([FromBody] RawMaterialLockPlanPrintRequest request)
     {
-        var pdfBytes = RawMaterialLockPlanPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "原锁计划.pdf");
     }
 }

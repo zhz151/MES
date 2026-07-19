@@ -40,6 +40,7 @@ using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Batch;
 using MES.Services.Extensions;
+using MES.Services.Printing;
 
 namespace MES.Services.Scheduling;
 
@@ -152,5 +153,12 @@ public class SectionProductionStatusService : ISectionProductionStatusService
         }
 
         return result;
+    }
+
+    /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
+    public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        var pdfBytes = TablePrintHelper.GeneratePdf(title, items, columns);
+        return Task.FromResult(pdfBytes);
     }
 }

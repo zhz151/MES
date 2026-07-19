@@ -345,13 +345,43 @@ public class ProductionRecordService : IProductionRecordService
             .GroupBy(r => r.ProductionBatchId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // 预查询：各批次已存在的冷轧拔记录
+        // 预查询：各批次所有已有的执行记录（用于执行序号跳跃验证，涵盖生产记录/委外/过程检验/去油酸洗4类）
+        var allSequenceData = new List<(int BatchId, int Seq, DateTime Date)>();
+        var prodSeqData = await _context.ProductionRecords
+            .Where(r => allBatchIds.Contains(r.ProductionBatchId))
+            .Select(r => new { r.ProductionBatchId, r.SequenceNumber, Date = r.ExecDate })
+            .ToListAsync();
+        allSequenceData.AddRange(prodSeqData.Select(r => (r.ProductionBatchId, r.SequenceNumber, r.Date)));
+        var outsourceSeqData = await _context.SectionOutsources
+            .Where(o => allBatchIds.Contains(o.ProductionBatchId))
+            .Select(o => new { o.ProductionBatchId, o.SequenceNumber, Date = o.SendOutDate })
+            .ToListAsync();
+        allSequenceData.AddRange(outsourceSeqData.Select(o => (o.ProductionBatchId, o.SequenceNumber, o.Date)));
+        var inspectionSeqData = await _context.ProcessInspections
+            .Where(pi => allBatchIds.Contains(pi.ProductionBatchId))
+            .Select(pi => new { pi.ProductionBatchId, pi.SequenceNumber, Date = pi.InspectionDate })
+            .ToListAsync();
+        allSequenceData.AddRange(inspectionSeqData.Select(pi => (pi.ProductionBatchId, pi.SequenceNumber, pi.Date)));
+        var picklingSeqData = await _context.PicklingInRecords
+            .Where(pr => allBatchIds.Contains(pr.ProductionBatchId))
+            .Select(pr => new { pr.ProductionBatchId, pr.SequenceNumber, Date = pr.InDate })
+            .ToListAsync();
+        allSequenceData.AddRange(picklingSeqData.Select(pr => (pr.ProductionBatchId, pr.SequenceNumber, pr.Date)));
+        var seqDataByBatch = allSequenceData
+            .GroupBy(s => s.BatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // 预查询：各批次已存在的冷轧拔记录（包含生产记录 + 委外记录）
         var existingColdRollDraw = await _context.ProductionRecords
             .Where(r => allBatchIds.Contains(r.ProductionBatchId) && r.SectionName == SectionDefs.ColdRollDraw)
             .Select(r => new { r.ProductionBatchId, r.ProcessGroupId })
             .ToListAsync();
+        var outsourcedColdRollDraw = await _context.SectionOutsources
+            .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionDefs.ColdRollDraw)
+            .Select(o => new { o.ProductionBatchId, o.ProcessGroupId })
+            .ToListAsync();
         var coldRollDrawExists = new HashSet<(int BatchId, int PgId)>(
-            existingColdRollDraw.Select(r => (r.ProductionBatchId, r.ProcessGroupId)));
+            existingColdRollDraw.Concat(outsourcedColdRollDraw).Select(r => (r.ProductionBatchId, r.ProcessGroupId)));
 
         // 第一遍：业务规则验证
         for (int i = 0; i < requests.Count; i++)
@@ -368,13 +398,13 @@ public class ProductionRecordService : IProductionRecordService
             if (request.Weight.HasValue && request.Weight > 0 && request.Weight > (batch.CurrentValidWeight ?? batch.InputWeight))
                 requestErrors.Add($"第{i + 1}行：加工重量({request.Weight})不能大于有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
 
-            // 3) 执行序号跳跃限制：以每条记录的 ExecDate 为准，对比该批次在此日期前已执行的最大序号，不能 > +7
+            // 3) 执行序号跳跃限制：以每条记录的 ExecDate 为准，对比该批次在此日期前已执行的最大序号（涵盖生产记录/委外/过程检验/去油酸洗4类），不能 > +7
             if (request.SequenceNumber > 0)
             {
-                var batchRecords = recordsByBatch.GetValueOrDefault(batchId, new List<ProductionRecord>());
-                var prevMax = batchRecords
-                    .Where(r => r.ExecDate.Date < request.ExecDate.Date)
-                    .Select(r => (int?)r.SequenceNumber)
+                var batchSeqData = seqDataByBatch.GetValueOrDefault(batchId, new List<(int BatchId, int Seq, DateTime Date)>());
+                var prevMax = batchSeqData
+                    .Where(s => s.Date.Date < request.ExecDate.Date)
+                    .Select(s => (int?)s.Seq)
                     .Max() ?? 0;
                 var maxAllowed = prevMax + sequenceMaxJump;
                 if (request.SequenceNumber > maxAllowed)
@@ -473,11 +503,24 @@ public class ProductionRecordService : IProductionRecordService
             }
         }
 
-        // 预查询：各批次各工序组的冷轧拔总重量（用于冷轧拔总加工重量验证）
+        // 预查询：各批次各工序组的冷轧拔总重量（用于冷轧拔总加工重量验证，含自产 + 委外发出）
         var coldRollDrawWeightByKey = allExistingRecords
             .Where(r => r.SectionName == SectionDefs.ColdRollDraw && r.Weight.HasValue)
             .GroupBy(r => new { r.ProductionBatchId, r.ProcessGroupId })
             .ToDictionary(g => (g.Key.ProductionBatchId, g.Key.ProcessGroupId), g => g.Sum(r => r.Weight!.Value));
+        var outsourcedCrWeights = await _context.SectionOutsources
+            .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionDefs.ColdRollDraw && o.SendWeight.HasValue)
+            .GroupBy(o => new { o.ProductionBatchId, o.ProcessGroupId })
+            .ToListAsync();
+        foreach (var grp in outsourcedCrWeights)
+        {
+            var key = (grp.Key.ProductionBatchId, grp.Key.ProcessGroupId);
+            var w = grp.Sum(o => o.SendWeight!.Value);
+            if (coldRollDrawWeightByKey.ContainsKey(key))
+                coldRollDrawWeightByKey[key] += w;
+            else
+                coldRollDrawWeightByKey[key] = w;
+        }
 
         var simpleDuplicateSections = new HashSet<string>
         {
@@ -486,7 +529,10 @@ public class ProductionRecordService : IProductionRecordService
             SectionDefs.InnerGrinding, SectionDefs.OuterSpotGrinding, SectionDefs.WeldingHead, SectionDefs.Lubrication
         };
 
-        // 5) 重复记录校验
+        // 5) 重复记录校验（pendingKeys 模式：同时防范 DB 重复和行间重复）
+        var pendingSimpleKeys = new HashSet<(int batchId, int pgId, string section)>();
+        var pendingColdRollDrawKeys = new HashSet<(int batchId, int pgId, DateTime date, string equipment, string op)>();
+        var pendingCutKeys = new HashSet<(int batchId, int pgId, decimal? cutLength)>();
         for (int i = 0; i < requests.Count; i++)
         {
             var request = requests[i];
@@ -509,22 +555,30 @@ public class ProductionRecordService : IProductionRecordService
             if (simpleDuplicateSections.Contains(request.SectionName))
             {
                 // 规则(1)：同批次+同工序组+同工段 → 重复
+                var key = (batchId, pgId.Value, request.SectionName);
                 var dup = batchRecords.Any(r =>
-                    r.ProcessGroupId == pgId.Value && r.SectionName == request.SectionName);
+                    r.ProcessGroupId == pgId.Value && r.SectionName == request.SectionName)
+                    || pendingSimpleKeys.Contains(key);
                 if (dup)
                     requestErrors.Add($"第{i + 1}行：工段「{request.SectionName}」在该批次该工序组中已存在记录，不能重复创建");
+                else
+                    pendingSimpleKeys.Add(key);
             }
             else if (request.SectionName == SectionDefs.ColdRollDraw)
             {
                 // 规则(2)：同批次+同工序组+同工段+同执行日期+同设备名称+同操作人 → 重复
+                var key = (batchId, pgId.Value, request.ExecDate.Date, request.EquipmentName ?? "", request.Operator ?? "");
                 var dup = batchRecords.Any(r =>
                     r.ProcessGroupId == pgId.Value &&
                     r.SectionName == SectionDefs.ColdRollDraw &&
                     r.ExecDate.Date == request.ExecDate.Date &&
                     r.EquipmentName == request.EquipmentName &&
-                    r.Operator == request.Operator);
+                    r.Operator == request.Operator)
+                    || pendingColdRollDrawKeys.Contains(key);
                 if (dup)
                     requestErrors.Add($"第{i + 1}行：冷轧拔在该日期/设备/操作人下已存在记录，不能重复创建");
+                else
+                    pendingColdRollDrawKeys.Add(key);
 
                 // 附加：冷轧拔总加工重量不能大于现有效原料重量
                 var existingWeight = coldRollDrawWeightByKey.GetValueOrDefault((batchId, pgId.Value), 0m);
@@ -535,12 +589,16 @@ public class ProductionRecordService : IProductionRecordService
             else if (request.SectionName == SectionDefs.Cut)
             {
                 // 规则(3)：同批次+同工序组+同工段+同成品长度 → 重复
+                var key = (batchId, pgId.Value, request.FinishedCutLength);
                 var dup = batchRecords.Any(r =>
                     r.ProcessGroupId == pgId.Value &&
                     r.SectionName == SectionDefs.Cut &&
-                    r.FinishedCutLength == request.FinishedCutLength);
+                    r.FinishedCutLength == request.FinishedCutLength)
+                    || pendingCutKeys.Contains(key);
                 if (dup)
                     requestErrors.Add($"第{i + 1}行：断切在该批次该工序组中已存在相同成品长度的记录，不能重复创建");
+                else
+                    pendingCutKeys.Add(key);
             }
         }
 
@@ -657,6 +715,10 @@ public class ProductionRecordService : IProductionRecordService
         entity.Operator = request.Operator ?? entity.Operator;
         entity.Shift = request.Shift?.ToString() ?? entity.Shift;
         entity.Quantity = request.Quantity ?? entity.Quantity;
+
+        // 编辑重量时校验：不能超过批次现有效原料重量
+        if (request.Weight.HasValue && request.Weight > 0 && batch != null && request.Weight > (batch.CurrentValidWeight ?? batch.InputWeight))
+            throw new BusinessException($"加工重量({request.Weight})不能大于有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
         entity.Weight = request.Weight ?? entity.Weight;
         entity.SolutionTemperature = request.SolutionTemperature ?? entity.SolutionTemperature;
         entity.SoakTime = request.SoakTime ?? entity.SoakTime;
@@ -2392,7 +2454,6 @@ public class ProductionRecordService : IProductionRecordService
                 ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["ExecDate"] = results.Select(x => x.ExecDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
-                ["DataSource"] = results.Select(x => x.DataSource).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["ProductStatus"] = results.Select(x => x.ProductStatus).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!
             };
         }) ?? new Dictionary<string, List<string>>();

@@ -2,8 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
 using MES.Core.DTOs.Report;
-using MES.Services.Report;
-using MES.Services.Printing;
+using MES.Core.Interfaces.Report;
 
 namespace MES.Api.Controllers.Report;
 
@@ -15,10 +14,10 @@ namespace MES.Api.Controllers.Report;
 [Authorize]
 public class ReportController : ControllerBase
 {
-    private readonly ReportService _reportService;
+    private readonly IReportService _reportService;
     private readonly ILogger<ReportController> _logger;
 
-    public ReportController(ReportService reportService, ILogger<ReportController> logger)
+    public ReportController(IReportService reportService, ILogger<ReportController> logger)
     {
         _reportService = reportService;
         _logger = logger;
@@ -51,21 +50,12 @@ public class ReportController : ControllerBase
     {
         if (!DateTime.TryParse(request.FromDate, out var fromDate) ||
             !DateTime.TryParse(request.ToDate, out var toDate))
-        {
             return BadRequest("无效的日期格式");
-        }
 
         if (fromDate > toDate)
             return BadRequest("起始日期不能晚于结束日期");
 
-        var report = await _reportService.GetDailyProductionReportAsync(fromDate, toDate);
-        if (report.Rows.Count == 0)
-            return BadRequest("选定日期范围内暂无数据");
-
-        var visibleColumnKeys = request.Columns?.Select(c => c.Key).ToList();
-        var title = $"产量报表（{request.FromDate} ~ {request.ToDate}）";
-        var pdfBytes = ReportPrintHelper.GenerateProductionReportPdf(title, report, visibleColumnKeys);
-
+        var pdfBytes = await _reportService.PrintDailyProductionReportAsync(fromDate, toDate, request.Columns);
         return File(pdfBytes, "application/pdf", "production_report.pdf");
     }
 }

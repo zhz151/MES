@@ -355,24 +355,47 @@ public class InventoryService : IInventoryService
         => await _batchWriteService.GetByIdAsync(id);
 
     public async Task<InventoryBatchDto> InboundAsync(CreateInboundRequest request)
-        => await _batchWriteService.InboundAsync(request);
+    {
+        var result = await _batchWriteService.InboundAsync(request);
+        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        return result;
+    }
 
     public async Task<BatchInboundResult> BatchInboundAsync(BatchInboundRequest request)
-        => await _batchWriteService.BatchInboundAsync(request);
+    {
+        var result = await _batchWriteService.BatchInboundAsync(request);
+        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        return result;
+    }
 
     public async Task<InventoryBatchDto> UpdateInventoryBatchAsync(int id, UpdateInventoryBatchRequest request)
-        => await _batchWriteService.UpdateInventoryBatchAsync(id, request);
+    {
+        var result = await _batchWriteService.UpdateInventoryBatchAsync(id, request);
+        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        return result;
+    }
 
     public async Task HardDeleteInventoryBatchAsync(int id)
-        => await _batchWriteService.HardDeleteInventoryBatchAsync(id);
+    {
+        await _batchWriteService.HardDeleteInventoryBatchAsync(id);
+        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+    }
 
     // ========== 出库操作 ==========
 
     public async Task<OutboundRecordDto> OutboundAsync(CreateOutboundRequest request)
-        => await _outboundWriteService.OutboundAsync(request);
+    {
+        var result = await _outboundWriteService.OutboundAsync(request);
+        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        return result;
+    }
 
     public async Task<BatchOutboundResult> BatchOutboundAsync(BatchOutboundRequest request)
-        => await _outboundWriteService.BatchOutboundAsync(request);
+    {
+        var result = await _outboundWriteService.BatchOutboundAsync(request);
+        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        return result;
+    }
 
     public async Task<PagedResult<OutboundRecordDto>> GetOutboundRecordsAsync(OutboundQueryParams query)
     {
@@ -484,10 +507,17 @@ public class InventoryService : IInventoryService
     }
 
     public async Task<OutboundRecordDto> UpdateOutboundRecordAsync(long id, UpdateOutboundRecordRequest request)
-        => await _outboundWriteService.UpdateOutboundRecordAsync(id, request);
+    {
+        var result = await _outboundWriteService.UpdateOutboundRecordAsync(id, request);
+        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        return result;
+    }
 
     public async Task HardDeleteOutboundRecordAsync(long id)
-        => await _outboundWriteService.HardDeleteOutboundRecordAsync(id);
+    {
+        await _outboundWriteService.HardDeleteOutboundRecordAsync(id);
+        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+    }
 
     // ========== 来源单验证与同步 ==========
 

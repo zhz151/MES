@@ -62,6 +62,7 @@ public static class ProductStatusHelper
     {
         nameof(MaterialType.OrderFinished) => true,
         nameof(MaterialType.Finished) => true,
+        nameof(MaterialType.CriticalFinished) => true,
         nameof(MaterialType.SpecialDeliveryStatus) => true,
         _ => false
     };

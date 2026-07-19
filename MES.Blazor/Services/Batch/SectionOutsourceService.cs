@@ -178,6 +178,24 @@ public class SectionOutsourceService
         catch (Exception ex) { return ApiResponse<List<SectionOutsourceDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    // ========== 搜索委外单位（MudAutocomplete）==========
+
+    public async Task<List<string>> SearchVendorsAsync(string? keyword)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/vendors";
+            if (!string.IsNullOrWhiteSpace(keyword))
+                url += $"?keyword={Uri.EscapeDataString(keyword)}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<string>>>(url);
+            return response?.Data ?? new List<string>();
+        }
+        catch
+        {
+            return new List<string>();
+        }
+    }
+
 // ========== 筛选上下文 ==========
 
     /// <summary>

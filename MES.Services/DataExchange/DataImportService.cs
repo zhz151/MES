@@ -1433,30 +1433,17 @@ public class DataImportService : IDataImportService
         // 解析FK列
         ResolveForeignKeys(def, row, fkCache, entity, propertyCache);
 
-        // 验证FK列解析结果：用户提供了值但FK查找失败的列，记录为行错误
+        // 验证FK列：用户提供了值但FK查找失败的列，记录为行错误
+        // 此处逻辑与 PreviewAsync 保持一致：通过 fkCache 直接校验，不依赖 FkTargetProperty
         var unresolvedFkColumns = new List<string>();
-        foreach (var colDef in def.Columns.Where(c => c.IsFkColumn && c.FkTargetProperty != null))
+        foreach (var colDef in def.Columns.Where(c => c.IsFkColumn && c.FkEntityKey != null && !c.FkRequiresJoin))
         {
             if (!row.Values.TryGetValue(colDef.Header, out var fkCellValue) || string.IsNullOrWhiteSpace(fkCellValue))
                 continue;
 
-            if (!propertyCache.TryGetValue(colDef.FkTargetProperty!, out var fkProp))
-                continue;
-
-            var fkValue = fkProp.GetValue(entity);
-            if (fkProp.PropertyType.IsValueType && !fkProp.PropertyType.IsGenericType)
+            if (!fkCache.TryGetValue(colDef.FkEntityKey!, out var lookup) || !lookup.ContainsKey(fkCellValue))
             {
-                // 非可空值类型：默认值 = 0 / false，表示FK未解析
-                var defaultValue = Activator.CreateInstance(fkProp.PropertyType);
-                if (Equals(fkValue, defaultValue))
-                    unresolvedFkColumns.Add(colDef.Header);
-            }
-            else if (fkProp.PropertyType.IsGenericType &&
-                     fkProp.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
-            {
-                // 可空值类型：null 表示FK未解析
-                if (fkValue == null)
-                    unresolvedFkColumns.Add(colDef.Header);
+                unresolvedFkColumns.Add(colDef.Header);
             }
         }
         if (unresolvedFkColumns.Count > 0)

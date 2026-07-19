@@ -24,6 +24,7 @@ using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Batch;
 using Microsoft.Extensions.Caching.Memory;
+using Moq;
 
 namespace MES.Tests.Services;
 
@@ -33,7 +34,10 @@ namespace MES.Tests.Services;
 public class PicklingServiceTests : TestBase
 {
     private PicklingService CreateService(AppDbContext ctx)
-        => new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<PicklingService>.Instance, new MemoryCache(new MemoryCacheOptions()));
+    {
+        var prMock = new Mock<Core.Interfaces.Batch.IProductionRecordService>();
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<PicklingService>.Instance, new MemoryCache(new MemoryCacheOptions()), prMock.Object);
+    }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
     {

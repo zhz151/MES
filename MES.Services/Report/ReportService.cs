@@ -1,14 +1,18 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Core.Constants;
 using MES.Core.DTOs.Report;
+using MES.Core.DTOs.Shared;
+using MES.Core.Exceptions;
+using MES.Core.Interfaces.Report;
 using MES.Data;
+using MES.Services.Printing;
 
 namespace MES.Services.Report;
 
 /// <summary>
 /// 报表服务 — 跨上下文聚合查询，只读操作
 /// </summary>
-public class ReportService
+public class ReportService : IReportService
 {
     private readonly AppDbContext _context;
 
@@ -150,5 +154,19 @@ public class ReportService
             SectionColumns = orderedSections,
             Rows = rows
         };
+    }
+
+    /// <summary>
+    /// 产量报表打印 — 生成 PDF
+    /// </summary>
+    public async Task<byte[]> PrintDailyProductionReportAsync(DateTime fromDate, DateTime toDate, List<PrintColumnDef>? columns)
+    {
+        var report = await GetDailyProductionReportAsync(fromDate, toDate);
+        if (report.Rows.Count == 0)
+            throw new BusinessException("选定日期范围内暂无数据");
+
+        var visibleColumnKeys = columns?.Select(c => c.Key).ToList();
+        var title = $"产量报表（{fromDate:yyyy-MM-dd} ~ {toDate:yyyy-MM-dd}）";
+        return ReportPrintHelper.GenerateProductionReportPdf(title, report, visibleColumnKeys);
     }
 }

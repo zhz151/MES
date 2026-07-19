@@ -600,7 +600,7 @@ public class SubcontractOrderServiceTests : TestBase
             SupplierId = sid2,
             OrderDate = DateTime.Today,
             Status = SubcontractOrderStatus.Sent,
-            ProcessType = "Piercing",
+            ProcessType = "Annealing",  // 与 SeedOrderAsync 的 "Piercing" 区分，筛出 1 条
             OutMaterialCategory = "RoughTube",
             OutPlantGrade = "304",
             OutSpecification = "273*10",

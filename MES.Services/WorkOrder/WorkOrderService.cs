@@ -52,6 +52,13 @@ using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 
 /// <summary>
 /// 工单服务实现
+///
+/// CROSS-MODULE NOTE: 本服务因历史和性能原因，通过 DbContext 直查以下跨模块表：
+///   - SalesOrders, OrderItems (Order 模块) — 订单-工单联动查询
+///   - StandardRegisters (StandardRegister 模块) — 标准号引用数据读取
+///   - InventoryBatches (Warehouse 模块) — 删除校验时检查入库数据
+/// 这些均为只读查询，不涉及业务规则的绕过。写入跨模块数据必须通过对应的 Service 接口。
+/// 详见 docs/04_开发规范.md §9.5 架构层面禁止事项
 /// </summary>
 public class WorkOrderService : IWorkOrderService
 {
@@ -128,6 +135,7 @@ public class WorkOrderService : IWorkOrderService
     /// </summary>
     public async Task<List<OrderWorkOrderStatusDto>> GetAllOrderStatusListAsync()
     {
+        // CROSS-MODULE: reads Order.SalesOrders for order-workorder status overview
         // ===== 1. 基础查询：已确认订单 =====
         var orders = await _context.SalesOrders
             .Where(so => so.Status == SalesOrderStatus.Confirmed)
@@ -216,6 +224,7 @@ public class WorkOrderService : IWorkOrderService
     /// </summary>
     private async Task<PagedResult<OrderWorkOrderStatusDto>> GetOrderWorkOrderStatusPageLegacyAsync(WorkOrderQueryParams query)
     {
+        // CROSS-MODULE: reads Order.SalesOrders + OrderItems for filtering/sorting legacy fallback
         // ===== 1. 基础查询：已确认订单 =====
         var orderQuery = _context.SalesOrders
             .Where(so => so.Status == SalesOrderStatus.Confirmed);
@@ -511,6 +520,7 @@ public class WorkOrderService : IWorkOrderService
     /// </summary>
     public async Task<List<WorkOrderListItemDto>> GetPendingOrdersAsync()
     {
+        // CROSS-MODULE: reads Order.SalesOrders to find confirmed orders without work orders
         var rawData = await _context.SalesOrders
             .Where(so => so.Status == SalesOrderStatus.Confirmed
                 && !_context.WorkOrders.Any(wo => wo.SalesOrderNo == so.OrderNumber))
@@ -560,6 +570,7 @@ public class WorkOrderService : IWorkOrderService
 
     public async Task<List<OrderItemForWorkOrderDto>> GetOrderItemsForWorkOrderAsync(string salesOrderNo)
     {
+        // CROSS-MODULE: reads Order.SalesOrders + OrderItems + StandardRegister
         var salesOrder = await _context.SalesOrders
             .FirstOrDefaultAsync(so => so.OrderNumber == salesOrderNo);
         if (salesOrder == null)
@@ -805,6 +816,7 @@ public class WorkOrderService : IWorkOrderService
 
     private async Task<List<GeneratedWorkOrderDto>> GenerateWorkOrdersCoreAsync(CreateWorkOrderRequest request)
     {
+        // CROSS-MODULE: reads Order.SalesOrders + OrderItems + StandardRegister
         // 1. 获取订单信息
         var salesOrder = await _context.SalesOrders
             .FirstOrDefaultAsync(so => so.OrderNumber == request.SalesOrderNo);
@@ -1041,6 +1053,7 @@ public class WorkOrderService : IWorkOrderService
     /// </summary>
     private async Task<List<GeneratedWorkOrderDto>> UpdateWorkOrdersAsync(CreateWorkOrderRequest request)
     {
+        // CROSS-MODULE: reads Order.SalesOrders + OrderItems + StandardRegister
         // 1. 获取订单信息
         var salesOrder = await _context.SalesOrders
             .FirstOrDefaultAsync(so => so.OrderNumber == request.SalesOrderNo);
@@ -2094,6 +2107,7 @@ public class WorkOrderService : IWorkOrderService
 
         var dto = ToDetailDto(workOrder);
 
+        // CROSS-MODULE: reads Order.SalesOrders for snapshot field patch
         // 覆盖冗余快照字段：从 SalesOrder 快照字段读取
         var salesOrder = await _context.SalesOrders
             .AsNoTracking()
@@ -2117,6 +2131,7 @@ public class WorkOrderService : IWorkOrderService
 
         var dto = ToDetailDto(workOrder);
 
+        // CROSS-MODULE: reads Order.SalesOrders for snapshot field patch
         // 覆盖冗余快照字段：从 SalesOrder 快照字段读取
         var salesOrder = await _context.SalesOrders
             .AsNoTracking()
@@ -2147,6 +2162,7 @@ public class WorkOrderService : IWorkOrderService
     /// </summary>
     private async Task PatchCustomerFieldsAsync(WorkOrderDetailDto dto, string salesOrderNo)
     {
+        // CROSS-MODULE: reads Order.SalesOrders for customer field patch
         var salesOrder = await _context.SalesOrders
             .AsNoTracking()
             .FirstOrDefaultAsync(so => so.OrderNumber == salesOrderNo);
@@ -2251,6 +2267,7 @@ public class WorkOrderService : IWorkOrderService
         if (execSummaryRow != null)
             _context.Set<WorkOrderExecutionSummary>().Remove(execSummaryRow);
 
+        // CROSS-MODULE: reads Warehouse.InventoryBatches for notification (read-only, no cascade)
         // 扫描引用该工单号的入库批次，生成通知（已执行数据，不级联）
         var affectedBatches = await _context.InventoryBatches
             .Where(b => b.WorkOrderNo == workOrder.WorkOrderNo)
@@ -2391,6 +2408,7 @@ public class WorkOrderService : IWorkOrderService
 
     private async Task<bool> CheckAndUpdateWorkOrderStatusInternalAsync(int salesOrderId)
     {
+        // CROSS-MODULE: reads Order.SalesOrders for status sync check
         var salesOrder = await _context.SalesOrders
             .FirstOrDefaultAsync(so => so.Id == salesOrderId);
         if (salesOrder == null || salesOrder.Status != SalesOrderStatus.Confirmed)
@@ -2446,6 +2464,7 @@ public class WorkOrderService : IWorkOrderService
 
     public async Task<OrderWorkOrderRelationDto> GetOrderWorkOrderRelationAsync(string salesOrderNo)
     {
+        // CROSS-MODULE: reads Order.SalesOrders + OrderItems for order-workorder traceability
         // 1. 获取订单信息
         var salesOrder = await _context.SalesOrders
             .FirstOrDefaultAsync(so => so.OrderNumber == salesOrderNo);

@@ -312,6 +312,9 @@ public partial class AppDbContext
             entity.Property(e => e.Weight).HasColumnType("decimal(18,2)");
             entity.Property(e => e.ProductStatus).HasMaxLength(20);
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
+            entity.Property(e => e.BatchNo).HasMaxLength(50);
+            entity.Property(e => e.ProcessName).HasMaxLength(50);
+            entity.Property(e => e.TagNo).HasMaxLength(50);
 
             entity.HasOne(e => e.PicklingInRecord)
                 .WithMany(e => e.PicklingOutRecords)

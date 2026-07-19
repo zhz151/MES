@@ -8,6 +8,7 @@ using MES.Core.Interfaces.Warehouse;
 using MES.Core.Models;
 using MES.Data;
 using MES.Services.Helpers;
+using MES.Services.Printing;
 
 namespace MES.Services.Warehouse;
 
@@ -197,16 +198,19 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         return result;
     }
 
-    private const string CacheKey = "PendingDeliveryQueryService:LoadDtos";
+    /// <summary>
+    /// 缓存键，公开供 InventoryService 在出库/入库操作后主动失效
+    /// </summary>
+    public const string CacheKey = "PendingDeliveryQueryService:LoadDtos";
 
     /// <summary>
-    /// 缓存包装：30 秒缓存避免频繁全量加载，翻页/排序/筛选在缓存数据上操作
+    /// 缓存包装：5 分钟滑动缓存，配合出库/入库操作主动失效
     /// </summary>
     private async Task<List<PendingDeliveryItemDto>> GetCachedDtosAsync()
     {
         return await _cache.GetOrCreateAsync(CacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
+            entry.SlidingExpiration = TimeSpan.FromMinutes(5);
             return await LoadDtosAsync();
         }) ?? new List<PendingDeliveryItemDto>();
     }
@@ -470,5 +474,19 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         public string? StandardNo { get; set; }
         public string StandardGrade { get; set; } = null!;
         public string? DeliveryState { get; set; }
+    }
+
+    /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
+    public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns)
+    {
+        var pdfBytes = PendingDeliveryPrintHelper.GeneratePdf(title, items, columns);
+        return Task.FromResult(pdfBytes);
+    }
+
+    /// <summary>打印全部（Mode A：前端已准备数据）</summary>
+    public Task<byte[]> PrintAllFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns)
+    {
+        var pdfBytes = PendingDeliveryPrintHelper.GeneratePdf(title, items, columns);
+        return Task.FromResult(pdfBytes);
     }
 }

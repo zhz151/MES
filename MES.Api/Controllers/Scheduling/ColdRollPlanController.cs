@@ -1,4 +1,6 @@
+using MES.Core.DTOs.Scheduling;
 using MES.Core.Interfaces.Scheduling;
+using MES.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,7 +28,7 @@ public class ColdRollPlanController : ControllerBase
     public async Task<IActionResult> GetPlan([FromQuery] string? sectionFilter)
     {
         var data = await _coldRollPlanService.GetPlanAsync(sectionFilter);
-        return Ok(new { Success = true, Data = data });
+        return Ok(ApiResponse<List<ColdRollPlanRowDto>>.Ok(data));
     }
 
 }

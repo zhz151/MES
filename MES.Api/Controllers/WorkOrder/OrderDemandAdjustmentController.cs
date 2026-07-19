@@ -1,4 +1,3 @@
-using MES.Services.Printing;
 using MES.Shared.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -58,9 +57,9 @@ public class OrderDemandAdjustmentController : ControllerBase
     }
 
     [HttpPost("print-file")]
-    public IActionResult PrintFile([FromBody] OrderDemandAdjustmentPrintRequest request)
+    public async Task<IActionResult> PrintFile([FromBody] OrderDemandAdjustmentPrintRequest request)
     {
-        var pdfBytes = OrderDemandAdjustmentPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "工单需求调整.pdf");
     }
 

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
-using MES.Services.Printing;
 using MES.Shared.Constants;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Scheduling;
@@ -30,9 +29,9 @@ public class SectionFlowAnalysisController : ControllerBase
     }
 
     [HttpPost("print-file")]
-    public IActionResult PrintFile([FromBody] SectionFlowAnalysisPrintRequest request)
+    public async Task<IActionResult> PrintFile([FromBody] SectionFlowAnalysisPrintRequest request)
     {
-        var pdfBytes = TablePrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "工段流转分析.pdf");
     }
 

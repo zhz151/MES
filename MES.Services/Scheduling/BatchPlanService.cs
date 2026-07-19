@@ -42,11 +42,15 @@ using MES.Data.Entities.Batch;
 using MES.Data.Entities.Scheduling;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
+using MES.Services.Printing;
 
 namespace MES.Services.Scheduling;
 
 /// <summary>
 /// 在产明细计划服务 — ProductionBatch LEFT JOIN WorkOrderExecutionSummary + WorkOrderPlan
+///
+/// CROSS-MODULE: reads WorkOrder.WorkOrderExecutionSummary + WorkOrderPlan via direct DbContext
+/// (read-only queries, no business rules bypassed). See docs/04_开发规范.md §9.5.
 /// </summary>
 public class BatchPlanService : IBatchPlanService
 {
@@ -918,5 +922,12 @@ public class BatchPlanService : IBatchPlanService
         return string.IsNullOrWhiteSpace(sortBy)
             ? query.OrderByDescending(x => x.BatchNo)
             : query.ApplySort(sortBy, isDescending);
+    }
+
+    /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
+    public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        var pdfBytes = BatchPlanPrintHelper.GeneratePdf(title, items, columns);
+        return Task.FromResult(pdfBytes);
     }
 }

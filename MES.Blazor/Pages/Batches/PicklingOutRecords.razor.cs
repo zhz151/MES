@@ -9,6 +9,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Shared;
+using MES.Core.Enums;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Batches;
@@ -56,9 +57,13 @@ public partial class PicklingOutRecords
     {
         public string? CompleteDateStr { get; set; }
         public string? Remark { get; set; }
+        public string? Operator { get; set; }
+        public ShiftType? Shift { get; set; }
 
         public string? OriginalCompleteDateStr { get; set; }
         public string? OriginalRemark { get; set; }
+        public string? OriginalOperator { get; set; }
+        public ShiftType? OriginalShift { get; set; }
     }
 
     // ========== 分页汇总 ==========
@@ -84,25 +89,25 @@ public partial class PicklingOutRecords
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        // G1: 出缸信息（完工记录自身业务字段）
-        new() { Key = "CompleteDate",      Label = "完工日期",     SortKey = "completedate",      FilterType = "date",   Width = "120", GroupKey = 1, GroupName = "出缸信息" },
-        new() { Key = "Remark",            Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "出缸信息" },
-        new() { Key = "DataSource",        Label = "数据来源",     SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "出缸信息",
+        // G1: 入缸信息
+        new() { Key = "BatchNo",           Label = "批次号",       SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "ProcessName",       Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "100", GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "SectionName",       Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "100", GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "ManufacturingSpec", Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "PlantGrade",        Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "TagNo",             Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "100", GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "EquipmentName",     Label = "设备名称",     SortKey = "equipmentname",       FilterType = "string", Width = "100", GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "Quantity",          Label = "加工支数",     SortKey = "quantity",                                       Width = "80",  GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "Weight",            Label = "加工重量(kg)", SortKey = "weight",                                         Width = "80",  GroupKey = 1, GroupName = "入缸信息" },
+        // G2: 完工信息
+        new() { Key = "CompleteDate",      Label = "完工日期",     SortKey = "completedate",        FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "完工信息" },
+        new() { Key = "Shift",             Label = "班次",         SortKey = "shift",               FilterType = "enum",   Width = "80",  GroupKey = 2, GroupName = "完工信息",
+            EnumOptions = new() { new("DayShift", "白班"), new("MiddleShift", "中班"), new("NightShift", "夜班") } },
+        new() { Key = "Operator",          Label = "操作人",       SortKey = "operator",            FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "完工信息" },
+        new() { Key = "Remark",            Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 2, GroupName = "完工信息" },
+        new() { Key = "DataSource",        Label = "数据来源",     SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 2, GroupName = "完工信息",
             EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
-        new() { Key = "UpdatedTime",       Label = "更新时间",     SortKey = "updatedtime",                                 Width = "120", GroupKey = 1, GroupName = "出缸信息" },
-        // G2: 其它（冗余字段 + 导航属性）
-        new() { Key = "EquipmentName",     Label = "设备名称",     SortKey = "equipmentname",     FilterType = "string", Width = "100", GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "Operator",          Label = "操作人",       SortKey = "operator",          FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "Shift",             Label = "班次",         SortKey = "shift",             FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "Quantity",          Label = "加工支数",     SortKey = "quantity",                                     Width = "80",  GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "Weight",            Label = "加工重量(kg)", SortKey = "weight",                                       Width = "80",  GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "ProductStatus",     Label = "制造状态",     SortKey = "productstatus",       FilterType = "string", Width = "80", GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "BatchNo",           Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "ProcessName",       Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "SectionName",       Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "100", GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "ManufacturingSpec", Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "TagNo",             Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
-        new() { Key = "PlantGrade",        Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 2, GroupName = "其它信息" },
+        new() { Key = "UpdatedTime",       Label = "更新时间",     SortKey = "updatedtime",                                 Width = "120", GroupKey = 2, GroupName = "完工信息" },
     };
 
     // ========== 分页汇总计算 ==========
@@ -164,8 +169,12 @@ public partial class PicklingOutRecords
         {
             CompleteDateStr = item.CompleteDate.ToString("yyyy-MM-dd"),
             Remark = item.Remark,
+            Operator = item.Operator,
+            Shift = item.Shift,
             OriginalCompleteDateStr = item.CompleteDate.ToString("yyyy-MM-dd"),
-            OriginalRemark = item.Remark
+            OriginalRemark = item.Remark,
+            OriginalOperator = item.Operator,
+            OriginalShift = item.Shift
         };
     }
 
@@ -188,7 +197,9 @@ public partial class PicklingOutRecords
         var request = new UpdatePicklingOutRecordRequest
         {
             CompleteDate = completeDate,
-            Remark = cache.Remark
+            Remark = cache.Remark,
+            Operator = cache.Operator,
+            Shift = cache.Shift
         };
 
         var result = await PicklingService.UpdateOutRecordAsync(item.Id, request);
@@ -210,7 +221,8 @@ public partial class PicklingOutRecords
         var cache = _editCache.GetValueOrDefault(item.Id);
         if (cache != null)
         {
-            // 恢复原始值
+            item.Operator = cache.OriginalOperator;
+            item.Shift = cache.OriginalShift;
         }
         _editingIds.Remove(item.Id);
         _editCache.Remove(item.Id);
@@ -534,17 +546,47 @@ public partial class PicklingOutRecords
                     builder.AddContent(0, item.CompleteDate.ToString("yyyy-MM-dd"));
                 }
                 break;
-            case "TagNo":
-                builder.AddContent(0, item.TagNo ?? "");
-                break;
             case "EquipmentName":
                 builder.AddContent(0, item.EquipmentName ?? "");
                 break;
             case "Operator":
-                builder.AddContent(0, item.Operator ?? "");
+                if (_editingIds.Contains(item.Id))
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", _editCache[item.Id].Operator);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => _editCache[item.Id].Operator = v ?? ""));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.Operator ?? "");
+                }
                 break;
             case "Shift":
-                builder.AddContent(0, DisplayHelper.GetShiftTypeText(item.Shift));
+                if (_editingIds.Contains(item.Id))
+                {
+                    builder.OpenComponent<MudSelect<ShiftType>>(0);
+                    builder.AddAttribute(1, "Value", _editCache[item.Id].Shift ?? default(ShiftType));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<ShiftType>(this, v => _editCache[item.Id].Shift = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "ChildContent", (RenderFragment)(b =>
+                    {
+                        foreach (var val in Enum.GetValues<ShiftType>())
+                        {
+                            b.OpenComponent<MudSelectItem<ShiftType>>(0);
+                            b.AddAttribute(1, "Value", val);
+                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                                b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                            b.CloseComponent();
+                        }
+                    }));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.GetShiftTypeText(item.Shift));
+                }
                 break;
             case "Quantity":
                 builder.AddContent(0, DisplayHelper.FormatNullableInt(item.Quantity));
@@ -552,18 +594,8 @@ public partial class PicklingOutRecords
             case "Weight":
                 builder.AddContent(0, $"{(int)(item.Weight ?? 0)}");
                 break;
-            case "ProductStatus":
-                var psColor = item.ProductStatus switch
-                {
-                    "荒管" => Color.Primary,
-                    "成品" => Color.Success,
-                    _ => Color.Default
-                };
-                builder.OpenComponent<MudChip>(0);
-                builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", psColor);
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ProductStatus ?? "在制")));
-                builder.CloseComponent();
+            case "TagNo":
+                builder.AddContent(0, item.TagNo ?? "");
                 break;
             case "PlantGrade":
                 builder.AddContent(0, item.PlantGrade ?? "");

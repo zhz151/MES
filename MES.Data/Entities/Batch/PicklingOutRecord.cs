@@ -78,6 +78,21 @@ public class PicklingOutRecord : BaseEntity
     /// </summary>
     public string? PlantGrade { get; set; }
 
+    /// <summary>
+    /// 批次号（从入缸记录冗余）
+    /// </summary>
+    public string? BatchNo { get; set; }
+
+    /// <summary>
+    /// 工序名称（从入缸记录冗余）
+    /// </summary>
+    public string? ProcessName { get; set; }
+
+    /// <summary>
+    /// 挂牌号（从入缸记录冗余）
+    /// </summary>
+    public string? TagNo { get; set; }
+
     // ========== 导航属性 ==========
 
     /// <summary>

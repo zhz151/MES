@@ -103,7 +103,8 @@ public partial class PicklingInRecords
         new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "100", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "EquipmentName",       Label = "设备名称",     SortKey = "equipmentname",       FilterType = "string", Width = "100", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "Operator",            Label = "操作人",       SortKey = "operator",            FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
-        new() { Key = "Shift",               Label = "班次",         SortKey = "shift",               FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "Shift",               Label = "班次",         SortKey = "shift",               FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息",
+            EnumOptions = new() { new("DayShift", "白班"), new("MiddleShift", "中班"), new("NightShift", "夜班") } },
         new() { Key = "Quantity",            Label = "加工支数",     SortKey = "quantity",                                       Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "Weight",              Label = "加工重量",     SortKey = "weight",                                         Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "ProductStatus",       Label = "制造状态",     SortKey = "productstatus",       FilterType = "string", Width = "80", GroupKey = 1, GroupName = "去油/酸洗信息" },
@@ -117,6 +118,8 @@ public partial class PicklingInRecords
         new() { Key = "Status",              Label = "状态",         SortKey = "status",              FilterType = "enum",   Width = "100", GroupKey = 2, GroupName = "完工信息",
             EnumOptions = new() { new("Soaking", "浸泡中"), new("Completed", "已完工") } },
         new() { Key = "CompleteDate",        Label = "完工日期",     SortKey = "completedate",        FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "完工信息" },
+        new() { Key = "CompleteShift",       Label = "完工班次",                                                     Width = "80",  GroupKey = 2, GroupName = "完工信息" },
+        new() { Key = "CompleteOperator",    Label = "完工操作人",                                                   Width = "80",  GroupKey = 2, GroupName = "完工信息" },
     };
 
     // ========== 分页汇总计算 ==========
@@ -704,6 +707,12 @@ public partial class PicklingInRecords
                 break;
             case "CompleteDate":
                 builder.AddContent(0, item.CompleteDate?.ToString("yyyy-MM-dd"));
+                break;
+            case "CompleteShift":
+                builder.AddContent(0, DisplayHelper.GetShiftTypeText(item.CompleteShift));
+                break;
+            case "CompleteOperator":
+                builder.AddContent(0, item.CompleteOperator ?? "");
                 break;
             case "Remark":
                 if (isEditing && cache != null)

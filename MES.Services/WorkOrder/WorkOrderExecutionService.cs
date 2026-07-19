@@ -2821,4 +2821,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         "NonFixed" => "非定尺",
         _ => lengthStatus ?? ""
     };
+
+    /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
+    public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        var pdfBytes = WorkOrderExecutionPrintHelper.GeneratePdf(title, items, columns);
+        return Task.FromResult(pdfBytes);
+    }
 }

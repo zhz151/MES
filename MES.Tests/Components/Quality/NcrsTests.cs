@@ -58,9 +58,9 @@ public class NcrsTests : TestBase
         // 同时验证 Edit 和 Delete 图标
         cut.Markup.Should().Contain("M3 17.25V21h3.75L17.81");
         cut.Markup.Should().Contain("M6 19c0 1.1.9 2 2 2h8c1.1");
-        // 操作列（最后 td）内应有 3 个 icon 按钮
+        // 操作列（最后 td）内应有 2 个 icon 按钮（编辑+删除，打印已移除）
         var lastTdButtons = cut.FindAll(".mud-table-container tbody tr:first-child td:last-child button.mud-icon-button");
-        lastTdButtons.Count.Should().Be(3);
+        lastTdButtons.Count.Should().Be(2);
     }
 
     [Fact]

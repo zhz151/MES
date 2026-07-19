@@ -4,7 +4,7 @@ using MES.Core.DTOs.Scheduling;
 namespace MES.Core.Interfaces.Scheduling;
 
 /// <summary>
-/// 在产明细计划服务接口 �?三表 LEFT JOIN 实时查询
+/// 在产明细计划服务接口 �?三表 LEFT JOIN 实时查询
 /// </summary>
 public interface IBatchPlanService
 {
@@ -24,9 +24,12 @@ public interface IBatchPlanService
     Task<List<BatchPlanDto>> GetAllAsync(string? sectionTab);
 
     /// <summary>
-    /// 获取冷轧排程流转汇�?�?基于批次看板实际 IsFlow 判定结果，按(FlowCRType, 外径跨度)聚合
+    /// 获取冷轧排程流转汇�?�?基于批次看板实际 IsFlow 判定结果，按(FlowCRType, 外径跨度)聚合
     /// </summary>
-    /// <param name="sectionTab">工段筛�?/param>
-    /// <param name="maxDiff">最大原工量差筛选：null=全部，n=原工量差小于等于n的流转批�?/param>
+    /// <param name="sectionTab">工段筛�?/param>
+    /// <param name="maxDiff">最大原工量差筛选：null=全部，n=原工量差小于等于n的流转批次</param>
     Task<List<ColdRollScheduleSummaryDto>> GetFlowSummaryAsync(string? sectionTab, int? maxDiff = null);
+
+    /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
+    Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns);
 }

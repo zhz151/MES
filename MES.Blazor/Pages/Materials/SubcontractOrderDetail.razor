@@ -496,7 +496,7 @@
             var req = new UpdateSubcontractOrderRequest
             {
                 SupplierId = _editOrder.SupplierId,
-                ProcessType = _editOrder.ProcessType,
+                ProcessType = _editOrder.ProcessType ?? "Piercing",
                 FurnaceNumber = _editOrder.FurnaceNumber,
                 OutMaterialCategory = _editOrder.OutMaterialCategory,
                 OutPlantGrade = _editOrder.OutPlantGrade,

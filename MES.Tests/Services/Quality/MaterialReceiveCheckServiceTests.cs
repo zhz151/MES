@@ -48,7 +48,8 @@ public class MaterialReceiveCheckServiceTests : TestBase
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
         var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new(ctx, configMock.Object, qptMock.Object,
+        var wesMock = new Mock<IWorkOrderExecutionService>();
+        return new(ctx, configMock.Object, qptMock.Object, wesMock.Object,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<MaterialReceiveCheckService>.Instance, new MemoryCache(new MemoryCacheOptions()));
     }
 

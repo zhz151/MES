@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
-using MES.Services.Printing;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.Interfaces.Scheduling;
 using System.Text.Json;
@@ -61,9 +60,9 @@ public class BatchPlanController : ControllerBase
     }
 
     [HttpPost("print-file")]
-    public IActionResult PrintFile([FromBody] BatchPlanPrintRequest request)
+    public async Task<IActionResult> PrintFile([FromBody] BatchPlanPrintRequest request)
     {
-        var pdfBytes = BatchPlanPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "批次计划.pdf");
     }
 

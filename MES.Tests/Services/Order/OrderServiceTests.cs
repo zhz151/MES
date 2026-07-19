@@ -274,7 +274,8 @@ public class OrderServiceTests : TestBase
         // = 7.85 * 3.1416 * 8 * 211 * 0.06
         var expectedWeight = 7.85m * 3.1416m * 8m * (219m - 8m) * 60m / 1000m;
 
-        detail.Items[0].TheoreticalWeight.Should().Be(expectedWeight);
+        // Service 层使用 Math.Round(weight, 1)，需匹配精度
+        detail.Items[0].TheoreticalWeight.Should().Be(Math.Round(expectedWeight, 1, MidpointRounding.AwayFromZero));
         detail.Items[0].Specification.Should().Be("219*8");
     }
 

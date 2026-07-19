@@ -40,6 +40,7 @@ using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Scheduling;
 using MES.Services.Helpers;
+using MES.Services.Printing;
 
 namespace MES.Services.Scheduling;
 
@@ -611,5 +612,12 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         return string.IsNullOrWhiteSpace(sortBy)
             ? query.OrderByDescending(x => x.WorkOrderNo)
             : query.ApplySort(sortBy, isDescending);
+    }
+
+    /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
+    public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        var pdfBytes = RawMaterialLockPlanPrintHelper.GeneratePdf(title, items, columns);
+        return Task.FromResult(pdfBytes);
     }
 }

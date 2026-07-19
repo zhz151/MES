@@ -38,6 +38,7 @@ using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Batch;
+using MES.Services.Printing;
 
 namespace MES.Services.Scheduling;
 
@@ -358,5 +359,12 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
         public int ScheduleStage { get; set; }
         public string? UrgencyLevel { get; set; }
         public string? Salesman { get; set; }
+    }
+
+    /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
+    public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        var pdfBytes = FinalInspectionPlanPrintHelper.GeneratePdf(title, items, columns);
+        return Task.FromResult(pdfBytes);
     }
 }

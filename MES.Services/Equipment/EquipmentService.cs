@@ -322,6 +322,7 @@ public class EquipmentService : IEquipmentService
         var detail = new EquipmentDetailDto();
         foreach (var prop in typeof(EquipmentListDto).GetProperties())
         {
+            if (!prop.CanWrite) continue;
             prop.SetValue(detail, prop.GetValue(dto));
         }
         return detail;

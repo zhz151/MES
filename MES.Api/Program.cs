@@ -44,6 +44,7 @@ using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
 using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Report;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
@@ -261,7 +262,7 @@ builder.Services.AddScoped<IFinalInspectionPlanService, FinalInspectionPlanServi
 builder.Services.AddScoped<IQualityProcessTrackingService, QualityProcessTrackingService>();
 
 // ========== 报表服务 ==========
-builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUserService>();

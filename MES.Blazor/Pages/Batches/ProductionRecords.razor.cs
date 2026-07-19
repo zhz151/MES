@@ -398,6 +398,11 @@ public partial class ProductionRecords
             Snackbar.Add("执行日期格式无效", Severity.Error);
             return;
         }
+        if (string.IsNullOrWhiteSpace(cache.PlantGrade))
+        {
+            Snackbar.Add("工厂牌号不能为空", Severity.Error);
+            return;
+        }
 
         _isSaving = true;
         StateHasChanged();

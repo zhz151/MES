@@ -2,6 +2,7 @@
 @using MES.Blazor.Services
 @using MES.Blazor.Helpers
 @using MES.Core.DTOs.Batch
+@using MES.Core.Enums
 @inject PicklingService PicklingService
 @inject ISnackbar Snackbar
 
@@ -41,6 +42,26 @@
                               Dense="true" Variant="Variant.Outlined" />
             </MudItem>
 
+            <MudItem xs="12" sm="3">
+                <MudSelect T="string"
+                           Label="班次"
+                           @bind-Value="_shift"
+                           Dense="true" Variant="Variant.Outlined">
+                    @foreach (var opt in _shiftOptions)
+                    {
+                        <MudSelectItem Value="@opt.Value">@opt.Text</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" sm="3">
+                <MudTextField T="string"
+                              Label="操作人"
+                              @bind-Value="_operator"
+                              Dense="true" Variant="Variant.Outlined"
+                              Clearable="true" />
+            </MudItem>
+
             <MudItem xs="12">
                 <MudTextField T="string"
                               Label="备注"
@@ -73,7 +94,12 @@
 
     private string _completeDateStr = DateTime.Today.ToString("yyyy-MM-dd");
     private string? _remark;
+    private string? _shift;
+    private string? _operator;
     private bool _submitting;
+
+    private static readonly List<(string Value, string Text)> _shiftOptions =
+        Enum.GetValues<ShiftType>().Select(v => (v.ToString(), EnumHelper.GetDisplayName(v))).ToList();
 
     private void Cancel() => MudDialog.Cancel();
 
@@ -92,7 +118,9 @@
             {
                 PicklingInRecordId = PicklingInRecordId,
                 CompleteDate = completeDate,
-                Remark = _remark?.Trim()
+                Remark = _remark?.Trim(),
+                Shift = string.IsNullOrEmpty(_shift) ? null : Enum.Parse<ShiftType>(_shift),
+                Operator = _operator?.Trim()
             };
 
             var result = await PicklingService.CreateOutRecordAsync(request);

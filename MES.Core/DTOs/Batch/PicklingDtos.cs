@@ -59,6 +59,10 @@ public class PicklingInRecordDto
     public int? PicklingOutRecordId { get; set; }
     /// <summary>完工日期</summary>
     public DateTime? CompleteDate { get; set; }
+    /// <summary>完工班次（出缸时登记的，区别于入缸班次）</summary>
+    public ShiftType? CompleteShift { get; set; }
+    /// <summary>完工操作人（出缸时登记的，区别于入缸操作人）</summary>
+    public string? CompleteOperator { get; set; }
 }
 
 /// <summary>
@@ -106,8 +110,9 @@ public class CreatePicklingInRecordRequest
     [MaxLength(50)]
     public string? TagNo { get; set; }
 
+    [Required(ErrorMessage = "工厂牌号不能为空")]
     [MaxLength(50)]
-    public string? PlantGrade { get; set; }
+    public string PlantGrade { get; set; } = string.Empty;
 
     [MaxLength(500)]
     public string? Remark { get; set; }
@@ -149,7 +154,7 @@ public class PicklingOutRecordDto
     public DateTimeOffset CreatedTime { get; set; }
     public DateTimeOffset UpdatedTime { get; set; }
 
-    // ========== 冗余字段（计件工资结算用）==========
+    // ========== 冗余字段（与实体字段对齐）==========
     public int ProductionBatchId { get; set; }
     public string? BatchNo { get; set; }
     public string? ProcessName { get; set; }
@@ -182,6 +187,13 @@ public class CreatePicklingOutRecordRequest
 
     [MaxLength(10)]
     public string? DataSource { get; set; }
+
+    /// <summary>完工班次（出缸时登记，区别于入缸班次）</summary>
+    public ShiftType? Shift { get; set; }
+
+    /// <summary>完工操作人（出缸时登记，区别于入缸操作人）</summary>
+    [MaxLength(50)]
+    public string? Operator { get; set; }
 }
 
 /// <summary>
@@ -193,6 +205,13 @@ public class UpdatePicklingOutRecordRequest
 
     [MaxLength(500)]
     public string? Remark { get; set; }
+
+    /// <summary>完工班次</summary>
+    public ShiftType? Shift { get; set; }
+
+    /// <summary>完工操作人</summary>
+    [MaxLength(50)]
+    public string? Operator { get; set; }
 }
 
 // ========== 打印相关 ==========

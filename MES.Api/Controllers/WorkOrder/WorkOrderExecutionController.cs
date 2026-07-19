@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
-using MES.Services.Printing;
 using MES.Shared.Constants;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Interfaces.WorkOrder;
@@ -103,9 +102,9 @@ public class WorkOrderExecutionController : ControllerBase
     /// </summary>
     [HttpPost("print-file")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
-    public IActionResult PrintFile([FromBody] WorkOrderExecutionPrintRequest request)
+    public async Task<IActionResult> PrintFile([FromBody] WorkOrderExecutionPrintRequest request)
     {
-        var pdfBytes = WorkOrderExecutionPrintHelper.GeneratePdf(request.Title, request.Items, request.Columns);
+        var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "工单执行状况.pdf");
     }
 

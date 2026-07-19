@@ -17,6 +17,7 @@ using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 using MES.Core.Exceptions;
+using MES.Core.Constants;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -207,7 +208,9 @@ public class PicklingService : IPicklingService
                 CreatedTime = s.CreatedTime,
                 UpdatedTime = s.UpdatedTime,
                 PicklingOutRecordId = s.PicklingOutRecords.Select(r => (int?)r.Id).FirstOrDefault(),
-                CompleteDate = s.PicklingOutRecords.Select(r => (DateTime?)r.CompleteDate).FirstOrDefault()
+                CompleteDate = s.PicklingOutRecords.Select(r => (DateTime?)r.CompleteDate).FirstOrDefault(),
+                CompleteShift = s.PicklingOutRecords.Select(r => EnumHelper.TryParse<ShiftType>(r.Shift)).FirstOrDefault(),
+                CompleteOperator = s.PicklingOutRecords.Select(r => r.Operator).FirstOrDefault()
             })
             .ToListAsync();
 
@@ -249,6 +252,63 @@ public class PicklingService : IPicklingService
 
         if (sequenceNumber == 0)
             throw new BusinessException($"工段「{request.SectionName}」不存在于工序组「{request.ProcessName}」中，无法提交");
+
+        // 校验：加工重量不能大于批次现有效原料重量
+        if (request.Weight.HasValue && request.Weight > 0 && request.Weight > (batch.CurrentValidWeight ?? batch.InputWeight))
+            throw new BusinessException($"加工重量({request.Weight})不能大于有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
+
+        // 规则⑦：重复记录校验 — 同批次+同工序组+同工段禁止重复
+        var dupExists = await _context.PicklingInRecords
+            .AnyAsync(pr => pr.ProductionBatchId == batch.Id
+                && pr.ProcessGroupId == processGroupId
+                && pr.SectionName == request.SectionName);
+        if (dupExists)
+            throw new BusinessException($"工段「{request.SectionName}」在该批次该工序组中已存在入缸记录，不能重复创建");
+
+        // 规则④：冷轧/冷拔工序必须先有「冷轧拔」工段记录
+        if (ProcessNames.IsColdRollOrDraw(request.ProcessName))
+        {
+            var hasColdRollDraw = await _context.ProductionRecords
+                .AnyAsync(r => r.ProductionBatchId == batch.Id
+                    && r.ProcessGroupId == processGroupId
+                    && r.SectionName == SectionDefs.ColdRollDraw)
+                || await _context.SectionOutsources
+                    .AnyAsync(o => o.ProductionBatchId == batch.Id
+                        && o.ProcessGroupId == processGroupId
+                        && o.SectionName == SectionDefs.ColdRollDraw);
+            if (!hasColdRollDraw)
+                throw new BusinessException($"工序「{request.ProcessName}」必须首先记录「冷轧拔」工段，才能进行去油/酸洗");
+        }
+
+        // 规则③：执行序号跳跃限制 — 对比该批次在此日期前已执行的最大序号（涵盖生产记录/委外/过程检验/入缸4类），不能 > +7
+        if (sequenceNumber > 0)
+        {
+            var prevMax = 0;
+            // 生产记录
+            var prodMax = await _context.ProductionRecords
+                .Where(r => r.ProductionBatchId == batch.Id && r.ExecDate.Date < request.InDate.Date)
+                .MaxAsync(r => (int?)r.SequenceNumber) ?? 0;
+            if (prodMax > prevMax) prevMax = prodMax;
+            // 工段委外
+            var outsourceMax = await _context.SectionOutsources
+                .Where(o => o.ProductionBatchId == batch.Id && o.SendOutDate.Date < request.InDate.Date)
+                .MaxAsync(o => (int?)o.SequenceNumber) ?? 0;
+            if (outsourceMax > prevMax) prevMax = outsourceMax;
+            // 过程检验
+            var inspectMax = await _context.ProcessInspections
+                .Where(pi => pi.ProductionBatchId == batch.Id && pi.InspectionDate.Date < request.InDate.Date)
+                .MaxAsync(pi => (int?)pi.SequenceNumber) ?? 0;
+            if (inspectMax > prevMax) prevMax = inspectMax;
+            // 入缸记录
+            var picklingMax = await _context.PicklingInRecords
+                .Where(pr => pr.ProductionBatchId == batch.Id && pr.InDate.Date < request.InDate.Date)
+                .MaxAsync(pr => (int?)pr.SequenceNumber) ?? 0;
+            if (picklingMax > prevMax) prevMax = picklingMax;
+
+            var maxAllowed = prevMax + 7;
+            if (sequenceNumber > maxAllowed)
+                throw new BusinessException($"执行序号({sequenceNumber})超过该日期前已执行最大值({prevMax})+7={maxAllowed}");
+        }
 
         // 加载工序组列表用于计算制造状态
         var pgList = await _context.ProcessGroups
@@ -311,27 +371,256 @@ public class PicklingService : IPicklingService
 
     public async Task<List<PicklingInRecordDto>> BatchCreateAsync(List<CreatePicklingInRecordRequest> requests)
     {
-        var results = new List<PicklingInRecordDto>();
-        var batchIds = new HashSet<int>();
-        foreach (var request in requests)
-        {
-            // 先查批次 ID 用于后续刷新
-            var batch = await _context.ProductionBatches
-                .Where(b => b.BatchNo == request.BatchNo)
-                .Select(b => new { b.Id })
-                .FirstOrDefaultAsync();
-            if (batch != null)
-                batchIds.Add(batch.Id);
+        if (requests.Count == 0)
+            return new List<PicklingInRecordDto>();
 
-            var dto = await CreateAsync(request);
-            results.Add(dto);
+        var sequenceMaxJump = 7;
+
+        // 预加载所有涉及批次
+        var batchNos = requests.Select(r => r.BatchNo).Distinct().ToList();
+        var batches = await _context.ProductionBatches
+            .Where(b => batchNos.Contains(b.BatchNo))
+            .ToDictionaryAsync(b => b.BatchNo);
+        foreach (var bn in batchNos)
+        {
+            if (!batches.ContainsKey(bn))
+                throw new BusinessException($"批次不存在: {bn}");
         }
 
-        // 去重刷新批次追踪
-        foreach (var batchId in batchIds)
-            await _productionRecordService.RefreshBatchTrackingFieldsAsync(batchId);
+        // 预加载所有涉及批次的工序组
+        var allBatchIds = batches.Values.Select(b => b.Id).ToList();
+        var allProcessGroups = await _context.ProcessGroups
+            .Where(pg => allBatchIds.Contains(pg.ProductionBatchId))
+            .ToListAsync();
+        var pgByBatch = allProcessGroups
+            .GroupBy(pg => pg.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
-        return results;
+        // 预查询已有的入缸记录（用于重复校验和跳跃验证）
+        var existingRecords = await _context.PicklingInRecords
+            .Where(pr => allBatchIds.Contains(pr.ProductionBatchId))
+            .ToListAsync();
+        var recordsByBatch = existingRecords
+            .GroupBy(r => r.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // 预查询所有已有执行记录序列号（生产记录/委外/过程检验/入缸）
+        var allSequenceData = new List<(int BatchId, int Seq, DateTime Date)>();
+        var prodSeqData = await _context.ProductionRecords
+            .Where(r => allBatchIds.Contains(r.ProductionBatchId))
+            .Select(r => new { r.ProductionBatchId, r.SequenceNumber, Date = r.ExecDate })
+            .ToListAsync();
+        allSequenceData.AddRange(prodSeqData.Select(r => (r.ProductionBatchId, r.SequenceNumber, r.Date)));
+        var outsourceSeqData = await _context.SectionOutsources
+            .Where(o => allBatchIds.Contains(o.ProductionBatchId))
+            .Select(o => new { o.ProductionBatchId, o.SequenceNumber, Date = o.SendOutDate })
+            .ToListAsync();
+        allSequenceData.AddRange(outsourceSeqData.Select(o => (o.ProductionBatchId, o.SequenceNumber, o.Date)));
+        var inspectionSeqData = await _context.ProcessInspections
+            .Where(pi => allBatchIds.Contains(pi.ProductionBatchId))
+            .Select(pi => new { pi.ProductionBatchId, pi.SequenceNumber, Date = pi.InspectionDate })
+            .ToListAsync();
+        allSequenceData.AddRange(inspectionSeqData.Select(pi => (pi.ProductionBatchId, pi.SequenceNumber, pi.Date)));
+        var picklingSeqData = existingRecords
+            .Select(r => (r.ProductionBatchId, r.SequenceNumber, Date: r.InDate))
+            .ToList();
+        allSequenceData.AddRange(picklingSeqData);
+        var seqDataByBatch = allSequenceData
+            .GroupBy(s => s.BatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // 预查询已存在的冷轧拔记录（含生产记录和委外）
+        var existingColdRollDraw = existingRecords
+            .Where(r => r.SectionName == SectionDefs.ColdRollDraw)
+            .Select(r => (r.ProductionBatchId, r.ProcessGroupId))
+            .ToHashSet();
+        var outsourcedColdRollDraw = await _context.SectionOutsources
+            .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionDefs.ColdRollDraw)
+            .Select(o => new { o.ProductionBatchId, o.ProcessGroupId })
+            .ToListAsync();
+        foreach (var item in outsourcedColdRollDraw)
+            existingColdRollDraw.Add((item.ProductionBatchId, item.ProcessGroupId));
+
+        var errors = new List<string>();
+        var entities = new List<PicklingInRecord>();
+        var pendingKeys = new HashSet<(int batchId, int pgId, string section)>();
+
+        // 收集本次提交中的冷轧拔记录
+        var pendingColdRollDraw = new HashSet<(int batchId, int pgId)>();
+        foreach (var request in requests)
+        {
+            if (request.SectionName != SectionDefs.ColdRollDraw) continue;
+            if (!batches.TryGetValue(request.BatchNo, out var batch)) continue;
+            var pgId = request.ProcessGroupId;
+            if (pgId == null || pgId == 0)
+            {
+                var matchedPg = pgByBatch.GetValueOrDefault(batch.Id)?
+                    .FirstOrDefault(pg => pg.ProcessName == request.ProcessName && pg.ManufacturingSpec == request.ManufacturingSpec);
+                pgId = matchedPg?.Id;
+            }
+            if (pgId > 0)
+                pendingColdRollDraw.Add((batch.Id, pgId.Value));
+        }
+
+        // 逐行验证
+        for (int i = 0; i < requests.Count; i++)
+        {
+            var request = requests[i];
+
+            if (!batches.TryGetValue(request.BatchNo, out var batch))
+            {
+                errors.Add($"第{i + 1}行：批次不存在: {request.BatchNo}");
+                continue;
+            }
+            var batchId = batch.Id;
+
+            // 解析 ProcessGroupId
+            var processGroupId = request.ProcessGroupId;
+            var sequenceNumber = request.SequenceNumber;
+            if (processGroupId == null || processGroupId == 0)
+            {
+                var matchedPg = pgByBatch.GetValueOrDefault(batchId)?
+                    .FirstOrDefault(pg => pg.ProcessName == request.ProcessName && pg.ManufacturingSpec == request.ManufacturingSpec);
+                processGroupId = matchedPg?.Id;
+                if (matchedPg != null && sequenceNumber == 0)
+                    sequenceNumber = matchedPg.GetSectionSequence(request.SectionName) ?? 0;
+            }
+            else if (sequenceNumber == 0)
+            {
+                var pg = allProcessGroups.FirstOrDefault(p => p.Id == processGroupId.Value);
+                if (pg != null)
+                    sequenceNumber = pg.GetSectionSequence(request.SectionName) ?? 0;
+            }
+
+            if (sequenceNumber == 0)
+            {
+                errors.Add($"第{i + 1}行：工段「{request.SectionName}」不存在于工序组「{request.ProcessName}」中，无法提交");
+                continue;
+            }
+            if (processGroupId == null || processGroupId == 0)
+            {
+                errors.Add($"第{i + 1}行：未找到匹配的工序组，无法提交");
+                continue;
+            }
+
+            // 规则：加工重量不能大于批次现有效原料重量
+            if (request.Weight.HasValue && request.Weight > 0 && request.Weight > (batch.CurrentValidWeight ?? batch.InputWeight))
+            {
+                errors.Add($"第{i + 1}行：加工重量({request.Weight})不能大于有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
+                continue;
+            }
+
+            // 重复校验：同批次+同工序组+同工段 → 重复（pendingKeys 模式）
+            if (processGroupId > 0)
+            {
+                var key = (batchId, processGroupId.Value, request.SectionName);
+                var dupInDb = recordsByBatch.GetValueOrDefault(batchId, new List<PicklingInRecord>())
+                    .Any(r => r.ProcessGroupId == processGroupId.Value && r.SectionName == request.SectionName);
+                var dupInPending = pendingKeys.Contains(key);
+                if (dupInDb || dupInPending)
+                {
+                    errors.Add($"第{i + 1}行：工段「{request.SectionName}」在该批次该工序组中已存在入缸记录，不能重复创建");
+                    continue;
+                }
+                pendingKeys.Add(key);
+            }
+
+            // 冷轧/冷拔工序必须先有「冷轧拔」工段记录
+            if (ProcessNames.IsColdRollOrDraw(request.ProcessName))
+            {
+                var hasColdRollDraw = existingColdRollDraw.Contains((batchId, processGroupId.Value))
+                    || pendingColdRollDraw.Contains((batchId, processGroupId.Value));
+                if (!hasColdRollDraw)
+                {
+                    errors.Add($"第{i + 1}行：工序「{request.ProcessName}」必须首先记录「冷轧拔」工段，才能进行去油/酸洗");
+                    continue;
+                }
+            }
+
+            // 执行序号跳跃限制
+            if (sequenceNumber > 0)
+            {
+                var batchSeqData = seqDataByBatch.GetValueOrDefault(batchId, new List<(int BatchId, int Seq, DateTime Date)>());
+                var prevMax = batchSeqData
+                    .Where(s => s.Date.Date < request.InDate.Date)
+                    .Select(s => (int?)s.Seq)
+                    .Max() ?? 0;
+                var maxAllowed = prevMax + sequenceMaxJump;
+                if (sequenceNumber > maxAllowed)
+                {
+                    errors.Add($"第{i + 1}行：执行序号({sequenceNumber})超过该日期前已执行最大值({prevMax})+7={maxAllowed}");
+                    continue;
+                }
+            }
+
+            // 计算产品状态
+            var pgList = pgByBatch.GetValueOrDefault(batchId, new List<ProcessGroup>());
+
+            entities.Add(new PicklingInRecord
+            {
+                ProductionBatchId = batchId,
+                ProcessGroupId = processGroupId.Value,
+                ProcessName = request.ProcessName,
+                ManufacturingSpec = request.ManufacturingSpec,
+                SectionName = request.SectionName,
+                SequenceNumber = sequenceNumber,
+                InDate = request.InDate,
+                Status = PicklingStatus.Soaking,
+                EquipmentName = request.EquipmentName,
+                Operator = request.Operator,
+                Shift = request.Shift?.ToString(),
+                Quantity = request.Quantity,
+                Weight = request.Weight,
+                TagNo = request.TagNo ?? batch.TagNo,
+                PlantGrade = request.PlantGrade ?? batch.PlantGrade,
+                Remark = request.Remark,
+                DataSource = request.DataSource ?? "MANUAL",
+                ProductStatus = ProductStatusHelper.Calculate(
+                    request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem, pgList)
+            });
+        }
+
+        if (errors.Any())
+            throw new BusinessException(string.Join("；", errors));
+
+        _context.PicklingInRecords.AddRange(entities);
+        await _context.SaveChangesAsync();
+
+        // 批量刷新批次追踪字段
+        var distinctBatchIds = entities.Select(e => e.ProductionBatchId).Distinct().ToList();
+        foreach (var bid in distinctBatchIds)
+            await _productionRecordService.RefreshBatchTrackingFieldsAsync(bid);
+
+        // 构建 DTO
+        return entities.Select(e =>
+        {
+            var batch = batches.Values.FirstOrDefault(b => b.Id == e.ProductionBatchId);
+            return new PicklingInRecordDto
+            {
+                Id = e.Id,
+                ProductionBatchId = e.ProductionBatchId,
+                ProcessGroupId = e.ProcessGroupId,
+                BatchNo = batch?.BatchNo ?? "",
+                ProcessName = e.ProcessName,
+                ManufacturingSpec = e.ManufacturingSpec,
+                SectionName = e.SectionName,
+                SequenceNumber = e.SequenceNumber,
+                InDate = e.InDate,
+                Status = e.Status,
+                EquipmentName = e.EquipmentName,
+                Operator = e.Operator,
+                Shift = EnumHelper.TryParse<ShiftType>(e.Shift),
+                Quantity = e.Quantity,
+                Weight = e.Weight,
+                ProductStatus = e.ProductStatus,
+                TagNo = e.TagNo,
+                PlantGrade = e.PlantGrade,
+                Remark = e.Remark,
+                DataSource = e.DataSource,
+                CreatedTime = e.CreatedTime,
+                UpdatedTime = e.UpdatedTime
+            };
+        }).ToList();
     }
 
     public async Task<PicklingInRecordDto> UpdateAsync(int id, UpdatePicklingInRecordRequest request)
@@ -352,7 +641,13 @@ public class PicklingService : IPicklingService
         if (request.Quantity.HasValue)
             entity.Quantity = request.Quantity.Value;
         if (request.Weight.HasValue)
+        {
+            // 校验：编辑重量不能超过批次现有效原料重量
+            if (request.Weight > 0 && entity.ProductionBatch != null
+                && request.Weight > (entity.ProductionBatch.CurrentValidWeight ?? entity.ProductionBatch.InputWeight))
+                throw new BusinessException($"加工重量({request.Weight})不能大于有效原料重量({entity.ProductionBatch.CurrentValidWeight ?? entity.ProductionBatch.InputWeight})");
             entity.Weight = request.Weight.Value;
+        }
         if (request.Remark != null)
             entity.Remark = request.Remark;
 
@@ -407,8 +702,6 @@ public class PicklingService : IPicklingService
     {
         return await _context.PicklingOutRecords
             .AsNoTracking()
-            .Include(r => r.PicklingInRecord)
-                .ThenInclude(p => p.ProductionBatch)
             .Where(r => r.PicklingInRecordId == picklingInRecordId)
             .Select(r => new PicklingOutRecordDto
             {
@@ -420,11 +713,11 @@ public class PicklingService : IPicklingService
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime,
                 ProductionBatchId = r.ProductionBatchId,
-                BatchNo = r.PicklingInRecord.ProductionBatch.BatchNo,
-                ProcessName = r.PicklingInRecord.ProcessName,
+                BatchNo = r.BatchNo,
+                ProcessName = r.ProcessName,
                 ManufacturingSpec = r.ManufacturingSpec,
                 SectionName = r.SectionName,
-                TagNo = r.PicklingInRecord.TagNo,
+                TagNo = r.TagNo,
                 PlantGrade = r.PlantGrade,
                 EquipmentName = r.EquipmentName,
                 Operator = r.Operator,
@@ -440,24 +733,22 @@ public class PicklingService : IPicklingService
     {
         var queryable = _context.PicklingOutRecords
             .AsNoTracking()
-            .Include(r => r.PicklingInRecord)
-                .ThenInclude(p => p.ProductionBatch)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
             var kw = query.Keyword;
             queryable = queryable.Where(r =>
-                r.PicklingInRecord.ProductionBatch.BatchNo.Contains(kw) ||
-                r.PicklingInRecord.ProcessName.Contains(kw) ||
+                (r.BatchNo != null && r.BatchNo.Contains(kw)) ||
+                (r.ProcessName != null && r.ProcessName.Contains(kw)) ||
                 r.SectionName.Contains(kw) ||
                 (r.Remark != null && r.Remark.Contains(kw)) ||
                 (r.DataSource != null && r.DataSource.Contains(kw)) ||
                 (r.EquipmentName != null && r.EquipmentName.Contains(kw)) ||
                 (r.Operator != null && r.Operator.Contains(kw)) ||
                 (r.Shift != null && r.Shift.Contains(kw)) ||
-                (r.PicklingInRecord.ManufacturingSpec != null && r.PicklingInRecord.ManufacturingSpec.Contains(kw)) ||
-                (r.PicklingInRecord.TagNo != null && r.PicklingInRecord.TagNo.Contains(kw)) ||
+                (r.ManufacturingSpec != null && r.ManufacturingSpec.Contains(kw)) ||
+                (r.TagNo != null && r.TagNo.Contains(kw)) ||
                 (r.PlantGrade != null && r.PlantGrade.Contains(kw)));
         }
 
@@ -477,6 +768,12 @@ public class PicklingService : IPicklingService
 
         queryable = (query.SortBy?.ToLower(), query.IsDescending) switch
         {
+            ("batchno", false) => queryable.OrderBy(r => r.BatchNo ?? ""),
+            ("batchno", true) => queryable.OrderByDescending(r => r.BatchNo ?? ""),
+            ("processname", false) => queryable.OrderBy(r => r.ProcessName ?? ""),
+            ("processname", true) => queryable.OrderByDescending(r => r.ProcessName ?? ""),
+            ("tagno", false) => queryable.OrderBy(r => r.TagNo ?? ""),
+            ("tagno", true) => queryable.OrderByDescending(r => r.TagNo ?? ""),
             ("completedate", false) => queryable.OrderBy(r => r.CompleteDate),
             ("completedate", true) => queryable.OrderByDescending(r => r.CompleteDate),
             ("datasource", false) => queryable.OrderBy(r => r.DataSource ?? ""),
@@ -511,11 +808,11 @@ public class PicklingService : IPicklingService
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime,
                 ProductionBatchId = r.ProductionBatchId,
-                BatchNo = r.PicklingInRecord.ProductionBatch.BatchNo,
-                ProcessName = r.PicklingInRecord.ProcessName,
+                BatchNo = r.BatchNo,
+                ProcessName = r.ProcessName,
                 ManufacturingSpec = r.ManufacturingSpec,
                 SectionName = r.SectionName,
-                TagNo = r.PicklingInRecord.TagNo,
+                TagNo = r.TagNo,
                 PlantGrade = r.PlantGrade,
                 EquipmentName = r.EquipmentName,
                 Operator = r.Operator,
@@ -556,12 +853,15 @@ public class PicklingService : IPicklingService
             ManufacturingSpec = inRecord.ManufacturingSpec,
             SectionName = inRecord.SectionName,
             EquipmentName = inRecord.EquipmentName,
-            Operator = inRecord.Operator,
-            Shift = inRecord.Shift,
+            Operator = request.Operator ?? inRecord.Operator,
+            Shift = request.Shift?.ToString() ?? inRecord.Shift,
             Quantity = inRecord.Quantity,
             Weight = inRecord.Weight,
             ProductStatus = inRecord.ProductStatus,
-            PlantGrade = inRecord.PlantGrade
+            PlantGrade = inRecord.PlantGrade,
+            BatchNo = inRecord.ProductionBatch.BatchNo,
+            ProcessName = inRecord.ProcessName,
+            TagNo = inRecord.TagNo
         };
 
         // 自动更新入缸状态为 Completed
@@ -581,12 +881,12 @@ public class PicklingService : IPicklingService
             CreatedTime = entity.CreatedTime,
             UpdatedTime = entity.UpdatedTime,
             ProductionBatchId = entity.ProductionBatchId,
-            BatchNo = inRecord.ProductionBatch.BatchNo,
-            ProcessName = inRecord.ProcessName,
             ManufacturingSpec = entity.ManufacturingSpec,
             SectionName = entity.SectionName,
-            TagNo = inRecord.TagNo,
             PlantGrade = entity.PlantGrade,
+            BatchNo = entity.BatchNo,
+            ProcessName = entity.ProcessName,
+            TagNo = entity.TagNo,
             EquipmentName = entity.EquipmentName,
             Operator = entity.Operator,
             Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
@@ -599,8 +899,6 @@ public class PicklingService : IPicklingService
     public async Task<PicklingOutRecordDto> UpdateOutRecordAsync(int id, UpdatePicklingOutRecordRequest request)
     {
         var entity = await _context.PicklingOutRecords
-            .Include(r => r.PicklingInRecord)
-                .ThenInclude(p => p.ProductionBatch)
             .FirstOrDefaultAsync(r => r.Id == id)
             ?? throw new BusinessException($"完工记录不存在: {id}");
 
@@ -608,9 +906,13 @@ public class PicklingService : IPicklingService
             entity.CompleteDate = request.CompleteDate.Value;
         if (request.Remark != null)
             entity.Remark = request.Remark;
+        if (request.Operator != null)
+            entity.Operator = request.Operator;
+        if (request.Shift != null)
+            entity.Shift = request.Shift.ToString();
 
         await _context.SaveChangesAsync();
-        await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.PicklingInRecord.ProductionBatchId);
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.ProductionBatchId);
 
         return new PicklingOutRecordDto
         {
@@ -622,12 +924,12 @@ public class PicklingService : IPicklingService
             CreatedTime = entity.CreatedTime,
             UpdatedTime = entity.UpdatedTime,
             ProductionBatchId = entity.ProductionBatchId,
-            BatchNo = entity.PicklingInRecord.ProductionBatch.BatchNo,
-            ProcessName = entity.PicklingInRecord.ProcessName,
             ManufacturingSpec = entity.ManufacturingSpec,
             SectionName = entity.SectionName,
-            TagNo = entity.PicklingInRecord.TagNo,
             PlantGrade = entity.PlantGrade,
+            BatchNo = entity.BatchNo,
+            ProcessName = entity.ProcessName,
+            TagNo = entity.TagNo,
             EquipmentName = entity.EquipmentName,
             Operator = entity.Operator,
             Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
@@ -687,7 +989,12 @@ public class PicklingService : IPicklingService
             ["Status"] = s.Status == PicklingStatus.Completed ? "已完工" : "浸泡中",
             ["CompleteDate"] = s.PicklingOutRecords.Select(r => (DateTime?)r.CompleteDate).FirstOrDefault()?.ToString("yyyy-MM-dd") ?? "",
             ["Remark"] = s.Remark ?? "",
-            ["DataSource"] = s.DataSource ?? "",
+            ["DataSource"] = s.DataSource switch
+            {
+                "SCAN" => "扫码",
+                "MANUAL" => "手动",
+                _ => ""
+            },
             ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
         }).ToList();
 
@@ -732,7 +1039,12 @@ public class PicklingService : IPicklingService
             ["Status"] = s.Status == PicklingStatus.Completed ? "已完工" : "浸泡中",
             ["CompleteDate"] = s.CompleteDate?.ToString("yyyy-MM-dd") ?? "",
             ["Remark"] = s.Remark ?? "",
-            ["DataSource"] = s.DataSource ?? "",
+            ["DataSource"] = s.DataSource switch
+            {
+                "SCAN" => "扫码",
+                "MANUAL" => "手动",
+                _ => ""
+            },
             ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
         }).ToList();
 
@@ -745,8 +1057,6 @@ public class PicklingService : IPicklingService
     {
         var items = await _context.PicklingOutRecords
             .AsNoTracking()
-            .Include(s => s.PicklingInRecord)
-                .ThenInclude(p => p.ProductionBatch)
             .Where(s => ids.Contains(s.Id))
             .ToListAsync();
 
@@ -755,21 +1065,32 @@ public class PicklingService : IPicklingService
 
         var data = items.Select(s => new Dictionary<string, object>
         {
-            ["BatchNo"] = s.PicklingInRecord.ProductionBatch.BatchNo,
-            ["ProcessName"] = s.PicklingInRecord.ProcessName,
+            ["BatchNo"] = s.BatchNo ?? "",
+            ["ProcessName"] = s.ProcessName ?? "",
             ["SectionName"] = s.SectionName,
             ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
             ["CompleteDate"] = s.CompleteDate.ToString("yyyy-MM-dd"),
             ["EquipmentName"] = s.EquipmentName ?? "",
             ["Operator"] = s.Operator ?? "",
-            ["Shift"] = s.Shift?.ToString() ?? "",
+            ["Shift"] = s.Shift switch
+            {
+                "DayShift" => "白班",
+                "MiddleShift" => "中班",
+                "NightShift" => "夜班",
+                _ => ""
+            },
             ["Quantity"] = s.Quantity ?? 0,
             ["Weight"] = s.Weight ?? 0,
             ["ProductStatus"] = s.ProductStatus ?? "在制",
-            ["TagNo"] = s.PicklingInRecord.TagNo ?? "",
+            ["TagNo"] = s.TagNo ?? "",
             ["PlantGrade"] = s.PlantGrade ?? "",
             ["Remark"] = s.Remark ?? "",
-            ["DataSource"] = s.DataSource ?? "",
+            ["DataSource"] = s.DataSource switch
+            {
+                "SCAN" => "扫码",
+                "MANUAL" => "手动",
+                _ => ""
+            },
             ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
         }).ToList();
 
@@ -782,16 +1103,14 @@ public class PicklingService : IPicklingService
     {
         var queryable = _context.PicklingOutRecords
             .AsNoTracking()
-            .Include(s => s.PicklingInRecord)
-                .ThenInclude(p => p.ProductionBatch)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             var kw = keyword;
             queryable = queryable.Where(s =>
-                s.PicklingInRecord.ProductionBatch.BatchNo.Contains(kw) ||
-                s.PicklingInRecord.ProcessName.Contains(kw) ||
+                (s.BatchNo != null && s.BatchNo.Contains(kw)) ||
+                (s.ProcessName != null && s.ProcessName.Contains(kw)) ||
                 s.SectionName.Contains(kw) ||
                 (s.Remark != null && s.Remark.Contains(kw)));
         }
@@ -822,21 +1141,32 @@ public class PicklingService : IPicklingService
 
         var data = items.Select(s => new Dictionary<string, object>
         {
-            ["BatchNo"] = s.PicklingInRecord.ProductionBatch.BatchNo,
-            ["ProcessName"] = s.PicklingInRecord.ProcessName,
+            ["BatchNo"] = s.BatchNo ?? "",
+            ["ProcessName"] = s.ProcessName ?? "",
             ["SectionName"] = s.SectionName,
             ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
             ["CompleteDate"] = s.CompleteDate.ToString("yyyy-MM-dd"),
             ["EquipmentName"] = s.EquipmentName ?? "",
             ["Operator"] = s.Operator ?? "",
-            ["Shift"] = s.Shift?.ToString() ?? "",
+            ["Shift"] = s.Shift switch
+            {
+                "DayShift" => "白班",
+                "MiddleShift" => "中班",
+                "NightShift" => "夜班",
+                _ => ""
+            },
             ["Quantity"] = s.Quantity ?? 0,
             ["Weight"] = s.Weight ?? 0,
             ["ProductStatus"] = s.ProductStatus ?? "在制",
-            ["TagNo"] = s.PicklingInRecord.TagNo ?? "",
+            ["TagNo"] = s.TagNo ?? "",
             ["PlantGrade"] = s.PlantGrade ?? "",
             ["Remark"] = s.Remark ?? "",
-            ["DataSource"] = s.DataSource ?? "",
+            ["DataSource"] = s.DataSource switch
+            {
+                "SCAN" => "扫码",
+                "MANUAL" => "手动",
+                _ => ""
+            },
             ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
         }).ToList();
 
@@ -923,15 +1253,6 @@ public class PicklingService : IPicklingService
                 .ToListAsync();
             if (shifts.Count > 0) dict["Shift"] = shifts;
 
-            var dataSources = await _context.PicklingInRecords
-                .AsNoTracking()
-                .Where(s => s.DataSource != null)
-                .Select(s => s.DataSource!)
-                .Distinct()
-                .OrderBy(x => x)
-                .ToListAsync();
-            if (dataSources.Count > 0) dict["DataSource"] = dataSources;
-
             var sequenceNumbers = await _context.PicklingInRecords
                 .AsNoTracking()
                 .Select(s => s.SequenceNumber.ToString())
@@ -1017,9 +1338,8 @@ public class PicklingService : IPicklingService
 
             var processNames = await _context.PicklingOutRecords
                 .AsNoTracking()
-                .Include(r => r.PicklingInRecord)
-                .Where(r => r.PicklingInRecord.ProcessName != null)
-                .Select(r => r.PicklingInRecord.ProcessName)
+                .Where(r => r.ProcessName != null)
+                .Select(r => r.ProcessName!)
                 .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync();
@@ -1037,23 +1357,12 @@ public class PicklingService : IPicklingService
 
             var batchNos = await _context.PicklingOutRecords
                 .AsNoTracking()
-                .Include(r => r.PicklingInRecord)
-                    .ThenInclude(p => p.ProductionBatch)
-                .Where(r => r.PicklingInRecord.ProductionBatch.BatchNo != null)
-                .Select(r => r.PicklingInRecord.ProductionBatch.BatchNo)
+                .Where(r => r.BatchNo != null)
+                .Select(r => r.BatchNo!)
                 .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync();
             if (batchNos.Count > 0) dict["BatchNo"] = batchNos;
-
-            var dataSources = await _context.PicklingOutRecords
-                .AsNoTracking()
-                .Where(r => r.DataSource != null)
-                .Select(r => r.DataSource!)
-                .Distinct()
-                .OrderBy(x => x)
-                .ToListAsync();
-            if (dataSources.Count > 0) dict["DataSource"] = dataSources;
 
             var equipmentNames = await _context.PicklingOutRecords
                 .AsNoTracking()
@@ -1102,9 +1411,8 @@ public class PicklingService : IPicklingService
 
             var plantGrades = await _context.PicklingOutRecords
                 .AsNoTracking()
-                .Include(r => r.PicklingInRecord)
-                .Where(r => r.PicklingInRecord.PlantGrade != null)
-                .Select(r => r.PicklingInRecord.PlantGrade!)
+                .Where(r => r.PlantGrade != null)
+                .Select(r => r.PlantGrade!)
                 .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync();
@@ -1112,9 +1420,8 @@ public class PicklingService : IPicklingService
 
             var tagNos = await _context.PicklingOutRecords
                 .AsNoTracking()
-                .Include(r => r.PicklingInRecord)
-                .Where(r => r.PicklingInRecord.TagNo != null)
-                .Select(r => r.PicklingInRecord.TagNo!)
+                .Where(r => r.TagNo != null)
+                .Select(r => r.TagNo!)
                 .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync();
@@ -1122,9 +1429,8 @@ public class PicklingService : IPicklingService
 
             var mfSpecs = await _context.PicklingOutRecords
                 .AsNoTracking()
-                .Include(r => r.PicklingInRecord)
-                .Where(r => r.PicklingInRecord.ManufacturingSpec != null)
-                .Select(r => r.PicklingInRecord.ManufacturingSpec!)
+                .Where(r => r.ManufacturingSpec != null)
+                .Select(r => r.ManufacturingSpec!)
                 .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync();

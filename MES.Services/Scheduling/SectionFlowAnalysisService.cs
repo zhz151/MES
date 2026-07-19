@@ -39,6 +39,7 @@ using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Batch;
+using MES.Services.Printing;
 
 namespace MES.Services.Scheduling;
 
@@ -340,5 +341,12 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
             "N" => match.FinalProcessTotal ?? 0m,                  // 成品待检：所有工序组中工段=检验的属成品工序量
             _ => match.Total ?? 0m                                 // A-C, F-M：汇总量
         };
+    }
+
+    /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
+    public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        var pdfBytes = TablePrintHelper.GeneratePdf(title, items, columns);
+        return Task.FromResult(pdfBytes);
     }
 }

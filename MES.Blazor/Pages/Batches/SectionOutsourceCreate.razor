@@ -30,9 +30,11 @@
             white-space: nowrap;
         }
         .table-scroll {
-            max-height: calc(100vh - 280px);
-            overflow-y: auto;
-            overflow-x: auto;
+            max-height: calc(100vh - 310px);
+            overflow: hidden;
+        }
+        .table-scroll .mud-table-container {
+            overflow-x: auto !important;
         }
     </style>
 
@@ -73,13 +75,31 @@
                             添加行
                         </MudButton>
                     </div>
-                    <div class="table-scroll">
+                    <div class="table-scroll" id="section-outsource-table-wrapper">
+                        @* 分组标题栏 *@
+                        <div class="col-group-header-scroll">
+                            <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                                @foreach (var gh in _groupHeaders)
+                                {
+                                    <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                                        <span class="col-group-badge">@gh.GroupName</span>
+                                    </div>
+                                }
+                                <div class="col-group-header-item" style="width:80px;flex:none;"></div>
+                            </div>
+                        </div>
                         <MudTable Items="@_rows" Dense="true" Hover="true" Elevation="0" Striped="true"
                                   Class="edit-table auto-table" SortMode="SortMode.None" FixedHeader="true">
                             <HeaderContent>
+                                @{
+                                    int? _prevGk = null;
+                                }
                                 @foreach (var col in _visibleColumns)
                                 {
-                                    <MudTh>
+                                    var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                                    _prevGk = col.GroupKey;
+                                    var _headerClass = col.GroupKey.HasValue ? GetHeaderGroupCss(col.GroupKey.Value, _isGroupStart) : "";
+                                    <MudTh Class="@_headerClass" Style="@($"width:{GetColWidth(col.Key)}px")">
                                         @col.Label
                                         @if (col.IsRequired)
                                         {
@@ -87,14 +107,29 @@
                                         }
                                     </MudTh>
                                 }
-                                <MudTh Style="width:60px;">操作</MudTh>
+                                <MudTh Style="width:80px;">操作</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="r">
+                                @{
+                                    int? _prevGk2 = null;
+                                }
                                 @foreach (var col in _visibleColumns)
                                 {
-                                    <MudTd>@RenderCell(r, col)</MudTd>
+                                    var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                                    _prevGk2 = col.GroupKey;
+                                    var _cellClass = col.GroupKey.HasValue ? GetCellGroupCss(col.GroupKey.Value, _isGroupStart2) : "";
+                                    <MudTd Class="@_cellClass" Style="@($"width:{GetColWidth(col.Key)}px")">
+                                        @RenderCell(r, col)
+                                    </MudTd>
                                 }
-                                <MudTd>
+                                <MudTd Style="white-space:nowrap;">
+                                    @if (_rows.IndexOf(r) > 0)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                                       Color="Color.Info" Size="Size.Small"
+                                                       Title="与上行相同"
+                                                       OnClick="() => CopyFromAbove(r, _rows.IndexOf(r))" />
+                                    }
                                     <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
                                                    Color="Color.Error" Size="Size.Small"
                                                    Title="删除"
@@ -103,7 +138,17 @@
                                 </MudTd>
                             </RowTemplate>
                             <FooterContent>
-                                <MudTd colspan="@(_visibleColumns.Count + 1)">
+                                @{
+                                    int? _prevGk3 = null;
+                                }
+                                @foreach (var col in _visibleColumns)
+                                {
+                                    var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                                    _prevGk3 = col.GroupKey;
+                                    var _footerClass = col.GroupKey.HasValue ? GetCellGroupCss(col.GroupKey.Value, _isGroupStart3) : "";
+                                    <MudTd Class="@_footerClass" Style="@($"width:{GetColWidth(col.Key)}px")"></MudTd>
+                                }
+                                <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
                                                    Color="Color.Warning" Size="Size.Small"
                                                    OnClick="AddRow" />
@@ -148,23 +193,88 @@
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    private int _totalTableWidth =>
+        _visibleColumns.Sum(c => GetColWidth(c.Key)) + 80; // +80px 操作列
+
+    private List<GroupHeaderInfo> _groupHeaders => GetGroupHeaders();
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private static int GetColWidth(string key) => key switch
+    {
+        "SendOutDate" => 140,
+        "BatchNo" => 150,
+        "ProcessName" => 170,
+        "SectionName" => 120,
+        "TagNo" => 130,
+        "PlantGrade" => 130,
+        "OutsourceSpec" => 140,
+        "ManufacturingSpec" => 170,
+        "SendQuantity" => 110,
+        "SendWeight" => 120,
+        "OutsourceVendor" => 150,
+        "ExpectedReturnDate" => 140,
+        "IsUrgent" => 80,
+        "Remark" => 150,
+        _ => 130
+    };
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "BatchNo",           Label = "生产编号", IsRequired = true },                 // → Entity.ProductionBatchId（通过批次号解析关联批次）
-        new() { Key = "ProcessName",       Label = "工序名称", IsRequired = true },               // → Entity.ProcessName + 联合解析 ProcessGroupId
-        new() { Key = "ManufacturingSpec", Label = "制造规格", IsRequired = true },               // → Entity.ManufacturingSpec + 联合解析 ProcessGroupId
-        new() { Key = "SectionName",       Label = "工段名称", IsRequired = true },               // → Entity.SectionName（与ProcessGroupId联合解析SequenceNumber）
-        new() { Key = "OutsourceVendor",   Label = "委外单位", IsRequired = true },               // → Entity.OutsourceVendor
-        new() { Key = "SendOutDate",       Label = "发出日期", IsRequired = true },               // → Entity.SendOutDate
-        new() { Key = "SendQuantity",      Label = "发出支数" },                 // → Entity.SendQuantity
-        new() { Key = "SendWeight",        Label = "发出重量" },                 // → Entity.SendWeight
-        new() { Key = "TagNo",             Label = "挂牌号" },                   // → Entity.TagNo（来自批次信息）
-        new() { Key = "PlantGrade",        Label = "工厂牌号" },                 // → Entity.PlantGrade（来自批次信息）
-        new() { Key = "OutsourceSpec",     Label = "委外规格" },                 // → Entity.OutsourceSpec
-        new() { Key = "ExpectedReturnDate",Label = "要求收回日期" },             // → Entity.ExpectedReturnDate
-        new() { Key = "IsUrgent",          Label = "紧急" },                     // → Entity.IsUrgent
-        new() { Key = "Remark",            Label = "备注" },                     // → Entity.Remark
+        // G1：发出信息
+        new() { Key = "SendOutDate",       Label = "发出日期", IsRequired = true, GroupKey = 1, GroupName = "发出信息" },
+        new() { Key = "BatchNo",           Label = "生产编号", IsRequired = true, GroupKey = 1, GroupName = "发出信息" },
+        new() { Key = "ProcessName",       Label = "工序名称", IsRequired = true, GroupKey = 1, GroupName = "发出信息" },
+        new() { Key = "SectionName",       Label = "工段名称", IsRequired = true, GroupKey = 1, GroupName = "发出信息" },
+        // G2：可填充
+        new() { Key = "TagNo",             Label = "挂牌号",                   GroupKey = 2, GroupName = "可填充" },
+        new() { Key = "PlantGrade",        Label = "工厂牌号",                 GroupKey = 2, GroupName = "可填充" },
+        new() { Key = "OutsourceSpec",     Label = "委外规格",                 GroupKey = 2, GroupName = "可填充" },
+        new() { Key = "ManufacturingSpec", Label = "制造规格", IsRequired = true, GroupKey = 2, GroupName = "可填充" },
+        // G3：发出计量
+        new() { Key = "SendQuantity",      Label = "发出支数",                 GroupKey = 3, GroupName = "发出计量" },
+        new() { Key = "SendWeight",        Label = "发出重量",                 GroupKey = 3, GroupName = "发出计量" },
+        // G4：其他
+        new() { Key = "OutsourceVendor",   Label = "委外单位", IsRequired = true, GroupKey = 4, GroupName = "其他" },
+        new() { Key = "ExpectedReturnDate",Label = "要求收回日期",             GroupKey = 4, GroupName = "其他" },
+        new() { Key = "IsUrgent",          Label = "紧急",                     GroupKey = 4, GroupName = "其他" },
+        new() { Key = "Remark",            Label = "备注",                     GroupKey = 4, GroupName = "其他" },
     };
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null; int totalWidth = 0;
+        var groupKey = 0; var groupName = ""; var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo { GroupKey = groupKey, GroupName = groupName, TotalWidth = totalWidth, ColumnCount = count, CssClass = GetHeaderGroupCss(groupKey, true) });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk; groupName = col.GroupName ?? "";
+            totalWidth += GetColWidth(col.Key);
+            count++; lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo { GroupKey = groupKey, GroupName = groupName, TotalWidth = totalWidth, ColumnCount = count, CssClass = GetHeaderGroupCss(groupKey, true) });
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int groupKey, bool isGroupStart) =>
+        groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", 4 => "col-g4", _ => "" };
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart) =>
+        groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", _ => "" };
 
     private async Task OnColumnToggle(ColumnDef col)
     {
@@ -194,22 +304,22 @@
 
     private class EditRow
     {
-        public string BatchNo { get; set; } = string.Empty;                                     // → Entity.ProductionBatchId
-        public string ProcessName { get; set; } = string.Empty;                                 // → Entity.ProcessName + 联合解析 ProcessGroupId
-        public string? ManufacturingSpec { get; set; }                                          // → Entity.ManufacturingSpec + 联合解析 ProcessGroupId
-        public string SectionName { get; set; } = string.Empty;                                 // → Entity.SectionName（与ProcessGroupId联合解析SequenceNumber）
-        public string OutsourceVendor { get; set; } = string.Empty;                             // → Entity.OutsourceVendor
-        public string? SendOutDateText { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");   // → Entity.SendOutDate（字符串表示）
+        public string BatchNo { get; set; } = string.Empty;
+        public string ProcessName { get; set; } = string.Empty;
+        public string? ManufacturingSpec { get; set; }
+        public string SectionName { get; set; } = string.Empty;
+        public string OutsourceVendor { get; set; } = string.Empty;
+        public string? SendOutDateText { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
         public DateTime? SendOutDate => DateTime.TryParse(SendOutDateText, out var d) ? d : null;
-        public int? SendQuantity { get; set; }                                                  // → Entity.SendQuantity
-        public decimal? SendWeight { get; set; }                                                // → Entity.SendWeight
-        public string? TagNo { get; set; }                                                      // → Entity.TagNo（来自批次信息）
-        public string? PlantGrade { get; set; }                                                 // → Entity.PlantGrade（来自批次信息）
-        public string? OutsourceSpec { get; set; }                                              // → Entity.OutsourceSpec
-        public string? ExpectedReturnDateText { get; set; }                                     // → Entity.ExpectedReturnDate（字符串表示）
+        public int? SendQuantity { get; set; }
+        public decimal? SendWeight { get; set; }
+        public string? TagNo { get; set; }
+        public string? PlantGrade { get; set; }
+        public string? OutsourceSpec { get; set; }
+        public string? ExpectedReturnDateText { get; set; }
         public DateTime? ExpectedReturnDate => DateTime.TryParse(ExpectedReturnDateText, out var d) ? d : null;
-        public bool IsUrgent { get; set; }                                                      // → Entity.IsUrgent
-        public string? Remark { get; set; }                                                     // → Entity.Remark
+        public bool IsUrgent { get; set; }
+        public string? Remark { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -245,17 +355,39 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#section-outsource-table-wrapper");
+        }
+        catch { }
+
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#section-outsource-create-table"))
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#section-outsource-table-wrapper"))
                 _isArrowNavSetup = false;
         }
     }
 
     private void AddRow()
     {
-        _rows.Add(new EditRow());
+        var newRow = new EditRow();
+        if (_rows.Any())
+        {
+            var source = _rows[^1];
+            newRow.BatchNo = source.BatchNo;
+            newRow.ProcessName = source.ProcessName;
+            newRow.ManufacturingSpec = source.ManufacturingSpec;
+            newRow.SectionName = source.SectionName;
+            newRow.SendOutDateText = source.SendOutDateText;
+            newRow.TagNo = source.TagNo;
+            newRow.PlantGrade = source.PlantGrade;
+            newRow.OutsourceSpec = source.OutsourceSpec;
+            newRow.ExpectedReturnDateText = source.ExpectedReturnDateText;
+            newRow.IsUrgent = source.IsUrgent;
+            newRow.OutsourceVendor = source.OutsourceVendor;
+        }
+        _rows.Add(newRow);
     }
 
     private void RemoveRow(EditRow row)
@@ -263,6 +395,256 @@
         if (_rows.Count <= 1) return;
         _rows.Remove(row);
     }
+
+    /// <summary>
+    /// 下行复制上行（发出支数+发出重量+备注 不复制）
+    /// </summary>
+    private void CopyFromAbove(EditRow row, int index)
+    {
+        if (index <= 0) return;
+        var source = _rows[index - 1];
+        row.BatchNo = source.BatchNo;
+        row.ProcessName = source.ProcessName;
+        row.ManufacturingSpec = source.ManufacturingSpec;
+        row.SectionName = source.SectionName;
+        row.SendOutDateText = source.SendOutDateText;
+        row.TagNo = source.TagNo;
+        row.PlantGrade = source.PlantGrade;
+        row.OutsourceSpec = source.OutsourceSpec;
+        row.ExpectedReturnDateText = source.ExpectedReturnDateText;
+        row.IsUrgent = source.IsUrgent;
+        row.OutsourceVendor = source.OutsourceVendor;
+        StateHasChanged();
+    }
+
+    // ========== 自动填充 ==========
+
+    /// <summary>
+    /// 统一自动填充：BatchNo/ProcessName/ManufacturingSpec/SectionName 任一变更时触发
+    /// </summary>
+    private async Task ApplyAutoFillAsync(EditRow row)
+    {
+        if (string.IsNullOrWhiteSpace(row.BatchNo))
+            return;
+
+        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
+        if (!result.Success || result.Data == null)
+            return;
+
+        var batch = result.Data;
+
+        // 填充批次级冗余字段
+        row.TagNo = batch.TagNo;
+        row.PlantGrade = batch.PlantGrade;
+
+        // 查找匹配的工序组（优先按工序名称，其次按制造规格）
+        ProcessGroupDto? currentPg = null;
+        if (!string.IsNullOrWhiteSpace(row.ProcessName))
+            currentPg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
+
+        currentPg ??= batch.ProcessGroups?.FirstOrDefault(p => p.ManufacturingSpec == row.ManufacturingSpec);
+
+        if (currentPg == null)
+        {
+            StateHasChanged();
+            return;
+        }
+
+        // 从工序组填充
+        row.ProcessName = currentPg.ProcessName;
+        row.ManufacturingSpec = currentPg.ManufacturingSpec;
+
+        // 按工段名称决定委外规格
+        FillOutsourceSpec(row, batch.ProcessGroups, currentPg);
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// 按工段名称决定委外规格：
+    /// 冷轧拔 → 上个工序组的制造规格；其他 → 等于本工序制造规格
+    /// </summary>
+    private static void FillOutsourceSpec(EditRow row, List<ProcessGroupDto>? processGroups, ProcessGroupDto currentPg)
+    {
+        if (string.IsNullOrWhiteSpace(row.SectionName))
+            return;
+
+        if (row.SectionName == SectionDefs.ColdRollDraw)
+        {
+            var prevPg = processGroups?
+                .Where(p => p.SequenceNumber < currentPg.SequenceNumber)
+                .OrderByDescending(p => p.SequenceNumber)
+                .FirstOrDefault();
+            row.OutsourceSpec = prevPg?.ManufacturingSpec;
+        }
+        else
+        {
+            row.OutsourceSpec = currentPg.ManufacturingSpec;
+        }
+    }
+
+    // ========== 单元格渲染 ==========
+
+    private RenderFragment RenderCell(EditRow r, ColumnDef col) => builder =>
+    {
+        switch (col.Key)
+        {
+            case "BatchNo":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.BatchNo);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.BatchNo = v ?? ""; await ApplyAutoFillAsync(r); }));
+                builder.CloseComponent();
+                break;
+            case "ProcessName":
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.ProcessName);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await ApplyAutoFillAsync(r); }));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                {
+                    foreach (var pn in ProcessNames.All)
+                    {
+                        b.OpenComponent<MudSelectItem<string>>(0);
+                        b.AddAttribute(1, "Value", pn);
+                        b.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+            case "ManufacturingSpec":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.ManufacturingSpec);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, async v => { r.ManufacturingSpec = v; await ApplyAutoFillAsync(r); }));
+                builder.CloseComponent();
+                break;
+            case "SectionName":
+                builder.OpenComponent<MudSelect<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.SectionName);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.SectionName = v ?? ""; await ApplyAutoFillAsync(r); }));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                {
+                    foreach (var sn in SectionDefs.All)
+                    {
+                        b.OpenComponent<MudSelectItem<string>>(0);
+                        b.AddAttribute(1, "Value", sn);
+                        b.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+            case "OutsourceVendor":
+                builder.OpenComponent<MudAutocomplete<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.OutsourceVendor);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.OutsourceVendor = v ?? ""));
+                builder.AddAttribute(6, "SearchFunc", (Func<string, Task<IEnumerable<string>>>)(async search => await SearchVendorsAsync(search)));
+                builder.AddAttribute(7, "MinCharacters", 1);
+                builder.CloseComponent();
+                break;
+            case "SendOutDate":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.SendOutDateText);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.SendOutDateText = v));
+                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
+                builder.CloseComponent();
+                break;
+            case "SendQuantity":
+                builder.OpenComponent<MudNumericField<int?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "HideSpinButtons", true);
+                builder.AddAttribute(5, "Value", r.SendQuantity);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.SendQuantity = v));
+                builder.CloseComponent();
+                break;
+            case "SendWeight":
+                builder.OpenComponent<MudNumericField<decimal?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "HideSpinButtons", true);
+                builder.AddAttribute(5, "Format", "G29");
+                builder.AddAttribute(6, "Value", r.SendWeight);
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.SendWeight = v));
+                builder.CloseComponent();
+                break;
+            case "TagNo":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.TagNo);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.TagNo = v));
+                builder.CloseComponent();
+                break;
+            case "PlantGrade":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.PlantGrade);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.PlantGrade = v));
+                builder.CloseComponent();
+                break;
+            case "OutsourceSpec":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.OutsourceSpec);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.OutsourceSpec = v));
+                builder.CloseComponent();
+                break;
+            case "ExpectedReturnDate":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.ExpectedReturnDateText);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.ExpectedReturnDateText = v));
+                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
+                builder.CloseComponent();
+                break;
+            case "IsUrgent":
+                builder.OpenComponent<MudCheckBox<bool>>(0);
+                builder.AddAttribute(1, "Color", Color.Warning);
+                builder.AddAttribute(3, "Value", r.IsUrgent);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => r.IsUrgent = v));
+                builder.CloseComponent();
+                break;
+            case "Remark":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.Remark);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Remark = v));
+                builder.CloseComponent();
+                break;
+            default:
+                builder.AddContent(0, "");
+                break;
+        }
+    };
+
+    // ========== 提交 ==========
 
     private async Task Submit()
     {
@@ -342,198 +724,11 @@
         Navigation.NavigateTo("/section-outsources");
     }
 
-    // ========== 自动填充（批次号+制造规格 → 挂牌号/工序名称/工厂牌号） ==========
+    // ========== 搜索委外单位（MudAutocomplete）==========
 
-    private async Task OnAutoFillAsync(EditRow row)
+    private async Task<IEnumerable<string>> SearchVendorsAsync(string? keyword)
     {
-        if (string.IsNullOrWhiteSpace(row.BatchNo) || string.IsNullOrWhiteSpace(row.ManufacturingSpec))
-            return;
-
-        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
-        if (!result.Success || result.Data == null)
-            return;
-
-        var batch = result.Data;
-        row.TagNo = batch.TagNo;
-        row.PlantGrade = batch.PlantGrade;
-
-        var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ManufacturingSpec == row.ManufacturingSpec);
-        if (pg != null)
-            row.ProcessName = pg.ProcessName;
-
-        StateHasChanged();
+        var result = await SectionOutsourceService.SearchVendorsAsync(keyword);
+        return result ?? new List<string>();
     }
-
-    // 批次号+工序名称 → 自动填充制造规格
-    private async Task OnAutoFillByProcessNameAsync(EditRow row)
-    {
-        if (string.IsNullOrWhiteSpace(row.BatchNo) || string.IsNullOrWhiteSpace(row.ProcessName))
-            return;
-
-        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
-        if (!result.Success || result.Data == null)
-            return;
-
-        var batch = result.Data;
-        row.TagNo = batch.TagNo;
-        row.PlantGrade = batch.PlantGrade;
-
-        var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
-        if (pg != null)
-            row.ManufacturingSpec = pg.ManufacturingSpec;
-
-        StateHasChanged();
-    }
-
-    // ========== 单元格渲染 ==========
-
-    private RenderFragment RenderCell(EditRow r, ColumnDef col) => builder =>
-    {
-        switch (col.Key)
-        {
-            case "BatchNo":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.BatchNo);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.BatchNo = v ?? ""; await OnAutoFillAsync(r); }));
-                builder.CloseComponent();
-                break;
-            case "ProcessName":
-                builder.OpenComponent<MudSelect<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.ProcessName);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnAutoFillByProcessNameAsync(r); }));
-                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
-                {
-                    foreach (var pn in ProcessNames.All)
-                    {
-                        b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", pn);
-                        b.CloseComponent();
-                    }
-                }));
-                builder.CloseComponent();
-                break;
-            case "ManufacturingSpec":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.ManufacturingSpec);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, async v => { r.ManufacturingSpec = v; await OnAutoFillAsync(r); }));
-                builder.CloseComponent();
-                break;
-            case "SectionName":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.SectionName);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.SectionName = v ?? ""));
-                builder.CloseComponent();
-                break;
-            case "OutsourceVendor":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.OutsourceVendor);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.OutsourceVendor = v ?? ""));
-                builder.CloseComponent();
-                break;
-            case "SendOutDate":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.SendOutDateText);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.SendOutDateText = v));
-                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
-                builder.CloseComponent();
-                break;
-            case "SendQuantity":
-                builder.OpenComponent<MudNumericField<int?>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "HideSpinButtons", true);
-                builder.AddAttribute(5, "Value", r.SendQuantity);
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.SendQuantity = v));
-                builder.AddAttribute(7, "Clearable", true);
-                builder.CloseComponent();
-                break;
-            case "SendWeight":
-                builder.OpenComponent<MudNumericField<decimal?>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "HideSpinButtons", true);
-                builder.AddAttribute(5, "Format", "G29");
-                builder.AddAttribute(6, "Value", r.SendWeight);
-                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.SendWeight = v));
-                builder.AddAttribute(8, "Clearable", true);
-                builder.CloseComponent();
-                break;
-            case "TagNo":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.TagNo);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.TagNo = v));
-                builder.CloseComponent();
-                break;
-            case "PlantGrade":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.PlantGrade);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.PlantGrade = v));
-                builder.CloseComponent();
-                break;
-            case "OutsourceSpec":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.OutsourceSpec);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.OutsourceSpec = v));
-                builder.CloseComponent();
-                break;
-            case "ExpectedReturnDate":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.ExpectedReturnDateText);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.ExpectedReturnDateText = v));
-                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
-                builder.CloseComponent();
-                break;
-            case "IsUrgent":
-                builder.OpenComponent<MudCheckBox<bool>>(0);
-                builder.AddAttribute(1, "Color", Color.Warning);
-                builder.AddAttribute(3, "Value", r.IsUrgent);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => r.IsUrgent = v));
-                builder.CloseComponent();
-                break;
-            case "Remark":
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.Remark);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Remark = v));
-                builder.CloseComponent();
-                break;
-            default:
-                builder.AddContent(0, "");
-                break;
-        }
-    };
 }
