@@ -17,6 +17,7 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -56,9 +57,10 @@ public class OrderService : IOrderService
     private readonly IConfigParameterService _configService;
     private readonly IWorkOrderService? _workOrderService;
     private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
+    private readonly IOperationLogService _operationLogService;
     private readonly IMemoryCache _cache;
 
-    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, IMemoryCache cache, IWorkOrderService? workOrderService = null, IWorkOrderListSummaryRefreshService? listSummaryService = null)
+    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, IOperationLogService operationLogService, IMemoryCache cache, IWorkOrderService? workOrderService = null, IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
         _logger = logger;
@@ -66,6 +68,7 @@ public class OrderService : IOrderService
         _configService = configService;
         _workOrderService = workOrderService;
         _listSummaryService = listSummaryService;
+        _operationLogService = operationLogService;
         _cache = cache;
     }
 
@@ -401,6 +404,8 @@ public class OrderService : IOrderService
 
         _logger.LogInformation("创建订单成功: {OrderNumber}", salesOrder.OrderNumber);
 
+        await _operationLogService.AddLogAsync("Order", salesOrder.Id, "创建", $"订单号={salesOrder.OrderNumber}, 客户={salesOrder.CustomerName}");
+
         return new SalesOrderListDto
         {
             Id = salesOrder.Id,
@@ -464,6 +469,15 @@ public class OrderService : IOrderService
         }
 
         await RefreshByOrderIdAsync(salesOrder.Id);
+
+        // 记录变更日志
+        var updateChanges = new List<string>();
+        if (!string.IsNullOrEmpty(request.OrderNumber) && request.OrderNumber != salesOrder.OrderNumber)
+            updateChanges.Add($"订单号变更");
+        if (request.Status != null && Enum.TryParse<SalesOrderStatus>(request.Status, true, out var parsedStatus))
+            updateChanges.Add($"状态: {GetStatusText(parsedStatus)}");
+        if (updateChanges.Count > 0)
+            await _operationLogService.AddLogAsync("Order", id, "变更", string.Join("; ", updateChanges));
 
         return new SalesOrderListDto
         {
@@ -572,6 +586,8 @@ public class OrderService : IOrderService
         // 6. 刷新读模型（事务已提交，在 using 块之外执行）
         await RefreshByOrderIdAsync(salesOrder.Id);
 
+        await _operationLogService.AddLogAsync("Order", id, "删除", $"订单号={salesOrder.OrderNumber}");
+
         _logger.LogInformation("订单 {OrderNumber} 已被删除，同时自动清理了 {Count} 个关联工单",
             salesOrder.OrderNumber, workOrderCount);
     }
@@ -629,6 +645,9 @@ public class OrderService : IOrderService
             throw;
         }
 
+        await _operationLogService.AddLogAsync("Order", orderId, "变更",
+            $"新增项次{orderItem.Sequence}: 交货日期={orderItem.DeliveryDate:yyyy-MM-dd}, 交货状态={EnumHelper.GetDisplayName(orderItem.DeliveryState)}, 标准牌号={orderItem.StandardGrade}, 外径={orderItem.OuterDiameter:G29}, 壁厚={orderItem.WallThickness:G29}, 支数={orderItem.Quantity}, 合同重量={orderItem.ContractWeight:G29}");
+
         await RefreshByOrderIdAsync(orderId);
 
         return await MapToOrderItemDto(orderItem);
@@ -683,6 +702,22 @@ public class OrderService : IOrderService
             normalizedWallThicknessNegative, normalizedWallThicknessPositive,
             metersValue);
 
+        // 捕获旧值，用于变更检测
+        var oldDeliveryDate = orderItem.DeliveryDate;
+        var oldDeliveryState = orderItem.DeliveryState;
+        var oldStandardGrade = orderItem.StandardGrade;
+        var oldOuterDiameter = orderItem.OuterDiameter;
+        var oldWallThickness = orderItem.WallThickness;
+        var oldOuterDiameterNegative = orderItem.OuterDiameterNegative;
+        var oldOuterDiameterPositive = orderItem.OuterDiameterPositive;
+        var oldWallThicknessNegative = orderItem.WallThicknessNegative;
+        var oldWallThicknessPositive = orderItem.WallThicknessPositive;
+        var oldLengthStatus = orderItem.LengthStatus;
+        var oldMinLength = orderItem.MinLength;
+        var oldMaxLength = orderItem.MaxLength;
+        var oldQuantity = orderItem.Quantity;
+        var oldContractWeight = orderItem.ContractWeight;
+
         SetOrderItemFields(orderItem,
             deliveryDate: request.DeliveryDate,
             delayPenalty: request.DelayPenalty,
@@ -709,6 +744,41 @@ public class OrderService : IOrderService
             theoreticalWeight: theoreticalWeight,
             remark: request.Remark);
 
+        // 对比变更，生成详细日志
+        var fieldChanges = new List<string>();
+        if (orderItem.DeliveryDate != oldDeliveryDate)
+            fieldChanges.Add($"交货日期={oldDeliveryDate:yyyy-MM-dd}→{orderItem.DeliveryDate:yyyy-MM-dd}");
+        if (orderItem.DeliveryState != oldDeliveryState)
+            fieldChanges.Add($"交货状态={EnumHelper.GetDisplayName(oldDeliveryState)}→{EnumHelper.GetDisplayName(orderItem.DeliveryState)}");
+        if (orderItem.StandardGrade != oldStandardGrade)
+            fieldChanges.Add($"标准牌号={oldStandardGrade}→{orderItem.StandardGrade}");
+        if (orderItem.OuterDiameter != oldOuterDiameter)
+            fieldChanges.Add($"外径={oldOuterDiameter:G29}→{orderItem.OuterDiameter:G29}");
+        if (orderItem.WallThickness != oldWallThickness)
+            fieldChanges.Add($"壁厚={oldWallThickness:G29}→{orderItem.WallThickness:G29}");
+        if (orderItem.OuterDiameterNegative != oldOuterDiameterNegative)
+            fieldChanges.Add($"外径下差={oldOuterDiameterNegative:G29}→{orderItem.OuterDiameterNegative:G29}");
+        if (orderItem.OuterDiameterPositive != oldOuterDiameterPositive)
+            fieldChanges.Add($"外径上差={oldOuterDiameterPositive:G29}→{orderItem.OuterDiameterPositive:G29}");
+        if (orderItem.WallThicknessNegative != oldWallThicknessNegative)
+            fieldChanges.Add($"壁厚下差={oldWallThicknessNegative:G29}→{orderItem.WallThicknessNegative:G29}");
+        if (orderItem.WallThicknessPositive != oldWallThicknessPositive)
+            fieldChanges.Add($"壁厚上差={oldWallThicknessPositive:G29}→{orderItem.WallThicknessPositive:G29}");
+        if (orderItem.LengthStatus != oldLengthStatus)
+            fieldChanges.Add($"长度状态={EnumHelper.GetDisplayName(oldLengthStatus)}→{EnumHelper.GetDisplayName(orderItem.LengthStatus)}");
+        if (orderItem.MinLength != oldMinLength)
+            fieldChanges.Add($"最小长度={oldMinLength?.ToString("G29")}→{orderItem.MinLength?.ToString("G29")}");
+        if (orderItem.MaxLength != oldMaxLength)
+            fieldChanges.Add($"最大长度={oldMaxLength?.ToString("G29")}→{orderItem.MaxLength?.ToString("G29")}");
+        if (orderItem.Quantity != oldQuantity)
+            fieldChanges.Add($"支数={oldQuantity}→{orderItem.Quantity}");
+        if (orderItem.ContractWeight != oldContractWeight)
+            fieldChanges.Add($"合同重量={oldContractWeight:G29}→{orderItem.ContractWeight:G29}");
+
+        var itemChangeLog = $"项次{orderItem.Sequence}:" + (fieldChanges.Count > 0
+            ? string.Join(", ", fieldChanges)
+            : "无字段变更");
+
         // 更新订单的最后项次变更时间
         salesOrder.LastItemChangeTime = DateTimeOffset.Now;
         _context.Entry(salesOrder).Property(x => x.LastItemChangeTime).IsModified = true;
@@ -725,6 +795,8 @@ public class OrderService : IOrderService
             await transaction.RollbackAsync();
             throw;
         }
+
+        await _operationLogService.AddLogAsync("Order", orderId, "变更", itemChangeLog);
 
         // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
         // 项次变更后先标记工单为"待修正"，再刷新读模型
@@ -772,6 +844,8 @@ public class OrderService : IOrderService
             await transaction.RollbackAsync();
             throw;
         }
+
+        await _operationLogService.AddLogAsync("Order", orderId, "变更", $"删除项次: {orderItem.Sequence}");
 
         // 项次变更后先标记工单为"待修正"，再刷新读模型
         await MarkWorkOrdersPendingAsync(salesOrder.OrderNumber);
@@ -1007,6 +1081,9 @@ public class OrderService : IOrderService
         // 6. 构建响应（在事务 using 块外执行，避免已提交事务不可用）
         _logger.LogInformation("批量保存订单成功: {OrderNumber}, 新增={NewCount}, 更新={UpdateCount}, 删除={DeleteCount}",
             salesOrder.OrderNumber, request.NewItems.Count, request.UpdatedItems.Count, request.DeletedItemIds.Count);
+
+        await _operationLogService.AddLogAsync("Order", id, "变更",
+            $"批量保存: 新增{request.NewItems.Count}项, 更新{request.UpdatedItems.Count}项, 删除{request.DeletedItemIds.Count}项");
 
         var resultItems = salesOrder.OrderItems
             .Where(oi => !request.DeletedItemIds.Contains(oi.Id))

@@ -12,6 +12,7 @@ using MES.Data.Entities.Order;
 using MES.Core.DTOs.Order;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Interfaces.Infrastructure;
 using OrderListSummaryEntity = MES.Data.Entities.Order.OrderListSummary;
 using Moq;
 using Microsoft.Extensions.Caching.Memory;
@@ -30,7 +31,7 @@ public class OrderServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     [Fact]

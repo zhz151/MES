@@ -11,6 +11,7 @@ using MES.Core.Exceptions;
 using MES.Core.Constants;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.Infrastructure;
 using MES.Services.WorkOrder;
 using MES.Services.Order;
 using MES.Tests.Tests;
@@ -64,7 +65,7 @@ public class MaterialPlanServiceTests : TestBase
         var orderConfigMock = new Mock<IConfigParameterService>();
         orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -110,7 +111,7 @@ public class MaterialPlanServiceTests : TestBase
 
         var woLoggerMock = new Mock<ILogger<WorkOrderService>>();
         var configMock = new Mock<IConfigParameterService>();
-        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object, configMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object, configMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
         var result = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = order.OrderNumber,

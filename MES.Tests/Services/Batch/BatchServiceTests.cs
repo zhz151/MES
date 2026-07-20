@@ -66,7 +66,7 @@ public class BatchServiceTests : TestBase
             .ReturnsAsync(new Dictionary<string, decimal>());
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var materialPlanMock = new Mock<IMaterialPlanService>();
-        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     // ========== 种子数据辅助方法 ==========
@@ -84,7 +84,7 @@ public class BatchServiceTests : TestBase
         var orderConfigMock = new Mock<IConfigParameterService>();
         orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {
@@ -128,7 +128,7 @@ public class BatchServiceTests : TestBase
         var itemIds = items.Select(i => i.Sequence).ToList();
 
         var configMock = new Mock<IConfigParameterService>();
-        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object, configMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object, configMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
         var generated = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = order.OrderNumber,

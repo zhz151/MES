@@ -130,18 +130,5 @@ public partial class AppDbContext
                 .OnDelete(DeleteBehavior.NoAction);
         });
     }
-    private static void ConfigureInventoryBatchDeleteLog(ModelBuilder builder)
-    {
-        builder.Entity<InventoryBatchDeleteLog>(entity =>
-        {
-            entity.ToTable("InventoryBatchDeleteLog");
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Operator).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.DeletedTime).IsRequired().HasColumnType("datetime2");
-            entity.Property(e => e.BatchData).IsRequired().HasColumnType("nvarchar(max)");
-            entity.Property(e => e.Reason).HasMaxLength(500);
-        });
-    }
+    // ConfigureInventoryBatchDeleteLog was removed — replaced by unified OperationLog
 }

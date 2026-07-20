@@ -4,7 +4,9 @@ using MES.Core.Models;
 using MES.Services.Order;
 using MES.Shared.Constants;
 using MES.Core.DTOs.Order;
+using MES.Core.DTOs.Infrastructure;
 using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.Infrastructure;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Order;
@@ -15,10 +17,12 @@ namespace MES.Api.Controllers.Order;
 public class OrderController : ControllerBase
 {
     private readonly IOrderService _orderService;
+    private readonly IOperationLogService _operationLogService;
 
-    public OrderController(IOrderService orderService)
+    public OrderController(IOrderService orderService, IOperationLogService operationLogService)
     {
         _orderService = orderService;
+        _operationLogService = operationLogService;
     }
 
     #region 订单管理
@@ -220,6 +224,21 @@ public class OrderController : ControllerBase
     {
         await _orderService.RefreshAllAsync();
         return Ok(ApiResponse.Ok("读模型刷新成功"));
+    }
+
+    #endregion
+
+    #region 操作日志
+
+    /// <summary>
+    /// 获取订单操作日志
+    /// </summary>
+    [HttpGet("{id}/operation-logs")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<OperationLogDto>>>> GetOperationLogs(int id)
+    {
+        var result = await _operationLogService.GetLogsAsync("Order", id);
+        return Ok(ApiResponse<List<OperationLogDto>>.Ok(result, "查询成功"));
     }
 
     #endregion

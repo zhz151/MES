@@ -67,11 +67,13 @@ public class WorkOrderService : IWorkOrderService
     private readonly IConfigParameterService _configService;
     private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly IOperationLogService _operationLogService;
     private readonly IMemoryCache _cache;
     private static readonly SemaphoreSlim _workOrderNoSemaphore = new SemaphoreSlim(1, 1);
 
     public WorkOrderService(AppDbContext context, ILogger<WorkOrderService> logger,
         IConfigParameterService configService,
+        IOperationLogService operationLogService,
         IMemoryCache cache,
         IWorkOrderListSummaryRefreshService? listSummaryService = null,
         IWorkOrderExecutionService? workOrderExecutionService = null)
@@ -81,6 +83,7 @@ public class WorkOrderService : IWorkOrderService
         _configService = configService;
         _listSummaryService = listSummaryService;
         _workOrderExecutionService = workOrderExecutionService!;
+        _operationLogService = operationLogService;
         _cache = cache;
     }
 
@@ -1022,6 +1025,11 @@ public class WorkOrderService : IWorkOrderService
                 }
 
                 await transaction.CommitAsync();
+
+                // 在事务内记录创建日志（workOrdersToAdd 在此作用域内）
+                foreach (var wo in workOrdersToAdd)
+                    await _operationLogService.AddLogAsync("WorkOrder", wo.Id, "创建",
+                        $"工单号={wo.WorkOrderNo}, 订单号={request.SalesOrderNo}, 交货日期={wo.DeliveryDate:yyyy-MM-dd}, 交货状态={EnumHelper.GetDisplayName(wo.DeliveryState)}, 规格={wo.Specification}, 长度状态={EnumHelper.GetDisplayName(wo.LengthStatus)}, 最小长度={wo.MinLength?.ToString("G29")}, 最大长度={wo.MaxLength?.ToString("G29")}, 总支数={wo.TotalQuantity}, 总重量={wo.TotalWeight:G29}kg, 项次数={wo.TotalItemCount}");
             }
             catch (DbUpdateException ex) when (ex.InnerException?.Message?.Contains("UK_WorkOrder_WorkOrderNo") == true)
             {
@@ -2207,6 +2215,7 @@ public class WorkOrderService : IWorkOrderService
         if (!CanTransitionTo(workOrder.Status, request.Status))
             throw new BusinessException($"不允许从 {GetStatusText(workOrder.Status)} 变更为 {GetStatusText(request.Status)}");
 
+        var oldStatusText = GetStatusText(workOrder.Status);
         workOrder.Status = request.Status;
         _context.Entry(workOrder).Property(x => x.RowVersion).OriginalValue = request.RowVersion;
 
@@ -2230,6 +2239,8 @@ public class WorkOrderService : IWorkOrderService
 
         _logger.LogInformation("更新工单状态成功: 工单号 {WorkOrderNo}, 新状态 {Status}",
             workOrder.WorkOrderNo, request.Status);
+
+        await _operationLogService.AddLogAsync("WorkOrder", id, "变更", $"工单号={workOrder.WorkOrderNo}, 状态: {oldStatusText} → {GetStatusText(request.Status)}");
 
         await TryRefreshExecutionSummaryAsync(workOrder.WorkOrderNo);
 
@@ -2299,6 +2310,8 @@ public class WorkOrderService : IWorkOrderService
         // 删除工单
         _context.WorkOrders.Remove(workOrder);
         await _context.SaveChangesAsync();
+
+        await _operationLogService.AddLogAsync("WorkOrder", id, "删除", $"工单号={workOrder.WorkOrderNo}");
 
         _logger.LogInformation("删除工单成功: 工单号 {WorkOrderNo}, 关联订单 {OrderNo} 剩余 {Count} 个工单已标记为待修正",
             workOrder.WorkOrderNo, workOrder.SalesOrderNo, remainingWorkOrders.Count);

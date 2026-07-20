@@ -5,7 +5,9 @@ using MES.Core.Models;
 using MES.Core.Exceptions;
 using MES.Shared.Constants;
 using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Infrastructure;
 using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Infrastructure;
 
 namespace MES.Api.Controllers.Batch;
 
@@ -16,12 +18,14 @@ public class BatchController : ControllerBase
 {
     private readonly IBatchService _service;
     private readonly IProductionRecordService _productionRecordService;
+    private readonly IOperationLogService _operationLogService;
     private readonly ILogger<BatchController> _logger;
 
-    public BatchController(IBatchService service, IProductionRecordService productionRecordService, ILogger<BatchController> logger)
+    public BatchController(IBatchService service, IProductionRecordService productionRecordService, IOperationLogService operationLogService, ILogger<BatchController> logger)
     {
         _service = service;
         _productionRecordService = productionRecordService;
+        _operationLogService = operationLogService;
         _logger = logger;
     }
 
@@ -284,14 +288,14 @@ public class BatchController : ControllerBase
         }
     }
 
-    // ========== 批次操作日志 ==========
+    // ========== 操作日志 ==========
 
     [HttpGet("{id}/operation-logs")]
     [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<BatchOperationLogDto>>>> GetOperationLogs(int id)
+    public async Task<ActionResult<ApiResponse<List<OperationLogDto>>>> GetOperationLogs(int id)
     {
-        var result = await _service.GetOperationLogsAsync(id);
-        return Ok(ApiResponse<List<BatchOperationLogDto>>.Ok(result, "查询成功"));
+        var result = await _operationLogService.GetLogsAsync("Batch", id);
+        return Ok(ApiResponse<List<OperationLogDto>>.Ok(result, "查询成功"));
     }
 
     // ========== 筛选上下文 ==========

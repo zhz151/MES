@@ -4,6 +4,7 @@
 @using MES.Blazor.Shared
 @using MES.Core.Enums
 @using MES.Core.DTOs.Batch
+@using MES.Core.DTOs.Infrastructure
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
 @inject BatchService BatchService
@@ -502,7 +503,7 @@
     private bool _isTrackingLoading;
 
     // 操作日志
-    private List<BatchOperationLogDto> _operationLogs = new();
+    private List<OperationLogDto> _operationLogs = new();
     private bool _operationLogsLoading;
     private bool _showOperationLog;
 
@@ -661,10 +662,8 @@
     private static Color GetOperationLogColor(string operationType) => operationType switch
     {
         "创建" => Color.Info,
-        "状态变更" => Color.Warning,
-        "强制完成" => Color.Error,
+        "变更" => Color.Warning,
         "删除" => Color.Error,
-        "更新工单" => Color.Primary,
         _ => Color.Default
     };
 

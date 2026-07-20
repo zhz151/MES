@@ -5,8 +5,10 @@ using MES.Api.Controllers.Batch;
 using MES.Core.Models;
 using MES.Core.Exceptions;
 using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Shared;
 using MES.Core.Interfaces.Batch;
+using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Enums;
 
 namespace MES.Tests.Controllers;
@@ -15,6 +17,7 @@ public class BatchControllerTests : ControllerTestBase
 {
     private readonly Mock<IBatchService> _serviceMock;
     private readonly Mock<IProductionRecordService> _productionRecordServiceMock;
+    private readonly Mock<IOperationLogService> _operationLogServiceMock;
     private readonly Mock<ILogger<BatchController>> _loggerMock;
     private readonly BatchController _controller;
 
@@ -22,8 +25,9 @@ public class BatchControllerTests : ControllerTestBase
     {
         _serviceMock = new Mock<IBatchService>();
         _productionRecordServiceMock = new Mock<IProductionRecordService>();
+        _operationLogServiceMock = new Mock<IOperationLogService>();
         _loggerMock = CreateLoggerMock<BatchController>();
-        _controller = new BatchController(_serviceMock.Object, _productionRecordServiceMock.Object, _loggerMock.Object);
+        _controller = new BatchController(_serviceMock.Object, _productionRecordServiceMock.Object, _operationLogServiceMock.Object, _loggerMock.Object);
     }
 
     [Fact]
@@ -357,14 +361,14 @@ public class BatchControllerTests : ControllerTestBase
     public async Task GetOperationLogs_ReturnsOk()
     {
         // Arrange
-        var list = new List<BatchOperationLogDto> { new() { Id = 1, OperationType = "创建" } };
-        _serviceMock.Setup(x => x.GetOperationLogsAsync(1)).ReturnsAsync(list);
+        var list = new List<OperationLogDto> { new() { Id = 1, OperationType = "创建" } };
+        _operationLogServiceMock.Setup(x => x.GetLogsAsync("Batch", 1)).ReturnsAsync(list);
 
         // Act
         var result = await _controller.GetOperationLogs(1);
 
         // Assert
-        var (_, response) = AssertOk<ApiResponse<List<BatchOperationLogDto>>>(result);
+        var (_, response) = AssertOk<ApiResponse<List<OperationLogDto>>>(result);
         Assert.Single(response.Data!);
     }
 

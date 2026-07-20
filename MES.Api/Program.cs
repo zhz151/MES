@@ -258,6 +258,9 @@ builder.Services.AddScoped<IBatchPlanScheduleService, BatchPlanScheduleService>(
 builder.Services.AddScoped<IBatchPlanTargetService, BatchPlanTargetService>();
 builder.Services.AddScoped<IFinalInspectionPlanService, FinalInspectionPlanService>();
 
+// 操作日志服务
+builder.Services.AddScoped<IOperationLogService, OperationLogService>();
+
 // 质量过程跟踪
 builder.Services.AddScoped<IQualityProcessTrackingService, QualityProcessTrackingService>();
 

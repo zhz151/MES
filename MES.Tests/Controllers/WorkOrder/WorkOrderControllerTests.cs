@@ -7,18 +7,21 @@ using MES.Core.Enums;
 using MES.Core.DTOs.Order;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Interfaces.Infrastructure;
 
 namespace MES.Tests.Controllers;
 
 public class WorkOrderControllerTests : ControllerTestBase
 {
     private readonly Mock<IWorkOrderService> _serviceMock;
+    private readonly Mock<IOperationLogService> _operationLogMock;
     private readonly WorkOrderController _controller;
 
     public WorkOrderControllerTests()
     {
         _serviceMock = new Mock<IWorkOrderService>();
-        _controller = new WorkOrderController(_serviceMock.Object);
+        _operationLogMock = new Mock<IOperationLogService>();
+        _controller = new WorkOrderController(_serviceMock.Object, _operationLogMock.Object);
     }
 
     [Fact]

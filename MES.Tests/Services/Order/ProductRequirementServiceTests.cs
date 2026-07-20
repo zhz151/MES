@@ -13,6 +13,7 @@ using MES.Core.DTOs.Order;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.Order;
 using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Interfaces.Infrastructure;
 using Microsoft.Extensions.Logging;
 
 namespace MES.Tests.Services;
@@ -38,7 +39,7 @@ public class ProductRequirementServiceTests : TestBase
         var orderConfigMock = new Mock<IConfigParameterService>();
         orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {

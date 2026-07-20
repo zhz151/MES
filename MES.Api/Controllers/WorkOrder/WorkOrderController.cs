@@ -5,7 +5,9 @@ using MES.Core.Models;
 using MES.Shared.Constants;
 using MES.Core.DTOs.Order;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.DTOs.Infrastructure;
 using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Interfaces.Infrastructure;
 
 namespace MES.Api.Controllers.WorkOrder;
 
@@ -18,10 +20,12 @@ namespace MES.Api.Controllers.WorkOrder;
 public class WorkOrderController : ControllerBase
 {
     private readonly IWorkOrderService _workOrderService;
+    private readonly IOperationLogService _operationLogService;
 
-    public WorkOrderController(IWorkOrderService workOrderService)
+    public WorkOrderController(IWorkOrderService workOrderService, IOperationLogService operationLogService)
     {
         _workOrderService = workOrderService;
+        _operationLogService = operationLogService;
     }
 
     #region 工单首页（订单状态监控）
@@ -424,6 +428,21 @@ public class WorkOrderController : ControllerBase
     {
         var result = await _workOrderService.GetAllListAsync();
         return Ok(ApiResponse<List<WorkOrderListDto>>.Ok(result, "查询成功"));
+    }
+
+    #endregion
+
+    #region 操作日志
+
+    /// <summary>
+    /// 获取工单操作日志
+    /// </summary>
+    [HttpGet("{id}/operation-logs")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<OperationLogDto>>>> GetOperationLogs(int id)
+    {
+        var result = await _operationLogService.GetLogsAsync("WorkOrder", id);
+        return Ok(ApiResponse<List<OperationLogDto>>.Ok(result, "查询成功"));
     }
 
     #endregion

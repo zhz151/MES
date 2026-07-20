@@ -6,18 +6,21 @@ using MES.Core.Models;
 using MES.Services.Order;
 using MES.Core.DTOs.Order;
 using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.Infrastructure;
 
 namespace MES.Tests.Controllers;
 
 public class OrderControllerTests : ControllerTestBase
 {
     private readonly Mock<IOrderService> _serviceMock;
+    private readonly Mock<IOperationLogService> _operationLogMock;
     private readonly OrderController _controller;
 
     public OrderControllerTests()
     {
         _serviceMock = new Mock<IOrderService>();
-        _controller = new OrderController(_serviceMock.Object);
+        _operationLogMock = new Mock<IOperationLogService>();
+        _controller = new OrderController(_serviceMock.Object, _operationLogMock.Object);
     }
 
     [Fact]

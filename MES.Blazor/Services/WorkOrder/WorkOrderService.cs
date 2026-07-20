@@ -3,6 +3,7 @@ using MES.Shared.Constants;
 using MES.Core.Models;
 using MES.Core.DTOs.Order;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.DTOs.Infrastructure;
 
 namespace MES.Blazor.Services;
 
@@ -471,5 +472,19 @@ public class WorkOrderService
             return ApiResponse<List<WorkOrderListDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    public async Task<ApiResponse<List<OperationLogDto>>> GetOperationLogsAsync(int id)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<OperationLogDto>>>($"{BaseUrl}/{id}/operation-logs");
+            return response ?? ApiResponse<List<OperationLogDto>>.Fail("获取操作日志失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<OperationLogDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     #endregion
 }

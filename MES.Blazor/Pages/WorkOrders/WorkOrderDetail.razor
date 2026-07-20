@@ -4,6 +4,7 @@
 @using MES.Blazor.Shared
 @using MES.Core.Enums
 @using MES.Core.DTOs.WorkOrder
+@using MES.Core.DTOs.Infrastructure
 @using Microsoft.AspNetCore.Authorization
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
@@ -51,6 +52,53 @@
 
         <!-- ===== 工单信息统一卡片 ===== -->
         <WorkOrderInfoCard WorkOrder="workOrder" />
+
+        <!-- ===== 操作日志 ===== -->
+        <MudPaper Class="detail-card-bg pa-4 mb-3" Elevation="0">
+            <div class="d-flex align-center mb-3">
+                <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-1" Size="Size.Small" />操作日志
+                </MudText>
+                <MudSpacer />
+                <MudButton Variant="Variant.Text" Size="Size.Small"
+                           StartIcon="@(_showOperationLog ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleOperationLog">
+                    @(_showOperationLog ? "收起" : "展开")
+                </MudButton>
+            </div>
+            @if (_showOperationLog)
+            {
+                @if (_operationLogsLoading)
+                {
+                    <MudProgressCircular Indeterminate Size="Size.Small" />
+                }
+                else if (_operationLogs.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="detail-empty">暂无操作记录</MudText>
+                }
+                else
+                {
+                    <MudTable Items="_operationLogs" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
+                        <HeaderContent>
+                            <MudTh>操作类型</MudTh>
+                            <MudTh>详情</MudTh>
+                            <MudTh>操作人</MudTh>
+                            <MudTh>操作时间</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudChip Size="Size.Small" Color="@GetOperationLogColor(context.OperationType)">
+                                    @context.OperationType
+                                </MudChip>
+                            </MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Detail ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@context.CreatedBy</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@context.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</MudText></MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            }
+        </MudPaper>
     }
 </MudContainer>
 
@@ -177,4 +225,43 @@
             Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
     }
+
+    // ========== 操作日志 ==========
+
+    private List<OperationLogDto> _operationLogs = new();
+    private bool _showOperationLog;
+    private bool _operationLogsLoading;
+
+    private void ToggleOperationLog()
+    {
+        _showOperationLog = !_showOperationLog;
+        if (_showOperationLog && _operationLogs.Count == 0)
+            _ = LoadOperationLogs();
+    }
+
+    private async Task LoadOperationLogs()
+    {
+        if (Id <= 0) return;
+        _operationLogsLoading = true;
+        try
+        {
+            var result = await WorkOrderService.GetOperationLogsAsync(Id);
+            if (result.Success && result.Data != null)
+                _operationLogs = result.Data;
+        }
+        catch { }
+        finally
+        {
+            _operationLogsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private static Color GetOperationLogColor(string operationType) => operationType switch
+    {
+        "创建" => Color.Info,
+        "变更" => Color.Warning,
+        "删除" => Color.Error,
+        _ => Color.Default
+    };
 }

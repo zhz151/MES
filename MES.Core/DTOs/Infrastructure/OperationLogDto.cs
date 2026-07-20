@@ -1,11 +1,10 @@
-namespace MES.Core.DTOs.Batch;
+namespace MES.Core.DTOs.Infrastructure;
 
-/// <summary>
-/// 批次操作日志DTO
-/// </summary>
-public class BatchOperationLogDto
+public class OperationLogDto
 {
     public int Id { get; set; }
+    public string Module { get; set; } = null!;
+    public int EntityId { get; set; }
     public string OperationType { get; set; } = null!;
     public string? Detail { get; set; }
     public string CreatedBy { get; set; } = null!;

@@ -67,10 +67,10 @@
                         @foreach (var col in blockGroup)
                         {
                             <div class="d-flex align-center" style="min-width:120px;">
+                                <MudText Typo="Typo.body2" Class="mr-1">@col.Label</MudText>
                                 <MudSwitch Value="col.Visible"
                                            ValueChanged="@((bool v) => ToggleColumn(v, col))"
                                            Color="Color.Primary" Dense="true" Size="Size.Small" />
-                                <MudText Typo="Typo.body2" Class="ml-1">@col.Label</MudText>
                             </div>
                         }
                     </div>
@@ -346,40 +346,40 @@
     {
         // === 批次基本信息 ===
         new() { BlockKey = "BatchInfo", Key = "BatchNo", Label = "生产编号", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "Status", Label = "状态", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "TagNo", Label = "挂牌号", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "ProductionType", Label = "生产类型", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "ManufacturingItem", Label = "制造物品", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "ProductionRatio", Label = "制成倍数", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "IsForceCompleted", Label = "强制完成", Visible = true },
+        new() { BlockKey = "BatchInfo", Key = "ProductionType", Label = "生产类型", Visible = true },
+        new() { BlockKey = "BatchInfo", Key = "ManufacturingItem", Label = "制造物品", Visible = true },
+        new() { BlockKey = "BatchInfo", Key = "ProductionRatio", Label = "制成倍数", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "Remark", Label = "备注", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "CurrentExecDate", Label = "截止执行日", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "CurrentGroupName", Label = "当前工序", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "CurrentSectionName", Label = "当前工段", Visible = true },
+        new() { BlockKey = "BatchInfo", Key = "CreatedBy", Label = "创建人", Visible = true },
+        new() { BlockKey = "BatchInfo", Key = "CreatedTime", Label = "创建时间", Visible = true },
+        new() { BlockKey = "BatchInfo", Key = "Status", Label = "状态", Visible = false },
+        new() { BlockKey = "BatchInfo", Key = "CurrentExecDate", Label = "截止执行日", Visible = false },
+        new() { BlockKey = "BatchInfo", Key = "CurrentGroupName", Label = "当前工序", Visible = false },
+        new() { BlockKey = "BatchInfo", Key = "CurrentSectionName", Label = "当前工段", Visible = false },
         new() { BlockKey = "BatchInfo", Key = "CurrentEquipmentName", Label = "当前设备", Visible = false },
         new() { BlockKey = "BatchInfo", Key = "CurrentOutsource", Label = "当前委外", Visible = false },
         new() { BlockKey = "BatchInfo", Key = "CurrentSpec", Label = "当前规格", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "NextSectionName", Label = "下一工段", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "CorrespondingSpec", Label = "对应规格", Visible = false },
         new() { BlockKey = "BatchInfo", Key = "NextProcess", Label = "下一工序", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "CreatedBy", Label = "创建人", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "CreatedTime", Label = "创建时间", Visible = false },
+        new() { BlockKey = "BatchInfo", Key = "NextSectionName", Label = "下一工段", Visible = false },
+        new() { BlockKey = "BatchInfo", Key = "CorrespondingSpec", Label = "对应规格", Visible = false },
+        new() { BlockKey = "BatchInfo", Key = "IsForceCompleted", Label = "强制完成", Visible = false },
 
         // === 质量要求 ===
         new() { BlockKey = "Quality", Key = "SolutionParams", Label = "固溶参数", Visible = true },
         new() { BlockKey = "Quality", Key = "QualityRemark", Label = "质量备注", Visible = true },
 
         // === 仓库来源信息 ===
-        new() { BlockKey = "Warehouse", Key = "SourceBatchNo", Label = "来源库存批次号", Visible = true },
+        new() { BlockKey = "Warehouse", Key = "SourceBatchNo", Label = "仓库批", Visible = true },
         new() { BlockKey = "Warehouse", Key = "SourceMaterialType", Label = "原料类型", Visible = true },
         new() { BlockKey = "Warehouse", Key = "InboundSource", Label = "入库来源", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourceName", Label = "来料单位", Visible = false },
+        new() { BlockKey = "Warehouse", Key = "SourceName", Label = "来料单位", Visible = true },
         new() { BlockKey = "Warehouse", Key = "InboundDate", Label = "入库日期", Visible = true },
         new() { BlockKey = "Warehouse", Key = "SourceHeatNo", Label = "炉号", Visible = true },
         new() { BlockKey = "Warehouse", Key = "SourcePlantGrade", Label = "工厂牌号", Visible = true },
         new() { BlockKey = "Warehouse", Key = "SourceSpecification", Label = "名义规格", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourceLengthStatus", Label = "长度状态", Visible = false },
-        new() { BlockKey = "Warehouse", Key = "SourceUnitWeight", Label = "单支重(kg)", Visible = false },
+        new() { BlockKey = "Warehouse", Key = "SourceLengthStatus", Label = "长度状态", Visible = true },
+        new() { BlockKey = "Warehouse", Key = "SourceUnitWeight", Label = "单支重(kg)", Visible = true },
         new() { BlockKey = "Warehouse", Key = "InputQuantity", Label = "领料支数", Visible = true },
         new() { BlockKey = "Warehouse", Key = "InputWeight", Label = "领料重量(kg)", Visible = true },
         new() { BlockKey = "Warehouse", Key = "CurrentValidQty", Label = "有效原料支数", Visible = true },
@@ -389,8 +389,8 @@
         new() { BlockKey = "WorkOrder", Key = "WorkOrderNo", Label = "工单号", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "SalesOrderNo", Label = "源订单号", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "ProductionMainNo", Label = "主号", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "ProductionSubNo", Label = "次号", Visible = false },
-        new() { BlockKey = "WorkOrder", Key = "OrderItemIds", Label = "项次ID", Visible = false },
+        new() { BlockKey = "WorkOrder", Key = "ProductionSubNo", Label = "次号", Visible = true },
+        new() { BlockKey = "WorkOrder", Key = "OrderItemIds", Label = "项次ID", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "SignDate", Label = "签订日期", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "Salesman", Label = "业务员", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "EndCustomer", Label = "最终用户", Visible = true },
@@ -398,8 +398,8 @@
         new() { BlockKey = "WorkOrder", Key = "DelayPenalty", Label = "延期罚款", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "MaterialName", Label = "钢管制造", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "SettlementMethod", Label = "结算方式", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "StandardCode", Label = "标准编码", Visible = false },
-        new() { BlockKey = "WorkOrder", Key = "DeliveryState", Label = "交货状态", Visible = true },
+        new() { BlockKey = "WorkOrder", Key = "StandardCode", Label = "标准编码", Visible = true },
+        new() { BlockKey = "WorkOrder", Key = "TechnicalRequirements", Label = "技术要求", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "PlantGrade", Label = "工厂牌号", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "Specification", Label = "规格", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "OuterDiameterTolerance", Label = "外径公差", Visible = true },
@@ -408,11 +408,11 @@
         new() { BlockKey = "WorkOrder", Key = "MinLength", Label = "最小长度(mm)", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "MaxLength", Label = "最大长度(mm)", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "TotalQuantity", Label = "总支数", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "TotalMeters", Label = "总米数(m)", Visible = false },
+        new() { BlockKey = "WorkOrder", Key = "TotalMeters", Label = "总米数(m)", Visible = true },
         new() { BlockKey = "WorkOrder", Key = "TotalWeight", Label = "总重量(kg)", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "TotalItemCount", Label = "总项次数", Visible = false },
-        new() { BlockKey = "WorkOrder", Key = "ItemDetails", Label = "明细", Visible = false },
-        new() { BlockKey = "WorkOrder", Key = "TechnicalRequirements", Label = "技术要求", Visible = true },
+        new() { BlockKey = "WorkOrder", Key = "DeliveryState", Label = "交货状态", Visible = true },
+        new() { BlockKey = "WorkOrder", Key = "TotalItemCount", Label = "总项次数", Visible = true },
+        new() { BlockKey = "WorkOrder", Key = "ItemDetails", Label = "明细", Visible = true },
 
         // === 工序组 ===
         new() { BlockKey = "ProcessGroup", Key = "ProcessName", Label = "工序名称", Visible = true },
@@ -420,24 +420,24 @@
         new() { BlockKey = "ProcessGroup", Key = "OuterDiameterTolerance", Label = "外径公差", Visible = true },
         new() { BlockKey = "ProcessGroup", Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true },
         new() { BlockKey = "ProcessGroup", Key = "ManufacturingLength", Label = "制造长度", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "CuttingTreatment", Label = "断切处理", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "ManufacturingMultiple", Label = "制成倍数", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "Remark", Label = "备注", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "ColdRollDraw", Label = "冷轧拔", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "OilPipeCut", Label = "油管断", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "Degrease", Label = "去油", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "Solution", Label = "固溶", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "Straighten", Label = "矫直", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "Cut", Label = "断切", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "ThicknessMeasure", Label = "测壁厚", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "Pickle", Label = "酸洗", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "OuterPolish", Label = "外抛光", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "InnerGrinding", Label = "内修磨", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "OuterSpotGrinding", Label = "外点磨", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "Inspection", Label = "检验", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "WeldingHead", Label = "打焊头", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "Lubrication", Label = "润滑", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "Warehouse", Label = "入库", Visible = false },
+        new() { BlockKey = "ProcessGroup", Key = "CuttingTreatment", Label = "断切处理", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "ManufacturingMultiple", Label = "制成倍数", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "Remark", Label = "备注", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "ColdRollDraw", Label = "冷轧拔", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "OilPipeCut", Label = "油管断", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "Degrease", Label = "去油", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "Solution", Label = "固溶", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "Straighten", Label = "矫直", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "Cut", Label = "断切", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "ThicknessMeasure", Label = "测壁厚", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "Pickle", Label = "酸洗", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "OuterPolish", Label = "外抛光", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "InnerGrinding", Label = "内修磨", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "OuterSpotGrinding", Label = "外点磨", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "Inspection", Label = "检验", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "WeldingHead", Label = "打焊头", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "Lubrication", Label = "润滑", Visible = true },
+        new() { BlockKey = "ProcessGroup", Key = "Warehouse", Label = "入库", Visible = true },
     };
 
     // ========== 初始化 ==========
@@ -479,37 +479,72 @@
         var saved = await ColumnPrefs.LoadAsync(PrefsKey, null);
         if (saved.Count > 0)
         {
-            var savedKeys = new HashSet<string>(saved.Select(s => s.Key), StringComparer.OrdinalIgnoreCase);
+            // 按引用追踪已匹配的 allColumns 条目
+            // 解决同一 Key 跨 Block 重复（如 BatchInfo.Remark + ProcessGroup.Remark）
+            var matchedRefs = new HashSet<ProcessCardColumnDef>();
+
             foreach (var savedCol in saved)
             {
                 var match = allColumns.FirstOrDefault(c =>
-                    c.Key.Equals(savedCol.Key, StringComparison.OrdinalIgnoreCase));
-                if (match != null) match.Visible = savedCol.Visible;
+                    c.Key.Equals(savedCol.Key, StringComparison.OrdinalIgnoreCase) && !matchedRefs.Contains(c));
+                if (match != null)
+                {
+                    matchedRefs.Add(match);
+                    match.Visible = savedCol.Visible;
+                }
             }
+
             // 确保新增字段（默认 Visible=true 但不在已保存偏好中）保持可见
+            var savedKeys = new HashSet<string>(saved.Select(s => s.Key), StringComparer.OrdinalIgnoreCase);
             foreach (var def in defaults)
             {
                 if (!savedKeys.Contains(def.Key) && def.Visible)
                 {
                     var match = allColumns.FirstOrDefault(c =>
-                        c.Key.Equals(def.Key, StringComparison.OrdinalIgnoreCase));
-                    if (match != null) match.Visible = true;
+                        c.Key.Equals(def.Key, StringComparison.OrdinalIgnoreCase) && !matchedRefs.Contains(c));
+                    if (match != null)
+                    {
+                        matchedRefs.Add(match);
+                        match.Visible = true;
+                    }
                 }
             }
-            // 按保存的顺序重排 allColumns
+
+            // 按保存的顺序重排 allColumns（引用去重，非 Key 去重）
             var reordered = new List<ProcessCardColumnDef>();
             foreach (var savedCol in saved)
             {
                 var match = allColumns.FirstOrDefault(c =>
-                    c.Key.Equals(savedCol.Key, StringComparison.OrdinalIgnoreCase));
-                if (match != null) reordered.Add(match);
+                    c.Key.Equals(savedCol.Key, StringComparison.OrdinalIgnoreCase) && !reordered.Contains(c));
+                if (match != null)
+                    reordered.Add(match);
             }
             foreach (var col in allColumns)
             {
-                if (!reordered.Any(c => c.Key.Equals(col.Key, StringComparison.OrdinalIgnoreCase)))
+                if (!reordered.Contains(col))
                     reordered.Add(col);
             }
             allColumns = reordered;
+
+            // 将去重后的偏好存回 localStorage（仅用于清除旧脏数据，不影响逻辑）
+            var cleanPrefs = allColumns.Select(c => new ColumnDef
+            {
+                Key = c.Key,
+                Label = c.Label,
+                Visible = c.Visible
+            }).ToList();
+            await ColumnPrefs.SaveAsync(PrefsKey, null, cleanPrefs);
+        }
+        else
+        {
+            // 无保存的偏好时，将默认列可见性写入 localStorage
+            var defaultPrefs = allColumns.Select(c => new ColumnDef
+            {
+                Key = c.Key,
+                Label = c.Label,
+                Visible = c.Visible
+            }).ToList();
+            await ColumnPrefs.SaveAsync(PrefsKey, null, defaultPrefs);
         }
 
         // 恢复排序/筛选状态

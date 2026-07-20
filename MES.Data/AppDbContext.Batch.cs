@@ -1,6 +1,7 @@
 // Auto-generated partial class for Batch entity configurations
 using Microsoft.EntityFrameworkCore;
 using MES.Data.Entities.Batch;
+using MES.Data.Entities.Infrastructure;
 using MES.Core.Enums;
 
 namespace MES.Data;
@@ -324,23 +325,20 @@ public partial class AppDbContext
             entity.HasIndex(e => e.PicklingInRecordId).HasDatabaseName("IX_PicklingOutRecord_InRecordId");
         });
     }
-    private static void ConfigureBatchOperationLog(ModelBuilder builder)
+    private static void ConfigureOperationLog(ModelBuilder builder)
     {
-        builder.Entity<BatchOperationLog>(entity =>
+        builder.Entity<OperationLog>(entity =>
         {
-            entity.ToTable("BatchOperationLog");
+            entity.ToTable("OperationLog");
             entity.HasKey(e => e.Id);
 
+            entity.Property(e => e.Module).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.EntityId).IsRequired();
             entity.Property(e => e.OperationType).IsRequired().HasMaxLength(20);
             entity.Property(e => e.Detail).HasMaxLength(2000);
 
-            entity.HasOne(e => e.ProductionBatch)
-                .WithMany()
-                .HasForeignKey(e => e.ProductionBatchId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasIndex(e => e.ProductionBatchId)
-                .HasDatabaseName("IX_BatchOperationLog_BatchId");
+            entity.HasIndex(e => new { e.Module, e.EntityId })
+                .HasDatabaseName("IX_OperationLog_Module_EntityId");
         });
     }
 }

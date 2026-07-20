@@ -459,7 +459,7 @@
                                 </td>
                                 <td>
                                     <MudSelect T="MaterialType" @bind-Value="formManufacturingItem" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
-                                        @foreach (var val in Enum.GetValues<MaterialType>())
+                                        @foreach (var val in ValidManufacturingItems)
                                         {
                                             <MudSelectItem Value="@val">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>
                                         }
@@ -663,6 +663,29 @@
     {
         get => request.ManufacturingItem ?? default;
         set => request.ManufacturingItem = value;
+    }
+
+    /// <summary>根据工单号筛选可选的制造物品类型：非工单→备料成品/余库料，其他→订单成品/特定交态成品</summary>
+    private List<MaterialType> ValidManufacturingItems
+    {
+        get
+        {
+            if (request.WorkOrderNo == "非工单")
+                return new List<MaterialType> { MaterialType.Finished, MaterialType.Surplus };
+            return new List<MaterialType> { MaterialType.OrderFinished, MaterialType.SpecialDeliveryStatus };
+        }
+    }
+
+    /// <summary>工单号变更后同步制造物品：当前值不在合法范围内则重置</summary>
+    private void SyncManufacturingItem()
+    {
+        var valid = ValidManufacturingItems;
+        if (!valid.Contains(request.ManufacturingItem ?? default))
+        {
+            request.ManufacturingItem = request.WorkOrderNo == "非工单"
+                ? MaterialType.Finished
+                : MaterialType.OrderFinished;
+        }
     }
     private PipeManufacturingType? formMaterialName
     {
@@ -1070,6 +1093,7 @@
             request.DeliveryState = "SolutionAnnealedAndPickled";
             // 制造物品默认"备料成品"
             request.ManufacturingItem = MaterialType.Finished;
+            SyncManufacturingItem();
 
             Snackbar.Add("工单号为空，已设置默认值（可手工修改）", Severity.Info);
             return;
@@ -1081,6 +1105,7 @@
             request.PlantGrade = request.SourcePlantGrade;
             request.MaterialName = "SeamlessPipe";
             ClearWorkOrderFields();
+            SyncManufacturingItem();
             Snackbar.Add("已标记为「非工单」生产，工单字段已清空（可手工修改）", Severity.Info);
             return;
         }
@@ -1122,6 +1147,8 @@
                 request.TotalItemCount = wo.TotalItemCount;
                 request.ItemDetails = wo.ItemDetails;
                 request.TechnicalRequirements = wo.TechnicalRequirements.ToString();
+
+                SyncManufacturingItem();
 
                 Snackbar.Add($"已从工单 {request.WorkOrderNo} 填充工单字段", Severity.Success);
 

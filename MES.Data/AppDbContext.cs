@@ -13,6 +13,7 @@ using MES.Data.Entities.Quality;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.WorkOrder;
+using MES.Data.Entities.Infrastructure;
 using MES.Core.Enums;
 
 namespace MES.Data;
@@ -69,7 +70,6 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Warehouse> Warehouses { get; set; } = null!;
     public DbSet<InventoryBatch> InventoryBatches { get; set; } = null!;
     public DbSet<OutboundRecord> OutboundRecords { get; set; } = null!;
-    public DbSet<InventoryBatchDeleteLog> InventoryBatchDeleteLogs { get; set; } = null!;
 
     // ========== 物料上下文 ==========
 
@@ -86,7 +86,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ProductionRecord> ProductionRecords { get; set; } = null!;
     public DbSet<SectionOutsource> SectionOutsources { get; set; } = null!;
     public DbSet<OutsourceRecovery> OutsourceRecoveries { get; set; } = null!;
-    public DbSet<BatchOperationLog> BatchOperationLogs { get; set; } = null!;
+    public DbSet<OperationLog> OperationLogs { get; set; } = null!;
     public DbSet<PicklingInRecord> PicklingInRecords { get; set; } = null!;
     public DbSet<PicklingOutRecord> PicklingOutRecords { get; set; } = null!;
 
@@ -193,15 +193,13 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureWarehouse(builder);
         ConfigureInventoryBatch(builder);
         ConfigureOutboundRecord(builder);
-        ConfigureInventoryBatchDeleteLog(builder);
-
         // ========== 批次上下文 ==========
         ConfigureProductionBatch(builder);
         ConfigureProcessGroup(builder);
         ConfigureProductionRecord(builder);
         ConfigureSectionOutsource(builder);
         ConfigureOutsourceRecovery(builder);
-        ConfigureBatchOperationLog(builder);
+        ConfigureOperationLog(builder);
         ConfigurePicklingInRecord(builder);
         ConfigurePicklingOutRecord(builder);
 

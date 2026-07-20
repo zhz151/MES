@@ -773,9 +773,10 @@ public static class DataExchangeRegistry
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }),
 
-        ["BatchOperationLog"] = new EntityDef("批次-批次操作日志", "批次-批次操作日志", typeof(MES.Data.Entities.Batch.BatchOperationLog), 8, null, new List<ColumnDef>
+        ["OperationLog"] = new EntityDef("系统-操作日志", "系统-操作日志", typeof(MES.Data.Entities.Infrastructure.OperationLog), 8, null, new List<ColumnDef>
         {
-            new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
+            new("模块", "Module"),
+            new("业务主键", "EntityId", typeof(int)),
             new("操作类型", "OperationType"),
             new("操作详情", "Detail", typeof(string), isRequired: false),
         }),
@@ -1409,7 +1410,7 @@ public static class DataExchangeRegistry
         "OrderItem", "ProductRequirement",
         "WorkOrder", "OrderDemandAdjustment", "Material",
         "PurchaseOrder", "SubcontractOrder", "SubcontractReturnItem", "ProductionBatch",
-        "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "ChemicalAnalysis", "HardnessTest", "GrainSizeTest", "PittingCorrosionTest", "IntergranularCorrosionTest", "TensileTest", "MetallographicTest", "FlatteningTest", "FlaringTest", "PicklingInRecord", "PicklingOutRecord", "BatchOperationLog", "InventoryBatch", "OutboundRecord",
+        "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "ChemicalAnalysis", "HardnessTest", "GrainSizeTest", "PittingCorrosionTest", "IntergranularCorrosionTest", "TensileTest", "MetallographicTest", "FlatteningTest", "FlaringTest", "PicklingInRecord", "PicklingOutRecord", "OperationLog", "InventoryBatch", "OutboundRecord",
         "Equipment", "RepairOrder", "MaintenanceOrder", "InspectionRecord",
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan", "InProcessReworkPlan",
         "SemiPlanProcessGroup", "InventoryPlanProcessGroup", "PiercingPlanProcessGroup", "InProcessReworkPlanProcessGroup",

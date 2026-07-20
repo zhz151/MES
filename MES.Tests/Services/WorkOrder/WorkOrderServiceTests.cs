@@ -11,6 +11,7 @@ using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Models;
 using MES.Data.Entities;
 using MES.Data.Entities.Order;
@@ -41,7 +42,7 @@ public class WorkOrderServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new WorkOrderService(ctx, loggerMock.Object, configMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        return new WorkOrderService(ctx, loggerMock.Object, configMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<(int OrderId, string OrderNo)> SeedConfirmedOrderAsync(AppDbContext ctx)
@@ -54,7 +55,7 @@ public class WorkOrderServiceTests : TestBase
         var orderConfigMock = new Mock<IConfigParameterService>();
         orderConfigMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        var orderSvc = new OrderService(ctx, new Mock<ILogger<OrderService>>().Object, notifMock.Object, orderConfigMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
 
         var order = await orderSvc.CreateAsync(new CreateSalesOrderRequest
         {

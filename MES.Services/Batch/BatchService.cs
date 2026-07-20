@@ -60,9 +60,10 @@ public class BatchService : IBatchService
     private readonly IConfigParameterService _configService;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IMaterialPlanService _materialPlanService;
+    private readonly IOperationLogService _operationLogService;
     private readonly IMemoryCache _cache;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IMemoryCache cache)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
@@ -70,6 +71,7 @@ public class BatchService : IBatchService
         _configService = configService;
         _workOrderExecutionService = workOrderExecutionService;
         _materialPlanService = materialPlanService;
+        _operationLogService = operationLogService;
         _cache = cache;
     }
 
@@ -611,6 +613,8 @@ public class BatchService : IBatchService
 
         _logger.LogInformation("创建生产批次 {BatchNo} (工单: {WorkOrderNo})", batchNo, entity.WorkOrderNo);
 
+        await _operationLogService.AddLogAsync("Batch",entity.Id, "创建", $"工单号={entity.WorkOrderNo}, 生产类型={entity.ProductionType}, 制造物品={entity.ManufacturingItem}, 制成倍数={entity.ProductionRatio}, 有效支数={entity.CurrentValidQty}, 有效重量={entity.CurrentValidWeight?.ToString("G29")}kg");
+
         await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
 
         return new ProductionBatchListDto
@@ -666,6 +670,14 @@ public class BatchService : IBatchService
         if (!string.IsNullOrEmpty(request.TechnicalRequirements) && !Enum.TryParse<RequirementType>(request.TechnicalRequirements, out _))
             throw new BusinessException($"无效的技术要求: {request.TechnicalRequirements}");
 
+        // 快照 6 个监控字段的旧值（用于变更日志对比）
+        var oldWorkOrderNo = entity.WorkOrderNo;
+        var oldProductionType = entity.ProductionType;
+        var oldManufacturingItem = entity.ManufacturingItem;
+        var oldProductionRatio = entity.ProductionRatio;
+        var oldValidQty = entity.CurrentValidQty;
+        var oldValidWeight = entity.CurrentValidWeight;
+
         // 更新可修改字段（所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖）
         entity.TagNo = request.TagNo ?? entity.TagNo;
         entity.ProductionType = request.ProductionType;
@@ -684,14 +696,10 @@ public class BatchService : IBatchService
         entity.SourceUnitWeight = request.SourceUnitWeight ?? entity.SourceUnitWeight;
         entity.InputQuantity = request.InputQuantity ?? entity.InputQuantity;
         entity.InputWeight = request.InputWeight ?? entity.InputWeight;
-        var oldValidQty = entity.CurrentValidQty;
-        var oldValidWeight = entity.CurrentValidWeight;
         entity.CurrentValidQty = request.CurrentValidQty ?? entity.CurrentValidQty;
         entity.CurrentValidWeight = request.CurrentValidWeight ?? entity.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
         if (request.ProductionRatio.HasValue) entity.ProductionRatio = request.ProductionRatio.Value;
-
-        var oldWorkOrderNo = entity.WorkOrderNo;
 
         // 工单冗余字段（「非工单」时允许清空；正常时保留守卫防覆盖）
         var isNonWorkOrder = request.WorkOrderNo == NotWorkOrder;
@@ -809,13 +817,16 @@ public class BatchService : IBatchService
         // 刷新批次跟踪字段（包括有效投料疑问等计算字段）
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.Id);
 
-        // 记录有效数量变更日志
-        if (oldValidQty != request.CurrentValidQty || oldValidWeight != request.CurrentValidWeight)
-        {
-            var detail = $"有效数量变更: 有效支数={oldValidQty}→{request.CurrentValidQty}" +
-                         $", 有效重量={oldValidWeight?.ToString("G29")}→{request.CurrentValidWeight?.ToString("G29")}kg";
-            await AddOperationLogAsync(id, "有效数量变更", detail);
-        }
+        // 记录 6 个监控字段的变更日志（仅记录实际变化的字段）
+        var changes = new List<string>();
+        if (entity.WorkOrderNo != oldWorkOrderNo) changes.Add($"工单号: {oldWorkOrderNo} → {entity.WorkOrderNo}");
+        if (entity.ProductionType != oldProductionType) changes.Add($"生产类型: {oldProductionType} → {entity.ProductionType}");
+        if (entity.ManufacturingItem != oldManufacturingItem) changes.Add($"制造物品: {oldManufacturingItem} → {entity.ManufacturingItem}");
+        if (entity.ProductionRatio != oldProductionRatio) changes.Add($"制成倍数: {oldProductionRatio} → {entity.ProductionRatio}");
+        if (entity.CurrentValidQty != oldValidQty) changes.Add($"有效支数: {oldValidQty} → {entity.CurrentValidQty}");
+        if (entity.CurrentValidWeight != oldValidWeight) changes.Add($"有效重量: {oldValidWeight?.ToString("G29")} → {entity.CurrentValidWeight?.ToString("G29")}kg");
+        if (changes.Count > 0)
+            await _operationLogService.AddLogAsync("Batch",id, "变更", string.Join("; ", changes));
 
         _logger.LogInformation("更新生产批次 {BatchNo} (Id={Id})", entity.BatchNo, id);
 
@@ -860,7 +871,7 @@ public class BatchService : IBatchService
         {
             await _context.SaveChangesAsync();
             var logDetail = $"状态变更: {oldStatus} → {newStatus}";
-            await AddOperationLogAsync(id, "状态变更", logDetail);
+            await _operationLogService.AddLogAsync("Batch",id, "变更", logDetail);
 
             await transaction.CommitAsync();
         }
@@ -916,6 +927,9 @@ public class BatchService : IBatchService
                 .ToListAsync();
             _context.PicklingInRecords.RemoveRange(picklingInRecords);
         }
+
+        // 先记录删除日志
+        await _operationLogService.AddLogAsync("Batch", id, "删除", $"批次号={entity.BatchNo}, 工单号={entity.WorkOrderNo}");
 
         // 删除批次（ProcessGroup 通过 Cascade 自动删除，
         // 其他直接引用 ProductionBatch 的表也通过 Cascade 自动删除）
@@ -1024,6 +1038,14 @@ public class BatchService : IBatchService
         }
 
         // ===== 1. 更新批次头字段 =====
+        // 快照 6 个监控字段的旧值（用于变更日志对比）
+        var oldWorkOrderNo = entity.WorkOrderNo;
+        var oldProductionType = entity.ProductionType;
+        var oldManufacturingItem = entity.ManufacturingItem;
+        var oldProductionRatio = entity.ProductionRatio;
+        var oldValidQty = entity.CurrentValidQty;
+        var oldValidWeight = entity.CurrentValidWeight;
+
         entity.TagNo = request.TagNo ?? entity.TagNo;
         entity.QualityRemark = request.QualityRemark ?? entity.QualityRemark;
         entity.SolutionParams = request.SolutionParams ?? entity.SolutionParams;
@@ -1043,14 +1065,10 @@ public class BatchService : IBatchService
         entity.SourceUnitWeight = request.SourceUnitWeight ?? entity.SourceUnitWeight;
         entity.InputQuantity = request.InputQuantity ?? entity.InputQuantity;
         entity.InputWeight = request.InputWeight ?? entity.InputWeight;
-        var oldValidQty = entity.CurrentValidQty;
-        var oldValidWeight = entity.CurrentValidWeight;
         entity.CurrentValidQty = request.CurrentValidQty ?? entity.CurrentValidQty;
         entity.CurrentValidWeight = request.CurrentValidWeight ?? entity.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
         if (request.ProductionRatio.HasValue) entity.ProductionRatio = request.ProductionRatio.Value;
-
-        var oldWorkOrderNo = entity.WorkOrderNo;
 
         // 工单冗余字段（「非工单」时允许清空；正常时保留守卫防覆盖）
         var isNonWorkOrder = request.WorkOrderNo == NotWorkOrder;
@@ -1303,13 +1321,16 @@ public class BatchService : IBatchService
             }
         }
 
-        // 记录有效数量变更日志
-        if (oldValidQty != request.CurrentValidQty || oldValidWeight != request.CurrentValidWeight)
-        {
-            var detail = $"有效数量变更: 有效支数={oldValidQty}→{request.CurrentValidQty}" +
-                         $", 有效重量={oldValidWeight?.ToString("G29")}→{request.CurrentValidWeight?.ToString("G29")}kg";
-            await AddOperationLogAsync(id, "有效数量变更", detail);
-        }
+        // 记录 6 个监控字段的变更日志（仅记录实际变化的字段）
+        var changes = new List<string>();
+        if (entity.WorkOrderNo != oldWorkOrderNo) changes.Add($"工单号: {oldWorkOrderNo} → {entity.WorkOrderNo}");
+        if (entity.ProductionType != oldProductionType) changes.Add($"生产类型: {oldProductionType} → {entity.ProductionType}");
+        if (entity.ManufacturingItem != oldManufacturingItem) changes.Add($"制造物品: {oldManufacturingItem} → {entity.ManufacturingItem}");
+        if (entity.ProductionRatio != oldProductionRatio) changes.Add($"制成倍数: {oldProductionRatio} → {entity.ProductionRatio}");
+        if (entity.CurrentValidQty != oldValidQty) changes.Add($"有效支数: {oldValidQty} → {entity.CurrentValidQty}");
+        if (entity.CurrentValidWeight != oldValidWeight) changes.Add($"有效重量: {oldValidWeight?.ToString("G29")} → {entity.CurrentValidWeight?.ToString("G29")}kg");
+        if (changes.Count > 0)
+            await _operationLogService.AddLogAsync("Batch",id, "变更", string.Join("; ", changes));
 
         // ===== 5. 工序组已变更，刷新批次跟踪字段 =====
         await _productionRecordService.BatchUpdateBatchTrackingAsync(new[] { id });
@@ -2205,38 +2226,6 @@ public class BatchService : IBatchService
                     throw new BusinessException($"工段数值必须连续（1,2,3...），缺失值: {allValues[i - 1] + 1}");
             }
         }
-    }
-
-    // ========== 批次操作日志 ==========
-
-    public async Task AddOperationLogAsync(int batchId, string operationType, string? detail = null)
-    {
-        var log = new BatchOperationLog
-        {
-            ProductionBatchId = batchId,
-            OperationType = operationType,
-            Detail = detail,
-            CreatedBy = "system",
-            CreatedTime = DateTimeOffset.UtcNow
-        };
-        _context.BatchOperationLogs.Add(log);
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task<List<BatchOperationLogDto>> GetOperationLogsAsync(int batchId)
-    {
-        return await _context.BatchOperationLogs
-            .Where(l => l.ProductionBatchId == batchId)
-            .OrderByDescending(l => l.CreatedTime)
-            .Select(l => new BatchOperationLogDto
-            {
-                Id = l.Id,
-                OperationType = l.OperationType,
-                Detail = l.Detail,
-                CreatedBy = l.CreatedBy,
-                CreatedTime = l.CreatedTime
-            })
-            .ToListAsync();
     }
 
     #region 状态校验

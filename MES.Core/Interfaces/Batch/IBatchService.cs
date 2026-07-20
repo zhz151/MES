@@ -17,7 +17,7 @@ public interface IBatchService
     Task<PagedResult<ProductionBatchListDto>> GetPagedAsync(BatchQueryParams query);
 
     /// <summary>
-    /// 获取全部批次列表（无分页，供前端全量筛�?排序/搜索�?    /// </summary>
+    /// 获取全部批次列表（无分页，供前端全量筛�?排序/搜索�?    /// </summary>
     Task<List<ProductionBatchListDto>> GetAllBatchListAsync();
 
     /// <summary>
@@ -26,7 +26,7 @@ public interface IBatchService
     Task<ProductionBatchDetailDto> GetByIdAsync(int id);
 
     /// <summary>
-    /// 创建生产批次（同时从工单复制冗余字段�?    /// </summary>
+    /// 创建生产批次（同时从工单复制冗余字段�?    /// </summary>
     Task<ProductionBatchListDto> CreateAsync(CreateProductionBatchRequest request);
 
     /// <summary>
@@ -35,7 +35,7 @@ public interface IBatchService
     Task<ProductionBatchDetailDto> UpdateAsync(int id, UpdateProductionBatchRequest request);
 
     /// <summary>
-    /// 更新批次状�?    /// </summary>
+    /// 更新批次状�?    /// </summary>
     Task UpdateStatusAsync(int id, UpdateBatchStatusRequest request);
 
     /// <summary>
@@ -44,11 +44,11 @@ public interface IBatchService
     Task DeleteAsync(int id);
 
     /// <summary>
-    /// 批量保存批次（头更新 + 状�?+ 工序组全量替换，单事务）
+    /// 批量保存批次（头更新 + 状�?+ 工序组全量替换，单事务）
     /// </summary>
     Task<SaveBatchResponse> SaveAllAsync(int id, SaveBatchRequest request);
 
-    // ========== 工序�?==========
+    // ========== 工序�?==========
 
     /// <summary>
     /// 获取批次的工序组列表
@@ -56,11 +56,11 @@ public interface IBatchService
     Task<List<ProcessGroupDto>> GetProcessGroupsAsync(int batchId);
 
     /// <summary>
-    /// 添加工序�?    /// </summary>
+    /// 添加工序�?    /// </summary>
     Task<ProcessGroupDto> AddProcessGroupAsync(int batchId, CreateProcessGroupRequest request);
 
     /// <summary>
-    /// 删除工序�?    /// </summary>
+    /// 删除工序�?    /// </summary>
     Task DeleteProcessGroupAsync(int groupId);
 
     // ========== 查询 ==========
@@ -71,7 +71,7 @@ public interface IBatchService
     Task<List<AvailableBatchDto>> GetAvailableBatchesAsync();
 
     /// <summary>
-    /// 获取下一个生产编号（YYMM-XXXX 格式�?    /// </summary>
+    /// 获取下一个生产编号（YYMM-XXXX 格式�?    /// </summary>
     Task<string> GetNextBatchNoAsync();
 
     /// <summary>
@@ -97,11 +97,11 @@ public interface IBatchService
     Task<byte[]> PrintBatchSelectedAsync(int[] ids, List<PrintColumnDef> columns);
 
     /// <summary>
-    /// 打印工艺流转卡（A4�?区块，列选择�?    /// </summary>
+    /// 打印工艺流转卡（A4�?区块，列选择�?    /// </summary>
     Task<byte[]> PrintProcessCardAsync(ProcessCardPrintRequest request);
 
     /// <summary>
-    /// 验证所有生产批次的工单号在工单表中是否存在，返回不匹配的列�?    /// </summary>
+    /// 验证所有生产批次的工单号在工单表中是否存在，返回不匹配的列�?    /// </summary>
     Task<List<BatchWorkOrderMismatchDto>> VerifyWorkOrderNosAsync();
 
     /// <summary>
@@ -110,28 +110,17 @@ public interface IBatchService
     Task<ProductionBatchDetailDto> GetByBatchNoAsync(string batchNo);
 
     /// <summary>
-    /// 根据批次号获取工序组（用于前端自动填充，返回 CreateProcessGroupRequest 列表�?    /// </summary>
+    /// 根据批次号获取工序组（用于前端自动填充，返回 CreateProcessGroupRequest 列表�?    /// </summary>
     Task<List<CreateProcessGroupRequest>> GetProcessGroupsByBatchNoAsync(string batchNo);
 
     /// <summary>
-    /// 获取相邻批次导航信息（上一�?下一条）
+    /// 获取相邻批次导航信息（上一�?下一条）
     /// </summary>
     Task<AdjacentBatchDto> GetAdjacentBatchAsync(int currentId);
 
     /// <summary>
-    /// 获取 ExcelFilter 列筛选上下文（各�?distinct 值）
+    /// 获取 ExcelFilter 列筛选上下文（各�?distinct 值）
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
-    // ========== 批次操作日志 ==========
-
-    /// <summary>
-    /// 添加操作日志
-    /// </summary>
-    Task AddOperationLogAsync(int batchId, string operationType, string? detail = null);
-
-    /// <summary>
-    /// 获取批次操作日志列表
-    /// </summary>
-    Task<List<BatchOperationLogDto>> GetOperationLogsAsync(int batchId);
 }

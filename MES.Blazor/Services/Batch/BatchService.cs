@@ -2,6 +2,7 @@ using System.Text.Json;
 using MES.Shared.Constants;
 using MES.Core.Models;
 using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Infrastructure;
 
 namespace MES.Blazor.Services;
 
@@ -222,14 +223,14 @@ public class BatchService
 
     // ========== 批次操作日志 ==========
 
-    public async Task<ApiResponse<List<BatchOperationLogDto>>> GetOperationLogsAsync(int batchId)
+    public async Task<ApiResponse<List<OperationLogDto>>> GetOperationLogsAsync(int batchId)
     {
         try
         {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<BatchOperationLogDto>>>($"{BaseUrl}/{batchId}/operation-logs");
-            return response ?? ApiResponse<List<BatchOperationLogDto>>.Fail("获取失败");
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<OperationLogDto>>>($"{BaseUrl}/{batchId}/operation-logs");
+            return response ?? ApiResponse<List<OperationLogDto>>.Fail("获取失败");
         }
-        catch (Exception ex) { return ApiResponse<List<BatchOperationLogDto>>.Fail($"网络错误: {ex.Message}"); }
+        catch (Exception ex) { return ApiResponse<List<OperationLogDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     // ========== 通用查询（支持 validInputQuestion） ==========
