@@ -2,8 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Auth;
+using MES.Core.Interfaces.Batch;
 using MES.Core.DTOs.Batch;
-using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.DTOs.Materials;
@@ -16,7 +16,6 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.Batch;
-using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
 using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
@@ -40,12 +39,12 @@ using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Quality;
-using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using Microsoft.Extensions.Caching.Memory;
+using MES.Core.Constants;
 using MES.Core.Helpers;
 
 namespace MES.Services.Quality;
@@ -57,26 +56,41 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<MaterialReceiveCheckService> _logger;
-    private readonly IConfigParameterService _configService;
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly IProductionRecordService _productionRecordService;
     private readonly IMemoryCache _cache;
-    private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public MaterialReceiveCheckService(
         AppDbContext context,
-        IConfigParameterService configService,
         IQualityProcessTrackingService qualityProcessTracking,
         IWorkOrderExecutionService workOrderExecutionService,
+        IProductionRecordService productionRecordService,
         ILogger<MaterialReceiveCheckService> logger,
         IMemoryCache cache)
     {
         _context = context;
-        _configService = configService;
         _qualityProcessTracking = qualityProcessTracking;
         _workOrderExecutionService = workOrderExecutionService;
+        _productionRecordService = productionRecordService;
         _logger = logger;
         _cache = cache;
+    }
+
+    /// <summary>
+    /// 解析 MaterialType，兼容旧版枚举名（OrderFinishedProduct → OrderFinished 等）
+    /// </summary>
+    private static MaterialType? ParseMaterialType(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return null;
+        return value switch
+        {
+            "OrderFinishedProduct" => MaterialType.OrderFinished,
+            "PreparedMaterial" or "PreparedFinished" or "StockFinished" => MaterialType.Finished,
+            "SurplusStock" => MaterialType.Surplus,
+            "IntermediateProduct" => MaterialType.SemiFinished,
+            _ => Enum.TryParse<MaterialType>(value, true, out var r) ? r : null
+        };
     }
 
     private async Task TryRefreshQualityProcessTrackingAsync(int mrCheckId)
@@ -104,85 +118,73 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         }
     }
 
-    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
+    /// <summary>
+    /// 判断指定工序组是否是该批次中 Inspection 值最高的（用于 DeliveryState 有效性判定）
+    /// </summary>
+    private async Task<bool> IsLastProcessGroupAsync(int productionBatchId, int processGroupId)
     {
-        if (!_configMaps.TryGetValue(category, out var map))
-        {
-            map = await _configService.GetConfigMapAsync(category);
-            _configMaps[category] = map;
-        }
-        return map.GetValueOrDefault(key, defaultValue);
+        var pgs = await _context.Set<ProcessGroup>()
+            .Where(pg => pg.ProductionBatchId == productionBatchId && pg.Inspection.HasValue)
+            .Select(pg => new { pg.Id, pg.Inspection })
+            .ToListAsync();
+        if (pgs.Count == 0) return true;
+        var maxInsp = pgs.Max(pg => pg.Inspection!.Value);
+        var insp = pgs.FirstOrDefault(pg => pg.Id == processGroupId)?.Inspection;
+        return insp.HasValue && insp.Value == maxInsp;
     }
 
     /// <summary>
-    /// 从工序组中提取所有非空工段及其顺序值
+    /// 从 ProductionBatch 解析 DTO 的批次冗余字段（通过导航属性）
     /// </summary>
-    private static List<(string SectionName, int Sequence)> GetSectionsFromProcessGroup(ProcessGroup pg)
-        => pg.GetNonEmptySections();
-
-    private void ComputeMaterialCheckQuantities(ProductionBatch batch, MaterialReceiveCheck entity, decimal groupDiscountRate)
+    private static MaterialReceiveCheckDto MapToDto(MaterialReceiveCheck m, ProductionBatch? batch = null, bool isLastProcessGroup = true)
     {
-        // 库存/外购/返整/委外加工 → 现有效原料支数/重量
-        // 荒管生产/在制生产/对外加工 → 切管产记录汇总 / 目标重量
-        var isStockType = batch.ProductionType == "Inventory"
-            || batch.ProductionType == "OutsourcedPurchased"
-            || batch.ProductionType == "Rework"
-            || batch.ProductionType == "Subcontract";
-
-        if (isStockType)
+        batch ??= m.ProductionBatch;
+        return new MaterialReceiveCheckDto
         {
-            entity.ProductionCutQuantity = batch.CurrentValidQty ?? 0;
-            entity.ProductionWeight = batch.CurrentValidWeight;
-        }
-        else
-        {
-            // 生产支数：切管工序已完工产记录汇总
-            entity.ProductionCutQuantity = _context.ProductionRecords
-                .Where(pr => pr.ProductionBatchId == batch.Id && pr.SectionName == SectionDefs.Cut && pr.ProductStatus == "成品")
-                .Sum(pr => (int?)(pr.PostCutQuantity ?? 0)) ?? 0;
-
-            // 目标重量 = 投料重量 × (1 - 有效工序组数 × 0.025)
-            if (batch.CurrentValidWeight == null)
-            {
-                entity.ProductionWeight = null;
-            }
-            else
-            {
-                var effectiveGroupCount = batch.ProcessGroups
-                    .Count(pg => GetSectionsFromProcessGroup(pg).Count > 0);
-                var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
-                if (discount < 0) discount = 0;
-                entity.ProductionWeight = (int?)(batch.CurrentValidWeight.Value * discount);
-            }
-        }
+            Id = m.Id,
+            ProductionBatchId = m.ProductionBatchId,
+            ReceiveDate = m.ReceiveDate,
+            Shift = m.Shift,
+            Checker = m.Checker,
+            Remark = m.Remark,
+            BatchNo = m.BatchNo!,
+            DataSource = m.DataSource,
+            IsForceCompleted = m.IsForceCompleted,
+            ProcessGroupId = m.ProcessGroupId,
+            ProcessName = m.ProcessName,
+            SequenceNumber = m.SequenceNumber,
+            ManufacturingItem = ParseMaterialType(batch?.ManufacturingItem),
+            TagNo = batch?.TagNo,
+            WorkOrderNo = batch?.WorkOrderNo,
+            SalesOrderNo = batch?.SalesOrderNo,
+            SourceUnit = batch?.SourceName,
+            FurnaceNo = batch?.SourceHeatNo,
+            PlantGrade = batch?.PlantGrade,
+            Specification = batch?.Specification,
+            ProductionType = EnumHelper.TryParse<ProductionType>(batch?.ProductionType),
+            LengthStatus = EnumHelper.TryParse<LengthStatus>(batch?.LengthStatus),
+            Salesman = batch?.Salesman,
+            // 交货状态仅最后工序组的成检到料有效
+            DeliveryState = isLastProcessGroup
+                ? EnumHelper.TryParse<DeliveryState>(batch?.DeliveryState)
+                : null,
+            CreatedTime = m.CreatedTime,
+            UpdatedTime = m.UpdatedTime
+        };
     }
 
     public async Task<MaterialReceiveCheckDto?> GetMaterialReceiveCheckAsync(int batchId)
     {
         var m = await _context.MaterialReceiveChecks
             .AsNoTracking()
+            .Include(m => m.ProductionBatch)
             .Where(x => x.ProductionBatchId == batchId)
             .FirstOrDefaultAsync();
 
         if (m == null) return null;
 
-        return new MaterialReceiveCheckDto
-        {
-            Id = m.Id,
-            ProductionBatchId = m.ProductionBatchId,
-            ReceiveDate = m.ReceiveDate,
-            Shift = m.Shift != null && Enum.TryParse<ShiftType>(m.Shift, out var rShift) ? rShift : null,
-            Checker = m.Checker,
-            Remark = m.Remark,
-            BatchNo = m.BatchNo!,
-            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<MaterialType>(m.ManufacturingItem, out var r) ? r : null,
-            IsForceCompleted = m.IsForceCompleted,
-            DataSource = m.DataSource,
-            Salesman = m.Salesman,
-            DeliveryState = m.DeliveryState != null && Enum.TryParse<DeliveryState>(m.DeliveryState, out var rDs) ? rDs : null,
-            CreatedTime = m.CreatedTime,
-            UpdatedTime = m.UpdatedTime
-        };
+        var isLast = await IsLastProcessGroupAsync(m.ProductionBatchId, m.ProcessGroupId);
+        return MapToDto(m, isLastProcessGroup: isLast);
     }
 
     public async Task<MaterialReceiveCheckDto> CreateMaterialReceiveCheckAsync(CreateMaterialReceiveCheckRequest request)
@@ -197,81 +199,74 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         }
 
         var batch = await _context.ProductionBatches
-            .Include(b => b.ProcessGroups)
             .FirstOrDefaultAsync(b => b.Id == request.ProductionBatchId)
             ?? throw new BusinessException($"批次不存在: {request.ProductionBatchId}");
-
-        // 检查是否已存在检验到料记录
-        var exists = await _context.MaterialReceiveChecks
-            .AnyAsync(m => m.ProductionBatchId == request.ProductionBatchId);
-        if (exists)
-            throw new BusinessException("该批次已完成成检到料，不能重复创建");
 
         var entity = new MaterialReceiveCheck
         {
             ProductionBatchId = request.ProductionBatchId,
             ReceiveDate = request.ReceiveDate,
-            Shift = request.Shift?.ToString(),
+            Shift = request.Shift,
             Checker = request.Checker,
             Remark = request.Remark,
             DataSource = request.DataSource ?? "MANUAL",
-            // 从 ProductionBatch 复制冗余字段
             BatchNo = batch.BatchNo,
-            ManufacturingItem = batch.ManufacturingItem,
-            TagNo = batch.TagNo,
-            WorkOrderNo = batch.WorkOrderNo,
-            SalesOrderNo = batch.SalesOrderNo,
-            SourceUnit = batch.SourceName,
-            FurnaceNo = batch.SourceHeatNo,
-            PlantGrade = batch.PlantGrade,
-            Specification = batch.Specification,
-            ProductionType = batch.ProductionType,
-            LengthStatus = batch.LengthStatus,
-            IsForceCompleted = false,
-            Salesman = batch.Salesman,
-            DeliveryState = batch.DeliveryState
+            IsForceCompleted = false
         };
 
-        // 计算生产支数/生产重量（创建时快照）
-        var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
-        ComputeMaterialCheckQuantities(batch, entity, groupDiscountRate);
+        // 工序关联：优先取请求参数，否则按规格匹配自动查找
+        if (request.ProcessGroupId > 0)
+        {
+            // 精确查找工序组，取正确的 Inspection 值
+            var pg = await _context.Set<ProcessGroup>()
+                .FirstOrDefaultAsync(pg => pg.Id == request.ProcessGroupId
+                    && pg.ProductionBatchId == request.ProductionBatchId
+                    && pg.Inspection.HasValue);
+            if (pg == null)
+                throw new BusinessException("指定的工序组不存在或非检验工序组");
+
+            entity.ProcessGroupId = pg.Id;
+            entity.ProcessName = request.ProcessName ?? pg.ProcessName;
+            entity.SequenceNumber = request.SequenceNumber ?? pg.Inspection!.Value;
+        }
+        else
+        {
+            // 按 ManufacturingSpec == batch.Specification 匹配工序组
+            // 优先取非"附加成检"的工序组
+            var pg = await _context.Set<ProcessGroup>()
+                .Where(pg => pg.ProductionBatchId == request.ProductionBatchId
+                          && pg.ManufacturingSpec == batch.Specification
+                          && pg.Inspection.HasValue)
+                .OrderBy(pg => pg.ProcessName == ProcessNames.AdditionalFinalInspection ? 1 : 0)
+                .ThenBy(pg => pg.SequenceNumber)
+                .FirstOrDefaultAsync()
+                ?? throw new BusinessException("批次未配置匹配成品规格的工序组，无法创建成检到料");
+
+            entity.ProcessGroupId = pg.Id;
+            entity.ProcessName = pg.ProcessName;
+            entity.SequenceNumber = pg.Inspection!.Value;
+        }
+
+        // 按工序组查重（允许同一批次多个检验工序组分别到料）
+        var exists = await _context.MaterialReceiveChecks
+            .AnyAsync(m => m.ProcessGroupId == entity.ProcessGroupId);
+        if (exists)
+            throw new BusinessException($"该批次工序组「{entity.ProcessName}」已完成成检到料，不能重复创建");
 
         _context.MaterialReceiveChecks.Add(entity);
 
-        // 批次设为完成
-        batch.Status = BatchStatus.Completed;
+        // 批次设为成检
+        batch.Status = BatchStatus.InFinalInspection;
         _context.ProductionBatches.Update(batch);
 
         await _context.SaveChangesAsync();
 
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(batch.Id);
         await TryRefreshQualityProcessTrackingAsync(entity.Id);
         await TryRefreshExecutionSummaryAsync(batch.WorkOrderNo);
 
-        return new MaterialReceiveCheckDto
-        {
-            Id = entity.Id,
-            ProductionBatchId = entity.ProductionBatchId,
-            ReceiveDate = entity.ReceiveDate,
-            Shift = entity.Shift != null && Enum.TryParse<ShiftType>(entity.Shift, out var rShift) ? rShift : null,
-            Checker = entity.Checker,
-            Remark = entity.Remark,
-            BatchNo = entity.BatchNo,
-            ManufacturingItem = entity.ManufacturingItem != null && Enum.TryParse<MaterialType>(entity.ManufacturingItem, out var rMi) ? rMi : null,
-            TagNo = entity.TagNo,
-            WorkOrderNo = entity.WorkOrderNo,
-            SalesOrderNo = entity.SalesOrderNo,
-            SourceUnit = entity.SourceUnit,
-            FurnaceNo = entity.FurnaceNo,
-            PlantGrade = entity.PlantGrade,
-            Specification = entity.Specification,
-            ProductionType = entity.ProductionType != null && Enum.TryParse<ProductionType>(entity.ProductionType, out var rPt) ? rPt : null,
-            LengthStatus = entity.LengthStatus != null && Enum.TryParse<LengthStatus>(entity.LengthStatus, out var rLs) ? rLs : null,
-            ProductionWeight = entity.ProductionWeight,
-            IsForceCompleted = entity.IsForceCompleted,
-            DataSource = entity.DataSource,
-            CreatedTime = entity.CreatedTime,
-            UpdatedTime = entity.UpdatedTime
-        };
+        var isLast = await IsLastProcessGroupAsync(batch.Id, entity.ProcessGroupId);
+        return MapToDto(entity, batch, isLastProcessGroup: isLast);
     }
 
     public async Task<List<MaterialReceiveCheckDto>> BatchCreateMaterialReceiveChecksAsync(List<CreateMaterialReceiveCheckRequest> requests)
@@ -283,12 +278,11 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         var batchNos = requests.Where(r => r.ProductionBatchId <= 0 && !string.IsNullOrWhiteSpace(r.BatchNo))
             .Select(r => r.BatchNo).Distinct().ToList();
         var batchLookup = batchNos.Count > 0
-            ? await _context.ProductionBatches.Include(b => b.ProcessGroups).Where(b => batchNos.Contains(b.BatchNo)).ToDictionaryAsync(b => b.BatchNo)
+            ? await _context.ProductionBatches.Where(b => batchNos.Contains(b.BatchNo)).ToDictionaryAsync(b => b.BatchNo)
             : new Dictionary<string, ProductionBatch>();
 
         // 检查所有批次是否存在
         var modifiedBatches = new List<ProductionBatch>();
-        var existingCheckBatchIds = new HashSet<int>();
 
         foreach (var request in requests)
         {
@@ -302,67 +296,80 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             else
             {
                 var batch = await _context.ProductionBatches
-                    .Include(b => b.ProcessGroups)
                     .FirstOrDefaultAsync(b => b.Id == request.ProductionBatchId)
                     ?? throw new BusinessException($"批次不存在: {request.ProductionBatchId}");
                 modifiedBatches.Add(batch);
             }
-
-            // 延迟批量检查重复（先收集IDs）
-            existingCheckBatchIds.Add(request.ProductionBatchId);
-        }
-
-        // 一次查出已存在检验到料的批次ID
-        var existingBatchIds = await _context.MaterialReceiveChecks
-            .Where(m => existingCheckBatchIds.Contains(m.ProductionBatchId))
-            .Select(m => m.ProductionBatchId)
-            .ToListAsync();
-
-        if (existingBatchIds.Count > 0)
-        {
-            var dupBatchNos = modifiedBatches
-                .Where(b => existingBatchIds.Contains(b.Id))
-                .Select(b => b.BatchNo);
-            throw new BusinessException($"批次 \"{string.Join(", ", dupBatchNos)}\" 已完成成检到料，不能重复创建");
         }
 
         var entities = new List<MaterialReceiveCheck>();
+
+        // 预加载所有相关批次的工序组（按 ManufacturingSpec 匹配）
+        var allBatchIds = modifiedBatches.Select(b => b.Id).ToList();
+        var batchSpecLookup = modifiedBatches.ToDictionary(b => b.Id, b => b.Specification);
+        var allGroups = await _context.Set<ProcessGroup>()
+            .Where(pg => allBatchIds.Contains(pg.ProductionBatchId)
+                      && pg.ManufacturingSpec != null
+                      && pg.Inspection.HasValue)
+            .ToListAsync();
+
+        // 预先查出所有已有成检到料的工序组 ID（按工序组粒度查重）
+        var existingPgIds = await _context.MaterialReceiveChecks
+            .Select(m => m.ProcessGroupId)
+            .ToListAsync();
+        var existingPgSet = new HashSet<int>(existingPgIds);
+
         foreach (var request in requests)
         {
             var batch = modifiedBatches[entities.Count];
+            var batchSpec = batchSpecLookup.GetValueOrDefault(batch.Id, "");
+
+            // 按 ManufacturingSpec == batch.Specification 匹配，优先非"附加成检"
+            var matchedPg = allGroups
+                .Where(pg => pg.ProductionBatchId == batch.Id
+                          && pg.ManufacturingSpec == batchSpec)
+                .OrderBy(pg => pg.ProcessName == ProcessNames.AdditionalFinalInspection ? 1 : 0)
+                .ThenBy(pg => pg.SequenceNumber)
+                .FirstOrDefault()
+                ?? throw new BusinessException($"批次「{batch.BatchNo}」未配置匹配成品规格的工序组，无法创建成检到料");
+
+            var finalPgId = request.ProcessGroupId > 0 ? request.ProcessGroupId : matchedPg.Id;
+
+            // 按工序组查重（允许同一批次不同检验工序组分别到料）
+            if (existingPgSet.Contains(finalPgId))
+                throw new BusinessException($"批次「{batch.BatchNo}」工序组「{matchedPg.ProcessName}」已完成成检到料，不能重复创建");
+
+            existingPgSet.Add(finalPgId); // 防止同一请求中重复
+
+            // 用 finalPgId 精确查找对应的工序组（避免 ProcessName / SequenceNumber 取错）
+            var finalPg = allGroups.FirstOrDefault(pg => pg.Id == finalPgId) ?? matchedPg;
+
             entities.Add(new MaterialReceiveCheck
             {
                 ProductionBatchId = request.ProductionBatchId,
                 ReceiveDate = request.ReceiveDate,
-                Shift = request.Shift?.ToString(),
+                Shift = request.Shift,
                 Checker = request.Checker,
                 Remark = request.Remark,
                 DataSource = "MANUAL",
-                // 从 ProductionBatch 复制冗余字段
                 BatchNo = batch.BatchNo,
-                ManufacturingItem = batch.ManufacturingItem,
-                TagNo = batch.TagNo,
-                WorkOrderNo = batch.WorkOrderNo,
-                SalesOrderNo = batch.SalesOrderNo,
-                SourceUnit = batch.SourceName,
-                FurnaceNo = batch.SourceHeatNo,
-                PlantGrade = batch.PlantGrade,
-                Specification = batch.Specification,
-                ProductionType = batch.ProductionType,
-                LengthStatus = batch.LengthStatus,
-                IsForceCompleted = false
+                IsForceCompleted = false,
+                ProcessGroupId = finalPgId,
+                ProcessName = request.ProcessName ?? finalPg.ProcessName,
+                SequenceNumber = request.SequenceNumber ?? finalPg.Inspection!.Value
             });
-            // 计算生产支数/生产重量（创建时快照）
-            var grpDiscount = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
-            ComputeMaterialCheckQuantities(batch, entities[^1], grpDiscount);
         }
 
         foreach (var batch in modifiedBatches)
-            batch.Status = BatchStatus.Completed;
+            batch.Status = BatchStatus.InFinalInspection;
 
         _context.MaterialReceiveChecks.AddRange(entities);
         _context.ProductionBatches.UpdateRange(modifiedBatches);
         await _context.SaveChangesAsync();
+
+        // 批量创建后逐个刷新批次跟踪字段
+        foreach (var modifiedBatch in modifiedBatches)
+            await _productionRecordService.RefreshBatchTrackingFieldsAsync(modifiedBatch.Id);
 
         // 批量创建后逐个刷新质量过程跟踪
         foreach (var entity in entities)
@@ -374,43 +381,36 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                                  .Distinct(StringComparer.OrdinalIgnoreCase))
             await TryRefreshExecutionSummaryAsync(woNo);
 
-        return entities.Select(e => new MaterialReceiveCheckDto
+        // 预查所有检验工序组，判定各记录是否为 Inspection 值最高的
+        var lastPgBatchIds = modifiedBatches.Select(b => b.Id).Distinct().ToList();
+        var allPgs = await _context.Set<ProcessGroup>()
+            .Where(pg => lastPgBatchIds.Contains(pg.ProductionBatchId) && pg.Inspection.HasValue)
+            .Select(pg => new { pg.Id, pg.ProductionBatchId, pg.Inspection })
+            .ToListAsync();
+        var maxInspByBatch = allPgs
+            .GroupBy(pg => pg.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.Max(pg => pg.Inspection!.Value));
+        var pgInspLookup = allPgs.ToDictionary(pg => pg.Id, pg => pg.Inspection!.Value);
+
+        return entities.Select((e, i) =>
         {
-            Id = e.Id,
-            ProductionBatchId = e.ProductionBatchId,
-            ReceiveDate = e.ReceiveDate,
-            Shift = e.Shift != null && Enum.TryParse<ShiftType>(e.Shift, out var rShift) ? rShift : null,
-            Checker = e.Checker,
-            Remark = e.Remark,
-            BatchNo = e.BatchNo,
-            ManufacturingItem = e.ManufacturingItem != null && Enum.TryParse<MaterialType>(e.ManufacturingItem, out var rMi) ? rMi : null,
-            TagNo = e.TagNo,
-            WorkOrderNo = e.WorkOrderNo,
-            SalesOrderNo = e.SalesOrderNo,
-            SourceUnit = e.SourceUnit,
-            FurnaceNo = e.FurnaceNo,
-            PlantGrade = e.PlantGrade,
-            Specification = e.Specification,
-            ProductionType = e.ProductionType != null && Enum.TryParse<ProductionType>(e.ProductionType, out var rPt) ? rPt : null,
-            LengthStatus = e.LengthStatus != null && Enum.TryParse<LengthStatus>(e.LengthStatus, out var rLs) ? rLs : null,
-            ProductionWeight = e.ProductionWeight,
-            IsForceCompleted = e.IsForceCompleted,
-            Salesman = e.Salesman,
-            DeliveryState = e.DeliveryState != null && Enum.TryParse<DeliveryState>(e.DeliveryState, out var rDs) ? rDs : null,
-            DataSource = e.DataSource,
-            CreatedTime = e.CreatedTime,
-            UpdatedTime = e.UpdatedTime
+            var isLast = pgInspLookup.TryGetValue(e.ProcessGroupId, out var insp)
+                && maxInspByBatch.TryGetValue(e.ProductionBatchId, out var maxInsp)
+                && insp == maxInsp;
+            return MapToDto(e, modifiedBatches[i], isLastProcessGroup: isLast);
         }).ToList();
     }
 
     public async Task<MaterialReceiveCheckDto> UpdateMaterialReceiveCheckAsync(int id, UpdateMaterialReceiveCheckRequest request)
     {
-        var entity = await _context.MaterialReceiveChecks.FindAsync(id)
+        var entity = await _context.MaterialReceiveChecks
+            .Include(e => e.ProductionBatch)
+            .FirstOrDefaultAsync(e => e.Id == id)
             ?? throw new BusinessException("成检到料记录不存在");
 
         if (request.ReceiveDate != default)
             entity.ReceiveDate = request.ReceiveDate;
-        entity.Shift = request.Shift?.ToString() ?? entity.Shift;
+        entity.Shift = request.Shift ?? entity.Shift;
         entity.Checker = request.Checker ?? entity.Checker;
         entity.Remark = request.Remark ?? entity.Remark;
         if (request.IsForceCompleted.HasValue)
@@ -421,29 +421,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
         await TryRefreshQualityProcessTrackingAsync(entity.Id);
 
-        return new MaterialReceiveCheckDto
-        {
-            Id = entity.Id,
-            ProductionBatchId = entity.ProductionBatchId,
-            ReceiveDate = entity.ReceiveDate,
-            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
-            Checker = entity.Checker,
-            Remark = entity.Remark,
-            BatchNo = entity.BatchNo,
-            ManufacturingItem = entity.ManufacturingItem != null && Enum.TryParse<MaterialType>(entity.ManufacturingItem, out var rMi) ? rMi : null,
-            TagNo = entity.TagNo,
-            WorkOrderNo = entity.WorkOrderNo,
-            SalesOrderNo = entity.SalesOrderNo,
-            SourceUnit = entity.SourceUnit,
-            FurnaceNo = entity.FurnaceNo,
-            PlantGrade = entity.PlantGrade,
-            Specification = entity.Specification,
-            ProductionType = entity.ProductionType != null && Enum.TryParse<ProductionType>(entity.ProductionType, out var rPt) ? rPt : null,
-            IsForceCompleted = entity.IsForceCompleted,
-            DataSource = entity.DataSource,
-            CreatedTime = entity.CreatedTime,
-            UpdatedTime = entity.UpdatedTime
-        };
+        var isLast = await IsLastProcessGroupAsync(entity.ProductionBatchId, entity.ProcessGroupId);
+        return MapToDto(entity, isLastProcessGroup: isLast);
     }
 
     public async Task DeleteMaterialReceiveCheckAsync(int id)
@@ -453,16 +432,10 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
         var batchId = entity.ProductionBatchId;
         _context.MaterialReceiveChecks.Remove(entity);
-
-        // 重置批次状态为进行中
-        var batch = await _context.ProductionBatches.FindAsync(batchId);
-        if (batch != null)
-        {
-            batch.Status = BatchStatus.InProgress;
-            _context.ProductionBatches.Update(batch);
-        }
-
         await _context.SaveChangesAsync();
+
+        // 重新计算批次跟踪字段（NextSectionName/Status/CurrentExecDate 等回退到删除前的状态）
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(batchId);
 
         // 删除物化行
         var existingQpt = await _context.QualityProcessTrackings
@@ -473,6 +446,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             await _context.SaveChangesAsync();
         }
 
+        var batch = await _context.ProductionBatches.FindAsync(batchId);
         await TryRefreshExecutionSummaryAsync(batch?.WorkOrderNo);
     }
 
@@ -487,19 +461,17 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             var kw = query.Keyword;
             queryable = queryable.Where(m =>
                 (m.BatchNo != null && m.BatchNo.Contains(kw)) ||
-                (m.ManufacturingItem != null && m.ManufacturingItem.Contains(kw)) ||
-                (m.PlantGrade != null && m.PlantGrade.Contains(kw)) ||
-                (m.Specification != null && m.Specification.Contains(kw)) ||
                 (m.Checker != null && m.Checker.Contains(kw)) ||
-                (m.Shift != null && m.Shift.Contains(kw)) ||
-                (m.WorkOrderNo != null && m.WorkOrderNo.Contains(kw)) ||
-                (m.SalesOrderNo != null && m.SalesOrderNo.Contains(kw)) ||
-                (m.FurnaceNo != null && m.FurnaceNo.Contains(kw)) ||
-                (m.TagNo != null && m.TagNo.Contains(kw)) ||
-                (m.SourceUnit != null && m.SourceUnit.Contains(kw)) ||
                 (m.Remark != null && m.Remark.Contains(kw)) ||
-                (m.Salesman != null && m.Salesman.Contains(kw)) ||
-                (m.DeliveryState != null && m.DeliveryState.Contains(kw)));
+                (m.ProductionBatch.PlantGrade != null && m.ProductionBatch.PlantGrade.Contains(kw)) ||
+                (m.ProductionBatch.Specification != null && m.ProductionBatch.Specification.Contains(kw)) ||
+                (m.ProductionBatch.WorkOrderNo != null && m.ProductionBatch.WorkOrderNo.Contains(kw)) ||
+                (m.ProductionBatch.SalesOrderNo != null && m.ProductionBatch.SalesOrderNo.Contains(kw)) ||
+                (m.ProductionBatch.SourceHeatNo != null && m.ProductionBatch.SourceHeatNo.Contains(kw)) ||
+                (m.ProductionBatch.TagNo != null && m.ProductionBatch.TagNo.Contains(kw)) ||
+                (m.ProductionBatch.SourceName != null && m.ProductionBatch.SourceName.Contains(kw)) ||
+                (m.ProductionBatch.Salesman != null && m.ProductionBatch.Salesman.Contains(kw)) ||
+                (m.ProcessName != null && m.ProcessName.Contains(kw)));
         }
 
         if (query.ReceiveDateFrom.HasValue)
@@ -507,6 +479,63 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
         if (query.ReceiveDateTo.HasValue)
             queryable = queryable.Where(m => m.ReceiveDate <= query.ReceiveDateTo.Value);
+
+        // 自定义筛选：批量派生字段不在实体上，需通过 ProductionBatch 导航属性处理
+        if (query.Filters != null && query.Filters.Count > 0)
+        {
+            var remainingFilters = new List<FilterDescriptor>();
+            foreach (var filter in query.Filters)
+            {
+                if (filter.Operator != "in" || filter.Values == null || filter.Values.Count == 0)
+                {
+                    remainingFilters.Add(filter);
+                    continue;
+                }
+                switch (filter.Field)
+                {
+                    case "ManufacturingItem":
+                        queryable = queryable.Where(m => ExpandManufacturingItemFilter(filter.Values).Contains(m.ProductionBatch.ManufacturingItem));
+                        break;
+                    case "PlantGrade":
+                        queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch.PlantGrade));
+                        break;
+                    case "Specification":
+                        queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch.Specification));
+                        break;
+                    case "TagNo":
+                        queryable = queryable.Where(m => m.ProductionBatch.TagNo != null && filter.Values.Contains(m.ProductionBatch.TagNo));
+                        break;
+                    case "WorkOrderNo":
+                        queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch.WorkOrderNo));
+                        break;
+                    case "SalesOrderNo":
+                        queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch.SalesOrderNo));
+                        break;
+                    case "FurnaceNo":
+                        queryable = queryable.Where(m => m.ProductionBatch.SourceHeatNo != null && filter.Values.Contains(m.ProductionBatch.SourceHeatNo));
+                        break;
+                    case "SourceUnit":
+                        queryable = queryable.Where(m => m.ProductionBatch.SourceName != null && filter.Values.Contains(m.ProductionBatch.SourceName));
+                        break;
+                    case "ProductionType":
+                        queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch!.ProductionType!));
+                        break;
+                    case "LengthStatus":
+                        queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch.LengthStatus));
+                        break;
+                    case "Salesman":
+                        queryable = queryable.Where(m => m.ProductionBatch.Salesman != null && filter.Values.Contains(m.ProductionBatch.Salesman));
+                        break;
+                    case "DeliveryState":
+                        queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch.DeliveryState));
+                        break;
+                    default:
+                        remainingFilters.Add(filter);
+                        break;
+                }
+            }
+            query.Filters = remainingFilters;
+        }
 
         queryable = queryable.ApplyFilters(query.Filters);
 
@@ -524,42 +553,42 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             ("createdtime", true) => queryable.OrderByDescending(m => m.CreatedTime),
             ("updatedtime", false) => queryable.OrderBy(m => m.UpdatedTime),
             ("updatedtime", true) => queryable.OrderByDescending(m => m.UpdatedTime),
-            ("shift", false) => queryable.OrderBy(m => m.Shift ?? ""),
-            ("shift", true) => queryable.OrderByDescending(m => m.Shift ?? ""),
+            ("shift", false) => queryable.OrderBy(m => m.Shift),
+            ("shift", true) => queryable.OrderByDescending(m => m.Shift),
             ("remark", false) => queryable.OrderBy(m => m.Remark ?? ""),
             ("remark", true) => queryable.OrderByDescending(m => m.Remark ?? ""),
-            ("manufacturingitem", false) => queryable.OrderBy(m => m.ManufacturingItem ?? ""),
-            ("manufacturingitem", true) => queryable.OrderByDescending(m => m.ManufacturingItem ?? ""),
-            ("plantgrade", false) => queryable.OrderBy(m => m.PlantGrade ?? ""),
-            ("plantgrade", true) => queryable.OrderByDescending(m => m.PlantGrade ?? ""),
-            ("specification", false) => queryable.OrderBy(m => m.Specification ?? ""),
-            ("specification", true) => queryable.OrderByDescending(m => m.Specification ?? ""),
-            ("tagno", false) => queryable.OrderBy(m => m.TagNo ?? ""),
-            ("tagno", true) => queryable.OrderByDescending(m => m.TagNo ?? ""),
-            ("workorderno", false) => queryable.OrderBy(m => m.WorkOrderNo ?? ""),
-            ("workorderno", true) => queryable.OrderByDescending(m => m.WorkOrderNo ?? ""),
-            ("salesorderno", false) => queryable.OrderBy(m => m.SalesOrderNo ?? ""),
-            ("salesorderno", true) => queryable.OrderByDescending(m => m.SalesOrderNo ?? ""),
-            ("furnaceno", false) => queryable.OrderBy(m => m.FurnaceNo ?? ""),
-            ("furnaceno", true) => queryable.OrderByDescending(m => m.FurnaceNo ?? ""),
-            ("sourceunit", false) => queryable.OrderBy(m => m.SourceUnit ?? ""),
-            ("sourceunit", true) => queryable.OrderByDescending(m => m.SourceUnit ?? ""),
-            ("productiontype", false) => queryable.OrderBy(m => m.ProductionType ?? ""),
-            ("productiontype", true) => queryable.OrderByDescending(m => m.ProductionType ?? ""),
+            ("manufacturingitem", false) => queryable.OrderBy(m => m.ProductionBatch.ManufacturingItem ?? ""),
+            ("manufacturingitem", true) => queryable.OrderByDescending(m => m.ProductionBatch.ManufacturingItem ?? ""),
+            ("plantgrade", false) => queryable.OrderBy(m => m.ProductionBatch.PlantGrade ?? ""),
+            ("plantgrade", true) => queryable.OrderByDescending(m => m.ProductionBatch.PlantGrade ?? ""),
+            ("specification", false) => queryable.OrderBy(m => m.ProductionBatch.Specification ?? ""),
+            ("specification", true) => queryable.OrderByDescending(m => m.ProductionBatch.Specification ?? ""),
+            ("productiontype", false) => queryable.OrderBy(m => m.ProductionBatch.ProductionType ?? ""),
+            ("productiontype", true) => queryable.OrderByDescending(m => m.ProductionBatch.ProductionType ?? ""),
+            ("tagno", false) => queryable.OrderBy(m => m.ProductionBatch.TagNo ?? ""),
+            ("tagno", true) => queryable.OrderByDescending(m => m.ProductionBatch.TagNo ?? ""),
+            ("workorderno", false) => queryable.OrderBy(m => m.ProductionBatch.WorkOrderNo ?? ""),
+            ("workorderno", true) => queryable.OrderByDescending(m => m.ProductionBatch.WorkOrderNo ?? ""),
+            ("salesorderno", false) => queryable.OrderBy(m => m.ProductionBatch.SalesOrderNo ?? ""),
+            ("salesorderno", true) => queryable.OrderByDescending(m => m.ProductionBatch.SalesOrderNo ?? ""),
+            ("furnaceno", false) => queryable.OrderBy(m => m.ProductionBatch.SourceHeatNo ?? ""),
+            ("furnaceno", true) => queryable.OrderByDescending(m => m.ProductionBatch.SourceHeatNo ?? ""),
+            ("sourceunit", false) => queryable.OrderBy(m => m.ProductionBatch.SourceName ?? ""),
+            ("sourceunit", true) => queryable.OrderByDescending(m => m.ProductionBatch.SourceName ?? ""),
             ("datasource", false) => queryable.OrderBy(m => m.DataSource ?? ""),
             ("datasource", true) => queryable.OrderByDescending(m => m.DataSource ?? ""),
-            ("productioncutquantity", false) => queryable.OrderBy(m => m.ProductionCutQuantity),
-            ("productioncutquantity", true) => queryable.OrderByDescending(m => m.ProductionCutQuantity),
-            ("productionweight", false) => queryable.OrderBy(m => m.ProductionWeight ?? 0),
-            ("productionweight", true) => queryable.OrderByDescending(m => m.ProductionWeight ?? 0),
-            ("lengthstatus", false) => queryable.OrderBy(m => m.LengthStatus ?? ""),
-            ("lengthstatus", true) => queryable.OrderByDescending(m => m.LengthStatus ?? ""),
             ("isforcecompleted", false) => queryable.OrderBy(m => m.IsForceCompleted),
             ("isforcecompleted", true) => queryable.OrderByDescending(m => m.IsForceCompleted),
-            ("salesman", false) => queryable.OrderBy(m => m.Salesman ?? ""),
-            ("salesman", true) => queryable.OrderByDescending(m => m.Salesman ?? ""),
-            ("deliverystate", false) => queryable.OrderBy(m => m.DeliveryState ?? ""),
-            ("deliverystate", true) => queryable.OrderByDescending(m => m.DeliveryState ?? ""),
+            ("lengthstatus", false) => queryable.OrderBy(m => m.ProductionBatch.LengthStatus ?? ""),
+            ("lengthstatus", true) => queryable.OrderByDescending(m => m.ProductionBatch.LengthStatus ?? ""),
+            ("salesman", false) => queryable.OrderBy(m => m.ProductionBatch.Salesman ?? ""),
+            ("salesman", true) => queryable.OrderByDescending(m => m.ProductionBatch.Salesman ?? ""),
+            ("deliverystate", false) => queryable.OrderBy(m => m.ProductionBatch.DeliveryState ?? ""),
+            ("deliverystate", true) => queryable.OrderByDescending(m => m.ProductionBatch.DeliveryState ?? ""),
+            ("processname", false) => queryable.OrderBy(m => m.ProcessName ?? ""),
+            ("processname", true) => queryable.OrderByDescending(m => m.ProcessName ?? ""),
+            ("sequencenumber", false) => queryable.OrderBy(m => m.SequenceNumber),
+            ("sequencenumber", true) => queryable.OrderByDescending(m => m.SequenceNumber),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(m => m.CreatedTime)
                 : queryable.OrderBy(m => m.CreatedTime)
@@ -572,11 +601,22 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             {
                 m.Id, m.ProductionBatchId, m.ReceiveDate, m.Shift, m.Checker,
                 m.Remark, m.DataSource,
-                m.BatchNo, m.ManufacturingItem, m.TagNo, m.WorkOrderNo, m.SalesOrderNo,
-                m.SourceUnit, m.FurnaceNo, m.PlantGrade, m.Specification, m.ProductionType,
-                m.ProductionCutQuantity, m.ProductionWeight, m.LengthStatus,
-                m.IsForceCompleted, m.Salesman, m.DeliveryState,
-                m.CreatedTime, m.UpdatedTime
+                m.BatchNo, m.IsForceCompleted,
+                m.ProcessGroupId, m.ProcessName, m.SequenceNumber,
+                m.CreatedTime, m.UpdatedTime,
+                // 通过 ProductionBatch 导航属性获取批次冗余字段
+                ManufacturingItem = m.ProductionBatch.ManufacturingItem,
+                TagNo = m.ProductionBatch.TagNo,
+                WorkOrderNo = m.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = m.ProductionBatch.SalesOrderNo,
+                SourceUnit = m.ProductionBatch.SourceName,
+                FurnaceNo = m.ProductionBatch.SourceHeatNo,
+                PlantGrade = m.ProductionBatch.PlantGrade,
+                Specification = m.ProductionBatch.Specification,
+                ProductionType = m.ProductionBatch.ProductionType,
+                LengthStatus = m.ProductionBatch.LengthStatus,
+                Salesman = m.ProductionBatch.Salesman,
+                DeliveryState = m.ProductionBatch.DeliveryState
             })
             .ToListAsync();
 
@@ -585,12 +625,16 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Id = m.Id,
             ProductionBatchId = m.ProductionBatchId,
             ReceiveDate = m.ReceiveDate,
-            Shift = m.Shift != null && Enum.TryParse<ShiftType>(m.Shift, out var rShift) ? rShift : null,
+            Shift = m.Shift,
             Checker = m.Checker,
             Remark = m.Remark,
             DataSource = m.DataSource,
             BatchNo = m.BatchNo!,
-            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<MaterialType>(m.ManufacturingItem, out var r) ? r : null,
+            IsForceCompleted = m.IsForceCompleted,
+            ProcessGroupId = m.ProcessGroupId,
+            ProcessName = m.ProcessName,
+            SequenceNumber = m.SequenceNumber,
+            ManufacturingItem = ParseMaterialType(m.ManufacturingItem),
             TagNo = m.TagNo,
             WorkOrderNo = m.WorkOrderNo,
             SalesOrderNo = m.SalesOrderNo,
@@ -598,16 +642,33 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             FurnaceNo = m.FurnaceNo,
             PlantGrade = m.PlantGrade!,
             Specification = m.Specification!,
-            ProductionType = m.ProductionType != null && Enum.TryParse<ProductionType>(m.ProductionType, out var rPt) ? rPt : null,
-            ProductionCutQuantity = m.ProductionCutQuantity,
-            ProductionWeight = m.ProductionWeight,
-            LengthStatus = m.LengthStatus != null && Enum.TryParse<LengthStatus>(m.LengthStatus, out var rLs) ? rLs : null,
-            IsForceCompleted = m.IsForceCompleted,
+            ProductionType = EnumHelper.TryParse<ProductionType>(m.ProductionType),
+            LengthStatus = EnumHelper.TryParse<LengthStatus>(m.LengthStatus),
             Salesman = m.Salesman,
-            DeliveryState = m.DeliveryState != null && Enum.TryParse<DeliveryState>(m.DeliveryState, out var rDs) ? rDs : null,
+            DeliveryState = EnumHelper.TryParse<DeliveryState>(m.DeliveryState),
             CreatedTime = m.CreatedTime,
             UpdatedTime = m.UpdatedTime
         }).ToList();
+
+        // 判断每个记录是否该批次中 Inspection 值最高的检验工序组（交货状态仅最后检验有效）
+        var batchIds4P = rawItems.Select(m => m.ProductionBatchId).Distinct().ToList();
+        var pgs4P = await _context.Set<ProcessGroup>()
+            .Where(pg => batchIds4P.Contains(pg.ProductionBatchId) && pg.Inspection.HasValue)
+            .Select(pg => new { pg.Id, pg.ProductionBatchId, pg.Inspection })
+            .ToListAsync();
+        var pgInspLookup = pgs4P.ToDictionary(pg => pg.Id, pg => pg.Inspection!.Value);
+        var maxInspByBatch = pgs4P
+            .GroupBy(pg => pg.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.Max(pg => pg.Inspection!.Value));
+        foreach (var item in items)
+        {
+            item.IsLastProcessGroup = pgInspLookup.TryGetValue(item.ProcessGroupId, out var inspVal)
+                && maxInspByBatch.TryGetValue(item.ProductionBatchId, out var maxInsp)
+                && inspVal == maxInsp;
+            // 非最后工序组的成检到料，交货状态无效
+            if (!item.IsLastProcessGroup)
+                item.DeliveryState = null;
+        }
 
         return new PagedResult<MaterialReceiveCheckDto>
         {
@@ -625,22 +686,37 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             .OrderByDescending(rc => rc.Id)
             .Select(rc => new
             {
-                rc.Id, rc.ProductionBatchId, rc.BatchNo, rc.ManufacturingItem,
-                rc.TagNo, rc.WorkOrderNo, rc.SalesOrderNo, rc.SourceUnit,
-                rc.FurnaceNo, rc.PlantGrade, rc.Specification, rc.ProductionType,
-                rc.DataSource, rc.ProductionCutQuantity, rc.ProductionWeight,
-                rc.LengthStatus, rc.IsForceCompleted, rc.Salesman, rc.DeliveryState,
-                rc.ReceiveDate, rc.Shift, rc.Checker, rc.Remark,
-                rc.CreatedTime, rc.UpdatedTime
+                rc.Id, rc.ProductionBatchId, rc.BatchNo, rc.DataSource,
+                rc.IsForceCompleted, rc.ReceiveDate, rc.Shift, rc.Checker, rc.Remark,
+                rc.ProcessGroupId, rc.ProcessName, rc.SequenceNumber,
+                rc.CreatedTime, rc.UpdatedTime,
+                // 通过 ProductionBatch 导航属性
+                ManufacturingItem = rc.ProductionBatch.ManufacturingItem,
+                TagNo = rc.ProductionBatch.TagNo,
+                WorkOrderNo = rc.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = rc.ProductionBatch.SalesOrderNo,
+                SourceUnit = rc.ProductionBatch.SourceName,
+                FurnaceNo = rc.ProductionBatch.SourceHeatNo,
+                PlantGrade = rc.ProductionBatch.PlantGrade,
+                Specification = rc.ProductionBatch.Specification,
+                ProductionType = rc.ProductionBatch.ProductionType,
+                LengthStatus = rc.ProductionBatch.LengthStatus,
+                Salesman = rc.ProductionBatch.Salesman,
+                DeliveryState = rc.ProductionBatch.DeliveryState
             })
             .ToListAsync();
 
-        return raw.Select(rc => new MaterialReceiveCheckDto
+        var resultList = raw.Select(rc => new MaterialReceiveCheckDto
         {
             Id = rc.Id,
             ProductionBatchId = rc.ProductionBatchId,
             BatchNo = rc.BatchNo!,
-            ManufacturingItem = rc.ManufacturingItem != null && Enum.TryParse<MaterialType>(rc.ManufacturingItem, out var rMi) ? rMi : null,
+            DataSource = rc.DataSource,
+            IsForceCompleted = rc.IsForceCompleted,
+            ProcessGroupId = rc.ProcessGroupId,
+            ProcessName = rc.ProcessName,
+            SequenceNumber = rc.SequenceNumber,
+            ManufacturingItem = ParseMaterialType(rc.ManufacturingItem),
             TagNo = rc.TagNo,
             WorkOrderNo = rc.WorkOrderNo,
             SalesOrderNo = rc.SalesOrderNo,
@@ -648,121 +724,136 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             FurnaceNo = rc.FurnaceNo,
             PlantGrade = rc.PlantGrade!,
             Specification = rc.Specification!,
-            ProductionType = rc.ProductionType != null && Enum.TryParse<ProductionType>(rc.ProductionType, out var rPt) ? rPt : null,
-            DataSource = rc.DataSource,
-            ProductionCutQuantity = rc.ProductionCutQuantity,
-            ProductionWeight = rc.ProductionWeight,
-            LengthStatus = rc.LengthStatus != null && Enum.TryParse<LengthStatus>(rc.LengthStatus, out var rLs) ? rLs : null,
-            IsForceCompleted = rc.IsForceCompleted,
+            ProductionType = EnumHelper.TryParse<ProductionType>(rc.ProductionType),
+            LengthStatus = EnumHelper.TryParse<LengthStatus>(rc.LengthStatus),
             Salesman = rc.Salesman,
-            DeliveryState = rc.DeliveryState != null && Enum.TryParse<DeliveryState>(rc.DeliveryState, out var rDs) ? rDs : null,
+            DeliveryState = EnumHelper.TryParse<DeliveryState>(rc.DeliveryState),
             ReceiveDate = rc.ReceiveDate,
-            Shift = rc.Shift != null && Enum.TryParse<ShiftType>(rc.Shift, out var rShift) ? rShift : null,
+            Shift = rc.Shift,
             Checker = rc.Checker,
             Remark = rc.Remark,
             CreatedTime = rc.CreatedTime,
             UpdatedTime = rc.UpdatedTime
         }).ToList();
+
+        // 判断每个记录是否该批次中 Inspection 值最高的检验工序组
+        var batchIds4All = raw.Select(m => m.ProductionBatchId).Distinct().ToList();
+        var pgs4All = await _context.Set<ProcessGroup>()
+            .Where(pg => batchIds4All.Contains(pg.ProductionBatchId) && pg.Inspection.HasValue)
+            .Select(pg => new { pg.Id, pg.ProductionBatchId, pg.Inspection })
+            .ToListAsync();
+        var pgInspLookupAll = pgs4All.ToDictionary(pg => pg.Id, pg => pg.Inspection!.Value);
+        var maxInspByBatchAll = pgs4All
+            .GroupBy(pg => pg.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.Max(pg => pg.Inspection!.Value));
+        foreach (var item in resultList)
+        {
+            item.IsLastProcessGroup = pgInspLookupAll.TryGetValue(item.ProcessGroupId, out var inspVal)
+                && maxInspByBatchAll.TryGetValue(item.ProductionBatchId, out var maxInsp)
+                && inspVal == maxInsp;
+            // 非最后工序组的成检到料，交货状态无效
+            if (!item.IsLastProcessGroup)
+                item.DeliveryState = null;
+        }
+
+        return resultList;
     }
 
     public async Task<List<PendingMaterialCheckDto>> GetPendingMaterialChecksAsync()
     {
         // ====== 两段式查询：先取批次，再取工序组，内存匹配 ======
-        // 避免相关子查询（4 × N 次重复执行）
-        // 说明：成品检验阶段 = CurrentSectionName="检验" AND SequenceNumber = 批次最大Seq
+        // 匹配规则：
+        //   ① batch.NextSectionName == "检验" 或为 null（覆盖成检到料删除后回退场景）
+        //   ② ProcessGroup.ManufacturingSpec == ProductionBatch.Specification
 
-        // Step 1: 获取已有成检到料的批次 ID
-        var existingIds = await _context.MaterialReceiveChecks
-            .Select(m => m.ProductionBatchId)
+        // Step 1: 获取已有成检到料的工序组 ID（按工序组排除，允许同一批次多个工序组分别到料）
+        var existingPgIds = await _context.MaterialReceiveChecks
+            .Select(m => m.ProcessGroupId)
             .ToListAsync();
-        var existingSet = new HashSet<int>(existingIds);
+        var existingPgSet = new HashSet<int>(existingPgIds);
 
-        // Step 2: 获取所有活跃批次（在产中、进入或即将进入成品检验）
+        // Step 2: 获取下一工段为"检验" 或 尚未开始（已重置）的活跃批次
+        // 放宽 NextSectionName 条件，覆盖成检到料删除后 NextSectionName 被回退为 null 的情况
         var batches = await _context.ProductionBatches.AsNoTracking()
-            .Where(b => (b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress)
-                && (b.CurrentSectionName == "检验" || b.NextSectionName == "检验"))
+            .Where(b => (b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress
+                      || b.Status == BatchStatus.InFinalInspection)
+                     && (b.NextSectionName == "检验" || b.NextSectionName == null))
             .Select(b => new
             {
-                b.Id,
-                b.BatchNo,
-                b.WorkOrderNo,
-                b.Salesman,
-                b.TagNo,
-                b.PlantGrade,
-                b.Specification,
-                b.CurrentValidWeight,
-                b.CurrentExecDate,
-                b.CurrentSectionName,
-                b.CurrentSectionCompleted,
-                b.CurrentGroupName,
-                b.NextSectionName,
-                b.NextProcess
+                b.Id, b.BatchNo, b.WorkOrderNo, b.Salesman, b.TagNo,
+                b.PlantGrade, b.Specification, b.CurrentValidWeight,
+                b.CurrentExecDate, b.CurrentSectionName, b.NextProcess
             })
             .ToListAsync();
+
+        if (batches.Count == 0) return new();
 
         // Step 3: 获取这些批次的 ProcessGroup 数据
+        var batchSpecLookup = batches.ToDictionary(b => b.Id, b => b.Specification ?? "");
+        var batchNextProcessLookup = batches.ToDictionary(b => b.Id, b => b.NextProcess ?? "");
         var batchIds = batches.Select(b => b.Id).ToList();
         var processGroups = await _context.Set<ProcessGroup>().AsNoTracking()
-            .Where(pg => batchIds.Contains(pg.ProductionBatchId))
-            .Select(pg => new { pg.ProductionBatchId, pg.SequenceNumber, pg.ProcessName })
+            .Where(pg => batchIds.Contains(pg.ProductionBatchId)
+                      && pg.ManufacturingSpec != null
+                      && pg.Inspection.HasValue)
+            .Select(pg => new
+            {
+                pg.ProductionBatchId, pg.Id, pg.ProcessName,
+                pg.ManufacturingSpec, pg.SequenceNumber
+            })
             .ToListAsync();
 
-        // Step 4: 构建 O(1) 查找
-        var maxSeqLookup = processGroups
-            .GroupBy(pg => pg.ProductionBatchId)
-            .ToDictionary(g => g.Key, g => g.Max(pg => pg.SequenceNumber));
-
-        var processSeqLookup = processGroups
-            .GroupBy(pg => (pg.ProductionBatchId, pg.ProcessName ?? ""))
-            .ToDictionary(g => g.Key, g => g.First().SequenceNumber);
-
-        // Step 5: 内存匹配
-        var pending = batches
-            .Where(b => !existingSet.Contains(b.Id))
-            .Where(b =>
+        // Step 4: 匹配工艺规格 + 下一工序组名，定位尚未到料的检验工序组
+        //   pg.ProcessName == batch.NextProcess 精准定位下一工序组（NextProcess 为 null 时只按规格匹配）
+        //   pg.ManufacturingSpec == batch.Specification 确保规格匹配
+        //   已存在成检到料的工序组排除（允许同一批次多个检验工序组分别到料）
+        var pendingMap = processGroups
+            .Where(pg =>
             {
-                if (!maxSeqLookup.TryGetValue(b.Id, out var maxSeq)) return false;
-
-                if (b.CurrentSectionCompleted == false && b.CurrentSectionName == "检验")
-                {
-                    var seq = processSeqLookup.GetValueOrDefault((b.Id, b.CurrentGroupName ?? ""));
-                    return seq == maxSeq;
-                }
-
-                if (b.CurrentSectionCompleted != false && b.NextSectionName == "检验" && b.NextProcess != null)
-                {
-                    var seq = processSeqLookup.GetValueOrDefault((b.Id, b.NextProcess));
-                    return seq == maxSeq;
-                }
-
-                return false;
+                if (existingPgSet.Contains(pg.Id)) return false;
+                var spec = batchSpecLookup.GetValueOrDefault(pg.ProductionBatchId, "");
+                var nextProcess = batchNextProcessLookup.GetValueOrDefault(pg.ProductionBatchId, "");
+                if (!string.Equals(pg.ManufacturingSpec, spec, StringComparison.OrdinalIgnoreCase))
+                    return false;
+                return string.IsNullOrEmpty(nextProcess)
+                    || string.Equals(pg.ProcessName, nextProcess, StringComparison.OrdinalIgnoreCase);
             })
+            .GroupBy(pg => pg.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        // Step 5: 构建结果（取有匹配且未到料工序组的批次）
+        var result = batches
+            .Where(b => pendingMap.ContainsKey(b.Id))
             .OrderByDescending(b => b.CurrentValidWeight ?? 0)
-            .Select(b => new PendingMaterialCheckDto
+            .Select(b =>
             {
-                BatchId = b.Id,
-                BatchNo = b.BatchNo,
-                WorkOrderNo = b.WorkOrderNo,
-                Salesman = b.Salesman,
-                TagNo = b.TagNo,
-                PlantGrade = b.PlantGrade,
-                Specification = b.Specification,
-                CurrentValidWeight = b.CurrentValidWeight ?? 0,
-                CurrentExecDate = b.CurrentExecDate,
-                CurrentSectionName = b.CurrentSectionName
+                var pg = pendingMap[b.Id];
+                return new PendingMaterialCheckDto
+                {
+                    BatchId = b.Id, BatchNo = b.BatchNo,
+                    WorkOrderNo = b.WorkOrderNo, Salesman = b.Salesman,
+                    TagNo = b.TagNo, PlantGrade = b.PlantGrade,
+                    Specification = b.Specification,
+                    CurrentValidWeight = b.CurrentValidWeight ?? 0,
+                    CurrentExecDate = b.CurrentExecDate,
+                    CurrentSectionName = b.CurrentSectionName,
+                    ProcessGroupId = pg.Id,
+                    ProcessGroupName = pg.ProcessName
+                };
             })
             .ToList();
 
-        return pending;
+        return result;
     }
 
 
     // 需要从数据库 DISTINCT 查询的列（枚举/布尔由前端 EnumOptions 处理）
+    // 字段通过 m.ProductionBatch 导航属性获取 ProductionBatch 冗余值
     private static readonly string[] _stringFilterColumns = new[]
     {
-        "BatchNo", "PlantGrade", "Specification", "Shift", "Checker",
+        "BatchNo", "PlantGrade", "Specification", "Checker",
         "TagNo", "WorkOrderNo", "SalesOrderNo", "FurnaceNo", "SourceUnit",
-        "Remark", "Salesman"
+        "Remark", "Salesman", "ProcessName"
     };
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
@@ -797,17 +888,17 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         return column switch
         {
             "BatchNo" => queryable.Where(m => m.BatchNo != null).Select(m => m.BatchNo!).Distinct().OrderBy(x => x),
-            "PlantGrade" => queryable.Where(m => m.PlantGrade != null).Select(m => m.PlantGrade!).Distinct().OrderBy(x => x),
-            "Specification" => queryable.Where(m => m.Specification != null).Select(m => m.Specification!).Distinct().OrderBy(x => x),
-            "Shift" => queryable.Where(m => m.Shift != null).Select(m => m.Shift!).Distinct().OrderBy(x => x),
+            "PlantGrade" => queryable.Where(m => m.ProductionBatch.PlantGrade != null).Select(m => m.ProductionBatch.PlantGrade!).Distinct().OrderBy(x => x),
+            "Specification" => queryable.Where(m => m.ProductionBatch.Specification != null).Select(m => m.ProductionBatch.Specification!).Distinct().OrderBy(x => x),
             "Checker" => queryable.Where(m => m.Checker != null).Select(m => m.Checker!).Distinct().OrderBy(x => x),
-            "TagNo" => queryable.Where(m => m.TagNo != null).Select(m => m.TagNo!).Distinct().OrderBy(x => x),
-            "WorkOrderNo" => queryable.Where(m => m.WorkOrderNo != null).Select(m => m.WorkOrderNo!).Distinct().OrderBy(x => x),
-            "SalesOrderNo" => queryable.Where(m => m.SalesOrderNo != null).Select(m => m.SalesOrderNo!).Distinct().OrderBy(x => x),
-            "FurnaceNo" => queryable.Where(m => m.FurnaceNo != null).Select(m => m.FurnaceNo!).Distinct().OrderBy(x => x),
-            "SourceUnit" => queryable.Where(m => m.SourceUnit != null).Select(m => m.SourceUnit!).Distinct().OrderBy(x => x),
+            "TagNo" => queryable.Where(m => m.ProductionBatch.TagNo != null).Select(m => m.ProductionBatch.TagNo!).Distinct().OrderBy(x => x),
+            "WorkOrderNo" => queryable.Where(m => m.ProductionBatch.WorkOrderNo != null).Select(m => m.ProductionBatch.WorkOrderNo!).Distinct().OrderBy(x => x),
+            "SalesOrderNo" => queryable.Where(m => m.ProductionBatch.SalesOrderNo != null).Select(m => m.ProductionBatch.SalesOrderNo!).Distinct().OrderBy(x => x),
+            "FurnaceNo" => queryable.Where(m => m.ProductionBatch.SourceHeatNo != null).Select(m => m.ProductionBatch.SourceHeatNo!).Distinct().OrderBy(x => x),
+            "SourceUnit" => queryable.Where(m => m.ProductionBatch.SourceName != null).Select(m => m.ProductionBatch.SourceName!).Distinct().OrderBy(x => x),
             "Remark" => queryable.Where(m => m.Remark != null).Select(m => m.Remark!).Distinct().OrderBy(x => x),
-            "Salesman" => queryable.Where(m => m.Salesman != null).Select(m => m.Salesman!).Distinct().OrderBy(x => x),
+            "Salesman" => queryable.Where(m => m.ProductionBatch.Salesman != null).Select(m => m.ProductionBatch.Salesman!).Distinct().OrderBy(x => x),
+            "ProcessName" => queryable.Where(m => m.ProcessName != null).Select(m => m.ProcessName!).Distinct().OrderBy(x => x),
             _ => null
         };
     }
@@ -821,10 +912,22 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             {
                 m.Id, m.ProductionBatchId, m.ReceiveDate, m.Shift, m.Checker,
                 m.Remark, m.DataSource,
-                m.BatchNo, m.ManufacturingItem, m.TagNo, m.WorkOrderNo, m.SalesOrderNo,
-                m.SourceUnit, m.FurnaceNo, m.PlantGrade, m.Specification, m.ProductionType,
-                m.ProductionCutQuantity, m.ProductionWeight, m.LengthStatus,
-                m.IsForceCompleted, m.CreatedTime, m.UpdatedTime
+                m.BatchNo, m.IsForceCompleted,
+                m.ProcessGroupId, m.ProcessName, m.SequenceNumber,
+                m.CreatedTime, m.UpdatedTime,
+                // 通过 ProductionBatch 导航属性
+                ManufacturingItem = m.ProductionBatch.ManufacturingItem,
+                TagNo = m.ProductionBatch.TagNo,
+                WorkOrderNo = m.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = m.ProductionBatch.SalesOrderNo,
+                SourceUnit = m.ProductionBatch.SourceName,
+                FurnaceNo = m.ProductionBatch.SourceHeatNo,
+                PlantGrade = m.ProductionBatch.PlantGrade,
+                Specification = m.ProductionBatch.Specification,
+                ProductionType = m.ProductionBatch.ProductionType,
+                LengthStatus = m.ProductionBatch.LengthStatus,
+                Salesman = m.ProductionBatch.Salesman,
+                DeliveryState = m.ProductionBatch.DeliveryState
             })
             .ToListAsync();
 
@@ -833,11 +936,16 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             Id = m.Id,
             ProductionBatchId = m.ProductionBatchId,
             ReceiveDate = m.ReceiveDate,
-            Shift = m.Shift != null && Enum.TryParse<ShiftType>(m.Shift, out var rShift) ? rShift : null,
+            Shift = m.Shift,
             Checker = m.Checker,
             Remark = m.Remark,
             BatchNo = m.BatchNo!,
-            ManufacturingItem = m.ManufacturingItem != null && Enum.TryParse<MaterialType>(m.ManufacturingItem, out var r) ? r : null,
+            IsForceCompleted = m.IsForceCompleted,
+            DataSource = m.DataSource,
+            ProcessGroupId = m.ProcessGroupId,
+            ProcessName = m.ProcessName,
+            SequenceNumber = m.SequenceNumber,
+            ManufacturingItem = ParseMaterialType(m.ManufacturingItem),
             TagNo = m.TagNo,
             WorkOrderNo = m.WorkOrderNo,
             SalesOrderNo = m.SalesOrderNo,
@@ -845,20 +953,37 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             FurnaceNo = m.FurnaceNo,
             PlantGrade = m.PlantGrade!,
             Specification = m.Specification!,
-            ProductionType = m.ProductionType != null && Enum.TryParse<ProductionType>(m.ProductionType, out var rPt) ? rPt : null,
-            DataSource = m.DataSource,
-            ProductionCutQuantity = m.ProductionCutQuantity,
-            ProductionWeight = m.ProductionWeight,
-            LengthStatus = m.LengthStatus != null && Enum.TryParse<LengthStatus>(m.LengthStatus, out var rLs) ? rLs : null,
-            IsForceCompleted = m.IsForceCompleted,
+            ProductionType = EnumHelper.TryParse<ProductionType>(m.ProductionType),
+            LengthStatus = EnumHelper.TryParse<LengthStatus>(m.LengthStatus),
+            Salesman = m.Salesman,
+            DeliveryState = EnumHelper.TryParse<DeliveryState>(m.DeliveryState),
             CreatedTime = m.CreatedTime,
             UpdatedTime = m.UpdatedTime
         }).ToList();
 
+        // 判定各记录是否该批次中 Inspection 值最高的检验工序组（交货状态仅最后检验有效）
+        var batchIds4Print = raw.Select(m => m.ProductionBatchId).Distinct().ToList();
+        var pgs4Print = await _context.Set<ProcessGroup>()
+            .Where(pg => batchIds4Print.Contains(pg.ProductionBatchId) && pg.Inspection.HasValue)
+            .Select(pg => new { pg.Id, pg.ProductionBatchId, pg.Inspection })
+            .ToListAsync();
+        var pgInspLookup4Print = pgs4Print.ToDictionary(pg => pg.Id, pg => pg.Inspection!.Value);
+        var maxInspByBatch4Print = pgs4Print
+            .GroupBy(pg => pg.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.Max(pg => pg.Inspection!.Value));
+        foreach (var item in items)
+        {
+            item.IsLastProcessGroup = pgInspLookup4Print.TryGetValue(item.ProcessGroupId, out var insp)
+                && maxInspByBatch4Print.TryGetValue(item.ProductionBatchId, out var maxInsp)
+                && insp == maxInsp;
+            if (!item.IsLastProcessGroup)
+                item.DeliveryState = null;
+        }
+
         return MaterialCheckPrintHelper.GenerateBatchPdf(items, columns);
     }
 
-    public async Task<byte[]> PrintMaterialCheckAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom, DateTime? receiveDateTo)
+    public async Task<byte[]> PrintMaterialCheckAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom, DateTime? receiveDateTo, string? filters = null)
     {
         var query = new QueryParams
         {
@@ -868,9 +993,40 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             SortBy = sortBy ?? "createdtime",
             IsDescending = isDescending,
             ReceiveDateFrom = receiveDateFrom,
-            ReceiveDateTo = receiveDateTo
+            ReceiveDateTo = receiveDateTo,
+            Filters = !string.IsNullOrEmpty(filters) ? System.Text.Json.JsonSerializer.Deserialize<List<FilterDescriptor>>(filters) : null
         };
         var paged = await GetAllMaterialReceiveChecksAsync(query);
         return MaterialCheckPrintHelper.GenerateBatchPdf(paged.Items, columns);
+    }
+
+    /// <summary>
+    /// 扩展制造物品筛选值，兼容历史数据中的非标准值
+    /// </summary>
+    private static HashSet<string> ExpandManufacturingItemFilter(List<string> values)
+    {
+        var expanded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var v in values)
+        {
+            expanded.Add(v);
+            switch (v)
+            {
+                case "OrderFinished":
+                    expanded.Add("OrderFinishedProduct");
+                    break;
+                case "Finished":
+                    expanded.Add("PreparedMaterial");
+                    expanded.Add("PreparedFinished");
+                    expanded.Add("StockFinished");
+                    break;
+                case "Surplus":
+                    expanded.Add("SurplusStock");
+                    break;
+                case "SemiFinished":
+                    expanded.Add("IntermediateProduct");
+                    break;
+            }
+        }
+        return expanded;
     }
 }

@@ -3,6 +3,8 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Core.DTOs.Quality
+@using MES.Core.Enums
+@using MES.Blazor.Helpers
 @inject MaterialReceiveCheckService ProdRecordService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -72,6 +74,7 @@
                                     <MudTh Style="width: 80px;">重量</MudTh>
                                     <MudTh Style="width: 100px;">执行截止日</MudTh>
                                     <MudTh Style="width: 80px;">截止工段</MudTh>
+                                    <MudTh Style="width: 100px;">匹配工序组</MudTh>
                                     <MudTh Style="width: 60px;">操作</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
@@ -83,6 +86,7 @@
                                     <MudTd>@((int)context.CurrentValidWeight)</MudTd>
                                     <MudTd>@context.CurrentExecDate?.ToString("yyyy-MM-dd")</MudTd>
                                     <MudTd>@context.CurrentSectionName</MudTd>
+                                    <MudTd>@context.ProcessGroupName</MudTd>
                                     <MudTd>
                                         <MudIconButton Icon="@Icons.Material.Filled.AddCircle"
                                                        Color="Color.Primary" Size="Size.Small"
@@ -217,7 +221,9 @@
         _rows.Add(new EditRow
         {
             ReceiveDate = DateTime.Today.ToString("yyyy-MM-dd"),
-            BatchNo = item.BatchNo
+            BatchNo = item.BatchNo,
+            ProcessName = item.ProcessGroupName,
+            ProcessGroupId = item.ProcessGroupId
         });
         Snackbar.Add($"已添加批次 {item.BatchNo}", Severity.Success);
         StateHasChanged();
@@ -233,6 +239,7 @@
     {
         new() { Key = "ReceiveDate",       Label = "到料日期", IsRequired = true },
         new() { Key = "BatchNo",           Label = "生产编号", IsRequired = true },
+        new() { Key = "ProcessName",       Label = "工序名称" },
         new() { Key = "Shift",             Label = "班次" },
         new() { Key = "Checker",           Label = "检验员" },
         new() { Key = "Remark",            Label = "备注" },
@@ -268,9 +275,11 @@
     {
         public string ReceiveDate { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
         public string BatchNo { get; set; } = string.Empty;
-        public string? Shift { get; set; }
+        public string? ProcessName { get; set; }
+        public ShiftType? Shift { get; set; }
         public string? Checker { get; set; }
         public string? Remark { get; set; }
+        public int ProcessGroupId { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -302,16 +311,21 @@
 
         // 从查询参数中获取批次号（从列表页卡片跳转）
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        if (uri.Query.Contains("batchNo="))
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        if (!string.IsNullOrWhiteSpace(query["batchNo"]))
         {
-            var batchNo = System.Web.HttpUtility.ParseQueryString(uri.Query)["batchNo"];
+            var batchNo = query["batchNo"];
+            var pgId = int.TryParse(query["processGroupId"], out var pid) ? pid : 0;
+            var pgName = query["processGroupName"];
             if (!string.IsNullOrWhiteSpace(batchNo))
             {
                 _rows.Clear();
                 _rows.Add(new EditRow
                 {
                     ReceiveDate = DateTime.Today.ToString("yyyy-MM-dd"),
-                    BatchNo = batchNo
+                    BatchNo = batchNo,
+                    ProcessGroupId = pgId,
+                    ProcessName = pgName
                 });
             }
         }
@@ -373,9 +387,11 @@
             {
                 BatchNo = r.BatchNo,
                 ReceiveDate = DateTime.Parse(r.ReceiveDate),
-                Shift = string.IsNullOrEmpty(r.Shift) ? null : Enum.Parse<ShiftType>(r.Shift),
+                Shift = r.Shift,
                 Checker = r.Checker,
                 Remark = r.Remark,
+                ProcessName = r.ProcessName,
+                ProcessGroupId = r.ProcessGroupId,
                 DataSource = "MANUAL",
             }).ToList();
 
@@ -432,13 +448,47 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.BatchNo = v));
                 builder.CloseComponent();
                 break;
+            case "ProcessName":
+                if (!string.IsNullOrEmpty(r.ProcessName))
+                {
+                    // 待成检批次自动填充 → 只读显示
+                    builder.OpenComponent<MudText>(0);
+                    builder.AddAttribute(1, "Typo", Typo.body2);
+                    builder.AddAttribute(2, "Class", "px-2 py-1");
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b =>
+                        b.AddContent(0, r.ProcessName)));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    // 手动添加行 → 文本输入
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Size", Size.Small);
+                    builder.AddAttribute(4, "Value", r.ProcessName);
+                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.ProcessName = v));
+                    builder.CloseComponent();
+                }
+                break;
             case "Shift":
-                builder.OpenComponent<MudTextField<string>>(0);
+                builder.OpenComponent<MudSelect<ShiftType>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.Shift);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Shift = v));
+                builder.AddAttribute(4, "Value", r.Shift ?? default(ShiftType));
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<ShiftType>(this, v => r.Shift = v));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                {
+                    foreach (var val in Enum.GetValues<ShiftType>())
+                    {
+                        b.OpenComponent<MudSelectItem<ShiftType>>(0);
+                        b.AddAttribute(1, "Value", val);
+                        b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                            b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                        b.CloseComponent();
+                    }
+                }));
                 builder.CloseComponent();
                 break;
             case "Checker":

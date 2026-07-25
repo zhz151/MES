@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Data.Entities.Quality;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 
 namespace MES.Data;
 
@@ -16,46 +17,44 @@ public partial class AppDbContext
 
             entity.Property(e => e.ProductionBatchId).IsRequired();
             entity.Property(e => e.ReceiveDate).IsRequired().HasColumnType("datetime2");
-            entity.Property(e => e.Shift).HasMaxLength(10);
+            entity.Property(e => e.Shift).HasConversion(new NullableEnumStringConverter<ShiftType>()).HasMaxLength(20);
             entity.Property(e => e.Checker).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.Property(e => e.DataSource).HasMaxLength(10);
 
             entity.Property(e => e.BatchNo).HasMaxLength(50);
-            entity.Property(e => e.ManufacturingItem).HasMaxLength(50);
-            entity.Property(e => e.TagNo).HasMaxLength(50);
-            entity.Property(e => e.WorkOrderNo).HasMaxLength(50);
-            entity.Property(e => e.SalesOrderNo).HasMaxLength(50);
-            entity.Property(e => e.SourceUnit).HasMaxLength(200);
-            entity.Property(e => e.FurnaceNo).HasMaxLength(50);
-            entity.Property(e => e.PlantGrade).HasMaxLength(50);
-            entity.Property(e => e.Specification).HasMaxLength(100);
-            entity.Property(e => e.ProductionType).HasMaxLength(50);
-            entity.Property(e => e.ProductionWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.IsForceCompleted);
-            entity.Property(e => e.Salesman).HasMaxLength(50);
-            entity.Property(e => e.DeliveryState).HasMaxLength(50);
 
+            // 工序关联
+            entity.Property(e => e.ProcessGroupId).IsRequired();
+            entity.Property(e => e.ProcessName).IsRequired().HasMaxLength(50).HasDefaultValue("检验");
+            entity.Property(e => e.SequenceNumber).IsRequired();
+
+            // 导航关系
             entity.HasOne(e => e.ProductionBatch)
                 .WithMany()
                 .HasForeignKey(e => e.ProductionBatchId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasIndex(e => e.ProductionBatchId)
-                .IsUnique()
-                .HasDatabaseName("UK_MaterialReceiveCheck_BatchId");
+            entity.HasOne(e => e.ProcessGroup)
+                .WithMany()
+                .HasForeignKey(e => e.ProcessGroupId)
+                .OnDelete(DeleteBehavior.NoAction);
 
+            // 唯一索引（按工序组去重，允许同一批次多个检验工序组分别到料）
+            entity.HasIndex(e => e.ProcessGroupId)
+                .IsUnique()
+                .HasDatabaseName("UK_MaterialReceiveCheck_ProcessGroup");
+
+            // 普通索引
             entity.HasIndex(e => e.ReceiveDate)
                 .HasDatabaseName("IX_MaterialReceiveCheck_ReceiveDate");
 
             entity.HasIndex(e => e.BatchNo)
                 .HasDatabaseName("IX_MaterialReceiveCheck_BatchNo");
 
-            entity.HasIndex(e => e.PlantGrade)
-                .HasDatabaseName("IX_MaterialReceiveCheck_PlantGrade");
-
-            entity.HasIndex(e => e.Specification)
-                .HasDatabaseName("IX_MaterialReceiveCheck_Specification");
+            entity.HasIndex(e => e.ProductionBatchId)
+                .HasDatabaseName("IX_MaterialReceiveCheck_ProductionBatchId");
         });
     }
     private static void ConfigureFurnaceRegistration(ModelBuilder builder)
@@ -111,7 +110,7 @@ public partial class AppDbContext
             entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
             entity.Property(e => e.Inspector).HasMaxLength(50);
-            entity.Property(e => e.Shift).HasMaxLength(10);
+            entity.Property(e => e.Shift).HasMaxLength(20);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.InspectionItem).HasMaxLength(100);
@@ -156,21 +155,9 @@ public partial class AppDbContext
             entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.ProductionBatchId).IsRequired();
 
-            // 批次冗余字段
-            entity.Property(e => e.MaterialName).HasMaxLength(50);
-            entity.Property(e => e.TagNo).HasMaxLength(50);
-            entity.Property(e => e.WorkOrderNo).HasMaxLength(50);
-            entity.Property(e => e.SalesOrderNo).HasMaxLength(50);
-            entity.Property(e => e.SourceUnit).HasMaxLength(200);
-            entity.Property(e => e.FurnaceNo).HasMaxLength(50);
-            entity.Property(e => e.PlantGrade).HasMaxLength(50);
-            entity.Property(e => e.Specification).HasMaxLength(100);
-            entity.Property(e => e.FixedLength).HasMaxLength(50);
-            entity.Property(e => e.ProductionType).HasMaxLength(50);
-
             // 执行信息
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
-            entity.Property(e => e.Shift).HasMaxLength(10);
+            entity.Property(e => e.Shift).HasConversion(new NullableEnumStringConverter<ShiftType>()).HasMaxLength(20);
             entity.Property(e => e.Operator).HasMaxLength(50);
 
             // 数量/重量
@@ -193,6 +180,22 @@ public partial class AppDbContext
             // 水压/水下气压专用
             entity.Property(e => e.Pressure).HasColumnType("decimal(18,3)");
             entity.Property(e => e.HoldTime);
+
+            // 涡流/超声波探伤专用
+            entity.Property(e => e.QualificationLevel).HasMaxLength(100);
+            entity.Property(e => e.InspectionStandard).HasMaxLength(100);
+            entity.Property(e => e.InspectionGrade).HasMaxLength(100);
+            entity.Property(e => e.InstrumentModel).HasMaxLength(100);
+            entity.Property(e => e.NdtMethod).HasMaxLength(100);
+            entity.Property(e => e.StandardSampleSize).HasMaxLength(100);
+            entity.Property(e => e.StandardSampleDefect).HasMaxLength(100);
+            entity.Property(e => e.ProbeType).HasMaxLength(100);
+            entity.Property(e => e.Couplant).HasMaxLength(100);
+            entity.Property(e => e.CalibrationFrequency).HasMaxLength(100);
+            entity.Property(e => e.DetectionFrequency).HasMaxLength(100);
+            entity.Property(e => e.DetectionSensitivity).HasMaxLength(100);
+            entity.Property(e => e.DetectionPhase).HasMaxLength(100);
+            entity.Property(e => e.DetectionSpeed).HasMaxLength(100);
 
             // 其他
             entity.Property(e => e.Remark).HasMaxLength(500);
@@ -552,7 +555,6 @@ public partial class AppDbContext
             entity.Property(e => e.Salesman).HasMaxLength(50);
             entity.Property(e => e.DeliveryState).HasMaxLength(50);
             entity.Property(e => e.IsForceCompleted).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.PbBatchNo).HasMaxLength(50);
 
             // G2: 检验日期
             entity.Property(e => e.PmiDate).HasColumnType("date");
@@ -691,4 +693,48 @@ public partial class AppDbContext
             entity.Property(e => e.PittingResult).HasMaxLength(100);
         });
     }
+}
+
+/// <summary>
+/// 兼容旧版枚举名的 MaterialType 转换器（OrderFinishedProduct → OrderFinished 等）
+/// </summary>
+internal class MaterialTypeConverter : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<MaterialType?, string?>
+{
+    public MaterialTypeConverter()
+        : base(
+            v => v == null ? null : v.Value.ToString(),
+            v => MapFromDb(v))
+    {
+    }
+
+    private static MaterialType? MapFromDb(string? v)
+    {
+        if (v == null) return null;
+        return v switch
+        {
+            "OrderFinishedProduct" => MaterialType.OrderFinished,
+            "PreparedMaterial" or "PreparedFinished" or "StockFinished" => MaterialType.Finished,
+            "SurplusStock" => MaterialType.Surplus,
+            "IntermediateProduct" => MaterialType.SemiFinished,
+            _ => Enum.TryParse<MaterialType>(v, true, out var r) ? r : null
+        };
+    }
+}
+
+/// <summary>
+/// 通用可空枚举↔字符串转换器，兼容中文显示名和英文枚举名
+/// 中文→枚举通过 EnumHelper 映射；不可识别值返回 null 而非崩溃
+/// </summary>
+internal class NullableEnumStringConverter<T> : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<T?, string?>
+    where T : struct, Enum
+{
+    public NullableEnumStringConverter()
+        : base(
+            v => v == null ? null : v.Value.ToString(),
+            v => ConvertFromDb(v))
+    {
+    }
+
+    private static T? ConvertFromDb(string? v)
+        => string.IsNullOrEmpty(v) ? null : EnumHelper.TryParse<T>(v);
 }
