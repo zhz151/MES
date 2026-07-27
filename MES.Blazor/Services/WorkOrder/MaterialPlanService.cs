@@ -543,4 +543,102 @@ public class MaterialPlanService
     }
 
     #endregion
+
+    #region 在产主工单计划
+
+    public async Task<ApiResponse<List<InMainWorkOrderPlanDto>>> GetInMainWorkOrderPlansAsync(int workOrderId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<InMainWorkOrderPlanDto>>>($"{BaseUrl}/in-main-work-order/{workOrderId}");
+            return response ?? ApiResponse<List<InMainWorkOrderPlanDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<InMainWorkOrderPlanDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<InMainWorkOrderPlanDto>> GetInMainWorkOrderPlanByIdAsync(int id)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<InMainWorkOrderPlanDto>>($"{BaseUrl}/in-main-work-order/detail/{id}");
+            return response ?? ApiResponse<InMainWorkOrderPlanDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<InMainWorkOrderPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<InMainWorkOrderPlanDto>> CreateInMainWorkOrderPlanAsync(CreateInMainWorkOrderPlanRequest request)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<CreateInMainWorkOrderPlanRequest, ApiResponse<InMainWorkOrderPlanDto>>($"{BaseUrl}/in-main-work-order", request);
+            return response ?? ApiResponse<InMainWorkOrderPlanDto>.Fail("创建失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<InMainWorkOrderPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<InMainWorkOrderPlanDto>> UpdateInMainWorkOrderPlanAsync(int id, CreateInMainWorkOrderPlanRequest request)
+    {
+        try
+        {
+            var response = await _http.PutAsJsonAsync<CreateInMainWorkOrderPlanRequest, ApiResponse<InMainWorkOrderPlanDto>>($"{BaseUrl}/in-main-work-order/{id}", request);
+            return response ?? ApiResponse<InMainWorkOrderPlanDto>.Fail("更新失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<InMainWorkOrderPlanDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse> DeleteInMainWorkOrderPlanAsync(int id)
+    {
+        try
+        {
+            var response = await _http.DeleteFromJsonAsync<ApiResponse>($"{BaseUrl}/in-main-work-order/{id}");
+            return response ?? ApiResponse.Fail("删除失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<List<AvailableMainWorkOrderBatchDto>>> GetAvailableMainWorkOrderBatchesAsync(int workOrderId, int? excludePlanBatchId = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/main-work-order-batches/{workOrderId}";
+            if (excludePlanBatchId.HasValue)
+                url += $"?excludePlanBatchId={excludePlanBatchId.Value}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<AvailableMainWorkOrderBatchDto>>>(url);
+            return response ?? ApiResponse<List<AvailableMainWorkOrderBatchDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<AvailableMainWorkOrderBatchDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<List<PendingPlanBatchDto>>> GetPendingInMainWorkOrderPlansAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<PendingPlanBatchDto>>>($"{BaseUrl}/pending-in-main-work-order");
+            return response ?? ApiResponse<List<PendingPlanBatchDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<PendingPlanBatchDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    #endregion
 }

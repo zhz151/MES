@@ -7,6 +7,7 @@ using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Blazor.Shared;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Models;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Shared;
@@ -209,7 +210,7 @@ public partial class InboundHistory
              },
 
         // ========== 第二组：自动填充 ==========
-        new() { Key = "MaterialType",        Label = "物料", SortKey = "MaterialType",    IsRequired = true, FilterType = "string", Width = "130",
+        new() { Key = "MaterialType",        Label = "物料类型", SortKey = "MaterialType", IsRequired = true, FilterType = "string", Width = "130",
              },
         new() { Key = "PlantGrade",          Label = "工厂牌号", SortKey = "PlantGrade",      IsRequired = true, FilterType = "string", Width = "130",
              },
@@ -235,8 +236,12 @@ public partial class InboundHistory
              },
         new() { Key = "HeatNo",              Label = "来料原始炉号",     SortKey = "HeatNo", FilterType = "string", Width = "120",
              },
-        new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "SurfaceCondition", FilterType = "string", Width = "110",
-             },
+        new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "SurfaceCondition", FilterType = "enum", Width = "110",
+            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
+                new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
+                new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
+                new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"),
+                new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
         new() { Key = "LocationArea",        Label = "区域", SortKey = "LocationArea", FilterType = "string", Width = "120",
              },
         new() { Key = "LocationRack",        Label = "框架", SortKey = "LocationRack", FilterType = "string", Width = "120",
@@ -722,6 +727,16 @@ public partial class InboundHistory
             }
         }
 
+        // SurfaceCondition 列显示中文并过滤非法值
+        if (_filterContextOptions.TryGetValue("SurfaceCondition", out var surfaceOptions))
+        {
+            surfaceOptions.RemoveAll(opt => !Enum.TryParse<DeliveryState>(opt.Value, out _));
+            foreach (var opt in surfaceOptions)
+            {
+                opt.Display = DisplayHelper.GetDeliveryStateText(opt.Value);
+            }
+        }
+
         // 按仓库代码过滤 MaterialType 筛选选项（仅显示该仓库允许的物料类型）
         if (!string.IsNullOrEmpty(_lastResolvedWarehouseCode) &&
             _filterContextOptions.TryGetValue("MaterialType", out var materialOptions))
@@ -1036,8 +1051,8 @@ public partial class InboundHistory
                     builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
                 break;
             case "SurfaceCondition":
-                if (!string.IsNullOrEmpty(item.SurfaceCondition))
-                    builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.SurfaceCondition));
+                if (item.SurfaceCondition.HasValue)
+                    builder.AddContent(0, item.SurfaceConditionDisplay);
                 break;
             default:
                 var val = GetCellStringValue(item, col.Key);
@@ -1085,7 +1100,7 @@ public partial class InboundHistory
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
         "LengthStatus" => item.LengthStatus,
-        "SurfaceCondition" => item.SurfaceCondition,
+        "SurfaceCondition" => item.SurfaceCondition?.ToString(),
         "LocationArea" => item.LocationArea,
         "LocationRack" => item.LocationRack,
         "Remark" => item.Remark,
@@ -1115,7 +1130,7 @@ public partial class InboundHistory
             case "PlantGrade": item.PlantGrade = value ?? ""; break;
             case "Specification": item.Specification = value ?? ""; break;
             case "LengthStatus": item.LengthStatus = value; break;
-            case "SurfaceCondition": item.SurfaceCondition = value; break;
+            case "SurfaceCondition": item.SurfaceCondition = !string.IsNullOrEmpty(value) ? EnumHelper.Parse<DeliveryState>(value) : null; break;
             case "LocationArea": item.LocationArea = value; break;
             case "LocationRack": item.LocationRack = value; break;
             case "Remark": item.Remark = value; break;
@@ -1391,7 +1406,7 @@ public partial class InboundHistory
                 // 非成品仓额外发送：入库日期、炉号、物料状态
                 request.InboundDate = parsedDate;
                 request.HeatNo = string.IsNullOrEmpty(item.HeatNo) ? null : item.HeatNo;
-                request.SurfaceCondition = string.IsNullOrEmpty(item.SurfaceCondition) ? null : item.SurfaceCondition;
+                request.SurfaceCondition = item.SurfaceCondition;
             }
 
             // IsLinkedToWorkOrder 级联

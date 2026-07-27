@@ -72,24 +72,4 @@ public static class SectionDefs
         ["焊头"] = WeldingHead,
     };
 
-    /// <summary>根据工段名获取标准天数</summary>
-    public static double GetStandardDays(string sectionName, string? plantGrade = null) => sectionName switch
-    {
-        "冷轧拔" => 2,
-        "油管断" => 1,
-        "去油" => 1,
-        "固溶" => 1,
-        "矫直" => 0.5,
-        "断切" => 0.5,
-        "测壁厚" => 1,
-        "酸洗" => plantGrade?.StartsWith("3") == true ? 1 : 2,
-        "外抛光" => 0.5,
-        "内修磨" => 0.5,
-        "外点磨" => 0.5,
-        "检验" => 1,
-        "打焊头" => 0.5,
-        "润滑" => 1,
-        "入库" => 2,
-        _ => 0
-    };
 }

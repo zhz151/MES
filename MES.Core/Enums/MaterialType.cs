@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace MES.Core.Enums;
 
 /// <summary>
@@ -29,7 +31,8 @@ public enum MaterialType
     DefectRoughTube,
     /// <summary>报废品</summary>
     Scrap,
-    /// <summary>特定交态成品</summary>
+    /// <summary>订成-非交付态</summary>
+    [Display(Name = "订成-非交付态")]
     SpecialDeliveryStatus,
     /// <summary>在制品</summary>
     WorkInProgress,

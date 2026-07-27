@@ -17,11 +17,13 @@
 @inject IJSRuntime JS
 @inject HttpClient Http
 @inject MaterialPlanService MaterialPlanService
+@inject NotificationService NotificationService
 @attribute [Authorize]
 
 @if (string.IsNullOrEmpty(Code))
 {
     @* ======== 仓库首页：4个仓库卡片入口 ======== *@
+
     <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
         <MudCard>
             <MudCardHeader>
@@ -32,12 +34,6 @@
                     </MudText>
                 </CardHeaderContent>
                 <CardHeaderActions>
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.AddCircleOutline"
-                               OnClick="NavigateToInboundFromHome">
-                        入库
-                    </MudButton>
                 </CardHeaderActions>
             </MudCardHeader>
             <MudCardContent>
@@ -46,7 +42,7 @@
                     {
                         <MudItem xs="12" sm="6" md="3">
                             <MudCard Class="warehouse-card" Style="@GetCardStyle(wh.IsActive)"
-                                     OnClick="() => NavigateToWarehouse(wh.Code)">
+                                     @onclick="() => NavigateToWarehouse(wh.Code)">
                                 <MudCardContent Class="text-center pa-6">
                                     <MudIcon Icon="@GetWarehouseIcon(wh.Code)" Size="Size.Large" Color="Color.Primary" Class="mb-4" />
                                     <MudText Typo="Typo.h6" Class="font-weight-bold">@wh.Name</MudText>
@@ -114,6 +110,22 @@ else
                                 <div>批次 "@item.BatchNo"（@item.WorkOrderNo，@item.PlanType）存在用料计划，请及时出库！</div>
                             }
                         </div>
+                    </MudAlert>
+                }
+                <!-- 工单内容变更通知（当前仓库相关） -->
+                @if (_warehouseWorkOrderChangedNotices is { Count: > 0 })
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mb-4">
+                        <div>
+                            @foreach (var notice in _warehouseWorkOrderChangedNotices)
+                            {
+                                <div>@notice.Title — @notice.Content</div>
+                            }
+                        </div>
+                        <MudButton Variant="Variant.Text" Color="Color.Inherit" Class="mt-2"
+                                   OnClick="DismissWorkOrderChangedNotices">
+                            已知晓，不再提醒
+                        </MudButton>
                     </MudAlert>
                 }
                 <!-- 顶部：模糊搜索 + 日期搜索 + 出库筛选切换 -->

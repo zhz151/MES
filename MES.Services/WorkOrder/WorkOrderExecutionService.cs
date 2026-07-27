@@ -312,6 +312,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var nonFixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("NonFixedSatisfied", 120m);
         var defaultValueConfig = await _configService.GetConfigMapAsync("DefaultValue");
         var roughTubeFinishRatio = defaultValueConfig.GetValueOrDefault("RoughTubeFinishRatio", 0.92m);
+        var defaultProcessCycle = (int)defaultValueConfig.GetValueOrDefault("DefaultProcessCycle", 22m);
 
         var workOrders = await _context.WorkOrders
             .AsNoTracking()
@@ -385,14 +386,16 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var execSummaryByWoId = workOrderListSummaries.ToDictionary(s => s.WorkOrderId);
 
         // 批量加载成品检验数据（用于 Group 9 成检不合格，仅 "订单成品" 物料）
+        // 通过 ProductionBatch 关联获取工单信息（避免实体冗余字段）
         var finalInspections = await _context.FinalInspections
             .AsNoTracking()
-            .Where(fi => fi.MaterialName == "订单成品"
-                      && fi.WorkOrderNo != null
-                      && workOrderNos.Contains(fi.WorkOrderNo))
+            .Include(fi => fi.ProductionBatch)
+            .Where(fi => fi.ProductionBatch.ManufacturingItem == "OrderFinished"
+                      && fi.ProductionBatch.WorkOrderNo != null
+                      && workOrderNos.Contains(fi.ProductionBatch.WorkOrderNo))
             .ToListAsync();
         var fiByWoNo = finalInspections
-            .GroupBy(fi => fi.WorkOrderNo!)
+            .GroupBy(fi => fi.ProductionBatch.WorkOrderNo!)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
         // 批量加载成品入库数据（InventoryBatch，用于 Group 11 成品入库）
@@ -530,7 +533,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             if (group.All(s => s.ProcessCycle == 0))
             {
                 foreach (var s in group)
-                    s.ProcessCycle = 22;
+                    s.ProcessCycle = defaultProcessCycle;
             }
         }
 
@@ -882,6 +885,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var nonFixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("NonFixedSatisfied", 120m);
         var defaultValueConfig = await _configService.GetConfigMapAsync("DefaultValue");
         var roughTubeFinishRatio = defaultValueConfig.GetValueOrDefault("RoughTubeFinishRatio", 0.92m);
+        var defaultProcessCycle = (int)defaultValueConfig.GetValueOrDefault("DefaultProcessCycle", 22m);
 
         // 1. 查找目标工单及同订单的家族工单（用于主号级聚合）
         var targetWoList = await _context.WorkOrders
@@ -955,10 +959,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         var finalInspections = await _context.FinalInspections
             .AsNoTracking()
-            .Where(fi => fi.MaterialName == "订单成品" && fi.WorkOrderNo != null && allWoNos.Contains(fi.WorkOrderNo))
+            .Include(fi => fi.ProductionBatch)
+            .Where(fi => fi.ProductionBatch.ManufacturingItem == "OrderFinished" && fi.ProductionBatch.WorkOrderNo != null && allWoNos.Contains(fi.ProductionBatch.WorkOrderNo))
             .ToListAsync();
         var fiByWoNo = finalInspections
-            .GroupBy(fi => fi.WorkOrderNo!)
+            .GroupBy(fi => fi.ProductionBatch.WorkOrderNo!)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
         var inventoryBatches = await _context.InventoryBatches
@@ -1356,8 +1361,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         summary.InputOutputRatio = ratio;
         summary.InputStatus = status;
 
-        // Group 4: 有效批次（在目标批次基础上排除作废）
-        var validBatches = targetBatches.Where(b => b.Status != Core.Enums.BatchStatus.Cancelled).ToList();
+        // Group 4: 有效批次（在目标批次基础上排除非活跃状态）
+        var validBatches = targetBatches.Where(b => b.Status != BatchStatus.InFinalInspection && b.Status != BatchStatus.Completed).ToList();
 
         summary.ValidBatchCount = validBatches.Count;
         summary.ValidInputQuantity = validBatches.Sum(b => b.CurrentValidQty ?? 0);
@@ -1491,8 +1496,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("冷拔", SectionDefs.ColdRollDraw),
         };
 
-        // 使用所有非作废批次（含正常 + 返整）
-        var group14Batches = batches.Where(b => b.Status != BatchStatus.Cancelled).ToList();
+        // 使用所有非完成/成检批次（含正常 + 返整）
+        var group14Batches = batches.Where(b => b.Status != BatchStatus.InFinalInspection && b.Status != BatchStatus.Completed).ToList();
 
         // 预置 pending 字段容器
         var pendingValues = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
@@ -1670,6 +1675,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
     private static bool HasAnySection(ProcessGroup pg)
     {
+        // "在制修检"和"附加成检"不计入有效工序组，不参与理论重量扣除
+        if (pg.ProcessName == ProcessNames.InProcessRepair || pg.ProcessName == ProcessNames.AdditionalFinalInspection)
+            return false;
+
         return pg.ColdRollDraw.HasValue
             || pg.OilPipeCut.HasValue
             || pg.Degrease.HasValue

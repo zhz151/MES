@@ -206,9 +206,14 @@ public class ProductionBatch : BaseEntity
     public string StandardCode { get; set; } = null!;
 
     /// <summary>
-    /// 交货状态
+    /// 交货状态（工单约定的交付要求）
     /// </summary>
     public string DeliveryState { get; set; } = null!;
+
+    /// <summary>
+    /// 制造状态（批次执行的实际制造状态，与交货状态同枚举）
+    /// </summary>
+    public string? ManufacturingStatus { get; set; }
 
     /// <summary>
     /// 工厂牌号（钢种）
@@ -368,4 +373,9 @@ public class ProductionBatch : BaseEntity
     /// 工序组列表
     /// </summary>
     public List<ProcessGroup> ProcessGroups { get; set; } = new();
+
+    /// <summary>
+    /// 来源库存批次关联（合并投料）
+    /// </summary>
+    public List<ProductionBatchInventory> ProductionBatchInventories { get; set; } = new();
 }

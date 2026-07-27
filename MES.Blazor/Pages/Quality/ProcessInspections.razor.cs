@@ -97,8 +97,9 @@ public partial class ProcessInspections
             GroupKey = 2, GroupName = "G2 检验执行" },
         new() { Key = "Inspector",             Label = "检验员",     SortKey = "inspector", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 检验执行" },
-        new() { Key = "Shift",                 Label = "班次",       SortKey = "shift", FilterType = "string", Width = "120",
-            GroupKey = 2, GroupName = "G2 检验执行" },
+        new() { Key = "Shift",                 Label = "班次",       SortKey = "shift", FilterType = "enum", Width = "120",
+            GroupKey = 2, GroupName = "G2 检验执行",
+            EnumOptions = new() { new("DayShift","白班"), new("MiddleShift","中班"), new("NightShift","夜班") } },
         new() { Key = "InspectionItem",        Label = "检验项目",   SortKey = "inspectionitem", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 检验执行" },
 
@@ -111,12 +112,12 @@ public partial class ProcessInspections
             GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "QualifiedWeight",             Label = "合格重量",     SortKey = "qualifiedweight", Width = "80",
             GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "QualifiedConcessionQuantity", Label = "含让步放行支",   SortKey = "qualifiedconcessionquantity", Width = "80",
+            GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "ConcessionRemark",            Label = "让步说明",     SortKey = "concessionremark", FilterType = "string", Width = "120",
+            GroupKey = 3, GroupName = "G3 检验结果" },
 
         // G4: 不合格处理
-        new() { Key = "QualifiedConcessionQuantity", Label = "让步放行支",   SortKey = "qualifiedconcessionquantity", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "ConcessionRemark",            Label = "让步说明",     SortKey = "concessionremark", FilterType = "string", Width = "120",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
         new() { Key = "DefectReworkQuantity",        Label = "次品返整支",   SortKey = "defectreworkquantity", Width = "80",
             GroupKey = 4, GroupName = "G4 不合格处理" },
         new() { Key = "DefectWarehouseQuantity", Label = "次品入库支",   SortKey = "defectwarehousequantity", Width = "80",
@@ -133,7 +134,7 @@ public partial class ProcessInspections
             GroupKey = 5, GroupName = "G5 辅助信息" },
         new() { Key = "PlantGrade",            Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120",
             GroupKey = 5, GroupName = "G5 辅助信息" },
-        new() { Key = "ProductStatus",         Label = "制造状态",   SortKey = "productstatus", FilterType = "string", Width = "80",
+        new() { Key = "ProductStatus",         Label = "所属物类",   SortKey = "productstatus", FilterType = "string", Width = "80",
             GroupKey = 5, GroupName = "G5 辅助信息" },
         new() { Key = "Remark",                Label = "备注",       SortKey = "remark", FilterType = "string", Width = "120",
             GroupKey = 5, GroupName = "G5 辅助信息" },
@@ -250,6 +251,18 @@ public partial class ProcessInspections
                 Display = v,
                 Count = 0
             }).ToList();
+        }
+
+        // 转换 InspectionItem 筛选选项为中文显示
+        if (_filterContextOptions.TryGetValue("InspectionItem", out var inspectionItemOptions))
+        {
+            foreach (var opt in inspectionItemOptions)
+            {
+                if (!string.IsNullOrEmpty(opt.Value) && Enum.TryParse<InspectionItem>(opt.Value, out var enumVal))
+                {
+                    opt.Display = DisplayHelper.GetInspectionItemText(enumVal);
+                }
+            }
         }
 
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
@@ -749,7 +762,9 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, item.InspectionItem);
+                    builder.AddContent(0, !string.IsNullOrEmpty(item.InspectionItem)
+                        ? DisplayHelper.GetInspectionItemText(Enum.Parse<InspectionItem>(item.InspectionItem))
+                        : "");
                 }
                 break;
             case "QualifiedQuantity":

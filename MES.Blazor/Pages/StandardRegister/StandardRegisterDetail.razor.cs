@@ -21,7 +21,7 @@ public partial class StandardRegisterDetail
 
     // 复制来源
     private List<StandardRegisterDto> _allStandards = new();
-    private int? _sourceStandardId;
+    private int _sourceStandardId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -56,15 +56,15 @@ public partial class StandardRegisterDetail
         catch { }
     }
 
-    private async Task OnSourceChanged(int? sourceId)
+    private async Task OnSourceChanged(int sourceId)
     {
         _sourceStandardId = sourceId;
         _items.Clear();
-        if (sourceId == null) return;
+        if (sourceId <= 0) return;
 
         try
         {
-            var result = await Svc.GetItemsAsync(sourceId.Value);
+            var result = await Svc.GetItemsAsync(sourceId);
             if (result.Success && result.Data != null)
             {
                 _items = result.Data.Select(i => new StandardRegisterItemDto

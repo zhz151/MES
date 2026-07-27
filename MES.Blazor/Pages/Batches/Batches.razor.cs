@@ -23,6 +23,7 @@ public partial class Batches
     private HashSet<int> selectedIds = new();
     private List<BatchWorkOrderMismatchDto> _workOrderMismatches = new();
     private List<PendingPlanBatchDto> _pendingInProcessReworkPlans = new();
+    private List<NotificationDto>? _workOrderChangedNotices;
     private bool _allSelected;
     private bool allSelected
     {
@@ -80,13 +81,18 @@ public partial class Batches
         new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
-            EnumOptions = new() { new("None", "未产"), new("InProgress", "在产"), new("Completed", "完成"), new("Suspended", "挂起"), new("Cancelled", "作废") } },
+            EnumOptions = new() { new("None", "未产"), new("InProgress", "在产"), new("InFinalInspection", "成检"), new("Completed", "完成"), new("Suspended", "暂停") } },
         new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
             EnumOptions = new() { new("RoughTube", "荒管生产"), new("InProcess", "在制生产"), new("Inventory", "库存"),
                 new("OutsourcedPurchased", "外购"), new("Rework", "返整"), new("Subcontract", "委外生产"), new("ExternalProcessing", "对外加工") } },
         new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
             EnumOptions = new() { new("OrderFinished", "订单成品"), new("Finished", "备料成品"),
-                new("Surplus", "余库料"), new("SpecialDeliveryStatus", "特定交态成品") } },
+                new("Surplus", "余库料"), new("SpecialDeliveryStatus", "订成-非交付态") } },
+        new() { Key = "ManufacturingStatus", Label = "制造状态", SortKey = "manufacturingstatus", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
+            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
+                new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
+                new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
+                new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
         new() { Key = "ProductionRatio",    Label = "制成倍数", SortKey = "productionratio", Width = "80", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "CurrentValidQty",    Label = "现有效原料支数", SortKey = "currentvalidqty", Width = "80", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "CurrentValidWeight",  Label = "现有效原料重量", SortKey = "currentvalidweight", Width = "80", GroupKey = 1, GroupName = "批次基本信息" },
@@ -121,7 +127,7 @@ public partial class Batches
             EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
                 new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
                 new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
-                new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态") } },
+                new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
         new() { Key = "PlantGrade",         Label = "工厂牌号", SortKey = "plantgrade", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
         new() { Key = "Specification",      Label = "规格",     SortKey = "specification", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
         new() { Key = "LengthStatus",       Label = "长度状态", SortKey = "lengthstatus", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "工单信息",
@@ -509,6 +515,9 @@ public partial class Batches
 
         // 自动加载工单号不匹配通知
         await CheckWorkOrdersAsync();
+
+        // 自动加载工单内容变更通知
+        await CheckWorkOrderChangedNotificationsAsync();
     }
 
     // ========== 在产改制计划通知 ==========
@@ -544,6 +553,33 @@ public partial class Batches
         catch
         {
             _workOrderMismatches.Clear();
+        }
+    }
+
+    // ========== 工单内容变更通知 ==========
+
+    private async Task CheckWorkOrderChangedNotificationsAsync()
+    {
+        try
+        {
+            var result = await NotificationService.GetByTypeAsync("WorkOrderChanged");
+            if (result.Success && result.Data is { Count: > 0 })
+                _workOrderChangedNotices = result.Data;
+            else
+                _workOrderChangedNotices = null;
+        }
+        catch
+        {
+            _workOrderChangedNotices = null;
+        }
+    }
+
+    private async Task DismissWorkOrderChangedNotices()
+    {
+        var result = await NotificationService.MarkAllByTypeAsReadAsync("WorkOrderChanged");
+        if (result.Success)
+        {
+            _workOrderChangedNotices = null;
         }
     }
 
@@ -643,6 +679,7 @@ public partial class Batches
         "ProductionSubNo" => item.ProductionSubNo,
         "ProductionType" => item.ProductionType,
         "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
+        "ManufacturingStatus" => item.ManufacturingStatusDisplay,
         "Status" => DisplayHelper.GetBatchStatusText(item.Status),
         "CurrentExecDate" => item.CurrentExecDate?.ToString("yyyy-MM-dd"),
         "CurrentGroupName" => item.CurrentGroupName,
@@ -693,6 +730,7 @@ public partial class Batches
         "CorrespondingSpec" => item.CorrespondingSpec ?? "",
         "NextProcess" => item.NextProcess ?? "",
         "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
+        "ManufacturingStatus" => item.ManufacturingStatusDisplay ?? "",
         "CurrentValidQty" => DisplayHelper.FormatNullableInt(item.CurrentValidQty),
         "CurrentValidWeight" => $"{(int)(item.CurrentValidWeight ?? 0)}",
         "ProductionRatio" => item.ProductionRatio.ToString(),

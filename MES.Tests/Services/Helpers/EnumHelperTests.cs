@@ -111,7 +111,7 @@ public class EnumHelperTests
         EnumHelper.GetDisplayName(MaterialType.OrderFinished).Should().Be("订单成品");
         EnumHelper.GetDisplayName(MaterialType.Finished).Should().Be("备料成品");
         EnumHelper.GetDisplayName(MaterialType.Surplus).Should().Be("余库料");
-        EnumHelper.GetDisplayName(MaterialType.SpecialDeliveryStatus).Should().Be("特定交态成品");
+        EnumHelper.GetDisplayName(MaterialType.SpecialDeliveryStatus).Should().Be("订成-非交付态");
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class EnumHelperTests
         EnumHelper.GetDisplayName(MaterialType.DefectFinished).Should().Be("次品成品");
         EnumHelper.GetDisplayName(MaterialType.Scrap).Should().Be("报废品");
         EnumHelper.GetDisplayName(MaterialType.Surplus).Should().Be("余库料");
-        EnumHelper.GetDisplayName(MaterialType.SpecialDeliveryStatus).Should().Be("特定交态成品");
+        EnumHelper.GetDisplayName(MaterialType.SpecialDeliveryStatus).Should().Be("订成-非交付态");
         EnumHelper.GetDisplayName(MaterialType.WorkInProgress).Should().Be("在制品");
         EnumHelper.GetDisplayName(MaterialType.DefectWIP).Should().Be("次品在制");
     }
@@ -153,8 +153,7 @@ public class EnumHelperTests
         EnumHelper.GetDisplayName(BatchStatus.None).Should().Be("未产");
         EnumHelper.GetDisplayName(BatchStatus.InProgress).Should().Be("在产");
         EnumHelper.GetDisplayName(BatchStatus.Completed).Should().Be("完成");
-        EnumHelper.GetDisplayName(BatchStatus.Suspended).Should().Be("挂起");
-        EnumHelper.GetDisplayName(BatchStatus.Cancelled).Should().Be("作废");
+        EnumHelper.GetDisplayName(BatchStatus.Suspended).Should().Be("暂停");
     }
 
     [Fact]

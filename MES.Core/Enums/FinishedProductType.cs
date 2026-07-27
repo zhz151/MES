@@ -16,7 +16,7 @@ public enum FinishedProductType
     Order = 2,
 
     /// <summary>
-    /// 特定交态成品
+    /// 订成-非交付态
     /// </summary>
     SpecialDeliveryStatus = 3
 }

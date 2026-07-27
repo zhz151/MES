@@ -155,6 +155,80 @@ public static class MaterialPlanPrintHelper
         });
     }
 
+    // ==============================
+    // 7. 在产主工单计划
+    // ==============================
+    public static byte[] GenerateInMainWorkOrderPlanPdf(InMainWorkOrderPlan plan, WoEntity workOrder)
+    {
+        return CreateInMainWorkOrderPlanDocument(plan, workOrder).GeneratePdf();
+    }
+
+    public static Document CreateInMainWorkOrderPlanDocument(InMainWorkOrderPlan plan, WoEntity workOrder)
+    {
+        return CreateBatchInMainWorkOrderPlanDocument(new List<(InMainWorkOrderPlan, WoEntity)> { (plan, workOrder) });
+    }
+
+    // ==============================
+    // 11. 批量打印 - 在产主工单汇总
+    // ==============================
+    public static Document CreateBatchInMainWorkOrderPlanDocument(List<(InMainWorkOrderPlan plan, WoEntity workOrder)> items)
+    {
+        if (!items.Any()) throw new BusinessException("items cannot be empty");
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(40);
+                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
+                page.Header().Element(h => ComposeDocHeader(h, "在 产 主 工 单 计 划（批量）"));
+                page.Content().Element(c => ComposeBatchInMainWorkOrderContent(c, items));
+                page.Footer().Element(ComposeDocFooter);
+            });
+        });
+    }
+
+    private static void ComposeBatchInMainWorkOrderContent(IContainer container, List<(InMainWorkOrderPlan plan, WoEntity workOrder)> items)
+    {
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+            });
+
+            table.Header(header =>
+            {
+                string[] headers = { "工单号", "计划日期", "生产编号", "源主工单号", "分配支数", "分配重量(kg)", "要求到位日", "状态", "备注" };
+                foreach (var h in headers)
+                    header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
+            });
+
+            foreach (var (plan, workOrder) in items)
+            {
+                var statusText = EnumHelper.GetDisplayName(plan.PlanStatus);
+
+                table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.BatchNo).FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.MainWorkOrderNo).FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.AllocatedQuantity?.ToString() is string q ? $"{q} 支" : "-").FontSize(8);
+                table.Cell().Element(CellStyle).Text($"{plan.AllocatedWeight:G29} kg").FontSize(8);
+                table.Cell().Element(CellStyle).Text(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-").FontSize(8);
+                table.Cell().Element(CellStyle).Text(statusText).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
+            }
+        });
+    }
+
     // ========== 公共组件 ==========
 
     private static void ComposeDocHeader(IContainer container, string title)

@@ -34,9 +34,6 @@ public class QualityProcessTracking : BaseEntity
     public string? DeliveryState { get; set; }
     public bool IsForceCompleted { get; set; }
 
-    /// <summary>批次号（用于关联 InventoryBatch）</summary>
-    public string? PbBatchNo { get; set; }
-
     // ========== G2: 检验日期（按 InspectionItem 拆分） ==========
     public DateTime? PmiDate { get; set; }
     public DateTime? VisualDate { get; set; }

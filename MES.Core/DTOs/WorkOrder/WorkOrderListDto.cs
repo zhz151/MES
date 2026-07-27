@@ -230,6 +230,16 @@ public class WorkOrderListDto
     public int? InProcessReworkPlanTotalPieces { get; set; }
 
     /// <summary>
+    /// 在产主工单计划总重量(kg)
+    /// </summary>
+    public decimal? InMainWorkOrderPlanTotalWeight { get; set; }
+
+    /// <summary>
+    /// 在产主工单计划总支数
+    /// </summary>
+    public int? InMainWorkOrderPlanTotalPieces { get; set; }
+
+    /// <summary>
     /// 最大工艺周期（天）
     /// </summary>
     public int MaxStandardCycle { get; set; }
@@ -291,6 +301,8 @@ public class WorkOrderListDto
                     parts.Add($"改{ReworkPlanTotalPieces.Value / (decimal)totalQty * 100:F0}%");
                 if (InProcessReworkPlanTotalPieces > 0)
                     parts.Add($"在{InProcessReworkPlanTotalPieces.Value / (decimal)totalQty * 100:F0}%");
+                if (InMainWorkOrderPlanTotalPieces > 0)
+                    parts.Add($"主{InMainWorkOrderPlanTotalPieces.Value / (decimal)totalQty * 100:F0}%");
             }
             else
             {
@@ -308,6 +320,8 @@ public class WorkOrderListDto
                     parts.Add($"改{ReworkPlanTotalWeight.Value / totalWt * 100:F0}%");
                 if (InProcessReworkPlanTotalWeight > 0)
                     parts.Add($"在{InProcessReworkPlanTotalWeight.Value / totalWt * 100:F0}%");
+                if (InMainWorkOrderPlanTotalWeight > 0)
+                    parts.Add($"主{InMainWorkOrderPlanTotalWeight.Value / totalWt * 100:F0}%");
             }
 
             return parts.Any() ? string.Join(" ", parts) : null;

@@ -94,12 +94,12 @@ public partial class Ncrs
                GroupKey = 1, GroupName = "G1 问题反馈" },
         new() { Key = "Reporter",             Label = "反馈人",      SortKey = "reporter",          FilterType = "string", Width = "80",
                GroupKey = 1, GroupName = "G1 问题反馈" },
-        new() { Key = "PipeCategory",         Label = "钢管类别",    SortKey = "pipecategory",      FilterType = "enum",   Width = "100",
+        new() { Key = "PipeCategory",         Label = "物料类型",    SortKey = "pipecategory",      FilterType = "enum",   Width = "100",
                GroupKey = 1, GroupName = "G1 问题反馈",
                EnumOptions = new List<EnumOption>
                {
                    new("TubeBlank", "荒管"), new("WorkInProgress", "在制品"), new("SurplusInventory", "余库料"),
-                   new("CriticalFinished", "临界成品"), new("PreparedFinished", "备料成品"), new("OrderFinished", "订单成品"), new("SpecialDelivery", "特定交态成品"),
+                   new("CriticalFinished", "临界成品"), new("PreparedFinished", "备料成品"), new("OrderFinished", "订单成品"), new("SpecialDelivery", "订成-非交付态"),
                } },
         new() { Key = "BatchNo",              Label = "生产编号",    SortKey = "batchno",           FilterType = "string", Width = "120",
                GroupKey = 1, GroupName = "G1 问题反馈" },
@@ -126,6 +126,8 @@ public partial class Ncrs
                BoolTrueLabel = "是", BoolFalseLabel = "否" },
         new() { Key = "DisposalCompleteDate", Label = "处置完结日期",SortKey = "disposalcompletedate", FilterType = "date",  Width = "100",
                GroupKey = 2, GroupName = "G2 不合格品处置" },
+        new() { Key = "DisposalRemark",       Label = "处置备注",    SortKey = "disposalremark",       FilterType = "string", Width = "120",
+               GroupKey = 2, GroupName = "G2 不合格品处置" },
 
         // G3: 原因分析
         new() { Key = "Severity",             Label = "严重程度",    SortKey = "severity",           FilterType = "enum",   Width = "80",
@@ -151,6 +153,12 @@ public partial class Ncrs
                GroupKey = 4, GroupName = "G4 责任人及处理" },
         new() { Key = "ResponsiblePerson",    Label = "责任人",      SortKey = "responsibleperson",   FilterType = "string", Width = "80",
                GroupKey = 4, GroupName = "G4 责任人及处理" },
+        new() { Key = "OperationDate",        Label = "操作日期",    SortKey = "operationdate",       FilterType = "date",   Width = "100",
+               GroupKey = 4, GroupName = "G4 责任人及处理" },
+        new() { Key = "PersonDisposition",    Label = "责任人处理",  SortKey = "persondisposition",   FilterType = "string", Width = "120",
+               GroupKey = 4, GroupName = "G4 责任人及处理" },
+        new() { Key = "PersonCompleteDate",   Label = "追责完结日期",SortKey = "personcompletedate",  FilterType = "date",   Width = "100",
+               GroupKey = 4, GroupName = "G4 责任人及处理" },
         new() { Key = "PersonIsCompleted",    Label = "追责完结",    SortKey = "personiscompleted",   FilterType = "boolean", Width = "70",
                GroupKey = 4, GroupName = "G4 责任人及处理",
                BoolTrueLabel = "是", BoolFalseLabel = "否" },
@@ -160,7 +168,11 @@ public partial class Ncrs
                GroupKey = 5, GroupName = "G5 纠正预防措施" },
         new() { Key = "ActionPlanner",        Label = "计划人",      SortKey = "actionplanner",       FilterType = "string", Width = "80",
                GroupKey = 5, GroupName = "G5 纠正预防措施" },
+        new() { Key = "ActionPlanDate",       Label = "计划日期",    SortKey = "actionplandate",      FilterType = "date",   Width = "100",
+               GroupKey = 5, GroupName = "G5 纠正预防措施" },
         new() { Key = "ActionVerifier",       Label = "验证人",      SortKey = "actionverifier",      FilterType = "string", Width = "80",
+               GroupKey = 5, GroupName = "G5 纠正预防措施" },
+        new() { Key = "ActionVerifyDate",     Label = "验证日期",    SortKey = "actionverifydate",    FilterType = "date",   Width = "100",
                GroupKey = 5, GroupName = "G5 纠正预防措施" },
         new() { Key = "VerifyResult",         Label = "验证结论",    SortKey = "verifyresult",        FilterType = "enum",   Width = "100",
                GroupKey = 5, GroupName = "G5 纠正预防措施",
@@ -180,7 +192,8 @@ public partial class Ncrs
                } },
 
         // 审计
-        new() { Key = "UpdatedTime",          Label = "更新日期",    SortKey = "updatedtime",         Width = "120" },
+        new() { Key = "UpdatedTime",          Label = "更新日期",    SortKey = "updatedtime",         Width = "120",
+               GroupKey = 6, GroupName = "状态" },
     };
 
     // ========== 生命周期 ==========

@@ -13,12 +13,14 @@ public static class ProcessNames
     public const string ColdRoll20 = "20冷轧";
     public const string ThreeRollColdRoll = "三辊冷轧";
     public const string ColdDraw = "冷拔";
+    public const string AdditionalFinalInspection = "附加成检";
 
     /// <summary>所有工序名称的有序列表（用于下拉选择）</summary>
     public static readonly string[] All =
     [
         RoughTubeProcessing, InProcessRepair, ColdRoll60, ColdRoll50,
-        ColdRoll30, ColdRoll20, ThreeRollColdRoll, ColdDraw
+        ColdRoll30, ColdRoll20, ThreeRollColdRoll, ColdDraw,
+        AdditionalFinalInspection
     ];
 
     /// <summary>是否为冷轧系列（含三辊冷轧）</summary>

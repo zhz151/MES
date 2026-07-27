@@ -574,7 +574,7 @@ public class WorkOrderExecutionServiceTests : TestBase
         var cancelledBatch = new ProductionBatch
         {
             BatchNo = "B002",
-            Status = BatchStatus.Cancelled,
+            Status = BatchStatus.Completed,
             WorkOrderNo = "WO001",
             SalesOrderNo = "SO001",
             ProductionMainNo = "D01",

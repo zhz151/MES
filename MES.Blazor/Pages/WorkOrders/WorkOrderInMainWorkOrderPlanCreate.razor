@@ -1,0 +1,468 @@
+@page "/workorders/{WorkOrderId:int}/in-main-work-order-plan/create"
+@page "/workorders/{WorkOrderId:int}/in-main-work-order-plan/edit/{PlanId:int}"
+@using MES.Blazor.Services
+@using MES.Core.Models
+@using MES.Core.Enums
+@using MES.Blazor.Shared
+@using MES.Core.Constants
+@using MES.Blazor.Helpers
+@using MES.Core.DTOs.WorkOrder
+@using Microsoft.AspNetCore.Authorization
+@inject MaterialPlanService MaterialPlanService
+@inject WorkOrderService WorkOrderService
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.GroupWork" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">@(IsEditMode ? "编辑" : "新增")在产主工单计划</MudText>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回上一级</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            @if (isLoadingWorkOrder)
+            {
+                <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" />
+            }
+            else if (workOrder != null)
+            {
+                <!-- ===== 工单信息 ===== -->
+                <WorkOrderInfoCard WorkOrder="workOrder" />
+
+                <!-- ===== 基本信息 ===== -->
+                <MudGrid Class="mt-2 mb-4">
+                    <MudItem xs="12" md="2">
+                        <MudText Typo="Typo.body2" Class="mb-1">计划日期</MudText>
+                        <MudTextField T="string" @bind-Value="_planDate" Placeholder="yyyy-MM-dd"
+                                      Variant="Variant.Outlined" Dense="true" Size="Size.Small" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudText Typo="Typo.body2" Class="mb-1">要求到位日期</MudText>
+                        <MudTextField T="string" @bind-Value="_requiredDate" Placeholder="yyyy-MM-dd"
+                                      Variant="Variant.Outlined" Dense="true" Size="Size.Small" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.body2" Class="mb-1">备注</MudText>
+                        <MudTextField T="string" @bind-Value="_remark"
+                                      Variant="Variant.Outlined" Dense="true" Size="Size.Small" />
+                    </MudItem>
+                </MudGrid>
+
+                <!-- ===== 展示可用批次按钮 ===== -->
+                <div class="d-flex align-center mb-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Search"
+                               OnClick="() => LoadAvailableBatches()"
+                               Disabled="isLoadingInventory">
+                        @(isLoadingInventory ? "加载中..." : "展示可用主工单批次")
+                    </MudButton>
+                    @if (errorMessage != null)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Warning" Class="ml-3">
+                            @errorMessage
+                        </MudText>
+                    }
+                </div>
+
+                <!-- ===== 可用主工单批次列表 ===== -->
+                @if (availableBatches.Any())
+                {
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Size="Size.Small" Class="mr-1" />可用主工单批次
+                    </MudText>
+
+                    <div class="d-flex align-center mb-2 flex-wrap" Style="gap:8px;">
+                        <MudText Typo="Typo.body2" Color="Color.Primary">（已选 @SelectedBatchCount 项）</MudText>
+                        <span class="flex-grow-1"></span>
+                        <MudButton Variant="Variant.Text" OnClick="GoBack" Size="Size.Small">取消</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   OnClick="SavePlan" Disabled="@(SelectedBatchCount == 0)" Loading="@isSaving">
+                            保存
+                        </MudButton>
+                    </div>
+
+                    <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
+                        <MudTable Items="@availableBatches" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="5" RowsPerPageLabel="每页行数:">
+                            <HeaderContent>
+                                <MudTh Style="width:32px;">选择</MudTh>
+                                <MudTh Style="width:70px;">生产编号</MudTh>
+                                @if (!IsEditMode)
+                                {
+                                    <MudTh Style="width:50px;">挂牌号</MudTh>
+                                }
+                                <MudTh Style="width:80px;">源主工单号</MudTh>
+                                @if (!IsEditMode)
+                                {
+                                    <MudTh Style="width:45px;">工厂牌号</MudTh>
+                                    <MudTh Style="width:60px;">成品规格</MudTh>
+                                    <MudTh Style="width:45px;">长度状态</MudTh>
+                                    <MudTh Style="width:35px;">状态</MudTh>
+                                    <MudTh Style="width:55px;">有效原料支数</MudTh>
+                                    <MudTh Style="width:55px;">有效原料重量</MudTh>
+                                    <MudTh Style="width:40px;">投成倍数</MudTh>
+                                    <MudTh Style="width:55px;">原主工单号总重量</MudTh>
+                                    <MudTh Style="width:55px;">原主工单号流转比</MudTh>
+                                    <MudTh Style="width:55px;">现可分配上限重量</MudTh>
+                                    <MudTh Style="width:45px;">现可用料占比</MudTh>
+                                }
+                                <MudTh Style="width:55px; background-color: rgba(255, 152, 0, 0.08);">投料制成倍</MudTh>
+                                <MudTh Style="width:65px; background-color: rgba(255, 152, 0, 0.08);">分配原料支数</MudTh>
+                                <MudTh Style="width:70px; background-color: rgba(255, 152, 0, 0.08);">分配原料重量(kg)</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>
+                                    <MudCheckBox Value="@GetSelection(context.Id)"
+                                                 ValueChanged="@((bool v) => OnSelectionChanged(context.Id, v))"
+                                                 Color="Color.Primary" />
+                                </MudTd>
+                                <MudTd>@context.BatchNo</MudTd>
+                                @if (!IsEditMode)
+                                {
+                                    <MudTd>@(context.TagNo ?? "-")</MudTd>
+                                }
+                                <MudTd>@context.WorkOrderNo</MudTd>
+                                @if (!IsEditMode)
+                                {
+                                    <MudTd>@context.PlantGrade</MudTd>
+                                    <MudTd>@context.Specification</MudTd>
+                                    <MudTd>@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>
+                                    <MudTd>@DisplayHelper.GetBatchStatusText(context.Status)</MudTd>
+                                    <MudTd>@(context.CurrentValidQty?.ToString() ?? "-")</MudTd>
+                                    <MudTd>@(context.CurrentValidWeight?.ToString("F0") ?? "-")</MudTd>
+                                    <MudTd>@context.ProductionRatio</MudTd>
+                                    <MudTd>@context.MainTotalWeight.ToString("F0")</MudTd>
+                                    <MudTd>@context.MainNoFlowOutputRatio.ToString("F0")%</MudTd>
+                                    <MudTd>@context.AvailableLimit.ToString("F0")</MudTd>
+                                    <MudTd>@context.UsageRatio.ToString("P0")</MudTd>
+                                }
+                                <MudTd Style="background-color: rgba(255, 152, 0, 0.08);">
+                                    @if (GetSelection(context.Id))
+                                    {
+                                        <MudNumericField T="int" HideSpinButtons="true" Value="@GetProductionRatio(context.Id)"
+                                                         ValueChanged="@(v => OnProductionRatioChanged(context.Id, v))"
+                                                         Size="Size.Small"
+                                                         Variant="Variant.Outlined"
+                                                         Min="0"
+                                                         Class="my-n2" Style="width:55px;" />
+                                    }
+                                    else
+                                    {
+                                        <span>@GetProductionRatio(context.Id).ToString()</span>
+                                    }
+                                </MudTd>
+                                <MudTd Style="background-color: rgba(255, 152, 0, 0.08);">
+                                    @if (GetSelection(context.Id))
+                                    {
+                                        <MudNumericField T="int?" HideSpinButtons="true" Value="@GetAllocatedQty(context.Id)"
+                                                         ValueChanged="@(v => OnAllocatedQtyChanged(context.Id, v))"
+                                                         Size="Size.Small"
+                                                         Variant="Variant.Outlined"
+                                                         Min="0"
+                                                         Class="my-n2" Style="width:65px;" />
+                                    }
+                                    else
+                                    {
+                                        <span>@(GetAllocatedQty(context.Id)?.ToString() ?? "-")</span>
+                                    }
+                                </MudTd>
+                                <MudTd Style="background-color: rgba(255, 152, 0, 0.08);">
+                                    @if (GetSelection(context.Id))
+                                    {
+                                        <MudNumericField T="decimal" HideSpinButtons="true" Value="@GetAllocatedWeight(context.Id)" Format="G29"
+                                                         ValueChanged="@(v => OnAllocatedWeightChanged(context.Id, v))"
+                                                         Size="Size.Small"
+                                                         Variant="Variant.Outlined"
+                                                         Min="0"
+                                                         Class="my-n2" Style="width:70px;" />
+                                    }
+                                    else
+                                    {
+                                        <span>@GetAllocatedWeight(context.Id).ToString("G29")</span>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                }
+            }
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [Parameter] public int WorkOrderId { get; set; }
+    [Parameter] public int PlanId { get; set; }
+
+    private bool IsEditMode => PlanId > 0;
+
+    private WorkOrderDetailDto? workOrder;
+    private InMainWorkOrderPlanDto? existingPlan;
+    private List<AvailableMainWorkOrderBatchDto> availableBatches = new();
+    private bool isLoadingWorkOrder = true;
+    private bool isLoadingInventory = false;
+    private bool isSaving = false;
+    private string? errorMessage;
+
+    // 基本信息
+    private string _planDate = DateTime.Today.ToString("yyyy-MM-dd");
+    private string _requiredDate = "";
+    private string _remark = "";
+
+    // 选择数据（多选）
+    private Dictionary<int, bool> _selections = new();
+    private Dictionary<int, int?> _allocatedQuantities = new();
+    private Dictionary<int, decimal> _allocatedWeights = new();
+    private Dictionary<int, int> _productionRatios = new();
+    private int SelectedBatchCount => _selections.Count(s => s.Value);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await WorkOrderService.GetByIdAsync(WorkOrderId);
+            workOrder = result.Success ? result.Data : null;
+
+            if (IsEditMode)
+            {
+                await LoadExistingPlan();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载工单失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoadingWorkOrder = false;
+        }
+    }
+
+    private async Task LoadExistingPlan()
+    {
+        try
+        {
+            var planResult = await MaterialPlanService.GetInMainWorkOrderPlanByIdAsync(PlanId);
+            if (!planResult.Success || planResult.Data == null)
+            {
+                Snackbar.Add("在产主工单计划不存在", Severity.Error);
+                GoBack();
+                return;
+            }
+
+            existingPlan = planResult.Data;
+            var plan = planResult.Data;
+
+            _planDate = plan.PlanDate.ToString("yyyy-MM-dd");
+            _requiredDate = plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "";
+            _remark = plan.Remark ?? "";
+
+            await LoadAvailableBatches(plan.ProductionBatchId);
+
+            var matchBatch = availableBatches.FirstOrDefault(b => b.Id == plan.ProductionBatchId);
+            if (matchBatch != null && _selections.ContainsKey(matchBatch.Id))
+            {
+                _selections[matchBatch.Id] = true;
+                _allocatedQuantities[matchBatch.Id] = plan.AllocatedQuantity;
+                _allocatedWeights[matchBatch.Id] = plan.AllocatedWeight;
+                _productionRatios[matchBatch.Id] = plan.ProductionRatio;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载在产主工单计划失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadAvailableBatches(int? excludePlanBatchId = null)
+    {
+        isLoadingInventory = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await MaterialPlanService.GetAvailableMainWorkOrderBatchesAsync(WorkOrderId, excludePlanBatchId);
+            if (result.Success)
+            {
+                availableBatches = (result.Data ?? new()).ToList();
+                InitSelections();
+                if (availableBatches.Count == 0)
+                {
+                    errorMessage = "未找到符合条件的可用主工单批次";
+                }
+            }
+            else
+            {
+                errorMessage = result.Message ?? "查询可用主工单批次失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"加载失败: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingInventory = false;
+            StateHasChanged();
+        }
+    }
+
+    private void InitSelections()
+    {
+        _selections.Clear();
+        _allocatedQuantities.Clear();
+        _allocatedWeights.Clear();
+        _productionRatios.Clear();
+        foreach (var batch in availableBatches)
+        {
+            _selections[batch.Id] = false;
+            _allocatedQuantities[batch.Id] = null;
+            _allocatedWeights[batch.Id] = 0;
+            _productionRatios[batch.Id] = batch.ProductionRatio;
+        }
+    }
+
+    private bool GetSelection(int batchId) => _selections.GetValueOrDefault(batchId, false);
+    private int? GetAllocatedQty(int batchId) => _allocatedQuantities.GetValueOrDefault(batchId);
+    private decimal GetAllocatedWeight(int batchId) => _allocatedWeights.GetValueOrDefault(batchId);
+    private int GetProductionRatio(int batchId) => _productionRatios.GetValueOrDefault(batchId);
+
+    private void OnSelectionChanged(int batchId, bool value)
+    {
+        if (_selections.ContainsKey(batchId))
+            _selections[batchId] = value;
+    }
+
+    private void OnAllocatedQtyChanged(int batchId, int? value)
+    {
+        if (_allocatedQuantities.ContainsKey(batchId))
+            _allocatedQuantities[batchId] = value;
+    }
+
+    private void OnAllocatedWeightChanged(int batchId, decimal value)
+    {
+        if (_allocatedWeights.ContainsKey(batchId))
+            _allocatedWeights[batchId] = value;
+    }
+
+    private void OnProductionRatioChanged(int batchId, int value)
+    {
+        if (_productionRatios.ContainsKey(batchId))
+            _productionRatios[batchId] = value;
+    }
+
+    private void GoBack() => Navigation.NavigateTo($"/workorders/{WorkOrderId}/material-plan");
+
+    private async Task SavePlan()
+    {
+        var selectedIds = _selections.Where(s => s.Value).Select(s => s.Key).ToList();
+        if (selectedIds.Count == 0)
+        {
+            Snackbar.Add("请至少选择一个主工单批次", Severity.Warning);
+            return;
+        }
+
+        var errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(_planDate) || !DateTime.TryParse(_planDate, out _))
+            errors.Add("计划日期格式无效，请使用 yyyy-MM-dd 格式");
+
+        foreach (var batchId in selectedIds)
+        {
+            var batch = availableBatches.FirstOrDefault(b => b.Id == batchId);
+            if (batch == null) continue;
+
+            var wt = _allocatedWeights.GetValueOrDefault(batchId);
+            if (wt <= 0)
+                errors.Add($"批次 {batch.BatchNo}：分配重量必须大于0");
+            if (wt > batch.AvailableLimit)
+                errors.Add($"批次 {batch.BatchNo}：分配重量({wt})超过可分配上限({batch.AvailableLimit})");
+        }
+
+        if (errors.Any())
+        {
+            foreach (var err in errors)
+                Snackbar.Add(err, Severity.Warning);
+            return;
+        }
+
+        isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            var successCount = 0;
+            foreach (var batchId in selectedIds)
+            {
+                var batch = availableBatches.FirstOrDefault(b => b.Id == batchId);
+                if (batch == null) continue;
+
+                DateTime planDate = DateTime.Today;
+                if (!string.IsNullOrWhiteSpace(_planDate) && DateTime.TryParse(_planDate, out var parsedPlanDate))
+                    planDate = parsedPlanDate;
+
+                DateTime? requiredDate = null;
+                if (!string.IsNullOrWhiteSpace(_requiredDate) && DateTime.TryParse(_requiredDate, out var parsedReqDate))
+                    requiredDate = parsedReqDate;
+
+                var request = new CreateInMainWorkOrderPlanRequest
+                {
+                    WorkOrderId = WorkOrderId,
+                    PlanDate = planDate,
+                    ProductionBatchId = batchId,
+                    AllocatedQuantity = _allocatedQuantities.GetValueOrDefault(batchId),
+                    AllocatedWeight = _allocatedWeights.GetValueOrDefault(batchId),
+                    ProductionRatio = _productionRatios.GetValueOrDefault(batchId),
+                    RequiredDate = requiredDate,
+                    Remark = string.IsNullOrWhiteSpace(_remark) ? null : _remark
+                };
+
+                ApiResponse<InMainWorkOrderPlanDto> result;
+                if (IsEditMode && existingPlan != null && batchId == existingPlan.ProductionBatchId)
+                {
+                    result = await MaterialPlanService.UpdateInMainWorkOrderPlanAsync(PlanId, request);
+                }
+                else
+                {
+                    result = await MaterialPlanService.CreateInMainWorkOrderPlanAsync(request);
+                }
+
+                if (result.Success)
+                {
+                    successCount++;
+                }
+                else
+                {
+                    Snackbar.Add($"批次 {batch.BatchNo} 保存失败: {result.Message}", Severity.Error);
+                }
+            }
+
+            if (successCount > 0)
+            {
+                Snackbar.Add($"成功保存 {successCount} 条在产主工单计划", Severity.Success);
+                GoBack();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+}

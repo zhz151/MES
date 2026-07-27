@@ -52,6 +52,8 @@ public class ProductionBatchDetailDto
     public string StandardCode { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
     public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
+    public DeliveryState? ManufacturingStatus { get; set; }
+    public string? ManufacturingStatusDisplay => ManufacturingStatus.HasValue ? EnumHelper.GetDisplayName(ManufacturingStatus.Value) : null;
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public decimal OuterDiameterNegative { get; set; }
@@ -99,4 +101,11 @@ public class ProductionBatchDetailDto
 
     // ========== 工序组列表 ==========
     public List<ProcessGroupDto> ProcessGroups { get; set; } = new();
+
+    // ========== 合并投料来源 ==========
+
+    /// <summary>
+    /// 来源库存批次列表
+    /// </summary>
+    public List<SourceBatchItemDto> SourceItems { get; set; } = new();
 }

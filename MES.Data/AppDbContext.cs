@@ -64,6 +64,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<PiercingPlanProcessGroup> PiercingPlanProcessGroups { get; set; } = null!;
     public DbSet<InProcessReworkPlan> InProcessReworkPlans { get; set; } = null!;
     public DbSet<InProcessReworkPlanProcessGroup> InProcessReworkPlanProcessGroups { get; set; } = null!;
+    public DbSet<InMainWorkOrderPlan> InMainWorkOrderPlans { get; set; } = null!;
 
     // ========== 仓库上下文 ==========
 
@@ -83,6 +84,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
 
     public DbSet<ProductionBatch> ProductionBatches { get; set; } = null!;
     public DbSet<ProcessGroup> ProcessGroups { get; set; } = null!;
+    public DbSet<ProductionBatchInventory> ProductionBatchInventories { get; set; } = null!;
     public DbSet<ProductionRecord> ProductionRecords { get; set; } = null!;
     public DbSet<SectionOutsource> SectionOutsources { get; set; } = null!;
     public DbSet<OutsourceRecovery> OutsourceRecoveries { get; set; } = null!;
@@ -181,6 +183,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigurePiercingPlanProcessGroup(builder);
         ConfigureInProcessReworkPlan(builder);
         ConfigureInProcessReworkPlanProcessGroup(builder);
+        ConfigureInMainWorkOrderPlan(builder);
 
         // ========== 物料上下文 ==========
         ConfigureMaterial(builder);
@@ -196,6 +199,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         // ========== 批次上下文 ==========
         ConfigureProductionBatch(builder);
         ConfigureProcessGroup(builder);
+        ConfigureProductionBatchInventory(builder);
         ConfigureProductionRecord(builder);
         ConfigureSectionOutsource(builder);
         ConfigureOutsourceRecovery(builder);

@@ -299,6 +299,78 @@ public class MaterialPlanController : ControllerBase
 
     #endregion
 
+    #region 在产主工单计划
+
+    [HttpGet("in-main-work-order/{workOrderId}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<InMainWorkOrderPlanDto>>>> GetInMainWorkOrderPlans(int workOrderId)
+    {
+        var result = await _materialPlanService.GetInMainWorkOrderPlansAsync(workOrderId);
+        return Ok(ApiResponse<List<InMainWorkOrderPlanDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("in-main-work-order/detail/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<InMainWorkOrderPlanDto>>> GetInMainWorkOrderPlanById(int id)
+    {
+        var result = await _materialPlanService.GetInMainWorkOrderPlanByIdAsync(id);
+        return Ok(ApiResponse<InMainWorkOrderPlanDto>.Ok(result, "查询成功"));
+    }
+
+    [HttpPost("in-main-work-order")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<InMainWorkOrderPlanDto>>> CreateInMainWorkOrderPlan(
+        [FromBody] CreateInMainWorkOrderPlanRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<InMainWorkOrderPlanDto>.Fail("请求参数无效"));
+
+        var result = await _materialPlanService.CreateInMainWorkOrderPlanAsync(request);
+        return Ok(ApiResponse<InMainWorkOrderPlanDto>.Ok(result, "创建成功"));
+    }
+
+    [HttpPut("in-main-work-order/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<InMainWorkOrderPlanDto>>> UpdateInMainWorkOrderPlan(
+        int id, [FromBody] CreateInMainWorkOrderPlanRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<InMainWorkOrderPlanDto>.Fail("请求参数无效"));
+
+        var result = await _materialPlanService.UpdateInMainWorkOrderPlanAsync(id, request);
+        return Ok(ApiResponse<InMainWorkOrderPlanDto>.Ok(result, "更新成功"));
+    }
+
+    [HttpDelete("in-main-work-order/{id}")]
+    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> DeleteInMainWorkOrderPlan(int id)
+    {
+        await _materialPlanService.DeleteInMainWorkOrderPlanAsync(id);
+        return Ok(ApiResponse.Ok("删除成功"));
+    }
+
+    [HttpGet("main-work-order-batches/{workOrderId}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<AvailableMainWorkOrderBatchDto>>>> GetAvailableMainWorkOrderBatches(
+        int workOrderId, [FromQuery] int? excludePlanBatchId = null)
+    {
+        var result = await _materialPlanService.GetAvailableMainWorkOrderBatchesAsync(workOrderId, excludePlanBatchId);
+        return Ok(ApiResponse<List<AvailableMainWorkOrderBatchDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 获取所有待处理的在产主工单计划（批次上下文通知使用）
+    /// </summary>
+    [HttpGet("pending-in-main-work-order")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<PendingPlanBatchDto>>>> GetPendingInMainWorkOrderPlans()
+    {
+        var result = await _materialPlanService.GetPendingInMainWorkOrderPlansAsync();
+        return Ok(ApiResponse<List<PendingPlanBatchDto>>.Ok(result, "查询成功"));
+    }
+
+    #endregion
+
     #region 圆棒穿孔计划
 
     [HttpGet("piercing/{workOrderId}")]
@@ -451,7 +523,7 @@ public class MaterialPlanController : ControllerBase
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         if (request.WorkOrderIds.Length == 0)
             return BadRequest(ApiResponse<string>.Fail("请选择工单"));
-        if (!request.IncludeSemi && !request.IncludeFinish && !request.IncludeInventory && !request.IncludeRework && !request.IncludeRoundBarPiercing && !request.IncludeInProcessRework)
+        if (!request.IncludeSemi && !request.IncludeFinish && !request.IncludeInventory && !request.IncludeRework && !request.IncludeRoundBarPiercing && !request.IncludeInProcessRework && !request.IncludeInMainWorkOrder)
             return BadRequest(ApiResponse<string>.Fail("请至少选择一种计划类型"));
 
         try
@@ -512,6 +584,23 @@ public class MaterialPlanController : ControllerBase
     {
         var bytes = await _materialPlanService.PrintInProcessReworkPlanAsync(id);
         return File(bytes, "application/pdf", $"在产改制_{id}.pdf");
+    }
+
+    [HttpGet("print/in-main-work-order/{id}")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> PrintInMainWorkOrderPlan(int id)
+    {
+        var bytes = await _materialPlanService.PrintInMainWorkOrderPlanAsync(id);
+        var base64 = Convert.ToBase64String(bytes);
+        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
+    }
+
+    [HttpPost("print/in-main-work-order/{id}/file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintInMainWorkOrderPlanFile(int id)
+    {
+        var bytes = await _materialPlanService.PrintInMainWorkOrderPlanAsync(id);
+        return File(bytes, "application/pdf", $"在产主工单_{id}.pdf");
     }
 
     #endregion

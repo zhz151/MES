@@ -7194,6 +7194,93 @@ namespace MES.Data.Migrations
                     b.ToTable("Warehouse", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.WorkOrder.InMainWorkOrderPlan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AllocatedQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("AllocatedWeight")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("BatchNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("MainWorkOrderNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("PlanDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PlanStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Planned");
+
+                    b.Property<int>("ProductionBatchId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductionRatio")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("RequiredDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("StandardCycle")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("WorkOrderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlanStatus")
+                        .HasDatabaseName("IX_InMainWorkOrderPlan_PlanStatus");
+
+                    b.HasIndex("ProductionBatchId")
+                        .HasDatabaseName("IX_InMainWorkOrderPlan_ProductionBatchId");
+
+                    b.HasIndex("WorkOrderId")
+                        .HasDatabaseName("IX_InMainWorkOrderPlan_WorkOrderId");
+
+                    b.ToTable("InMainWorkOrderPlan", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.WorkOrder.InProcessReworkPlan", b =>
                 {
                     b.Property<int>("Id")
@@ -8654,6 +8741,12 @@ namespace MES.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal?>("FinishedPlanTotalWeight")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int?>("InMainWorkOrderPlanTotalPieces")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("InMainWorkOrderPlanTotalWeight")
                         .HasColumnType("decimal(18,3)");
 
                     b.Property<int?>("InProcessReworkPlanTotalPieces")

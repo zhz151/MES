@@ -32,7 +32,6 @@ CREATE TABLE [QualityProcessTracking] (
     [Salesman] nvarchar(50) NULL,
     [DeliveryState] nvarchar(50) NULL,
     [IsForceCompleted] bit NOT NULL DEFAULT CAST(0 AS bit),
-    [PbBatchNo] nvarchar(50) NULL,
     [PmiDate] date NULL,
     [VisualDate] date NULL,
     [DimensionDate] date NULL,

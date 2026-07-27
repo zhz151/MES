@@ -33,5 +33,10 @@ public enum NotificationType
     /// <summary>
     /// 订单已变更
     /// </summary>
-    OrderChanged
+    OrderChanged,
+
+    /// <summary>
+    /// 工单内容已变更（工单号不变，ManufacturingItem/PlantGrade/数量等变）
+    /// </summary>
+    WorkOrderChanged
 }

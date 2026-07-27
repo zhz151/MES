@@ -78,58 +78,6 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<PagedResult<SectionOutsourceDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<SectionOutsourceDto>> CreateSectionOutsourceAsync(CreateSectionOutsourceRequest request)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<CreateSectionOutsourceRequest, ApiResponse<SectionOutsourceDto>>($"{BaseUrl}/outsource", request)
-                   ?? ApiResponse<SectionOutsourceDto>.Fail("创建失败");
-        }
-        catch (Exception ex) { return ApiResponse<SectionOutsourceDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<object>> DeleteSectionOutsourceAsync(int id)
-    {
-        try
-        {
-            return await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/outsource/{id}")
-                   ?? ApiResponse<object>.Fail("删除失败");
-        }
-        catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    // ========== 委外回收 ==========
-
-    public async Task<ApiResponse<List<OutsourceRecoveryDto>>> GetOutsourceRecoveriesAsync(int outsourceId)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<OutsourceRecoveryDto>>>($"{BaseUrl}/outsource/{outsourceId}/recoveries")
-                   ?? ApiResponse<List<OutsourceRecoveryDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<OutsourceRecoveryDto>> CreateOutsourceRecoveryAsync(CreateOutsourceRecoveryRequest request)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<CreateOutsourceRecoveryRequest, ApiResponse<OutsourceRecoveryDto>>($"{BaseUrl}/recovery", request)
-                   ?? ApiResponse<OutsourceRecoveryDto>.Fail("创建失败");
-        }
-        catch (Exception ex) { return ApiResponse<OutsourceRecoveryDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<object>> DeleteOutsourceRecoveryAsync(int id)
-    {
-        try
-        {
-            return await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/recovery/{id}")
-                   ?? ApiResponse<object>.Fail("删除失败");
-        }
-        catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     // ========== 跨批次查询（用于独立页面） ==========
 
     public async Task<ApiResponse<PagedResult<ProductionRecordDto>>> GetAllProductionRecordsAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? execDateFrom = null, DateTime? execDateTo = null, string? filters = null)
@@ -200,26 +148,6 @@ public class ProductionRecordService
         {
             return await _http.GetFromJsonAsync<ApiResponse<List<OutsourceRecoveryDto>>>($"{BaseUrl}/outsource-recoveries/all-list")
                    ?? ApiResponse<List<OutsourceRecoveryDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<List<SectionOutsourceDto>>> BatchCreateSectionOutsourcesAsync(List<CreateSectionOutsourceRequest> requests)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<List<CreateSectionOutsourceRequest>, ApiResponse<List<SectionOutsourceDto>>>($"{BaseUrl}/outsources/batch", requests)
-                   ?? ApiResponse<List<SectionOutsourceDto>>.Fail("批量创建失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<SectionOutsourceDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<List<OutsourceRecoveryDto>>> BatchCreateOutsourceRecoveriesAsync(List<CreateOutsourceRecoveryRequest> requests)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<List<CreateOutsourceRecoveryRequest>, ApiResponse<List<OutsourceRecoveryDto>>>($"{BaseUrl}/recoveries/batch", requests)
-                   ?? ApiResponse<List<OutsourceRecoveryDto>>.Fail("批量创建失败");
         }
         catch (Exception ex) { return ApiResponse<List<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
     }

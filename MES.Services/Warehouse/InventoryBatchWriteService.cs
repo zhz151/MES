@@ -6,6 +6,7 @@ using MES.Core.Helpers;
 using MES.Core.DTOs.Batch;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Warehouse;
@@ -22,6 +23,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
     private readonly AppDbContext _context;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
+    private readonly IProductionRecordService _productionRecordService;
     private readonly ILogger<InventoryBatchWriteService> _logger;
     private readonly IInventorySyncService _syncService;
     private static readonly SemaphoreSlim _batchNoLock = new(1, 1);
@@ -50,7 +52,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         RemainingQuantity = b.RemainingQuantity,
         RemainingWeight = b.RemainingWeight,
         ActualSpecification = b.ActualSpecification,
-        SurfaceCondition = b.SurfaceCondition,
+        SurfaceCondition = EnumHelper.TryParse<DeliveryState>(b.SurfaceCondition),
         LocationArea = b.LocationArea,
         LocationRack = b.LocationRack,
         Remark = b.Remark,
@@ -71,12 +73,14 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         AppDbContext context,
         IWorkOrderExecutionService workOrderExecutionService,
         IQualityProcessTrackingService qualityProcessTracking,
+        IProductionRecordService productionRecordService,
         IInventorySyncService syncService,
         ILogger<InventoryBatchWriteService> logger)
     {
         _context = context;
         _workOrderExecutionService = workOrderExecutionService;
         _qualityProcessTracking = qualityProcessTracking;
+        _productionRecordService = productionRecordService;
         _syncService = syncService;
         _logger = logger;
     }
@@ -104,6 +108,54 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "质量过程跟踪刷新失败（不影响主流程）: BatchNo={BatchNo}", batchNo);
+        }
+    }
+
+    /// <summary>
+    /// 生产产出入库时，将批次推进到「完成」
+    /// - FG 首笔入库：批次从 InFinalInspection → Completed（有成检到料的成品入库）
+    /// - WIP 余库料入库：批次从 InProgress → Completed（无成检到料，入库即最后工序）
+    /// </summary>
+    private async Task TryCompleteProductionBatchAsync(string productionBatchNo)
+    {
+        try
+        {
+            var batch = await _context.ProductionBatches
+                .FirstOrDefaultAsync(b => b.BatchNo == productionBatchNo);
+
+            if (batch == null)
+            {
+                _logger.LogWarning("入库完成推进失败，批次不存在: {BatchNo}", productionBatchNo);
+                return;
+            }
+
+            if (batch.Status == BatchStatus.InFinalInspection)
+            {
+                // 首笔入库：成检 → 完成
+                // 先刷新跟踪字段（更新当前工段/截止执行日等），再设为完成
+                await _productionRecordService.RefreshBatchTrackingFieldsAsync(batch.Id);
+                await _context.Entry(batch).ReloadAsync();
+                batch.Status = BatchStatus.Completed;
+                await _context.SaveChangesAsync();
+            }
+            else if (batch.Status == BatchStatus.InProgress
+                     && batch.ManufacturingItem == MaterialType.Surplus.ToString())
+            {
+                // 余库料入库：在产 → 完成（无成检到料阶段）
+                await _productionRecordService.RefreshBatchTrackingFieldsAsync(batch.Id);
+                await _context.Entry(batch).ReloadAsync();
+                batch.Status = BatchStatus.Completed;
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                _logger.LogDebug("入库跳过完成推进，批次 {BatchNo} 状态={Status} 物品={Item}",
+                    productionBatchNo, batch.Status, batch.ManufacturingItem);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "入库完成推进失败（不影响主流程）: BatchNo={BatchNo}", productionBatchNo);
         }
     }
 
@@ -185,7 +237,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             RemainingQuantity = request.InitialQuantity,
             RemainingWeight = request.InitialWeight,
             ActualSpecification = request.ActualSpecification,
-            SurfaceCondition = request.SurfaceCondition,
+            SurfaceCondition = request.SurfaceCondition?.ToString(),
             LocationArea = request.LocationArea,
             LocationRack = request.LocationRack,
             Remark = request.Remark,
@@ -221,6 +273,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
         _context.InventoryBatches.Add(entity);
         await _context.SaveChangesAsync();
+
+        // 入库触发批次完成推进
+        if (!string.IsNullOrEmpty(entity.ProductionBatchNo))
+            await TryCompleteProductionBatchAsync(entity.ProductionBatchNo);
 
         await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchNo);
         await TrySyncSourceOrderAsync(entity.SourceOrderNo);
@@ -288,7 +344,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                         RemainingQuantity = row.InitialQuantity,
                         RemainingWeight = row.InitialWeight,
                         ActualSpecification = row.ActualSpecification ?? request.ActualSpecification,
-                        SurfaceCondition = row.SurfaceCondition ?? request.SurfaceCondition,
+                        SurfaceCondition = (row.SurfaceCondition ?? request.SurfaceCondition)?.ToString(),
                         LocationArea = row.LocationArea ?? request.LocationArea,
                         LocationRack = row.LocationRack ?? request.LocationRack,
                         Remark = row.Remark,
@@ -322,6 +378,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                 throw;
             }
         }
+
+        // 入库触发批次完成推进（去重）
+        foreach (var pbn in productionBatchNos.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())
+            await TryCompleteProductionBatchAsync(pbn!);
 
         // 去重同步所有关联的来源单号
         var sourceOrderNos = request.Rows
@@ -369,7 +429,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         entity.MaxLength = request.MaxLength ?? entity.MaxLength;
         entity.UnitWeight = request.UnitWeight ?? entity.UnitWeight;
         entity.Meters = request.Meters ?? entity.Meters;
-        entity.SurfaceCondition = request.SurfaceCondition ?? entity.SurfaceCondition;
+        entity.SurfaceCondition = request.SurfaceCondition?.ToString() ?? entity.SurfaceCondition;
         entity.LocationArea = request.LocationArea ?? entity.LocationArea;
         entity.LocationRack = request.LocationRack ?? entity.LocationRack;
         entity.Remark = request.Remark ?? entity.Remark;
@@ -475,6 +535,22 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         await TryRefreshExecutionSummaryAsync(workOrderNo);
         await TryRefreshQualityProcessTrackingAsync(productionBatchNo);
         await TrySyncSourceOrderAsync(sourceOrderNo);
+
+        // 若此为关联该批次的最后一条入库记录，回退批次状态
+        if (!string.IsNullOrEmpty(productionBatchNo))
+        {
+            var remainingCount = await _context.InventoryBatches
+                .CountAsync(ib => ib.ProductionBatchNo == productionBatchNo);
+            if (remainingCount == 0)
+            {
+                var batch = await _context.ProductionBatches
+                    .FirstOrDefaultAsync(b => b.BatchNo == productionBatchNo);
+                if (batch != null && batch.Status == BatchStatus.Completed)
+                {
+                    await _productionRecordService.RefreshBatchTrackingFieldsAsync(batch.Id);
+                }
+            }
+        }
     }
 
     private async Task<string> GenerateBatchNoAsync()

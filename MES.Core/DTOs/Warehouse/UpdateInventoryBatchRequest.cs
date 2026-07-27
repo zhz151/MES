@@ -24,7 +24,7 @@ public class UpdateInventoryBatchRequest
     public decimal? UnitWeight { get; set; }
     public decimal? Meters { get; set; }
     public string? ActualSpecification { get; set; }
-    public string? SurfaceCondition { get; set; }
+    public DeliveryState? SurfaceCondition { get; set; }
     public string? LocationArea { get; set; }
     public string? LocationRack { get; set; }
     public string? Remark { get; set; }

@@ -497,7 +497,7 @@
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
                 TagNo = r.TagNo,
-                PlantGrade = r.PlantGrade,
+                PlantGrade = r.PlantGrade ?? string.Empty,
                 Remark = r.Remark,
                 DataSource = "MANUAL",
             }).ToList();

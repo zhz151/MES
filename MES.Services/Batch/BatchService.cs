@@ -61,9 +61,10 @@ public class BatchService : IBatchService
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IMaterialPlanService _materialPlanService;
     private readonly IOperationLogService _operationLogService;
+    private readonly IQualityProcessTrackingService _qualityProcessTracking;
     private readonly IMemoryCache _cache;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IMemoryCache cache)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
@@ -72,6 +73,7 @@ public class BatchService : IBatchService
         _workOrderExecutionService = workOrderExecutionService;
         _materialPlanService = materialPlanService;
         _operationLogService = operationLogService;
+        _qualityProcessTracking = qualityProcessTracking;
         _cache = cache;
     }
 
@@ -85,6 +87,18 @@ public class BatchService : IBatchService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: WorkOrderNo={WorkOrderNo}", workOrderNo);
+        }
+    }
+
+    private async Task TryRefreshQualityProcessTrackingAsync(int productionBatchId)
+    {
+        try
+        {
+            await _qualityProcessTracking.RefreshByProductionBatchIdAsync(productionBatchId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "质量过程跟踪刷新失败（不影响主流程）: ProductionBatchId={ProductionBatchId}", productionBatchId);
         }
     }
 
@@ -246,6 +260,7 @@ public class BatchService : IBatchService
             SettlementMethod = string.IsNullOrEmpty(b.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(b.SettlementMethod),
             StandardCode = b.StandardCode,
             DeliveryState = string.IsNullOrEmpty(b.DeliveryState) ? default : Enum.Parse<DeliveryState>(b.DeliveryState),
+            ManufacturingStatus = !string.IsNullOrEmpty(b.ManufacturingStatus) && Enum.TryParse<DeliveryState>(b.ManufacturingStatus, out var ms) ? ms : null,
             PlantGrade = b.PlantGrade,
             Specification = b.Specification,
             LengthStatus = string.IsNullOrEmpty(b.LengthStatus) ? default : Enum.Parse<LengthStatus>(b.LengthStatus),
@@ -324,6 +339,7 @@ public class BatchService : IBatchService
             SettlementMethod = string.IsNullOrEmpty(b.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(b.SettlementMethod),
             StandardCode = b.StandardCode,
             DeliveryState = string.IsNullOrEmpty(b.DeliveryState) ? default : Enum.Parse<DeliveryState>(b.DeliveryState),
+            ManufacturingStatus = !string.IsNullOrEmpty(b.ManufacturingStatus) && Enum.TryParse<DeliveryState>(b.ManufacturingStatus, out var ms) ? ms : null,
             PlantGrade = b.PlantGrade,
             Specification = b.Specification,
             LengthStatus = string.IsNullOrEmpty(b.LengthStatus) ? default : Enum.Parse<LengthStatus>(b.LengthStatus),
@@ -353,6 +369,9 @@ public class BatchService : IBatchService
         var entity = await _context.ProductionBatches
             .AsNoTracking()
             .Include(b => b.ProcessGroups.OrderBy(pg => pg.SequenceNumber))
+            .Include(b => b.ProductionBatchInventories)
+                .ThenInclude(pbi => pbi.InventoryBatch)
+                .ThenInclude(ib => ib.Warehouse)
             .FirstOrDefaultAsync(b => b.Id == id);
 
         if (entity == null)
@@ -368,6 +387,9 @@ public class BatchService : IBatchService
         var entity = await _context.ProductionBatches
             .AsNoTracking()
             .Include(b => b.ProcessGroups.OrderBy(pg => pg.SequenceNumber))
+            .Include(b => b.ProductionBatchInventories)
+                .ThenInclude(pbi => pbi.InventoryBatch)
+                .ThenInclude(ib => ib.Warehouse)
             .FirstOrDefaultAsync(b => b.BatchNo == batchNo);
 
         if (entity == null)
@@ -423,7 +445,7 @@ public class BatchService : IBatchService
         // ========== 统一必填（两路径共用） ==========
 
         // 生产类型 / 制造物品
-        if (string.IsNullOrWhiteSpace(request.ProductionType))
+        if (request.ProductionType == null)
             throw new BusinessException("生产类型不能为空");
         if (request.ManufacturingItem == null)
             throw new BusinessException("制造物品不能为空");
@@ -433,20 +455,36 @@ public class BatchService : IBatchService
             throw new BusinessException("工厂牌号不能为空");
         if (string.IsNullOrWhiteSpace(request.Specification))
             throw new BusinessException("规格不能为空");
-        if (string.IsNullOrWhiteSpace(request.DeliveryState))
+        if (request.DeliveryState == null)
             throw new BusinessException("交货状态不能为空");
-        if (string.IsNullOrWhiteSpace(request.MaterialName))
+        if (request.ManufacturingStatus == null)
+            throw new BusinessException("制造状态不能为空");
+        if (request.MaterialName == null)
             throw new BusinessException("物料名称不能为空");
-        if (string.IsNullOrWhiteSpace(request.LengthStatus))
+        if (request.LengthStatus == null)
             throw new BusinessException("长度状态不能为空");
-        if (request.TotalWeight == null || request.TotalWeight <= 0)
-            throw new BusinessException("总重量必须大于0");
+        // 非工单不校验总重量/总支数
+        if (request.WorkOrderNo != NotWorkOrder)
+        {
+            if (request.TotalWeight == null || request.TotalWeight <= 0)
+                throw new BusinessException("总重量必须大于0");
+            if (request.LengthStatus == LengthStatus.Fixed && (request.TotalQuantity == null || request.TotalQuantity <= 0))
+                throw new BusinessException("总支数（定尺时必须大于0）");
+        }
         // 制成倍数必须大于0
         if (request.ProductionRatio <= 0)
             throw new BusinessException("制成倍数必须大于0");
-        // 定尺时总支数必须大于0
-        if (request.LengthStatus == LengthStatus.Fixed.ToString() && (request.TotalQuantity == null || request.TotalQuantity <= 0))
-            throw new BusinessException("总支数（定尺时必须大于0）");
+
+        // ========== 合并投料来源处理 ==========
+        // 如果有 SourceItems，用其汇总值覆盖单字段来源
+        if (request.SourceItems != null && request.SourceItems.Count > 0)
+        {
+            request.InputQuantity = request.SourceItems.Sum(s => s.InputQuantity);
+            request.InputWeight = request.SourceItems.Sum(s => s.InputWeight);
+            // SourceBatchNo 沿用第一个来源批次号（向后兼容）
+            if (request.SourceBatchNo == null && request.SourceItems.Count > 0)
+                request.SourceBatchNo = null; // 将在保存后从关联表回填
+        }
 
         // 仓库来源必填
         if (string.IsNullOrWhiteSpace(request.SourcePlantGrade))
@@ -462,39 +500,33 @@ public class BatchService : IBatchService
         if (!GradeSubstitutes.IsSubstitutable(request.PlantGrade, request.SourcePlantGrade))
             throw new BusinessException("仓库工厂牌号与工单工厂牌号不一致，且不可替代（仅允许高代低）");
 
-        // ========== 枚举字符串值有效性验证 ==========
-        if (!Enum.TryParse<ProductionType>(request.ProductionType, out _))
-            throw new BusinessException($"无效的生产类型: {request.ProductionType}");
+        // ========== 枚举字符串有效性验证（DTO已使用枚举类型，类型安全由编译器保证） ==========
         if (request.ManufacturingItem == null)
             throw new BusinessException($"无效的制造物品: {request.ManufacturingItem}");
-        if (!Enum.TryParse<DeliveryState>(request.DeliveryState, out _))
-            throw new BusinessException($"无效的交货状态: {request.DeliveryState}");
-        if (!Enum.TryParse<PipeManufacturingType>(request.MaterialName, out _))
-            throw new BusinessException($"无效的物料名称: {request.MaterialName}");
-        if (!Enum.TryParse<LengthStatus>(request.LengthStatus, out _))
-            throw new BusinessException($"无效的长度状态: {request.LengthStatus}");
 
         // ========== 有工单路径额外验证 ==========
         if (request.WorkOrderNo != NotWorkOrder)
         {
-            if (string.IsNullOrWhiteSpace(request.SettlementMethod))
+            if (request.SettlementMethod == null)
                 throw new BusinessException("结算方式不能为空");
             if (string.IsNullOrWhiteSpace(request.StandardCode))
                 throw new BusinessException("产品标准编码不能为空");
-            if (string.IsNullOrWhiteSpace(request.TechnicalRequirements))
+            if (request.TechnicalRequirements == null)
                 throw new BusinessException("技术要求不能为空");
-            if (!Enum.TryParse<SettlementMethod>(request.SettlementMethod, out _))
-                throw new BusinessException($"无效的结算方式: {request.SettlementMethod}");
-            if (!Enum.TryParse<RequirementType>(request.TechnicalRequirements, out _))
-                throw new BusinessException($"无效的技术要求: {request.TechnicalRequirements}");
         }
+
+        // ========== 制造状态与制造物品业务规则 ==========
+        if (request.ManufacturingItem == MaterialType.OrderFinished && request.ManufacturingStatus != request.DeliveryState)
+            throw new BusinessException("制造物品为「订单成品」时，制造状态必须等于交货状态");
+        if (request.ManufacturingItem == MaterialType.SpecialDeliveryStatus && request.ManufacturingStatus == request.DeliveryState)
+            throw new BusinessException("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
 
         var entity = new ProductionBatch
         {
             BatchNo = batchNo,
             Status = BatchStatus.None,
             TagNo = request.TagNo,
-            ProductionType = request.ProductionType,
+            ProductionType = request.ProductionType?.ToString() ?? "",
             ManufacturingItem = request.ManufacturingItem?.ToString() ?? "",
             ProductionRatio = CalculateProductionRatio(request, workOrder),
             IsForceCompleted = false,
@@ -530,17 +562,18 @@ public class BatchService : IBatchService
             EndCustomer = request.EndCustomer ?? workOrder?.EndCustomer,
             DeliveryDate = request.DeliveryDate ?? workOrder?.DeliveryDate ?? default,
             DelayPenalty = request.DelayPenalty ?? workOrder?.DelayPenalty ?? default,
-            MaterialName = request.MaterialName ?? workOrder?.PipeManufacturingType.ToString() ?? "",
-            SettlementMethod = request.SettlementMethod ?? workOrder?.SettlementMethod.ToString() ?? "",
+            MaterialName = request.MaterialName?.ToString() ?? workOrder?.PipeManufacturingType.ToString() ?? "",
+            SettlementMethod = request.SettlementMethod?.ToString() ?? workOrder?.SettlementMethod.ToString() ?? "",
             StandardCode = request.StandardCode ?? workOrder?.StandardCode ?? "",
-            DeliveryState = request.DeliveryState ?? workOrder?.DeliveryState.ToString() ?? "",
+            DeliveryState = request.DeliveryState?.ToString() ?? workOrder?.DeliveryState.ToString() ?? "",
+            ManufacturingStatus = request.ManufacturingStatus?.ToString(),
             PlantGrade = request.PlantGrade ?? workOrder?.PlantGrade ?? "",
             Specification = request.Specification ?? workOrder?.Specification ?? "",
             OuterDiameterNegative = request.OuterDiameterNegative ?? workOrder?.OuterDiameterNegative ?? default,
             OuterDiameterPositive = request.OuterDiameterPositive ?? workOrder?.OuterDiameterPositive ?? default,
             WallThicknessNegative = request.WallThicknessNegative ?? workOrder?.WallThicknessNegative ?? default,
             WallThicknessPositive = request.WallThicknessPositive ?? workOrder?.WallThicknessPositive ?? default,
-            LengthStatus = request.LengthStatus ?? workOrder?.LengthStatus.ToString() ?? "",
+            LengthStatus = request.LengthStatus?.ToString() ?? workOrder?.LengthStatus.ToString() ?? "",
             MinLength = request.MinLength ?? workOrder?.MinLength,
             MaxLength = request.MaxLength ?? workOrder?.MaxLength,
             TotalQuantity = request.TotalQuantity ?? workOrder?.TotalQuantity ?? default,
@@ -548,7 +581,7 @@ public class BatchService : IBatchService
             TotalWeight = request.TotalWeight ?? workOrder?.TotalWeight ?? default,
             TotalItemCount = request.TotalItemCount ?? workOrder?.TotalItemCount ?? default,
             ItemDetails = request.ItemDetails ?? workOrder?.ItemDetails,
-            TechnicalRequirements = request.TechnicalRequirements ?? workOrder?.TechnicalRequirements.ToString() ?? ""
+            TechnicalRequirements = request.TechnicalRequirements?.ToString() ?? workOrder?.TechnicalRequirements.ToString() ?? ""
         };
 
         // 工序组数值验证
@@ -600,6 +633,37 @@ public class BatchService : IBatchService
                 await _context.SaveChangesAsync();
             }
 
+            // 保存合并投料来源
+            if (request.SourceItems != null && request.SourceItems.Count > 0)
+            {
+                foreach (var src in request.SourceItems)
+                {
+                    _context.ProductionBatchInventories.Add(new ProductionBatchInventory
+                    {
+                        ProductionBatchId = entity.Id,
+                        InventoryBatchId = src.InventoryBatchId,
+                        OutboundRecordId = src.OutboundRecordId,
+                        InputQuantity = src.InputQuantity,
+                        InputWeight = src.InputWeight
+                    });
+                }
+                await _context.SaveChangesAsync();
+
+                // 如果 SourceBatchNo 为空，从第一个来源批次回填
+                if (string.IsNullOrEmpty(entity.SourceBatchNo))
+                {
+                    var firstIb = await _context.InventoryBatches
+                        .Where(ib => ib.Id == request.SourceItems[0].InventoryBatchId)
+                        .Select(ib => ib.BatchNo)
+                        .FirstOrDefaultAsync();
+                    if (firstIb != null)
+                    {
+                        entity.SourceBatchNo = firstIb;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+            }
+
             await transaction.CommitAsync();
         }
         catch
@@ -633,6 +697,7 @@ public class BatchService : IBatchService
     {
         var entity = await _context.ProductionBatches
             .Include(b => b.ProcessGroups.OrderBy(pg => pg.SequenceNumber))
+            .Include(b => b.ProductionBatchInventories)
             .FirstOrDefaultAsync(b => b.Id == id);
 
         if (entity == null)
@@ -643,7 +708,7 @@ public class BatchService : IBatchService
             throw new BusinessException("数据已被其他用户修改，请刷新后重试");
 
         // 生产类型 / 制造物品 不允许为空
-        if (string.IsNullOrWhiteSpace(request.ProductionType))
+        if (request.ProductionType == null)
             throw new BusinessException("生产类型不能为空");
         if (request.ManufacturingItem == null)
             throw new BusinessException("制造物品不能为空");
@@ -654,21 +719,9 @@ public class BatchService : IBatchService
         if (!GradeSubstitutes.IsSubstitutable(effectivePlantGrade, effectiveSourcePlantGrade))
             throw new BusinessException("仓库工厂牌号与工单工厂牌号不一致，且不可替代（仅允许高代低）");
 
-        // ========== 枚举字符串值有效性验证（仅验证本次更新的字段） ==========
-        if (!Enum.TryParse<ProductionType>(request.ProductionType, out _))
-            throw new BusinessException($"无效的生产类型: {request.ProductionType}");
+        // ========== 枚举字符串有效性验证（DTO已使用枚举类型，类型安全由编译器保证） ==========
         if (request.ManufacturingItem == null)
             throw new BusinessException($"无效的制造物品: {request.ManufacturingItem}");
-        if (!string.IsNullOrEmpty(request.MaterialName) && !Enum.TryParse<PipeManufacturingType>(request.MaterialName, out _))
-            throw new BusinessException($"无效的物料名称: {request.MaterialName}");
-        if (!string.IsNullOrEmpty(request.SettlementMethod) && !Enum.TryParse<SettlementMethod>(request.SettlementMethod, out _))
-            throw new BusinessException($"无效的结算方式: {request.SettlementMethod}");
-        if (!string.IsNullOrEmpty(request.DeliveryState) && !Enum.TryParse<DeliveryState>(request.DeliveryState, out _))
-            throw new BusinessException($"无效的交货状态: {request.DeliveryState}");
-        if (!string.IsNullOrEmpty(request.LengthStatus) && !Enum.TryParse<LengthStatus>(request.LengthStatus, out _))
-            throw new BusinessException($"无效的长度状态: {request.LengthStatus}");
-        if (!string.IsNullOrEmpty(request.TechnicalRequirements) && !Enum.TryParse<RequirementType>(request.TechnicalRequirements, out _))
-            throw new BusinessException($"无效的技术要求: {request.TechnicalRequirements}");
 
         // 快照 6 个监控字段的旧值（用于变更日志对比）
         var oldWorkOrderNo = entity.WorkOrderNo;
@@ -680,7 +733,7 @@ public class BatchService : IBatchService
 
         // 更新可修改字段（所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖）
         entity.TagNo = request.TagNo ?? entity.TagNo;
-        entity.ProductionType = request.ProductionType;
+        entity.ProductionType = request.ProductionType?.ToString() ?? entity.ProductionType;
         entity.ManufacturingItem = request.ManufacturingItem?.ToString() ?? entity.ManufacturingItem;
         entity.QualityRemark = request.QualityRemark ?? entity.QualityRemark;
         entity.SolutionParams = request.SolutionParams ?? entity.SolutionParams;
@@ -713,17 +766,18 @@ public class BatchService : IBatchService
         entity.EndCustomer = isNonWorkOrder ? request.EndCustomer : (request.EndCustomer ?? entity.EndCustomer);
         entity.DeliveryDate = request.DeliveryDate ?? (isNonWorkOrder ? default : entity.DeliveryDate);
         entity.DelayPenalty = request.DelayPenalty ?? (isNonWorkOrder ? default : entity.DelayPenalty);
-        entity.MaterialName = request.MaterialName ?? (isNonWorkOrder ? "" : entity.MaterialName);
-        entity.SettlementMethod = request.SettlementMethod ?? (isNonWorkOrder ? "" : entity.SettlementMethod);
+        entity.MaterialName = request.MaterialName?.ToString() ?? (isNonWorkOrder ? "" : entity.MaterialName);
+        entity.SettlementMethod = request.SettlementMethod?.ToString() ?? (isNonWorkOrder ? "" : entity.SettlementMethod);
         entity.StandardCode = request.StandardCode ?? (isNonWorkOrder ? "" : entity.StandardCode);
-        entity.DeliveryState = request.DeliveryState ?? (isNonWorkOrder ? "" : entity.DeliveryState);
+        entity.DeliveryState = request.DeliveryState?.ToString() ?? (isNonWorkOrder ? "" : entity.DeliveryState);
+        entity.ManufacturingStatus = request.ManufacturingStatus?.ToString() ?? (isNonWorkOrder ? "" : entity.ManufacturingStatus);
         entity.PlantGrade = request.PlantGrade ?? (isNonWorkOrder ? "" : entity.PlantGrade);
         entity.Specification = request.Specification ?? (isNonWorkOrder ? "" : entity.Specification);
         entity.OuterDiameterNegative = request.OuterDiameterNegative ?? (isNonWorkOrder ? default : entity.OuterDiameterNegative);
         entity.OuterDiameterPositive = request.OuterDiameterPositive ?? (isNonWorkOrder ? default : entity.OuterDiameterPositive);
         entity.WallThicknessNegative = request.WallThicknessNegative ?? (isNonWorkOrder ? default : entity.WallThicknessNegative);
         entity.WallThicknessPositive = request.WallThicknessPositive ?? (isNonWorkOrder ? default : entity.WallThicknessPositive);
-        entity.LengthStatus = request.LengthStatus ?? (isNonWorkOrder ? "" : entity.LengthStatus);
+        entity.LengthStatus = request.LengthStatus?.ToString() ?? (isNonWorkOrder ? "" : entity.LengthStatus);
         entity.MinLength = isNonWorkOrder ? request.MinLength : (request.MinLength ?? entity.MinLength);
         entity.MaxLength = isNonWorkOrder ? request.MaxLength : (request.MaxLength ?? entity.MaxLength);
         entity.TotalQuantity = request.TotalQuantity ?? (isNonWorkOrder ? default : entity.TotalQuantity);
@@ -731,7 +785,38 @@ public class BatchService : IBatchService
         entity.TotalWeight = request.TotalWeight ?? (isNonWorkOrder ? default : entity.TotalWeight);
         entity.TotalItemCount = request.TotalItemCount ?? (isNonWorkOrder ? default : entity.TotalItemCount);
         entity.ItemDetails = isNonWorkOrder ? request.ItemDetails : (request.ItemDetails ?? entity.ItemDetails);
-        entity.TechnicalRequirements = request.TechnicalRequirements ?? (isNonWorkOrder ? "" : entity.TechnicalRequirements);
+        entity.TechnicalRequirements = request.TechnicalRequirements?.ToString() ?? (isNonWorkOrder ? "" : entity.TechnicalRequirements);
+
+        // ========== 合并投料来源全量替换 ==========
+        if (request.SourceItems != null)
+        {
+            var existingLinks = await _context.ProductionBatchInventories
+                .Where(pbi => pbi.ProductionBatchId == entity.Id)
+                .ToListAsync();
+            _context.ProductionBatchInventories.RemoveRange(existingLinks);
+
+            foreach (var src in request.SourceItems)
+            {
+                _context.ProductionBatchInventories.Add(new ProductionBatchInventory
+                {
+                    ProductionBatchId = entity.Id,
+                    InventoryBatchId = src.InventoryBatchId,
+                    OutboundRecordId = src.OutboundRecordId,
+                    InputQuantity = src.InputQuantity,
+                    InputWeight = src.InputWeight
+                });
+            }
+
+            // 重新汇总 InputQuantity/InputWeight
+            entity.InputQuantity = request.SourceItems.Sum(s => s.InputQuantity);
+            entity.InputWeight = request.SourceItems.Sum(s => s.InputWeight);
+        }
+
+        // ========== 制造状态与制造物品业务规则 ==========
+        if (entity.ManufacturingItem == MaterialType.OrderFinished.ToString() && entity.ManufacturingStatus != entity.DeliveryState)
+            throw new BusinessException("制造物品为「订单成品」时，制造状态必须等于交货状态");
+        if (entity.ManufacturingItem == MaterialType.SpecialDeliveryStatus.ToString() && entity.ManufacturingStatus == entity.DeliveryState)
+            throw new BusinessException("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
 
         await _context.SaveChangesAsync();
 
@@ -740,27 +825,7 @@ public class BatchService : IBatchService
         {
             if (_context.Database.IsRelational())
             {
-                await _context.MaterialReceiveChecks
-                    .Where(r => r.ProductionBatchId == id)
-                    .ExecuteUpdateAsync(s => s
-                        .SetProperty(r => r.WorkOrderNo, entity.WorkOrderNo)
-                        .SetProperty(r => r.SalesOrderNo, entity.SalesOrderNo)
-                        .SetProperty(r => r.ManufacturingItem, entity.ManufacturingItem)
-                        .SetProperty(r => r.PlantGrade, entity.PlantGrade)
-                        .SetProperty(r => r.Specification, entity.Specification)
-                        .SetProperty(r => r.ProductionType, entity.ProductionType)
-                        .SetProperty(r => r.LengthStatus, entity.LengthStatus)
-                        .SetProperty(r => r.Salesman, entity.Salesman)
-                        .SetProperty(r => r.DeliveryState, entity.DeliveryState));
-                await _context.FinalInspections
-                    .Where(f => f.ProductionBatchId == id)
-                    .ExecuteUpdateAsync(s => s
-                        .SetProperty(f => f.WorkOrderNo, entity.WorkOrderNo)
-                        .SetProperty(f => f.SalesOrderNo, entity.SalesOrderNo)
-                        .SetProperty(f => f.MaterialName, entity.MaterialName)
-                        .SetProperty(f => f.PlantGrade, entity.PlantGrade)
-                        .SetProperty(f => f.Specification, entity.Specification)
-                        .SetProperty(f => f.ProductionType, entity.ProductionType));
+                // Note: MaterialReceiveCheck/FinalInspection 冗余字段已删除，数据通过 ProductionBatch JOIN 获取
                 await _context.Ncrs
                     .Where(n => n.BatchNo == entity.BatchNo)
                     .ExecuteUpdateAsync(s => s
@@ -771,34 +836,7 @@ public class BatchService : IBatchService
             else
             {
                 // InMemory 回退：加载实体后逐条更新（InMemory Provider 不支持 ExecuteUpdateAsync）
-                var receiveChecks = await _context.MaterialReceiveChecks
-                    .Where(r => r.ProductionBatchId == id)
-                    .ToListAsync();
-                foreach (var r in receiveChecks)
-                {
-                    r.WorkOrderNo = entity.WorkOrderNo;
-                    r.SalesOrderNo = entity.SalesOrderNo;
-                    r.ManufacturingItem = entity.ManufacturingItem;
-                    r.PlantGrade = entity.PlantGrade;
-                    r.Specification = entity.Specification;
-                    r.ProductionType = entity.ProductionType;
-                    r.LengthStatus = entity.LengthStatus;
-                    r.Salesman = entity.Salesman;
-                    r.DeliveryState = entity.DeliveryState;
-                }
-
-                var inspections = await _context.FinalInspections
-                    .Where(f => f.ProductionBatchId == id)
-                    .ToListAsync();
-                foreach (var f in inspections)
-                {
-                    f.WorkOrderNo = entity.WorkOrderNo;
-                    f.SalesOrderNo = entity.SalesOrderNo;
-                    f.MaterialName = entity.MaterialName;
-                    f.PlantGrade = entity.PlantGrade;
-                    f.Specification = entity.Specification;
-                    f.ProductionType = entity.ProductionType;
-                }
+                // MaterialReceiveCheck/FinalInspection 冗余字段已删除，跳过
 
                 var ncrs = await _context.Ncrs
                     .Where(n => n.BatchNo == entity.BatchNo)
@@ -816,6 +854,9 @@ public class BatchService : IBatchService
 
         // 刷新批次跟踪字段（包括有效投料疑问等计算字段）
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.Id);
+
+        // 刷新质量过程跟踪（批次字段变更同步到物化读模型）
+        await TryRefreshQualityProcessTrackingAsync(entity.Id);
 
         // 记录 6 个监控字段的变更日志（仅记录实际变化的字段）
         var changes = new List<string>();
@@ -862,16 +903,31 @@ public class BatchService : IBatchService
             entity.IsForceCompleted = true;
 
         // 从强制完成恢复时清除标记
+        bool isForceCompleteRelease = false;
         if (oldStatus == BatchStatus.Completed && entity.IsForceCompleted && newStatus != BatchStatus.Completed)
+        {
             entity.IsForceCompleted = false;
+            isForceCompleteRelease = true;
+        }
+
+        // 从暂停恢复：后续由跟踪引擎重算状态
+        bool isResumeFromPause = oldStatus == BatchStatus.Suspended && newStatus != BatchStatus.Suspended;
 
         // 使用事务包裹状态变更和日志写入
         await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             await _context.SaveChangesAsync();
-            var logDetail = $"状态变更: {oldStatus} → {newStatus}";
-            await _operationLogService.AddLogAsync("Batch",id, "变更", logDetail);
+
+            if (isForceCompleteRelease)
+            {
+                await _operationLogService.AddLogAsync("Batch", id, "变更", "释放强制完成");
+            }
+            else
+            {
+                var logDetail = $"状态变更: {oldStatus} → {newStatus}";
+                await _operationLogService.AddLogAsync("Batch", id, "变更", logDetail);
+            }
 
             await transaction.CommitAsync();
         }
@@ -881,15 +937,31 @@ public class BatchService : IBatchService
             throw;
         }
 
-        _logger.LogInformation("更新批次状态 {BatchNo} → {Status}", entity.BatchNo, newStatus);
-
-        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        if (isForceCompleteRelease || isResumeFromPause)
+        {
+            // 取消手动操作后，由跟踪引擎根据实际记录重新计算状态和跟踪字段
+            try
+            {
+                await _productionRecordService.RefreshBatchTrackingFieldsAsync(id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "取消手动操作后跟踪字段重算失败（不影响主流程）: BatchId={BatchId}", id);
+            }
+            _logger.LogInformation("取消手动状态（强制完成/暂停）批次 {BatchNo}，跟踪字段已重算", entity.BatchNo);
+        }
+        else
+        {
+            _logger.LogInformation("更新批次状态 {BatchNo} → {Status}", entity.BatchNo, newStatus);
+            await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        }
     }
 
     public async Task DeleteAsync(int id)
     {
         var entity = await _context.ProductionBatches
             .Include(b => b.ProcessGroups)
+            .Include(b => b.ProductionBatchInventories)
             .FirstOrDefaultAsync(b => b.Id == id);
 
         if (entity == null)
@@ -898,6 +970,12 @@ public class BatchService : IBatchService
         // 仅允许删除"未产"状态的批次
         if (entity.Status != BatchStatus.None)
             throw new BusinessException($"仅允许删除「未产」状态的批次，当前状态为 {entity.Status}");
+
+        // 清理合并投料来源（FK 为 NoAction，需手动删除）
+        if (entity.ProductionBatchInventories.Count != 0)
+        {
+            _context.ProductionBatchInventories.RemoveRange(entity.ProductionBatchInventories);
+        }
 
         // 收集所有工序组 ID，用于清理引用 ProcessGroup 的记录
         var processGroupIds = entity.ProcessGroups.Select(g => g.Id).ToList();
@@ -931,8 +1009,7 @@ public class BatchService : IBatchService
         // 先记录删除日志
         await _operationLogService.AddLogAsync("Batch", id, "删除", $"批次号={entity.BatchNo}, 工单号={entity.WorkOrderNo}");
 
-        // 删除批次（ProcessGroup 通过 Cascade 自动删除，
-        // 其他直接引用 ProductionBatch 的表也通过 Cascade 自动删除）
+        // 删除批次（ProcessGroup 通过 Cascade 自动删除）
         _context.ProductionBatches.Remove(entity);
         await _context.SaveChangesAsync();
 
@@ -945,6 +1022,7 @@ public class BatchService : IBatchService
     {
         var entity = await _context.ProductionBatches
             .Include(b => b.ProcessGroups)
+            .Include(b => b.ProductionBatchInventories)
             .FirstOrDefaultAsync(b => b.Id == id);
 
         if (entity == null)
@@ -961,7 +1039,7 @@ public class BatchService : IBatchService
         // ========== 统一必填（两路径共用） ==========
 
         // 生产类型 / 制造物品
-        if (string.IsNullOrWhiteSpace(request.ProductionType))
+        if (request.ProductionType == null)
             throw new BusinessException("生产类型不能为空");
         if (request.ManufacturingItem == null)
             throw new BusinessException("制造物品不能为空");
@@ -969,9 +1047,10 @@ public class BatchService : IBatchService
         // 工单规格必填（取请求值，未传则用实体现有值）
         var effectivePlantGrade = request.PlantGrade ?? entity.PlantGrade;
         var effectiveSpec = request.Specification ?? entity.Specification;
-        var effectiveDelivery = request.DeliveryState ?? entity.DeliveryState;
-        var effectiveMaterialName = request.MaterialName ?? entity.MaterialName;
-        var effectiveLengthStatus = request.LengthStatus ?? entity.LengthStatus;
+        var effectiveDelivery = request.DeliveryState?.ToString() ?? entity.DeliveryState;
+        var effectiveManufacturingStatus = request.ManufacturingStatus?.ToString() ?? entity.ManufacturingStatus;
+        var effectiveMaterialName = request.MaterialName?.ToString() ?? entity.MaterialName;
+        var effectiveLengthStatus = request.LengthStatus?.ToString() ?? entity.LengthStatus;
         var effectiveTotalWeight = request.TotalWeight ?? entity.TotalWeight;
         var effectiveProductionRatio = request.ProductionRatio ?? entity.ProductionRatio;
         var effectiveTotalQuantity = request.TotalQuantity ?? entity.TotalQuantity;
@@ -990,14 +1069,16 @@ public class BatchService : IBatchService
             throw new BusinessException("物料名称不能为空");
         if (string.IsNullOrWhiteSpace(effectiveLengthStatus))
             throw new BusinessException("长度状态不能为空");
-        if (effectiveTotalWeight <= 0)
-            throw new BusinessException("总重量必须大于0");
-        // 制成倍数必须大于0
-        if (effectiveProductionRatio <= 0)
-            throw new BusinessException("制成倍数必须大于0");
-        // 定尺时总支数必须大于0
-        if (effectiveLengthStatus == LengthStatus.Fixed.ToString() && effectiveTotalQuantity <= 0)
-            throw new BusinessException("总支数（定尺时必须大于0）");
+        // 非工单不校验总重量/总支数
+        var skipWeightQuantityCheck = request.WorkOrderNo == NotWorkOrder || entity.WorkOrderNo == NotWorkOrder;
+        if (!skipWeightQuantityCheck)
+        {
+            if (effectiveTotalWeight <= 0)
+                throw new BusinessException("总重量必须大于0");
+            // 定尺时总支数必须大于0
+            if (effectiveLengthStatus == LengthStatus.Fixed.ToString() && effectiveTotalQuantity <= 0)
+                throw new BusinessException("总支数（定尺时必须大于0）");
+        }
         if (string.IsNullOrWhiteSpace(effectiveSourceGrade))
             throw new BusinessException("仓库工厂牌号不能为空");
         if (string.IsNullOrWhiteSpace(effectiveSourceSpec))
@@ -1011,9 +1092,9 @@ public class BatchService : IBatchService
         var effectiveWorkOrderNo = request.WorkOrderNo ?? entity.WorkOrderNo;
         if (effectiveWorkOrderNo != NotWorkOrder)
         {
-            var effectiveSettlementMethod = request.SettlementMethod ?? entity.SettlementMethod;
+            var effectiveSettlementMethod = request.SettlementMethod?.ToString() ?? entity.SettlementMethod;
             var effectiveStandardCode = request.StandardCode ?? entity.StandardCode;
-            var effectiveTechnicalRequirements = request.TechnicalRequirements ?? entity.TechnicalRequirements;
+            var effectiveTechnicalRequirements = request.TechnicalRequirements?.ToString() ?? entity.TechnicalRequirements;
 
             if (string.IsNullOrWhiteSpace(effectiveSettlementMethod))
                 throw new BusinessException("结算方式不能为空");
@@ -1022,6 +1103,13 @@ public class BatchService : IBatchService
             if (string.IsNullOrWhiteSpace(effectiveTechnicalRequirements))
                 throw new BusinessException("技术要求不能为空");
         }
+
+        // ========== 制造状态与制造物品业务规则 ==========
+        var effectiveItemStr = request.ManufacturingItem?.ToString() ?? entity.ManufacturingItem;
+        if (effectiveItemStr == MaterialType.OrderFinished.ToString() && effectiveManufacturingStatus != effectiveDelivery)
+            throw new BusinessException("制造物品为「订单成品」时，制造状态必须等于交货状态");
+        if (effectiveItemStr == MaterialType.SpecialDeliveryStatus.ToString() && effectiveManufacturingStatus == effectiveDelivery)
+            throw new BusinessException("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
 
         // 工单号验证：非空；NotWorkOrder跳过；其他值必须在工单表中存在
         if (request.WorkOrderNo != null)
@@ -1049,7 +1137,7 @@ public class BatchService : IBatchService
         entity.TagNo = request.TagNo ?? entity.TagNo;
         entity.QualityRemark = request.QualityRemark ?? entity.QualityRemark;
         entity.SolutionParams = request.SolutionParams ?? entity.SolutionParams;
-        entity.ProductionType = request.ProductionType;
+        entity.ProductionType = request.ProductionType?.ToString() ?? entity.ProductionType;
         entity.InboundSource = request.InboundSource?.ToString() ?? entity.InboundSource;
         entity.InboundDate = request.InboundDate ?? entity.InboundDate;
         entity.Remark = request.Remark ?? entity.Remark;
@@ -1082,17 +1170,18 @@ public class BatchService : IBatchService
         entity.EndCustomer = isNonWorkOrder ? request.EndCustomer : (request.EndCustomer ?? entity.EndCustomer);
         entity.DeliveryDate = request.DeliveryDate ?? (isNonWorkOrder ? default : entity.DeliveryDate);
         entity.DelayPenalty = request.DelayPenalty ?? (isNonWorkOrder ? default : entity.DelayPenalty);
-        entity.MaterialName = request.MaterialName ?? (isNonWorkOrder ? "" : entity.MaterialName);
-        entity.SettlementMethod = request.SettlementMethod ?? (isNonWorkOrder ? "" : entity.SettlementMethod);
+        entity.MaterialName = request.MaterialName?.ToString() ?? (isNonWorkOrder ? "" : entity.MaterialName);
+        entity.SettlementMethod = request.SettlementMethod?.ToString() ?? (isNonWorkOrder ? "" : entity.SettlementMethod);
         entity.StandardCode = request.StandardCode ?? (isNonWorkOrder ? "" : entity.StandardCode);
-        entity.DeliveryState = request.DeliveryState ?? (isNonWorkOrder ? "" : entity.DeliveryState);
+        entity.DeliveryState = request.DeliveryState?.ToString() ?? (isNonWorkOrder ? "" : entity.DeliveryState);
+        entity.ManufacturingStatus = request.ManufacturingStatus?.ToString() ?? (isNonWorkOrder ? "" : entity.ManufacturingStatus);
         entity.PlantGrade = request.PlantGrade ?? (isNonWorkOrder ? "" : entity.PlantGrade);
         entity.Specification = request.Specification ?? (isNonWorkOrder ? "" : entity.Specification);
         entity.OuterDiameterNegative = request.OuterDiameterNegative ?? (isNonWorkOrder ? default : entity.OuterDiameterNegative);
         entity.OuterDiameterPositive = request.OuterDiameterPositive ?? (isNonWorkOrder ? default : entity.OuterDiameterPositive);
         entity.WallThicknessNegative = request.WallThicknessNegative ?? (isNonWorkOrder ? default : entity.WallThicknessNegative);
         entity.WallThicknessPositive = request.WallThicknessPositive ?? (isNonWorkOrder ? default : entity.WallThicknessPositive);
-        entity.LengthStatus = request.LengthStatus ?? (isNonWorkOrder ? "" : entity.LengthStatus);
+        entity.LengthStatus = request.LengthStatus?.ToString() ?? (isNonWorkOrder ? "" : entity.LengthStatus);
         entity.MinLength = isNonWorkOrder ? request.MinLength : (request.MinLength ?? entity.MinLength);
         entity.MaxLength = isNonWorkOrder ? request.MaxLength : (request.MaxLength ?? entity.MaxLength);
         entity.TotalQuantity = request.TotalQuantity ?? (isNonWorkOrder ? default : entity.TotalQuantity);
@@ -1100,18 +1189,43 @@ public class BatchService : IBatchService
         entity.TotalWeight = request.TotalWeight ?? (isNonWorkOrder ? default : entity.TotalWeight);
         entity.TotalItemCount = request.TotalItemCount ?? (isNonWorkOrder ? default : entity.TotalItemCount);
         entity.ItemDetails = isNonWorkOrder ? request.ItemDetails : (request.ItemDetails ?? entity.ItemDetails);
-        entity.TechnicalRequirements = request.TechnicalRequirements ?? (isNonWorkOrder ? "" : entity.TechnicalRequirements);
+        entity.TechnicalRequirements = request.TechnicalRequirements?.ToString() ?? (isNonWorkOrder ? "" : entity.TechnicalRequirements);
+
+        // ========== 合并投料来源全量替换 ==========
+        if (request.SourceItems != null)
+        {
+            var existingLinks = await _context.ProductionBatchInventories
+                .Where(pbi => pbi.ProductionBatchId == entity.Id)
+                .ToListAsync();
+            _context.ProductionBatchInventories.RemoveRange(existingLinks);
+
+            foreach (var src in request.SourceItems)
+            {
+                _context.ProductionBatchInventories.Add(new ProductionBatchInventory
+                {
+                    ProductionBatchId = entity.Id,
+                    InventoryBatchId = src.InventoryBatchId,
+                    OutboundRecordId = src.OutboundRecordId,
+                    InputQuantity = src.InputQuantity,
+                    InputWeight = src.InputWeight
+                });
+            }
+
+            entity.InputQuantity = request.SourceItems.Sum(s => s.InputQuantity);
+            entity.InputWeight = request.SourceItems.Sum(s => s.InputWeight);
+        }
 
         // ===== 2. 更新状态（如有） =====
-        if (!string.IsNullOrEmpty(request.Status) && request.Status != entity.Status.ToString())
+        if (request.Status != null)
         {
-            if (!Enum.TryParse<BatchStatus>(request.Status, out var newStatus))
-                throw new BusinessException($"无效的批次状态: {request.Status}");
+            var newStatus = request.Status.Value;
+            if (newStatus != entity.Status)
+            {
+                entity.Status = newStatus;
 
-            entity.Status = newStatus;
-
-            if (newStatus == BatchStatus.Completed)
-                entity.IsForceCompleted = true;
+                if (newStatus == BatchStatus.Completed)
+                    entity.IsForceCompleted = true;
+            }
         }
 
         // ===== 3. 全量替换工序组 =====
@@ -1247,27 +1361,7 @@ public class BatchService : IBatchService
         {
             if (_context.Database.IsRelational())
             {
-                await _context.MaterialReceiveChecks
-                    .Where(r => r.ProductionBatchId == id)
-                    .ExecuteUpdateAsync(s => s
-                        .SetProperty(r => r.WorkOrderNo, entity.WorkOrderNo)
-                        .SetProperty(r => r.SalesOrderNo, entity.SalesOrderNo)
-                        .SetProperty(r => r.ManufacturingItem, entity.ManufacturingItem)
-                        .SetProperty(r => r.PlantGrade, entity.PlantGrade)
-                        .SetProperty(r => r.Specification, entity.Specification)
-                        .SetProperty(r => r.ProductionType, entity.ProductionType)
-                        .SetProperty(r => r.LengthStatus, entity.LengthStatus)
-                        .SetProperty(r => r.Salesman, entity.Salesman)
-                        .SetProperty(r => r.DeliveryState, entity.DeliveryState));
-                await _context.FinalInspections
-                    .Where(f => f.ProductionBatchId == id)
-                    .ExecuteUpdateAsync(s => s
-                        .SetProperty(f => f.WorkOrderNo, entity.WorkOrderNo)
-                        .SetProperty(f => f.SalesOrderNo, entity.SalesOrderNo)
-                        .SetProperty(f => f.MaterialName, entity.MaterialName)
-                        .SetProperty(f => f.PlantGrade, entity.PlantGrade)
-                        .SetProperty(f => f.Specification, entity.Specification)
-                        .SetProperty(f => f.ProductionType, entity.ProductionType));
+                // Note: MaterialReceiveCheck/FinalInspection 冗余字段已删除，数据通过 ProductionBatch JOIN 获取
                 await _context.Ncrs
                     .Where(n => n.BatchNo == entity.BatchNo)
                     .ExecuteUpdateAsync(s => s
@@ -1278,34 +1372,7 @@ public class BatchService : IBatchService
             else
             {
                 // InMemory 回退：加载实体后逐条更新（InMemory Provider 不支持 ExecuteUpdateAsync）
-                var receiveChecks = await _context.MaterialReceiveChecks
-                    .Where(r => r.ProductionBatchId == id)
-                    .ToListAsync();
-                foreach (var r in receiveChecks)
-                {
-                    r.WorkOrderNo = entity.WorkOrderNo;
-                    r.SalesOrderNo = entity.SalesOrderNo;
-                    r.ManufacturingItem = entity.ManufacturingItem;
-                    r.PlantGrade = entity.PlantGrade;
-                    r.Specification = entity.Specification;
-                    r.ProductionType = entity.ProductionType;
-                    r.LengthStatus = entity.LengthStatus;
-                    r.Salesman = entity.Salesman;
-                    r.DeliveryState = entity.DeliveryState;
-                }
-
-                var inspections = await _context.FinalInspections
-                    .Where(f => f.ProductionBatchId == id)
-                    .ToListAsync();
-                foreach (var f in inspections)
-                {
-                    f.WorkOrderNo = entity.WorkOrderNo;
-                    f.SalesOrderNo = entity.SalesOrderNo;
-                    f.MaterialName = entity.MaterialName;
-                    f.PlantGrade = entity.PlantGrade;
-                    f.Specification = entity.Specification;
-                    f.ProductionType = entity.ProductionType;
-                }
+                // MaterialReceiveCheck/FinalInspection 冗余字段已删除，跳过
 
                 var ncrs = await _context.Ncrs
                     .Where(n => n.BatchNo == entity.BatchNo)
@@ -1342,6 +1409,9 @@ public class BatchService : IBatchService
         await _materialPlanService.RecalculateStandardCycleForBatchAsync(entity.BatchNo);
 
         await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+
+        // 刷新质量过程跟踪（批次字段变更同步到物化读模型）
+        await TryRefreshQualityProcessTrackingAsync(id);
 
         return new SaveBatchResponse
         {
@@ -1449,9 +1519,18 @@ public class BatchService : IBatchService
 
     public async Task<List<AvailableBatchDto>> GetAvailableBatchesAsync()
     {
-        var usedBatchNos = await _context.ProductionBatches
-            .Where(b => b.SourceBatchNo != null)
-            .Select(b => b.SourceBatchNo)
+        // 按 OutboundRecordId 粒度排除（新数据，有 OutboundRecordId 的记录）
+        var linkedOutboundRecordIds = await _context.ProductionBatchInventories
+            .Where(pbi => pbi.OutboundRecordId != null)
+            .Select(pbi => pbi.OutboundRecordId!.Value)
+            .Distinct()
+            .ToListAsync();
+
+        // 按 InventoryBatchId 粒度排除（旧数据，OutboundRecordId 为 null）
+        var linkedInventoryBatchIds = await _context.ProductionBatchInventories
+            .Where(pbi => pbi.OutboundRecordId == null)
+            .Select(pbi => pbi.InventoryBatchId)
+            .Distinct()
             .ToListAsync();
 
         var available = await _context.OutboundRecords
@@ -1460,7 +1539,8 @@ public class BatchService : IBatchService
                 o => o.InventoryBatchId,
                 ib => ib.Id,
                 (o, ib) => new { o, ib })
-            .Where(x => !usedBatchNos.Contains(x.ib.BatchNo))
+            .Where(x => !linkedOutboundRecordIds.Contains(x.o.Id)
+                     && !linkedInventoryBatchIds.Contains(x.ib.Id))
             .Join(_context.Warehouses,
                 x => x.ib.WarehouseId,
                 w => w.Id,
@@ -1468,6 +1548,8 @@ public class BatchService : IBatchService
             .OrderBy(x => x.ib.BatchNo)
             .Select(x => new AvailableBatchDto
             {
+                Id = x.ib.Id,
+                OutboundRecordId = x.o.Id,
                 BatchNo = x.ib.BatchNo,
                 WarehouseId = x.ib.WarehouseId,
                 WarehouseName = x.w.Name,
@@ -1478,6 +1560,8 @@ public class BatchService : IBatchService
                 HeatNo = x.ib.HeatNo,
                 OutboundQuantity = x.o.OutboundQuantity,
                 OutboundWeight = x.o.OutboundWeight,
+                OutboundDate = x.o.OutboundDate,
+                OutboundRemark = x.o.Remark,
                 WorkOrderNo = x.ib.WorkOrderNo,
                 PlantGrade = x.ib.PlantGrade,
                 Specification = x.ib.Specification,
@@ -1802,6 +1886,7 @@ public class BatchService : IBatchService
             "SettlementMethod" => TryGetEnumDisplay<SettlementMethod>(b.SettlementMethod),
             "StandardCode" => b.StandardCode,
             "DeliveryState" => TryGetEnumDisplay<DeliveryState>(b.DeliveryState),
+            "ManufacturingStatus" => TryGetEnumDisplay<DeliveryState>(b.ManufacturingStatus),
             "PlantGrade" => b.PlantGrade,
             "Specification" => b.Specification,
             "LengthStatus" => TryGetEnumDisplay<Core.Enums.LengthStatus>(b.LengthStatus),
@@ -1957,7 +2042,7 @@ public class BatchService : IBatchService
     private static int CalculateProductionRatio(CreateProductionBatchRequest request, WoEntity? workOrder)
     {
         // 仅在定尺(Fixed)状态下计算
-        var lengthStatus = request.LengthStatus ?? workOrder?.LengthStatus.ToString() ?? "";
+        var lengthStatus = request.LengthStatus?.ToString() ?? workOrder?.LengthStatus.ToString() ?? "";
         if (lengthStatus != LengthStatus.Fixed.ToString())
             return request.ProductionRatio;
 
@@ -2088,6 +2173,7 @@ public class BatchService : IBatchService
             SettlementMethod = !string.IsNullOrEmpty(entity.SettlementMethod) ? EnumHelper.TryParse<SettlementMethod>(entity.SettlementMethod) ?? default : default,
             StandardCode = entity.StandardCode,
             DeliveryState = !string.IsNullOrEmpty(entity.DeliveryState) ? EnumHelper.TryParse<DeliveryState>(entity.DeliveryState) ?? default : default,
+            ManufacturingStatus = !string.IsNullOrEmpty(entity.ManufacturingStatus) && EnumHelper.TryParse<DeliveryState>(entity.ManufacturingStatus) is { } ms ? ms : null,
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
             OuterDiameterNegative = entity.OuterDiameterNegative,
@@ -2129,7 +2215,22 @@ public class BatchService : IBatchService
 
             RowVersion = entity.RowVersion,
 
-            ProcessGroups = entity.ProcessGroups?.Select(ToGroupDto).ToList() ?? new()
+            ProcessGroups = entity.ProcessGroups?.Select(ToGroupDto).ToList() ?? new(),
+
+            SourceItems = entity.ProductionBatchInventories?.Select(pbi => new SourceBatchItemDto
+            {
+                InventoryBatchId = pbi.InventoryBatchId,
+                OutboundRecordId = pbi.OutboundRecordId,
+                BatchNo = pbi.InventoryBatch?.BatchNo ?? "",
+                HeatNo = pbi.InventoryBatch?.HeatNo,
+                PlantGrade = pbi.InventoryBatch?.PlantGrade,
+                Specification = pbi.InventoryBatch?.Specification,
+                MaterialType = pbi.InventoryBatch?.MaterialType,
+                SourceName = pbi.InventoryBatch?.SourceName,
+                WarehouseName = pbi.InventoryBatch?.Warehouse?.Name ?? "",
+                InputQuantity = pbi.InputQuantity,
+                InputWeight = pbi.InputWeight
+            }).ToList() ?? new()
         };
     }
 
@@ -2236,10 +2337,12 @@ public class BatchService : IBatchService
         if (current == target) return true;
         return current switch
         {
-            BatchStatus.None => target is BatchStatus.InProgress or BatchStatus.Cancelled,
-            BatchStatus.InProgress => target is BatchStatus.Completed or BatchStatus.Suspended or BatchStatus.Cancelled,
-            BatchStatus.Suspended => target is BatchStatus.InProgress or BatchStatus.Completed or BatchStatus.Cancelled,
-            _ => false // Completed 或 Cancelled 不可再流转
+            BatchStatus.None => target is BatchStatus.InProgress,
+            BatchStatus.InProgress => target is BatchStatus.InFinalInspection or BatchStatus.Suspended or BatchStatus.Completed,
+            BatchStatus.InFinalInspection => target is BatchStatus.Completed or BatchStatus.Suspended,
+            BatchStatus.Suspended => target is BatchStatus.InProgress or BatchStatus.InFinalInspection or BatchStatus.Completed,
+            BatchStatus.Completed => target is BatchStatus.InProgress,
+            _ => false
         };
     }
 

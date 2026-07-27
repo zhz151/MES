@@ -17,6 +17,7 @@
 @inject PageStateService PageState
 @inject MaterialPlanService MaterialPlanService
 @inject HttpClient Http
+@inject NotificationService NotificationService
 @attribute [Authorize(Roles = Roles.Policies.BatchRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -30,6 +31,22 @@
                     <div>批次 "@mismatch.BatchNo" 的工单号 "@mismatch.WorkOrderNo" 已不存在，需修改！</div>
                 }
             </div>
+        </MudAlert>
+    }
+
+    <!-- 工单内容变更通知 -->
+    @if (_workOrderChangedNotices is { Count: > 0 })
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mb-4">
+            <div>
+                @foreach (var notice in _workOrderChangedNotices)
+                {
+                    <div>@notice.Title — @notice.Content</div>
+                }
+            </div>
+            <MudButton Variant="Variant.Text" Color="Color.Inherit" Class="mt-2" OnClick="DismissWorkOrderChangedNotices">
+                已知晓，不再提醒
+            </MudButton>
         </MudAlert>
     }
 

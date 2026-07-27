@@ -619,7 +619,7 @@
                 Quantity = r.Quantity,
                 Weight = r.Weight,
                 TagNo = r.TagNo?.Trim(),
-                PlantGrade = r.PlantGrade?.Trim(),
+                PlantGrade = r.PlantGrade?.Trim() ?? string.Empty,
                 Remark = r.Remark?.Trim(),
                 DataSource = "MANUAL"
             }).ToList();

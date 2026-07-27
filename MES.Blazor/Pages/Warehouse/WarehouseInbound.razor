@@ -65,22 +65,6 @@
         </MudCardHeader>
 
         <MudCardContent>
-            @if (string.IsNullOrEmpty(Code))
-            {
-                <MudGrid Class="mb-4">
-                    <MudItem xs="12" md="4">
-                        <MudSelect T="int" Label="仓库 *"
-                                   @bind-Value="_warehouseId"
-                                   OnValueChanged="OnWarehouseChanged">
-                            @foreach (var wh in _warehouses)
-                            {
-                                <MudSelectItem Value="(int?)wh.Id">@wh.Name</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
-                </MudGrid>
-            }
-
             <!-- ============ 入库明细表 ============ -->
             @if (_rows.Any())
             {
@@ -293,7 +277,7 @@
             new() { Key = "SourceOrderSequence", Label = "委外序号",       IsCommon = true, Visible = false },
 
             // ========== 第二组：自动可填充（来源单号查询后回填，可修改） ==========
-            new() { Key = "MaterialType",        Label = "物料",           IsCommon = true, Visible = true,  IsRequired = true },
+            new() { Key = "MaterialType",        Label = "物料类型",       IsCommon = true, Visible = true,  IsRequired = true },
             new() { Key = "PlantGrade",          Label = "工厂牌号",       IsCommon = true, Visible = false, IsRequired = true },
             new() { Key = "Specification",       Label = "名义规格",       IsCommon = true, Visible = true,  IsRequired = true },
             new() { Key = "SourceName",          Label = "来料单位",       IsCommon = true, Visible = false },
@@ -347,6 +331,11 @@
     private readonly List<(string Value, string Text)> _lengthStatusOptions =
         Enum.GetValues<LengthStatus>()
             .Select(v => (v.ToString(), DisplayHelper.GetLengthStatusText(v)))
+            .ToList();
+
+    private readonly List<(string Value, string Text)> _surfaceConditionOptions =
+        Enum.GetValues<DeliveryState>()
+            .Select(v => (v.ToString(), DisplayHelper.GetDeliveryStateText(v)))
             .ToList();
 
     private List<(string Value, string Text)> _materialTypeOptions
@@ -715,30 +704,34 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // 无仓库代码时重定向到仓库首页
+        if (string.IsNullOrEmpty(Code))
+        {
+            Navigation.NavigateTo("/warehouse", replace: true);
+            return;
+        }
+
         _allColumns = GetAllColumnDefs();
 
         var result = await WarehouseService.GetAllAsync(true);
         if (result.Success && result.Data != null)
         {
             _warehouses = result.Data;
+        }
 
-            if (!string.IsNullOrEmpty(Code))
-            {
-                var wh = _warehouses.FirstOrDefault(w => w.Code.Equals(Code, StringComparison.OrdinalIgnoreCase));
-                if (wh != null)
-                {
-                    _warehouseId = wh.Id;
-                    _warehouseName = wh.Name;
-                    _warehouseCode = wh.Code.ToUpperInvariant();
-                }
-            }
+        var wh = _warehouses.FirstOrDefault(w => w.Code.Equals(Code, StringComparison.OrdinalIgnoreCase));
+        if (wh != null)
+        {
+            _warehouseId = wh.Id;
+            _warehouseName = wh.Name;
+            _warehouseCode = wh.Code.ToUpperInvariant();
+        }
 
-            if (_warehouseId <= 0 && _warehouses.Any())
-            {
-                _warehouseId = _warehouses[0].Id;
-                _warehouseName = _warehouses[0].Name;
-                _warehouseCode = _warehouses[0].Code.ToUpperInvariant();
-            }
+        if (_warehouseId <= 0 && _warehouses.Any())
+        {
+            _warehouseId = _warehouses[0].Id;
+            _warehouseName = _warehouses[0].Name;
+            _warehouseCode = _warehouses[0].Code.ToUpperInvariant();
         }
 
         // 按仓库模板设置适用列
@@ -770,27 +763,6 @@
             _isArrowNavSetup = true;
             if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#inbound-table-wrapper"))
                 _isArrowNavSetup = false;
-        }
-    }
-
-    private async Task OnWarehouseChanged(int whId)
-    {
-        var wh = _warehouses.FirstOrDefault(w => w.Id == whId);
-        if (wh != null)
-        {
-            _warehouseName = wh.Name;
-            _warehouseCode = wh.Code.ToUpperInvariant();
-            _autoFillEnabled = true;
-            _allColumns = GetAllColumnDefs();
-            ApplyWarehouseDefaults(_allColumns, _warehouseCode);
-            await LoadColumnPrefs();
-            _rows.Clear();
-            _rows.Add(new InboundRowModel());
-            if (_warehouseCode == "WIP")
-                _rows[0].InboundSource = InboundSource.ProductionInbound.ToString();
-            if (_warehouseCode == "DEFECT")
-                _rows[0].InboundSource = InboundSource.InspectionInbound.ToString();
-            _errorMessage = string.Empty;
         }
     }
 
@@ -1036,7 +1008,7 @@
 
     private static string GetColumnType(string key) => key switch
     {
-        "InboundSource" or "LengthStatus" or "MaterialType" => "select",
+        "InboundSource" or "LengthStatus" or "MaterialType" or "SurfaceCondition" => "select",
         "IsLinkedToWorkOrder" => "bool",
         "InitialQuantity" => "int",
         "SourceOrderSequence" => "nullable-int",
@@ -1059,6 +1031,7 @@
             case "select":
                 var options = col.Key == "LengthStatus" ? _lengthStatusOptions
                     : col.Key == "MaterialType" ? _materialTypeOptions
+                    : col.Key == "SurfaceCondition" ? _surfaceConditionOptions
                     : _inboundSourceOptions;
                 var selVal = GetRowStringValue(row, col.Key);
                 builder.OpenComponent<MudSelect<string>>(0);
@@ -1431,7 +1404,7 @@
                 MaxLength = first.MaxLength,
                 UnitWeight = first.UnitWeight,
                 Meters = first.Meters,
-                SurfaceCondition = first.SurfaceCondition,
+                SurfaceCondition = !string.IsNullOrEmpty(first.SurfaceCondition) ? EnumHelper.Parse<DeliveryState>(first.SurfaceCondition) : null,
                 LocationArea = first.LocationArea,
                 LocationRack = first.LocationRack,
                 ProductionBatchNo = first.ProductionBatchNo,
@@ -1456,7 +1429,7 @@
                     MaxLength = r.MaxLength,
                     UnitWeight = r.UnitWeight,
                     Meters = r.Meters,
-                    SurfaceCondition = r.SurfaceCondition,
+                    SurfaceCondition = !string.IsNullOrEmpty(r.SurfaceCondition) ? EnumHelper.Parse<DeliveryState>(r.SurfaceCondition) : null,
                     LocationArea = r.LocationArea,
                     LocationRack = r.LocationRack,
                     Remark = r.Remark,
@@ -1729,7 +1702,7 @@
             if (!string.IsNullOrEmpty(data.SalesOrderNo)) { row.SalesOrderNo = data.SalesOrderNo; filled.Add("订单号"); }
             if (!string.IsNullOrEmpty(data.OrderItemIds)) { row.OrderItemIds = data.OrderItemIds; filled.Add("项次"); }
             if (!string.IsNullOrEmpty(data.HeatNo)) { row.HeatNo = data.HeatNo; filled.Add("炉号"); }
-            if (!string.IsNullOrEmpty(data.SurfaceCondition)) { row.SurfaceCondition = DisplayHelper.GetDeliveryStateText(data.SurfaceCondition); filled.Add("物料状态"); }
+            if (!string.IsNullOrEmpty(data.SurfaceCondition)) { row.SurfaceCondition = data.SurfaceCondition; filled.Add("物料状态"); }
             if (!string.IsNullOrEmpty(data.SupplierName)) { row.SourceName = data.SupplierName; filled.Add("来料单位"); }
             if (!string.IsNullOrEmpty(data.ExpectedWorkOrderNo))
             {

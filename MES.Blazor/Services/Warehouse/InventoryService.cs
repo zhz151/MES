@@ -296,6 +296,19 @@ public class InventoryService
         catch (Exception ex) { return ApiResponse<List<BatchWorkOrderMismatchDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    /// <summary>
+    /// 获取仓库入库批次中引用的所有工单号（用于过滤工单变更通知）
+    /// </summary>
+    public async Task<ApiResponse<List<string>>> GetWorkOrderNosByWarehouseAsync(int warehouseId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<string>>>($"{BaseUrl}/workorder-nos/{warehouseId}");
+            return response ?? ApiResponse<List<string>>.Fail("查询失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<string>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
 // ========== 筛选上下文 ==========
 
     /// <summary>

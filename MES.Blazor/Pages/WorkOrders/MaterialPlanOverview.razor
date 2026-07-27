@@ -107,6 +107,8 @@
                     <MudText Typo="Typo.body2" Class="mr-3">库料改制</MudText>
                     <MudCheckBox T="bool" Value="@includeInProcessRework" ValueChanged="@((bool v) => OnPlanTypeFilterChangedAsync(v, 6))" Dense="true" />
                     <MudText Typo="Typo.body2" Class="mr-3">在产改制</MudText>
+                    <MudCheckBox T="bool" Value="@includeInMainWorkOrder" ValueChanged="@((bool v) => OnPlanTypeFilterChangedAsync(v, 7))" Dense="true" />
+                    <MudText Typo="Typo.body2" Class="mr-3">在产主工单</MudText>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>

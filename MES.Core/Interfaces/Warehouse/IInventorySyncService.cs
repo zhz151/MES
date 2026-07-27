@@ -29,6 +29,11 @@ public interface IInventorySyncService
     Task<List<BatchWorkOrderMismatchDto>> GetMismatchedWorkOrderBatchesAsync(int? warehouseId = null);
 
     /// <summary>
+    /// 获取仓库入库批次中引用的所有工单号（用于过滤工单变更通知）
+    /// </summary>
+    Task<List<string>> GetDistinctWorkOrderNosByWarehouseAsync(int warehouseId);
+
+    /// <summary>
     /// 入库批次变更后自动同步采购单/委外单的收货数量及状态
     /// </summary>
     Task SyncSourceOrdersAsync(List<string> sourceOrderNos);

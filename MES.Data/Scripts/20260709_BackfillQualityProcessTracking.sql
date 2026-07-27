@@ -30,7 +30,6 @@ INSERT INTO [dbo].[QualityProcessTracking] (
     [Salesman],
     [DeliveryState],
     [IsForceCompleted],
-    [PbBatchNo],
     [PmiDate],
     [VisualDate],
     [DimensionDate],
@@ -75,14 +74,13 @@ SELECT
     rc.[Specification],
     pb.[ProductionType],
     rc.[LengthStatus],
-    rc.[ProductionWeight],
+    pb.[CurrentValidWeight],
     rc.[ReceiveDate],
     rc.[Shift],
     rc.[Checker],
     COALESCE(rc.[Salesman], pb.[Salesman]),
     COALESCE(rc.[DeliveryState], pb.[DeliveryState]),
     rc.[IsForceCompleted],
-    pb.[BatchNo],
 
     -- G2: 各检验项日期（取最大值）
     (SELECT MAX(fi.[InspectionDate]) FROM [dbo].[FinalInspection] fi
@@ -160,7 +158,12 @@ SELECT
                 THEN N'完成检验'
                 ELSE N'检验中'
             END
-        ELSE N'待检验'
+        ELSE
+            CASE
+                WHEN EXISTS (SELECT 1 FROM [dbo].[InventoryBatch] ib WHERE ib.[ProductionBatchNo] = pb.[BatchNo])
+                THEN N'入库存疑'
+                ELSE N'待检验'
+            END
     END,
 
     -- 刷新追踪

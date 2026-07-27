@@ -26,8 +26,9 @@ public class FinalInspectionDto
     /// <summary>关联生产批次ID</summary>
     public int ProductionBatchId { get; set; }
 
-    /// <summary>物料名称</summary>
-    public string? MaterialName { get; set; }
+    /// <summary>制造物品</summary>
+    public MaterialType? ManufacturingItem { get; set; }
+    public string? ManufacturingItemDisplay => ManufacturingItem.HasValue ? EnumHelper.GetDisplayName(ManufacturingItem.Value) : null;
 
     /// <summary>挂牌号</summary>
     public string? TagNo { get; set; }
@@ -55,6 +56,15 @@ public class FinalInspectionDto
 
     /// <summary>生产类型</summary>
     public string? ProductionType { get; set; }
+
+    /// <summary>业务员</summary>
+    public string? Salesman { get; set; }
+
+    /// <summary>长度状态</summary>
+    public string? LengthStatus { get; set; }
+
+    /// <summary>交货状态</summary>
+    public string? DeliveryState { get; set; }
 
     /// <summary>设备名称</summary>
     public string? EquipmentName { get; set; }
@@ -111,6 +121,37 @@ public class FinalInspectionDto
     /// <summary>保压时间s（水压/水下气压专用）</summary>
     public int? HoldTime { get; set; }
 
+    // ========== 涡流/超声波探伤专用 ==========
+
+    /// <summary>资格等级</summary>
+    public string? QualificationLevel { get; set; }
+    /// <summary>检验标准</summary>
+    public string? InspectionStandard { get; set; }
+    /// <summary>检验等级</summary>
+    public string? InspectionGrade { get; set; }
+    /// <summary>检验仪器型号</summary>
+    public string? InstrumentModel { get; set; }
+    /// <summary>检验方式</summary>
+    public string? NdtMethod { get; set; }
+    /// <summary>标样尺寸</summary>
+    public string? StandardSampleSize { get; set; }
+    /// <summary>标样人工缺陷</summary>
+    public string? StandardSampleDefect { get; set; }
+    /// <summary>探头类型</summary>
+    public string? ProbeType { get; set; }
+    /// <summary>耦合剂</summary>
+    public string? Couplant { get; set; }
+    /// <summary>检测设备校准频率</summary>
+    public string? CalibrationFrequency { get; set; }
+    /// <summary>检测频率</summary>
+    public string? DetectionFrequency { get; set; }
+    /// <summary>检测灵敏度</summary>
+    public string? DetectionSensitivity { get; set; }
+    /// <summary>检测相位</summary>
+    public string? DetectionPhase { get; set; }
+    /// <summary>检测速度</summary>
+    public string? DetectionSpeed { get; set; }
+
     /// <summary>检验备注</summary>
     public string? Remark { get; set; }
 
@@ -132,8 +173,8 @@ public class BatchLookupResultDto
     /// <summary>生产批次ID</summary>
     public int ProductionBatchId { get; set; }
 
-    /// <summary>物料名称</summary>
-    public string? MaterialName { get; set; }
+    /// <summary>制造物品</summary>
+    public string? ManufacturingItem { get; set; }
 
     /// <summary>挂牌号</summary>
     public string? TagNo { get; set; }
@@ -161,6 +202,15 @@ public class BatchLookupResultDto
 
     /// <summary>生产类型</summary>
     public string? ProductionType { get; set; }
+
+    /// <summary>业务员</summary>
+    public string? Salesman { get; set; }
+
+    /// <summary>长度状态</summary>
+    public string? LengthStatus { get; set; }
+
+    /// <summary>交货状态</summary>
+    public string? DeliveryState { get; set; }
 }
 
 /// <summary>
@@ -181,8 +231,7 @@ public class CreateFinalInspectionRequest
     /// <summary>生产批次ID（可由BatchNo自动解析）</summary>
     public int ProductionBatchId { get; set; }
 
-    [MaxLength(50)]
-    public string? MaterialName { get; set; }
+    public MaterialType? ManufacturingItem { get; set; }
     [MaxLength(50)]
     public string? TagNo { get; set; }
     [MaxLength(50)]
@@ -201,6 +250,10 @@ public class CreateFinalInspectionRequest
     public string? FixedLength { get; set; }
     [MaxLength(50)]
     public string? ProductionType { get; set; }
+    [MaxLength(50)]
+    public string? Salesman { get; set; }
+    [MaxLength(20)]
+    public string? LengthStatus { get; set; }
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
     public ShiftType? Shift { get; set; }
@@ -226,6 +279,38 @@ public class CreateFinalInspectionRequest
     public string? LengthAllowanceRange { get; set; }
     public decimal? Pressure { get; set; }
     public int? HoldTime { get; set; }
+
+    // ========== 涡流/超声波探伤专用 ==========
+
+    [MaxLength(100)]
+    public string? QualificationLevel { get; set; }
+    [MaxLength(100)]
+    public string? InspectionStandard { get; set; }
+    [MaxLength(100)]
+    public string? InspectionGrade { get; set; }
+    [MaxLength(100)]
+    public string? InstrumentModel { get; set; }
+    [MaxLength(100)]
+    public string? NdtMethod { get; set; }
+    [MaxLength(100)]
+    public string? StandardSampleSize { get; set; }
+    [MaxLength(100)]
+    public string? StandardSampleDefect { get; set; }
+    [MaxLength(100)]
+    public string? ProbeType { get; set; }
+    [MaxLength(100)]
+    public string? Couplant { get; set; }
+    [MaxLength(100)]
+    public string? CalibrationFrequency { get; set; }
+    [MaxLength(100)]
+    public string? DetectionFrequency { get; set; }
+    [MaxLength(100)]
+    public string? DetectionSensitivity { get; set; }
+    [MaxLength(100)]
+    public string? DetectionPhase { get; set; }
+    [MaxLength(100)]
+    public string? DetectionSpeed { get; set; }
+
     [MaxLength(500)]
     public string? Remark { get; set; }
 
@@ -269,6 +354,38 @@ public class UpdateFinalInspectionRequest
     public string? LengthAllowanceRange { get; set; }
     public decimal? Pressure { get; set; }
     public int? HoldTime { get; set; }
+
+    // ========== 涡流/超声波探伤专用 ==========
+
+    [MaxLength(100)]
+    public string? QualificationLevel { get; set; }
+    [MaxLength(100)]
+    public string? InspectionStandard { get; set; }
+    [MaxLength(100)]
+    public string? InspectionGrade { get; set; }
+    [MaxLength(100)]
+    public string? InstrumentModel { get; set; }
+    [MaxLength(100)]
+    public string? NdtMethod { get; set; }
+    [MaxLength(100)]
+    public string? StandardSampleSize { get; set; }
+    [MaxLength(100)]
+    public string? StandardSampleDefect { get; set; }
+    [MaxLength(100)]
+    public string? ProbeType { get; set; }
+    [MaxLength(100)]
+    public string? Couplant { get; set; }
+    [MaxLength(100)]
+    public string? CalibrationFrequency { get; set; }
+    [MaxLength(100)]
+    public string? DetectionFrequency { get; set; }
+    [MaxLength(100)]
+    public string? DetectionSensitivity { get; set; }
+    [MaxLength(100)]
+    public string? DetectionPhase { get; set; }
+    [MaxLength(100)]
+    public string? DetectionSpeed { get; set; }
+
     [MaxLength(500)]
     public string? Remark { get; set; }
 }

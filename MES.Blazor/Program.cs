@@ -23,6 +23,9 @@ builder.Services.AddMudServices(config =>
     config.SnackbarConfiguration.ShowTransitionDuration = 500;
 });
 
+// MudBlazor 中文本地化
+builder.Services.AddSingleton<MudLocalizer, MESMudLocalizer>();
+
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();

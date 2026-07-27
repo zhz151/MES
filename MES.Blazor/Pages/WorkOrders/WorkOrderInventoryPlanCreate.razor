@@ -68,7 +68,7 @@
                         <MudTable Items="@availableBatches" Class="auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" Style="table-layout:fixed;">
                             <HeaderContent>
                                 <MudTh Style="width:36px;">选择</MudTh>
-                                <MudTh Style="width:70px;">物料名称</MudTh>
+                                <MudTh Style="width:70px;">物料类型</MudTh>
                                 <MudTh Style="width:70px;">工厂牌号</MudTh>
                                 <MudTh Style="width:75px;">名义规格</MudTh>
                                 <MudTh Style="width:55px;">长度状态</MudTh>
@@ -92,7 +92,7 @@
                                                  ValueChanged="@((bool v) => OnSelectionChanged(context.Id, v))"
                                                  Color="Color.Primary" />
                                 </MudTd>
-                                <MudTd DataLabel="物料名称">@DisplayHelper.GetMaterialTypeText(context.MaterialType)</MudTd>
+                                <MudTd DataLabel="物料类型">@DisplayHelper.GetMaterialTypeText(context.MaterialType)</MudTd>
                                 <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
                                 <MudTd DataLabel="名义规格">@context.Specification</MudTd>
                                 <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>

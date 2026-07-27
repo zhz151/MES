@@ -283,13 +283,13 @@
         new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
-            EnumOptions = new() { new("None", "无"), new("InProgress", "在产"), new("Completed", "完成"), new("Suspended", "暂停"), new("Cancelled", "取消") } },
+            EnumOptions = new() { new("None", "无"), new("InProgress", "在产"), new("InFinalInspection", "成检"), new("Completed", "完成"), new("Suspended", "暂停") } },
         new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
             EnumOptions = new() { new("RoughTube", "荒管生产"), new("InProcess", "在制生产"), new("Inventory", "库存"),
                 new("OutsourcedPurchased", "外购"), new("Rework", "返整"), new("Subcontract", "委外生产"), new("ExternalProcessing", "对外加工") } },
         new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
             EnumOptions = new() { new("OrderFinished", "订单成品"), new("Finished", "备料成品"),
-                new("Surplus", "余库料"), new("SpecialDeliveryStatus", "特定交态成品") } },
+                new("Surplus", "余库料"), new("SpecialDeliveryStatus", "订成-非交付态") } },
         new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
 
         // ===== Group 2: 工单信息 =====
@@ -349,6 +349,7 @@
         new() { BlockKey = "BatchInfo", Key = "TagNo", Label = "挂牌号", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "ProductionType", Label = "生产类型", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "ManufacturingItem", Label = "制造物品", Visible = true },
+        new() { BlockKey = "BatchInfo", Key = "ManufacturingStatus", Label = "制造状态", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "ProductionRatio", Label = "制成倍数", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "Remark", Label = "备注", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "CreatedBy", Label = "创建人", Visible = true },
@@ -749,6 +750,7 @@
         "ProductionSubNo" => item.ProductionSubNo,
         "ProductionType" => item.ProductionType,
         "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
+        "ManufacturingStatus" => item.ManufacturingStatusDisplay,
         "Status" => DisplayHelper.GetBatchStatusText(item.Status),
         "CurrentExecDate" => item.CurrentExecDate?.ToString("yyyy-MM-dd"),
         "CurrentGroupName" => item.CurrentGroupName,
@@ -810,6 +812,7 @@
         "NextSectionName" => item.NextSectionName ?? "",
         "CorrespondingSpec" => item.CorrespondingSpec ?? "",
         "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
+        "ManufacturingStatus" => item.ManufacturingStatusDisplay ?? "",
         _ => ""
     };
 

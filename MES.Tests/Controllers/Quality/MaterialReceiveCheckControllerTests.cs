@@ -194,7 +194,7 @@ public class MaterialReceiveCheckControllerTests : ControllerTestBase
     public async Task PrintMaterialCheckAll_ReturnsOk()
     {
         // Arrange
-        _serviceMock.Setup(x => x.PrintMaterialCheckAllAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<List<PrintColumnDef>>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+        _serviceMock.Setup(x => x.PrintMaterialCheckAllAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<List<PrintColumnDef>>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string?>()))
             .ReturnsAsync(new byte[] { 1, 2, 3 });
 
         // Act

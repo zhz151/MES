@@ -251,7 +251,9 @@ public static class QueryableExtensions
                 .First(m => m.Name == "Contains" && m.GetParameters().Length == 2)
                 .MakeGenericMethod(underlyingType);
 
-            return Expression.Call(containsMethod, Expression.Constant(list), member);
+            // 可空类型 member 需转换为底层类型（Nullable<Enum> → Enum）
+            var memberExpr = member.Type != underlyingType ? Expression.Convert(member, underlyingType) : member;
+            return Expression.Call(containsMethod, Expression.Constant(list), memberExpr);
         }
 
         // 布尔类型：解析 "True"/"False" 字符串为 bool 后匹配

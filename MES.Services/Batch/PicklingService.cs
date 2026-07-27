@@ -429,17 +429,25 @@ public class PicklingService : IPicklingService
             .GroupBy(s => s.BatchId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // 预查询已存在的冷轧拔记录（含生产记录和委外）
-        var existingColdRollDraw = existingRecords
-            .Where(r => r.SectionName == SectionDefs.ColdRollDraw)
-            .Select(r => (r.ProductionBatchId, r.ProcessGroupId))
-            .ToHashSet();
+        // 预查询已存在的冷轧拔记录（含生产记录、委外和入缸）
+        var existingColdRollDraw = new HashSet<(int batchId, int pgId)>();
+        var prodColdRollDraw = await _context.ProductionRecords
+            .Where(r => allBatchIds.Contains(r.ProductionBatchId) && r.SectionName == SectionDefs.ColdRollDraw)
+            .Select(r => new { r.ProductionBatchId, r.ProcessGroupId })
+            .ToListAsync();
+        foreach (var item in prodColdRollDraw)
+            existingColdRollDraw.Add((item.ProductionBatchId, item.ProcessGroupId));
         var outsourcedColdRollDraw = await _context.SectionOutsources
             .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionDefs.ColdRollDraw)
             .Select(o => new { o.ProductionBatchId, o.ProcessGroupId })
             .ToListAsync();
         foreach (var item in outsourcedColdRollDraw)
             existingColdRollDraw.Add((item.ProductionBatchId, item.ProcessGroupId));
+        var picklingColdRollDraw = existingRecords
+            .Where(r => r.SectionName == SectionDefs.ColdRollDraw)
+            .Select(r => (r.ProductionBatchId, r.ProcessGroupId));
+        foreach (var item in picklingColdRollDraw)
+            existingColdRollDraw.Add(item);
 
         var errors = new List<string>();
         var entities = new List<PicklingInRecord>();
@@ -659,7 +667,7 @@ public class PicklingService : IPicklingService
             Id = entity.Id,
             ProductionBatchId = entity.ProductionBatchId,
             ProcessGroupId = entity.ProcessGroupId,
-            BatchNo = entity.ProductionBatch.BatchNo,
+            BatchNo = entity.ProductionBatch!.BatchNo,
             ProcessName = entity.ProcessName,
             ManufacturingSpec = entity.ManufacturingSpec,
             SectionName = entity.SectionName,

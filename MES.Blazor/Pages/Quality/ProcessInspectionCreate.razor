@@ -31,9 +31,11 @@
             white-space: nowrap;
         }
         .table-scroll {
-            max-height: calc(100vh - 280px);
-            overflow-y: auto;
-            overflow-x: auto;
+            max-height: calc(100vh - 310px);
+            overflow: hidden;
+        }
+        .table-scroll .mud-table-container {
+            overflow-x: auto !important;
         }
     </style>
 
@@ -74,13 +76,31 @@
                             添加行
                         </MudButton>
                     </div>
-                    <div class="table-scroll">
+                    <div class="table-scroll" id="process-inspection-table-wrapper">
+                        @* 分组标题栏 *@
+                        <div class="col-group-header-scroll">
+                            <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                                @foreach (var gh in _groupHeaders)
+                                {
+                                    <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                                        <span class="col-group-badge">@gh.GroupName</span>
+                                    </div>
+                                }
+                                <div class="col-group-header-item" style="width:80px;flex:none;"></div>
+                            </div>
+                        </div>
                         <MudTable Items="@_rows" Dense="true" Hover="true" Elevation="0" Striped="true"
                                   Class="edit-table auto-table" SortMode="SortMode.None" FixedHeader="true">
                             <HeaderContent>
+                                @{
+                                    int? _prevGk = null;
+                                }
                                 @foreach (var col in _visibleColumns)
                                 {
-                                    <MudTh>
+                                    var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                                    _prevGk = col.GroupKey;
+                                    var _headerClass = col.GroupKey.HasValue ? GetHeaderGroupCss(col.GroupKey.Value, _isGroupStart) : "";
+                                    <MudTh Class="@_headerClass" Style="@($"width:{GetColWidth(col.Key)}px")">
                                         @col.Label
                                         @if (col.IsRequired)
                                         {
@@ -88,14 +108,29 @@
                                         }
                                     </MudTh>
                                 }
-                                <MudTh Style="width:60px;">操作</MudTh>
+                                <MudTh Style="width:80px;">操作</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="r">
+                                @{
+                                    int? _prevGk2 = null;
+                                }
                                 @foreach (var col in _visibleColumns)
                                 {
-                                    <MudTd>@RenderCell(r, col)</MudTd>
+                                    var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                                    _prevGk2 = col.GroupKey;
+                                    var _cellClass = col.GroupKey.HasValue ? GetCellGroupCss(col.GroupKey.Value, _isGroupStart2) : "";
+                                    <MudTd Class="@_cellClass" Style="@($"width:{GetColWidth(col.Key)}px")">
+                                        @RenderCell(r, col)
+                                    </MudTd>
                                 }
-                                <MudTd>
+                                <MudTd Style="white-space:nowrap;">
+                                    @if (_rows.IndexOf(r) > 0)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                                       Color="Color.Info" Size="Size.Small"
+                                                       Title="与上行相同"
+                                                       OnClick="() => CopyFromAbove(r, _rows.IndexOf(r))" />
+                                    }
                                     <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
                                                    Color="Color.Error" Size="Size.Small"
                                                    Title="删除"
@@ -104,7 +139,17 @@
                                 </MudTd>
                             </RowTemplate>
                             <FooterContent>
-                                <MudTd colspan="@(_visibleColumns.Count + 1)">
+                                @{
+                                    int? _prevGk3 = null;
+                                }
+                                @foreach (var col in _visibleColumns)
+                                {
+                                    var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                                    _prevGk3 = col.GroupKey;
+                                    var _footerClass = col.GroupKey.HasValue ? GetCellGroupCss(col.GroupKey.Value, _isGroupStart3) : "";
+                                    <MudTd Class="@_footerClass" Style="@($"width:{GetColWidth(col.Key)}px")"></MudTd>
+                                }
+                                <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
                                                    Color="Color.Primary" Size="Size.Small"
                                                    OnClick="AddRow" />
@@ -151,27 +196,40 @@
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "InspectionDate",      Label = "检验日期", IsRequired = true },
-        new() { Key = "BatchNo",             Label = "生产编号", IsRequired = true },
-        new() { Key = "ProcessName",         Label = "工序名称", IsRequired = true },
-        new() { Key = "ManufacturingSpec",   Label = "制造规格", IsRequired = true },
-        new() { Key = "SectionName",         Label = "工段名称", IsRequired = true },
-        new() { Key = "EquipmentName",       Label = "设备名称" },
-        new() { Key = "Inspector",           Label = "检验员" },
-        new() { Key = "Shift",               Label = "班次" },
-        new() { Key = "Quantity",            Label = "检验支数" },
-        new() { Key = "Weight",              Label = "检验重量" },
-        new() { Key = "InspectionItem",      Label = "检验项目" },
-        new() { Key = "QualifiedQuantity",   Label = "合格支数" },
-        new() { Key = "QualifiedWeight",     Label = "合格重量" },
-        new() { Key = "DefectReworkQuantity", Label = "返整支数" },
-        new() { Key = "DefectWarehouseQuantity", Label = "入库支数" },
-        new() { Key = "DefectScrapQuantity", Label = "报废支数" },
-        new() { Key = "DefectDescription",   Label = "不合格描述" },
-        new() { Key = "SourceUnit",          Label = "来料单位" },
-        new() { Key = "TagNo",               Label = "挂牌号" },
-        new() { Key = "PlantGrade",          Label = "工厂牌号" },
-        new() { Key = "Remark",              Label = "备注" },
+        // ========== G1：执行信息 ==========
+        new() { Key = "InspectionDate",      Label = "检验日期", IsRequired = true, GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "BatchNo",             Label = "生产编号", IsRequired = true, GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "ProcessName",         Label = "工序名称", IsRequired = true, GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "SectionName",         Label = "工段名称", IsRequired = true, GroupKey = 1, GroupName = "执行信息" },
+
+        // ========== G2：可填充 ==========
+        new() { Key = "TagNo",               Label = "挂牌号",                   GroupKey = 2, GroupName = "可填充" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号",                 GroupKey = 2, GroupName = "可填充" },
+        new() { Key = "ManufacturingSpec",   Label = "制造规格", IsRequired = true, GroupKey = 2, GroupName = "可填充" },
+        new() { Key = "SourceUnit",          Label = "来料单位",                 GroupKey = 2, GroupName = "可填充" },
+
+        // ========== G3：人员设备 ==========
+        new() { Key = "EquipmentName",       Label = "设备名称",                 GroupKey = 3, GroupName = "人员设备" },
+        new() { Key = "Shift",               Label = "班次",                     GroupKey = 3, GroupName = "人员设备" },
+        new() { Key = "Inspector",           Label = "检验员",                   GroupKey = 3, GroupName = "人员设备" },
+
+        // ========== G4：检验计量 ==========
+        new() { Key = "InspectionItem",      Label = "检验项目",                 GroupKey = 4, GroupName = "检验计量" },
+        new() { Key = "Quantity",            Label = "检验支数",                 GroupKey = 4, GroupName = "检验计量" },
+        new() { Key = "Weight",              Label = "检验重量",                 GroupKey = 4, GroupName = "检验计量" },
+
+        // ========== G5：检验结果 ==========
+        new() { Key = "QualifiedQuantity",   Label = "合格支数",                 GroupKey = 5, GroupName = "检验结果" },
+        new() { Key = "QualifiedWeight",     Label = "合格重量",                 GroupKey = 5, GroupName = "检验结果" },
+        new() { Key = "QualifiedConcessionQuantity", Label = "含让步放行支",     GroupKey = 5, GroupName = "检验结果" },
+        new() { Key = "ConcessionRemark",    Label = "让步说明",                 GroupKey = 5, GroupName = "检验结果" },
+
+        // ========== G6：不合格处理 ==========
+        new() { Key = "DefectReworkQuantity", Label = "返整支数",                GroupKey = 6, GroupName = "不合格处理" },
+        new() { Key = "DefectWarehouseQuantity", Label = "入库支数",             GroupKey = 6, GroupName = "不合格处理" },
+        new() { Key = "DefectScrapQuantity", Label = "报废支数",                 GroupKey = 6, GroupName = "不合格处理" },
+        new() { Key = "DefectDescription",   Label = "不合格描述",               GroupKey = 6, GroupName = "不合格处理" },
+        new() { Key = "Remark",              Label = "备注",                     GroupKey = 6, GroupName = "不合格处理" },
     };
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -227,6 +285,83 @@
         public string? Remark { get; set; }
     }
 
+    // ========== 分组标题栏 ==========
+
+    private int _totalTableWidth =>
+        _visibleColumns.Sum(c => GetColWidth(c.Key)) + 80; // +80px 操作列
+
+    private List<GroupHeaderInfo> _groupHeaders => GetGroupHeaders();
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null; int totalWidth = 0;
+        var groupKey = 0; var groupName = ""; var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo { GroupKey = groupKey, GroupName = groupName, TotalWidth = totalWidth, ColumnCount = count, CssClass = GetHeaderGroupCss(groupKey, true) });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk; groupName = col.GroupName ?? "";
+            totalWidth += GetColWidth(col.Key);
+            count++; lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo { GroupKey = groupKey, GroupName = groupName, TotalWidth = totalWidth, ColumnCount = count, CssClass = GetHeaderGroupCss(groupKey, true) });
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int groupKey, bool isGroupStart) =>
+        groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", 4 => "col-g4", 5 => "col-g5", 6 => "col-g6", _ => "" };
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart) =>
+        groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", 5 => "col-g5-cell", 6 => "col-g6-cell", _ => "" };
+
+    private static int GetColWidth(string key) => key switch
+    {
+        "InspectionDate" => 140,
+        "BatchNo" => 150,
+        "ProcessName" => 170,
+        "SectionName" => 140,
+        "TagNo" => 130,
+        "PlantGrade" => 130,
+        "ManufacturingSpec" => 170,
+        "SourceUnit" => 120,
+        "EquipmentName" => 120,
+        "Shift" => 80,
+        "Inspector" => 100,
+        "InspectionItem" => 140,
+        "Quantity" => 100,
+        "Weight" => 120,
+        "QualifiedQuantity" => 100,
+        "QualifiedWeight" => 120,
+        "QualifiedConcessionQuantity" => 120,
+        "ConcessionRemark" => 140,
+        "DefectReworkQuantity" => 100,
+        "DefectWarehouseQuantity" => 100,
+        "DefectScrapQuantity" => 100,
+        "DefectDescription" => 160,
+        "Remark" => 150,
+        _ => 130
+    };
+
+    // ========== 下拉选项 ==========
+
+    private static readonly List<(string Value, string Text)> _shiftOptions =
+        Enum.GetValues<ShiftType>().Select(v => (v.ToString(), EnumHelper.GetDisplayName(v))).ToList();
+
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
@@ -257,30 +392,65 @@
         if (!_rows.Any())
         {
             _rows.Add(new EditRow());
-            _rows.Add(new EditRow());
-            _rows.Add(new EditRow());
         }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#process-inspection-table-wrapper");
+        }
+        catch { }
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#process-inspection-create-table"))
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#process-inspection-table-wrapper"))
                 _isArrowNavSetup = false;
         }
     }
 
     private void AddRow()
     {
-        _rows.Add(new EditRow());
+        var newRow = new EditRow();
+        if (_rows.Any())
+        {
+            var source = _rows[^1];
+            newRow.InspectionDate = source.InspectionDate;
+            newRow.BatchNo = source.BatchNo;
+            newRow.ProcessName = source.ProcessName;
+            newRow.SectionName = source.SectionName;
+            newRow.TagNo = source.TagNo;
+            newRow.PlantGrade = source.PlantGrade;
+            newRow.ManufacturingSpec = source.ManufacturingSpec;
+            newRow.SourceUnit = source.SourceUnit;
+            newRow.EquipmentName = source.EquipmentName;
+            newRow.Shift = source.Shift;
+            newRow.Inspector = source.Inspector;
+        }
+        _rows.Add(newRow);
     }
 
     private void RemoveRow(EditRow row)
     {
         if (_rows.Count <= 1) return;
         _rows.Remove(row);
+    }
+
+    private void CopyFromAbove(EditRow row, int index)
+    {
+        if (index <= 0) return;
+        var source = _rows[index - 1];
+        row.BatchNo = source.BatchNo;
+        row.ProcessName = source.ProcessName;
+        row.SectionName = source.SectionName;
+        row.TagNo = source.TagNo;
+        row.PlantGrade = source.PlantGrade;
+        row.ManufacturingSpec = source.ManufacturingSpec;
+        row.SourceUnit = source.SourceUnit;
+        row.EquipmentName = source.EquipmentName;
+        row.Shift = source.Shift;
+        row.Inspector = source.Inspector;
     }
 
     private async Task Submit()
@@ -522,12 +692,22 @@
                 builder.CloseComponent();
                 break;
             case "Shift":
-                builder.OpenComponent<MudTextField<string>>(0);
+                builder.OpenComponent<MudSelect<string>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(5, "Value",r.Shift);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Shift = v));
+                builder.AddAttribute(5, "Value", r.Shift);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Shift = v));
+                builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
+                {
+                    foreach (var opt in _shiftOptions)
+                    {
+                        b.OpenComponent<MudSelectItem<string>>(0);
+                        b.AddAttribute(1, "Value", opt.Value);
+                        b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, opt.Text)));
+                        b.CloseComponent();
+                    }
+                }));
                 builder.CloseComponent();
                 break;
             case "Quantity":
@@ -597,6 +777,26 @@
                 builder.AddAttribute(6, "Value", r.QualifiedWeight);
                 builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.QualifiedWeight = v));
                 builder.AddAttribute(8, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "QualifiedConcessionQuantity":
+                builder.OpenComponent<MudNumericField<int?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(5, "Value", r.QualifiedConcessionQuantity);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.QualifiedConcessionQuantity = v));
+                builder.AddAttribute(7, "Clearable", true);
+                builder.CloseComponent();
+                break;
+            case "ConcessionRemark":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value",r.ConcessionRemark);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.ConcessionRemark = v));
                 builder.CloseComponent();
                 break;
             case "DefectReworkQuantity":

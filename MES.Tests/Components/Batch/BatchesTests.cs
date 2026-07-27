@@ -12,7 +12,8 @@ public class BatchesTests : TestBase
     public BatchesTests()
     {
         RegisterServices(typeof(BatchService), typeof(ProductionRecordService),
-            typeof(WorkOrderService), typeof(OrderService), typeof(MaterialPlanService));
+            typeof(WorkOrderService), typeof(OrderService), typeof(MaterialPlanService),
+            typeof(NotificationService));
         ConfigureEmptyResponse("/api/batch/list");
         ConfigureEmptyResponse("/api/batch/filter-contexts");
     }
@@ -35,8 +36,8 @@ public class BatchesTests : TestBase
     [InlineData(BatchStatus.None, "未产")]
     [InlineData(BatchStatus.InProgress, "在产")]
     [InlineData(BatchStatus.Completed, "完成")]
-    [InlineData(BatchStatus.Suspended, "挂起")]
-    [InlineData(BatchStatus.Cancelled, "作废")]
+    [InlineData(BatchStatus.InFinalInspection, "成检")]
+    [InlineData(BatchStatus.Suspended, "暂停")]
     public void StatusColumn_DisplaysCorrectText(BatchStatus status, string expectedText)
     {
         ConfigureListResponse(status);

@@ -35,12 +35,16 @@ public class MaterialReceiveCheckDto
     public ProductionType? ProductionType { get; set; }
     public string? ProductionTypeDisplay => ProductionType.HasValue ? EnumHelper.GetDisplayName(ProductionType.Value) : null;
 
-    // ========== 汇总计算字段 ==========
-    public int ProductionCutQuantity { get; set; }
-    public decimal? ProductionWeight { get; set; }
+    // ========== 工序关联 ==========
+    public int ProcessGroupId { get; set; }
+    public string ProcessName { get; set; } = "检验";
+    public int SequenceNumber { get; set; }
 
     // ========== 状态 ==========
     public bool IsForceCompleted { get; set; }
+
+    /// <summary>是否是批次中的最后一个工序组（交货状态仅最后工序组有效）</summary>
+    public bool IsLastProcessGroup { get; set; }
 
     // ========== 批次冗余字段 ==========
     public LengthStatus? LengthStatus { get; set; }
@@ -78,6 +82,7 @@ public class MaterialCheckPrintAllRequest
     public DateTime? ReceiveDateFrom { get; set; }
     public DateTime? ReceiveDateTo { get; set; }
     public List<PrintColumnDef> Columns { get; set; } = new();
+    public string? Filters { get; set; }
 }
 
 /// <summary>
@@ -113,6 +118,24 @@ public class CreateMaterialReceiveCheckRequest
     /// </summary>
     [MaxLength(10)]
     public string? DataSource { get; set; }
+
+    // ========== 工序关联 ==========
+
+    /// <summary>
+    /// 所属工序组ID（不传则服务端按规格匹配自动查找）
+    /// </summary>
+    public int ProcessGroupId { get; set; }
+
+    /// <summary>
+    /// 工序名称（不传则服务端从ProcessGroup获取）
+    /// </summary>
+    [MaxLength(50)]
+    public string? ProcessName { get; set; }
+
+    /// <summary>
+    /// 执行序号（不传则服务端从ProcessGroup获取）
+    /// </summary>
+    public int? SequenceNumber { get; set; }
 }
 
 /// <summary>

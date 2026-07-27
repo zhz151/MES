@@ -386,6 +386,10 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
                     });
                 }
             }
+            else if (planType == 7)
+            {
+                // 在产主工单计划暂无需保存工序组数据
+            }
             else
             {
                 throw new BusinessException($"暂不支持该计划类型的工序组保存: {planType}");
@@ -406,6 +410,7 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
                     3 => "UPDATE InventoryPlan SET StandardCycle = {0} WHERE Id = {1}",
                     4 => "UPDATE RoundBarPiercingPlan SET StandardCycle = {0} WHERE Id = {1}",
                     6 => "UPDATE InProcessReworkPlan SET StandardCycle = {0} WHERE Id = {1}",
+                    7 => "UPDATE InMainWorkOrderPlan SET StandardCycle = {0} WHERE Id = {1}",
                     _ => null
                 };
                 if (sql != null)
@@ -429,7 +434,18 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
     private async Task<int> CalculateStandardCycleAsync(int planType, int planId, List<SavePlanProcessGroupItem> items)
     {
         var defaultCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
-        if (items.Count == 0) return defaultCycle;
+        var defaultProcessCycle = (int)await GetConfigAsync("DefaultValue", "DefaultProcessCycle", 22m);
+
+        // 库料改制没有工序组时默认 defaultProcessCycle
+        if (items.Count == 0)
+        {
+            if (planType == 3)
+            {
+                var invPlan = await _context.InventoryPlans.FindAsync(planId);
+                if (invPlan?.ReworkType != null) return defaultProcessCycle;
+            }
+            return defaultCycle;
+        }
 
         int workOrderId;
 
@@ -455,6 +471,12 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
         else if (planType == 6)
         {
             var plan = await _context.InProcessReworkPlans.FindAsync(planId);
+            if (plan == null) return defaultCycle;
+            workOrderId = plan.WorkOrderId;
+        }
+        else if (planType == 7)
+        {
+            var plan = await _context.InMainWorkOrderPlans.FindAsync(planId);
             if (plan == null) return defaultCycle;
             workOrderId = plan.WorkOrderId;
         }

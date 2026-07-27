@@ -545,20 +545,6 @@ public class OrderService : IOrderService
                     if (delExecRows.Count != 0)
                         _context.Set<WorkOrderExecutionSummary>().RemoveRange(delExecRows);
 
-                    // 扫描引用这些工单号的入库批次，生成通知（已执行数据，不级联）
-                    var affectedBatches = await _context.InventoryBatches
-                        .Where(b => b.WorkOrderNo != null && workOrderNos.Contains(b.WorkOrderNo))
-                        .ToListAsync();
-                    foreach (var batch in affectedBatches)
-                    {
-                        await _notificationService.CreateAsync(
-                            "WorkOrderDeleted",
-                            $"工单 {batch.WorkOrderNo} 已删除（订单 {salesOrder.OrderNumber} 被删除）",
-                            $"入库批次 {batch.BatchNo}（{batch.MaterialType} {batch.Specification}）仍引用该工单，请及时处理",
-                            batch.Id
-                        );
-                    }
-
                     _context.WorkOrders.RemoveRange(workOrders);
                 }
 

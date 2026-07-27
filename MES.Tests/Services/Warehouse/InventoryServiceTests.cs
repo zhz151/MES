@@ -6,6 +6,7 @@ using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Models;
@@ -36,8 +37,9 @@ public class InventoryServiceTests : TestBase
         var loggerOutbound = new Mock<ILogger<OutboundWriteService>>();
         var loggerSync = new Mock<ILogger<InventorySyncService>>();
         var syncMock = new Mock<IInventorySyncService>();
+        var prMock = new Mock<IProductionRecordService>();
 
-        var batchWrite = new InventoryBatchWriteService(ctx, woExecMock.Object, qualityMock.Object, syncMock.Object, loggerBatch.Object);
+        var batchWrite = new InventoryBatchWriteService(ctx, woExecMock.Object, qualityMock.Object, prMock.Object, syncMock.Object, loggerBatch.Object);
         var outboundWrite = new OutboundWriteService(ctx, woExecMock.Object, loggerOutbound.Object);
         var syncService = new InventorySyncService(ctx, configMock.Object, woExecMock.Object, loggerSync.Object, new MemoryCache(new MemoryCacheOptions()));
 

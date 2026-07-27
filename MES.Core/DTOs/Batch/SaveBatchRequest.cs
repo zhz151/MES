@@ -18,8 +18,7 @@ public class SaveBatchRequest
     [MaxLength(500)]
     public string? SolutionParams { get; set; }
 
-    [MaxLength(30)]
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
 
     [MaxLength(500)]
     public string? Remark { get; set; }
@@ -95,17 +94,16 @@ public class SaveBatchRequest
 
     public bool? DelayPenalty { get; set; }
 
-    [MaxLength(20)]
-    public string? MaterialName { get; set; }
+    public PipeManufacturingType? MaterialName { get; set; }
 
-    [MaxLength(20)]
-    public string? SettlementMethod { get; set; }
+    public SettlementMethod? SettlementMethod { get; set; }
 
     [MaxLength(50)]
     public string? StandardCode { get; set; }
 
-    [MaxLength(50)]
-    public string? DeliveryState { get; set; }
+    public DeliveryState? DeliveryState { get; set; }
+
+    public DeliveryState? ManufacturingStatus { get; set; }
 
     [MaxLength(50)]
     public string? PlantGrade { get; set; }
@@ -118,8 +116,7 @@ public class SaveBatchRequest
     public decimal? WallThicknessNegative { get; set; }
     public decimal? WallThicknessPositive { get; set; }
 
-    [MaxLength(20)]
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
 
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
@@ -130,13 +127,12 @@ public class SaveBatchRequest
 
     public string? ItemDetails { get; set; }
 
-    [MaxLength(500)]
-    public string? TechnicalRequirements { get; set; }
+    public RequirementType? TechnicalRequirements { get; set; }
 
     // ========== 状态更新 ==========
 
     /// <summary>更新后的批次状态（null=不更新）</summary>
-    public string? Status { get; set; }
+    public BatchStatus? Status { get; set; }
 
     // ========== 乐观锁 ==========
 
@@ -147,4 +143,11 @@ public class SaveBatchRequest
 
     /// <summary>替换后的工序组列表（删除全部旧工序组后创建）</summary>
     public List<CreateProcessGroupRequest> ProcessGroups { get; set; } = new();
+
+    // ========== 合并投料 ==========
+
+    /// <summary>
+    /// 来源批次列表（支持多库存批次合并投料，null=不更新）
+    /// </summary>
+    public List<SourceBatchItemRequest>? SourceItems { get; set; }
 }

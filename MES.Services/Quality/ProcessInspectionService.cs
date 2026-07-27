@@ -44,6 +44,7 @@ using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using Microsoft.Extensions.Caching.Memory;
+using MES.Core.Constants;
 using MES.Core.Helpers;
 
 namespace MES.Services.Quality;
@@ -303,6 +304,34 @@ public class ProcessInspectionService : IProcessInspectionService
 
         var sequenceMaxJump = (int)await GetConfigAsync("SequenceJump", "MaxJump", 7m);
 
+        // 预查询：各批次已存在的冷轧拔生产记录（用于冷轧/冷拔前置校验）
+        var existingColdRollDraw = await _context.ProductionRecords
+            .Where(r => allBatchIds.Contains(r.ProductionBatchId) && r.SectionName == SectionDefs.ColdRollDraw)
+            .Select(r => new { r.ProductionBatchId, r.ProcessGroupId })
+            .ToListAsync();
+        var coldRollDrawExists = new HashSet<(int BatchId, int PgId)>(
+            existingColdRollDraw.Select(r => (r.ProductionBatchId, r.ProcessGroupId)));
+
+        // 收集本次提交中的冷轧拔过程检验记录
+        var pendingColdRollDraw = new HashSet<(int BatchId, int PgId)>();
+        foreach (var req in requests)
+        {
+            if (req.SectionName == SectionDefs.ColdRollDraw)
+            {
+                var b = batchLookup[req.BatchNo];
+                var bId = b.Id;
+                var pId = req.ProcessGroupId;
+                if (pId == null || pId == 0)
+                {
+                    var matchedPg = pgByBatch.GetValueOrDefault(bId)?
+                        .FirstOrDefault(pg => pg.ProcessName == req.ProcessName && pg.ManufacturingSpec == req.ManufacturingSpec);
+                    pId = matchedPg?.Id;
+                }
+                if (pId > 0)
+                    pendingColdRollDraw.Add((bId, pId.Value));
+            }
+        }
+
         for (int i = 0; i < requests.Count; i++)
         {
             var request = requests[i];
@@ -329,6 +358,14 @@ public class ProcessInspectionService : IProcessInspectionService
                 }
             }
 
+            // 制造规格不能为空
+            if (string.IsNullOrWhiteSpace(request.ManufacturingSpec))
+                errors.Add($"第{i + 1}行：制造规格不能为空");
+
+            // 工段必须是"检验"
+            if (request.SectionName != SectionDefs.Inspection)
+                errors.Add($"第{i + 1}行：工段必须为「检验」，不允许填写其他工段");
+
             // 执行序号跳跃限制：以每条记录的 InspectionDate 为准，对比该批次在此日期前已执行的最大序号，不能 > +7
             if (seqNum > 0)
             {
@@ -350,6 +387,19 @@ public class ProcessInspectionService : IProcessInspectionService
                     r.ProcessGroupId == pgId.Value && r.SectionName == request.SectionName);
                 if (dup)
                     errors.Add($"第{i + 1}行：工段「{request.SectionName}」在该批次该工序组中已存在过程检验记录，不能重复创建");
+            }
+
+            // 冷轧/冷拔前置校验：工序组为冷轧/冷拔的，必须先有冷轧拔记录
+            if (pgId > 0)
+            {
+                var pg = processGroups.FirstOrDefault(p => p.Id == pgId.Value);
+                if (pg != null && ProcessNames.IsColdRollOrDraw(pg.ProcessName))
+                {
+                    var hasColdRollDraw = coldRollDrawExists.Contains((batchId, pgId.Value))
+                        || pendingColdRollDraw.Contains((batchId, pgId.Value));
+                    if (!hasColdRollDraw)
+                        errors.Add($"第{i + 1}行：工序「{pg.ProcessName}」必须首先存在「冷轧拔」生产记录，才能进行过程检验");
+                }
             }
 
             // 4) 检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
@@ -467,6 +517,30 @@ public class ProcessInspectionService : IProcessInspectionService
     {
         var entity = await _context.ProcessInspections.FindAsync(id)
             ?? throw new BusinessException($"过程检验记录不存在(Id={id})");
+
+        // 加载批次（用于重量校验）
+        var batch = await _context.ProductionBatches.FindAsync(entity.ProductionBatchId);
+
+        // 支数平衡校验：检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
+        if (request.Quantity.HasValue)
+        {
+            var sum = (request.QualifiedQuantity ?? 0)
+                + (request.DefectReworkQuantity ?? 0)
+                + (request.DefectWarehouseQuantity ?? 0)
+                + (request.DefectScrapQuantity ?? 0);
+            if (request.Quantity.Value != sum)
+                throw new BusinessException($"检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入库({request.DefectWarehouseQuantity ?? 0}) + 报废({request.DefectScrapQuantity ?? 0}) = {sum}");
+        }
+
+        // 让步放行支数 ≤ 合格支数
+        if (request.QualifiedConcessionQuantity.HasValue && request.QualifiedQuantity.HasValue
+            && request.QualifiedConcessionQuantity.Value > request.QualifiedQuantity.Value)
+            throw new BusinessException($"让步放行支数({request.QualifiedConcessionQuantity})不能大于合格支数({request.QualifiedQuantity})");
+
+        // 检验重量不能大于批次现有效原料重量
+        if (request.Weight.HasValue && request.Weight > 0 && batch != null
+            && request.Weight.Value > (batch.CurrentValidWeight ?? batch.InputWeight))
+            throw new BusinessException($"检验重量({request.Weight})不能大于现有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
 
         entity.InspectionDate = request.InspectionDate;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;

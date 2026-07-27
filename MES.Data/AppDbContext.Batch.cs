@@ -50,6 +50,7 @@ public partial class AppDbContext
             entity.Property(e => e.SettlementMethod).IsRequired().HasMaxLength(20);
             entity.Property(e => e.StandardCode).IsRequired().HasMaxLength(50);
             entity.Property(e => e.DeliveryState).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ManufacturingStatus).HasMaxLength(50);
             entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.OuterDiameterNegative).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
@@ -138,6 +139,39 @@ public partial class AppDbContext
                 .HasDatabaseName("UK_ProcessGroup_Seq");
         });
     }
+    private static void ConfigureProductionBatchInventory(ModelBuilder builder)
+    {
+        builder.Entity<ProductionBatchInventory>(entity =>
+        {
+            entity.ToTable("ProductionBatchInventory");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.ProductionBatchId).IsRequired();
+            entity.Property(e => e.InventoryBatchId).IsRequired();
+            entity.Property(e => e.OutboundRecordId).IsRequired(false);
+            entity.Property(e => e.InputQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.InputWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+
+            entity.HasOne(e => e.ProductionBatch)
+                .WithMany(p => p.ProductionBatchInventories)
+                .HasForeignKey(e => e.ProductionBatchId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(e => e.InventoryBatch)
+                .WithMany(p => p.ProductionBatchInventories)
+                .HasForeignKey(e => e.InventoryBatchId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(e => e.OutboundRecord)
+                .WithMany()
+                .HasForeignKey(e => e.OutboundRecordId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_PBI_ProductionBatchId");
+            entity.HasIndex(e => e.InventoryBatchId).HasDatabaseName("IX_PBI_InventoryBatchId");
+            entity.HasIndex(e => e.OutboundRecordId).HasDatabaseName("IX_PBI_OutboundRecordId");
+        });
+    }
     private static void ConfigureProductionRecord(ModelBuilder builder)
     {
         builder.Entity<ProductionRecord>(entity =>
@@ -154,7 +188,7 @@ public partial class AppDbContext
             entity.Property(e => e.ExecDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
             entity.Property(e => e.Operator).HasMaxLength(50);
-            entity.Property(e => e.Shift).HasMaxLength(10);
+            entity.Property(e => e.Shift).HasMaxLength(20);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.ProductStatus).HasMaxLength(20);
@@ -265,7 +299,7 @@ public partial class AppDbContext
             entity.Property(e => e.Status).IsRequired().HasConversion<string>().HasMaxLength(15).HasDefaultValue(PicklingStatus.Soaking);
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
             entity.Property(e => e.Operator).HasMaxLength(50);
-            entity.Property(e => e.Shift).HasMaxLength(10);
+            entity.Property(e => e.Shift).HasMaxLength(20);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.ProductStatus).HasMaxLength(20);
@@ -308,7 +342,7 @@ public partial class AppDbContext
             entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
             entity.Property(e => e.Operator).HasMaxLength(50);
-            entity.Property(e => e.Shift).HasMaxLength(10);
+            entity.Property(e => e.Shift).HasMaxLength(20);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,2)");
             entity.Property(e => e.ProductStatus).HasMaxLength(20);

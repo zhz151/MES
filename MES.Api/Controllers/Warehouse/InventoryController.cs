@@ -366,6 +366,17 @@ public class InventoryController : ControllerBase
         return Ok(ApiResponse<List<BatchWorkOrderMismatchDto>>.Ok(result, "查询成功"));
     }
 
+    /// <summary>
+    /// 获取仓库入库批次中引用的所有工单号（用于过滤工单变更通知）
+    /// </summary>
+    [HttpGet("workorder-nos/{warehouseId}")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<string>>>> GetWorkOrderNos(int warehouseId)
+    {
+        var result = await _service.GetDistinctWorkOrderNosByWarehouseAsync(warehouseId);
+        return Ok(ApiResponse<List<string>>.Ok(result, "查询成功"));
+    }
+
     // ========== 打印 ==========
 
     /// <summary>

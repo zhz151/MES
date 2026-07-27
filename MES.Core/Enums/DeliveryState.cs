@@ -27,5 +27,7 @@ public enum DeliveryState
 
     BrightCoiled,
 
-    Hard
+    Hard,
+
+    SolidSolutionStraightening
 }

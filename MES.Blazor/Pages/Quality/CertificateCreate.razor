@@ -116,7 +116,7 @@
                         <MudTextField @bind-Value="_certProductStandard" Label="产品标准" Variant="Variant.Outlined" ReadOnly="true" />
                     </MudItem>
                     <MudItem xs="6" md="2">
-                        <MudTextField @bind-Value="_certDeliveryStatus" Label="交货状态" Variant="Variant.Outlined" ReadOnly="true" />
+                        <MudTextField Value="@DisplayHelper.GetDeliveryStateText(_certDeliveryStatus)" Label="交货状态" Variant="Variant.Outlined" ReadOnly="true" />
                     </MudItem>
                     <MudItem xs="6" md="3">
                         <MudTextField @bind-Value="_certProductName" Label="产品名称" Variant="Variant.Outlined" Placeholder="可选" />

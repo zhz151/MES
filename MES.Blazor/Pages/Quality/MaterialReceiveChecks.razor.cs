@@ -57,7 +57,7 @@ public partial class MaterialReceiveChecks
 
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
-    private static readonly HashSet<string> _summableColumnKeys = new() { "ProductionCutQuantity", "ProductionWeight" };
+    private static readonly HashSet<string> _summableColumnKeys = new();
 
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
@@ -71,28 +71,31 @@ public partial class MaterialReceiveChecks
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate", FilterType = "date", Width = "120" },
-        new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120" },
-        new() { Key = "ManufacturingItem", Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120", EnumOptions = new() { new("OrderFinished","订单成品"), new("Finished","备料成品"), new("Surplus","余库料"), new("SpecialDeliveryStatus","特定交态成品") } },
-        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120" },
-        new() { Key = "Specification",     Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120" },
-        new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Visible = false, Width = "120" },
-        new() { Key = "WorkOrderNo",       Label = "工单号",     SortKey = "workorderno", FilterType = "string", Visible = false, Width = "120" },
-        new() { Key = "SalesOrderNo",      Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Visible = false, Width = "120" },
-        new() { Key = "FurnaceNo",         Label = "炉号",       SortKey = "furnaceno", FilterType = "string", Visible = false, Width = "120" },
-        new() { Key = "SourceUnit",        Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Visible = false, Width = "120" },
-        new() { Key = "ProductionType",     Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120", Visible = false, EnumOptions = new() { new("RoughTube","荒管生产"), new("InProcess","在制生产"), new("Inventory","库存"), new("OutsourcedPurchased","外购"), new("Rework","返整"), new("Subcontract","委外生产"), new("ExternalProcessing","对外加工") } },
-        new() { Key = "ProductionCutQuantity", Label = "生产支数", SortKey = "productioncutquantity", FilterType = "number", Width = "80" },
-        new() { Key = "ProductionWeight",  Label = "生产重量",   SortKey = "productionweight", FilterType = "number", Width = "80" },
-        new() { Key = "LengthStatus",      Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "100", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") } },
-        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80", EnumOptions = new() { new("SCAN","扫码"), new("MANUAL","手动") } },
-        new() { Key = "Shift",             Label = "班次",        SortKey = "shift", FilterType = "string", Width = "120" },
-        new() { Key = "Checker",           Label = "确认人",     SortKey = "checker", FilterType = "string", Width = "120" },
-        new() { Key = "Salesman",          Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "100" },
-        new() { Key = "DeliveryState",     Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态") } },
-        new() { Key = "IsForceCompleted",  Label = "强制完成",   SortKey = "isforcecompleted", FilterType = "boolean", Visible = false, BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60" },
-        new() { Key = "Remark",            Label = "备注",        SortKey = "remark", FilterType = "string", Width = "120" },
-        new() { Key = "UpdatedTime",       Label = "更新时间",   SortKey = "updatedtime", FilterType = "date", Width = "120" },
+        // G1: 检验到料（实体数据）
+        new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "检验到料" },
+        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "检验到料", EnumOptions = new() { new("SCAN","扫码"), new("MANUAL","手动") } },
+        new() { Key = "Shift",             Label = "班次",        SortKey = "shift", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "检验到料", EnumOptions = new() { new("DayShift","白班"), new("MiddleShift","中班"), new("NightShift","夜班") } },
+        new() { Key = "Checker",           Label = "确认人",     SortKey = "checker", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "检验到料" },
+        new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname", FilterType = "string", Width = "100", GroupKey = 1, GroupName = "检验到料" },
+        new() { Key = "SequenceNumber",    Label = "执行序",     SortKey = "sequencenumber", FilterType = "string", Width = "80", GroupKey = 1, GroupName = "检验到料" },
+        new() { Key = "IsForceCompleted",  Label = "强制完成",   SortKey = "isforcecompleted", FilterType = "boolean", Visible = false, BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60", GroupKey = 1, GroupName = "检验到料" },
+        new() { Key = "Remark",            Label = "备注",        SortKey = "remark", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "检验到料" },
+        new() { Key = "UpdatedTime",       Label = "更新时间",   SortKey = "updatedtime", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "检验到料" },
+
+        // G2: 批次信息（自动填充）
+        new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "批次信息" },
+        new() { Key = "ManufacturingItem", Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("OrderFinished","订单成品"), new("Finished","备料成品"), new("Surplus","余库料"), new("SpecialDeliveryStatus","订成-非交付态") } },
+        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "批次信息" },
+        new() { Key = "Specification",     Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "批次信息" },
+        new() { Key = "LengthStatus",      Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "100", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") } },
+        new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
+        new() { Key = "WorkOrderNo",       Label = "工单号",     SortKey = "workorderno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
+        new() { Key = "SalesOrderNo",      Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
+        new() { Key = "FurnaceNo",         Label = "炉号",       SortKey = "furnaceno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
+        new() { Key = "SourceUnit",        Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
+        new() { Key = "ProductionType",     Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120", Visible = false, GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("RoughTube","荒管生产"), new("InProcess","在制生产"), new("Inventory","库存"), new("OutsourcedPurchased","外购"), new("Rework","返整"), new("Subcontract","委外生产"), new("ExternalProcessing","对外加工") } },
+        new() { Key = "Salesman",          Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "100", GroupKey = 2, GroupName = "批次信息" },
+        new() { Key = "DeliveryState",     Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态"), new("SolidSolutionStraightening","固溶矫直") } },
     };
 
     // ========== 服务端数据加载 ==========
@@ -109,7 +112,7 @@ public partial class MaterialReceiveChecks
                 _isFirstLoad = false;
             }
 
-            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "receivedate";
+            var sortBy = _allColumns.FirstOrDefault(c => c.SortKey == sortColumn)?.SortKey ?? "receivedate";
             var filtersJson = SerializeFilters();
 
             DateTime? dateFrom = null;
@@ -305,6 +308,8 @@ public partial class MaterialReceiveChecks
     {
         _allColumns = GetAllColumnDefs();
         await SaveColumnPrefs();
+        StateHasChanged();
+        if (table != null) await table.ReloadServerData();
     }
 
     // ========== 初始化 ==========
@@ -374,6 +379,12 @@ public partial class MaterialReceiveChecks
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#material-checks-list-table");
+        }
+        catch { }
+
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
@@ -403,7 +414,8 @@ public partial class MaterialReceiveChecks
     // ========== 导航 ==========
 
     private void NavigateToCreate() => Navigation.NavigateTo("/quality/material-receive-checks/create");
-    private void NavigateToCreateWithBatch(string batchNo) => Navigation.NavigateTo($"/quality/material-receive-checks/create?batchNo={Uri.EscapeDataString(batchNo)}");
+    private void NavigateToCreateWithBatch(PendingMaterialCheckDto item) => Navigation.NavigateTo(
+        $"/quality/material-receive-checks/create?batchNo={Uri.EscapeDataString(item.BatchNo)}&processGroupId={item.ProcessGroupId}&processGroupName={Uri.EscapeDataString(item.ProcessGroupName ?? "")}");
     private void ViewBatch(int batchId) => Navigation.NavigateTo($"/batches/{batchId}");
 
     // ========== 内联编辑 ==========
@@ -509,6 +521,7 @@ public partial class MaterialReceiveChecks
                 {
                     Snackbar.Add("删除成功", Severity.Success);
                     if (table != null) await table.ReloadServerData();
+                    await LoadPendingMaterialChecksAsync();
                 }
                 else
                 {
@@ -573,14 +586,6 @@ public partial class MaterialReceiveChecks
 
             case "ProductionType":
                 builder.AddContent(0, DisplayHelper.GetProductionTypeText(item.ProductionType?.ToString()));
-                break;
-
-            case "ProductionCutQuantity":
-                builder.AddContent(0, item.ProductionCutQuantity);
-                break;
-
-            case "ProductionWeight":
-                builder.AddContent(0, item.ProductionWeight.HasValue ? ((int)item.ProductionWeight.Value).ToString() : "");
                 break;
 
             case "LengthStatus":
@@ -681,7 +686,18 @@ public partial class MaterialReceiveChecks
                 break;
 
             case "DeliveryState":
-                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState?.ToString()));
+                if (item.IsLastProcessGroup)
+                    builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState?.ToString()));
+                else
+                    builder.AddContent(0, "–");
+                break;
+
+            case "ProcessName":
+                builder.AddContent(0, item.ProcessName);
+                break;
+
+            case "SequenceNumber":
+                builder.AddContent(0, item.SequenceNumber.ToString("G29"));
                 break;
 
             default:
@@ -713,7 +729,7 @@ public partial class MaterialReceiveChecks
             var ids = selectedIds.ToArray();
             var columns = GetPrintColumnDefs();
             var request = new MaterialCheckPrintBatchRequest { Ids = ids, Columns = columns };
-            var apiUrl = $"{Http.BaseAddress}api/production-record/material-check/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}api/material-receive-check/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -736,9 +752,10 @@ public partial class MaterialReceiveChecks
                 IsDescending = sortDescending,
                 ReceiveDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
                 ReceiveDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-                Columns = columns
+                Columns = columns,
+                Filters = SerializeFilters()
             };
-            var apiUrl = $"{Http.BaseAddress}api/production-record/material-check/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}api/material-receive-check/print-all-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -772,6 +789,63 @@ public partial class MaterialReceiveChecks
     }
 
     // ========== 分页汇总（B33） ==========
+    private int _totalTableWidth =>
+        _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 100;
+
+    // ========== 分组标题栏 ==========
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        result.Add(new GroupHeaderInfo { GroupKey = 0, GroupName = "", TotalWidth = 40, ColumnCount = 0, CssClass = "" });
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo { GroupKey = groupKey, GroupName = groupName, TotalWidth = totalWidth, ColumnCount = count, CssClass = GetHeaderGroupCss(groupKey, true) });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo { GroupKey = groupKey, GroupName = groupName, TotalWidth = totalWidth, ColumnCount = count, CssClass = GetHeaderGroupCss(groupKey, true) });
+        result.Add(new GroupHeaderInfo { GroupKey = 0, GroupName = "", TotalWidth = 100, ColumnCount = 0, CssClass = "" });
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1", 2 => "col-g2", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; set; }
+        public string GroupName { get; set; } = "";
+        public int TotalWidth { get; set; }
+        public int ColumnCount { get; set; }
+        public string CssClass { get; set; } = "";
+    }
+
     private void ComputePageSums()
     {
         _pageSums.Clear();

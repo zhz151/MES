@@ -94,7 +94,7 @@
                                        Variant="Variant.Outlined">
                                 @foreach (var state in Enum.GetValues<DeliveryState>())
                                 {
-                                    <MudSelectItem Value="@state">@DisplayHelper.GetDeliveryStateText(state)</MudSelectItem>
+                                    <MudSelectItem Value="@((DeliveryState?)state)">@DisplayHelper.GetDeliveryStateText(state)</MudSelectItem>
                                 }
                             </MudSelect>
                         }

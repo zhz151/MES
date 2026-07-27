@@ -204,7 +204,7 @@ public class InventorySyncService : IInventorySyncService
         result.SalesOrderNo = batch.SalesOrderNo;
         result.OrderItemIds = batch.OrderItemIds;
         result.HeatNo = batch.SourceHeatNo;
-        result.SurfaceCondition = batch.DeliveryState;
+        result.SurfaceCondition = batch.ManufacturingStatus;
         result.SupplierName = batch.SourceName;
         return result;
     }
@@ -270,6 +270,19 @@ public class InventorySyncService : IInventorySyncService
                 WorkOrderNo = b.WorkOrderNo
             })
             .ToList();
+    }
+
+    public async Task<List<string>> GetDistinctWorkOrderNosByWarehouseAsync(int warehouseId)
+    {
+        return await _context.InventoryBatches
+            .AsNoTracking()
+            .Where(b => b.WarehouseId == warehouseId
+                     && b.WorkOrderNo != null
+                     && b.WorkOrderNo != string.Empty
+                     && b.WorkOrderNo != "非工单")
+            .Select(b => b.WorkOrderNo!)
+            .Distinct()
+            .ToListAsync();
     }
 
     public async Task SyncSourceOrdersAsync(List<string> sourceOrderNos)

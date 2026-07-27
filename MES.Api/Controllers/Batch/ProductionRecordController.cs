@@ -124,69 +124,6 @@ public class ProductionRecordController : ControllerBase
     }
 
     /// <summary>
-    /// 创建工段委外
-    /// </summary>
-    [HttpPost("outsource")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<SectionOutsourceDto>>> CreateSectionOutsource(
-        [FromBody] CreateSectionOutsourceRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<SectionOutsourceDto>.Fail("请求参数无效"));
-        var result = await _service.CreateSectionOutsourceAsync(request);
-        return Ok(ApiResponse<SectionOutsourceDto>.Ok(result, "创建成功"));
-    }
-
-    /// <summary>
-    /// 删除工段委外
-    /// </summary>
-    [HttpDelete("outsource/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse>> DeleteSectionOutsource(int id)
-    {
-        await _service.DeleteSectionOutsourceAsync(id);
-        return Ok(ApiResponse.Ok("删除成功"));
-    }
-
-    // ========== 委外回收 ==========
-
-    /// <summary>
-    /// 获取委外记录的回收列表
-    /// </summary>
-    [HttpGet("outsource/{outsourceId}/recoveries")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<OutsourceRecoveryDto>>>> GetOutsourceRecoveries(int outsourceId)
-    {
-        var result = await _service.GetOutsourceRecoveriesAsync(outsourceId);
-        return Ok(ApiResponse<List<OutsourceRecoveryDto>>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
-    /// 创建委外回收
-    /// </summary>
-    [HttpPost("recovery")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<OutsourceRecoveryDto>>> CreateOutsourceRecovery(
-        [FromBody] CreateOutsourceRecoveryRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<OutsourceRecoveryDto>.Fail("请求参数无效"));
-        var result = await _service.CreateOutsourceRecoveryAsync(request);
-        return Ok(ApiResponse<OutsourceRecoveryDto>.Ok(result, "创建成功"));
-    }
-
-    /// <summary>
-    /// 删除委外回收
-    /// </summary>
-    [HttpDelete("recovery/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse>> DeleteOutsourceRecovery(int id)
-    {
-        await _service.DeleteOutsourceRecoveryAsync(id);
-        return Ok(ApiResponse.Ok("删除成功"));
-    }
-
-    /// <summary>
     /// 刷新批次跟踪字段
     /// </summary>
     [HttpPost("{batchId}/refresh-tracking")]
@@ -333,38 +270,6 @@ public class ProductionRecordController : ControllerBase
     {
         var result = await _service.GetAllOutsourceRecoveryListAsync();
         return ApiResponse<List<OutsourceRecoveryDto>>.Ok(result);
-    }
-
-    /// <summary>
-    /// 批量创建工段委外
-    /// </summary>
-    [HttpPost("outsources/batch")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<SectionOutsourceDto>>>> BatchCreateSectionOutsources(
-        [FromBody] List<CreateSectionOutsourceRequest> requests)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<List<SectionOutsourceDto>>.Fail("请求参数无效"));
-        if (requests.Count == 0)
-            return BadRequest(ApiResponse<List<SectionOutsourceDto>>.Fail("请求列表不能为空"));
-        var result = await _service.BatchCreateSectionOutsourcesAsync(requests);
-        return Ok(ApiResponse<List<SectionOutsourceDto>>.Ok(result, "批量创建成功"));
-    }
-
-    /// <summary>
-    /// 批量创建委外回收
-    /// </summary>
-    [HttpPost("recoveries/batch")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<OutsourceRecoveryDto>>>> BatchCreateOutsourceRecoveries(
-        [FromBody] List<CreateOutsourceRecoveryRequest> requests)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<List<OutsourceRecoveryDto>>.Fail("请求参数无效"));
-        if (requests.Count == 0)
-            return BadRequest(ApiResponse<List<OutsourceRecoveryDto>>.Fail("请求列表不能为空"));
-        var result = await _service.BatchCreateOutsourceRecoveriesAsync(requests);
-        return Ok(ApiResponse<List<OutsourceRecoveryDto>>.Ok(result, "批量创建成功"));
     }
 
     /// <summary>

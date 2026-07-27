@@ -169,7 +169,7 @@
                 {
                     <div class="d-flex align-center mb-4">
                         <MudText Typo="Typo.body2" Class="mr-2 mud-text-secondary" Style="white-space:nowrap;">复制子项目自：</MudText>
-                        <MudSelect T="int?"
+                        <MudSelect T="int"
                                    @bind-Value="_sourceStandardId"
                                    @bind-Value:after="() => OnSourceChanged(_sourceStandardId)"
                                    Dense="true"
@@ -177,12 +177,12 @@
                                    Placeholder="选择来源标准号"
                                    Class="flex-grow-1"
                                    Style="max-width:400px;">
-                            <MudSelectItem Value="@((int?)null)">
+                            <MudSelectItem Value="0">
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">（不复制）</MudText>
                             </MudSelectItem>
                             @foreach (var std in _allStandards)
                             {
-                                <MudSelectItem Value="@((int?)std.Id)">@std.StandardNo - @std.StandardName</MudSelectItem>
+                                <MudSelectItem Value="std.Id">@std.StandardNo - @std.StandardName</MudSelectItem>
                             }
                         </MudSelect>
                     </div>

@@ -21,13 +21,15 @@ public static class FinalInspectionPrintHelper
     private static readonly Dictionary<string, Func<object?, string>> ValueResolvers = new()
     {
         ["InspectionItem"] = v => v is InspectionItem item ? EnumHelper.GetDisplayName(item) : (v?.ToString() ?? ""),
-        ["ProductionType"] = v => v is ProductionType pt ? EnumHelper.GetDisplayName(pt) : (v?.ToString() ?? ""),
+        ["ProductionType"] = v => v is string s && !string.IsNullOrEmpty(s) && Enum.TryParse<ProductionType>(s, true, out var pt) ? EnumHelper.GetDisplayName(pt) : (v?.ToString() ?? ""),
         ["DataSource"] = v => v?.ToString() switch
         {
-            "SCAN" => "扫码报工",
-            "MANUAL" => "手动录入",
+            "SCAN" => "扫码",
+            "MANUAL" => "手动",
             _ => v?.ToString() ?? ""
-        }
+        },
+        ["LengthStatus"] = v => v is string s && !string.IsNullOrEmpty(s) && Enum.TryParse<LengthStatus>(s, true, out var ls) ? EnumHelper.GetDisplayName(ls) : (v?.ToString() ?? ""),
+        ["DeliveryState"] = v => v is string s && !string.IsNullOrEmpty(s) && Enum.TryParse<DeliveryState>(s, true, out var ds) ? EnumHelper.GetDisplayName(ds) : (v?.ToString() ?? "")
     };
 
     public static byte[] GenerateBatchPdf(List<FinalInspectionDto> items, List<PrintColumnDef> columns)

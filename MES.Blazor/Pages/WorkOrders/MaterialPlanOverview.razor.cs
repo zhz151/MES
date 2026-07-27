@@ -67,7 +67,8 @@ public partial class MaterialPlanOverview
     private bool includeRework = true;
     private bool includePiercing = true;
     private bool includeInProcessRework = true;
-    private bool anyPlanTypeSelected => includeSemi || includeFinish || includeInventory || includeRework || includePiercing || includeInProcessRework;
+    private bool includeInMainWorkOrder = true;
+    private bool anyPlanTypeSelected => includeSemi || includeFinish || includeInventory || includeRework || includePiercing || includeInProcessRework || includeInMainWorkOrder;
 
     // ========== 列定义 ==========
 
@@ -100,7 +101,7 @@ public partial class MaterialPlanOverview
         new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "TotalQuantity", Width = "80" },
         new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "TotalWeight", Width = "80" },
         new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "DeliveryState", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"), new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态") } },
+            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"), new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
         new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "TotalItemCount", Width = "80" },
         new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate", FilterType = "date", Width = "120" },
         new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum", Width = "120",
@@ -253,7 +254,8 @@ public partial class MaterialPlanOverview
         if (includeInventory) planTypes.Add("inventory");
         if (includeRework) planTypes.Add("rework");
         if (includeInProcessRework) planTypes.Add("inprocess");
-        return planTypes.Count < 6 ? string.Join(",", planTypes) : null;
+        if (includeInMainWorkOrder) planTypes.Add("inmain");
+        return planTypes.Count < 7 ? string.Join(",", planTypes) : null;
     }
 
     // ========== 筛选上下文加载（ExcelFilter 下拉选项） ==========
@@ -369,6 +371,7 @@ public partial class MaterialPlanOverview
             case 4: includeRework = value; break;
             case 5: includePiercing = value; break;
             case 6: includeInProcessRework = value; break;
+            case 7: includeInMainWorkOrder = value; break;
         }
         selectedWorkOrderIds.Clear();
         _allSelected = false;
@@ -460,6 +463,8 @@ public partial class MaterialPlanOverview
                 bool.TryParse(savedState.Extras["includeRework"], out includeRework);
             if (savedState.Extras?.ContainsKey("includeInProcessRework") == true)
                 bool.TryParse(savedState.Extras["includeInProcessRework"], out includeInProcessRework);
+            if (savedState.Extras?.ContainsKey("includeInMainWorkOrder") == true)
+                bool.TryParse(savedState.Extras["includeInMainWorkOrder"], out includeInMainWorkOrder);
         }
 
         // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
@@ -730,7 +735,7 @@ public partial class MaterialPlanOverview
                 }
                 break;
             case "MaterialPlanCoveredCount":
-                builder.AddContent(0, wo.MaterialPlanCoveredCount > 0 ? $"{wo.MaterialPlanCoveredCount}/6" : "-");
+                builder.AddContent(0, wo.MaterialPlanCoveredCount > 0 ? $"{wo.MaterialPlanCoveredCount}/7" : "-");
                 break;
             case "LatestRequiredDate":
                 if (wo.LatestRequiredDate.HasValue)
@@ -755,7 +760,8 @@ public partial class MaterialPlanOverview
             IncludeInventory = includeInventory,
             IncludeRework = includeRework,
             IncludeRoundBarPiercing = includePiercing,
-            IncludeInProcessRework = includeInProcessRework
+            IncludeInProcessRework = includeInProcessRework,
+            IncludeInMainWorkOrder = includeInMainWorkOrder
         };
 
         try
@@ -786,6 +792,7 @@ public partial class MaterialPlanOverview
         extras["includeInventory"] = includeInventory.ToString();
         extras["includeRework"] = includeRework.ToString();
         extras["includeInProcessRework"] = includeInProcessRework.ToString();
+        extras["includeInMainWorkOrder"] = includeInMainWorkOrder.ToString();
         var state = new PageState
         {
             SortBy = sortColumn,

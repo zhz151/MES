@@ -76,6 +76,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">挂牌号</MudText><MudText Typo="Typo.body2">@(batch.TagNo ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">生产类型</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetProductionTypeText(batch.ProductionType))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制造物品</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetMaterialTypeText(batch.ManufacturingItem))</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制造状态</MudText><MudText Typo="Typo.body2">@(batch.ManufacturingStatusDisplay ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制成倍数</MudText><MudText Typo="Typo.body2">@(batch.ProductionRatio.ToString())</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">备注</MudText><MudText Typo="Typo.body2">@(batch.Remark ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetBatchStatusText(batch.Status)</MudText></div>
@@ -117,20 +118,11 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">强制完成</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetYesNoText(batch.IsForceCompleted))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">剩余工量</MudText><MudText Typo="Typo.body2">@(batch.RemainingWorkDays == 0 ? "0" : $"{batch.RemainingWorkDays}天")</MudText></div>
                 <div class="d-flex align-center" Style="gap:6px; width:100%; flex-wrap:wrap;">
-                    @if (batch.Status == BatchStatus.None)
-                    {
-                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error"
-                                   StartIcon="@Icons.Material.Filled.Cancel"
-                                   OnClick="CancelBatchAsync">作废</MudButton>
-                    }
-                    @if (batch.Status == BatchStatus.InProgress || batch.Status == BatchStatus.Completed)
+                    @if (batch.Status == BatchStatus.InProgress || batch.Status == BatchStatus.InFinalInspection || batch.Status == BatchStatus.Completed)
                     {
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning"
                                    StartIcon="@Icons.Material.Filled.PauseCircle"
                                    OnClick="PauseBatchAsync">暂停</MudButton>
-                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error"
-                                   StartIcon="@Icons.Material.Filled.Cancel"
-                                   OnClick="CancelBatchAsync">作废</MudButton>
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Error"
                                    StartIcon="@Icons.Material.Filled.Verified"
                                    OnClick="ForceCompleteAsync">强制完成</MudButton>
@@ -141,17 +133,11 @@
                                    StartIcon="@Icons.Material.Filled.PlayCircle"
                                    OnClick="ResumeBatchAsync">恢复</MudButton>
                     }
-                    else if (batch.Status == BatchStatus.Cancelled)
-                    {
-                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Success"
-                                   StartIcon="@Icons.Material.Filled.Restore"
-                                   OnClick="ResumeBatchAsync">恢复</MudButton>
-                    }
-                    @if (batch.IsForceCompleted && batch.Status == BatchStatus.Completed)
+                    @if (batch.IsForceCompleted && (batch.Status == BatchStatus.InFinalInspection || batch.Status == BatchStatus.Completed))
                     {
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default"
                                    StartIcon="@Icons.Material.Filled.Undo"
-                                   OnClick="UnforceCompleteAsync">转为在产</MudButton>
+                                   OnClick="UnforceCompleteAsync">释放</MudButton>
                     }
                 </div>
             </div>
@@ -209,9 +195,17 @@
                             <span class="detail-current-name">@_trackingVisual.CurrentSectionName</span>
                         </MudText>
                     }
-                    @if (!string.IsNullOrEmpty(_trackingVisual.CurrentEquipmentName))
+                    @if (_trackingVisual.CurrentWarehouseDetails != null && _trackingVisual.CurrentWarehouseDetails.Count > 0)
                     {
-                        <MudText Typo="Typo.body2">🔧 设备：@_trackingVisual.CurrentEquipmentName</MudText>
+                        var whTexts = _trackingVisual.CurrentWarehouseDetails.Select(wh =>
+                        {
+                            var parts = new List<string> { wh.WarehouseName };
+                            if (wh.Quantity.HasValue) parts.Add($"{wh.Quantity}支");
+                            if (wh.Weight.HasValue) parts.Add($"{wh.Weight:G29}Kg");
+                            if (wh.InboundDate.HasValue) parts.Add(wh.InboundDate.Value.ToString("yyyy-MM-dd"));
+                            return string.Join("，", parts);
+                        });
+                        <MudText Typo="Typo.body2">🏭 库房：@string.Join("；", whTexts)</MudText>
                     }
                     @if (!string.IsNullOrEmpty(_trackingVisual.CurrentOutsource))
                     {
@@ -298,6 +292,40 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">现有效原料支数</MudText><MudText Typo="Typo.body2">@(batch.CurrentValidQty?.ToString() ?? "-") 支</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">现有效原料重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.CurrentValidWeight) kg</MudText></div>
             </div>
+
+            @if (batch.SourceItems.Count > 0)
+            {
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.ListAlt" Class="mr-1" Size="Size.Small" />合并投料明细
+                </MudText>
+                <div class="detail-table-scroll">
+                    <MudTable T="SourceBatchItemDto" Items="batch.SourceItems" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
+                        <HeaderContent>
+                            <MudTh>批次号</MudTh>
+                            <MudTh>原料类型</MudTh>
+                            <MudTh>来料单位</MudTh>
+                            <MudTh>炉号</MudTh>
+                            <MudTh>工厂牌号</MudTh>
+                            <MudTh>规格</MudTh>
+                            <MudTh>仓库</MudTh>
+                            <MudTh Class="text-right">领料支数</MudTh>
+                            <MudTh Class="text-right">领料重量(kg)</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd><MudText Typo="Typo.body2" Class="font-weight-bold">@context.BatchNo</MudText></MudTd>
+                            <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialType)</MudTd>
+                            <MudTd>@(context.SourceName ?? "-")</MudTd>
+                            <MudTd>@(context.HeatNo ?? "-")</MudTd>
+                            <MudTd>@(context.PlantGrade ?? "-")</MudTd>
+                            <MudTd>@(context.Specification ?? "-")</MudTd>
+                            <MudTd>@(context.WarehouseName ?? "-")</MudTd>
+                            <MudTd Class="text-right">@context.InputQuantity</MudTd>
+                            <MudTd Class="text-right">@context.InputWeight.ToString("G29")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
         </MudPaper>
 
         <!-- ===== 区块六：工单信息 ===== -->
@@ -704,30 +732,16 @@
 
     private async Task UnforceCompleteAsync()
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认恢复", new DialogParameters
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认释放", new DialogParameters
         {
-            ["ContentText"] = $"确定将批次 {batch?.BatchNo} 转为在产状态吗？",
-            ["ConfirmText"] = "转为在产",
+            ["ContentText"] = $"确定释放批次 {batch?.BatchNo} 的强制完成吗？系统将根据实际记录重新计算状态。",
+            ["ConfirmText"] = "释放",
             ["Color"] = Color.Warning
         });
         var result = await dialog.Result;
         if (result.Canceled) return;
 
         await UpdateBatchStatusAsync(BatchStatus.InProgress);
-    }
-
-    private async Task CancelBatchAsync()
-    {
-        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认作废", new DialogParameters
-        {
-            ["ContentText"] = $"确定将批次 {batch?.BatchNo} 作废吗？",
-            ["ConfirmText"] = "作废",
-            ["Color"] = Color.Error
-        });
-        var result = await dialog.Result;
-        if (result.Canceled) return;
-
-        await UpdateBatchStatusAsync(BatchStatus.Cancelled);
     }
 
     private async Task UpdateBatchStatusAsync(BatchStatus newStatus)
@@ -884,11 +898,29 @@
         var parts = new List<string> { section.SectionName };
         if (section.ExecDate.HasValue)
             parts.Add($"执行日: {section.ExecDate:yyyy-MM-dd}");
-        if (section.EquipmentName != null)
-            parts.Add($"设备: {section.EquipmentName}");
-        if (section.Quantity.HasValue)
+
+        var isWarehouse = section.SectionName == "入库";
+        if (section.WarehouseDetails != null && section.WarehouseDetails.Count > 0)
+        {
+            foreach (var wh in section.WarehouseDetails)
+            {
+                var whParts = new List<string> { $"库房: {wh.WarehouseName}" };
+                if (wh.Quantity.HasValue) whParts.Add($"{wh.Quantity}支");
+                if (wh.Weight.HasValue) whParts.Add($"{wh.Weight:G29}kg");
+                if (wh.InboundDate.HasValue) whParts.Add($"{wh.InboundDate:yyyy-MM-dd}");
+                parts.Add(string.Join(" ", whParts));
+            }
+        }
+        else if (section.EquipmentName != null)
+        {
+            parts.Add(isWarehouse
+                ? $"库房: {section.EquipmentName}"
+                : $"设备: {section.EquipmentName}");
+        }
+
+        if (section.Quantity.HasValue && !isWarehouse)
             parts.Add($"数量: {section.Quantity}支");
-        if (section.Weight.HasValue)
+        if (section.Weight.HasValue && !isWarehouse)
             parts.Add($"重量: {section.Weight:G29}kg");
         if (section.Operator != null)
             parts.Add($"操作人: {section.Operator}");

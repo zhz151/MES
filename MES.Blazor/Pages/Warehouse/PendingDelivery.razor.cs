@@ -81,7 +81,7 @@ public partial class PendingDelivery
         new() { Key = "remainingquantity",  Label = "剩余支数",   SortKey = "RemainingQuantity",FilterType = "string",Width = "60",  GroupKey = 3, GroupName = "③ 仓库信息" },
         new() { Key = "remainingweight",    Label = "剩余重量",   SortKey = "RemainingWeight", FilterType = "string", Width = "80",  GroupKey = 3, GroupName = "③ 仓库信息" },
         new() { Key = "remainingmeters",    Label = "剩余米数",   SortKey = "RemainingMeters", FilterType = "string", Width = "80",  GroupKey = 3, GroupName = "③ 仓库信息" },
-        new() { Key = "materialtype",       Label = "物料",       SortKey = "MaterialType",    FilterType = "string", Width = "60",  GroupKey = 3, GroupName = "③ 仓库信息" },
+        new() { Key = "materialtype",       Label = "物料类型",   SortKey = "MaterialType",    FilterType = "string", Width = "60",  GroupKey = 3, GroupName = "③ 仓库信息" },
     };
 
     // ========== B23 分组列标题栏 ==========
@@ -330,6 +330,13 @@ public partial class PendingDelivery
         {
             foreach (var opt in inboundOptions)
                 opt.Display = DisplayHelper.GetInboundSourceText(opt.Value);
+        }
+
+        // DeliveryStatus 列显示中文（枚举名 → 中文）
+        if (_filterContextOptions.TryGetValue("deliverystatus", out var deliveryOptions))
+        {
+            foreach (var opt in deliveryOptions)
+                opt.Display = DisplayHelper.GetDeliveryStateText(opt.Value);
         }
 
         // LengthStatus 列显示中文
@@ -660,7 +667,7 @@ public partial class PendingDelivery
                 builder.AddContent(0, item.ProductStandard ?? "-");
                 break;
             case "deliverystatus":
-                builder.AddContent(0, item.DeliveryStatus ?? "-");
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryStatus));
                 break;
             case "standardgrade":
                 builder.AddContent(0, item.StandardGrade ?? "-");

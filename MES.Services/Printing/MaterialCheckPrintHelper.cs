@@ -43,10 +43,13 @@ public static class MaterialCheckPrintHelper
                 ["ProductionType"] = m.ProductionType.HasValue ? EnumHelper.GetDisplayName(typeof(ProductionType), m.ProductionType.Value) : "",
                 ["Shift"] = EnumHelper.GetDisplayName<ShiftType>(m.Shift?.ToString()),
                 ["Checker"] = m.Checker ?? "",
-                ["ProductionCutQuantity"] = m.ProductionCutQuantity.ToString(),
-                ["ProductionWeight"] = m.ProductionWeight?.ToString("G29") ?? "",
                 ["LengthStatus"] = m.LengthStatus.HasValue ? EnumHelper.GetDisplayName(typeof(LengthStatus), m.LengthStatus.Value) : "",
-                ["DataSource"] = m.DataSource ?? "",
+                ["DataSource"] = m.DataSource switch
+                {
+                    "SCAN" => "扫码",
+                    "MANUAL" => "手动",
+                    _ => m.DataSource ?? ""
+                },
                 ["Salesman"] = m.Salesman ?? "",
                 ["DeliveryState"] = m.DeliveryState.HasValue ? EnumHelper.GetDisplayName(typeof(DeliveryState), m.DeliveryState.Value) : "",
                 ["IsForceCompleted"] = m.IsForceCompleted ? "是" : "否",

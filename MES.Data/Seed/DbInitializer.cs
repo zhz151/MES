@@ -376,6 +376,7 @@ public static class DbInitializer
                 new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "ScrapPercent", ParamValue = 0.05m, Remark = "报废触发百分比" },
 
                 // ===== DefaultValue 默认值 =====
+                new() { Category = "DefaultValue", CategoryDisplay = "工单-默认工艺周期", Context = "工单", ParamKey = "DefaultProcessCycle", ParamValue = 22m, Remark = "默认工艺周期(天)，主号/库料改制无工时默认使用" },
                 new() { Category = "DefaultValue", CategoryDisplay = "工单-标准周期", Context = "工单", ParamKey = "StandardCycle", ParamValue = 3m, Remark = "默认标准周期(天)" },
                 new() { Category = "DefaultValue", CategoryDisplay = "批次-最大序号", Context = "批次", ParamKey = "BatchMaxSequence", ParamValue = 9999m, Remark = "批次号最大序号" },
                 new() { Category = "DefaultValue", CategoryDisplay = "工单-荒管成品系数", Context = "工单", ParamKey = "RoughTubeFinishRatio", ParamValue = 0.92m, Remark = "荒管转成品系数" },

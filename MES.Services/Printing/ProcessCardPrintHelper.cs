@@ -106,8 +106,8 @@ public static class ProcessCardPrintHelper
             var batchInfoFields = GetBatchInfoFields(batch, visibleCols);
             if (batchInfoFields.Count > 0)
             {
-                col.Item().Element(c => ComposeBlockTable(c, "批次基本信息", batchInfoFields, rows: 2, rowCols: new[] { 8, 11 },
-                    rowColRatios: new[] { new[] { 2, 2, 2, 2, 1, 3, 2, 2 }, Array.Empty<int>() }));
+                col.Item().Element(c => ComposeBlockTable(c, "批次基本信息", batchInfoFields, rows: 2, rowCols: new[] { 9, 11 },
+                    rowColRatios: new[] { new[] { 2, 2, 2, 2, 1, 3, 2, 2, 2 }, Array.Empty<int>() }));
                 anyBlockRendered = true;
             }
 
@@ -354,6 +354,7 @@ public static class ProcessCardPrintHelper
             ["Remark"] = ("备注", () => b.Remark ?? "-"),
             ["CurrentExecDate"] = ("截止执行日", () => b.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "-"),
             ["ManufacturingItem"] = ("制造物品", () => EnumHelper.GetDisplayName<MaterialType>(b.ManufacturingItem)),
+            ["ManufacturingStatus"] = ("制造状态", () => string.IsNullOrEmpty(b.ManufacturingStatus) ? "-" : (Enum.TryParse<DeliveryState>(b.ManufacturingStatus, out var ms) ? EnumHelper.GetDisplayName(ms) : b.ManufacturingStatus)),
             ["CurrentGroupName"] = ("当前工序", () => b.CurrentGroupName ?? "-"),
             ["CurrentSectionName"] = ("当前工段", () => b.CurrentSectionName ?? "-"),
             ["CurrentEquipmentName"] = ("当前设备", () => b.CurrentEquipmentName ?? "-"),

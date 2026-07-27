@@ -9,6 +9,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
 @attribute [Authorize(Roles = Roles.Policies.QualityRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
@@ -29,9 +30,11 @@
             white-space: nowrap;
         }
         .table-scroll {
-            max-height: calc(100vh - 280px);
-            overflow-y: auto;
-            overflow-x: auto;
+            max-height: calc(100vh - 310px);
+            overflow: hidden;
+        }
+        .table-scroll .mud-table-container {
+            overflow-x: auto !important;
         }
     </style>
 
@@ -53,6 +56,16 @@
                 @if (_rows.Any())
                 {
                     <div class="d-flex align-center mb-2">
+                        <ColumnDisplaySelect Columns="_allColumns"
+                                             OnColumnToggle="OnColumnToggle"
+                                             OnMoveUp="MoveColumnUp"
+                                             OnMoveDown="MoveColumnDown" />
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.RestartAlt"
+                                   OnClick="ResetColumnDisplay" Class="ml-2">
+                            重置
+                        </MudButton>
                         <MudSpacer />
                         <MudText Typo="Typo.body2">共 @_rows.Count 行</MudText>
                         <MudButton Variant="Variant.Text" Size="Size.Small"
@@ -62,78 +75,61 @@
                             添加行
                         </MudButton>
                     </div>
-                    <div class="table-scroll">
+                    <div class="table-scroll" id="final-inspection-create-table-wrapper">
+                        @* 分组标题栏 *@
+                        <div class="col-group-header-scroll">
+                            <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                                @foreach (var gh in _groupHeaders)
+                                {
+                                    <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                                        <span class="col-group-badge">@gh.GroupName</span>
+                                    </div>
+                                }
+                                <div class="col-group-header-item" style="width:80px;flex:none;"></div>
+                            </div>
+                        </div>
                         <MudTable Items="@_rows" Dense="true" Hover="true" Elevation="0" Striped="true"
                                   Class="edit-table auto-table" SortMode="SortMode.None" FixedHeader="true">
                             <HeaderContent>
-                                <MudTh Style="width:120px;">
-                                    检验项目 <span class="required-star">*</span>
-                                </MudTh>
-                                <MudTh Style="width:110px;">
-                                    检验日期 <span class="required-star">*</span>
-                                </MudTh>
-                                <MudTh Style="width:110px;">
-                                    生产编号 <span class="required-star">*</span>
-                                </MudTh>
-                                <MudTh Style="width:80px;">物料名称</MudTh>
-                                <MudTh Style="width:80px;">挂牌号</MudTh>
-                                <MudTh Style="width:90px;">关联工单号</MudTh>
-                                <MudTh Style="width:90px;">关联订单号</MudTh>
-                                <MudTh Style="width:90px;">来料单位</MudTh>
-                                <MudTh Style="width:80px;">炉号</MudTh>
-                                <MudTh Style="width:80px;">工厂牌号</MudTh>
-                                <MudTh Style="width:80px;">规格</MudTh>
-                                <MudTh Style="width:80px;">定尺长度</MudTh>
-                                <MudTh Style="width:80px;">设备名称</MudTh>
-                                <MudTh Style="width:60px;">班次</MudTh>
-                                <MudTh Style="width:60px;">操作员</MudTh>
-                                <MudTh Style="width:70px;">检验支数</MudTh>
-                                <MudTh Style="width:70px;">检验重量</MudTh>
-                                <MudTh Style="width:70px;">合格支数</MudTh>
-                                <MudTh Style="width:70px;">合格重量</MudTh>
-                                <MudTh Style="width:80px;">不合格返整支</MudTh>
-                                <MudTh Style="width:80px;">不合格入库支</MudTh>
-                                <MudTh Style="width:80px;">不合格报废支</MudTh>
-                                <MudTh Style="width:100px;">不合格情况描述</MudTh>
-                                <MudTh Style="width:80px;">外径范围</MudTh>
-                                <MudTh Style="width:80px;">壁厚范围</MudTh>
-                                <MudTh Style="width:80px;">长度余量范围</MudTh>
-                                <MudTh Style="width:70px;">压力Mpa</MudTh>
-                                <MudTh Style="width:70px;">保压时间s</MudTh>
-                                <MudTh Style="width:80px;">检验备注</MudTh>
-                                <MudTh Style="width:50px;">操作</MudTh>
+                                @{
+                                    int? _prevGk = null;
+                                }
+                                @foreach (var col in _visibleColumns)
+                                {
+                                    var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                                    _prevGk = col.GroupKey;
+                                    var _headerClass = col.GroupKey.HasValue ? GetHeaderGroupCss(col.GroupKey.Value, _isGroupStart) : "";
+                                    <MudTh Class="@_headerClass" Style="@($"width:{GetColWidth(col.Key)}px")">
+                                        @col.Label
+                                        @if (col.IsRequired)
+                                        {
+                                            <span class="required-star">*</span>
+                                        }
+                                    </MudTh>
+                                }
+                                <MudTh Style="width:80px;">操作</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="r">
-                                <MudTd>@RenderInspectionItem(r)</MudTd>
-                                <MudTd>@RenderInspectionDate(r)</MudTd>
-                                <MudTd>@RenderBatchNo(r)</MudTd>
-                                <MudTd>@RenderInputField(r.MaterialName, v => r.MaterialName = v)</MudTd>
-                                <MudTd>@RenderInputField(r.TagNo, v => r.TagNo = v)</MudTd>
-                                <MudTd>@RenderInputField(r.WorkOrderNo, v => r.WorkOrderNo = v)</MudTd>
-                                <MudTd>@RenderInputField(r.SalesOrderNo, v => r.SalesOrderNo = v)</MudTd>
-                                <MudTd>@RenderInputField(r.SourceUnit, v => r.SourceUnit = v)</MudTd>
-                                <MudTd>@RenderInputField(r.FurnaceNo, v => r.FurnaceNo = v)</MudTd>
-                                <MudTd>@RenderInputField(r.PlantGrade, v => r.PlantGrade = v)</MudTd>
-                                <MudTd>@RenderInputField(r.Specification, v => r.Specification = v)</MudTd>
-                                <MudTd>@RenderInputField(r.FixedLength, v => r.FixedLength = v)</MudTd>
-                                <MudTd>@RenderInputField(r.EquipmentName, v => r.EquipmentName = v)</MudTd>
-                                <MudTd>@RenderInputField(r.Shift, v => r.Shift = v)</MudTd>
-                                <MudTd>@RenderInputField(r.Operator, v => r.Operator = v)</MudTd>
-                                <MudTd>@RenderNumericField(r.Quantity, v => r.Quantity = v)</MudTd>
-                                <MudTd>@RenderDecimalField(r.Weight, v => r.Weight = v)</MudTd>
-                                <MudTd>@RenderNumericField(r.QualifiedQuantity, v => r.QualifiedQuantity = v)</MudTd>
-                                <MudTd>@RenderDecimalField(r.QualifiedWeight, v => r.QualifiedWeight = v)</MudTd>
-                                <MudTd>@RenderNumericField(r.DefectReworkQuantity, v => r.DefectReworkQuantity = v)</MudTd>
-                                <MudTd>@RenderNumericField(r.DefectWarehouseQuantity, v => r.DefectWarehouseQuantity = v)</MudTd>
-                                <MudTd>@RenderNumericField(r.DefectScrapQuantity, v => r.DefectScrapQuantity = v)</MudTd>
-                                <MudTd>@RenderInputField(r.DefectDescription, v => r.DefectDescription = v)</MudTd>
-                                <MudTd>@RenderInputField(r.OuterDiameterRange, v => r.OuterDiameterRange = v)</MudTd>
-                                <MudTd>@RenderInputField(r.WallThicknessRange, v => r.WallThicknessRange = v)</MudTd>
-                                <MudTd>@RenderInputField(r.LengthAllowanceRange, v => r.LengthAllowanceRange = v)</MudTd>
-                                <MudTd>@RenderDecimalField(r.Pressure, v => r.Pressure = v)</MudTd>
-                                <MudTd>@RenderNumericField(r.HoldTime, v => r.HoldTime = v)</MudTd>
-                                <MudTd>@RenderInputField(r.Remark, v => r.Remark = v)</MudTd>
-                                <MudTd>
+                                @{
+                                    int? _prevGk2 = null;
+                                }
+                                @foreach (var col in _visibleColumns)
+                                {
+                                    var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                                    _prevGk2 = col.GroupKey;
+                                    var _cellClass = col.GroupKey.HasValue ? GetCellGroupCss(col.GroupKey.Value, _isGroupStart2) : "";
+                                    <MudTd Class="@_cellClass" Style="@($"width:{GetColWidth(col.Key)}px")">
+                                        @RenderCell(r, col)
+                                    </MudTd>
+                                }
+                                <MudTd Style="white-space:nowrap;">
+                                    @if (_rows.IndexOf(r) > 0)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                                       Color="Color.Info" Size="Size.Small"
+                                                       Title="与上行相同"
+                                                       OnClick="() => CopyFromAbove(r, _rows.IndexOf(r))" />
+                                    }
                                     <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline"
                                                    Color="Color.Error" Size="Size.Small"
                                                    Title="删除"
@@ -142,7 +138,17 @@
                                 </MudTd>
                             </RowTemplate>
                             <FooterContent>
-                                <MudTd colspan="30">
+                                @{
+                                    int? _prevGk3 = null;
+                                }
+                                @foreach (var col in _visibleColumns)
+                                {
+                                    var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                                    _prevGk3 = col.GroupKey;
+                                    var _footerClass = col.GroupKey.HasValue ? GetCellGroupCss(col.GroupKey.Value, _isGroupStart3) : "";
+                                    <MudTd Class="@_footerClass" Style="@($"width:{GetColWidth(col.Key)}px")"></MudTd>
+                                }
+                                <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
                                                    Color="Color.Primary" Size="Size.Small"
                                                    OnClick="AddRow" />
@@ -181,12 +187,112 @@
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
 
+    // ========== 列定义 ==========
+
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        // ========== G1：检验执行 ==========
+        new() { Key = "InspectionItem",           Label = "检验项目",   IsRequired = true, GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "InspectionDate",           Label = "检验日期",   IsRequired = true, GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "BatchNo",                  Label = "生产编号",   IsRequired = true, GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "EquipmentName",            Label = "设备名称",                    GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "Shift",                    Label = "班次",                        GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "Operator",                 Label = "操作员",                      GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "QualificationLevel",       Label = "资格等级",                    GroupKey = 1, GroupName = "G1 检验执行" },
+
+        // ========== G2：生产批次 ==========
+        new() { Key = "TagNo",                    Label = "挂牌号",                      GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "ProductionType",           Label = "生产类型",                    GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "ManufacturingItem",        Label = "制造物品",                    GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "Salesman",                 Label = "业务员",                      GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "DeliveryState",            Label = "交货状态",                    GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "WorkOrderNo",              Label = "关联工单号",                  GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "SalesOrderNo",             Label = "关联订单号",                  GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "SourceUnit",               Label = "来料单位",                    GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "FurnaceNo",                Label = "炉号",                        GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "PlantGrade",               Label = "工厂牌号",                    GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "Specification",            Label = "规格",                        GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "LengthStatus",             Label = "长度状态",                    GroupKey = 2, GroupName = "G2 生产批次" },
+
+        // ========== G3：检验结果 ==========
+        new() { Key = "FixedLength",              Label = "定尺长度",                    GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "Quantity",                 Label = "检验支数",                    GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "Weight",                   Label = "检验重量",                    GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "QualifiedQuantity",        Label = "合格支数",                    GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "QualifiedWeight",          Label = "合格重量",                    GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "QualifiedConcessionQuantity", Label = "含让步放行支",             GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "ConcessionRemark",         Label = "让步说明",                    GroupKey = 3, GroupName = "G3 检验结果" },
+
+        // ========== G4：不合格处理 ==========
+        new() { Key = "DefectReworkQuantity",     Label = "不合格返整支",                GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "DefectWarehouseQuantity",  Label = "不合格入库支",                GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "DefectScrapQuantity",      Label = "不合格报废支",                GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "DefectDescription",        Label = "不合格情况描述",              GroupKey = 4, GroupName = "G4 不合格处理" },
+
+        // ========== G5：尺寸值 ==========
+        new() { Key = "OuterDiameterRange",       Label = "外径范围",                    GroupKey = 5, GroupName = "G5 尺寸值" },
+        new() { Key = "WallThicknessRange",       Label = "壁厚范围",                    GroupKey = 5, GroupName = "G5 尺寸值" },
+        new() { Key = "LengthAllowanceRange",     Label = "长度余量范围",                GroupKey = 5, GroupName = "G5 尺寸值" },
+
+        // ========== G6：压力值 ==========
+        new() { Key = "Pressure",                 Label = "压力Mpa",                     GroupKey = 6, GroupName = "G6 压力值" },
+        new() { Key = "HoldTime",                 Label = "保压时间s",                   GroupKey = 6, GroupName = "G6 压力值" },
+
+        // ========== G7：涡流/超声波探伤 ==========
+        new() { Key = "InspectionStandard",       Label = "检验标准",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "InspectionGrade",          Label = "检验等级",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "InstrumentModel",          Label = "仪器型号",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "NdtMethod",                Label = "检验方式",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "StandardSampleSize",       Label = "标样尺寸",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "StandardSampleDefect",     Label = "标样缺陷",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "ProbeType",                Label = "探头类型",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "Couplant",                 Label = "耦合剂",                      GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "CalibrationFrequency",     Label = "校准频率",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "DetectionFrequency",       Label = "检测频率",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "DetectionSensitivity",     Label = "检测灵敏度",                  GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "DetectionPhase",           Label = "检测相位",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "DetectionSpeed",           Label = "检测速度",                    GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+
+        // ========== G8：辅助信息 ==========
+        new() { Key = "Remark",                   Label = "检验备注",                    GroupKey = 8, GroupName = "G8 辅助信息" },
+    };
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("final-inspection-create", null, _allColumns);
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
     private class EditRow
     {
         public InspectionItem InspectionItem { get; set; } = InspectionItem.PMIInspection;
         public string InspectionDate { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
         public string BatchNo { get; set; } = string.Empty;
-        public string? MaterialName { get; set; }
+        public MaterialType? ManufacturingItem { get; set; }
         public string? TagNo { get; set; }
         public string? WorkOrderNo { get; set; }
         public string? SalesOrderNo { get; set; }
@@ -194,10 +300,15 @@
         public string? FurnaceNo { get; set; }
         public string? PlantGrade { get; set; }
         public string? Specification { get; set; }
+        public ProductionType? ProductionType { get; set; }
+        public string? Salesman { get; set; }
+        public LengthStatus? LengthStatus { get; set; }
+        public string? DeliveryState { get; set; }
         public string? FixedLength { get; set; }
+        public ShiftType? Shift { get; set; }
         public string? EquipmentName { get; set; }
-        public string? Shift { get; set; }
         public string? Operator { get; set; }
+        public string? QualificationLevel { get; set; }
         public int? Quantity { get; set; }
         public decimal? Weight { get; set; }
         public int? QualifiedQuantity { get; set; }
@@ -213,25 +324,169 @@
         public string? LengthAllowanceRange { get; set; }
         public decimal? Pressure { get; set; }
         public int? HoldTime { get; set; }
+
+        // ========== 涡流/超声波探伤专用 ==========
+        public string? InspectionStandard { get; set; }
+        public string? InspectionGrade { get; set; }
+        public string? InstrumentModel { get; set; }
+        public string? NdtMethod { get; set; }
+        public string? StandardSampleSize { get; set; }
+        public string? StandardSampleDefect { get; set; }
+        public string? ProbeType { get; set; }
+        public string? Couplant { get; set; }
+        public string? CalibrationFrequency { get; set; }
+        public string? DetectionFrequency { get; set; }
+        public string? DetectionSensitivity { get; set; }
+        public string? DetectionPhase { get; set; }
+        public string? DetectionSpeed { get; set; }
+
         public string? Remark { get; set; }
     }
 
-    protected override void OnInitialized()
+    // ========== 分组标题栏 ==========
+
+    private int _totalTableWidth =>
+        _visibleColumns.Sum(c => GetColWidth(c.Key)) + 80; // +80px 操作列
+
+    private List<GroupHeaderInfo> _groupHeaders => GetGroupHeaders();
+
+    private class GroupHeaderInfo
     {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null; int totalWidth = 0;
+        var groupKey = 0; var groupName = ""; var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo { GroupKey = groupKey, GroupName = groupName, TotalWidth = totalWidth, ColumnCount = count, CssClass = GetHeaderGroupCss(groupKey, true) });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk; groupName = col.GroupName ?? "";
+            totalWidth += GetColWidth(col.Key);
+            count++; lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo { GroupKey = groupKey, GroupName = groupName, TotalWidth = totalWidth, ColumnCount = count, CssClass = GetHeaderGroupCss(groupKey, true) });
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int groupKey, bool isGroupStart) =>
+        groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", 4 => "col-g4", 5 => "col-g5", 6 => "col-g6", 7 => "col-g7", 8 => "col-g8", _ => "" };
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart) =>
+        groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", 5 => "col-g5-cell", 6 => "col-g6-cell", 7 => "col-g7-cell", 8 => "col-g8-cell", _ => "" };
+
+    private static int GetColWidth(string key) => key switch
+    {
+        "InspectionItem" => 120,
+        "InspectionDate" => 110,
+        "EquipmentName" => 80,
+        "Shift" => 60,
+        "Operator" => 60,
+        "QualificationLevel" => 80,
+        "BatchNo" => 150,
+        "TagNo" => 80,
+        "ProductionType" => 80,
+        "ManufacturingItem" => 100,
+        "Salesman" => 80,
+        "DeliveryState" => 100,
+        "WorkOrderNo" => 90,
+        "SalesOrderNo" => 90,
+        "SourceUnit" => 90,
+        "FurnaceNo" => 80,
+        "PlantGrade" => 80,
+        "Specification" => 80,
+        "LengthStatus" => 80,
+        "FixedLength" => 80,
+        "Quantity" => 70,
+        "Weight" => 70,
+        "QualifiedQuantity" => 70,
+        "QualifiedWeight" => 70,
+        "QualifiedConcessionQuantity" => 80,
+        "ConcessionRemark" => 100,
+        "DefectReworkQuantity" => 80,
+        "DefectWarehouseQuantity" => 80,
+        "DefectScrapQuantity" => 80,
+        "DefectDescription" => 100,
+        "OuterDiameterRange" => 80,
+        "WallThicknessRange" => 80,
+        "LengthAllowanceRange" => 80,
+        "Pressure" => 70,
+        "HoldTime" => 70,
+        "InspectionStandard" => 80,
+        "InspectionGrade" => 80,
+        "InstrumentModel" => 80,
+        "NdtMethod" => 80,
+        "StandardSampleSize" => 80,
+        "StandardSampleDefect" => 80,
+        "ProbeType" => 80,
+        "Couplant" => 80,
+        "CalibrationFrequency" => 80,
+        "DetectionFrequency" => 80,
+        "DetectionSensitivity" => 80,
+        "DetectionPhase" => 80,
+        "DetectionSpeed" => 80,
+        "Remark" => 80,
+        _ => 80
+    };
+
+    // ========== 下拉选项 ==========
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allColumns = GetAllColumnDefs();
+        var saved = await ColumnPrefs.LoadAsync("final-inspection-create", null);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
         if (!_rows.Any())
         {
-            _rows.Add(new EditRow());
-            _rows.Add(new EditRow());
             _rows.Add(new EditRow());
         }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#final-inspection-create-table-wrapper");
+        }
+        catch { }
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#final-inspection-create-table"))
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#final-inspection-create-table-wrapper"))
                 _isArrowNavSetup = false;
         }
     }
@@ -247,6 +502,60 @@
         _rows.Remove(row);
     }
 
+    private void CopyFromAbove(EditRow row, int index)
+    {
+        if (index <= 0) return;
+        var source = _rows[index - 1];
+        var dest = new EditRow();
+        // G1：检验执行
+        dest.InspectionItem = source.InspectionItem;
+        dest.InspectionDate = source.InspectionDate;
+        dest.BatchNo = source.BatchNo;
+        dest.EquipmentName = source.EquipmentName;
+        dest.Shift = source.Shift;
+        dest.Operator = source.Operator;
+        dest.QualificationLevel = source.QualificationLevel;
+        // G2：生产批次
+        dest.TagNo = source.TagNo;
+        dest.ProductionType = source.ProductionType;
+        dest.ManufacturingItem = source.ManufacturingItem;
+        dest.Salesman = source.Salesman;
+        dest.DeliveryState = source.DeliveryState;
+        dest.WorkOrderNo = source.WorkOrderNo;
+        dest.SalesOrderNo = source.SalesOrderNo;
+        dest.SourceUnit = source.SourceUnit;
+        dest.FurnaceNo = source.FurnaceNo;
+        dest.PlantGrade = source.PlantGrade;
+        dest.Specification = source.Specification;
+        dest.LengthStatus = source.LengthStatus;
+        // G5：尺寸值
+        dest.OuterDiameterRange = source.OuterDiameterRange;
+        dest.WallThicknessRange = source.WallThicknessRange;
+        dest.LengthAllowanceRange = source.LengthAllowanceRange;
+        // G6：压力值
+        dest.Pressure = source.Pressure;
+        dest.HoldTime = source.HoldTime;
+        // G7：涡流/超声波探伤
+        dest.InspectionStandard = source.InspectionStandard;
+        dest.InspectionGrade = source.InspectionGrade;
+        dest.InstrumentModel = source.InstrumentModel;
+        dest.NdtMethod = source.NdtMethod;
+        dest.StandardSampleSize = source.StandardSampleSize;
+        dest.StandardSampleDefect = source.StandardSampleDefect;
+        dest.ProbeType = source.ProbeType;
+        dest.Couplant = source.Couplant;
+        dest.CalibrationFrequency = source.CalibrationFrequency;
+        dest.DetectionFrequency = source.DetectionFrequency;
+        dest.DetectionSensitivity = source.DetectionSensitivity;
+        dest.DetectionPhase = source.DetectionPhase;
+        dest.DetectionSpeed = source.DetectionSpeed;
+        // G8：辅助信息
+        dest.Remark = source.Remark;
+        _rows[index] = dest;
+        _rows = new List<EditRow>(_rows);
+        StateHasChanged();
+    }
+
     private async Task OnBatchNoChanged(EditRow row, string value)
     {
         row.BatchNo = value ?? string.Empty;
@@ -257,15 +566,18 @@
         if (result.Success && result.Data != null)
         {
             var lookup = result.Data;
-            row.MaterialName ??= lookup.MaterialName;
-            row.TagNo ??= lookup.TagNo;
-            row.WorkOrderNo ??= lookup.WorkOrderNo;
-            row.SalesOrderNo ??= lookup.SalesOrderNo;
-            row.SourceUnit ??= lookup.SourceUnit;
-            row.FurnaceNo ??= lookup.FurnaceNo;
-            row.PlantGrade ??= lookup.PlantGrade;
-            row.Specification ??= lookup.Specification;
-            row.FixedLength ??= lookup.FixedLength;
+            row.ManufacturingItem = ParseMaterialType(lookup.ManufacturingItem);
+            row.TagNo = lookup.TagNo;
+            row.WorkOrderNo = lookup.WorkOrderNo;
+            row.SalesOrderNo = lookup.SalesOrderNo;
+            row.SourceUnit = lookup.SourceUnit;
+            row.FurnaceNo = lookup.FurnaceNo;
+            row.PlantGrade = lookup.PlantGrade;
+            row.Specification = lookup.Specification;
+            row.ProductionType = Enum.TryParse<ProductionType>(lookup.ProductionType, true, out var pt) ? pt : null;
+            row.Salesman = lookup.Salesman;
+            row.DeliveryState = lookup.DeliveryState;
+            row.LengthStatus = Enum.TryParse<LengthStatus>(lookup.LengthStatus, true, out var ls) ? ls : null;
         }
     }
 
@@ -315,7 +627,7 @@
                     InspectionItem = r.InspectionItem,
                     InspectionDate = date == default ? DateTime.Now : date,
                     BatchNo = r.BatchNo.Trim(),
-                    MaterialName = r.MaterialName,
+                    ManufacturingItem = r.ManufacturingItem,
                     TagNo = r.TagNo,
                     WorkOrderNo = r.WorkOrderNo,
                     SalesOrderNo = r.SalesOrderNo,
@@ -324,8 +636,11 @@
                     PlantGrade = r.PlantGrade,
                     Specification = r.Specification,
                     FixedLength = r.FixedLength,
+                    ProductionType = r.ProductionType?.ToString(),
+                    Salesman = r.Salesman,
+                    LengthStatus = r.LengthStatus?.ToString(),
                     EquipmentName = r.EquipmentName,
-                    Shift = string.IsNullOrEmpty(r.Shift) ? null : Enum.Parse<ShiftType>(r.Shift),
+                    Shift = r.Shift,
                     Operator = r.Operator,
                     Quantity = r.Quantity,
                     Weight = r.Weight,
@@ -342,6 +657,20 @@
                     LengthAllowanceRange = r.LengthAllowanceRange,
                     Pressure = r.Pressure,
                     HoldTime = r.HoldTime,
+                    QualificationLevel = r.QualificationLevel,
+                    InspectionStandard = r.InspectionStandard,
+                    InspectionGrade = r.InspectionGrade,
+                    InstrumentModel = r.InstrumentModel,
+                    NdtMethod = r.NdtMethod,
+                    StandardSampleSize = r.StandardSampleSize,
+                    StandardSampleDefect = r.StandardSampleDefect,
+                    ProbeType = r.ProbeType,
+                    Couplant = r.Couplant,
+                    CalibrationFrequency = r.CalibrationFrequency,
+                    DetectionFrequency = r.DetectionFrequency,
+                    DetectionSensitivity = r.DetectionSensitivity,
+                    DetectionPhase = r.DetectionPhase,
+                    DetectionSpeed = r.DetectionSpeed,
                     Remark = r.Remark,
                     DataSource = "MANUAL"
                 };
@@ -375,109 +704,308 @@
         Navigation.NavigateTo("/quality/final-inspection");
     }
 
-    // ========== 单元格渲染 ==========
-
-    private RenderFragment RenderInspectionItem(EditRow r) => builder =>
+    /// <summary>解析制造物品，兼容历史数据特殊值</summary>
+    private static MaterialType? ParseMaterialType(string? value)
     {
-        builder.OpenComponent<MudSelect<InspectionItem>>(0);
-        builder.AddAttribute(1, "Dense", true);
-        builder.AddAttribute(2, "Variant", Variant.Outlined);
-        builder.AddAttribute(3, "Size", Size.Small);
-        builder.AddAttribute(4, "Value", r.InspectionItem);
-        builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<InspectionItem>(this, v =>
+        if (string.IsNullOrEmpty(value)) return null;
+        return value switch
         {
-            r.InspectionItem = v;
-            // 切换检验项目时清空专用字段
-            if (v != InspectionItem.Dimension)
-            {
-                r.OuterDiameterRange = null;
-                r.WallThicknessRange = null;
-                r.LengthAllowanceRange = null;
-            }
-            if (v != InspectionItem.HydrostaticPressure && v != InspectionItem.UnderwaterPneumatic)
-            {
-                r.Pressure = null;
-                r.HoldTime = null;
-            }
-        }));
-        builder.AddAttribute(10, "ChildContent", (RenderFragment)(cb =>
-        {
-            foreach (var val in Enum.GetValues<InspectionItem>())
-            {
-                RenderSelectItem(cb, val);
-            }
-        }));
-        builder.CloseComponent();
-    };
-
-    private static void RenderSelectItem(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder cb, InspectionItem item)
-    {
-        var valueAttrHash = (int)item * 100 + 1;
-        cb.OpenComponent<MudSelectItem<InspectionItem>>(valueAttrHash);
-        cb.AddAttribute(valueAttrHash + 1, "Value", item);
-        cb.AddAttribute(valueAttrHash + 2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetInspectionItemText(item))));
-        cb.CloseComponent();
+            "OrderFinishedProduct" => MaterialType.OrderFinished,
+            "PreparedMaterial" or "PreparedFinished" or "StockFinished" => MaterialType.Finished,
+            "SurplusStock" => MaterialType.Surplus,
+            "IntermediateProduct" => MaterialType.SemiFinished,
+            _ => Enum.TryParse<MaterialType>(value, true, out var r) ? r : null
+        };
     }
 
-    private RenderFragment RenderInspectionDate(EditRow r) => builder =>
-    {
-        builder.OpenComponent<MudTextField<string>>(0);
-        builder.AddAttribute(1, "Dense", true);
-        builder.AddAttribute(2, "Variant", Variant.Outlined);
-        builder.AddAttribute(3, "Size", Size.Small);
-        builder.AddAttribute(4, "Value", r.InspectionDate);
-        builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.InspectionDate = v ?? DateTime.Now.ToString("yyyy-MM-dd")));
-        builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
-        builder.CloseComponent();
-    };
+    // ========== 单元格渲染 ==========
 
-    private RenderFragment RenderBatchNo(EditRow r) => builder =>
+    private RenderFragment RenderCell(EditRow r, ColumnDef col) => builder =>
     {
-        builder.OpenComponent<MudTextField<string>>(0);
-        builder.AddAttribute(1, "Dense", true);
-        builder.AddAttribute(2, "Variant", Variant.Outlined);
-        builder.AddAttribute(3, "Size", Size.Small);
-        builder.AddAttribute(4, "Value", r.BatchNo);
-        builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
+        switch (col.Key)
         {
-            await OnBatchNoChanged(r, v ?? string.Empty);
-        }));
-        builder.CloseComponent();
+            case "InspectionItem":
+                builder.OpenComponent<MudSelect<InspectionItem>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.InspectionItem);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<InspectionItem>(this, v =>
+                {
+                    r.InspectionItem = v;
+                    if (v != InspectionItem.Dimension)
+                    {
+                        r.OuterDiameterRange = null;
+                        r.WallThicknessRange = null;
+                        r.LengthAllowanceRange = null;
+                    }
+                    if (v != InspectionItem.HydrostaticPressure && v != InspectionItem.UnderwaterPneumatic)
+                    {
+                        r.Pressure = null;
+                        r.HoldTime = null;
+                    }
+                    if (v != InspectionItem.EddyCurrent && v != InspectionItem.Ultrasonic)
+                    {
+                        r.InspectionStandard = null;
+                        r.InspectionGrade = null;
+                        r.InstrumentModel = null;
+                        r.NdtMethod = null;
+                        r.StandardSampleSize = null;
+                        r.StandardSampleDefect = null;
+                        r.ProbeType = null;
+                        r.Couplant = null;
+                        r.CalibrationFrequency = null;
+                        r.DetectionFrequency = null;
+                        r.DetectionSensitivity = null;
+                        r.DetectionPhase = null;
+                        r.DetectionSpeed = null;
+                    }
+                }));
+                builder.AddAttribute(10, "ChildContent", (RenderFragment)(cb =>
+                {
+                    foreach (var val in Enum.GetValues<InspectionItem>())
+                    {
+                        var valueAttrHash = (int)val * 100 + 1;
+                        cb.OpenComponent<MudSelectItem<InspectionItem>>(valueAttrHash);
+                        cb.AddAttribute(valueAttrHash + 1, "Value", val);
+                        cb.AddAttribute(valueAttrHash + 2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetInspectionItemText(val))));
+                        cb.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+            case "InspectionDate":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.InspectionDate);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.InspectionDate = v ?? DateTime.Now.ToString("yyyy-MM-dd")));
+                builder.AddAttribute(6, "Placeholder", "yyyy-MM-dd");
+                builder.CloseComponent();
+                break;
+            case "BatchNo":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Immediate", false);
+                builder.AddAttribute(5, "Value", r.BatchNo);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
+                {
+                    await OnBatchNoChanged(r, v ?? string.Empty);
+                }));
+                builder.CloseComponent();
+                break;
+            case "ManufacturingItem":
+                builder.AddContent(0, DisplayHelper.GetMaterialTypeText(r.ManufacturingItem));
+                break;
+            case "Shift":
+                builder.OpenComponent<MudSelect<ShiftType?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.Shift);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<ShiftType?>(this, v => r.Shift = v));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                {
+                    b.OpenComponent<MudSelectItem<ShiftType?>>(0);
+                    b.AddAttribute(1, "Value", (ShiftType?)ShiftType.DayShift);
+                    b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetShiftTypeText(ShiftType.DayShift))));
+                    b.CloseComponent();
+                    b.OpenComponent<MudSelectItem<ShiftType?>>(0);
+                    b.AddAttribute(1, "Value", (ShiftType?)ShiftType.MiddleShift);
+                    b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetShiftTypeText(ShiftType.MiddleShift))));
+                    b.CloseComponent();
+                    b.OpenComponent<MudSelectItem<ShiftType?>>(0);
+                    b.AddAttribute(1, "Value", (ShiftType?)ShiftType.NightShift);
+                    b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetShiftTypeText(ShiftType.NightShift))));
+                    b.CloseComponent();
+                }));
+                builder.CloseComponent();
+                break;
+            case "ProductionType":
+                if (r.ProductionType.HasValue)
+                    builder.AddContent(0, DisplayHelper.GetProductionTypeText(r.ProductionType.Value));
+                break;
+            case "LengthStatus":
+                if (r.LengthStatus.HasValue)
+                    builder.AddContent(0, DisplayHelper.GetLengthStatusText(r.LengthStatus.Value));
+                break;
+            case "DeliveryState":
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(r.DeliveryState));
+                break;
+            // G2 只读文本（自动从批次填充）
+            case "TagNo":
+            case "Salesman":
+            case "WorkOrderNo":
+            case "SalesOrderNo":
+            case "SourceUnit":
+            case "FurnaceNo":
+            case "PlantGrade":
+            case "Specification":
+                builder.AddContent(0, GetStringField(r, col.Key));
+                break;
+            case "Quantity":
+            case "QualifiedQuantity":
+            case "QualifiedConcessionQuantity":
+            case "DefectReworkQuantity":
+            case "DefectWarehouseQuantity":
+            case "DefectScrapQuantity":
+            case "HoldTime":
+                {
+                    int? val = col.Key switch
+                    {
+                        "Quantity" => r.Quantity,
+                        "QualifiedQuantity" => r.QualifiedQuantity,
+                        "QualifiedConcessionQuantity" => r.QualifiedConcessionQuantity,
+                        "DefectReworkQuantity" => r.DefectReworkQuantity,
+                        "DefectWarehouseQuantity" => r.DefectWarehouseQuantity,
+                        "DefectScrapQuantity" => r.DefectScrapQuantity,
+                        "HoldTime" => r.HoldTime,
+                        _ => null
+                    };
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Size", Size.Small);
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.AddAttribute(5, "Value", val);
+                    builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v =>
+                    {
+                        switch (col.Key)
+                        {
+                            case "Quantity": r.Quantity = v; break;
+                            case "QualifiedQuantity": r.QualifiedQuantity = v; break;
+                            case "QualifiedConcessionQuantity": r.QualifiedConcessionQuantity = v; break;
+                            case "DefectReworkQuantity": r.DefectReworkQuantity = v; break;
+                            case "DefectWarehouseQuantity": r.DefectWarehouseQuantity = v; break;
+                            case "DefectScrapQuantity": r.DefectScrapQuantity = v; break;
+                            case "HoldTime": r.HoldTime = v; break;
+                        }
+                    }));
+                    builder.AddAttribute(7, "Clearable", true);
+                    builder.CloseComponent();
+                    break;
+                }
+            case "Weight":
+            case "QualifiedWeight":
+            case "Pressure":
+                {
+                    decimal? val = col.Key switch
+                    {
+                        "Weight" => r.Weight,
+                        "QualifiedWeight" => r.QualifiedWeight,
+                        "Pressure" => r.Pressure,
+                        _ => null
+                    };
+                    builder.OpenComponent<MudNumericField<decimal?>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Size", Size.Small);
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.AddAttribute(5, "Format", "G29");
+                    builder.AddAttribute(6, "Value", val);
+                    builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v =>
+                    {
+                        switch (col.Key)
+                        {
+                            case "Weight": r.Weight = v; break;
+                            case "QualifiedWeight": r.QualifiedWeight = v; break;
+                            case "Pressure": r.Pressure = v; break;
+                        }
+                    }));
+                    builder.AddAttribute(8, "Clearable", true);
+                    builder.CloseComponent();
+                    break;
+                }
+            default:
+                // 通用文本字段
+                {
+                    var fieldValue = GetStringField(r, col.Key);
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Size", Size.Small);
+                    builder.AddAttribute(4, "Value", fieldValue);
+                    builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => SetStringField(r, col.Key, v)));
+                    builder.CloseComponent();
+                    break;
+                }
+        }
     };
 
-    private RenderFragment RenderInputField(string? value, Action<string?> setter) => builder =>
+    private static string? GetStringField(EditRow r, string key) => key switch
     {
-        builder.OpenComponent<MudTextField<string>>(0);
-        builder.AddAttribute(1, "Dense", true);
-        builder.AddAttribute(2, "Variant", Variant.Outlined);
-        builder.AddAttribute(3, "Size", Size.Small);
-        builder.AddAttribute(4, "Value", value);
-        builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, setter));
-        builder.CloseComponent();
+        "EquipmentName" => r.EquipmentName,
+        "Operator" => r.Operator,
+        "QualificationLevel" => r.QualificationLevel,
+        "TagNo" => r.TagNo,
+        "Salesman" => r.Salesman,
+        "WorkOrderNo" => r.WorkOrderNo,
+        "SalesOrderNo" => r.SalesOrderNo,
+        "SourceUnit" => r.SourceUnit,
+        "FurnaceNo" => r.FurnaceNo,
+        "PlantGrade" => r.PlantGrade,
+        "Specification" => r.Specification,
+        "FixedLength" => r.FixedLength,
+        "ConcessionRemark" => r.ConcessionRemark,
+        "DefectDescription" => r.DefectDescription,
+        "OuterDiameterRange" => r.OuterDiameterRange,
+        "WallThicknessRange" => r.WallThicknessRange,
+        "LengthAllowanceRange" => r.LengthAllowanceRange,
+        "InspectionStandard" => r.InspectionStandard,
+        "InspectionGrade" => r.InspectionGrade,
+        "InstrumentModel" => r.InstrumentModel,
+        "NdtMethod" => r.NdtMethod,
+        "StandardSampleSize" => r.StandardSampleSize,
+        "StandardSampleDefect" => r.StandardSampleDefect,
+        "ProbeType" => r.ProbeType,
+        "Couplant" => r.Couplant,
+        "CalibrationFrequency" => r.CalibrationFrequency,
+        "DetectionFrequency" => r.DetectionFrequency,
+        "DetectionSensitivity" => r.DetectionSensitivity,
+        "DetectionPhase" => r.DetectionPhase,
+        "DetectionSpeed" => r.DetectionSpeed,
+        "Remark" => r.Remark,
+        _ => null
     };
 
-    private RenderFragment RenderNumericField(int? value, Action<int?> setter) => builder =>
+    private static void SetStringField(EditRow r, string key, string? value)
     {
-        builder.OpenComponent<MudNumericField<int?>>(0);
-        builder.AddAttribute(1, "Dense", true);
-        builder.AddAttribute(2, "Variant", Variant.Outlined);
-        builder.AddAttribute(3, "Size", Size.Small);
-        builder.AddAttribute(4, "HideSpinButtons", true);
-        builder.AddAttribute(5, "Value", value);
-        builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, setter));
-        builder.CloseComponent();
-    };
-
-    private RenderFragment RenderDecimalField(decimal? value, Action<decimal?> setter) => builder =>
-    {
-        builder.OpenComponent<MudNumericField<decimal?>>(0);
-        builder.AddAttribute(1, "Dense", true);
-        builder.AddAttribute(2, "Variant", Variant.Outlined);
-        builder.AddAttribute(3, "Size", Size.Small);
-        builder.AddAttribute(4, "HideSpinButtons", true);
-        builder.AddAttribute(5, "Format", "G29");
-        builder.AddAttribute(6, "Value", value);
-        builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, setter));
-        builder.CloseComponent();
-    };
+        switch (key)
+        {
+            case "EquipmentName": r.EquipmentName = value; break;
+            case "Operator": r.Operator = value; break;
+            case "QualificationLevel": r.QualificationLevel = value; break;
+            case "TagNo": r.TagNo = value; break;
+            case "Salesman": r.Salesman = value; break;
+            case "WorkOrderNo": r.WorkOrderNo = value; break;
+            case "SalesOrderNo": r.SalesOrderNo = value; break;
+            case "SourceUnit": r.SourceUnit = value; break;
+            case "FurnaceNo": r.FurnaceNo = value; break;
+            case "PlantGrade": r.PlantGrade = value; break;
+            case "Specification": r.Specification = value; break;
+            case "FixedLength": r.FixedLength = value; break;
+            case "ConcessionRemark": r.ConcessionRemark = value; break;
+            case "DefectDescription": r.DefectDescription = value; break;
+            case "OuterDiameterRange": r.OuterDiameterRange = value; break;
+            case "WallThicknessRange": r.WallThicknessRange = value; break;
+            case "LengthAllowanceRange": r.LengthAllowanceRange = value; break;
+            case "InspectionStandard": r.InspectionStandard = value; break;
+            case "InspectionGrade": r.InspectionGrade = value; break;
+            case "InstrumentModel": r.InstrumentModel = value; break;
+            case "NdtMethod": r.NdtMethod = value; break;
+            case "StandardSampleSize": r.StandardSampleSize = value; break;
+            case "StandardSampleDefect": r.StandardSampleDefect = value; break;
+            case "ProbeType": r.ProbeType = value; break;
+            case "Couplant": r.Couplant = value; break;
+            case "CalibrationFrequency": r.CalibrationFrequency = value; break;
+            case "DetectionFrequency": r.DetectionFrequency = value; break;
+            case "DetectionSensitivity": r.DetectionSensitivity = value; break;
+            case "DetectionPhase": r.DetectionPhase = value; break;
+            case "DetectionSpeed": r.DetectionSpeed = value; break;
+            case "Remark": r.Remark = value; break;
+        }
+    }
 }

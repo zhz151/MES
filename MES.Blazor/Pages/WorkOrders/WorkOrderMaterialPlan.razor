@@ -63,7 +63,8 @@
                     <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">成:@GetFinishPct()</MudChip>
                     <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">库:@GetInvPct()</MudChip>
                     <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">改:@GetReworkPct()</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Primary">在:@GetInProcessReworkPct()</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">在:@GetInProcessReworkPct()</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Primary">主:@GetInMainWorkOrderPct()</MudChip>
                 </div>
 
                 <!-- Tab页 -->
@@ -215,21 +216,70 @@
                                 <MudTd>@DisplayHelper.GetLengthStatusText(plan.LengthStatus)</MudTd>
                                 <MudTd>@FormatLengthRange(plan.MinLength, plan.MaxLength)</MudTd>
                                 <MudTd>@DisplayHelper.GetDeliveryStateText(plan.DeliveryState)</MudTd>
-                                <MudTd>@(plan.RequiredPiece?.ToString() ?? "-")</MudTd>
-                                <MudTd>@(((int)plan.RequiredWeight).ToString())</MudTd>
-                                <MudTd>@(plan.InputMultiple?.ToString() ?? "-")</MudTd>
+                                <MudTd>
+                                    @if (_editingFinishPlanId == plan.Id)
+                                    {
+                                        <MudNumericField T="int?" HideSpinButtons="true" Value="@_editFinishRequiredPiece"
+                                                         ValueChanged="@((int? v) => { _editFinishRequiredPiece = v; })"
+                                                         Size="Size.Small" Variant="Variant.Outlined"
+                                                         Min="0" Class="my-n2" Style="width:80px;" />
+                                    }
+                                    else
+                                    {
+                                        @(plan.RequiredPiece?.ToString() ?? "-")
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @if (_editingFinishPlanId == plan.Id)
+                                    {
+                                        <MudNumericField T="decimal" HideSpinButtons="true" Format="G29"
+                                                         Value="@_editFinishRequiredWeight"
+                                                         ValueChanged="@((decimal v) => { _editFinishRequiredWeight = v; })"
+                                                         Size="Size.Small" Variant="Variant.Outlined"
+                                                         Min="0" Class="my-n2" Style="width:90px;" />
+                                    }
+                                    else
+                                    {
+                                        @(((int)plan.RequiredWeight).ToString())
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @if (_editingFinishPlanId == plan.Id)
+                                    {
+                                        <MudNumericField T="int?" HideSpinButtons="true" Value="@_editFinishInputMultiple"
+                                                         ValueChanged="@((int? v) => { _editFinishInputMultiple = v; })"
+                                                         Size="Size.Small" Variant="Variant.Outlined"
+                                                         Min="0" Class="my-n2" Style="width:70px;" />
+                                    }
+                                    else
+                                    {
+                                        @(plan.InputMultiple?.ToString() ?? "-")
+                                    }
+                                </MudTd>
                                 <MudTd>@(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
                                 <MudTd>@(plan.Remark ?? "-")</MudTd>
                                 <MudTd>
-                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
-                                                   Color="Color.Warning" OnClick="() => EditFinishedPlan(plan.Id)"
-                                                   Title="编辑" />
-                                    <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
-                                                   Color="Color.Info" OnClick="() => PrintFinishedPlan(plan.Id)"
-                                                   Title="打印采购申请单" />
-                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
-                                                   Color="Color.Error" OnClick="() => DeleteFinishedPlan(plan.Id)"
-                                                   Title="取消" />
+                                    @if (_editingFinishPlanId == plan.Id)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Small"
+                                                       Color="Color.Success" OnClick="() => SaveFinishPlanEdit(plan)"
+                                                       Disabled="@_isSavingEdit" Title="保存" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                                       Color="Color.Default" OnClick="CancelFinishPlanEdit"
+                                                       Disabled="@_isSavingEdit" Title="取消编辑" />
+                                    }
+                                    else
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                       Color="Color.Warning" OnClick="() => StartEditFinishPlan(plan)"
+                                                       Title="编辑" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
+                                                       Color="Color.Info" OnClick="() => PrintFinishedPlan(plan.Id)"
+                                                       Title="打印采购申请单" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                                       Color="Color.Error" OnClick="() => DeleteFinishedPlan(plan.Id)"
+                                                       Title="取消" />
+                                    }
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
@@ -252,7 +302,7 @@
                             <HeaderContent>
                                 <MudTh>计划日期</MudTh>
                                 <MudTh>批次号</MudTh>
-                                <MudTh>物料名称</MudTh>
+                                <MudTh>物料类型</MudTh>
                                 <MudTh>工厂牌号</MudTh>
                                 <MudTh>规格</MudTh>
                                 <MudTh>使用模式</MudTh>
@@ -269,7 +319,14 @@
                                 <MudTd>@plan.Specification</MudTd>
                                 <MudTd>@(plan.UsageMode == "All" ? "全部" : "部分")</MudTd>
                                 <MudTd>
-                                    @if (plan.UsageMode == "All")
+                                    @if (_editingInventoryPlanId == plan.Id)
+                                    {
+                                        <MudNumericField T="int?" HideSpinButtons="true" Value="@_editInvUsedQuantity"
+                                                         ValueChanged="@((int? v) => { _editInvUsedQuantity = v; })"
+                                                         Size="Size.Small" Variant="Variant.Outlined"
+                                                         Min="0" Class="my-n2" Style="width:80px;" />
+                                    }
+                                    else if (plan.UsageMode == "All")
                                     {
                                         <span>全部(@(plan.UsedQuantity?.ToString() ?? "0")支)</span>
                                     }
@@ -278,18 +335,43 @@
                                         <span>@(plan.UsedQuantity?.ToString() ?? "-")支</span>
                                     }
                                 </MudTd>
-                                <MudTd>@(((int)plan.UsedWeight).ToString())</MudTd>
+                                <MudTd>
+                                    @if (_editingInventoryPlanId == plan.Id)
+                                    {
+                                        <MudNumericField T="decimal" HideSpinButtons="true" Format="G29"
+                                                         Value="@_editInvUsedWeight"
+                                                         ValueChanged="@((decimal v) => { _editInvUsedWeight = v; })"
+                                                         Size="Size.Small" Variant="Variant.Outlined"
+                                                         Min="0" Class="my-n2" Style="width:90px;" />
+                                    }
+                                    else
+                                    {
+                                        @(((int)plan.UsedWeight).ToString())
+                                    }
+                                </MudTd>
                                 <MudTd>@FormatLocation(plan.LocationArea, plan.LocationRack)</MudTd>
                                 <MudTd>
-                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
-                                                   Color="Color.Warning" OnClick="() => EditInventoryPlan(plan.Id)"
-                                                   Title="编辑" />
-                                    <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
-                                                   Color="Color.Info" OnClick="() => PrintInventoryPlan(plan.Id)"
-                                                   Title="打印" />
-                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
-                                                   Color="Color.Error" OnClick="() => DeleteInventoryPlan(plan.Id)"
-                                                   Title="取消" />
+                                    @if (_editingInventoryPlanId == plan.Id)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Small"
+                                                       Color="Color.Success" OnClick="() => SaveInventoryPlanEdit(plan)"
+                                                       Disabled="@_isSavingEdit" Title="保存" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                                       Color="Color.Default" OnClick="CancelInventoryPlanEdit"
+                                                       Disabled="@_isSavingEdit" Title="取消编辑" />
+                                    }
+                                    else
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                       Color="Color.Warning" OnClick="() => StartEditInventoryPlan(plan)"
+                                                       Title="编辑" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
+                                                       Color="Color.Info" OnClick="() => PrintInventoryPlan(plan.Id)"
+                                                       Title="打印" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                                       Color="Color.Error" OnClick="() => DeleteInventoryPlan(plan.Id)"
+                                                       Title="取消" />
+                                    }
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
@@ -312,7 +394,7 @@
                             <HeaderContent>
                                 <MudTh>计划日期</MudTh>
                                 <MudTh>批次号</MudTh>
-                                <MudTh>物料名称</MudTh>
+                                <MudTh>物料类型</MudTh>
                                 <MudTh>工厂牌号</MudTh>
                                 <MudTh>规格</MudTh>
                                 <MudTh>使用模式</MudTh>
@@ -407,6 +489,107 @@
                             </NoRecordsContent>
                         </MudTable>
                     </MudTabPanel>
+                    <!-- Tab 7: 在产主工单计划 -->
+                    <MudTabPanel Text="在产主工单计划" Icon="@Icons.Material.Filled.GroupWork">
+                        <MudPaper Class="pa-3 mb-4 d-flex justify-start" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="() => NavigateToCreate(7)">
+                                新增计划
+                            </MudButton>
+                        </MudPaper>
+
+                        <MudTable Items="@inMainWorkOrderPlans" Dense="true" Hover="true" Elevation="0" Striped="true" Class="auto-table"
+                                  Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                            <HeaderContent>
+                                <MudTh>计划日期</MudTh>
+                                <MudTh>生产编号</MudTh>
+                                <MudTh>源主工单号</MudTh>
+                                <MudTh>制成倍数</MudTh>
+                                <MudTh>分配支数</MudTh>
+                                <MudTh>分配重量(kg)</MudTh>
+                                <MudTh>要求到位日</MudTh>
+                                <MudTh>备注</MudTh>
+                                <MudTh>状态</MudTh>
+                                <MudTh>操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="plan">
+                                <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@plan.BatchNo</MudTd>
+                                <MudTd>@plan.MainWorkOrderNo</MudTd>
+                                <MudTd>
+                                    @if (_editingPlanId == plan.Id)
+                                    {
+                                        <MudNumericField T="int" HideSpinButtons="true" Value="@_editProductionRatio"
+                                                         ValueChanged="@((int v) => { _editProductionRatio = v; })"
+                                                         Size="Size.Small" Variant="Variant.Outlined"
+                                                         Min="0" Class="my-n2" Style="width:70px;" />
+                                    }
+                                    else
+                                    {
+                                        @plan.ProductionRatio
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @if (_editingPlanId == plan.Id)
+                                    {
+                                        <MudNumericField T="int?" HideSpinButtons="true" Value="@_editAllocatedQty"
+                                                         ValueChanged="@((int? v) => { _editAllocatedQty = v; })"
+                                                         Size="Size.Small" Variant="Variant.Outlined"
+                                                         Min="0" Class="my-n2" Style="width:80px;" />
+                                    }
+                                    else
+                                    {
+                                        @(plan.AllocatedQuantity?.ToString() ?? "-")
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @if (_editingPlanId == plan.Id)
+                                    {
+                                        <MudNumericField T="decimal" HideSpinButtons="true" Format="G29"
+                                                         Value="@_editAllocatedWeight"
+                                                         ValueChanged="@((decimal v) => { _editAllocatedWeight = v; })"
+                                                         Size="Size.Small" Variant="Variant.Outlined"
+                                                         Min="0" Class="my-n2" Style="width:90px;" />
+                                    }
+                                    else
+                                    {
+                                        @plan.AllocatedWeight.ToString("G29")
+                                    }
+                                </MudTd>
+                                <MudTd>@(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
+                                <MudTd>@(plan.Remark ?? "-")</MudTd>
+                                <MudTd>
+                                    <MudChip Size="Size.Small" Color="@GetPlanStatusColor((int)plan.PlanStatus)">@plan.PlanStatusText</MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    @if (_editingPlanId == plan.Id)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Small"
+                                                       Color="Color.Success" OnClick="() => SaveInMainWorkOrderPlanEdit(plan)"
+                                                       Disabled="@_isSavingEdit" Title="保存" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                                       Color="Color.Default" OnClick="CancelInMainWorkOrderPlanEdit"
+                                                       Disabled="@_isSavingEdit" Title="取消编辑" />
+                                    }
+                                    else
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                       Color="Color.Warning" OnClick="() => StartEditInMainWorkOrderPlan(plan)"
+                                                       Title="编辑" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
+                                                       Color="Color.Info" OnClick="() => PrintInMainWorkOrderPlan(plan.Id)"
+                                                       Title="打印" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
+                                                       Color="Color.Error" OnClick="() => DeleteInMainWorkOrderPlan(plan.Id)"
+                                                       Title="取消" />
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudTabPanel>
                 </MudTabs>
             }
         </MudCardContent>
@@ -448,6 +631,24 @@
     private List<InProcessReworkPlanDto> inProcessReworkPlans = new();
     private WorkOrderMaterialPlanDto? inProcessReworkSummary;
 
+    // 在产主工单计划
+    private List<InMainWorkOrderPlanDto> inMainWorkOrderPlans = new();
+    private WorkOrderMaterialPlanDto? inMainWorkOrderSummary;
+    private int? _editingPlanId;
+    private int _editProductionRatio;
+    private int? _editAllocatedQty;
+    private decimal _editAllocatedWeight;
+    // 成品采购计划内联编辑
+    private int? _editingFinishPlanId;
+    private int? _editFinishRequiredPiece;
+    private decimal _editFinishRequiredWeight;
+    private int? _editFinishInputMultiple;
+    // 库存使用计划内联编辑
+    private int? _editingInventoryPlanId;
+    private int? _editInvUsedQuantity;
+    private decimal _editInvUsedWeight;
+    private bool _isSavingEdit;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -474,7 +675,7 @@
                 await LoadSiblingWorkOrders();
             }
 
-            // 加载6种计划
+            // 加载7种计划
             var tasks = new Task[]
             {
                 LoadSemiPlansAsync(),
@@ -482,7 +683,8 @@
                 LoadInventoryPlansAsync(),
                 LoadReworkPlansAsync(),
                 LoadPiercingPlansAsync(),
-                LoadInProcessReworkPlansAsync()
+                LoadInProcessReworkPlansAsync(),
+                LoadInMainWorkOrderPlansAsync()
             };
             await Task.WhenAll(tasks);
         }
@@ -617,9 +819,75 @@
         }
     }
 
-    private void EditFinishedPlan(int planId)
+    private void StartEditFinishPlan(PurchaseFinishedPlanDto plan)
     {
-        Navigation.NavigateTo($"/workorders/{WorkOrderId}/finish-plan/edit/{planId}");
+        _editingFinishPlanId = plan.Id;
+        _editFinishRequiredPiece = plan.RequiredPiece;
+        _editFinishRequiredWeight = plan.RequiredWeight;
+        _editFinishInputMultiple = plan.InputMultiple;
+    }
+
+    private void CancelFinishPlanEdit()
+    {
+        _editingFinishPlanId = null;
+        _editFinishRequiredPiece = null;
+        _editFinishRequiredWeight = 0;
+        _editFinishInputMultiple = null;
+    }
+
+    private async Task SaveFinishPlanEdit(PurchaseFinishedPlanDto plan)
+    {
+        if (_editFinishRequiredWeight <= 0)
+        {
+            Snackbar.Add("采购重量必须大于0", Severity.Warning);
+            return;
+        }
+
+        _isSavingEdit = true;
+        try
+        {
+            var request = new CreatePurchaseFinishedPlanRequest
+            {
+                WorkOrderId = plan.WorkOrderId,
+                PlanDate = plan.PlanDate,
+                ProductType = plan.ProductType,
+                RequiredPiece = _editFinishRequiredPiece,
+                RequiredWeight = _editFinishRequiredWeight,
+                InputMultiple = _editFinishInputMultiple,
+                RequiredDate = plan.RequiredDate,
+                Remark = plan.Remark,
+                PlantGrade = plan.PlantGrade,
+                Specification = plan.Specification,
+                OuterDiameterNegative = plan.OuterDiameterNegative,
+                OuterDiameterPositive = plan.OuterDiameterPositive,
+                WallThicknessNegative = plan.WallThicknessNegative,
+                WallThicknessPositive = plan.WallThicknessPositive,
+                LengthStatus = plan.LengthStatus,
+                MinLength = plan.MinLength,
+                MaxLength = plan.MaxLength,
+                DeliveryState = plan.DeliveryState
+            };
+
+            var result = await MaterialPlanService.UpdateFinishedPlanAsync(plan.Id, request);
+            if (result.Success)
+            {
+                Snackbar.Add("保存成功", Severity.Success);
+                CancelFinishPlanEdit();
+                await LoadFinishPlansAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingEdit = false;
+        }
     }
 
     private async Task PrintFinishedPlan(int planId)
@@ -672,9 +940,68 @@
         }
     }
 
-    private void EditInventoryPlan(int planId)
+    private void StartEditInventoryPlan(InventoryPlanDto plan)
     {
-        Navigation.NavigateTo($"/workorders/{WorkOrderId}/inventory-plan/edit/{planId}");
+        _editingInventoryPlanId = plan.Id;
+        _editInvUsedQuantity = plan.UsedQuantity;
+        _editInvUsedWeight = plan.UsedWeight;
+    }
+
+    private void CancelInventoryPlanEdit()
+    {
+        _editingInventoryPlanId = null;
+        _editInvUsedQuantity = null;
+        _editInvUsedWeight = 0;
+    }
+
+    private async Task SaveInventoryPlanEdit(InventoryPlanDto plan)
+    {
+        if (_editInvUsedWeight <= 0)
+        {
+            Snackbar.Add("出库重量必须大于0", Severity.Warning);
+            return;
+        }
+
+        _isSavingEdit = true;
+        try
+        {
+            var request = new CreateInventoryPlanRequest
+            {
+                WorkOrderId = plan.WorkOrderId,
+                PlanDate = plan.PlanDate,
+                InventoryBatchNo = plan.InventoryBatchNo,
+                MaterialType = plan.MaterialType,
+                LocationArea = plan.LocationArea,
+                LocationRack = plan.LocationRack,
+                InputMultiple = plan.InputMultiple,
+                UsageMode = plan.UsageMode,
+                UsedQuantity = _editInvUsedQuantity,
+                UsedWeight = _editInvUsedWeight,
+                RequiredDate = plan.RequiredDate,
+                Remark = plan.Remark,
+                ReworkType = plan.ReworkType
+            };
+
+            var result = await MaterialPlanService.UpdateInventoryPlanAsync(plan.Id, request);
+            if (result.Success)
+            {
+                Snackbar.Add("保存成功", Severity.Success);
+                CancelInventoryPlanEdit();
+                await LoadInventoryPlansAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingEdit = false;
+        }
     }
 
     private async Task PrintInventoryPlan(int planId)
@@ -865,6 +1192,125 @@
         Navigation.NavigateTo($"/workorders/{WorkOrderId}/in-process-rework-plan/edit/{planId}");
     }
 
+    // ===== 在产主工单计划 =====
+
+    private async Task LoadInMainWorkOrderPlansAsync()
+    {
+        var listResult = await MaterialPlanService.GetInMainWorkOrderPlansAsync(WorkOrderId);
+        if (listResult.Success && listResult.Data != null)
+            inMainWorkOrderPlans = listResult.Data;
+
+        var summaryResult = await MaterialPlanService.GetSummaryAsync(WorkOrderId);
+        if (summaryResult.Success && summaryResult.Data != null)
+            inMainWorkOrderSummary = summaryResult.Data;
+    }
+
+    private async Task DeleteInMainWorkOrderPlan(int id)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认取消", new DialogParameters
+        {
+            ["ContentText"] = "确定要取消此在产主工单计划吗？\n\n取消后数据将不可恢复！",
+            ["ConfirmText"] = "确认取消",
+            ["Color"] = Color.Error
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
+
+        try
+        {
+            var result = await MaterialPlanService.DeleteInMainWorkOrderPlanAsync(id);
+            if (result.Success)
+            {
+                Snackbar.Add("取消成功", Severity.Success);
+                await LoadInMainWorkOrderPlansAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "取消失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"取消失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void StartEditInMainWorkOrderPlan(InMainWorkOrderPlanDto plan)
+    {
+        _editingPlanId = plan.Id;
+        _editProductionRatio = plan.ProductionRatio;
+        _editAllocatedQty = plan.AllocatedQuantity;
+        _editAllocatedWeight = plan.AllocatedWeight;
+    }
+
+    private void CancelInMainWorkOrderPlanEdit()
+    {
+        _editingPlanId = null;
+        _editProductionRatio = 0;
+        _editAllocatedQty = null;
+        _editAllocatedWeight = 0;
+    }
+
+    private async Task SaveInMainWorkOrderPlanEdit(InMainWorkOrderPlanDto plan)
+    {
+        if (_editAllocatedWeight <= 0)
+        {
+            Snackbar.Add("分配重量必须大于0", Severity.Warning);
+            return;
+        }
+
+        _isSavingEdit = true;
+        try
+        {
+            var request = new CreateInMainWorkOrderPlanRequest
+            {
+                WorkOrderId = plan.WorkOrderId,
+                PlanDate = plan.PlanDate,
+                ProductionBatchId = plan.ProductionBatchId,
+                AllocatedQuantity = _editAllocatedQty,
+                AllocatedWeight = _editAllocatedWeight,
+                ProductionRatio = _editProductionRatio,
+                RequiredDate = plan.RequiredDate,
+                Remark = plan.Remark
+            };
+
+            var result = await MaterialPlanService.UpdateInMainWorkOrderPlanAsync(plan.Id, request);
+            if (result.Success)
+            {
+                Snackbar.Add("保存成功", Severity.Success);
+                CancelInMainWorkOrderPlanEdit();
+                await LoadInMainWorkOrderPlansAsync();
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingEdit = false;
+        }
+    }
+
+    private async Task PrintInMainWorkOrderPlan(int planId)
+    {
+        try
+        {
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/in-main-work-order/{planId}/file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
     private void EditReworkPlan(int planId)
     {
         Navigation.NavigateTo($"/workorders/{WorkOrderId}/rework-plan/edit/{planId}");
@@ -878,6 +1324,7 @@
     private string GetReworkPct() => CalcPct(workOrder?.LengthStatus, reworkPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), reworkPlans.Sum(p => p.UsedWeight));
     private string GetPiercingPct() => CalcPct(workOrder?.LengthStatus, piercingPlans.Sum(p => (p.RequiredPieces ?? 0) * p.InputMultiple), piercingPlans.Sum(p => p.RequiredWeight));
     private string GetInProcessReworkPct() => CalcPct(workOrder?.LengthStatus, inProcessReworkPlans.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple), inProcessReworkPlans.Sum(p => p.UsedWeight));
+    private string GetInMainWorkOrderPct() => CalcPct(workOrder?.LengthStatus, inMainWorkOrderPlans.Sum(p => p.AllocatedQuantity ?? 0), inMainWorkOrderPlans.Sum(p => p.AllocatedWeight));
 
     private string CalcPct(LengthStatus? lengthStatus, decimal qtySum, decimal wtSum)
     {
@@ -907,6 +1354,7 @@
             4 => $"/workorders/{WorkOrderId}/rework-plan/create",
             5 => $"/workorders/{WorkOrderId}/piercing-plan/create",
             6 => $"/workorders/{WorkOrderId}/in-process-rework-plan/create",
+            7 => $"/workorders/{WorkOrderId}/in-main-work-order-plan/create",
             _ => $"/workorders/{WorkOrderId}/material-plan/create"
         };
         Navigation.NavigateTo(path);
@@ -932,7 +1380,7 @@
 
     private static string GetMaterialTypeText(string type) => DisplayHelper.GetMaterialTypeText(type);
 
-    private static string GetProductTypeText(FinishedProductType type) => DisplayHelper.GetProductInspectionTypeText(type.ToString());
+    private static string GetProductTypeText(FinishedProductType type) => DisplayHelper.GetFinishedProductTypeText(type);
 
     private static string FormatTolerance(decimal neg, decimal pos)
     {

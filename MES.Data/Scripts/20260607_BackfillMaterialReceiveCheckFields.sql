@@ -43,6 +43,7 @@ OUTER APPLY (
     SELECT COUNT(*) AS GroupCount
     FROM ProcessGroup pg
     WHERE pg.ProductionBatchId = pb.Id
+      AND pg.ProcessName NOT IN ('在制修检', '附加成检')
       AND (pg.ColdRollDraw IS NOT NULL OR pg.OilPipeCut IS NOT NULL
            OR pg.Degrease IS NOT NULL OR pg.Solution IS NOT NULL
            OR pg.Straighten IS NOT NULL OR pg.Cut IS NOT NULL

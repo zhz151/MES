@@ -6,36 +6,36 @@ using MES.Core.DTOs.Batch;
 namespace MES.Core.Interfaces.Quality;
 
 /// <summary>
-/// 检验到料（成检到料）服务接�?/// </summary>
+/// 检验到料（成检到料）服务接�?/// </summary>
 public interface IMaterialReceiveCheckService
 {
     /// <summary>
-    /// 获取批次的检验到料记�?    /// </summary>
+    /// 获取批次的检验到料记�?    /// </summary>
     Task<MaterialReceiveCheckDto?> GetMaterialReceiveCheckAsync(int batchId);
 
     /// <summary>
-    /// 创建检验到料（将批次状态设为Completed�?    /// </summary>
+    /// 创建检验到料（将批次状态设为Completed�?    /// </summary>
     Task<MaterialReceiveCheckDto> CreateMaterialReceiveCheckAsync(CreateMaterialReceiveCheckRequest request);
 
     /// <summary>
-    /// 批量创建检验到料（一次查�?+ 一次SaveChanges + 一次批量刷新）
+    /// 批量创建检验到料（一次查�?+ 一次SaveChanges + 一次批量刷新）
     /// </summary>
     Task<List<MaterialReceiveCheckDto>> BatchCreateMaterialReceiveChecksAsync(List<CreateMaterialReceiveCheckRequest> requests);
 
     /// <summary>
-    /// 更新检验到�?    /// </summary>
+    /// 更新检验到�?    /// </summary>
     Task<MaterialReceiveCheckDto> UpdateMaterialReceiveCheckAsync(int id, UpdateMaterialReceiveCheckRequest request);
 
     /// <summary>
-    /// 删除检验到�?    /// </summary>
+    /// 删除检验到�?    /// </summary>
     Task DeleteMaterialReceiveCheckAsync(int id);
 
     /// <summary>
-    /// 跨批次查询所有检验到料记�?    /// </summary>
+    /// 跨批次查询所有检验到料记�?    /// </summary>
     Task<PagedResult<MaterialReceiveCheckDto>> GetAllMaterialReceiveChecksAsync(QueryParams query);
 
     /// <summary>
-    /// 获取所有检验到料记录（不含分页�?    /// </summary>
+    /// 获取所有检验到料记录（不含分页�?    /// </summary>
     Task<List<MaterialReceiveCheckDto>> GetAllMaterialReceiveCheckListAsync();
 
     /// <summary>
@@ -49,10 +49,10 @@ public interface IMaterialReceiveCheckService
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     /// <summary>
-    /// 批量打印检验到�?    /// </summary>
+    /// 批量打印检验到�?    /// </summary>
     Task<byte[]> PrintMaterialCheckBatchAsync(int[] ids, List<PrintColumnDef> columns);
 
     /// <summary>
-    /// 按筛选条件打印全部检验到�?    /// </summary>
-    Task<byte[]> PrintMaterialCheckAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom, DateTime? receiveDateTo);
+    /// 按筛选条件打印全部检验到�?    /// </summary>
+    Task<byte[]> PrintMaterialCheckAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom, DateTime? receiveDateTo, string? filters = null);
 }

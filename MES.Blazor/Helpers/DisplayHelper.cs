@@ -264,27 +264,13 @@ public static class DisplayHelper
     /// 获取技术要求中文文本（数据库字符串字段）
     /// </summary>
     public static string GetTechnicalRequirementsText(string? technicalRequirements)
-    {
-        return technicalRequirements switch
-        {
-            "Normal" => "普通",
-            "Special" => "特殊",
-            _ => technicalRequirements ?? ""
-        };
-    }
+        => EnumHelper.GetDisplayName<RequirementType>(technicalRequirements);
 
     /// <summary>
     /// 获取技术要求中文文本（RequirementType 枚举）
     /// </summary>
     public static string GetTechnicalRequirementsText(RequirementType technicalRequirements)
-    {
-        return technicalRequirements switch
-        {
-            RequirementType.Normal => "普通",
-            RequirementType.Special => "特殊",
-            _ => technicalRequirements.ToString()
-        };
-    }
+        => EnumHelper.GetDisplayName(technicalRequirements);
 
     /// <summary>
     /// 获取有效流转状态中文文本（int 字段）
@@ -326,19 +312,6 @@ public static class DisplayHelper
             2 => "生产执行",
             3 => "成品检验",
             _ => "未知"
-        };
-    }
-
-    /// <summary>
-    /// 获取产品检验类型中文文本（数据库字符串字段）
-    /// </summary>
-    public static string GetProductInspectionTypeText(string? type)
-    {
-        return type switch
-        {
-            "Critical" => "回厂复检",
-            "Order" => "不需再检验",
-            _ => type ?? ""
         };
     }
 
@@ -416,9 +389,9 @@ public static class DisplayHelper
         {
             "None" => Color.Default,
             "InProgress" => Color.Info,
+            "InFinalInspection" => Color.Warning,
             "Completed" => Color.Success,
             "Suspended" => Color.Warning,
-            "Cancelled" => Color.Error,
             _ => Color.Default
         };
     }
@@ -430,9 +403,9 @@ public static class DisplayHelper
         {
             BatchStatus.None => Color.Default,
             BatchStatus.InProgress => Color.Info,
+            BatchStatus.InFinalInspection => Color.Warning,
             BatchStatus.Completed => Color.Success,
             BatchStatus.Suspended => Color.Warning,
-            BatchStatus.Cancelled => Color.Error,
             _ => Color.Default
         };
     }

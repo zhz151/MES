@@ -27,6 +27,9 @@ public class BatchTrackingVisualDto
     public string? NextSectionName { get; set; }
     public string? NextProcess { get; set; }
 
+    /// <summary>当前工段仓库入库明细（仅入库工段有值）</summary>
+    public List<WarehouseDetailDto>? CurrentWarehouseDetails { get; set; }
+
     // ===== 投料与目标统计 =====
 
     /// <summary>投料支数 = 批次领料支数</summary>
@@ -84,4 +87,18 @@ public class SectionVisualDto
     // ===== 委外信息 =====
     public string? OutsourceVendor { get; set; }
     public decimal? OutsourceProgress { get; set; }
+
+    // ===== 仓库入库信息（仅入库工段有值） =====
+    public List<WarehouseDetailDto>? WarehouseDetails { get; set; }
+}
+
+/// <summary>
+/// 仓库入库明细DTO
+/// </summary>
+public class WarehouseDetailDto
+{
+    public string WarehouseName { get; set; } = null!;
+    public int? Quantity { get; set; }
+    public decimal? Weight { get; set; }
+    public DateTime? InboundDate { get; set; }
 }

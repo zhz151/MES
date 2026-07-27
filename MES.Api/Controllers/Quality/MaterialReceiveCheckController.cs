@@ -204,7 +204,7 @@ public class MaterialReceiveCheckController : ControllerBase
     {
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintMaterialCheckAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo);
+        var pdfBytes = await _service.PrintMaterialCheckAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo, request.Filters);
         return File(pdfBytes, "application/pdf", "检验到料列表.pdf");
     }
 }

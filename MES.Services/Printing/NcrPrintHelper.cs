@@ -201,47 +201,17 @@ public static class NcrPrintHelper
 
     // ========== 枚举/格式化辅助 ==========
 
-    private static string GetStatusText(NcrStatus status) => status switch
-    {
-        NcrStatus.Processing => "处理中",
-        NcrStatus.Closed => "已关闭",
-        _ => status.ToString()
-    };
+    private static string GetStatusText(NcrStatus status) => EnumHelper.GetDisplayName(status);
 
     private static string GetMaterialTypeText(MaterialType category) => EnumHelper.GetDisplayName(category);
 
-    private static string GetDisposalMethodText(DisposalMethod? method) => method?.ToString() switch
-    {
-        "Rework" => "返整",
-        "WarehouseEntry" => "入库",
-        "Scrap" => "报废",
-        _ => method?.ToString() ?? ""
-    };
+    private static string GetDisposalMethodText(DisposalMethod? method) => method.HasValue ? EnumHelper.GetDisplayName(method.Value) : "";
 
-    private static string GetSeverityText(SeverityLevel? severity) => severity?.ToString() switch
-    {
-        "Critical" => "严重",
-        "General" => "一般",
-        _ => severity?.ToString() ?? ""
-    };
+    private static string GetSeverityText(SeverityLevel? severity) => severity.HasValue ? EnumHelper.GetDisplayName(severity.Value) : "";
 
-    private static string GetResponsibilityCategoryText(ResponsibilityCategory? category) => category?.ToString() switch
-    {
-        "ProductionInternal" => "生产-厂内",
-        "ProductionOutsource" => "生产-外协",
-        "MaterialTubeBlank" => "原料-荒管",
-        "MaterialPurchased" => "原料-外购成品",
-        "MaterialSurplus" => "原料-余库料",
-        _ => category?.ToString() ?? ""
-    };
+    private static string GetResponsibilityCategoryText(ResponsibilityCategory? category) => category.HasValue ? EnumHelper.GetDisplayName(category.Value) : "";
 
-    private static string GetVerifyResultText(VerifyResult? result) => result?.ToString() switch
-    {
-        "Passed" => "通过",
-        "NeedsRectification" => "需整改",
-        "NotApplicable" => "不适用",
-        _ => result?.ToString() ?? ""
-    };
+    private static string GetVerifyResultText(VerifyResult? result) => result.HasValue ? EnumHelper.GetDisplayName(result.Value) : "";
 
     private static string FormatDate(DateTime? dt) => dt?.ToString("yyyy-MM-dd") ?? "";
 

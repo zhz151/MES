@@ -1,10 +1,10 @@
 @page "/warehouse/outbound"
+@page "/warehouse/outbound/{Code}"
 @using MES.Core.Enums
 @using MES.Blazor.Helpers
 @using MES.Blazor.Models
 @using MES.Blazor.Services
 @using MES.Core.Models
-@using MES.Core.DTOs.Warehouse
 @using Microsoft.AspNetCore.Authorization
 @inject InventoryService InventoryService
 @inject OutboundStateService OutboundState
@@ -24,7 +24,7 @@
                     批量出库
                 </MudText>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                    仓库：<strong>@OutboundState.WarehouseName</strong> ｜ 待出库 @_items.Count 项
+                    仓库：<strong>@_warehouseName</strong> ｜ 待出库 @_items.Count 项
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -175,6 +175,37 @@
         new() { Key = "Remark",              Label = "备注", Width = "120" },
     };
 
+    // ========== 列适配（按仓库类型隐藏无关列） ==========
+
+    private void ApplyWarehouseDefaults()
+    {
+        foreach (var c in _allColumns) { c.IsApplicable = true; c.Visible = true; }
+        switch (_warehouseCode)
+        {
+            case "RAW":
+                SetNotApplicable("RemainingMeters");
+                SetNotApplicable("OutboundMeters");
+                break;
+        }
+    }
+
+    private static void SetNotApplicable(List<ColumnDef> cols, string key)
+    {
+        var c = cols.FirstOrDefault(x => x.Key == key);
+        if (c != null) { c.IsApplicable = false; c.Visible = false; }
+    }
+
+    private void SetNotApplicable(string key)
+    {
+        SetNotApplicable(_allColumns, key);
+    }
+
+    private void HideNonApplicable()
+    {
+        foreach (var c in _allColumns)
+            if (!c.IsApplicable) c.Visible = false;
+    }
+
     // ========== 列显隐操作 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -184,7 +215,8 @@
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("outbound_batch", "default", _allColumns);
+        var key = string.IsNullOrEmpty(_warehouseCode) ? "default" : _warehouseCode.ToLowerInvariant();
+        await ColumnPrefs.SaveAsync("outbound_batch", key, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -351,6 +383,10 @@
 
     // ========== 状态 ==========
 
+    [Parameter] public string? Code { get; set; }
+
+    private string _warehouseCode = string.Empty;
+    private string _warehouseName = string.Empty;
     private List<OutboundItem> _items = new();
     private string _dateText = DateTime.Today.ToString("yyyy-MM-dd");
     private bool _isSubmitting;
@@ -359,13 +395,25 @@
 
     // ========== 初始化 ==========
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        // 解析仓库代码：优先 URL 参数，回退到 OutboundState
+        _warehouseCode = !string.IsNullOrWhiteSpace(Code) ? Code.ToUpperInvariant() : OutboundState.WarehouseCode.ToUpperInvariant();
+        _warehouseName = OutboundState.WarehouseName;
+
+        if (string.IsNullOrEmpty(_warehouseCode))
+        {
+            // 无仓库代码时重定向到仓库首页
+            Navigation.NavigateTo("/warehouse", replace: true);
+            return;
+        }
+
         // 列定义
         _allColumns = GetAllColumnDefs();
+        ApplyWarehouseDefaults();
 
         // 加载用户偏好
-        _ = LoadColumnPrefsAsync();
+        await LoadColumnPrefsAsync();
 
         // 从共享状态读取选中的批次
         if (OutboundState.SelectedItems.Count > 0)
@@ -392,7 +440,8 @@
 
     private async Task LoadColumnPrefsAsync()
     {
-        var saved = await ColumnPrefs.LoadAsync("outbound_batch", "default");
+        var key = string.IsNullOrEmpty(_warehouseCode) ? "default" : _warehouseCode.ToLowerInvariant();
+        var saved = await ColumnPrefs.LoadAsync("outbound_batch", key);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -415,6 +464,9 @@
             }
             _allColumns = reordered;
         }
+
+        // 最终确保不可用列强制隐藏（用户偏好不可覆盖仓库业务规则）
+        HideNonApplicable();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -499,7 +551,7 @@
             if (result.Success && result.Data != null)
             {
                 Snackbar.Add($"批量出库成功，共{result.Data.SuccessCount}条", Severity.Success);
-                var returnCode = OutboundState.WarehouseCode.ToLowerInvariant();
+                var returnCode = _warehouseCode.ToLowerInvariant();
                 OutboundState.Clear();
                 Navigation.NavigateTo($"/warehouse/{returnCode}");
             }
@@ -541,7 +593,7 @@
 
     private void GoBack()
     {
-        Navigation.NavigateTo($"/warehouse/{OutboundState.WarehouseCode.ToLowerInvariant()}");
+        Navigation.NavigateTo($"/warehouse/{_warehouseCode.ToLowerInvariant()}");
     }
 
     private void GoToWarehouse()

@@ -211,7 +211,8 @@ public class DtoEnumMappingTests
 
     private static readonly System.Text.Json.JsonSerializerOptions JsonWebOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
     };
 
     /// <summary>
@@ -222,58 +223,50 @@ public class DtoEnumMappingTests
     /// 因此不会触发此问题。
     /// </summary>
     [Fact]
-    public void UpdateRequest_Json数字格式_无法反序列化到string字段()
+    public void UpdateRequest_Json数字格式_正常反序列化到枚举字段()
     {
-        // 模拟 JSON 含数字值（不是实际传输格式，仅为文档化边界行为）
+        // JsonStringEnumConverter 默认支持数字值
         var json = """{"lengthStatus":1,"deliveryState":3,"settlementMethod":"Weighing"}""";
 
-        var act = () => System.Text.Json.JsonSerializer.Deserialize<UpdateProductionBatchRequest>(json, JsonWebOptions);
+        var dto = System.Text.Json.JsonSerializer.Deserialize<UpdateProductionBatchRequest>(json, JsonWebOptions);
 
-        // JSON 数字无法直接转为 string 属性
-        act.Should().Throw<System.Text.Json.JsonException>()
-            .WithMessage("*lengthStatus*");
+        dto.Should().NotBeNull();
+        dto!.LengthStatus.Should().Be(LengthStatus.Range);
+        dto.DeliveryState.Should().Be(DeliveryState.SolutionAnnealedAndPickledInternalPolished);
+        dto.SettlementMethod.Should().Be(SettlementMethod.Weighing);
     }
 
     /// <summary>
-    /// 验证：前端发送英文枚举名时（如通过自定义转换器），DTO 的 string 字段能正确接收。
+    /// 验证：DTO 枚举字段可正确接收 JSON 英文枚举名（JsonStringEnumConverter）。
     /// 这是 Blazor MudSelect 绑定枚举后推荐的实际传输方式。
     /// </summary>
     [Fact]
-    public void UpdateRequest_Json英文字符串格式_正确映射到DTO字符串字段()
+    public void UpdateRequest_Json英文字符串格式_正确映射到DTO枚举字段()
     {
-        // 模拟前端通过 JsonStringEnumConverter 或自定义序列化发送英文枚举名
+        // 模拟前端通过 JsonStringEnumConverter 发送英文枚举名
         var json = """{"lengthStatus":"Fixed","deliveryState":"Bright","settlementMethod":"Weighing"}""";
 
         var dto = System.Text.Json.JsonSerializer.Deserialize<UpdateProductionBatchRequest>(json, JsonWebOptions);
 
         dto.Should().NotBeNull();
-        dto!.LengthStatus.Should().Be("Fixed");
-        dto.DeliveryState.Should().Be("Bright");
-        dto.SettlementMethod.Should().Be("Weighing");
+        dto!.LengthStatus.Should().Be(LengthStatus.Fixed);
+        dto.DeliveryState.Should().Be(DeliveryState.Bright);
+        dto.SettlementMethod.Should().Be(SettlementMethod.Weighing);
     }
 
     /// <summary>
-    /// 验证：DTO 的 string 枚举字段可接收中文文本（不报错）。
-    /// 但中文文本存入库中后，后续 Enum.Parse 将静默失败！
-    /// 此测试仅为记录此行为，不做断言防护（防护在 ServiceEnumParseSafetyTests 中）。
+    /// 验证：DTO 枚举字段无法接收中文文本（JsonStringEnumConverter 只识别英文枚举名）。
+    /// 此测试确保 DisplayHelper.GetXxxText() 不会误用于赋值（在 Razor 中已规范）。
     /// </summary>
     [Fact]
-    public void UpdateRequest_Json中文字符串格式_不应存入数据库()
+    public void UpdateRequest_Json中文字符串格式_反序列化失败()
     {
         // 模拟 Blazor 页面误将 DisplayHelper.GetXxxText() 赋值后发送的 JSON
         var json = """{"lengthStatus":"定尺","deliveryState":"光亮","settlementMethod":"过磅"}""";
 
-        var dto = System.Text.Json.JsonSerializer.Deserialize<UpdateProductionBatchRequest>(json, JsonWebOptions);
-
-        dto.Should().NotBeNull();
-        // JSON 反序列化不会报错——文本被原样传递到 DTO 的 string 字段
-        dto!.LengthStatus.Should().Be("定尺");
-        dto.DeliveryState.Should().Be("光亮");
-        dto.SettlementMethod.Should().Be("过磅");
-
-        // 验证：如果 Service 层直接将此 DTO 写入数据库，后续 Enum.Parse 将失败
-        var canParseLengthStatus = Enum.TryParse<LengthStatus>(dto.LengthStatus, ignoreCase: true, out _);
-        canParseLengthStatus.Should().BeFalse("中文 \"定尺\" 不应被 Enum.Parse 正确解析");
+        // DTO 枚举字段无法解析中文文本，抛出 JsonException
+        var act = () => System.Text.Json.JsonSerializer.Deserialize<UpdateProductionBatchRequest>(json, JsonWebOptions);
+        act.Should().Throw<System.Text.Json.JsonException>();
     }
 
     #endregion

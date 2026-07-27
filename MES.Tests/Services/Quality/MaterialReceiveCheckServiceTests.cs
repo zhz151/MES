@@ -44,12 +44,10 @@ public class MaterialReceiveCheckServiceTests : TestBase
 {
     private MaterialReceiveCheckService CreateService(AppDbContext ctx)
     {
-        var configMock = new Mock<IConfigParameterService>();
-        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
-            .ReturnsAsync(new Dictionary<string, decimal>());
         var qptMock = new Mock<IQualityProcessTrackingService>();
         var wesMock = new Mock<IWorkOrderExecutionService>();
-        return new(ctx, configMock.Object, qptMock.Object, wesMock.Object,
+        var prMock = new Mock<IProductionRecordService>();
+        return new(ctx, qptMock.Object, wesMock.Object, prMock.Object,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<MaterialReceiveCheckService>.Instance, new MemoryCache(new MemoryCacheOptions()));
     }
 
@@ -89,6 +87,20 @@ public class MaterialReceiveCheckServiceTests : TestBase
         };
         ctx.ProductionBatches.Add(batch);
         await ctx.SaveChangesAsync();
+
+        // 新增：添加一个检验工序组（成检到料需要 ProcessGroup）
+        var pg = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            BatchNo = batch.BatchNo,
+            SequenceNumber = 1,
+            ProcessName = "检验",
+            ManufacturingSpec = batch.Specification,
+            Inspection = 1
+        };
+        ctx.Set<ProcessGroup>().Add(pg);
+        await ctx.SaveChangesAsync();
+
         return batch;
     }
 

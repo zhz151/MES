@@ -51,7 +51,7 @@ public class InventoryService : IInventoryService
         RemainingQuantity = b.RemainingQuantity,
         RemainingWeight = b.RemainingWeight,
         ActualSpecification = b.ActualSpecification,
-        SurfaceCondition = b.SurfaceCondition,
+        SurfaceCondition = EnumHelper.TryParse<DeliveryState>(b.SurfaceCondition),
         LocationArea = b.LocationArea,
         LocationRack = b.LocationRack,
         Remark = b.Remark,
@@ -532,6 +532,9 @@ public class InventoryService : IInventoryService
 
     public async Task<List<BatchWorkOrderMismatchDto>> GetMismatchedWorkOrderBatchesAsync(int? warehouseId = null)
         => await _syncService.GetMismatchedWorkOrderBatchesAsync(warehouseId);
+
+    public async Task<List<string>> GetDistinctWorkOrderNosByWarehouseAsync(int warehouseId)
+        => await _syncService.GetDistinctWorkOrderNosByWarehouseAsync(warehouseId);
 
     // ========== 打印 ==========
 

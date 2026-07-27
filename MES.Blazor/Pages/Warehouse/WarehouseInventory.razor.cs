@@ -33,6 +33,7 @@ public partial class WarehouseInventory
     private int _pageSize = 10;
     private string _lastResolvedWarehouseCode = string.Empty;
     private List<WarehouseDto> warehouses = new();
+    private List<NotificationDto>? _warehouseWorkOrderChangedNotices;
 
     // 当前仓库信息
     private string warehouseCode = string.Empty;
@@ -83,9 +84,14 @@ public partial class WarehouseInventory
         new() { Key = "InboundDate",         Label = "入库日期", SortKey = "InboundDate", FilterType = "date", Width = "120" },
         new() { Key = "InboundSource",       Label = "来源",     SortKey = "InboundSource", FilterType = "string", Width = "120" },
         new() { Key = "SourceOrderNo",       Label = "来源单号", SortKey = "SourceOrderNo", FilterType = "string", Width = "120" },
-        new() { Key = "MaterialType",        Label = "物料",     SortKey = "MaterialType", FilterType = "string", Width = "120" },
+        new() { Key = "MaterialType",        Label = "物料类型", SortKey = "MaterialType", FilterType = "string", Width = "120" },
         new() { Key = "SourceName",          Label = "来料单位", SortKey = "SourceName", FilterType = "string", Width = "120" },
-        new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "SurfaceCondition", FilterType = "string", Width = "120" },
+        new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "SurfaceCondition", FilterType = "enum", Width = "120",
+            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
+                new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
+                new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
+                new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"),
+                new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
         new() { Key = "LocationArea",        Label = "区域", SortKey = "LocationArea", FilterType = "string", Width = "120" },
         new() { Key = "LocationRack",        Label = "框架", SortKey = "LocationRack", FilterType = "string", Width = "120" },
         new() { Key = "HeatNo",              Label = "炉号",     SortKey = "HeatNo", FilterType = "string", Width = "120" },
@@ -335,7 +341,7 @@ public partial class WarehouseInventory
                 builder.AddContent(0, item.ActualSpecification);
                 break;
             case "SurfaceCondition":
-                builder.AddContent(0, item.SurfaceCondition);
+                builder.AddContent(0, item.SurfaceConditionDisplay);
                 break;
             case "LocationArea":
                 builder.AddContent(0, TruncateSourceName(item.LocationArea));
@@ -548,6 +554,16 @@ public partial class WarehouseInventory
             foreach (var opt in lengthOptions)
             {
                 opt.Display = DisplayHelper.GetLengthStatusText(opt.Value);
+            }
+        }
+
+        // SurfaceCondition 列显示中文并过滤非法值
+        if (_filterContextOptions.TryGetValue("SurfaceCondition", out var surfaceOptions))
+        {
+            surfaceOptions.RemoveAll(opt => !Enum.TryParse<DeliveryState>(opt.Value, out _));
+            foreach (var opt in surfaceOptions)
+            {
+                opt.Display = DisplayHelper.GetDeliveryStateText(opt.Value);
             }
         }
 
@@ -837,6 +853,7 @@ public partial class WarehouseInventory
 
             // 注意：筛选上下文已在 ResolveWarehouse() 中加载
             await LoadPendingPlanBatches(); // 自动检查待出库用料计划
+            await CheckWorkOrderChangedNotificationsAsync();
             _initialized = true;
         }
     }
@@ -981,7 +998,7 @@ public partial class WarehouseInventory
         _outboundMode = false;
         _selectedItems.Clear();
 
-        Navigation.NavigateTo("/warehouse/outbound");
+        Navigation.NavigateTo($"/warehouse/outbound/{warehouseCode.ToLowerInvariant()}");
     }
 
     // ========== 打印 ==========
@@ -1036,7 +1053,6 @@ public partial class WarehouseInventory
 
     // ========== 导航 ==========
 
-    private void NavigateToInboundFromHome() => Navigation.NavigateTo("/warehouse/inbound");
     private void NavigateToInbound() => Navigation.NavigateTo($"/warehouse/inbound/{warehouseCode.ToLowerInvariant()}");
 
     private void NavigateToWarehouse(string code) => Navigation.NavigateTo($"/warehouse/{code.ToLowerInvariant()}");
@@ -1077,6 +1093,66 @@ public partial class WarehouseInventory
         {
             Snackbar.Add($"查询待出库计划失败: {ex.Message}", Severity.Error);
         }
+    }
+
+    // ========== 工单内容变更通知（按仓库过滤） ==========
+
+    /// <summary>从通知标题中提取工单号，格式："工单 {workOrderNo} 内容已变更"</summary>
+    private static string? ExtractWorkOrderNoFromTitle(string? title)
+    {
+        if (string.IsNullOrEmpty(title)) return null;
+        const string prefix = "工单 ";
+        const string suffix = " 内容已变更";
+        if (title.StartsWith(prefix) && title.EndsWith(suffix))
+            return title[prefix.Length..^suffix.Length];
+        return null;
+    }
+
+    private async Task CheckWorkOrderChangedNotificationsAsync()
+    {
+        if (warehouseId <= 0) return; // 只在详情页执行
+
+        try
+        {
+            // 1. 获取所有 WorkOrderChanged 通知
+            var result = await NotificationService.GetByTypeAsync("WorkOrderChanged");
+            if (!result.Success || result.Data is not { Count: > 0 })
+            {
+                _warehouseWorkOrderChangedNotices = null;
+                return;
+            }
+
+            // 2. 获取当前仓库关联的所有工单号
+            var woNosResult = await InventoryService.GetWorkOrderNosByWarehouseAsync(warehouseId);
+            if (!woNosResult.Success || woNosResult.Data is not { Count: > 0 })
+            {
+                _warehouseWorkOrderChangedNotices = null;
+                return;
+            }
+            var warehouseWoNos = woNosResult.Data.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // 3. 交叉过滤：只保留当前仓库有关联工单的通知
+            _warehouseWorkOrderChangedNotices = result.Data
+                .Where(n => ExtractWorkOrderNoFromTitle(n.Title) is string woNo && warehouseWoNos.Contains(woNo))
+                .ToList();
+
+            if (_warehouseWorkOrderChangedNotices.Count == 0)
+                _warehouseWorkOrderChangedNotices = null;
+        }
+        catch
+        {
+            _warehouseWorkOrderChangedNotices = null;
+        }
+    }
+
+    private async Task DismissWorkOrderChangedNotices()
+    {
+        if (_warehouseWorkOrderChangedNotices is not { Count: > 0 }) return;
+
+        foreach (var notice in _warehouseWorkOrderChangedNotices)
+            await NotificationService.MarkAsReadAsync(notice.Id);
+
+        _warehouseWorkOrderChangedNotices = null;
     }
 
     // ========== 持久化 ==========

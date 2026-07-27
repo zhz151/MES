@@ -39,4 +39,9 @@ public class MaterialPlanBatchPrintRequest
     /// 是否包含在产改制计划
     /// </summary>
     public bool IncludeInProcessRework { get; set; }
+
+    /// <summary>
+    /// 是否包含在产主工单计划
+    /// </summary>
+    public bool IncludeInMainWorkOrder { get; set; }
 }

@@ -51,6 +51,8 @@ public class ProductionBatchListDto
     public string StandardCode { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
     public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
+    public DeliveryState? ManufacturingStatus { get; set; }
+    public string? ManufacturingStatusDisplay => ManufacturingStatus.HasValue ? EnumHelper.GetDisplayName(ManufacturingStatus.Value) : null;
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }

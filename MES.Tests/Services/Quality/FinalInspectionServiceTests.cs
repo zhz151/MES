@@ -239,11 +239,13 @@ public class FinalInspectionServiceTests : TestBase
         {
             InspectionDate = DateTime.Today,
             Quantity = 15,
-            QualifiedQuantity = 14
+            QualifiedQuantity = 14,
+            DefectReworkQuantity = 1
         });
 
         result.Quantity.Should().Be(15);
         result.QualifiedQuantity.Should().Be(14);
+        result.DefectReworkQuantity.Should().Be(1);
     }
 
     [Fact]
@@ -313,7 +315,7 @@ public class FinalInspectionServiceTests : TestBase
 
         result.Should().NotBeNull();
         result!.ProductionBatchId.Should().Be(batch.Id);
-        result.MaterialName.Should().Be("不锈钢管");
+        result.ManufacturingItem.Should().Be("OrderFinished");
     }
 
     [Fact]
@@ -390,6 +392,7 @@ public class FinalInspectionServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx, "BATCH001");
+        batch.SourceHeatNo = "FUR-001";
         ctx.FinalInspections.Add(new FinalInspection
         {
             InspectionItem = InspectionItem.Dimension,
@@ -397,8 +400,7 @@ public class FinalInspectionServiceTests : TestBase
             BatchNo = "BATCH001",
             ProductionBatchId = batch.Id,
             Quantity = 10,
-            Weight = 1000m,
-            FurnaceNo = "FUR-001"
+            Weight = 1000m
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -475,28 +477,18 @@ public class FinalInspectionServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetAllAsync_Filters_MaterialNameIn_返回匹配()
+    public async Task GetAllAsync_Filters_Keyword_返回匹配()
     {
         var ctx = CreateDbContext();
-        var batch1 = await SeedBatchAsync(ctx, "B001");
-        var batch2 = await SeedBatchAsync(ctx, "B002");
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
         ctx.FinalInspections.Add(new FinalInspection
         {
             InspectionItem = InspectionItem.Dimension,
             InspectionDate = DateTime.Today,
-            BatchNo = "B001",
-            ProductionBatchId = batch1.Id,
+            BatchNo = "BATCH001",
+            ProductionBatchId = batch.Id,
             Quantity = 10,
-            MaterialName = "不锈钢"
-        });
-        ctx.FinalInspections.Add(new FinalInspection
-        {
-            InspectionItem = InspectionItem.Dimension,
-            InspectionDate = DateTime.Today,
-            BatchNo = "B002",
-            ProductionBatchId = batch2.Id,
-            Quantity = 20,
-            MaterialName = "碳钢"
+            Operator = "操作员A"
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -505,14 +497,11 @@ public class FinalInspectionServiceTests : TestBase
         {
             PageIndex = 1,
             PageSize = 20,
-            Filters = new List<FilterDescriptor>
-            {
-                new() { Field = "MaterialName", Operator = "in", Values = new List<string> { "不锈钢" } }
-            }
+            Keyword = "操作员A"
         });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].MaterialName.Should().Be("不锈钢");
+        result.Items[0].Operator.Should().Be("操作员A");
     }
 
     [Fact]
@@ -543,14 +532,14 @@ public class FinalInspectionServiceTests : TestBase
         var ctx = CreateDbContext();
         var batch1 = await SeedBatchAsync(ctx, "BATCH001");
         var batch2 = await SeedBatchAsync(ctx, "BATCH002");
+        batch2.PlantGrade = "316L";
         ctx.FinalInspections.Add(new FinalInspection
         {
             InspectionItem = InspectionItem.Dimension,
             InspectionDate = DateTime.Today,
             BatchNo = "BATCH001",
             ProductionBatchId = batch1.Id,
-            Quantity = 10,
-            PlantGrade = "304"
+            Quantity = 10
         });
         ctx.FinalInspections.Add(new FinalInspection
         {
@@ -558,8 +547,7 @@ public class FinalInspectionServiceTests : TestBase
             InspectionDate = DateTime.Today,
             BatchNo = "BATCH002",
             ProductionBatchId = batch2.Id,
-            Quantity = 20,
-            PlantGrade = "316L"
+            Quantity = 20
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -582,7 +570,7 @@ public class FinalInspectionServiceTests : TestBase
 
         contexts["BatchNo"].Should().BeEmpty();
         contexts["PlantGrade"].Should().BeEmpty();
-        contexts["MaterialName"].Should().BeEmpty();
+        contexts.Should().NotContainKey("ManufacturingItem");
     }
 
     [Fact]
@@ -596,9 +584,7 @@ public class FinalInspectionServiceTests : TestBase
             InspectionDate = DateTime.Today,
             BatchNo = "BATCH001",
             ProductionBatchId = batch.Id,
-            Quantity = 10,
-            MaterialName = null,
-            TagNo = null
+            Quantity = 10
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -606,7 +592,6 @@ public class FinalInspectionServiceTests : TestBase
         var contexts = await svc.GetFilterContextsAsync();
 
         contexts["BatchNo"].Should().HaveCount(1);
-        contexts["MaterialName"].Should().BeEmpty();
         contexts["TagNo"].Should().BeEmpty();
     }
 }

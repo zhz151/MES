@@ -114,6 +114,66 @@ public class WorkOrderService : IWorkOrderService
         }
     }
 
+    /// <summary>
+    /// 工单内容变更通知：查找引用变更工单号的批次，按工单聚合写入通知（24h 去重）
+    /// </summary>
+    private async Task NotifyWorkOrderChangedAsync(List<GeneratedWorkOrderDto> workOrders)
+    {
+        if (workOrders.Count == 0) return;
+
+        var woNos = workOrders
+            .Select(w => w.WorkOrderNo)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct()
+            .ToList();
+        if (woNos.Count == 0) return;
+
+        try
+        {
+            // 查找引用这些工单号的生产批次，按工单聚合计数
+            var batchCounts = await _context.ProductionBatches
+                .Where(b => b.WorkOrderNo != null && woNos.Contains(b.WorkOrderNo) && b.WorkOrderNo != "非工单")
+                .GroupBy(b => b.WorkOrderNo)
+                .Select(g => new { WorkOrderNo = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            if (batchCounts.Count == 0) return;
+
+            var cutoff = DateTimeOffset.Now.AddHours(-24);
+            var now = DateTimeOffset.Now;
+            var hasNewNotification = false;
+
+            foreach (var item in batchCounts)
+            {
+                // 24 小时内同一工单号不重复发通知
+                var recent = await _context.Notifications
+                    .AnyAsync(n => n.NotificationType == "WorkOrderChanged"
+                                   && n.Title != null
+                                   && n.Title.Contains(item.WorkOrderNo!)
+                                   && n.CreatedTime >= cutoff);
+                if (recent) continue;
+
+                _context.Notifications.Add(new MES.Data.Entities.WorkOrder.Notification
+                {
+                    NotificationType = "WorkOrderChanged",
+                    Title = $"工单 {item.WorkOrderNo} 内容已变更",
+                    Content = $"涉及 {item.Count} 条关联记录，请检查是否需要处理",
+                    IsRead = false,
+                    Receiver = string.Empty,
+                    CreatedTime = now
+                });
+                hasNewNotification = true;
+            }
+
+            if (hasNewNotification)
+                await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "工单变更通知写入失败（不影响主流程）");
+        }
+    }
+
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
     {
         var cacheKey = $"WorkOrderService:ConfigMap:{category}";
@@ -805,11 +865,20 @@ public class WorkOrderService : IWorkOrderService
         await _workOrderNoSemaphore.WaitAsync();
         try
         {
+            List<GeneratedWorkOrderDto> result;
             if (request.GenerateMode == WorkOrderGenerateMode.Update)
             {
-                return await UpdateWorkOrdersAsync(request);
+                result = await UpdateWorkOrdersAsync(request);
             }
-            return await GenerateWorkOrdersCoreAsync(request);
+            else
+            {
+                result = await GenerateWorkOrdersCoreAsync(request);
+            }
+
+            // 工单内容变更通知：查找引用这些工单号的批次，按工单聚合通知
+            await NotifyWorkOrderChangedAsync(result);
+
+            return result;
         }
         finally
         {
@@ -1477,6 +1546,8 @@ public class WorkOrderService : IWorkOrderService
                 PiercingPlanTotalPieces = s.PiercingPlanTotalPieces,
                 InProcessReworkPlanTotalWeight = s.InProcessReworkPlanTotalWeight,
                 InProcessReworkPlanTotalPieces = s.InProcessReworkPlanTotalPieces,
+                InMainWorkOrderPlanTotalWeight = s.InMainWorkOrderPlanTotalWeight,
+                InMainWorkOrderPlanTotalPieces = s.InMainWorkOrderPlanTotalPieces,
                 MaxStandardCycle = s.MaxStandardCycle,
                 MainNoMaxStandardCycle = s.MainNoMaxStandardCycle,
                 CapacityWorkDays = s.CapacityWorkDays,
@@ -1695,6 +1766,9 @@ public class WorkOrderService : IWorkOrderService
             if (!selectedTypes.Contains("inprocess"))
                 summaryQuery = summaryQuery.Where(s => (s.InProcessReworkPlanTotalWeight == null || s.InProcessReworkPlanTotalWeight == 0) &&
                                                        (s.InProcessReworkPlanTotalPieces == null || s.InProcessReworkPlanTotalPieces == 0));
+            if (!selectedTypes.Contains("inmain"))
+                summaryQuery = summaryQuery.Where(s => (s.InMainWorkOrderPlanTotalWeight == null || s.InMainWorkOrderPlanTotalWeight == 0) &&
+                                                       (s.InMainWorkOrderPlanTotalPieces == null || s.InMainWorkOrderPlanTotalPieces == 0));
         }
 
         // ===== 应用 ExcelFilter 筛选条件 =====
@@ -1752,6 +1826,8 @@ public class WorkOrderService : IWorkOrderService
                 PiercingPlanTotalPieces = s.PiercingPlanTotalPieces,
                 InProcessReworkPlanTotalWeight = s.InProcessReworkPlanTotalWeight,
                 InProcessReworkPlanTotalPieces = s.InProcessReworkPlanTotalPieces,
+                InMainWorkOrderPlanTotalWeight = s.InMainWorkOrderPlanTotalWeight,
+                InMainWorkOrderPlanTotalPieces = s.InMainWorkOrderPlanTotalPieces,
                 MaxStandardCycle = s.MaxStandardCycle,
                 MainNoMaxStandardCycle = s.MainNoMaxStandardCycle,
                 CapacityWorkDays = s.CapacityWorkDays,
@@ -1806,6 +1882,10 @@ public class WorkOrderService : IWorkOrderService
             .Where(p => allWorkOrderIds.Contains(p.WorkOrderId) && p.PlanStatus != InventoryPlanStatus.Cancelled)
             .ToListAsync();
 
+        var allInMainWorkOrderPlans = await _context.InMainWorkOrderPlans
+            .Where(p => allWorkOrderIds.Contains(p.WorkOrderId) && p.PlanStatus != InventoryPlanStatus.Cancelled)
+            .ToListAsync();
+
         // 1. 填充各计划类型重量汇总（按工单ID）
         var semiWeightByWo = allSemiPlans
             .GroupBy(p => p.WorkOrderId)
@@ -1853,6 +1933,13 @@ public class WorkOrderService : IWorkOrderService
             .GroupBy(p => p.WorkOrderId)
             .ToDictionary(g => g.Key, g => g.Sum(p => (p.UsedQuantity ?? 0) * p.InputMultiple));
 
+        var inMainWeightByWo = allInMainWorkOrderPlans
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.AllocatedWeight));
+        var inMainPiecesByWo = allInMainWorkOrderPlans
+            .GroupBy(p => p.WorkOrderId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.AllocatedQuantity ?? 0));
+
         // 计算最新计划日期（所有计划中最晚的 PlanDate）
         var latestDateByWo = new Dictionary<int, DateTime>();
         void MergeMaxDate(IEnumerable<IGrouping<int, DateTime>> groups)
@@ -1875,8 +1962,7 @@ public class WorkOrderService : IWorkOrderService
         MergeMaxDate(allInventoryPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
         MergeMaxDate(allPiercingPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
         MergeMaxDate(allInProcessReworkPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));
-
-        foreach (var item in items)
+        MergeMaxDate(allInMainWorkOrderPlans.GroupBy(p => p.WorkOrderId, p => p.PlanDate));        foreach (var item in items)
         {
             if (semiWeightByWo.TryGetValue(item.Id, out var semiW)) item.SemiPlanTotalWeight = semiW;
             if (semiPiecesByWo.TryGetValue(item.Id, out var semiP)) item.SemiPlanTotalPieces = semiP;
@@ -1890,6 +1976,8 @@ public class WorkOrderService : IWorkOrderService
             if (piercingPiecesByWo.TryGetValue(item.Id, out var pP)) item.PiercingPlanTotalPieces = pP;
             if (inProcessReworkWeightByWo.TryGetValue(item.Id, out var ipW)) item.InProcessReworkPlanTotalWeight = ipW;
             if (inProcessReworkPiecesByWo.TryGetValue(item.Id, out var ipP)) item.InProcessReworkPlanTotalPieces = ipP;
+            if (inMainWeightByWo.TryGetValue(item.Id, out var imW)) item.InMainWorkOrderPlanTotalWeight = imW;
+            if (inMainPiecesByWo.TryGetValue(item.Id, out var imP)) item.InMainWorkOrderPlanTotalPieces = imP;
             if (latestDateByWo.TryGetValue(item.Id, out var latestDate)) item.LatestPlanDate = latestDate;
         }
 
@@ -1899,6 +1987,7 @@ public class WorkOrderService : IWorkOrderService
         var inventoryByWo = allInventoryPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
         var piercingByWo = allPiercingPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
         var inProcessReworkByWo = allInProcessReworkPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
+        var inMainByWo = allInMainWorkOrderPlans.GroupBy(p => p.WorkOrderId).ToDictionary(g => g.Key, g => g.ToList());
         var woById = allWorkOrdersInOrders.ToDictionary(wo => wo.Id);
 
         // 读取物料计划状态阈值配置（用在工单级和主号级计算）
@@ -1921,7 +2010,8 @@ public class WorkOrderService : IWorkOrderService
             var inv = inventoryByWo.TryGetValue(item.Id, out var iv) ? iv : new List<InventoryPlan>();
             var pierce = piercingByWo.TryGetValue(item.Id, out var p) ? p : new List<RoundBarPiercingPlan>();
             var inProcess = inProcessReworkByWo.TryGetValue(item.Id, out var ip) ? ip : new List<InProcessReworkPlan>();
-            var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce, inProcess,
+            var inMain = inMainByWo.TryGetValue(item.Id, out var im) ? im : new List<InMainWorkOrderPlan>();
+            var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce, inProcess, inMain,
                 fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
             item.MaterialPlanRate = rate;
             item.MaterialPlanStatus = (MaterialPlanStatus)status;
@@ -2277,26 +2367,6 @@ public class WorkOrderService : IWorkOrderService
             .FirstOrDefaultAsync(s => s.WorkOrderId == id);
         if (execSummaryRow != null)
             _context.Set<WorkOrderExecutionSummary>().Remove(execSummaryRow);
-
-        // CROSS-MODULE: reads Warehouse.InventoryBatches for notification (read-only, no cascade)
-        // 扫描引用该工单号的入库批次，生成通知（已执行数据，不级联）
-        var affectedBatches = await _context.InventoryBatches
-            .Where(b => b.WorkOrderNo == workOrder.WorkOrderNo)
-            .ToListAsync();
-        var now = DateTimeOffset.Now;
-        foreach (var batch in affectedBatches)
-        {
-            _context.Notifications.Add(new MES.Data.Entities.WorkOrder.Notification
-            {
-                NotificationType = "WorkOrderDeleted",
-                TargetId = batch.Id,
-                Title = $"工单 {workOrder.WorkOrderNo} 已删除",
-                Content = $"入库批次 {batch.BatchNo}（{batch.MaterialType} {batch.Specification}）仍引用该工单，请及时处理",
-                IsRead = false,
-                Receiver = string.Empty,
-                CreatedTime = now
-            });
-        }
 
         // 先标记剩余工单为待修正（在删除之前做，避免中间状态异常导致脏数据）
         var remainingWorkOrders = await _context.WorkOrders

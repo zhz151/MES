@@ -254,7 +254,7 @@
                     FinishedCutLength = r.FinishedCutLength,
                     PostCutQuantity = r.PostCutQuantity,
                     TagNo = string.IsNullOrEmpty(r.TagNo) ? null : r.TagNo,
-                    PlantGrade = string.IsNullOrEmpty(r.PlantGrade) ? null : r.PlantGrade,
+                    PlantGrade = string.IsNullOrEmpty(r.PlantGrade) ? string.Empty : r.PlantGrade,
                     Remark = string.IsNullOrEmpty(r.Remark) ? null : r.Remark,
                 };
             }).ToList();

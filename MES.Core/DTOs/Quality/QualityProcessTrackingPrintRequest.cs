@@ -21,4 +21,5 @@ public class QualityProcessTrackingPrintAllRequest
     public List<PrintColumnDef> Columns { get; set; } = new();
     public DateTime? ReceiveDateFrom { get; set; }
     public DateTime? ReceiveDateTo { get; set; }
+    public string? Filters { get; set; }
 }

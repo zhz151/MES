@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Blazor.Components;
@@ -76,33 +77,9 @@ public partial class FinalInspections
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        // G1: 生产批次
-        new() { Key = "BatchNo",                Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "MaterialName",           Label = "钢管制造",   SortKey = "materialname", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "TagNo",                  Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "WorkOrderNo",            Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "SalesOrderNo",           Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "SourceUnit",             Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "FurnaceNo",              Label = "炉号",       SortKey = "furnaceno", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "PlantGrade",             Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "Specification",          Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "FixedLength",            Label = "定尺长度",   SortKey = "fixedlength", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "ProductionType",         Label = "生产类型",   SortKey = "productiontype", FilterType = "string", Width = "120",
-            GroupKey = 1, GroupName = "G1 生产批次" },
-
-        // G2: 检验执行
+        // G1: 检验执行
         new() { Key = "InspectionItem",        Label = "检验项目",   SortKey = "inspectionitem", FilterType = "enum", Width = "120",
-               GroupKey = 2, GroupName = "G2 检验执行",
+               GroupKey = 1, GroupName = "G1 检验执行",
                EnumOptions = new List<EnumOption>
                {
                    new("PMIInspection", "PMI检验"),
@@ -116,15 +93,52 @@ public partial class FinalInspections
                    new("PortColoring", "端口着色"),
                } },
         new() { Key = "InspectionDate",        Label = "检验日期",   SortKey = "inspectiondate", FilterType = "date", Width = "120",
-            GroupKey = 2, GroupName = "G2 检验执行" },
+            GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "EquipmentName",          Label = "设备名称",   SortKey = "equipmentname", FilterType = "string", Width = "120",
-            GroupKey = 2, GroupName = "G2 检验执行" },
-        new() { Key = "Shift",                  Label = "班次",       SortKey = "shift", FilterType = "string", Width = "120",
-            GroupKey = 2, GroupName = "G2 检验执行" },
+            GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "Shift",                  Label = "班次",       SortKey = "shift", FilterType = "enum", Width = "120",
+            GroupKey = 1, GroupName = "G1 检验执行",
+            EnumOptions = new() { new("DayShift","白班"), new("MiddleShift","中班"), new("NightShift","夜班") } },
         new() { Key = "Operator",               Label = "操作员",     SortKey = "operator", FilterType = "string", Width = "120",
-            GroupKey = 2, GroupName = "G2 检验执行" },
+            GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "QualificationLevel",    Label = "资格等级",   SortKey = "qualificationlevel", FilterType = "string", Width = "100",
+            GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "BatchNo",                Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 检验执行" },
+
+        // G2: 生产批次（均来自 ProductionBatch 导航属性的 DTO 字段）
+        new() { Key = "TagNo",                  Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "ProductionType",         Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次",
+            EnumOptions = Enum.GetValues<ProductionType>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetProductionTypeText(e))).ToList() },
+        new() { Key = "ManufacturingItem",     Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次",
+            EnumOptions = Enum.GetValues<MaterialType>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetMaterialTypeText(e))).ToList() },
+        new() { Key = "Salesman",               Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "DeliveryState",          Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次",
+            EnumOptions = Enum.GetValues<DeliveryState>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetDeliveryStateText(e))).ToList() },
+        new() { Key = "WorkOrderNo",            Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "SalesOrderNo",           Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "SourceUnit",             Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "FurnaceNo",              Label = "炉号",       SortKey = "furnaceno", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "PlantGrade",             Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "Specification",          Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "LengthStatus",           Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次",
+            EnumOptions = Enum.GetValues<LengthStatus>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetLengthStatusText(e))).ToList() },
 
         // G3: 检验结果
+        new() { Key = "FixedLength",            Label = "定尺长度",   SortKey = "fixedlength", FilterType = "string", Width = "120",
+            GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "Quantity",               Label = "检验支数",   SortKey = "quantity", Width = "80",
             GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "Weight",                 Label = "检验重量",   SortKey = "weight", Width = "80",
@@ -133,12 +147,12 @@ public partial class FinalInspections
             GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "QualifiedWeight",        Label = "合格重量",     SortKey = "qualifiedweight", Width = "80",
             GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "QualifiedConcessionQuantity", Label = "含让步放行支", SortKey = "qualifiedconcessionquantity", Width = "80",
+            GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "ConcessionRemark",       Label = "让步说明",     SortKey = "concessionremark", FilterType = "string", Width = "120",
+            GroupKey = 3, GroupName = "G3 检验结果" },
 
         // G4: 不合格处理
-        new() { Key = "QualifiedConcessionQuantity", Label = "让步放行支", SortKey = "qualifiedconcessionquantity", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "ConcessionRemark",       Label = "让步说明",     SortKey = "concessionremark", FilterType = "string", Width = "120",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
         new() { Key = "DefectReworkQuantity",   Label = "次品返整支",   SortKey = "defectreworkquantity", Width = "80",
             GroupKey = 4, GroupName = "G4 不合格处理" },
         new() { Key = "DefectWarehouseQuantity",Label = "次品入库支",   SortKey = "defectwarehousequantity", Width = "80",
@@ -148,26 +162,56 @@ public partial class FinalInspections
         new() { Key = "DefectDescription",      Label = "次品情况描述", SortKey = "defectdescription", FilterType = "string", Width = "120",
             GroupKey = 4, GroupName = "G4 不合格处理" },
 
-        // G5: 尺寸与压力
+        // G5: 尺寸值
         new() { Key = "OuterDiameterRange",     Label = "外径范围",   SortKey = "outerdiameterrange", FilterType = "string", Width = "120",
-            GroupKey = 5, GroupName = "G5 尺寸与压力" },
+            GroupKey = 5, GroupName = "G5 尺寸值" },
         new() { Key = "WallThicknessRange",     Label = "壁厚范围",   SortKey = "wallthicknessrange", FilterType = "string", Width = "120",
-            GroupKey = 5, GroupName = "G5 尺寸与压力" },
+            GroupKey = 5, GroupName = "G5 尺寸值" },
         new() { Key = "LengthAllowanceRange",   Label = "长度余量范围", SortKey = "lengthallowancerange", FilterType = "string", Width = "120",
-            GroupKey = 5, GroupName = "G5 尺寸与压力" },
-        new() { Key = "Pressure",               Label = "压力Mpa",    SortKey = "pressure", Width = "80",
-            GroupKey = 5, GroupName = "G5 尺寸与压力" },
-        new() { Key = "HoldTime",               Label = "保压时间s",  SortKey = "holdtime", Width = "80",
-            GroupKey = 5, GroupName = "G5 尺寸与压力" },
+            GroupKey = 5, GroupName = "G5 尺寸值" },
 
-        // G6: 辅助信息
+        // G6: 压力值
+        new() { Key = "Pressure",               Label = "压力Mpa",    SortKey = "pressure", Width = "80",
+            GroupKey = 6, GroupName = "G6 压力值" },
+        new() { Key = "HoldTime",               Label = "保压时间s",  SortKey = "holdtime", Width = "80",
+            GroupKey = 6, GroupName = "G6 压力值" },
+
+        // G7: 涡流/超声波探伤
+        new() { Key = "InspectionStandard",    Label = "检验标准",   SortKey = "inspectionstandard", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "InspectionGrade",       Label = "检验等级",   SortKey = "inspectiongrade", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "InstrumentModel",       Label = "仪器型号",   SortKey = "instrumentmodel", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "NdtMethod",             Label = "检验方式",   SortKey = "ndtmethod", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "StandardSampleSize",    Label = "标样尺寸",   SortKey = "standardsamplesize", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "StandardSampleDefect",  Label = "标样缺陷",   SortKey = "standardsampledefect", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "ProbeType",             Label = "探头类型",   SortKey = "probetype", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "Couplant",              Label = "耦合剂",     SortKey = "couplant", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "CalibrationFrequency",  Label = "校准频率",   SortKey = "calibrationfrequency", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "DetectionFrequency",    Label = "检测频率",   SortKey = "detectionfrequency", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "DetectionSensitivity",  Label = "检测灵敏度", SortKey = "detectionsensitivity", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "DetectionPhase",        Label = "检测相位",   SortKey = "detectionphase", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+        new() { Key = "DetectionSpeed",        Label = "检测速度",   SortKey = "detectionspeed", FilterType = "string", Width = "100",
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+
+        // G8: 辅助信息
         new() { Key = "Remark",                 Label = "检验备注",   SortKey = "remark", FilterType = "string", Width = "120",
-            GroupKey = 6, GroupName = "G6 辅助信息" },
+            GroupKey = 8, GroupName = "G8 辅助信息" },
         new() { Key = "DataSource",             Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80",
-            GroupKey = 6, GroupName = "G6 辅助信息",
+            GroupKey = 8, GroupName = "G8 辅助信息",
             EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
         new() { Key = "UpdatedTime",            Label = "更新日期",   SortKey = "updatedtime", Width = "120",
-            GroupKey = 6, GroupName = "G6 辅助信息" },
+            GroupKey = 8, GroupName = "G8 辅助信息" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -286,6 +330,17 @@ public partial class FinalInspections
             {
                 opt.Display = DisplayHelper.GetInspectionItemText(
                     Enum.TryParse<InspectionItem>(opt.Value, out var item) ? item : InspectionItem.PMIInspection);
+            }
+        }
+
+        // 枚举列：用 EnumOptions 的中文显示名替换 API 返回的原始值
+        foreach (var col in _allColumns.Where(c => c.FilterType == "enum" && c.EnumOptions != null))
+        {
+            if (_filterContextOptions.TryGetValue(col.Key, out var options))
+            {
+                var enumMap = col.EnumOptions!.ToDictionary(e => e.Value, e => e.Display);
+                foreach (var opt in options.Where(o => enumMap.ContainsKey(o.Value)))
+                    opt.Display = enumMap[opt.Value];
             }
         }
 
@@ -497,6 +552,20 @@ public partial class FinalInspections
         public string? LengthAllowanceRange { get; set; }
         public decimal? Pressure { get; set; }
         public int? HoldTime { get; set; }
+        public string? QualificationLevel { get; set; }
+        public string? InspectionStandard { get; set; }
+        public string? InspectionGrade { get; set; }
+        public string? InstrumentModel { get; set; }
+        public string? NdtMethod { get; set; }
+        public string? StandardSampleSize { get; set; }
+        public string? StandardSampleDefect { get; set; }
+        public string? ProbeType { get; set; }
+        public string? Couplant { get; set; }
+        public string? CalibrationFrequency { get; set; }
+        public string? DetectionFrequency { get; set; }
+        public string? DetectionSensitivity { get; set; }
+        public string? DetectionPhase { get; set; }
+        public string? DetectionSpeed { get; set; }
         public string? Remark { get; set; }
     }
 
@@ -524,6 +593,20 @@ public partial class FinalInspections
             LengthAllowanceRange = item.LengthAllowanceRange,
             Pressure = item.Pressure,
             HoldTime = item.HoldTime,
+            QualificationLevel = item.QualificationLevel,
+            InspectionStandard = item.InspectionStandard,
+            InspectionGrade = item.InspectionGrade,
+            InstrumentModel = item.InstrumentModel,
+            NdtMethod = item.NdtMethod,
+            StandardSampleSize = item.StandardSampleSize,
+            StandardSampleDefect = item.StandardSampleDefect,
+            ProbeType = item.ProbeType,
+            Couplant = item.Couplant,
+            CalibrationFrequency = item.CalibrationFrequency,
+            DetectionFrequency = item.DetectionFrequency,
+            DetectionSensitivity = item.DetectionSensitivity,
+            DetectionPhase = item.DetectionPhase,
+            DetectionSpeed = item.DetectionSpeed,
             Remark = item.Remark
         };
     }
@@ -570,6 +653,20 @@ public partial class FinalInspections
                 LengthAllowanceRange = cache.LengthAllowanceRange,
                 Pressure = cache.Pressure,
                 HoldTime = cache.HoldTime,
+                QualificationLevel = cache.QualificationLevel,
+                InspectionStandard = cache.InspectionStandard,
+                InspectionGrade = cache.InspectionGrade,
+                InstrumentModel = cache.InstrumentModel,
+                NdtMethod = cache.NdtMethod,
+                StandardSampleSize = cache.StandardSampleSize,
+                StandardSampleDefect = cache.StandardSampleDefect,
+                ProbeType = cache.ProbeType,
+                Couplant = cache.Couplant,
+                CalibrationFrequency = cache.CalibrationFrequency,
+                DetectionFrequency = cache.DetectionFrequency,
+                DetectionSensitivity = cache.DetectionSensitivity,
+                DetectionPhase = cache.DetectionPhase,
+                DetectionSpeed = cache.DetectionSpeed,
                 Remark = cache.Remark
             };
 
@@ -595,6 +692,20 @@ public partial class FinalInspections
                 item.LengthAllowanceRange = result.Data.LengthAllowanceRange;
                 item.Pressure = result.Data.Pressure;
                 item.HoldTime = result.Data.HoldTime;
+                item.QualificationLevel = result.Data.QualificationLevel;
+                item.InspectionStandard = result.Data.InspectionStandard;
+                item.InspectionGrade = result.Data.InspectionGrade;
+                item.InstrumentModel = result.Data.InstrumentModel;
+                item.NdtMethod = result.Data.NdtMethod;
+                item.StandardSampleSize = result.Data.StandardSampleSize;
+                item.StandardSampleDefect = result.Data.StandardSampleDefect;
+                item.ProbeType = result.Data.ProbeType;
+                item.Couplant = result.Data.Couplant;
+                item.CalibrationFrequency = result.Data.CalibrationFrequency;
+                item.DetectionFrequency = result.Data.DetectionFrequency;
+                item.DetectionSensitivity = result.Data.DetectionSensitivity;
+                item.DetectionPhase = result.Data.DetectionPhase;
+                item.DetectionSpeed = result.Data.DetectionSpeed;
                 item.Remark = result.Data.Remark;
                 item.UpdatedTime = result.Data.UpdatedTime;
 
@@ -625,7 +736,7 @@ public partial class FinalInspections
         "InspectionItem" => DisplayHelper.GetInspectionItemText(item.InspectionItem),
         "InspectionDate" => item.InspectionDate.ToString("yyyy-MM-dd"),
         "BatchNo" => item.BatchNo,
-        "MaterialName" => item.MaterialName,
+        "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
         "TagNo" => item.TagNo,
         "WorkOrderNo" => item.WorkOrderNo,
         "SalesOrderNo" => item.SalesOrderNo,
@@ -633,6 +744,9 @@ public partial class FinalInspections
         "FurnaceNo" => item.FurnaceNo,
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
+        "Salesman" => item.Salesman,
+        "DeliveryState" => item.DeliveryState,
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
         "FixedLength" => item.FixedLength,
         "EquipmentName" => item.EquipmentName,
         "Shift" => DisplayHelper.GetShiftTypeText(item.Shift),
@@ -653,6 +767,20 @@ public partial class FinalInspections
         "Pressure" => item.Pressure?.ToString("G29"),
         "HoldTime" => item.HoldTime?.ToString(),
         "Remark" => item.Remark,
+        "QualificationLevel" => item.QualificationLevel,
+        "InspectionStandard" => item.InspectionStandard,
+        "InspectionGrade" => item.InspectionGrade,
+        "InstrumentModel" => item.InstrumentModel,
+        "NdtMethod" => item.NdtMethod,
+        "StandardSampleSize" => item.StandardSampleSize,
+        "StandardSampleDefect" => item.StandardSampleDefect,
+        "ProbeType" => item.ProbeType,
+        "Couplant" => item.Couplant,
+        "CalibrationFrequency" => item.CalibrationFrequency,
+        "DetectionFrequency" => item.DetectionFrequency,
+        "DetectionSensitivity" => item.DetectionSensitivity,
+        "DetectionPhase" => item.DetectionPhase,
+        "DetectionSpeed" => item.DetectionSpeed,
         "DataSource" => item.DataSource,
         "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => null
@@ -661,7 +789,7 @@ public partial class FinalInspections
     private string? GetCellDisplayText(FinalInspectionDto item, string key) => key switch
     {
         "InspectionItem" => DisplayHelper.GetInspectionItemText(item.InspectionItem),
-        "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName),
+        "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
         _ => GetCellRawValue(item, key) ?? ""
     };
 
@@ -777,6 +905,8 @@ public partial class FinalInspections
             4 => "col-g4",
             5 => "col-g5",
             6 => "col-g6",
+            7 => "col-g7",
+            8 => "col-g8",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -793,6 +923,8 @@ public partial class FinalInspections
             4 => "col-g4-cell",
             5 => "col-g5-cell",
             6 => "col-g6-cell",
+            7 => "col-g7-cell",
+            8 => "col-g8-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
@@ -891,7 +1023,8 @@ public partial class FinalInspections
             IsDescending = sortDescending,
             InspectionDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
             InspectionDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-            Columns = GetPrintColumnDefs()
+            Columns = GetPrintColumnDefs(),
+            Filters = SerializeFilters()
         };
         var json = JsonSerializer.Serialize(request);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -907,7 +1040,12 @@ public partial class FinalInspections
             or "QualifiedConcessionQuantity" or "ConcessionRemark"
             or "DefectReworkQuantity" or "DefectWarehouseQuantity" or "DefectScrapQuantity"
             or "DefectDescription" or "OuterDiameterRange" or "WallThicknessRange"
-            or "LengthAllowanceRange" or "Pressure" or "HoldTime" or "Remark" => true,
+            or "LengthAllowanceRange" or "Pressure" or "HoldTime"
+            or "QualificationLevel" or "InspectionStandard" or "InspectionGrade"
+            or "InstrumentModel" or "NdtMethod" or "StandardSampleSize"
+            or "StandardSampleDefect" or "ProbeType" or "Couplant"
+            or "CalibrationFrequency" or "DetectionFrequency" or "DetectionSensitivity"
+            or "DetectionPhase" or "DetectionSpeed" or "Remark" => true,
         _ => false
     };
 
@@ -939,8 +1077,8 @@ public partial class FinalInspections
             case "BatchNo":
                 builder.AddContent(0, item.BatchNo);
                 break;
-            case "MaterialName":
-                builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName));
+            case "ManufacturingItem":
+                builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.ManufacturingItem));
                 break;
             case "TagNo":
                 builder.AddContent(0, item.TagNo);
@@ -966,6 +1104,15 @@ public partial class FinalInspections
             case "Specification":
                 builder.AddContent(0, item.Specification);
                 break;
+            case "Salesman":
+                builder.AddContent(0, item.Salesman);
+                break;
+            case "LengthStatus":
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                break;
+            case "DeliveryState":
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
+                break;
             case "FixedLength":
                 builder.AddContent(0, item.FixedLength);
                 break;
@@ -986,15 +1133,15 @@ public partial class FinalInspections
             case "Shift":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudSelect<ShiftType>>(0);
-                    builder.AddAttribute(1, "Value", cache.Shift ?? default(ShiftType));
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<ShiftType>(this, v => cache.Shift = v));
+                    builder.OpenComponent<MudSelect<ShiftType?>>(0);
+                    builder.AddAttribute(1, "Value", cache.Shift);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<ShiftType?>(this, v => cache.Shift = v));
                     builder.AddAttribute(3, "Class", "compact-input");
                     builder.AddAttribute(4, "ChildContent", (RenderFragment)(b =>
                     {
-                        foreach (var val in Enum.GetValues<ShiftType>())
+                        foreach (ShiftType? val in Enum.GetValues<ShiftType>())
                         {
-                            b.OpenComponent<MudSelectItem<ShiftType>>(0);
+                            b.OpenComponent<MudSelectItem<ShiftType?>>(0);
                             b.AddAttribute(1, "Value", val);
                             b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
                                 b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
@@ -1245,6 +1392,48 @@ public partial class FinalInspections
                     builder.AddContent(0, DisplayHelper.FormatNullableInt(item.HoldTime));
                 }
                 break;
+            case "QualificationLevel":
+                RenderNdtEditField(builder, cache, item, col, c => c.QualificationLevel, (c, v) => c.QualificationLevel = v);
+                break;
+            case "InspectionStandard":
+                RenderNdtEditField(builder, cache, item, col, c => c.InspectionStandard, (c, v) => c.InspectionStandard = v);
+                break;
+            case "InspectionGrade":
+                RenderNdtEditField(builder, cache, item, col, c => c.InspectionGrade, (c, v) => c.InspectionGrade = v);
+                break;
+            case "InstrumentModel":
+                RenderNdtEditField(builder, cache, item, col, c => c.InstrumentModel, (c, v) => c.InstrumentModel = v);
+                break;
+            case "NdtMethod":
+                RenderNdtEditField(builder, cache, item, col, c => c.NdtMethod, (c, v) => c.NdtMethod = v);
+                break;
+            case "StandardSampleSize":
+                RenderNdtEditField(builder, cache, item, col, c => c.StandardSampleSize, (c, v) => c.StandardSampleSize = v);
+                break;
+            case "StandardSampleDefect":
+                RenderNdtEditField(builder, cache, item, col, c => c.StandardSampleDefect, (c, v) => c.StandardSampleDefect = v);
+                break;
+            case "ProbeType":
+                RenderNdtEditField(builder, cache, item, col, c => c.ProbeType, (c, v) => c.ProbeType = v);
+                break;
+            case "Couplant":
+                RenderNdtEditField(builder, cache, item, col, c => c.Couplant, (c, v) => c.Couplant = v);
+                break;
+            case "CalibrationFrequency":
+                RenderNdtEditField(builder, cache, item, col, c => c.CalibrationFrequency, (c, v) => c.CalibrationFrequency = v);
+                break;
+            case "DetectionFrequency":
+                RenderNdtEditField(builder, cache, item, col, c => c.DetectionFrequency, (c, v) => c.DetectionFrequency = v);
+                break;
+            case "DetectionSensitivity":
+                RenderNdtEditField(builder, cache, item, col, c => c.DetectionSensitivity, (c, v) => c.DetectionSensitivity = v);
+                break;
+            case "DetectionPhase":
+                RenderNdtEditField(builder, cache, item, col, c => c.DetectionPhase, (c, v) => c.DetectionPhase = v);
+                break;
+            case "DetectionSpeed":
+                RenderNdtEditField(builder, cache, item, col, c => c.DetectionSpeed, (c, v) => c.DetectionSpeed = v);
+                break;
             case "Remark":
                 if (isEditing && cache != null)
                 {
@@ -1276,4 +1465,21 @@ public partial class FinalInspections
                 break;
         }
     };
+
+    private void RenderNdtEditField(RenderTreeBuilder builder, EditCache? cache, FinalInspectionDto item, ColumnDef col,
+        Func<EditCache, string?> getter, Action<EditCache, string?> setter)
+    {
+        if (cache != null)
+        {
+            builder.OpenComponent<MudTextField<string>>(0);
+            builder.AddAttribute(1, "Value", getter(cache));
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => setter(cache, v)));
+            builder.AddAttribute(3, "Class", "compact-input");
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddContent(0, item.GetType().GetProperty(col.Key)?.GetValue(item) as string ?? "");
+        }
+    }
 }

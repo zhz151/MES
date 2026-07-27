@@ -199,70 +199,124 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
     }
 
     /// <summary>
-    /// 缓存键，公开供 InventoryService 在出库/入库操作后主动失效
+    /// 缓存键 — 已组装 DTO 缓存（5min 滑动）
+    /// InventoryService 在出库/入库操作后通过 Remove(CacheKey) 主动失效
     /// </summary>
     public const string CacheKey = "PendingDeliveryQueryService:LoadDtos";
 
     /// <summary>
-    /// 缓存包装：5 分钟滑动缓存，配合出库/入库操作主动失效
+    /// C1: InventoryBatch 原始实体缓存键（10min 滑动）
+    /// </summary>
+    private const string InventoryBatchCacheKey = "PendingDeliveryQueryService:InventoryBatches";
+
+    /// <summary>
+    /// C2: 引用数据缓存键前缀（30min 滑动）
+    /// </summary>
+    private const string ReferenceDataCacheKeyPrefix = "PendingDeliveryQueryService:RefData:";
+
+    /// <summary>
+    /// 已组装 DTO 缓存 — 5min 滑动，从 C1+C2 重建
     /// </summary>
     private async Task<List<PendingDeliveryItemDto>> GetCachedDtosAsync()
     {
         return await _cache.GetOrCreateAsync(CacheKey, async entry =>
         {
             entry.SlidingExpiration = TimeSpan.FromMinutes(5);
-            return await LoadDtosAsync();
+
+            var batches = await GetCachedInventoryBatchesAsync();
+            if (batches.Count == 0)
+                return new List<PendingDeliveryItemDto>();
+
+            // 从 InventoryBatch 提取引用数据所需的标识符
+            var orderNos = batches
+                .Where(b => !string.IsNullOrEmpty(b.SalesOrderNo))
+                .Select(b => b.SalesOrderNo!)
+                .Distinct()
+                .ToList();
+
+            var woNos = batches
+                .Where(b => !string.IsNullOrEmpty(b.WorkOrderNo))
+                .Select(b => b.WorkOrderNo!)
+                .Distinct()
+                .ToList();
+
+            var batchNosForHeat = batches
+                .Where(b => string.IsNullOrEmpty(b.HeatNo) && !string.IsNullOrEmpty(b.ProductionBatchNo))
+                .Select(b => b.ProductionBatchNo!)
+                .Distinct()
+                .ToList();
+
+            var batchSequences = batches
+                .SelectMany(b => ParseSequences(b.OrderItemIds))
+                .Distinct()
+                .ToList();
+
+            var refData = await GetCachedReferenceDataAsync(orderNos, woNos, batchNosForHeat, batchSequences);
+
+            return AssembleDtos(batches, refData);
         }) ?? new List<PendingDeliveryItemDto>();
     }
 
     /// <summary>
-    /// 共享加载逻辑：SQL 查询 InventoryBatch + 内存 JOIN SalesOrder/OrderItem → 组装 DTO
+    /// C1: InventoryBatch 原始实体缓存 — 10min 滑动
     /// </summary>
-    private async Task<List<PendingDeliveryItemDto>> LoadDtosAsync(
-        string? orderNo = null,
-        string? keyword = null)
+    private async Task<List<MES.Data.Entities.Warehouse.InventoryBatch>> GetCachedInventoryBatchesAsync()
     {
-        // 1. 筛选成品库存中的待发货项
-        var query = _context.InventoryBatches
-            .AsNoTracking()
-            .Where(ib => ib.MaterialType == InventoryMaterialTypes.OrderFinished
-                      && (ib.RemainingQuantity > 0 || ib.RemainingWeight > 0m));
-
-        if (!string.IsNullOrEmpty(orderNo))
-            query = query.Where(ib => ib.SalesOrderNo == orderNo);
-
-        // SQL 层 keyword 匹配 InventoryBatch 自有字段
-        if (!string.IsNullOrEmpty(keyword))
+        return await _cache.GetOrCreateAsync(InventoryBatchCacheKey, async entry =>
         {
-            query = query.Where(ib =>
-                ib.BatchNo.Contains(keyword) ||
-                (ib.HeatNo != null && ib.HeatNo.Contains(keyword)) ||
-                ib.PlantGrade.Contains(keyword) ||
-                ib.Specification.Contains(keyword) ||
-                (ib.SalesOrderNo != null && ib.SalesOrderNo.Contains(keyword)) ||
-                (ib.ProductionBatchNo != null && ib.ProductionBatchNo.Contains(keyword)));
-        }
+            entry.SlidingExpiration = TimeSpan.FromMinutes(10);
+            return await _context.InventoryBatches
+                .AsNoTracking()
+                .Where(ib => ib.MaterialType == InventoryMaterialTypes.OrderFinished
+                          && (ib.RemainingQuantity > 0 || ib.RemainingWeight > 0m))
+                .ToListAsync();
+        }) ?? new List<MES.Data.Entities.Warehouse.InventoryBatch>();
+    }
 
-        // 2. 查询匹配的库存批次
-        var batches = await query.ToListAsync();
-        if (batches.Count == 0)
-            return new List<PendingDeliveryItemDto>();
+    /// <summary>
+    /// C2: 引用数据缓存 — 30min 滑动，复合键基于当前批次的标识符集合
+    /// </summary>
+    private async Task<ReferenceDataCache> GetCachedReferenceDataAsync(
+        List<string> orderNos, List<string> woNos, List<string> batchNosForHeat, List<int> batchSequences)
+    {
+        var cacheKey = ComputeReferenceCacheKey(orderNos, woNos, batchNosForHeat, batchSequences);
 
-        // 3. 获取关联的订单/工单信息
-        var orderNos = batches
-            .Where(b => !string.IsNullOrEmpty(b.SalesOrderNo))
-            .Select(b => b.SalesOrderNo!)
-            .Distinct()
+        return await _cache.GetOrCreateAsync(cacheKey, async entry =>
+        {
+            entry.SlidingExpiration = TimeSpan.FromMinutes(30);
+            return await LoadReferenceDataAsync(orderNos, woNos, batchNosForHeat, batchSequences);
+        }) ?? new ReferenceDataCache();
+    }
+
+    private static string ComputeReferenceCacheKey(
+        List<string> orderNos, List<string> woNos, List<string> batchNosForHeat, List<int> batchSequences)
+    {
+        orderNos.Sort(StringComparer.OrdinalIgnoreCase);
+        woNos.Sort(StringComparer.OrdinalIgnoreCase);
+        batchNosForHeat.Sort(StringComparer.OrdinalIgnoreCase);
+        var seqStr = string.Join(",", batchSequences.OrderBy(s => s));
+        return $"{ReferenceDataCacheKeyPrefix}{string.Join("|", orderNos)}|{string.Join("|", woNos)}|{string.Join("|", batchNosForHeat)}|{seqStr}";
+    }
+
+    private static List<int> ParseSequences(string? idsStr)
+    {
+        if (string.IsNullOrEmpty(idsStr)) return new List<int>();
+        return idsStr
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(idStr => int.TryParse(idStr, out var id) ? id : 0)
+            .Where(id => id > 0)
             .ToList();
+    }
 
-        // 3a. 通过 WorkOrder 反查权威的 SalesOrderNo 和 OrderItemIds
-        var woNos = batches
-            .Where(b => !string.IsNullOrEmpty(b.WorkOrderNo))
-            .Select(b => b.WorkOrderNo!)
-            .Distinct()
-            .ToList();
+    /// <summary>
+    /// 加载引用数据：WorkOrder + SalesOrder + OrderItem + ProductionBatch（最多 4 次 DB 查询）
+    /// </summary>
+    private async Task<ReferenceDataCache> LoadReferenceDataAsync(
+        List<string> orderNos, List<string> woNos, List<string> batchNosForHeat, List<int> batchSequences)
+    {
+        var result = new ReferenceDataCache();
 
-        Dictionary<string, (string SalesOrderNo, string OrderItemIds)>? workOrderDict = null;
+        // 1. WorkOrder — 反查权威 SalesOrderNo 和 OrderItemIds
         if (woNos.Count > 0)
         {
             var workOrders = await _context.Set<MES.Data.Entities.WorkOrder.WorkOrder>()
@@ -271,7 +325,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                 .Select(w => new { w.WorkOrderNo, w.SalesOrderNo, w.OrderItemIds })
                 .ToListAsync();
 
-            workOrderDict = workOrders.ToDictionary(
+            result.WorkOrderDict = workOrders.ToDictionary(
                 w => w.WorkOrderNo,
                 w => (w.SalesOrderNo, w.OrderItemIds),
                 StringComparer.OrdinalIgnoreCase);
@@ -284,12 +338,9 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
             }
         }
 
-        Dictionary<string, SalesOrderInfo>? orderDict = null;
-        Dictionary<string, OrderItemInfo>? itemDict = null;
-
         if (orderNos.Count > 0)
         {
-            // 查订单
+            // 2. SalesOrder
             var orders = await _context.Set<MES.Data.Entities.Order.SalesOrder>()
                 .AsNoTracking()
                 .Where(o => orderNos.Contains(o.OrderNumber))
@@ -302,38 +353,22 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                 })
                 .ToListAsync();
 
-            orderDict = orders.ToDictionary(o => o.OrderNumber, o => o, StringComparer.OrdinalIgnoreCase);
+            result.OrderDict = orders.ToDictionary(o => o.OrderNumber, o => o, StringComparer.OrdinalIgnoreCase);
 
-            // 查项次（合并 batch.OrderItemIds + workOrder.OrderItemIds）
-            // 注意：OrderItemIds 存储的是 Sequence 值（项次号），不是 Id
-            var allSequences = new List<int>();
-
-            void CollectSequences(string? idsStr)
+            // 3. OrderItem — 合并 batchSequences + workOrder.OrderItemIds 的序列号
+            var allSequences = new HashSet<int>(batchSequences);
+            foreach (var seq in result.WorkOrderDict.Values
+                .SelectMany(v => ParseSequences(v.OrderItemIds)))
             {
-                if (string.IsNullOrEmpty(idsStr)) return;
-                foreach (var idStr in idsStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                {
-                    if (int.TryParse(idStr, out var id) && id > 0)
-                        allSequences.Add(id);
-                }
+                allSequences.Add(seq);
             }
-
-            foreach (var batch in batches)
-                CollectSequences(batch.OrderItemIds);
-
-            if (workOrderDict != null)
-            {
-                foreach (var kvp in workOrderDict)
-                    CollectSequences(kvp.Value.OrderItemIds);
-            }
-
-            allSequences = allSequences.Distinct().ToList();
 
             if (allSequences.Count > 0)
             {
+                var seqList = allSequences.ToList();
                 var items = await _context.Set<MES.Data.Entities.Order.OrderItem>()
                     .AsNoTracking()
-                    .Where(oi => orderNos.Contains(oi.OrderNumber ?? "") && allSequences.Contains(oi.Sequence))
+                    .Where(oi => orderNos.Contains(oi.OrderNumber ?? "") && seqList.Contains(oi.Sequence))
                     .Select(oi => new OrderItemInfo
                     {
                         OrderNumber = oi.OrderNumber ?? "",
@@ -344,28 +379,29 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                     })
                     .ToListAsync();
 
-                // 用 "OrderNumber|Sequence" 作为复合 key，避免不同订单相同 Sequence 冲突
-                itemDict = items.ToDictionary(i => $"{i.OrderNumber}|{i.Sequence}", i => i);
+                result.ItemDict = items.ToDictionary(i => $"{i.OrderNumber}|{i.Sequence}", i => i);
             }
         }
 
-        // 3b. 查询 ProductionBatch 补充炉号（当仓库炉号为空时）
-        var batchNosForHeat = batches
-            .Where(b => string.IsNullOrEmpty(b.HeatNo) && !string.IsNullOrEmpty(b.ProductionBatchNo))
-            .Select(b => b.ProductionBatchNo!)
-            .Distinct()
-            .ToList();
-
-        Dictionary<string, string?>? productionBatchHeatMap = null;
+        // 4. ProductionBatch — 补充炉号
         if (batchNosForHeat.Count > 0)
         {
-            productionBatchHeatMap = await _context.Set<MES.Data.Entities.Batch.ProductionBatch>()
+            result.ProductionBatchHeatMap = await _context.Set<MES.Data.Entities.Batch.ProductionBatch>()
                 .AsNoTracking()
                 .Where(pb => batchNosForHeat.Contains(pb.BatchNo))
                 .ToDictionaryAsync(pb => pb.BatchNo, pb => pb.SourceHeatNo, StringComparer.OrdinalIgnoreCase);
         }
 
-        // 4. 组装 DTO
+        return result;
+    }
+
+    /// <summary>
+    /// 从缓存的 InventoryBatch + 引用数据组装 DTO（纯内存操作）
+    /// </summary>
+    private List<PendingDeliveryItemDto> AssembleDtos(
+        List<MES.Data.Entities.Warehouse.InventoryBatch> batches,
+        ReferenceDataCache refData)
+    {
         var result = new List<PendingDeliveryItemDto>();
 
         foreach (var batch in batches)
@@ -374,8 +410,8 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
             var resolvedSalesOrderNo = batch.SalesOrderNo;
             var resolvedOrderItemIds = batch.OrderItemIds;
 
-            if (!string.IsNullOrEmpty(batch.WorkOrderNo) && workOrderDict != null
-                && workOrderDict.TryGetValue(batch.WorkOrderNo, out var woInfo))
+            if (!string.IsNullOrEmpty(batch.WorkOrderNo)
+                && refData.WorkOrderDict.TryGetValue(batch.WorkOrderNo, out var woInfo))
             {
                 if (!string.IsNullOrEmpty(woInfo.SalesOrderNo))
                     resolvedSalesOrderNo = woInfo.SalesOrderNo;
@@ -388,22 +424,24 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
             string? itemStandardGrade = null;
             string? itemDeliveryStatus = null;
 
-            if (!string.IsNullOrEmpty(resolvedOrderItemIds) && itemDict != null && !string.IsNullOrEmpty(resolvedSalesOrderNo))
+            if (!string.IsNullOrEmpty(resolvedOrderItemIds)
+                && refData.ItemDict.Count > 0
+                && !string.IsNullOrEmpty(resolvedSalesOrderNo))
             {
                 var compositeKey = resolvedOrderItemIds
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .Select(id => int.TryParse(id, out var i) ? i : 0)
                     .Where(id => id > 0)
                     .Select(seq => $"{resolvedSalesOrderNo}|{seq}")
-                    .FirstOrDefault(key => itemDict.ContainsKey(key));
+                    .FirstOrDefault(key => refData.ItemDict.ContainsKey(key));
 
-                if (compositeKey != null && itemDict.TryGetValue(compositeKey, out var itemInfo))
+                if (compositeKey != null && refData.ItemDict.TryGetValue(compositeKey, out var itemInfo))
                 {
                     itemStandardNo = itemInfo.StandardNo;
                     itemStandardGrade = itemInfo.StandardGrade;
 
                     if (!string.IsNullOrEmpty(itemInfo.DeliveryState))
-                        itemDeliveryStatus = EnumHelper.GetDisplayName<DeliveryState>(itemInfo.DeliveryState);
+                        itemDeliveryStatus = itemInfo.DeliveryState;
                 }
             }
 
@@ -412,26 +450,28 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
             string? salesman = null;
             string? endCustomer = null;
 
-            if (!string.IsNullOrEmpty(resolvedSalesOrderNo) && orderDict != null)
+            if (!string.IsNullOrEmpty(resolvedSalesOrderNo)
+                && refData.OrderDict.TryGetValue(resolvedSalesOrderNo, out var orderInfo))
             {
-                if (orderDict.TryGetValue(resolvedSalesOrderNo, out var orderInfo))
-                {
-                    customerName = orderInfo.CustomerName;
-                    salesman = orderInfo.Salesman;
-                    endCustomer = orderInfo.EndCustomer;
-                }
+                customerName = orderInfo.CustomerName;
+                salesman = orderInfo.Salesman;
+                endCustomer = orderInfo.EndCustomer;
             }
+
+            // 炉号回退
+            var heatNo = !string.IsNullOrEmpty(batch.HeatNo)
+                ? batch.HeatNo
+                : refData.ProductionBatchHeatMap.GetValueOrDefault(batch.ProductionBatchNo ?? "");
 
             result.Add(new PendingDeliveryItemDto
             {
                 InventoryBatchNo = batch.BatchNo,
                 MaterialType = EnumHelper.TryParse<MaterialType>(batch.MaterialType) ?? default,
-                InboundSource = string.IsNullOrEmpty(batch.InboundSource) ? default : EnumHelper.TryParse<InboundSource>(batch.InboundSource) ?? default,
+                InboundSource = string.IsNullOrEmpty(batch.InboundSource) ? default
+                    : EnumHelper.TryParse<InboundSource>(batch.InboundSource) ?? default,
                 SourceName = batch.SourceName,
                 ProductionBatchNo = batch.ProductionBatchNo,
-                HeatNo = !string.IsNullOrEmpty(batch.HeatNo)
-                    ? batch.HeatNo
-                    : productionBatchHeatMap?.GetValueOrDefault(batch.ProductionBatchNo ?? ""),
+                HeatNo = heatNo,
                 PlantGrade = batch.PlantGrade,
                 Specification = batch.Specification,
                 LengthStatus = batch.LengthStatus,
@@ -474,6 +514,18 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         public string? StandardNo { get; set; }
         public string StandardGrade { get; set; } = null!;
         public string? DeliveryState { get; set; }
+    }
+
+    private class ReferenceDataCache
+    {
+        public Dictionary<string, (string SalesOrderNo, string OrderItemIds)> WorkOrderDict
+            = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, SalesOrderInfo> OrderDict
+            = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, OrderItemInfo> ItemDict
+            = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, string?> ProductionBatchHeatMap
+            = new(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>

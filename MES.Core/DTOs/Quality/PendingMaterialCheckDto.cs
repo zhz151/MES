@@ -15,4 +15,12 @@ public class PendingMaterialCheckDto
     public decimal CurrentValidWeight { get; set; }
     public DateTime? CurrentExecDate { get; set; }
     public string? CurrentSectionName { get; set; }
+
+    // ========== 匹配的工序组信息 ==========
+
+    /// <summary>匹配的工序组ID（优先非"成检附加"）</summary>
+    public int ProcessGroupId { get; set; }
+
+    /// <summary>匹配的工序组名称</summary>
+    public string? ProcessGroupName { get; set; }
 }

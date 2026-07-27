@@ -111,9 +111,9 @@
                         <MudTextField T="string" Label="反馈人" @bind-Value="_formData.Reporter" />
                     </MudItem>
                     <MudItem xs="12" sm="6" md="2">
-                        <MudSelect T="MaterialType" Label="钢管类别 *" @bind-Value="_formData.PipeCategory"
+                        <MudSelect T="MaterialType" Label="物料类型 *" @bind-Value="_formData.PipeCategory"
                                    Variant="Variant.Outlined" Immediate="true"
-                                   Required="true" RequiredError="钢管类别不能为空">
+                                   Required="true" RequiredError="物料类型不能为空">
                             @foreach (var val in Enum.GetValues<MaterialType>())
                             {
                                 <MudSelectItem Value="@(val)">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>

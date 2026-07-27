@@ -198,7 +198,7 @@ public class FinalInspectionsControllerTests : ControllerTestBase
     public async Task LookupBatch_ReturnsOk()
     {
         // Arrange
-        var dto = new BatchLookupResultDto { MaterialName = "材料A" };
+        var dto = new BatchLookupResultDto { ManufacturingItem = "OrderFinished" };
         _serviceMock.Setup(x => x.LookupBatchAsync("BATCH001")).ReturnsAsync(dto);
 
         // Act
@@ -206,7 +206,7 @@ public class FinalInspectionsControllerTests : ControllerTestBase
 
         // Assert
         var (_, response) = AssertOk<ApiResponse<BatchLookupResultDto?>>(result);
-        Assert.Equal("材料A", response.Data!.MaterialName);
+        Assert.Equal("OrderFinished", response.Data!.ManufacturingItem);
     }
 
     [Fact]

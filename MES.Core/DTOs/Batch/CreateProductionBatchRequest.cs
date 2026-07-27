@@ -14,8 +14,7 @@ public class CreateProductionBatchRequest
     [MaxLength(50)]
     public string? TagNo { get; set; }
 
-    [MaxLength(20)]
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
 
     public MaterialType? ManufacturingItem { get; set; }
 
@@ -92,17 +91,16 @@ public class CreateProductionBatchRequest
 
     public bool? DelayPenalty { get; set; }
 
-    [MaxLength(20)]
-    public string? MaterialName { get; set; }
+    public PipeManufacturingType? MaterialName { get; set; }
 
-    [MaxLength(20)]
-    public string? SettlementMethod { get; set; }
+    public SettlementMethod? SettlementMethod { get; set; }
 
     [MaxLength(50)]
     public string? StandardCode { get; set; }
 
-    [MaxLength(50)]
-    public string? DeliveryState { get; set; }
+    public DeliveryState? DeliveryState { get; set; }
+
+    public DeliveryState? ManufacturingStatus { get; set; }
 
     [MaxLength(50)]
     public string? PlantGrade { get; set; }
@@ -115,8 +113,7 @@ public class CreateProductionBatchRequest
     public decimal? WallThicknessNegative { get; set; }
     public decimal? WallThicknessPositive { get; set; }
 
-    [MaxLength(20)]
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
 
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
@@ -127,9 +124,15 @@ public class CreateProductionBatchRequest
 
     public string? ItemDetails { get; set; }
 
-    [MaxLength(20)]
-    public string? TechnicalRequirements { get; set; }
+    public RequirementType? TechnicalRequirements { get; set; }
 
     // 工序组列表（可选，创建时可不带工序组，后续添加工序组）
     public List<CreateProcessGroupRequest>? ProcessGroups { get; set; }
+
+    // ========== 合并投料 ==========
+
+    /// <summary>
+    /// 来源批次列表（支持多库存批次合并投料）
+    /// </summary>
+    public List<SourceBatchItemRequest>? SourceItems { get; set; }
 }

@@ -1,9 +1,10 @@
+using MES.Core.Enums;
 using MES.Data.Entities.Batch;
 
 namespace MES.Data.Entities.Quality;
 
 /// <summary>
-/// 成检到料 — 所有工序完成后料到成品检验处，标记批次完成
+/// 成检到料 — 所有工序完成后料到成品检验处，标记批次进入成检阶段
 /// </summary>
 public class MaterialReceiveCheck : BaseEntity
 {
@@ -22,7 +23,7 @@ public class MaterialReceiveCheck : BaseEntity
     /// <summary>
     /// 班次（白班/中班/夜班）
     /// </summary>
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
 
     /// <summary>
     /// 确认人
@@ -39,52 +40,27 @@ public class MaterialReceiveCheck : BaseEntity
     /// </summary>
     public string? DataSource { get; set; }
 
-    // ========== 批次冗余字段（从 ProductionBatch 自动复制） ==========
+    // ========== 批次冗余字段 ==========
 
     /// <summary>生产编号</summary>
     public string? BatchNo { get; set; }
 
-    /// <summary>制造物品（MaterialType 枚举名：OrderFinished/Finished/Surplus/SpecialDeliveryStatus）</summary>
-    public string? ManufacturingItem { get; set; }
-
-    /// <summary>挂牌号</summary>
-    public string? TagNo { get; set; }
-
-    /// <summary>工单号</summary>
-    public string? WorkOrderNo { get; set; }
-
-    /// <summary>订单号</summary>
-    public string? SalesOrderNo { get; set; }
-
-    /// <summary>来料单位</summary>
-    public string? SourceUnit { get; set; }
-
-    /// <summary>炉号</summary>
-    public string? FurnaceNo { get; set; }
-
-    /// <summary>工厂牌号</summary>
-    public string? PlantGrade { get; set; }
-
-    /// <summary>规格</summary>
-    public string? Specification { get; set; }
-
-    /// <summary>生产类型（待批次上下文枚举迁移后改为 ProductionType?）</summary>
-    public string? ProductionType { get; set; }
+    // ========== 工序关联（工艺卡位置跟踪） ==========
 
     /// <summary>
-    /// 长度状态（从 ProductionBatch 复制）
+    /// 所属工序组ID（ManufacturingSpec 匹配成品规格的工序组）
     /// </summary>
-    public string? LengthStatus { get; set; }
+    public int ProcessGroupId { get; set; }
 
     /// <summary>
-    /// 生产重量(kg) — 按生产类型区分计算逻辑，创建时快照
+    /// 工序名称（冗余自 ProcessGroup.ProcessName）
     /// </summary>
-    public decimal? ProductionWeight { get; set; }
+    public string ProcessName { get; set; } = "检验";
 
     /// <summary>
-    /// 生产支数 — 按生产类型区分计算逻辑，创建时快照
+    /// 执行序号（冗余自 ProcessGroup.SequenceNumber）
     /// </summary>
-    public int ProductionCutQuantity { get; set; }
+    public int SequenceNumber { get; set; }
 
     // ========== 状态控制 ==========
 
@@ -93,18 +69,15 @@ public class MaterialReceiveCheck : BaseEntity
     /// </summary>
     public bool IsForceCompleted { get; set; }
 
-    // ========== 冗余字段（从 WorkOrder/ProductionBatch 自动复制） ==========
-
-    /// <summary>业务员</summary>
-    public string? Salesman { get; set; }
-
-    /// <summary>交货状态</summary>
-    public string? DeliveryState { get; set; }
-
     // ========== 导航属性 ==========
 
     /// <summary>
     /// 所属生产批次
     /// </summary>
     public ProductionBatch ProductionBatch { get; set; } = null!;
+
+    /// <summary>
+    /// 所属工序组
+    /// </summary>
+    public ProcessGroup ProcessGroup { get; set; } = null!;
 }

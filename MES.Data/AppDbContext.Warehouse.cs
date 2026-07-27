@@ -93,7 +93,7 @@ public partial class AppDbContext
             entity.HasIndex(e => e.RemainingWeight).HasDatabaseName("IX_InventoryBatch_RemainingWeight")
                 .HasFilter("[RemainingWeight] > 0");
 
-            entity.HasOne<Warehouse>()
+            entity.HasOne(e => e.Warehouse)
                 .WithMany()
                 .HasForeignKey(e => e.WarehouseId)
                 .OnDelete(DeleteBehavior.NoAction);

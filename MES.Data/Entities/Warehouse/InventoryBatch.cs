@@ -1,3 +1,5 @@
+using MES.Data.Entities.Batch;
+
 namespace MES.Data.Entities.Warehouse;
 
 /// <summary>
@@ -19,6 +21,11 @@ public class InventoryBatch : BaseEntity
     /// 关联仓库
     /// </summary>
     public int WarehouseId { get; set; }
+
+    /// <summary>
+    /// 仓库导航属性
+    /// </summary>
+    public Warehouse Warehouse { get; set; } = null!;
 
     /// <summary>
     /// 物料名称（荒管/圆钢/临界成品/半成品等）
@@ -211,4 +218,9 @@ public class InventoryBatch : BaseEntity
     /// 乐观并发令牌（行版本，由数据库自动生成）
     /// </summary>
     public byte[] RowVersion { get; set; } = null!;
+
+    /// <summary>
+    /// 关联的生产批次（合并投料）
+    /// </summary>
+    public List<ProductionBatchInventory> ProductionBatchInventories { get; set; } = new();
 }

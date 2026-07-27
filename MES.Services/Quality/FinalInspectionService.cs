@@ -105,51 +105,120 @@ public class FinalInspectionService : IFinalInspectionService
         }
     }
 
+    /// <summary>
+    /// 解析制造物品，兼容历史数据中的特殊值
+    /// </summary>
+    private static MaterialType? ParseMaterialType(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return null;
+        return value switch
+        {
+            "OrderFinishedProduct" => MaterialType.OrderFinished,
+            "PreparedMaterial" or "PreparedFinished" or "StockFinished" => MaterialType.Finished,
+            "SurplusStock" => MaterialType.Surplus,
+            "IntermediateProduct" => MaterialType.SemiFinished,
+            _ => Enum.TryParse<MaterialType>(value, true, out var r) ? r : null
+        };
+    }
+
+    /// <summary>
+    /// 扩展制造物品筛选值，兼容历史数据中的非标准值
+    /// </summary>
+    private static HashSet<string> ExpandManufacturingItemFilter(List<string> values)
+    {
+        var expanded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var v in values)
+        {
+            expanded.Add(v);
+            switch (v)
+            {
+                case "OrderFinished":
+                    expanded.Add("OrderFinishedProduct");
+                    break;
+                case "Finished":
+                    expanded.Add("PreparedMaterial");
+                    expanded.Add("PreparedFinished");
+                    expanded.Add("StockFinished");
+                    break;
+                case "Surplus":
+                    expanded.Add("SurplusStock");
+                    break;
+                case "SemiFinished":
+                    expanded.Add("IntermediateProduct");
+                    break;
+            }
+        }
+        return expanded;
+    }
+
     public async Task<FinalInspectionDto?> GetByIdAsync(int id)
     {
-        return await _context.FinalInspections
+        var entity = await _context.FinalInspections
             .AsNoTracking()
-            .Where(r => r.Id == id)
-            .Select(r => new FinalInspectionDto
-            {
-                Id = r.Id,
-                InspectionItem = r.InspectionItem,
-                InspectionDate = r.InspectionDate,
-                BatchNo = r.BatchNo,
-                ProductionBatchId = r.ProductionBatchId,
-                MaterialName = r.MaterialName,
-                TagNo = r.TagNo,
-                WorkOrderNo = r.WorkOrderNo,
-                SalesOrderNo = r.SalesOrderNo,
-                SourceUnit = r.SourceUnit,
-                FurnaceNo = r.FurnaceNo,
-                PlantGrade = r.PlantGrade,
-                Specification = r.Specification,
-                ProductionType = r.ProductionType,
-                FixedLength = r.FixedLength,
-                EquipmentName = r.EquipmentName,
-                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
-                Operator = r.Operator,
-                Quantity = r.Quantity,
-                Weight = r.Weight,
-                QualifiedQuantity = r.QualifiedQuantity,
-                QualifiedWeight = r.QualifiedWeight,
-                QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
-                ConcessionRemark = r.ConcessionRemark,
-                DefectReworkQuantity = r.DefectReworkQuantity,
-                DefectWarehouseQuantity = r.DefectWarehouseQuantity,
-                DefectScrapQuantity = r.DefectScrapQuantity,
-                DefectDescription = r.DefectDescription,
-                OuterDiameterRange = r.OuterDiameterRange,
-                WallThicknessRange = r.WallThicknessRange,
-                LengthAllowanceRange = r.LengthAllowanceRange,
-                Pressure = r.Pressure,
-                HoldTime = r.HoldTime,
-                Remark = r.Remark,
-                CreatedTime = r.CreatedTime,
-                UpdatedTime = r.UpdatedTime
-            })
-            .FirstOrDefaultAsync();
+            .Include(r => r.ProductionBatch)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (entity == null) return null;
+        var pb = entity.ProductionBatch;
+
+        return new FinalInspectionDto
+        {
+            Id = entity.Id,
+            InspectionItem = entity.InspectionItem,
+            InspectionDate = entity.InspectionDate,
+            BatchNo = entity.BatchNo,
+            ProductionBatchId = entity.ProductionBatchId,
+            ManufacturingItem = ParseMaterialType(pb?.ManufacturingItem),
+            TagNo = pb?.TagNo,
+            WorkOrderNo = pb?.WorkOrderNo,
+            SalesOrderNo = pb?.SalesOrderNo,
+            SourceUnit = pb?.SourceName,
+            FurnaceNo = pb?.SourceHeatNo,
+            PlantGrade = pb?.PlantGrade,
+            Specification = pb?.Specification,
+            ProductionType = pb?.ProductionType,
+            Salesman = pb?.Salesman,
+            LengthStatus = pb?.LengthStatus,
+            DeliveryState = pb?.DeliveryState,
+            FixedLength = pb != null && pb.LengthStatus == LengthStatus.Fixed.ToString() && pb.MinLength.HasValue
+                ? $"{pb.MinLength.Value:G29}mm"
+                : null,
+            EquipmentName = entity.EquipmentName,
+            Shift = entity.Shift,
+            Operator = entity.Operator,
+            Quantity = entity.Quantity,
+            Weight = entity.Weight,
+            QualifiedQuantity = entity.QualifiedQuantity,
+            QualifiedWeight = entity.QualifiedWeight,
+            QualifiedConcessionQuantity = entity.QualifiedConcessionQuantity,
+            ConcessionRemark = entity.ConcessionRemark,
+            DefectReworkQuantity = entity.DefectReworkQuantity,
+            DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
+            DefectScrapQuantity = entity.DefectScrapQuantity,
+            DefectDescription = entity.DefectDescription,
+            OuterDiameterRange = entity.OuterDiameterRange,
+            WallThicknessRange = entity.WallThicknessRange,
+            LengthAllowanceRange = entity.LengthAllowanceRange,
+            Pressure = entity.Pressure,
+            HoldTime = entity.HoldTime,
+            QualificationLevel = entity.QualificationLevel,
+            InspectionStandard = entity.InspectionStandard,
+            InspectionGrade = entity.InspectionGrade,
+            InstrumentModel = entity.InstrumentModel,
+            NdtMethod = entity.NdtMethod,
+            StandardSampleSize = entity.StandardSampleSize,
+            StandardSampleDefect = entity.StandardSampleDefect,
+            ProbeType = entity.ProbeType,
+            Couplant = entity.Couplant,
+            CalibrationFrequency = entity.CalibrationFrequency,
+            DetectionFrequency = entity.DetectionFrequency,
+            DetectionSensitivity = entity.DetectionSensitivity,
+            DetectionPhase = entity.DetectionPhase,
+            DetectionSpeed = entity.DetectionSpeed,
+            Remark = entity.Remark,
+            CreatedTime = entity.CreatedTime,
+            UpdatedTime = entity.UpdatedTime
+        };
     }
 
     public async Task<PagedResult<FinalInspectionDto>> GetAllAsync(QueryParams query)
@@ -163,22 +232,35 @@ public class FinalInspectionService : IFinalInspectionService
             var kw = query.Keyword;
             queryable = queryable.Where(r =>
                 r.BatchNo.Contains(kw) ||
-                (r.MaterialName != null && r.MaterialName.Contains(kw)) ||
-                (r.PlantGrade != null && r.PlantGrade.Contains(kw)) ||
-                (r.Specification != null && r.Specification.Contains(kw)) ||
-                (r.TagNo != null && r.TagNo.Contains(kw)) ||
-                (r.WorkOrderNo != null && r.WorkOrderNo.Contains(kw)) ||
-                (r.SalesOrderNo != null && r.SalesOrderNo.Contains(kw)) ||
-                (r.SourceUnit != null && r.SourceUnit.Contains(kw)) ||
-                (r.FurnaceNo != null && r.FurnaceNo.Contains(kw)) ||
-                (r.FixedLength != null && r.FixedLength.Contains(kw)) ||
+                r.ProductionBatch.PlantGrade.Contains(kw) ||
+                r.ProductionBatch.Specification.Contains(kw) ||
+                (r.ProductionBatch.TagNo != null && r.ProductionBatch.TagNo.Contains(kw)) ||
+                r.ProductionBatch.WorkOrderNo.Contains(kw) ||
+                r.ProductionBatch.SalesOrderNo.Contains(kw) ||
+                (r.ProductionBatch.Salesman != null && r.ProductionBatch.Salesman.Contains(kw)) ||
+                (r.ProductionBatch.SourceName != null && r.ProductionBatch.SourceName.Contains(kw)) ||
+                (r.ProductionBatch.SourceHeatNo != null && r.ProductionBatch.SourceHeatNo.Contains(kw)) ||
                 (r.EquipmentName != null && r.EquipmentName.Contains(kw)) ||
-                (r.Shift != null && r.Shift.Contains(kw)) ||
                 (r.Operator != null && r.Operator.Contains(kw)) ||
                 (r.DefectDescription != null && r.DefectDescription.Contains(kw)) ||
                 (r.OuterDiameterRange != null && r.OuterDiameterRange.Contains(kw)) ||
                 (r.WallThicknessRange != null && r.WallThicknessRange.Contains(kw)) ||
                 (r.LengthAllowanceRange != null && r.LengthAllowanceRange.Contains(kw)) ||
+                (r.QualificationLevel != null && r.QualificationLevel.Contains(kw)) ||
+                (r.InspectionStandard != null && r.InspectionStandard.Contains(kw)) ||
+                (r.InspectionGrade != null && r.InspectionGrade.Contains(kw)) ||
+                (r.InstrumentModel != null && r.InstrumentModel.Contains(kw)) ||
+                (r.NdtMethod != null && r.NdtMethod.Contains(kw)) ||
+                (r.StandardSampleSize != null && r.StandardSampleSize.Contains(kw)) ||
+                (r.StandardSampleDefect != null && r.StandardSampleDefect.Contains(kw)) ||
+                (r.ProbeType != null && r.ProbeType.Contains(kw)) ||
+                (r.Couplant != null && r.Couplant.Contains(kw)) ||
+                (r.CalibrationFrequency != null && r.CalibrationFrequency.Contains(kw)) ||
+                (r.DetectionFrequency != null && r.DetectionFrequency.Contains(kw)) ||
+                (r.DetectionSensitivity != null && r.DetectionSensitivity.Contains(kw)) ||
+                (r.DetectionPhase != null && r.DetectionPhase.Contains(kw)) ||
+                (r.DetectionSpeed != null && r.DetectionSpeed.Contains(kw)) ||
+                (r.ConcessionRemark != null && r.ConcessionRemark.Contains(kw)) ||
                 (r.Remark != null && r.Remark.Contains(kw)));
         }
 
@@ -188,33 +270,104 @@ public class FinalInspectionService : IFinalInspectionService
         if (query.InspectionDateTo.HasValue)
             queryable = queryable.Where(r => r.InspectionDate <= query.InspectionDateTo.Value);
 
+        // 自定义筛选：批量派生字段不在实体上，需通过 ProductionBatch 导航属性处理
+        if (query.Filters != null && query.Filters.Count > 0)
+        {
+            var remainingFilters = new List<FilterDescriptor>();
+            foreach (var filter in query.Filters)
+            {
+                if (filter.Operator != "in" || filter.Values == null || filter.Values.Count == 0)
+                {
+                    remainingFilters.Add(filter);
+                    continue;
+                }
+                switch (filter.Field)
+                {
+                    case "ManufacturingItem":
+                        queryable = queryable.Where(r => ExpandManufacturingItemFilter(filter.Values).Contains(r.ProductionBatch.ManufacturingItem));
+                        break;
+                    case "PlantGrade":
+                        queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.PlantGrade));
+                        break;
+                    case "Specification":
+                        queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.Specification));
+                        break;
+                    case "TagNo":
+                        queryable = queryable.Where(r => r.ProductionBatch.TagNo != null && filter.Values.Contains(r.ProductionBatch.TagNo));
+                        break;
+                    case "WorkOrderNo":
+                        queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.WorkOrderNo));
+                        break;
+                    case "SalesOrderNo":
+                        queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.SalesOrderNo));
+                        break;
+                    case "FurnaceNo":
+                        queryable = queryable.Where(r => r.ProductionBatch.SourceHeatNo != null && filter.Values.Contains(r.ProductionBatch.SourceHeatNo));
+                        break;
+                    case "SourceUnit":
+                        queryable = queryable.Where(r => r.ProductionBatch.SourceName != null && filter.Values.Contains(r.ProductionBatch.SourceName));
+                        break;
+                    case "ProductionType":
+                        queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch!.ProductionType!));
+                        break;
+                    case "LengthStatus":
+                        queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.LengthStatus));
+                        break;
+                    case "Salesman":
+                        queryable = queryable.Where(r => r.ProductionBatch.Salesman != null && filter.Values.Contains(r.ProductionBatch.Salesman));
+                        break;
+                    case "DeliveryState":
+                        queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.DeliveryState));
+                        break;
+                    default:
+                        remainingFilters.Add(filter);
+                        break;
+                }
+            }
+            query.Filters = remainingFilters;
+        }
+
         queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();
 
         queryable = ApplySorting(queryable, query.SortBy ?? "inspectiondate", query.IsDescending);
 
-        var items = await queryable
+        // 先查询实体（含 ProductionBatch），再在内存中映射 DTO
+        // 原因: ManufacturingItem 需 ParseMaterialType 处理历史特殊值
+        queryable = queryable.Include(r => r.ProductionBatch);
+
+        var entities = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(r => new FinalInspectionDto
+            .ToListAsync();
+
+        var items = entities.Select(r =>
+        {
+            var pb = r.ProductionBatch;
+            return new FinalInspectionDto
             {
                 Id = r.Id,
                 InspectionItem = r.InspectionItem,
                 InspectionDate = r.InspectionDate,
                 BatchNo = r.BatchNo,
                 ProductionBatchId = r.ProductionBatchId,
-                MaterialName = r.MaterialName,
-                TagNo = r.TagNo,
-                WorkOrderNo = r.WorkOrderNo,
-                SalesOrderNo = r.SalesOrderNo,
-                SourceUnit = r.SourceUnit,
-                FurnaceNo = r.FurnaceNo,
-                PlantGrade = r.PlantGrade,
-                Specification = r.Specification,
-                ProductionType = r.ProductionType,
-                FixedLength = r.FixedLength,
+                ManufacturingItem = ParseMaterialType(pb?.ManufacturingItem),
+                TagNo = pb?.TagNo,
+                WorkOrderNo = pb?.WorkOrderNo,
+                SalesOrderNo = pb?.SalesOrderNo,
+                SourceUnit = pb?.SourceName,
+                FurnaceNo = pb?.SourceHeatNo,
+                PlantGrade = pb?.PlantGrade,
+                Specification = pb?.Specification,
+                ProductionType = pb?.ProductionType,
+                Salesman = pb?.Salesman,
+                LengthStatus = pb?.LengthStatus,
+                DeliveryState = pb?.DeliveryState,
+                FixedLength = pb != null && pb.LengthStatus == LengthStatus.Fixed.ToString() && pb.MinLength.HasValue
+                    ? $"{pb.MinLength.Value:G29}mm"
+                    : null,
                 EquipmentName = r.EquipmentName,
-                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
+                Shift = r.Shift,
                 Operator = r.Operator,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
@@ -231,12 +384,26 @@ public class FinalInspectionService : IFinalInspectionService
                 LengthAllowanceRange = r.LengthAllowanceRange,
                 Pressure = r.Pressure,
                 HoldTime = r.HoldTime,
+                QualificationLevel = r.QualificationLevel,
+                InspectionStandard = r.InspectionStandard,
+                InspectionGrade = r.InspectionGrade,
+                InstrumentModel = r.InstrumentModel,
+                NdtMethod = r.NdtMethod,
+                StandardSampleSize = r.StandardSampleSize,
+                StandardSampleDefect = r.StandardSampleDefect,
+                ProbeType = r.ProbeType,
+                Couplant = r.Couplant,
+                CalibrationFrequency = r.CalibrationFrequency,
+                DetectionFrequency = r.DetectionFrequency,
+                DetectionSensitivity = r.DetectionSensitivity,
+                DetectionPhase = r.DetectionPhase,
+                DetectionSpeed = r.DetectionSpeed,
                 Remark = r.Remark,
                 DataSource = r.DataSource,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
-            })
-            .ToListAsync();
+            };
+        }).ToList();
 
         return new PagedResult<FinalInspectionDto>
         {
@@ -259,18 +426,23 @@ public class FinalInspectionService : IFinalInspectionService
                 InspectionDate = r.InspectionDate,
                 BatchNo = r.BatchNo,
                 ProductionBatchId = r.ProductionBatchId,
-                MaterialName = r.MaterialName,
-                TagNo = r.TagNo,
-                WorkOrderNo = r.WorkOrderNo,
-                SalesOrderNo = r.SalesOrderNo,
-                SourceUnit = r.SourceUnit,
-                FurnaceNo = r.FurnaceNo,
-                PlantGrade = r.PlantGrade,
-                Specification = r.Specification,
-                ProductionType = r.ProductionType,
-                FixedLength = r.FixedLength,
+                ManufacturingItem = EnumHelper.TryParse<MaterialType>(r.ProductionBatch.ManufacturingItem),
+                TagNo = r.ProductionBatch.TagNo,
+                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
+                SourceUnit = r.ProductionBatch.SourceName,
+                FurnaceNo = r.ProductionBatch.SourceHeatNo,
+                PlantGrade = r.ProductionBatch.PlantGrade,
+                Specification = r.ProductionBatch.Specification,
+                ProductionType = r.ProductionBatch.ProductionType,
+                Salesman = r.ProductionBatch.Salesman,
+                LengthStatus = r.ProductionBatch.LengthStatus,
+                DeliveryState = r.ProductionBatch.DeliveryState,
+                FixedLength = r.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && r.ProductionBatch.MinLength.HasValue
+                    ? $"{r.ProductionBatch.MinLength.Value:G29}mm"
+                    : null,
                 EquipmentName = r.EquipmentName,
-                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
+                Shift = r.Shift,
                 Operator = r.Operator,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
@@ -287,6 +459,20 @@ public class FinalInspectionService : IFinalInspectionService
                 LengthAllowanceRange = r.LengthAllowanceRange,
                 Pressure = r.Pressure,
                 HoldTime = r.HoldTime,
+                QualificationLevel = r.QualificationLevel,
+                InspectionStandard = r.InspectionStandard,
+                InspectionGrade = r.InspectionGrade,
+                InstrumentModel = r.InstrumentModel,
+                NdtMethod = r.NdtMethod,
+                StandardSampleSize = r.StandardSampleSize,
+                StandardSampleDefect = r.StandardSampleDefect,
+                ProbeType = r.ProbeType,
+                Couplant = r.Couplant,
+                CalibrationFrequency = r.CalibrationFrequency,
+                DetectionFrequency = r.DetectionFrequency,
+                DetectionSensitivity = r.DetectionSensitivity,
+                DetectionPhase = r.DetectionPhase,
+                DetectionSpeed = r.DetectionSpeed,
                 Remark = r.Remark,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
@@ -302,44 +488,11 @@ public class FinalInspectionService : IFinalInspectionService
             var batch = await _context.ProductionBatches
                 .AsNoTracking()
                 .Where(b => b.BatchNo == request.BatchNo)
-                .Select(b => new
-                {
-                    b.Id,
-                    b.MaterialName,
-                    b.TagNo,
-                    b.WorkOrderNo,
-                    b.SalesOrderNo,
-                    b.SourceName,
-                    b.SourceHeatNo,
-                    b.PlantGrade,
-                    b.Specification,
-                    b.LengthStatus,
-                    b.MinLength,
-                    b.MaxLength,
-                    b.ProductionType
-                })
+                .Select(b => new { b.Id })
                 .FirstOrDefaultAsync();
 
             if (batch != null)
-            {
                 request.ProductionBatchId = batch.Id;
-                // 填充未提供的批次冗余字段
-                request.MaterialName ??= batch.MaterialName;
-                request.TagNo ??= batch.TagNo;
-                request.WorkOrderNo ??= batch.WorkOrderNo;
-                request.SalesOrderNo ??= batch.SalesOrderNo;
-                request.SourceUnit ??= batch.SourceName;
-                request.FurnaceNo ??= batch.SourceHeatNo;
-                request.PlantGrade ??= batch.PlantGrade;
-                request.Specification ??= batch.Specification;
-                if (string.IsNullOrEmpty(request.FixedLength))
-                {
-                    request.FixedLength = batch.LengthStatus == LengthStatus.Fixed.ToString() && batch.MinLength.HasValue
-                        ? $"{batch.MinLength.Value:G29}mm"
-                        : null;
-                }
-                request.ProductionType ??= batch.ProductionType;
-            }
         }
 
         var entity = new FinalInspection
@@ -348,18 +501,8 @@ public class FinalInspectionService : IFinalInspectionService
             InspectionDate = request.InspectionDate,
             BatchNo = request.BatchNo,
             ProductionBatchId = request.ProductionBatchId,
-            MaterialName = request.MaterialName,
-            TagNo = request.TagNo,
-            WorkOrderNo = request.WorkOrderNo,
-            SalesOrderNo = request.SalesOrderNo,
-            SourceUnit = request.SourceUnit,
-            FurnaceNo = request.FurnaceNo,
-            PlantGrade = request.PlantGrade,
-            Specification = request.Specification,
-            FixedLength = request.FixedLength,
-            ProductionType = request.ProductionType,
             EquipmentName = request.EquipmentName,
-            Shift = request.Shift?.ToString(),
+            Shift = request.Shift,
             Operator = request.Operator,
             Quantity = request.Quantity,
             Weight = request.Weight,
@@ -376,6 +519,20 @@ public class FinalInspectionService : IFinalInspectionService
             LengthAllowanceRange = request.LengthAllowanceRange,
             Pressure = request.Pressure,
             HoldTime = request.HoldTime,
+            QualificationLevel = request.QualificationLevel,
+            InspectionStandard = request.InspectionStandard,
+            InspectionGrade = request.InspectionGrade,
+            InstrumentModel = request.InstrumentModel,
+            NdtMethod = request.NdtMethod,
+            StandardSampleSize = request.StandardSampleSize,
+            StandardSampleDefect = request.StandardSampleDefect,
+            ProbeType = request.ProbeType,
+            Couplant = request.Couplant,
+            CalibrationFrequency = request.CalibrationFrequency,
+            DetectionFrequency = request.DetectionFrequency,
+            DetectionSensitivity = request.DetectionSensitivity,
+            DetectionPhase = request.DetectionPhase,
+            DetectionSpeed = request.DetectionSpeed,
             Remark = request.Remark,
             DataSource = request.DataSource ?? "MANUAL"
         };
@@ -383,7 +540,9 @@ public class FinalInspectionService : IFinalInspectionService
         _context.FinalInspections.Add(entity);
         await _context.SaveChangesAsync();
 
-        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        await _context.Entry(entity).Reference(e => e.ProductionBatch).LoadAsync();
+
+        await TryRefreshExecutionSummaryAsync(entity.ProductionBatch?.WorkOrderNo);
         await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
 
         return new FinalInspectionDto
@@ -393,18 +552,23 @@ public class FinalInspectionService : IFinalInspectionService
             InspectionDate = entity.InspectionDate,
             BatchNo = entity.BatchNo,
             ProductionBatchId = entity.ProductionBatchId,
-            MaterialName = entity.MaterialName,
-            TagNo = entity.TagNo,
-            WorkOrderNo = entity.WorkOrderNo,
-            SalesOrderNo = entity.SalesOrderNo,
-            SourceUnit = entity.SourceUnit,
-            FurnaceNo = entity.FurnaceNo,
-            PlantGrade = entity.PlantGrade,
-            Specification = entity.Specification,
-            ProductionType = entity.ProductionType,
-            FixedLength = entity.FixedLength,
+            ManufacturingItem = entity.ProductionBatch != null ? EnumHelper.TryParse<MaterialType>(entity.ProductionBatch.ManufacturingItem) : null,
+            TagNo = entity.ProductionBatch?.TagNo,
+            WorkOrderNo = entity.ProductionBatch?.WorkOrderNo,
+            SalesOrderNo = entity.ProductionBatch?.SalesOrderNo,
+            SourceUnit = entity.ProductionBatch?.SourceName,
+            FurnaceNo = entity.ProductionBatch?.SourceHeatNo,
+            PlantGrade = entity.ProductionBatch?.PlantGrade,
+            Specification = entity.ProductionBatch?.Specification,
+            ProductionType = entity.ProductionBatch?.ProductionType,
+            Salesman = entity.ProductionBatch?.Salesman,
+            LengthStatus = entity.ProductionBatch?.LengthStatus,
+            DeliveryState = entity.ProductionBatch?.DeliveryState,
+            FixedLength = entity.ProductionBatch != null && entity.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && entity.ProductionBatch.MinLength.HasValue
+                ? $"{entity.ProductionBatch.MinLength.Value:G29}mm"
+                : null,
             EquipmentName = entity.EquipmentName,
-            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
+            Shift = entity.Shift,
             Operator = entity.Operator,
             Quantity = entity.Quantity,
             Weight = entity.Weight,
@@ -421,6 +585,20 @@ public class FinalInspectionService : IFinalInspectionService
             LengthAllowanceRange = entity.LengthAllowanceRange,
             Pressure = entity.Pressure,
             HoldTime = entity.HoldTime,
+            QualificationLevel = entity.QualificationLevel,
+            InspectionStandard = entity.InspectionStandard,
+            InspectionGrade = entity.InspectionGrade,
+            InstrumentModel = entity.InstrumentModel,
+            NdtMethod = entity.NdtMethod,
+            StandardSampleSize = entity.StandardSampleSize,
+            StandardSampleDefect = entity.StandardSampleDefect,
+            ProbeType = entity.ProbeType,
+            Couplant = entity.Couplant,
+            CalibrationFrequency = entity.CalibrationFrequency,
+            DetectionFrequency = entity.DetectionFrequency,
+            DetectionSensitivity = entity.DetectionSensitivity,
+            DetectionPhase = entity.DetectionPhase,
+            DetectionSpeed = entity.DetectionSpeed,
             Remark = entity.Remark,
             DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
@@ -433,9 +611,29 @@ public class FinalInspectionService : IFinalInspectionService
         var entity = await _context.FinalInspections.FindAsync(id)
             ?? throw new BusinessException("成品检验记录不存在");
 
+        // 合并值：前端传了就用新值，否则保留原值（与下方 ?? 赋值逻辑一致）
+        var qty = request.Quantity ?? entity.Quantity;
+        var qualifiedQty = request.QualifiedQuantity ?? entity.QualifiedQuantity;
+        var reworkQty = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
+        var warehouseQty = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
+        var scrapQty = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
+        var concessionQty = request.QualifiedConcessionQuantity ?? entity.QualifiedConcessionQuantity;
+
+        // ① 支数平衡
+        if (qty.HasValue)
+        {
+            var sum = (qualifiedQty ?? 0) + (reworkQty ?? 0) + (warehouseQty ?? 0) + (scrapQty ?? 0);
+            if (qty.Value != sum)
+                throw new BusinessException($"检验支数({qty}) ≠ 合格支数({qualifiedQty ?? 0}) + 返整({reworkQty ?? 0}) + 入库({warehouseQty ?? 0}) + 报废({scrapQty ?? 0}) = {sum}");
+        }
+
+        // ② 让步放行 ≤ 合格支数
+        if (concessionQty.HasValue && qualifiedQty.HasValue && concessionQty.Value > qualifiedQty.Value)
+            throw new BusinessException($"让步放行支数({concessionQty})不能大于合格支数({qualifiedQty})");
+
         entity.InspectionDate = request.InspectionDate;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
-        entity.Shift = request.Shift?.ToString() ?? entity.Shift;
+        entity.Shift = request.Shift ?? entity.Shift;
         entity.Operator = request.Operator ?? entity.Operator;
         entity.Quantity = request.Quantity ?? entity.Quantity;
         entity.Weight = request.Weight ?? entity.Weight;
@@ -452,11 +650,27 @@ public class FinalInspectionService : IFinalInspectionService
         entity.LengthAllowanceRange = request.LengthAllowanceRange ?? entity.LengthAllowanceRange;
         entity.Pressure = request.Pressure ?? entity.Pressure;
         entity.HoldTime = request.HoldTime ?? entity.HoldTime;
+        entity.QualificationLevel = request.QualificationLevel ?? entity.QualificationLevel;
+        entity.InspectionStandard = request.InspectionStandard ?? entity.InspectionStandard;
+        entity.InspectionGrade = request.InspectionGrade ?? entity.InspectionGrade;
+        entity.InstrumentModel = request.InstrumentModel ?? entity.InstrumentModel;
+        entity.NdtMethod = request.NdtMethod ?? entity.NdtMethod;
+        entity.StandardSampleSize = request.StandardSampleSize ?? entity.StandardSampleSize;
+        entity.StandardSampleDefect = request.StandardSampleDefect ?? entity.StandardSampleDefect;
+        entity.ProbeType = request.ProbeType ?? entity.ProbeType;
+        entity.Couplant = request.Couplant ?? entity.Couplant;
+        entity.CalibrationFrequency = request.CalibrationFrequency ?? entity.CalibrationFrequency;
+        entity.DetectionFrequency = request.DetectionFrequency ?? entity.DetectionFrequency;
+        entity.DetectionSensitivity = request.DetectionSensitivity ?? entity.DetectionSensitivity;
+        entity.DetectionPhase = request.DetectionPhase ?? entity.DetectionPhase;
+        entity.DetectionSpeed = request.DetectionSpeed ?? entity.DetectionSpeed;
         entity.Remark = request.Remark ?? entity.Remark;
 
         await _context.SaveChangesAsync();
 
-        await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        await _context.Entry(entity).Reference(e => e.ProductionBatch).LoadAsync();
+
+        await TryRefreshExecutionSummaryAsync(entity.ProductionBatch?.WorkOrderNo);
         await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
 
         return new FinalInspectionDto
@@ -466,18 +680,23 @@ public class FinalInspectionService : IFinalInspectionService
             InspectionDate = entity.InspectionDate,
             BatchNo = entity.BatchNo,
             ProductionBatchId = entity.ProductionBatchId,
-            MaterialName = entity.MaterialName,
-            TagNo = entity.TagNo,
-            WorkOrderNo = entity.WorkOrderNo,
-            SalesOrderNo = entity.SalesOrderNo,
-            SourceUnit = entity.SourceUnit,
-            FurnaceNo = entity.FurnaceNo,
-            PlantGrade = entity.PlantGrade,
-            Specification = entity.Specification,
-            ProductionType = entity.ProductionType,
-            FixedLength = entity.FixedLength,
+            ManufacturingItem = entity.ProductionBatch != null ? EnumHelper.TryParse<MaterialType>(entity.ProductionBatch.ManufacturingItem) : null,
+            TagNo = entity.ProductionBatch?.TagNo,
+            WorkOrderNo = entity.ProductionBatch?.WorkOrderNo,
+            SalesOrderNo = entity.ProductionBatch?.SalesOrderNo,
+            SourceUnit = entity.ProductionBatch?.SourceName,
+            FurnaceNo = entity.ProductionBatch?.SourceHeatNo,
+            PlantGrade = entity.ProductionBatch?.PlantGrade,
+            Specification = entity.ProductionBatch?.Specification,
+            ProductionType = entity.ProductionBatch?.ProductionType,
+            Salesman = entity.ProductionBatch?.Salesman,
+            LengthStatus = entity.ProductionBatch?.LengthStatus,
+            DeliveryState = entity.ProductionBatch?.DeliveryState,
+            FixedLength = entity.ProductionBatch != null && entity.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && entity.ProductionBatch.MinLength.HasValue
+                ? $"{entity.ProductionBatch.MinLength.Value:G29}mm"
+                : null,
             EquipmentName = entity.EquipmentName,
-            Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
+            Shift = entity.Shift,
             Operator = entity.Operator,
             Quantity = entity.Quantity,
             Weight = entity.Weight,
@@ -494,6 +713,20 @@ public class FinalInspectionService : IFinalInspectionService
             LengthAllowanceRange = entity.LengthAllowanceRange,
             Pressure = entity.Pressure,
             HoldTime = entity.HoldTime,
+            QualificationLevel = entity.QualificationLevel,
+            InspectionStandard = entity.InspectionStandard,
+            InspectionGrade = entity.InspectionGrade,
+            InstrumentModel = entity.InstrumentModel,
+            NdtMethod = entity.NdtMethod,
+            StandardSampleSize = entity.StandardSampleSize,
+            StandardSampleDefect = entity.StandardSampleDefect,
+            ProbeType = entity.ProbeType,
+            Couplant = entity.Couplant,
+            CalibrationFrequency = entity.CalibrationFrequency,
+            DetectionFrequency = entity.DetectionFrequency,
+            DetectionSensitivity = entity.DetectionSensitivity,
+            DetectionPhase = entity.DetectionPhase,
+            DetectionSpeed = entity.DetectionSpeed,
             Remark = entity.Remark,
             DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
@@ -506,7 +739,8 @@ public class FinalInspectionService : IFinalInspectionService
         var entity = await _context.FinalInspections.FindAsync(id)
             ?? throw new BusinessException("成品检验记录不存在");
 
-        var workOrderNo = entity.WorkOrderNo;
+        await _context.Entry(entity).Reference(e => e.ProductionBatch).LoadAsync();
+        var workOrderNo = entity.ProductionBatch?.WorkOrderNo;
         var productionBatchId = entity.ProductionBatchId;
         _context.FinalInspections.Remove(entity);
         await _context.SaveChangesAsync();
@@ -540,25 +774,29 @@ public class FinalInspectionService : IFinalInspectionService
             .GroupBy(f => f.ProductionBatchId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // 重复校验：同批次 + 同物料名称 + 同检验项目 + 同定尺长度 + 同操作人 → 重复
+        // 重复校验：日期 + 批次 + 检验项目 + 操作人 → 重复
         var errors = new List<string>();
+        var seenKeys = new HashSet<string>(); // 本次提交内去重
         foreach (var (request, i) in requests.Select((r, idx) => (r, idx)))
         {
             var batch = batchLookup[request.BatchNo];
             var batchId = batch.Id;
 
-            var materialName = request.MaterialName ?? batch.MaterialName;
-            var fixedLength = request.FixedLength ?? (batch.LengthStatus == LengthStatus.Fixed.ToString() && batch.MinLength.HasValue ? $"{batch.MinLength.Value:G29}mm" : null);
             var operatorName = request.Operator;
 
+            // ① 与数据库已有记录比对
             var existing = existingByBatch.GetValueOrDefault(batchId, new List<FinalInspection>());
             var dup = existing.Any(f =>
-                f.MaterialName == materialName &&
+                f.InspectionDate.Date == request.InspectionDate.Date &&
                 f.InspectionItem == request.InspectionItem &&
-                f.FixedLength == fixedLength &&
                 f.Operator == operatorName);
             if (dup)
-                errors.Add($"第{i + 1}行：该批次已存在相同物料/检验项目/定尺/操作人的成品检验记录，不能重复创建");
+                errors.Add($"第{i + 1}行：该批次已存在相同日期/检验项目/操作人的成品检验记录，不能重复创建");
+
+            // ② 与本次提交的前面行比对
+            var key = $"{request.InspectionDate:yyyy-MM-dd}|{request.BatchNo}|{request.InspectionItem}|{operatorName}";
+            if (!seenKeys.Add(key))
+                errors.Add($"第{i + 1}行：与本次提交中其他行的日期/批次/检验项目/操作人重复");
 
             // 2) 检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
             if (request.Quantity.HasValue)
@@ -598,18 +836,8 @@ public class FinalInspectionService : IFinalInspectionService
                 InspectionDate = r.InspectionDate,
                 BatchNo = r.BatchNo,
                 ProductionBatchId = batch.Id,
-                MaterialName = r.MaterialName ?? batch.MaterialName,
-                TagNo = r.TagNo ?? batch.TagNo,
-                WorkOrderNo = r.WorkOrderNo ?? batch.WorkOrderNo,
-                SalesOrderNo = r.SalesOrderNo ?? batch.SalesOrderNo,
-                SourceUnit = r.SourceUnit ?? batch.SourceName,
-                FurnaceNo = r.FurnaceNo ?? batch.SourceHeatNo,
-                PlantGrade = r.PlantGrade ?? batch.PlantGrade,
-                Specification = r.Specification ?? batch.Specification,
-                ProductionType = r.ProductionType ?? batch.ProductionType,
-                FixedLength = r.FixedLength ?? (batch.LengthStatus == LengthStatus.Fixed.ToString() && batch.MinLength.HasValue ? $"{batch.MinLength.Value:G29}mm" : null),
                 EquipmentName = r.EquipmentName,
-                Shift = r.Shift?.ToString(),
+                Shift = r.Shift,
                 Operator = r.Operator,
                 Quantity = r.Quantity,
                 Weight = r.Weight,
@@ -626,6 +854,20 @@ public class FinalInspectionService : IFinalInspectionService
                 LengthAllowanceRange = r.LengthAllowanceRange,
                 Pressure = r.Pressure,
                 HoldTime = r.HoldTime,
+                QualificationLevel = r.QualificationLevel,
+                InspectionStandard = r.InspectionStandard,
+                InspectionGrade = r.InspectionGrade,
+                InstrumentModel = r.InstrumentModel,
+                NdtMethod = r.NdtMethod,
+                StandardSampleSize = r.StandardSampleSize,
+                StandardSampleDefect = r.StandardSampleDefect,
+                ProbeType = r.ProbeType,
+                Couplant = r.Couplant,
+                CalibrationFrequency = r.CalibrationFrequency,
+                DetectionFrequency = r.DetectionFrequency,
+                DetectionSensitivity = r.DetectionSensitivity,
+                DetectionPhase = r.DetectionPhase,
+                DetectionSpeed = r.DetectionSpeed,
                 Remark = r.Remark,
                 DataSource = r.DataSource ?? "MANUAL"
             };
@@ -638,8 +880,9 @@ public class FinalInspectionService : IFinalInspectionService
         foreach (var e in entities)
             await TryRefreshQualityProcessTrackingAsync(e.ProductionBatchId);
 
+        var batchIdToWorkOrder = batchLookup.ToDictionary(b => b.Value.Id, b => b.Value.WorkOrderNo);
         var workOrderNos = entities
-            .Select(e => e.WorkOrderNo)
+            .Select(e => batchIdToWorkOrder.GetValueOrDefault(e.ProductionBatchId))
             .Where(w => !string.IsNullOrWhiteSpace(w) && w != "非工单")
             .Select(w => w!)
             .Distinct()
@@ -656,18 +899,23 @@ public class FinalInspectionService : IFinalInspectionService
             InspectionDate = e.InspectionDate,
             BatchNo = e.BatchNo,
             ProductionBatchId = e.ProductionBatchId,
-            MaterialName = e.MaterialName,
-            TagNo = e.TagNo,
-            WorkOrderNo = e.WorkOrderNo,
-            SalesOrderNo = e.SalesOrderNo,
-            SourceUnit = e.SourceUnit,
-            FurnaceNo = e.FurnaceNo,
-            PlantGrade = e.PlantGrade,
-            Specification = e.Specification,
-            ProductionType = e.ProductionType,
-            FixedLength = e.FixedLength,
+            ManufacturingItem = batchLookup.TryGetValue(e.BatchNo, out var bl) ? EnumHelper.TryParse<MaterialType>(bl.ManufacturingItem) : null,
+            TagNo = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.TagNo : null,
+            WorkOrderNo = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.WorkOrderNo : null,
+            SalesOrderNo = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.SalesOrderNo : null,
+            SourceUnit = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.SourceName : null,
+            FurnaceNo = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.SourceHeatNo : null,
+            PlantGrade = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.PlantGrade : null,
+            Specification = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.Specification : null,
+            ProductionType = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.ProductionType : null,
+            Salesman = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.Salesman : null,
+            LengthStatus = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.LengthStatus : null,
+            DeliveryState = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.DeliveryState : null,
+            FixedLength = batchLookup.TryGetValue(e.BatchNo, out bl) && bl.LengthStatus == LengthStatus.Fixed.ToString() && bl.MinLength.HasValue
+                ? $"{bl.MinLength.Value:G29}mm"
+                : null,
             EquipmentName = e.EquipmentName,
-            Shift = EnumHelper.TryParse<ShiftType>(e.Shift),
+            Shift = e.Shift,
             Operator = e.Operator,
             Quantity = e.Quantity,
             Weight = e.Weight,
@@ -684,6 +932,20 @@ public class FinalInspectionService : IFinalInspectionService
             LengthAllowanceRange = e.LengthAllowanceRange,
             Pressure = e.Pressure,
             HoldTime = e.HoldTime,
+            QualificationLevel = e.QualificationLevel,
+            InspectionStandard = e.InspectionStandard,
+            InspectionGrade = e.InspectionGrade,
+            InstrumentModel = e.InstrumentModel,
+            NdtMethod = e.NdtMethod,
+            StandardSampleSize = e.StandardSampleSize,
+            StandardSampleDefect = e.StandardSampleDefect,
+            ProbeType = e.ProbeType,
+            Couplant = e.Couplant,
+            CalibrationFrequency = e.CalibrationFrequency,
+            DetectionFrequency = e.DetectionFrequency,
+            DetectionSensitivity = e.DetectionSensitivity,
+            DetectionPhase = e.DetectionPhase,
+            DetectionSpeed = e.DetectionSpeed,
             Remark = e.Remark,
             DataSource = e.DataSource,
             CreatedTime = e.CreatedTime,
@@ -702,16 +964,18 @@ public class FinalInspectionService : IFinalInspectionService
                 .Select(r => new
                 {
                     r.BatchNo,
-                    r.MaterialName,
-                    r.TagNo,
-                    r.WorkOrderNo,
-                    r.SalesOrderNo,
-                    r.SourceUnit,
-                    r.FurnaceNo,
-                    r.PlantGrade,
-                    r.Specification,
-                    r.FixedLength,
-                    r.ProductionType,
+                    TagNo = r.ProductionBatch.TagNo,
+                    WorkOrderNo = r.ProductionBatch.WorkOrderNo,
+                    SalesOrderNo = r.ProductionBatch.SalesOrderNo,
+                    SourceUnit = r.ProductionBatch.SourceName,
+                    FurnaceNo = r.ProductionBatch.SourceHeatNo,
+                    PlantGrade = r.ProductionBatch.PlantGrade,
+                    Specification = r.ProductionBatch.Specification,
+                    FixedLength = r.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && r.ProductionBatch.MinLength.HasValue
+                        ? r.ProductionBatch.MinLength.Value.ToString("G29") + "mm"
+                        : null,
+                    ProductionType = r.ProductionBatch.ProductionType,
+                    Salesman = r.ProductionBatch.Salesman,
                     r.EquipmentName,
                     r.Shift,
                     r.Operator,
@@ -721,7 +985,22 @@ public class FinalInspectionService : IFinalInspectionService
                     r.WallThicknessRange,
                     r.LengthAllowanceRange,
                     r.InspectionDate,
+                    r.QualificationLevel,
+                    r.InspectionStandard,
+                    r.InspectionGrade,
+                    r.InstrumentModel,
+                    r.NdtMethod,
+                    r.StandardSampleSize,
+                    r.StandardSampleDefect,
+                    r.ProbeType,
+                    r.Couplant,
+                    r.CalibrationFrequency,
+                    r.DetectionFrequency,
+                    r.DetectionSensitivity,
+                    r.DetectionPhase,
+                    r.DetectionSpeed,
                     r.Remark,
+                    DeliveryState = r.ProductionBatch.DeliveryState,
                     r.DataSource
                 })
                 .ToListAsync();
@@ -729,7 +1008,6 @@ public class FinalInspectionService : IFinalInspectionService
             return new Dictionary<string, List<string>>
             {
                 ["BatchNo"] = all.Select(x => x.BatchNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(v => v).ToList(),
-                ["MaterialName"] = all.Select(x => x.MaterialName ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["TagNo"] = all.Select(x => x.TagNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
@@ -739,8 +1017,10 @@ public class FinalInspectionService : IFinalInspectionService
                 ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["FixedLength"] = all.Select(x => x.FixedLength ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["ProductionType"] = all.Select(x => x.ProductionType ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Salesman"] = all.Select(x => x.Salesman ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["DeliveryState"] = all.Select(x => x.DeliveryState ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["EquipmentName"] = all.Select(x => x.EquipmentName ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-                ["Shift"] = all.Select(x => x.Shift ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Shift"] = all.Select(x => x.Shift?.ToString() ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["Operator"] = all.Select(x => x.Operator ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["ConcessionRemark"] = all.Select(x => x.ConcessionRemark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["DefectDescription"] = all.Select(x => x.DefectDescription ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
@@ -748,6 +1028,20 @@ public class FinalInspectionService : IFinalInspectionService
                 ["WallThicknessRange"] = all.Select(x => x.WallThicknessRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["LengthAllowanceRange"] = all.Select(x => x.LengthAllowanceRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["InspectionDate"] = all.Select(x => x.InspectionDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList(),
+                ["QualificationLevel"] = all.Select(x => x.QualificationLevel ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["InspectionStandard"] = all.Select(x => x.InspectionStandard ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["InspectionGrade"] = all.Select(x => x.InspectionGrade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["InstrumentModel"] = all.Select(x => x.InstrumentModel ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["NdtMethod"] = all.Select(x => x.NdtMethod ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["StandardSampleSize"] = all.Select(x => x.StandardSampleSize ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["StandardSampleDefect"] = all.Select(x => x.StandardSampleDefect ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["ProbeType"] = all.Select(x => x.ProbeType ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["Couplant"] = all.Select(x => x.Couplant ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["CalibrationFrequency"] = all.Select(x => x.CalibrationFrequency ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["DetectionFrequency"] = all.Select(x => x.DetectionFrequency ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["DetectionSensitivity"] = all.Select(x => x.DetectionSensitivity ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["DetectionPhase"] = all.Select(x => x.DetectionPhase ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["DetectionSpeed"] = all.Select(x => x.DetectionSpeed ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["Remark"] = all.Select(x => x.Remark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["DataSource"] = all.Select(x => x.DataSource ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList()
             };
@@ -765,7 +1059,7 @@ public class FinalInspectionService : IFinalInspectionService
             .Select(b => new BatchLookupResultDto
             {
                 ProductionBatchId = b.Id,
-                MaterialName = b.MaterialName,
+                ManufacturingItem = b.ManufacturingItem,
                 TagNo = b.TagNo,
                 WorkOrderNo = b.WorkOrderNo,
                 SalesOrderNo = b.SalesOrderNo,
@@ -774,6 +1068,9 @@ public class FinalInspectionService : IFinalInspectionService
                 PlantGrade = b.PlantGrade,
                 Specification = b.Specification,
                 ProductionType = b.ProductionType,
+                Salesman = b.Salesman,
+                DeliveryState = b.DeliveryState,
+                LengthStatus = b.LengthStatus,
                 FixedLength = b.LengthStatus == LengthStatus.Fixed.ToString() && b.MinLength.HasValue
                     ? b.MinLength.Value.ToString("G29") + "mm"
                     : null
@@ -791,7 +1088,7 @@ public class FinalInspectionService : IFinalInspectionService
         return FinalInspectionPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null)
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null, string? filters = null)
     {
         var query = new QueryParams
         {
@@ -801,7 +1098,8 @@ public class FinalInspectionService : IFinalInspectionService
             SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
             IsDescending = isDescending,
             InspectionDateFrom = inspectionDateFrom,
-            InspectionDateTo = inspectionDateTo
+            InspectionDateTo = inspectionDateTo,
+            Filters = !string.IsNullOrEmpty(filters) ? System.Text.Json.JsonSerializer.Deserialize<List<FilterDescriptor>>(filters) : null
         };
         var result = await GetAllAsync(query);
         return FinalInspectionPrintHelper.GenerateBatchPdf(result.Items, columns);
@@ -809,6 +1107,119 @@ public class FinalInspectionService : IFinalInspectionService
 
     private static IQueryable<FinalInspection> ApplySorting(IQueryable<FinalInspection> queryable, string sortBy, bool isDescending)
     {
-        return queryable.ApplySort(sortBy, isDescending);
+        return (sortBy?.ToLower(), isDescending) switch
+        {
+            ("batchno", false) => queryable.OrderBy(r => r.BatchNo ?? ""),
+            ("batchno", true) => queryable.OrderByDescending(r => r.BatchNo ?? ""),
+            ("inspectiondate", false) => queryable.OrderBy(r => r.InspectionDate),
+            ("inspectiondate", true) => queryable.OrderByDescending(r => r.InspectionDate),
+            ("inspectionitem", false) => queryable.OrderBy(r => r.InspectionItem),
+            ("inspectionitem", true) => queryable.OrderByDescending(r => r.InspectionItem),
+            ("equipmentname", false) => queryable.OrderBy(r => r.EquipmentName ?? ""),
+            ("equipmentname", true) => queryable.OrderByDescending(r => r.EquipmentName ?? ""),
+            ("shift", false) => queryable.OrderBy(r => r.Shift),
+            ("shift", true) => queryable.OrderByDescending(r => r.Shift),
+            ("operator", false) => queryable.OrderBy(r => r.Operator ?? ""),
+            ("operator", true) => queryable.OrderByDescending(r => r.Operator ?? ""),
+            ("qualificationlevel", false) => queryable.OrderBy(r => r.QualificationLevel ?? ""),
+            ("qualificationlevel", true) => queryable.OrderByDescending(r => r.QualificationLevel ?? ""),
+            // 批量派生字段：通过 ProductionBatch 导航属性排序
+            ("tagno", false) => queryable.OrderBy(r => r.ProductionBatch.TagNo ?? ""),
+            ("tagno", true) => queryable.OrderByDescending(r => r.ProductionBatch.TagNo ?? ""),
+            ("productiontype", false) => queryable.OrderBy(r => r.ProductionBatch.ProductionType ?? ""),
+            ("productiontype", true) => queryable.OrderByDescending(r => r.ProductionBatch.ProductionType ?? ""),
+            ("manufacturingitem", false) => queryable.OrderBy(r => r.ProductionBatch.ManufacturingItem ?? ""),
+            ("manufacturingitem", true) => queryable.OrderByDescending(r => r.ProductionBatch.ManufacturingItem ?? ""),
+            ("salesman", false) => queryable.OrderBy(r => r.ProductionBatch.Salesman ?? ""),
+            ("salesman", true) => queryable.OrderByDescending(r => r.ProductionBatch.Salesman ?? ""),
+            ("deliverystate", false) => queryable.OrderBy(r => r.ProductionBatch.DeliveryState ?? ""),
+            ("deliverystate", true) => queryable.OrderByDescending(r => r.ProductionBatch.DeliveryState ?? ""),
+            ("workorderno", false) => queryable.OrderBy(r => r.ProductionBatch.WorkOrderNo ?? ""),
+            ("workorderno", true) => queryable.OrderByDescending(r => r.ProductionBatch.WorkOrderNo ?? ""),
+            ("salesorderno", false) => queryable.OrderBy(r => r.ProductionBatch.SalesOrderNo ?? ""),
+            ("salesorderno", true) => queryable.OrderByDescending(r => r.ProductionBatch.SalesOrderNo ?? ""),
+            ("sourceunit", false) => queryable.OrderBy(r => r.ProductionBatch.SourceName ?? ""),
+            ("sourceunit", true) => queryable.OrderByDescending(r => r.ProductionBatch.SourceName ?? ""),
+            ("furnaceno", false) => queryable.OrderBy(r => r.ProductionBatch.SourceHeatNo ?? ""),
+            ("furnaceno", true) => queryable.OrderByDescending(r => r.ProductionBatch.SourceHeatNo ?? ""),
+            ("plantgrade", false) => queryable.OrderBy(r => r.ProductionBatch.PlantGrade ?? ""),
+            ("plantgrade", true) => queryable.OrderByDescending(r => r.ProductionBatch.PlantGrade ?? ""),
+            ("specification", false) => queryable.OrderBy(r => r.ProductionBatch.Specification ?? ""),
+            ("specification", true) => queryable.OrderByDescending(r => r.ProductionBatch.Specification ?? ""),
+            ("lengthstatus", false) => queryable.OrderBy(r => r.ProductionBatch.LengthStatus ?? ""),
+            ("lengthstatus", true) => queryable.OrderByDescending(r => r.ProductionBatch.LengthStatus ?? ""),
+            ("fixedlength", false) => queryable.OrderBy(r => r.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && r.ProductionBatch.MinLength.HasValue
+                ? r.ProductionBatch.MinLength.Value.ToString("G29") + "mm" : ""),
+            ("fixedlength", true) => queryable.OrderByDescending(r => r.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && r.ProductionBatch.MinLength.HasValue
+                ? r.ProductionBatch.MinLength.Value.ToString("G29") + "mm" : ""),
+            // 检验结果排序
+            ("quantity", false) => queryable.OrderBy(r => r.Quantity),
+            ("quantity", true) => queryable.OrderByDescending(r => r.Quantity),
+            ("weight", false) => queryable.OrderBy(r => r.Weight),
+            ("weight", true) => queryable.OrderByDescending(r => r.Weight),
+            ("qualifiedquantity", false) => queryable.OrderBy(r => r.QualifiedQuantity),
+            ("qualifiedquantity", true) => queryable.OrderByDescending(r => r.QualifiedQuantity),
+            ("qualifiedweight", false) => queryable.OrderBy(r => r.QualifiedWeight),
+            ("qualifiedweight", true) => queryable.OrderByDescending(r => r.QualifiedWeight),
+            ("qualifiedconcessionquantity", false) => queryable.OrderBy(r => r.QualifiedConcessionQuantity),
+            ("qualifiedconcessionquantity", true) => queryable.OrderByDescending(r => r.QualifiedConcessionQuantity),
+            ("concessionremark", false) => queryable.OrderBy(r => r.ConcessionRemark ?? ""),
+            ("concessionremark", true) => queryable.OrderByDescending(r => r.ConcessionRemark ?? ""),
+            ("defectreworkquantity", false) => queryable.OrderBy(r => r.DefectReworkQuantity),
+            ("defectreworkquantity", true) => queryable.OrderByDescending(r => r.DefectReworkQuantity),
+            ("defectwarehousequantity", false) => queryable.OrderBy(r => r.DefectWarehouseQuantity),
+            ("defectwarehousequantity", true) => queryable.OrderByDescending(r => r.DefectWarehouseQuantity),
+            ("defectscrapquantity", false) => queryable.OrderBy(r => r.DefectScrapQuantity),
+            ("defectscrapquantity", true) => queryable.OrderByDescending(r => r.DefectScrapQuantity),
+            ("defectdescription", false) => queryable.OrderBy(r => r.DefectDescription ?? ""),
+            ("defectdescription", true) => queryable.OrderByDescending(r => r.DefectDescription ?? ""),
+            ("outerdiameterrange", false) => queryable.OrderBy(r => r.OuterDiameterRange ?? ""),
+            ("outerdiameterrange", true) => queryable.OrderByDescending(r => r.OuterDiameterRange ?? ""),
+            ("wallthicknessrange", false) => queryable.OrderBy(r => r.WallThicknessRange ?? ""),
+            ("wallthicknessrange", true) => queryable.OrderByDescending(r => r.WallThicknessRange ?? ""),
+            ("lengthallowancerange", false) => queryable.OrderBy(r => r.LengthAllowanceRange ?? ""),
+            ("lengthallowancerange", true) => queryable.OrderByDescending(r => r.LengthAllowanceRange ?? ""),
+            ("pressure", false) => queryable.OrderBy(r => r.Pressure),
+            ("pressure", true) => queryable.OrderByDescending(r => r.Pressure),
+            ("holdtime", false) => queryable.OrderBy(r => r.HoldTime),
+            ("holdtime", true) => queryable.OrderByDescending(r => r.HoldTime),
+            ("inspectionstandard", false) => queryable.OrderBy(r => r.InspectionStandard ?? ""),
+            ("inspectionstandard", true) => queryable.OrderByDescending(r => r.InspectionStandard ?? ""),
+            ("inspectiongrade", false) => queryable.OrderBy(r => r.InspectionGrade ?? ""),
+            ("inspectiongrade", true) => queryable.OrderByDescending(r => r.InspectionGrade ?? ""),
+            ("instrumentmodel", false) => queryable.OrderBy(r => r.InstrumentModel ?? ""),
+            ("instrumentmodel", true) => queryable.OrderByDescending(r => r.InstrumentModel ?? ""),
+            ("ndtmethod", false) => queryable.OrderBy(r => r.NdtMethod ?? ""),
+            ("ndtmethod", true) => queryable.OrderByDescending(r => r.NdtMethod ?? ""),
+            ("standardsamplesize", false) => queryable.OrderBy(r => r.StandardSampleSize ?? ""),
+            ("standardsamplesize", true) => queryable.OrderByDescending(r => r.StandardSampleSize ?? ""),
+            ("standardsampledefect", false) => queryable.OrderBy(r => r.StandardSampleDefect ?? ""),
+            ("standardsampledefect", true) => queryable.OrderByDescending(r => r.StandardSampleDefect ?? ""),
+            ("probetype", false) => queryable.OrderBy(r => r.ProbeType ?? ""),
+            ("probetype", true) => queryable.OrderByDescending(r => r.ProbeType ?? ""),
+            ("couplant", false) => queryable.OrderBy(r => r.Couplant ?? ""),
+            ("couplant", true) => queryable.OrderByDescending(r => r.Couplant ?? ""),
+            ("calibrationfrequency", false) => queryable.OrderBy(r => r.CalibrationFrequency ?? ""),
+            ("calibrationfrequency", true) => queryable.OrderByDescending(r => r.CalibrationFrequency ?? ""),
+            ("detectionfrequency", false) => queryable.OrderBy(r => r.DetectionFrequency ?? ""),
+            ("detectionfrequency", true) => queryable.OrderByDescending(r => r.DetectionFrequency ?? ""),
+            ("detectionsensitivity", false) => queryable.OrderBy(r => r.DetectionSensitivity ?? ""),
+            ("detectionsensitivity", true) => queryable.OrderByDescending(r => r.DetectionSensitivity ?? ""),
+            ("detectionphase", false) => queryable.OrderBy(r => r.DetectionPhase ?? ""),
+            ("detectionphase", true) => queryable.OrderByDescending(r => r.DetectionPhase ?? ""),
+            ("detectionspeed", false) => queryable.OrderBy(r => r.DetectionSpeed ?? ""),
+            ("detectionspeed", true) => queryable.OrderByDescending(r => r.DetectionSpeed ?? ""),
+            ("remark", false) => queryable.OrderBy(r => r.Remark ?? ""),
+            ("remark", true) => queryable.OrderByDescending(r => r.Remark ?? ""),
+            ("datasource", false) => queryable.OrderBy(r => r.DataSource ?? ""),
+            ("datasource", true) => queryable.OrderByDescending(r => r.DataSource ?? ""),
+            ("createdtime", false) => queryable.OrderBy(r => r.CreatedTime),
+            ("createdtime", true) => queryable.OrderByDescending(r => r.CreatedTime),
+            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
+            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
+            _ => isDescending
+                ? queryable.OrderByDescending(r => r.CreatedTime)
+                : queryable.OrderBy(r => r.CreatedTime)
+        };
     }
 }

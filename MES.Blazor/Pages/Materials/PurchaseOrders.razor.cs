@@ -132,7 +132,7 @@ public partial class PurchaseOrders : IAsyncDisposable
             new() { Key = "WoTotalQuantity",     Label = "总支数",       SortKey = "wototalquantity", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
             new() { Key = "WoTotalWeight",       Label = "总重量",       SortKey = "wototalweight", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
             new() { Key = "WoDeliveryState",     Label = "交货状态",     SortKey = "wodeliverystate", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "来源销售订单等",
-                EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"), new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态") } },
+                EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"), new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
             new() { Key = "WoTotalItemCount",    Label = "含项次数",     SortKey = "wototalitemcount", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
         };
 

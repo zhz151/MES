@@ -199,7 +199,7 @@
                                 <MudTh Style="width:32px;">选择</MudTh>
                                 <MudTh Style="width:48px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.MaterialType))" Style="cursor:pointer;">
-                                        @SortIcon("MaterialType") 物料名称
+                                        @SortIcon("MaterialType") 物料类型
                                     </span>
                                 </MudTh>
                                 <MudTh Style="width:50px;">
@@ -263,7 +263,7 @@
                                                  ValueChanged="@((bool v) => OnSelectionChanged(context.Id, v))"
                                                  Color="Color.Primary" />
                                 </MudTd>
-                                <MudTd DataLabel="物料名称">@DisplayHelper.GetMaterialTypeText(context.MaterialType)</MudTd>
+                                <MudTd DataLabel="物料类型">@DisplayHelper.GetMaterialTypeText(context.MaterialType)</MudTd>
                                 <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
                                 <MudTd DataLabel="名义规格">@context.Specification</MudTd>
                                 <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>

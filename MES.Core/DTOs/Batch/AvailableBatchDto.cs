@@ -8,6 +8,12 @@ namespace MES.Core.DTOs.Batch;
 /// </summary>
 public class AvailableBatchDto
 {
+    public int Id { get; set; }
+
+    /// <summary>
+    /// 出库记录ID（用于精确排除已被引用的出库记录）
+    /// </summary>
+    public long OutboundRecordId { get; set; }
     public string BatchNo { get; set; } = null!;
     public int WarehouseId { get; set; }
     public string? WarehouseName { get; set; }
@@ -20,6 +26,8 @@ public class AvailableBatchDto
     public string? HeatNo { get; set; }
     public int? OutboundQuantity { get; set; }
     public decimal? OutboundWeight { get; set; }
+    public DateTime? OutboundDate { get; set; }
+    public string? OutboundRemark { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }

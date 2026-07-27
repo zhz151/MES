@@ -51,7 +51,7 @@ public partial class QualityProcessTracking
         {
             new() { Key = "BatchNo",              Label = "生产编号",       SortKey = "batchno",              FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "ManufacturingItem",     Label = "制造物品",       SortKey = "manufacturingitem",    FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
-                EnumOptions = new() { new("OrderFinished","订单成品"), new("Finished","备料成品"), new("Surplus","余库料"), new("SpecialDeliveryStatus","特定交态成品") } },
+                EnumOptions = new() { new("OrderFinished","订单成品"), new("Finished","备料成品"), new("Surplus","余库料"), new("SpecialDeliveryStatus","订成-非交付态") } },
             new() { Key = "PlantGrade",            Label = "工厂牌号",       SortKey = "plantgrade",            FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "Specification",         Label = "规格",           SortKey = "specification",         FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "LengthStatus",          Label = "长度状态",       SortKey = "lengthstatus",          FilterType = "enum",    Width = "100", GroupKey = 1, GroupName = "批次信息",
@@ -65,7 +65,7 @@ public partial class QualityProcessTracking
                 EnumOptions = new() { new("RoughTube","荒管生产"), new("InProcess","在制生产"), new("Inventory","库存"), new("OutsourcedPurchased","外购"), new("Rework","返整"), new("Subcontract","委外生产"), new("ExternalProcessing","对外加工") } },
             new() { Key = "Salesman",              Label = "业务员",         SortKey = "salesman",              FilterType = "string",  Width = "100", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "DeliveryState",         Label = "交货状态",       SortKey = "deliverystate",         FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
-                EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态") } },
+                EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态"), new("SolidSolutionStraightening","固溶矫直") } },
             new() { Key = "ProductionWeight",      Label = "生产重量(kg)",  SortKey = "productionweight",      FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "ProductionCutQuantity", Label = "生产支数",       SortKey = "productioncutquantity", FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
         };
@@ -74,7 +74,8 @@ public partial class QualityProcessTracking
         var g2 = new List<ColumnDef>
         {
             new() { Key = "ReceiveDate",           Label = "到料日期",       SortKey = "receivedate",           FilterType = "date",    Width = "120", GroupKey = 2, GroupName = "检验来料" },
-            new() { Key = "Shift",                 Label = "班次",           SortKey = "shift",                 FilterType = "string",  Width = "120", GroupKey = 2, GroupName = "检验来料" },
+            new() { Key = "Shift",                 Label = "班次",           SortKey = "shift",                 FilterType = "enum",   Width = "120", GroupKey = 2, GroupName = "检验来料",
+    EnumOptions = new() { new("DayShift","白班"), new("MiddleShift","中班"), new("NightShift","夜班") } },
             new() { Key = "Checker",               Label = "确认人",         SortKey = "checker",               FilterType = "string",  Width = "120", GroupKey = 2, GroupName = "检验来料" },
             new() { Key = "IsForceCompleted",      Label = "强制完成",       SortKey = "isforcecompleted",      FilterType = "boolean", Width = "100", GroupKey = 2, GroupName = "检验来料", BoolTrueLabel = "是", BoolFalseLabel = "否" },
         };
@@ -92,6 +93,7 @@ public partial class QualityProcessTracking
             new() { Key = "EddyCurrentDate",               Label = "涡流",          SortKey = "eddycurrentdate",         FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
             new() { Key = "UltrasonicDate",                Label = "超声波",        SortKey = "ultrasonicdate",          FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
             new() { Key = "PortColoringDate",              Label = "端口着色",      SortKey = "portcoloringdate",        FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
+            new() { Key = "MaxInspectionDate",             Label = "最晚检验日期",  SortKey = "maxinspectiondate",       FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期", Visible = false },
         };
 
         // G4: 检验的数量信息
@@ -116,7 +118,7 @@ public partial class QualityProcessTracking
         var g6 = new List<ColumnDef>
         {
             new() { Key = "QualityStatus", Label = "执行状态", SortKey = "qualitystatus", FilterType = "enum", Width = "120", GroupKey = 6, GroupName = "执行状态",
-                EnumOptions = new() { new(){ Value = "待检验", Display = "待检验" }, new(){ Value = "检验中", Display = "检验中" }, new(){ Value = "完成检验", Display = "完成检验" }, new(){ Value = "异常完成", Display = "异常完成" } } },
+                EnumOptions = new() { new(){ Value = "异常完成", Display = "异常完成" }, new(){ Value = "入库存疑", Display = "入库存疑" }, new(){ Value = "待检验", Display = "待检验" }, new(){ Value = "检验中", Display = "检验中" }, new(){ Value = "完成检验", Display = "完成检验" } } },
         new() { Key = "UpdatedTime",   Label = "更新日期",   SortKey = "updatedtime",                                 Width = "120", GroupKey = 6, GroupName = "执行状态" },
         };
 
@@ -299,17 +301,40 @@ public partial class QualityProcessTracking
             }).ToList();
         }
 
-        // 补充枚举/布尔列（API 无数据时用硬编码选项兜底）
+        // 补充枚举/布尔列：API 无数据时用硬编码选项兜底；有数据时合并缺失的枚举值
         foreach (var col in _allColumns)
         {
-            if (col.FilterType == "enum" && col.EnumOptions != null && !_filterContextOptions.ContainsKey(col.Key))
+            if (col.FilterType == "boolean")
             {
-                _filterContextOptions[col.Key] = col.EnumOptions.Select(e => new ExcelFilterOption
+                if (!_filterContextOptions.ContainsKey(col.Key))
                 {
-                    Value = e.Value,
-                    Display = e.Display,
-                    Count = 0
-                }).ToList();
+                    _filterContextOptions[col.Key] = new List<ExcelFilterOption>
+                    {
+                        new() { Value = "true", Display = col.BoolTrueLabel, Count = 0 },
+                        new() { Value = "false", Display = col.BoolFalseLabel, Count = 0 }
+                    };
+                }
+            }
+            else if (col.FilterType == "enum" && col.EnumOptions != null)
+            {
+                if (!_filterContextOptions.ContainsKey(col.Key))
+                {
+                    _filterContextOptions[col.Key] = col.EnumOptions.Select(e => new ExcelFilterOption
+                    {
+                        Value = e.Value,
+                        Display = e.Display,
+                        Count = 0
+                    }).ToList();
+                }
+                else
+                {
+                    // 合并 EnumOptions 中存在但 API 未返回的枚举值（如计算字段 "异常完成"）
+                    var existingValues = _filterContextOptions[col.Key].Select(o => o.Value).ToHashSet();
+                    var missing = col.EnumOptions
+                        .Where(e => !existingValues.Contains(e.Value))
+                        .Select(e => new ExcelFilterOption { Value = e.Value, Display = e.Display, Count = 0 });
+                    _filterContextOptions[col.Key].AddRange(missing);
+                }
             }
         }
     }
@@ -681,13 +706,18 @@ public partial class QualityProcessTracking
                 builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.InboundWeight));
                 break;
 
+            case "InboundDate":
+                builder.AddContent(0, item.InboundDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+
             // === G5: 执行状态 ===
             case "QualityStatus":
                 {
                     var displayText = item.IsForceCompleted ? "异常完成" : item.QualityStatus;
-                    var color = item.IsForceCompleted ? Color.Error :
+                    var color = item.IsForceCompleted ? Color.Info :
                         item.QualityStatus switch
                         {
+                            "入库存疑" => Color.Error,
                             "完成检验" => Color.Success,
                             "检验中" => Color.Warning,
                             _ => Color.Default
@@ -738,7 +768,8 @@ public partial class QualityProcessTracking
             IsDescending = sortDescending,
             Columns = GetPrintColumnDefs(),
             ReceiveDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-            ReceiveDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null
+            ReceiveDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
+            Filters = SerializeFilters()
         };
         var json = JsonSerializer.Serialize(request);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

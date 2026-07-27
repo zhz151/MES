@@ -621,6 +621,8 @@ public partial class AppDbContext
             entity.Property(e => e.PiercingPlanTotalPieces).IsRequired(false);
             entity.Property(e => e.InProcessReworkPlanTotalWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.InProcessReworkPlanTotalPieces).IsRequired(false);
+            entity.Property(e => e.InMainWorkOrderPlanTotalWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.InMainWorkOrderPlanTotalPieces).IsRequired(false);
             entity.Property(e => e.MaxStandardCycle).IsRequired().HasDefaultValue(0);
 
             // Group C: 预计算主号/订单聚合
@@ -642,6 +644,30 @@ public partial class AppDbContext
             entity.HasIndex(e => e.OrderMaterialPlanStatus).HasDatabaseName("IX_WOLS_OrderMaterialPlanStatus");
             entity.HasIndex(e => e.Status).HasDatabaseName("IX_WOLS_Status");
             entity.HasIndex(e => e.LatestPlanDate).HasDatabaseName("IX_WOLS_LatestPlanDate");
+        });
+    }
+
+    private static void ConfigureInMainWorkOrderPlan(ModelBuilder builder)
+    {
+        builder.Entity<InMainWorkOrderPlan>(entity =>
+        {
+            entity.ToTable("InMainWorkOrderPlan");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkOrderId).IsRequired();
+            entity.Property(e => e.PlanDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.ProductionBatchId).IsRequired();
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.MainWorkOrderNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.AllocatedWeight).IsRequired().HasColumnType("decimal(18,3)");
+            entity.Property(e => e.AllocatedQuantity);
+            entity.Property(e => e.ProductionRatio).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.StandardCycle).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.RequiredDate).HasColumnType("date");
+            entity.Property(e => e.PlanStatus).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InventoryPlanStatus.Planned);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_InMainWorkOrderPlan_WorkOrderId");
+            entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_InMainWorkOrderPlan_ProductionBatchId");
+            entity.HasIndex(e => e.PlanStatus).HasDatabaseName("IX_InMainWorkOrderPlan_PlanStatus");
         });
     }
 }

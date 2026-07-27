@@ -210,7 +210,17 @@ public class ProcessInspectionServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
-        await SeedProcessGroupAsync(ctx, batch.Id);
+        var pg = await SeedProcessGroupAsync(ctx, batch.Id);
+        // 冷轧/冷拔前置校验：先创建一条冷轧拔生产记录
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            SectionName = "冷轧拔",
+            ProductStatus = "成品"
+        });
+        await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
 
         var result = await svc.BatchCreateAsync(new List<CreateProcessInspectionRequest>
@@ -220,7 +230,7 @@ public class ProcessInspectionServiceTests : TestBase
                 BatchNo = "BATCH001",
                 ProcessName = "60冷轧",
                 ManufacturingSpec = "219*8",
-                SectionName = "冷轧拔",
+                SectionName = "检验",
                 InspectionDate = DateTime.Today,
                 Quantity = 10,
                 QualifiedQuantity = 10,
@@ -275,11 +285,11 @@ public class ProcessInspectionServiceTests : TestBase
         var result = await svc.UpdateAsync(id, new UpdateProcessInspectionRequest
         {
             InspectionDate = DateTime.Today,
-            Quantity = 15,
+            Quantity = 14,
             QualifiedQuantity = 14
         });
 
-        result.Quantity.Should().Be(15);
+        result.Quantity.Should().Be(14);
         result.QualifiedQuantity.Should().Be(14);
     }
 

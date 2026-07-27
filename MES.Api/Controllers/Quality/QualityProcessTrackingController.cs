@@ -84,7 +84,7 @@ public class QualityProcessTrackingController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
     public async Task<IActionResult> PrintAllFile([FromBody] QualityProcessTrackingPrintAllRequest request)
     {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo);
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo, request.Filters);
         return File(pdfBytes, "application/pdf", "成检追踪-全部.pdf");
     }
 }

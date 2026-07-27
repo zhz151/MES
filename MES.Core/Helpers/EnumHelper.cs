@@ -43,7 +43,8 @@ public static class EnumHelper
                                  ("Bright", "光亮"),
                                  ("BrightUTube", "光亮-U型管"),
                                  ("BrightCoiled", "光亮-盘管"),
-                                 ("Hard", "硬态"));
+                                 ("Hard", "硬态"),
+                                 ("SolidSolutionStraightening", "固溶矫直"));
 
         Register<SettlementMethod>(("Theoretical", "理算"),
                                     ("Weighing", "过磅"),
@@ -62,7 +63,7 @@ public static class EnumHelper
 
         Register<FinishedProductType>(("Critical", "临界成品"),
                                        ("Order", "订单成品"),
-                                       ("SpecialDeliveryStatus", "特定交态成品"));
+                                       ("SpecialDeliveryStatus", "订成-非交付态"));
 
         Register<ProductionType>(("RoughTube", "荒管生产"),
                                   ("InProcess", "在制生产"),
@@ -100,16 +101,17 @@ public static class EnumHelper
                                     ("OutboundAlert", "出库预警"),
                                     ("WorkOrderDeleted", "工单已删除"),
                                     ("OrderDeleted", "订单已删除"),
-                                    ("OrderChanged", "订单已变更"));
+                                    ("OrderChanged", "订单已变更"),
+                                    ("WorkOrderChanged", "工单内容已变更"));
 
         Register<NotificationChangeType>(("Deleted", "订单已删除"),
                                           ("ItemChanged", "项次已变更"));
 
         Register<BatchStatus>(("None", "未产"),
                                ("InProgress", "在产"),
+                               ("InFinalInspection", "成检"),
                                ("Completed", "完成"),
-                               ("Suspended", "挂起"),
-                               ("Cancelled", "作废"));
+                               ("Suspended", "暂停"));
 
         Register<PurchaseOrderStatus>(("Open", "已下单"),
                                        ("Partial", "部分到货"),
@@ -209,7 +211,7 @@ public static class EnumHelper
                                 ("DefectRoundBar", "次品圆棒"),
                                 ("DefectRoughTube", "次品荒管"),
                                 ("Scrap", "报废品"),
-                                ("SpecialDeliveryStatus", "特定交态成品"),
+                                ("SpecialDeliveryStatus", "订成-非交付态"),
                                 ("WorkInProgress", "在制品"),
                                 ("DefectWIP", "次品在制"));
 

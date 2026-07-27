@@ -941,6 +941,14 @@ input[type="number"]::-webkit-outer-spin-button {
 .col-group-start { border-left: 2px solid #BDBDBD !important; }
 .col-group-start-cell { border-left: 2px solid #E0E0E0 !important; }
 
+/* ========== 成检到料列表分组（G1=检验到料实体, G2=批次自动填充） ========== */
+#material-checks-list-table .col-g1 { background: #F5F9FF !important; }
+#material-checks-list-table .col-g1 .col-group-badge { color: #1565C0; background: #BBDEFB; }
+#material-checks-list-table .col-g1-cell { background: #F5F9FF !important; }
+#material-checks-list-table .col-g2 { background: #F4FAF5 !important; }
+#material-checks-list-table .col-g2 .col-group-badge { color: #2E7D32; background: #C8E6C9; }
+#material-checks-list-table .col-g2-cell { background: #F4FAF5 !important; }
+
 /* 页脚汇总行样式 */
 .col-footer-cell {
     border-top: 2px solid #BDBDBD !important;

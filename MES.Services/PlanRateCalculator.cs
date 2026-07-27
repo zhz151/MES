@@ -19,7 +19,7 @@ namespace MES.Services;
 internal static class PlanRateCalculator
 {
     /// <summary>
-    /// 从 6 种用料计划数据计算工单级满足率 + 状态
+    /// 从 7 种用料计划数据计算工单级满足率 + 状态
     /// </summary>
     public static (decimal rate, int status) ComputeWorkOrderRate(
         WoEntity wo,
@@ -28,6 +28,7 @@ internal static class PlanRateCalculator
         List<InventoryPlan> inventoryPlans,
         List<RoundBarPiercingPlan> piercingPlans,
         List<InProcessReworkPlan>? inProcessReworkPlans = null,
+        List<InMainWorkOrderPlan>? inMainWorkOrderPlans = null,
         decimal fixedTheoretical = 102m, decimal fixedSatisfied = 110m,
         decimal nonFixedTheoretical = 105m, decimal nonFixedSatisfied = 120m)
     {
@@ -52,6 +53,9 @@ internal static class PlanRateCalculator
 
         if (inProcessReworkPlans is { Count: > 0 })
             rates.Add(CalculateInProcessReworkPlanRate(wo, inProcessReworkPlans));
+
+        if (inMainWorkOrderPlans is { Count: > 0 })
+            rates.Add(CalculateInMainWorkOrderPlanRate(wo, inMainWorkOrderPlans));
 
         if (rates.Count == 0)
             return (0, 0);
@@ -139,6 +143,22 @@ internal static class PlanRateCalculator
         else
         {
             var effectiveWeight = plans.Sum(p => p.UsedWeight);
+            if (wo.TotalWeight <= 0) return 0;
+            return Math.Round(effectiveWeight / wo.TotalWeight * 100m, 0);
+        }
+    }
+
+    private static decimal CalculateInMainWorkOrderPlanRate(WoEntity wo, List<InMainWorkOrderPlan> plans)
+    {
+        if (wo.LengthStatus == LengthStatus.Fixed)
+        {
+            var effectivePieces = (int)plans.Sum(p => p.AllocatedQuantity ?? 0);
+            if (wo.TotalQuantity <= 0) return 0;
+            return Math.Round((decimal)effectivePieces / wo.TotalQuantity * 100m, 0);
+        }
+        else
+        {
+            var effectiveWeight = plans.Sum(p => p.AllocatedWeight);
             if (wo.TotalWeight <= 0) return 0;
             return Math.Round(effectiveWeight / wo.TotalWeight * 100m, 0);
         }

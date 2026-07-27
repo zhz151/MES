@@ -146,7 +146,23 @@ public class PicklingServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
-        await SeedProcessGroupAsync(ctx, batch.Id);
+        var pg = await SeedProcessGroupAsync(ctx, batch.Id);
+
+        // 先创建冷轧拔生产记录（酸洗的前置条件：冷拔工序必须先有冷轧拔工段）
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "冷拔",
+            ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔",
+            SequenceNumber = 1,
+            ExecDate = DateTime.Today,
+            Quantity = 20,
+            Weight = 2000m
+        });
+        await ctx.SaveChangesAsync();
+
         var svc = CreateService(ctx);
 
         var result = await svc.CreateAsync(new CreatePicklingInRecordRequest

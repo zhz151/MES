@@ -30,58 +30,6 @@ public class FinalInspection : BaseEntity
     /// </summary>
     public int ProductionBatchId { get; set; }
 
-    // ========== 批次冗余字段（从ProductionBatch自动调取） ==========
-
-    /// <summary>
-    /// 物料名称（从批次冗余）
-    /// </summary>
-    public string? MaterialName { get; set; }
-
-    /// <summary>
-    /// 挂牌号（从批次冗余）
-    /// </summary>
-    public string? TagNo { get; set; }
-
-    /// <summary>
-    /// 关联工单号（从批次冗余）
-    /// </summary>
-    public string? WorkOrderNo { get; set; }
-
-    /// <summary>
-    /// 关联订单号（从批次冗余）
-    /// </summary>
-    public string? SalesOrderNo { get; set; }
-
-    /// <summary>
-    /// 来料单位（从批次冗余）
-    /// </summary>
-    public string? SourceUnit { get; set; }
-
-    /// <summary>
-    /// 炉号（从批次冗余）
-    /// </summary>
-    public string? FurnaceNo { get; set; }
-
-    /// <summary>
-    /// 工厂牌号（从批次冗余）
-    /// </summary>
-    public string? PlantGrade { get; set; }
-
-    /// <summary>
-    /// 规格（从批次冗余）
-    /// </summary>
-    public string? Specification { get; set; }
-
-    /// <summary>
-    /// 定尺长度（从批次冗余）
-    /// </summary>
-    public string? FixedLength { get; set; }
-
-    /// <summary>
-    /// 生产类型（从批次冗余，待批次上下文枚举迁移后改为 ProductionType?）
-    /// </summary>
-    public string? ProductionType { get; set; }
-
     // ========== 执行信息 ==========
 
     /// <summary>
@@ -92,7 +40,7 @@ public class FinalInspection : BaseEntity
     /// <summary>
     /// 班次
     /// </summary>
-    public string? Shift { get; set; }
+    public ShiftType? Shift { get; set; }
 
     /// <summary>
     /// 操作员
@@ -181,6 +129,78 @@ public class FinalInspection : BaseEntity
     /// 保压时间s（水压/水下气压专用）
     /// </summary>
     public int? HoldTime { get; set; }
+
+    // ========== 涡流/超声波探伤专用字段（仅InspectionItem=EddyCurrent/Ultrasonic时有效） ==========
+
+    /// <summary>
+    /// 资格等级
+    /// </summary>
+    public string? QualificationLevel { get; set; }
+
+    /// <summary>
+    /// 检验标准
+    /// </summary>
+    public string? InspectionStandard { get; set; }
+
+    /// <summary>
+    /// 检验等级
+    /// </summary>
+    public string? InspectionGrade { get; set; }
+
+    /// <summary>
+    /// 检验仪器型号
+    /// </summary>
+    public string? InstrumentModel { get; set; }
+
+    /// <summary>
+    /// 检验方式
+    /// </summary>
+    public string? NdtMethod { get; set; }
+
+    /// <summary>
+    /// 标样尺寸
+    /// </summary>
+    public string? StandardSampleSize { get; set; }
+
+    /// <summary>
+    /// 标样人工缺陷
+    /// </summary>
+    public string? StandardSampleDefect { get; set; }
+
+    /// <summary>
+    /// 探头类型
+    /// </summary>
+    public string? ProbeType { get; set; }
+
+    /// <summary>
+    /// 耦合剂
+    /// </summary>
+    public string? Couplant { get; set; }
+
+    /// <summary>
+    /// 检测设备校准频率
+    /// </summary>
+    public string? CalibrationFrequency { get; set; }
+
+    /// <summary>
+    /// 检测频率
+    /// </summary>
+    public string? DetectionFrequency { get; set; }
+
+    /// <summary>
+    /// 检测灵敏度
+    /// </summary>
+    public string? DetectionSensitivity { get; set; }
+
+    /// <summary>
+    /// 检测相位
+    /// </summary>
+    public string? DetectionPhase { get; set; }
+
+    /// <summary>
+    /// 检测速度
+    /// </summary>
+    public string? DetectionSpeed { get; set; }
 
     // ========== 其他 ==========
 

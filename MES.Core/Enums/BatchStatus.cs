@@ -21,12 +21,12 @@ public enum BatchStatus
     Completed = 2,
 
     /// <summary>
-    /// 挂起（人工暂停）
+    /// 成检（已完成生产，处于成品检验阶段）
     /// </summary>
-    Suspended = 3,
+    InFinalInspection = 5,
 
     /// <summary>
-    /// 作废
+    /// 暂停（人工暂停）
     /// </summary>
-    Cancelled = 4
+    Suspended = 3
 }
