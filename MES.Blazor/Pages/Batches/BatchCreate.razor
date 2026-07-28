@@ -1644,7 +1644,7 @@
         if (request.ProductionRatio <= 0)
             errors.Add("制成倍数必须大于0");
 
-        // 合并投料来源必填（无来源模式跳过）
+        // 合并投料来源必填（非仓库模式跳过）
         if (!_noSourceMode)
         {
             if (_selectedSources.Count == 0)

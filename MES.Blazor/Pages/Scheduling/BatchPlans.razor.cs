@@ -16,7 +16,6 @@ namespace MES.Blazor.Pages.Scheduling;
 public partial class BatchPlans
 {
     private MudTable<BatchPlanDto>? table;
-    [Obsolete("不再使用，由 _filteredItems 替代")] private List<BatchPlanDto> _pageItems = new();
     private List<BatchPlanDto> _filteredItems = new();
     private int _totalCount;
     private int _pageSize = 10;
