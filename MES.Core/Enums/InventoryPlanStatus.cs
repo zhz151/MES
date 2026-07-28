@@ -18,5 +18,10 @@ public enum InventoryPlanStatus
     /// <summary>
     /// 已取消 - 计划已取消
     /// </summary>
-    Cancelled = 2
+    Cancelled = 2,
+
+    /// <summary>
+    /// 已完成 - 批次有效量已调整，通知消除
+    /// </summary>
+    Completed = 3
 }

@@ -56,6 +56,9 @@ public class UpdateProductionBatchRequest
 
     public decimal? InputWeight { get; set; }
 
+    [MaxLength(500)]
+    public string? SourceRemark { get; set; }
+
     public int? CurrentValidQty { get; set; }
 
     public decimal? CurrentValidWeight { get; set; }

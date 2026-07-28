@@ -553,6 +553,7 @@ public class BatchService : IBatchService
             SourceUnitWeight = request.SourceUnitWeight,
             InputQuantity = request.InputQuantity,
             InputWeight = request.InputWeight,
+            SourceRemark = request.SourceRemark,
             CurrentValidQty = request.CurrentValidQty,
             CurrentValidWeight = request.CurrentValidWeight,
 
@@ -754,6 +755,7 @@ public class BatchService : IBatchService
         entity.SourceUnitWeight = request.SourceUnitWeight ?? entity.SourceUnitWeight;
         entity.InputQuantity = request.InputQuantity ?? entity.InputQuantity;
         entity.InputWeight = request.InputWeight ?? entity.InputWeight;
+        entity.SourceRemark = request.SourceRemark ?? entity.SourceRemark;
         entity.CurrentValidQty = request.CurrentValidQty ?? entity.CurrentValidQty;
         entity.CurrentValidWeight = request.CurrentValidWeight ?? entity.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
@@ -878,6 +880,12 @@ public class BatchService : IBatchService
         if (entity.CurrentValidWeight != oldValidWeight) changes.Add($"有效重量: {oldValidWeight?.ToString("G29")} → {entity.CurrentValidWeight?.ToString("G29")}kg");
         if (changes.Count > 0)
             await _operationLogService.AddLogAsync("Batch",id, "变更", string.Join("; ", changes));
+
+        // 有效量变更时，消除关联的在产主工单计划通知
+        if (entity.CurrentValidQty != oldValidQty || entity.CurrentValidWeight != oldValidWeight)
+        {
+            await _materialPlanService.DismissInMainWorkOrderPlansByBatchAsync(entity.Id);
+        }
 
         _logger.LogInformation("更新生产批次 {BatchNo} (Id={Id})", entity.BatchNo, id);
 
@@ -1168,6 +1176,7 @@ public class BatchService : IBatchService
         entity.SourceUnitWeight = request.SourceUnitWeight ?? entity.SourceUnitWeight;
         entity.InputQuantity = request.InputQuantity ?? entity.InputQuantity;
         entity.InputWeight = request.InputWeight ?? entity.InputWeight;
+        entity.SourceRemark = request.SourceRemark ?? entity.SourceRemark;
         entity.CurrentValidQty = request.CurrentValidQty ?? entity.CurrentValidQty;
         entity.CurrentValidWeight = request.CurrentValidWeight ?? entity.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
@@ -1413,6 +1422,12 @@ public class BatchService : IBatchService
         if (entity.CurrentValidWeight != oldValidWeight) changes.Add($"有效重量: {oldValidWeight?.ToString("G29")} → {entity.CurrentValidWeight?.ToString("G29")}kg");
         if (changes.Count > 0)
             await _operationLogService.AddLogAsync("Batch",id, "变更", string.Join("; ", changes));
+
+        // 有效量变更时，消除关联的在产主工单计划通知
+        if (entity.CurrentValidQty != oldValidQty || entity.CurrentValidWeight != oldValidWeight)
+        {
+            await _materialPlanService.DismissInMainWorkOrderPlansByBatchAsync(entity.Id);
+        }
 
         // ===== 5. 工序组已变更，刷新批次跟踪字段 =====
         await _productionRecordService.BatchUpdateBatchTrackingAsync(new[] { id });
@@ -1935,6 +1950,7 @@ public class BatchService : IBatchService
             "SourceUnitWeight" => (object?)b.SourceUnitWeight ?? DBNull.Value,
             "InputQuantity" => (object?)b.InputQuantity ?? DBNull.Value,
             "InputWeight" => (object?)b.InputWeight ?? DBNull.Value,
+            "SourceRemark" => (object?)b.SourceRemark ?? DBNull.Value,
 
             // 质量
             "SolutionParams" => (object?)b.SolutionParams ?? "",
@@ -2219,6 +2235,7 @@ public class BatchService : IBatchService
             SourceUnitWeight = entity.SourceUnitWeight,
             InputQuantity = entity.InputQuantity,
             InputWeight = entity.InputWeight,
+            SourceRemark = entity.SourceRemark,
             CurrentValidQty = entity.CurrentValidQty,
             CurrentValidWeight = entity.CurrentValidWeight,
 

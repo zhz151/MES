@@ -43,15 +43,67 @@
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
+                <MudSwitch @bind-Value="_noSourceMode" Color="Color.Warning" Dense="true"
+                           Label="无来源模式" Class="mr-2" />
                 <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info"
                            StartIcon="@(showAvailablePanel ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
-                           OnClick="ToggleAvailablePanel">
+                           OnClick="ToggleAvailablePanel"
+                           Disabled="@_noSourceMode">
                     @(showAvailablePanel ? "隐藏可用批次" : "显示可用批次")
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
         <MudCardContent>
-            @if (showAvailablePanel)
+            @if (_noSourceMode)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-2">
+                    非仓库模式：无需选择库存批次，请手动填写原料信息
+                </MudAlert>
+                <MudGrid>
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="MaterialType?" @bind-Value="request.SourceMaterialType" Label="原料类型" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                            <MudSelectItem Value="@((MaterialType?)null)">请选择</MudSelectItem>
+                            @foreach (var val in Enum.GetValues<MaterialType>())
+                            {
+                                <MudSelectItem Value="@((MaterialType?)val)">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" @bind-Value="request.SourceName" Label="来料单位" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField T="string" @bind-Value="request.SourceHeatNo" Label="炉号" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField T="string" @bind-Value="request.SourcePlantGrade" Label="工厂牌号" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField T="string" @bind-Value="request.SourceSpecification" Label="规格" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudSelect T="LengthStatus?" @bind-Value="request.SourceLengthStatus" Label="长度状态" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                            <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
+                            @foreach (var val in Enum.GetValues<LengthStatus>())
+                            {
+                                <MudSelectItem Value="@((LengthStatus?)val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField T="int?" @bind-Value="request.InputQuantity" Label="领料支数" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudNumericField T="decimal?" @bind-Value="request.InputWeight" Label="领料重量(kg)" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" Min="0" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" @bind-Value="request.SourceRemark" Label="原料备注（必填）" Required="true" RequiredError="原料备注不能为空" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                    </MudItem>
+                </MudGrid>
+            }
+            else
+            {
+                @if (showAvailablePanel)
             {
                 <MudPaper Class="pa-3 mb-4" Elevation="1" Style="border:1px solid #e0e0e0; border-radius:8px;">
                     <MudText Typo="Typo.subtitle2" Class="mb-2">
@@ -245,6 +297,7 @@
                         </MudText>
                     </div>
                 </div>
+            }
             }
         </MudCardContent>
     </MudCard>
@@ -715,6 +768,7 @@
     }
 
     private List<SelectedSourceItem> _selectedSources = new();
+    private bool _noSourceMode;
 
     private int _totalInputQty => _selectedSources.Sum(s => s.InputQuantity);
     private decimal _totalInputWeight => _selectedSources.Sum(s => s.InputWeight);
@@ -810,8 +864,6 @@
     {
         request.InputQuantity = _totalInputQty;
         request.InputWeight = _totalInputWeight;
-        request.CurrentValidQty = _totalInputQty;
-        request.CurrentValidWeight = _totalInputWeight;
     }
 
     private void ClearRequestSourceFields()
@@ -1546,17 +1598,24 @@
         if (request.ProductionRatio <= 0)
             errors.Add("制成倍数必须大于0");
 
-        // 合并投料来源必填
-        if (_selectedSources.Count == 0)
-            errors.Add("请至少选择一个库存批次作为来源");
-        if (_selectedSources.Count > 0 && string.IsNullOrWhiteSpace(_selectedSources[0].PlantGrade))
-            errors.Add("来源批次工厂牌号不能为空");
-        if (_selectedSources.Count > 0 && string.IsNullOrWhiteSpace(_selectedSources[0].Specification))
-            errors.Add("来源批次规格不能为空");
-        if (_totalInputWeight <= 0)
-            errors.Add("领料重量必须大于0");
-        if (_totalInputQty <= 0)
-            errors.Add("领料支数必须大于0");
+        // 合并投料来源必填（无来源模式跳过）
+        if (!_noSourceMode)
+        {
+            if (_selectedSources.Count == 0)
+                errors.Add("请至少选择一个库存批次作为来源");
+            if (_selectedSources.Count > 0 && string.IsNullOrWhiteSpace(_selectedSources[0].PlantGrade))
+                errors.Add("来源批次工厂牌号不能为空");
+            if (_selectedSources.Count > 0 && string.IsNullOrWhiteSpace(_selectedSources[0].Specification))
+                errors.Add("来源批次规格不能为空");
+            if (_totalInputWeight <= 0)
+                errors.Add("领料重量必须大于0");
+            if (_totalInputQty <= 0)
+                errors.Add("领料支数必须大于0");
+        }
+
+        // 非仓库模式：原料备注必填
+        if (_noSourceMode && string.IsNullOrWhiteSpace(request.SourceRemark))
+            errors.Add("原料备注不能为空");
 
         // ========== 有工单路径额外验证 ==========
         if (request.WorkOrderNo != "非工单")
@@ -1608,14 +1667,17 @@
             return;
         }
 
-        // 填充合并投料来源
-        request.SourceItems = _selectedSources.Select(s => new SourceBatchItemRequest
+        // 填充合并投料来源（无来源模式跳过）
+        if (!_noSourceMode)
         {
-            InventoryBatchId = s.InventoryBatchId,
-            OutboundRecordId = s.OutboundRecordId,
-            InputQuantity = s.InputQuantity,
-            InputWeight = s.InputWeight
-        }).ToList();
+            request.SourceItems = _selectedSources.Select(s => new SourceBatchItemRequest
+            {
+                InventoryBatchId = s.InventoryBatchId,
+                OutboundRecordId = s.OutboundRecordId,
+                InputQuantity = s.InputQuantity,
+                InputWeight = s.InputWeight
+            }).ToList();
+        }
 
         _isSubmitting = true;
         try
@@ -1657,6 +1719,7 @@
             ProcessGroups = new List<CreateProcessGroupRequest>()
         };
         _selectedSources.Clear();
+        _noSourceMode = false;
         ClearRequestSourceFields();
         batchNoDisplay = "加载中...";
     }

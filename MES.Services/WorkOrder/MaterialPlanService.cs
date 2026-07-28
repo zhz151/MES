@@ -2426,6 +2426,28 @@ public class MaterialPlanService : IMaterialPlanService
         return result;
     }
 
+    /// <summary>
+    /// 根据批次ID消除所有待处理的在产主工单计划通知（有效量变更时触发）
+    /// </summary>
+    public async Task DismissInMainWorkOrderPlansByBatchAsync(int productionBatchId)
+    {
+        var plans = await _context.InMainWorkOrderPlans
+            .Where(p => p.ProductionBatchId == productionBatchId
+                     && p.PlanStatus == InventoryPlanStatus.Planned)
+            .ToListAsync();
+
+        if (plans.Count == 0) return;
+
+        foreach (var plan in plans)
+            plan.PlanStatus = InventoryPlanStatus.Completed;
+
+        await _context.SaveChangesAsync();
+
+        // 触发对应工单的用料状态刷新
+        foreach (var group in plans.GroupBy(p => p.WorkOrderId))
+            await UpdateMaterialPlanStatusAsync(group.Key);
+    }
+
     #endregion
 
     #region 用料测算

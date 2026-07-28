@@ -87,6 +87,7 @@ public class ProductionBatchDetailDto
     public decimal? SourceUnitWeight { get; set; }
     public int? InputQuantity { get; set; }
     public decimal? InputWeight { get; set; }
+    public string? SourceRemark { get; set; }
     public int? CurrentValidQty { get; set; }
     public decimal? CurrentValidWeight { get; set; }
 

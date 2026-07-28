@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using MES.Core.Enums;
 
 namespace MES.Data.Entities.Batch;
@@ -356,6 +357,12 @@ public class ProductionBatch : BaseEntity
     /// 领料重量
     /// </summary>
     public decimal? InputWeight { get; set; }
+
+    /// <summary>
+    /// 原料备注
+    /// </summary>
+    [MaxLength(500)]
+    public string? SourceRemark { get; set; }
 
     /// <summary>
     /// 现有效原料支数

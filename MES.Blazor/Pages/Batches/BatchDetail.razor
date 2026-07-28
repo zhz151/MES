@@ -281,11 +281,11 @@
             }
         </MudPaper>
 
-        <!-- ===== 区块五：仓库来源信息 ===== -->
+        <!-- ===== 区块五：投料信息 ===== -->
         <MudPaper Class="detail-card-bg pa-4 mb-3" Elevation="0">
             <div class="d-flex align-center mb-3">
                 <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold">
-                    <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-1" Size="Size.Small" />仓库来源信息
+                    <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-1" Size="Size.Small" />投料信息
                 </MudText>
                 <MudSpacer />
                 <MudButton Variant="Variant.Text" Size="Size.Small"
@@ -310,6 +310,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">单支重</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.SourceUnitWeight) kg</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料支数</MudText><MudText Typo="Typo.body2">@(batch.InputQuantity?.ToString() ?? "-") 支</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.InputWeight) kg</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料备注</MudText><MudText Typo="Typo.body2">@(batch.SourceRemark ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">现有效原料支数</MudText><MudText Typo="Typo.body2">@(batch.CurrentValidQty?.ToString() ?? "-") 支</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">现有效原料重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.CurrentValidWeight) kg</MudText></div>
             </div>
