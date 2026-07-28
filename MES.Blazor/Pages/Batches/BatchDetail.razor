@@ -261,20 +261,41 @@
 
         <!-- ===== 区块四：质量要求 ===== -->
         <MudPaper Class="detail-card-bg pa-4 mb-3" Elevation="0">
-            <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold mb-3">
-                <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-1" Size="Size.Small" />质量要求
-            </MudText>
+            <div class="d-flex align-center mb-3">
+                <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-1" Size="Size.Small" />质量要求
+                </MudText>
+                <MudSpacer />
+                <MudButton Variant="Variant.Text" Size="Size.Small"
+                           StartIcon="@(_showQualityRequirement ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="() => _showQualityRequirement = !_showQualityRequirement">
+                    @(_showQualityRequirement ? "收起" : "展开")
+                </MudButton>
+            </div>
+            @if (_showQualityRequirement)
+            {
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
                 <div style="min-width:300px; flex:1;"><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">固溶参数</MudText><MudText Typo="Typo.body2">@(batch.SolutionParams ?? "-")</MudText></div>
                 <div style="min-width:300px; flex:1;"><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">质量备注</MudText><MudText Typo="Typo.body2">@(batch.QualityRemark ?? "-")</MudText></div>
             </div>
+            }
         </MudPaper>
 
         <!-- ===== 区块五：仓库来源信息 ===== -->
         <MudPaper Class="detail-card-bg pa-4 mb-3" Elevation="0">
-            <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold mb-3">
-                <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-1" Size="Size.Small" />仓库来源信息
-            </MudText>
+            <div class="d-flex align-center mb-3">
+                <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-1" Size="Size.Small" />仓库来源信息
+                </MudText>
+                <MudSpacer />
+                <MudButton Variant="Variant.Text" Size="Size.Small"
+                           StartIcon="@(_showWarehouseInfo ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="() => _showWarehouseInfo = !_showWarehouseInfo">
+                    @(_showWarehouseInfo ? "收起" : "展开")
+                </MudButton>
+            </div>
+            @if (_showWarehouseInfo)
+            {
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来源库存批次</MudText><MudText Typo="Typo.body2">@(batch.SourceBatchNo ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来源工单号</MudText><MudText Typo="Typo.body2">@(batch.WorkOrderNo ?? "-")</MudText></div>
@@ -326,13 +347,24 @@
                     </MudTable>
                 </div>
             }
+            }
         </MudPaper>
 
         <!-- ===== 区块六：工单信息 ===== -->
         <MudPaper Class="detail-card-bg pa-4 mb-3" Elevation="0">
-            <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold mb-3">
-                <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-1" Size="Size.Small" />工单信息
-            </MudText>
+            <div class="d-flex align-center mb-3">
+                <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-1" Size="Size.Small" />工单信息
+                </MudText>
+                <MudSpacer />
+                <MudButton Variant="Variant.Text" Size="Size.Small"
+                           StartIcon="@(_showWorkOrderInfo ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="() => _showWorkOrderInfo = !_showWorkOrderInfo">
+                    @(_showWorkOrderInfo ? "收起" : "展开")
+                </MudButton>
+            </div>
+            @if (_showWorkOrderInfo)
+            {
             <!-- 第1组 -->
             <MudText Typo="Typo.caption" Class="detail-subsection font-weight-bold mb-2">基本信息</MudText>
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
@@ -361,6 +393,13 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">主号</MudText><MudText Typo="Typo.body2">@FmtStr(batch.ProductionMainNo)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">次号</MudText><MudText Typo="Typo.body2">@(batch.ProductionSubNo ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">项次ID</MudText><MudText Typo="Typo.body2">@FmtStr(batch.OrderItemIds)</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">总项次数</MudText><MudText Typo="Typo.body2">@batch.TotalItemCount</MudText></div>
+                <div style="flex:1; min-width:200px;">
+                    <MudText Typo="Typo.caption" Class="detail-label font-weight-bold">明细</MudText>
+                    <MudText Typo="Typo.body2" class="detail-text-ellipsis" title="@batch.ItemDetails">
+                        @(batch.ItemDetails ?? "-")
+                    </MudText>
+                </div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">签订日期</MudText><MudText Typo="Typo.body2">@FmtDate(batch.SignDate)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">业务员</MudText><MudText Typo="Typo.body2">@FmtStr(batch.Salesman)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">最终用户</MudText><MudText Typo="Typo.body2">@(batch.EndCustomer ?? "-")</MudText></div>
@@ -388,32 +427,27 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">总重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(batch.TotalWeight) kg</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">技术要求</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetTechnicalRequirementsText(batch.TechnicalRequirements))</MudText></div>
             </div>
-
-            <MudDivider Class="my-3" />
-            <!-- 第3组 -->
-            <MudText Typo="Typo.caption" Class="detail-subsection font-weight-bold mb-2">项次及明细</MudText>
-            <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">总项次数</MudText><MudText Typo="Typo.body2">@batch.TotalItemCount</MudText></div>
-                <div style="flex:1; min-width:200px;">
-                    <MudText Typo="Typo.caption" Class="detail-label font-weight-bold">明细</MudText>
-                    <MudText Typo="Typo.body2" class="detail-text-ellipsis" title="@batch.ItemDetails">
-                        @(batch.ItemDetails ?? "-")
-                    </MudText>
-                </div>
-            </div>
+            }
         </MudPaper>
 
         <!-- ===== 区块七：工序组列表 ===== -->
         <MudPaper Class="detail-card-bg pa-4 mb-3" Elevation="0">
-            <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold mb-3">
-                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-1" Size="Size.Small" />工序组
-            </MudText>
-            @if (batch.ProcessGroups.Count > 0)
+            <div class="d-flex align-center mb-3">
+                <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-1" Size="Size.Small" />工序组
+                </MudText>
+                <MudSpacer />
+                <MudButton Variant="Variant.Text" Size="Size.Small"
+                           StartIcon="@(_showProcessGroups ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="() => _showProcessGroups = !_showProcessGroups">
+                    @(_showProcessGroups ? "收起" : "展开")
+                </MudButton>
+            </div>
+            @if (_showProcessGroups && batch.ProcessGroups.Count > 0)
             {
                 <div class="detail-table-scroll">
                     <MudTable T="ProcessGroupDto" Items="batch.ProcessGroups" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
                         <HeaderContent>
-                            <MudTh>ID</MudTh>
                             <MudTh>序号</MudTh>
                             <MudTh>工序名称</MudTh>
                             <MudTh>制造规格</MudTh>
@@ -440,7 +474,6 @@
                             <MudTh>入库</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd><MudText Typo="Typo.body2" Class="text-muted">@context.Id</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@context.SequenceNumber</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2" Class="font-weight-bold">@context.ProcessName</MudText></MudTd>
                             <MudTd title="@context.ManufacturingSpec"><MudText Typo="Typo.body2">@(context.ManufacturingSpec ?? "-")</MudText></MudTd>
@@ -534,6 +567,12 @@
     private List<OperationLogDto> _operationLogs = new();
     private bool _operationLogsLoading;
     private bool _showOperationLog;
+
+    // 可折叠区块
+    private bool _showQualityRequirement = true;
+    private bool _showWarehouseInfo = true;
+    private bool _showWorkOrderInfo = true;
+    private bool _showProcessGroups = true;
 
     // 相邻批次导航
     private bool _hasPrev;

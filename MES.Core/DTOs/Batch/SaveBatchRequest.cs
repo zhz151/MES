@@ -150,4 +150,5 @@ public class SaveBatchRequest
     /// 来源批次列表（支持多库存批次合并投料，null=不更新）
     /// </summary>
     public List<SourceBatchItemRequest>? SourceItems { get; set; }
+
 }

@@ -63,6 +63,19 @@
         </MudAlert>
     }
 
+    <!-- 投料分配异常通知（重量校验+工单存活性） -->
+    @if (_pendingInMainWorkOrderPlans is { Count: > 0 })
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+            <div>
+                @foreach (var plan in _pendingInMainWorkOrderPlans)
+                {
+                    <div>批次 "@plan.BatchNo" @plan.Message</div>
+                }
+            </div>
+        </MudAlert>
+    }
+
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>

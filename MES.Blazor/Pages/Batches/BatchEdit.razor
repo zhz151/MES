@@ -435,6 +435,7 @@
         </MudCard>
 
 
+
         <!-- ==================== Block C/D: 基础信息（含质量要求） ==================== -->
         <MudCard Class="mb-4 compact-card">
             <MudCardHeader>
@@ -1778,10 +1779,15 @@
         var effectiveMfgItem = request.ManufacturingItem ?? originalBatch!.ManufacturingItem;
         var effectiveMfgStatus = request.ManufacturingStatus ?? originalBatch!.ManufacturingStatus;
         var effectiveDeliveryState = request.DeliveryState ?? originalBatch!.DeliveryState;
-        if (effectiveMfgItem == MaterialType.OrderFinished && effectiveMfgStatus != effectiveDeliveryState)
-            errors.Add("制造物品为「订单成品」时，制造状态必须等于交货状态");
-        if (effectiveMfgItem == MaterialType.SpecialDeliveryStatus && effectiveMfgStatus == effectiveDeliveryState)
-            errors.Add("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
+        if (effectiveMfgItem == MaterialType.SpecialDeliveryStatus)
+        {
+            if (effectiveMfgStatus == effectiveDeliveryState)
+                errors.Add("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
+        }
+        else if (effectiveMfgStatus != effectiveDeliveryState)
+        {
+            errors.Add("制造物品不为「订成-非交付态」时，制造状态必须等于交货状态");
+        }
 
         if (errors.Any())
         {

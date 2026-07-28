@@ -2118,6 +2118,22 @@ public class MaterialPlanService : IMaterialPlanService
             try
             {
                 await _context.SaveChangesAsync();
+
+                // 计算成品重量折扣系数
+                var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
+                var effectiveGroupCount = await _context.ProcessGroups
+                    .Where(pg => pg.ProductionBatchId == batch.Id)
+                    .CountAsync(pg => pg.ProcessName != ProcessNames.InProcessRepair
+                        && pg.ProcessName != ProcessNames.AdditionalFinalInspection);
+
+                var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
+                if (discount < 0) discount = 0;
+
+                var linkAllocatedQty = request.AllocatedQuantity;
+                var linkAllocatedWeight = request.AllocatedWeight;
+
+                await _context.SaveChangesAsync();
+
                 await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
                 await transaction.CommitAsync();
             }
@@ -2195,6 +2211,7 @@ public class MaterialPlanService : IMaterialPlanService
             throw new BusinessException("在产主工单计划不存在");
 
         var workOrderId = plan.WorkOrderId;
+
         _context.InMainWorkOrderPlans.Remove(plan);
         var transaction = await _context.Database.BeginTransactionAsync();
         using (transaction)
@@ -2390,20 +2407,23 @@ public class MaterialPlanService : IMaterialPlanService
 
     public async Task<List<PendingPlanBatchDto>> GetPendingInMainWorkOrderPlansAsync()
     {
-        return await _context.InMainWorkOrderPlans
+        var result = await _context.InMainWorkOrderPlans
             .AsNoTracking()
             .Where(p => p.PlanStatus == InventoryPlanStatus.Planned)
-            .Join(_context.WorkOrders.AsNoTracking(),
-                p => p.WorkOrderId,
-                wo => wo.Id,
-                (p, wo) => new PendingPlanBatchDto
+            .Join(_context.ProductionBatches.AsNoTracking(),
+                p => p.ProductionBatchId,
+                b => b.Id,
+                (p, b) => new PendingPlanBatchDto
                 {
-                    BatchNo = p.BatchNo,
-                    WorkOrderNo = wo.WorkOrderNo,
-                    PlanType = "在产主工单"
+                    BatchNo = b.BatchNo,
+                    WorkOrderNo = b.WorkOrderNo,
+                    PlanType = "InMainWorkOrderPlan",
+                    PlanId = p.Id,
+                    Message = $"在产主工单计划待处理"
                 })
-            .Distinct()
             .ToListAsync();
+
+        return result;
     }
 
     #endregion

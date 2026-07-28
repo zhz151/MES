@@ -516,10 +516,15 @@ public class BatchService : IBatchService
         }
 
         // ========== 制造状态与制造物品业务规则 ==========
-        if (request.ManufacturingItem == MaterialType.OrderFinished && request.ManufacturingStatus != request.DeliveryState)
-            throw new BusinessException("制造物品为「订单成品」时，制造状态必须等于交货状态");
-        if (request.ManufacturingItem == MaterialType.SpecialDeliveryStatus && request.ManufacturingStatus == request.DeliveryState)
-            throw new BusinessException("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
+        if (request.ManufacturingItem == MaterialType.SpecialDeliveryStatus)
+        {
+            if (request.ManufacturingStatus == request.DeliveryState)
+                throw new BusinessException("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
+        }
+        else if (request.ManufacturingStatus != request.DeliveryState)
+        {
+            throw new BusinessException("制造物品不为「订成-非交付态」时，制造状态必须等于交货状态");
+        }
 
         var entity = new ProductionBatch
         {
@@ -813,10 +818,15 @@ public class BatchService : IBatchService
         }
 
         // ========== 制造状态与制造物品业务规则 ==========
-        if (entity.ManufacturingItem == MaterialType.OrderFinished.ToString() && entity.ManufacturingStatus != entity.DeliveryState)
-            throw new BusinessException("制造物品为「订单成品」时，制造状态必须等于交货状态");
-        if (entity.ManufacturingItem == MaterialType.SpecialDeliveryStatus.ToString() && entity.ManufacturingStatus == entity.DeliveryState)
-            throw new BusinessException("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
+        if (entity.ManufacturingItem == MaterialType.SpecialDeliveryStatus.ToString())
+        {
+            if (entity.ManufacturingStatus == entity.DeliveryState)
+                throw new BusinessException("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
+        }
+        else if (entity.ManufacturingStatus != entity.DeliveryState)
+        {
+            throw new BusinessException("制造物品不为「订成-非交付态」时，制造状态必须等于交货状态");
+        }
 
         await _context.SaveChangesAsync();
 
@@ -1106,10 +1116,15 @@ public class BatchService : IBatchService
 
         // ========== 制造状态与制造物品业务规则 ==========
         var effectiveItemStr = request.ManufacturingItem?.ToString() ?? entity.ManufacturingItem;
-        if (effectiveItemStr == MaterialType.OrderFinished.ToString() && effectiveManufacturingStatus != effectiveDelivery)
-            throw new BusinessException("制造物品为「订单成品」时，制造状态必须等于交货状态");
-        if (effectiveItemStr == MaterialType.SpecialDeliveryStatus.ToString() && effectiveManufacturingStatus == effectiveDelivery)
-            throw new BusinessException("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
+        if (effectiveItemStr == MaterialType.SpecialDeliveryStatus.ToString())
+        {
+            if (effectiveManufacturingStatus == effectiveDelivery)
+                throw new BusinessException("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
+        }
+        else if (effectiveManufacturingStatus != effectiveDelivery)
+        {
+            throw new BusinessException("制造物品不为「订成-非交付态」时，制造状态必须等于交货状态");
+        }
 
         // 工单号验证：非空；NotWorkOrder跳过；其他值必须在工单表中存在
         if (request.WorkOrderNo != null)

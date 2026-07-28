@@ -138,4 +138,5 @@ public class UpdateProductionBatchRequest
     /// 来源批次列表（支持多库存批次合并投料）
     /// </summary>
     public List<SourceBatchItemRequest>? SourceItems { get; set; }
+
 }

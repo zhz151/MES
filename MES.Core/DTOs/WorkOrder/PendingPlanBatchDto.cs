@@ -21,4 +21,14 @@ public class PendingPlanBatchDto
     /// 计划类型：库存使用/库料改制
     /// </summary>
     public string PlanType { get; set; } = null!;
+
+    /// <summary>
+    /// 计划ID（用于dismiss操作）
+    /// </summary>
+    public int PlanId { get; set; }
+
+    /// <summary>
+    /// 异常描述信息
+    /// </summary>
+    public string? Message { get; set; }
 }

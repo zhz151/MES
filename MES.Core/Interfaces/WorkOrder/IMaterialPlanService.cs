@@ -254,7 +254,7 @@ public interface IMaterialPlanService
     Task<List<AvailableMainWorkOrderBatchDto>> GetAvailableMainWorkOrderBatchesAsync(int workOrderId, int? excludePlanBatchId = null);
 
     /// <summary>
-    /// 获取所有待处理（Planned状态）的在产主工单计划列表
+    /// 获取所有待处理（Active状态）的在产主工单计划列表
     /// </summary>
     Task<List<PendingPlanBatchDto>> GetPendingInMainWorkOrderPlansAsync();
 

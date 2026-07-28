@@ -616,6 +616,7 @@
         WorkOrderNo = "",
         ProductionType = ProductionType.RoughTube,
         ManufacturingItem = MaterialType.OrderFinished,
+        ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
         ProcessGroups = new List<CreateProcessGroupRequest>()
     };
     private bool _isSubmitting;
@@ -1591,10 +1592,15 @@
         }
 
         // ========== 制造状态与制造物品业务规则 ==========
-        if (request.ManufacturingItem == MaterialType.OrderFinished && request.ManufacturingStatus != request.DeliveryState)
-            errors.Add("制造物品为「订单成品」时，制造状态必须等于交货状态");
-        if (request.ManufacturingItem == MaterialType.SpecialDeliveryStatus && request.ManufacturingStatus == request.DeliveryState)
-            errors.Add("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
+        if (request.ManufacturingItem == MaterialType.SpecialDeliveryStatus)
+        {
+            if (request.ManufacturingStatus == request.DeliveryState)
+                errors.Add("制造物品为「订成-非交付态」时，制造状态不能等于交货状态");
+        }
+        else if (request.ManufacturingStatus != request.DeliveryState)
+        {
+            errors.Add("制造物品不为「订成-非交付态」时，制造状态必须等于交货状态");
+        }
 
         if (errors.Any())
         {
@@ -1647,6 +1653,7 @@
             WorkOrderNo = "",
             ProductionType = ProductionType.RoughTube,
             ManufacturingItem = MaterialType.OrderFinished,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             ProcessGroups = new List<CreateProcessGroupRequest>()
         };
         _selectedSources.Clear();
