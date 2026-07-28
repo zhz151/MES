@@ -44,13 +44,13 @@
             </MudCardHeader>
         </MudCard>
 
-        <!-- ==================== Block A: 仓库信息 ==================== -->
+        <!-- ==================== Block A: 投料信息 ==================== -->
         <MudCard Class="mb-4 compact-card">
             <MudCardHeader>
                 <CardHeaderContent>
                     <div class="d-flex align-center">
                         <MudIcon Icon="@Icons.Material.Filled.Warehouse" Class="mr-1" Color="Color.Primary" />
-                        <MudText Typo="Typo.h6" Class="font-weight-bold">仓库信息</MudText>
+                        <MudText Typo="Typo.h6" Class="font-weight-bold">投料信息</MudText>
                     </div>
                 </CardHeaderContent>
                 <CardHeaderActions>
@@ -212,6 +212,20 @@
                         来源库存批次：<strong>@originalBatch.SourceBatchNo</strong>
                         （原单源批次，可在可用批次中添加更多来源）
                     </MudText>
+                }
+                else if (_selectedSources.Count == 0 && originalBatch?.SourceMaterialType != null)
+                {
+                    <div class="d-flex flex-wrap" style="gap:0.6rem 2rem;">
+                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料类型</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialTypeText(originalBatch.SourceMaterialType)</MudText></div>
+                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来料单位</MudText><MudText Typo="Typo.body2">@(originalBatch.SourceName ?? "-")</MudText></div>
+                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">炉号</MudText><MudText Typo="Typo.body2">@(originalBatch.SourceHeatNo ?? "-")</MudText></div>
+                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工厂牌号</MudText><MudText Typo="Typo.body2">@(originalBatch.SourcePlantGrade ?? "-")</MudText></div>
+                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">规格</MudText><MudText Typo="Typo.body2">@(originalBatch.SourceSpecification ?? "-")</MudText></div>
+                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(originalBatch.SourceLengthStatus)</MudText></div>
+                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料支数</MudText><MudText Typo="Typo.body2">@(originalBatch.InputQuantity?.ToString() ?? "-") 支</MudText></div>
+                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(originalBatch.InputWeight) kg</MudText></div>
+                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料备注</MudText><MudText Typo="Typo.body2">@(originalBatch.SourceRemark ?? "-")</MudText></div>
+                    </div>
                 }
                 else if (_selectedSources.Count == 0)
                 {
@@ -967,7 +981,7 @@
         request.SolutionParams = originalBatch.SolutionParams;
         request.QualityRemark = originalBatch.QualityRemark;
 
-        // 仓库来源
+        // 投料信息
         request.SourceBatchNo = originalBatch.SourceBatchNo;
         request.SourceMaterialType = originalBatch.SourceMaterialType;
         request.SourceName = originalBatch.SourceName;
@@ -978,6 +992,7 @@
         request.SourceUnitWeight = originalBatch.SourceUnitWeight;
         request.InputQuantity = originalBatch.InputQuantity;
         request.InputWeight = originalBatch.InputWeight;
+        request.SourceRemark = originalBatch.SourceRemark;
         editInboundSource = originalBatch.InboundSource;
         request.InboundSource = originalBatch.InboundSource;
         editInboundDateStr = originalBatch.InboundDate?.ToString("yyyy-MM-dd");
@@ -1738,9 +1753,9 @@
         if (effectiveProductionRatio <= 0)
             errors.Add("制成倍数必须大于0");
         if (string.IsNullOrWhiteSpace(effectiveSourceGrade))
-            errors.Add("仓库工厂牌号不能为空");
+            errors.Add("投料信息：工厂牌号不能为空");
         if (string.IsNullOrWhiteSpace(effectiveSourceSpec))
-            errors.Add("仓库规格不能为空");
+            errors.Add("投料信息：规格不能为空");
         if (effectiveInputWeight == null || effectiveInputWeight <= 0)
             errors.Add("领料重量必须大于0");
         if (effectiveInputQuantity == null || effectiveInputQuantity <= 0)
@@ -1821,6 +1836,7 @@
                 SourceUnitWeight = request.SourceUnitWeight,
                 InputQuantity = request.InputQuantity,
                 InputWeight = request.InputWeight,
+                SourceRemark = request.SourceRemark,
                 CurrentValidQty = request.CurrentValidQty,
                 CurrentValidWeight = request.CurrentValidWeight,
                 ProductionRatio = request.ProductionRatio,

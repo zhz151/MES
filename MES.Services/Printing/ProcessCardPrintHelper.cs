@@ -36,7 +36,7 @@ namespace MES.Services.Printing;
 /// A4 横向，表格行布局：
 /// - 批次基本信息 → 多列1行
 /// - 质量要求 → 多列1行
-/// - 仓库来源信息 → 多列1行
+/// - 投料信息 → 多列1行
 /// - 工单信息 → 多列2行
 /// - 工序组 → 动态列表格
 /// 列宽根据内容自动调整（AutoColumn）
@@ -121,12 +121,12 @@ public static class ProcessCardPrintHelper
                 anyBlockRendered = true;
             }
 
-            // Block 3: 仓库来源信息（多列1行）
+            // Block 3: 投料信息（多列1行）
             var warehouseFields = GetWarehouseFields(batch, visibleCols);
             if (warehouseFields.Count > 0)
             {
                 if (anyBlockRendered) col.Item().PaddingTop(2);
-                col.Item().Element(c => ComposeBlockTable(c, "仓库来源信息", warehouseFields, rows: 1,
+                col.Item().Element(c => ComposeBlockTable(c, "投料信息", warehouseFields, rows: 1,
                     rowColRatios: new[] { new[] { 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } }));
                 anyBlockRendered = true;
             }
