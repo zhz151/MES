@@ -44,7 +44,7 @@
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudSwitch @bind-Value="_noSourceMode" Color="Color.Warning" Dense="true"
-                           Label="无来源模式" Class="mr-2" />
+                           Label="非仓库模式" Class="mr-2" />
                 <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info"
                            StartIcon="@(showAvailablePanel ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
                            OnClick="ToggleAvailablePanel"
@@ -56,50 +56,65 @@
         <MudCardContent>
             @if (_noSourceMode)
             {
-                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-2">
-                    非仓库模式：无需选择库存批次，请手动填写原料信息
-                </MudAlert>
-                <MudGrid>
-                    <MudItem xs="12" md="3">
-                        <MudSelect T="MaterialType?" @bind-Value="request.SourceMaterialType" Label="原料类型" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
-                            <MudSelectItem Value="@((MaterialType?)null)">请选择</MudSelectItem>
-                            @foreach (var val in Enum.GetValues<MaterialType>())
-                            {
-                                <MudSelectItem Value="@((MaterialType?)val)">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
-                    <MudItem xs="12" md="3">
-                        <MudTextField T="string" @bind-Value="request.SourceName" Label="来料单位" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
-                    </MudItem>
-                    <MudItem xs="12" md="2">
-                        <MudTextField T="string" @bind-Value="request.SourceHeatNo" Label="炉号" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
-                    </MudItem>
-                    <MudItem xs="12" md="2">
-                        <MudTextField T="string" @bind-Value="request.SourcePlantGrade" Label="工厂牌号" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
-                    </MudItem>
-                    <MudItem xs="12" md="2">
-                        <MudTextField T="string" @bind-Value="request.SourceSpecification" Label="规格" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
-                    </MudItem>
-                    <MudItem xs="12" md="2">
-                        <MudSelect T="LengthStatus?" @bind-Value="request.SourceLengthStatus" Label="长度状态" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
-                            <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
-                            @foreach (var val in Enum.GetValues<LengthStatus>())
-                            {
-                                <MudSelectItem Value="@((LengthStatus?)val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
-                    <MudItem xs="12" md="2">
-                        <MudNumericField T="int?" @bind-Value="request.InputQuantity" Label="领料支数" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" />
-                    </MudItem>
-                    <MudItem xs="12" md="2">
-                        <MudNumericField T="decimal?" @bind-Value="request.InputWeight" Label="领料重量(kg)" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" Min="0" />
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudTextField T="string" @bind-Value="request.SourceRemark" Label="原料备注（必填）" Required="true" RequiredError="原料备注不能为空" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
-                    </MudItem>
-                </MudGrid>
+                <div class="d-flex align-center mb-2">
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="flex-grow-1 mr-2">
+                        非仓库模式：无需选择库存批次，请手动填写原料信息
+                    </MudAlert>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Add" OnClick="AddNoSourceRow">
+                        新增行
+                    </MudButton>
+                </div>
+                <div style="overflow-x:auto;">
+                    <MudTable T="NoSourceItem" Items="@_noSourceItems" Dense="true" Hover="true" Elevation="0" Class="auto-table compact-table">
+                        <HeaderContent>
+                            <MudTh Style="width:100px;">原料类型<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width:120px;">来料单位</MudTh>
+                            <MudTh Style="width:100px;">炉号</MudTh>
+                            <MudTh Style="width:120px;">工厂牌号</MudTh>
+                            <MudTh Style="width:120px;">规格</MudTh>
+                            <MudTh Style="width:100px;">长度状态</MudTh>
+                            <MudTh Style="width:90px;">领料支数<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width:110px;">领料重量(kg)<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width:160px;">原料备注<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width:50px;">操作</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="item">
+                            <MudTd>
+                                <MudSelect T="MaterialType?" @bind-Value="item.SourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                    <MudSelectItem Value="@((MaterialType?)null)">请选择</MudSelectItem>
+                                    @foreach (var val in Enum.GetValues<MaterialType>())
+                                    {
+                                        <MudSelectItem Value="@((MaterialType?)val)">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="item.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="item.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="item.SourcePlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="item.SourceSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></MudTd>
+                            <MudTd>
+                                <MudSelect T="LengthStatus?" @bind-Value="item.SourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                    <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
+                                    @foreach (var val in Enum.GetValues<LengthStatus>())
+                                    {
+                                        <MudSelectItem Value="@((LengthStatus?)val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+                            <MudTd><MudNumericField T="int" @bind-Value="item.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" /></MudTd>
+                            <MudTd><MudNumericField T="decimal" @bind-Value="item.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" Min="0" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="item.SourceRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></MudTd>
+                            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="@(() => RemoveNoSourceRow(item))" /></MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                    <div class="d-flex justify-end mt-2" Style="gap:16px;">
+                        <MudText Typo="Typo.body2">
+                            合计：领料支数 <strong>@_noSourceTotalQty</strong>，
+                            领料重量 <strong>@_noSourceTotalWeight.ToString("G29")</strong> kg
+                        </MudText>
+                    </div>
+                </div>
             }
             else
             {
@@ -769,6 +784,37 @@
 
     private List<SelectedSourceItem> _selectedSources = new();
     private bool _noSourceMode;
+
+    // ========== 非仓库模式 - 投料明细列表 ==========
+
+    private class NoSourceItem
+    {
+        public MaterialType? SourceMaterialType { get; set; }
+        public string? SourceName { get; set; }
+        public string? SourceHeatNo { get; set; }
+        public string? SourcePlantGrade { get; set; }
+        public string? SourceSpecification { get; set; }
+        public LengthStatus? SourceLengthStatus { get; set; }
+        public int InputQuantity { get; set; }
+        public decimal InputWeight { get; set; }
+        public string? SourceRemark { get; set; }
+    }
+
+    private List<NoSourceItem> _noSourceItems = new() { new NoSourceItem() };
+
+    private int _noSourceTotalQty => _noSourceItems.Sum(s => s.InputQuantity);
+    private decimal _noSourceTotalWeight => _noSourceItems.Sum(s => s.InputWeight);
+
+    private void AddNoSourceRow()
+    {
+        _noSourceItems.Add(new NoSourceItem());
+    }
+
+    private void RemoveNoSourceRow(NoSourceItem item)
+    {
+        if (_noSourceItems.Count <= 1) return;
+        _noSourceItems.Remove(item);
+    }
 
     private int _totalInputQty => _selectedSources.Sum(s => s.InputQuantity);
     private decimal _totalInputWeight => _selectedSources.Sum(s => s.InputWeight);
@@ -1613,9 +1659,22 @@
                 errors.Add("领料支数必须大于0");
         }
 
-        // 非仓库模式：原料备注必填
-        if (_noSourceMode && string.IsNullOrWhiteSpace(request.SourceRemark))
-            errors.Add("原料备注不能为空");
+        // 非仓库模式：逐行验证
+        if (_noSourceMode)
+        {
+            for (int i = 0; i < _noSourceItems.Count; i++)
+            {
+                var item = _noSourceItems[i];
+                if (item.SourceMaterialType == null)
+                    errors.Add($"非仓库模式第{i + 1}行：原料类型不能为空");
+                if (item.InputQuantity <= 0)
+                    errors.Add($"非仓库模式第{i + 1}行：领料支数必须大于0");
+                if (item.InputWeight <= 0)
+                    errors.Add($"非仓库模式第{i + 1}行：领料重量必须大于0");
+                if (string.IsNullOrWhiteSpace(item.SourceRemark))
+                    errors.Add($"非仓库模式第{i + 1}行：原料备注不能为空");
+            }
+        }
 
         // ========== 有工单路径额外验证 ==========
         if (request.WorkOrderNo != "非工单")
@@ -1667,7 +1726,7 @@
             return;
         }
 
-        // 填充合并投料来源（无来源模式跳过）
+        // 填充合并投料来源（仓库模式用）
         if (!_noSourceMode)
         {
             request.SourceItems = _selectedSources.Select(s => new SourceBatchItemRequest
@@ -1677,6 +1736,20 @@
                 InputQuantity = s.InputQuantity,
                 InputWeight = s.InputWeight
             }).ToList();
+        }
+        else if (_noSourceItems.Count > 0)
+        {
+            // 非仓库模式：从表格首行填充投料字段
+            var first = _noSourceItems[0];
+            request.SourceMaterialType = first.SourceMaterialType;
+            request.SourceName = first.SourceName;
+            request.SourceHeatNo = first.SourceHeatNo;
+            request.SourcePlantGrade = first.SourcePlantGrade;
+            request.SourceSpecification = first.SourceSpecification;
+            request.SourceLengthStatus = first.SourceLengthStatus;
+            request.InputQuantity = first.InputQuantity;
+            request.InputWeight = first.InputWeight;
+            request.SourceRemark = first.SourceRemark;
         }
 
         _isSubmitting = true;
@@ -1719,6 +1792,7 @@
             ProcessGroups = new List<CreateProcessGroupRequest>()
         };
         _selectedSources.Clear();
+        _noSourceItems = new() { new NoSourceItem() };
         _noSourceMode = false;
         ClearRequestSourceFields();
         batchNoDisplay = "加载中...";
