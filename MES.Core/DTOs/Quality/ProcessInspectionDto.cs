@@ -38,6 +38,9 @@ public class ProcessInspectionDto
     public int? DefectReworkQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }
+    public int? TheoreticalReworkWeight { get; set; }
+    public int? TheoreticalWarehouseWeight { get; set; }
+    public int? TheoreticalScrapWeight { get; set; }
     public string? DefectDescription { get; set; }
     public string? SourceUnit { get; set; }
     public string? TagNo { get; set; }
@@ -125,6 +128,10 @@ public class CreateProcessInspectionRequest
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }
 
+    public int? TheoreticalReworkWeight { get; set; }
+    public int? TheoreticalWarehouseWeight { get; set; }
+    public int? TheoreticalScrapWeight { get; set; }
+
     [MaxLength(500)]
     public string? DefectDescription { get; set; }
 
@@ -177,6 +184,10 @@ public class UpdateProcessInspectionRequest
     public int? DefectReworkQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }
+
+    public int? TheoreticalReworkWeight { get; set; }
+    public int? TheoreticalWarehouseWeight { get; set; }
+    public int? TheoreticalScrapWeight { get; set; }
 
     [MaxLength(500)]
     public string? DefectDescription { get; set; }

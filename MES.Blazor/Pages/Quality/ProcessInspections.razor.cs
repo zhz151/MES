@@ -60,7 +60,8 @@ public partial class ProcessInspections
     {
         "Quantity", "Weight", "QualifiedQuantity", "QualifiedWeight",
         "QualifiedConcessionQuantity", "DefectReworkQuantity",
-        "DefectWarehouseQuantity", "DefectScrapQuantity"
+        "DefectWarehouseQuantity", "DefectScrapQuantity",
+        "TheoreticalReworkWeight", "TheoreticalWarehouseWeight", "TheoreticalScrapWeight"
     };
 
     // ========== ExcelFilter 筛选 ==========
@@ -123,6 +124,12 @@ public partial class ProcessInspections
         new() { Key = "DefectWarehouseQuantity", Label = "次品入库支",   SortKey = "defectwarehousequantity", Width = "80",
             GroupKey = 4, GroupName = "G4 不合格处理" },
         new() { Key = "DefectScrapQuantity",   Label = "次品报废支",   SortKey = "defectscrapquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "TheoreticalReworkWeight", Label = "理论返整重", SortKey = "theoreticalreworkweight", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "TheoreticalWarehouseWeight", Label = "理论入库重", SortKey = "theoreticalwarehouseweight", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "TheoreticalScrapWeight", Label = "理论报废重", SortKey = "theoreticalscrapweight", Width = "80",
             GroupKey = 4, GroupName = "G4 不合格处理" },
         new() { Key = "DefectDescription",     Label = "次品情况描述", SortKey = "defectdescription", FilterType = "string", Width = "120",
             GroupKey = 4, GroupName = "G4 不合格处理" },
@@ -464,6 +471,9 @@ public partial class ProcessInspections
         public int? DefectReworkQuantity { get; set; }
         public int? DefectWarehouseQuantity { get; set; }
         public int? DefectScrapQuantity { get; set; }
+        public int? TheoreticalReworkWeight { get; set; }
+        public int? TheoreticalWarehouseWeight { get; set; }
+        public int? TheoreticalScrapWeight { get; set; }
         public string? DefectDescription { get; set; }
         public string? SourceUnit { get; set; }
         public string? TagNo { get; set; }
@@ -490,6 +500,9 @@ public partial class ProcessInspections
             DefectReworkQuantity = item.DefectReworkQuantity,
             DefectWarehouseQuantity = item.DefectWarehouseQuantity,
             DefectScrapQuantity = item.DefectScrapQuantity,
+            TheoreticalReworkWeight = item.TheoreticalReworkWeight,
+            TheoreticalWarehouseWeight = item.TheoreticalWarehouseWeight,
+            TheoreticalScrapWeight = item.TheoreticalScrapWeight,
             DefectDescription = item.DefectDescription,
             SourceUnit = item.SourceUnit,
             TagNo = item.TagNo,
@@ -871,6 +884,15 @@ public partial class ProcessInspections
                 {
                     builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectScrapQuantity));
                 }
+                break;
+            case "TheoreticalReworkWeight":
+                builder.AddContent(0, DisplayHelper.FormatNullableInt(item.TheoreticalReworkWeight));
+                break;
+            case "TheoreticalWarehouseWeight":
+                builder.AddContent(0, DisplayHelper.FormatNullableInt(item.TheoreticalWarehouseWeight));
+                break;
+            case "TheoreticalScrapWeight":
+                builder.AddContent(0, DisplayHelper.FormatNullableInt(item.TheoreticalScrapWeight));
                 break;
             case "DefectDescription":
                 if (isEditing && cache != null)

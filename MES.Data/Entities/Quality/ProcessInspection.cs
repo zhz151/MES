@@ -115,6 +115,23 @@ public class ProcessInspection : BaseEntity
     /// </summary>
     public int? DefectScrapQuantity { get; set; }
 
+    // ========== 理论重量（自动计算） ==========
+
+    /// <summary>
+    /// 理论返整重(kg) = 检验重量/检验支数 × 返整支数，四舍五入取整
+    /// </summary>
+    public int? TheoreticalReworkWeight { get; set; }
+
+    /// <summary>
+    /// 理论入库重(kg) = 检验重量/检验支数 × 入库支数，四舍五入取整
+    /// </summary>
+    public int? TheoreticalWarehouseWeight { get; set; }
+
+    /// <summary>
+    /// 理论报废重(kg) = 检验重量/检验支数 × 报废支数，四舍五入取整
+    /// </summary>
+    public int? TheoreticalScrapWeight { get; set; }
+
     /// <summary>
     /// 不合格情况描述
     /// </summary>

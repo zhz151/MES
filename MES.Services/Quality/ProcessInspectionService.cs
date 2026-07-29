@@ -157,6 +157,9 @@ public class ProcessInspectionService : IProcessInspectionService
                 DefectReworkQuantity = r.DefectReworkQuantity,
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,
+                TheoreticalReworkWeight = r.TheoreticalReworkWeight,
+                TheoreticalWarehouseWeight = r.TheoreticalWarehouseWeight,
+                TheoreticalScrapWeight = r.TheoreticalScrapWeight,
                 DefectDescription = r.DefectDescription,
                 SourceUnit = r.SourceUnit,
                 TagNo = r.TagNo,
@@ -207,6 +210,9 @@ public class ProcessInspectionService : IProcessInspectionService
                 DefectReworkQuantity = pi.DefectReworkQuantity,
                 DefectWarehouseQuantity = pi.DefectWarehouseQuantity,
                 DefectScrapQuantity = pi.DefectScrapQuantity,
+                TheoreticalReworkWeight = pi.TheoreticalReworkWeight,
+                TheoreticalWarehouseWeight = pi.TheoreticalWarehouseWeight,
+                TheoreticalScrapWeight = pi.TheoreticalScrapWeight,
                 DefectDescription = pi.DefectDescription,
                 SourceUnit = pi.SourceUnit,
                 TagNo = pi.TagNo,
@@ -451,6 +457,9 @@ public class ProcessInspectionService : IProcessInspectionService
                 DefectReworkQuantity = request.DefectReworkQuantity,
                 DefectWarehouseQuantity = request.DefectWarehouseQuantity,
                 DefectScrapQuantity = request.DefectScrapQuantity,
+                TheoreticalReworkWeight = ComputeTheoreticalWeight(request.Weight, request.Quantity, request.DefectReworkQuantity),
+                TheoreticalWarehouseWeight = ComputeTheoreticalWeight(request.Weight, request.Quantity, request.DefectWarehouseQuantity),
+                TheoreticalScrapWeight = ComputeTheoreticalWeight(request.Weight, request.Quantity, request.DefectScrapQuantity),
                 DefectDescription = request.DefectDescription,
                 SourceUnit = request.SourceUnit,
                 TagNo = request.TagNo,
@@ -500,6 +509,9 @@ public class ProcessInspectionService : IProcessInspectionService
             DefectReworkQuantity = e.DefectReworkQuantity,
             DefectWarehouseQuantity = e.DefectWarehouseQuantity,
             DefectScrapQuantity = e.DefectScrapQuantity,
+            TheoreticalReworkWeight = e.TheoreticalReworkWeight,
+            TheoreticalWarehouseWeight = e.TheoreticalWarehouseWeight,
+            TheoreticalScrapWeight = e.TheoreticalScrapWeight,
             DefectDescription = e.DefectDescription,
             SourceUnit = e.SourceUnit,
             TagNo = e.TagNo,
@@ -556,6 +568,14 @@ public class ProcessInspectionService : IProcessInspectionService
         entity.DefectReworkQuantity = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
         entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
         entity.DefectScrapQuantity = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
+
+        // 自动计算理论重量
+        var effectiveQty = request.Quantity ?? entity.Quantity;
+        var effectiveWeight = request.Weight ?? entity.Weight;
+        entity.TheoreticalReworkWeight = ComputeTheoreticalWeight(effectiveWeight, effectiveQty, request.DefectReworkQuantity ?? entity.DefectReworkQuantity);
+        entity.TheoreticalWarehouseWeight = ComputeTheoreticalWeight(effectiveWeight, effectiveQty, request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity);
+        entity.TheoreticalScrapWeight = ComputeTheoreticalWeight(effectiveWeight, effectiveQty, request.DefectScrapQuantity ?? entity.DefectScrapQuantity);
+
         entity.DefectDescription = request.DefectDescription ?? entity.DefectDescription;
         entity.SourceUnit = request.SourceUnit ?? entity.SourceUnit;
         entity.TagNo = request.TagNo ?? entity.TagNo;
@@ -590,6 +610,9 @@ public class ProcessInspectionService : IProcessInspectionService
             DefectReworkQuantity = entity.DefectReworkQuantity,
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
+            TheoreticalReworkWeight = entity.TheoreticalReworkWeight,
+            TheoreticalWarehouseWeight = entity.TheoreticalWarehouseWeight,
+            TheoreticalScrapWeight = entity.TheoreticalScrapWeight,
             DefectDescription = entity.DefectDescription,
             SourceUnit = entity.SourceUnit,
             TagNo = entity.TagNo,
@@ -636,6 +659,14 @@ public class ProcessInspectionService : IProcessInspectionService
         };
         var result = await GetAllAsync(query);
         return ProcessInspectionPrintHelper.GenerateBatchPdf(result.Items, columns);
+    }
+
+    private static int? ComputeTheoreticalWeight(decimal? weight, int? quantity, int? defectQuantity)
+    {
+        if (!weight.HasValue || !quantity.HasValue || quantity.Value <= 0
+            || !defectQuantity.HasValue || defectQuantity.Value <= 0)
+            return null;
+        return (int?)(weight.Value / quantity.Value * defectQuantity.Value);
     }
 
     private static IQueryable<ProcessInspection> ApplySorting(IQueryable<ProcessInspection> queryable, string sortBy, bool isDescending)
