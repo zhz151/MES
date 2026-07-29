@@ -146,6 +146,8 @@
 │  列表页: Batches, ProductionRecords, SectionOutsources,     │
 │          OutsourceRecoveries, PicklingInRecords,            │
 │          PicklingOutRecords                                 │
+│  ※ Batches.razor 实现了通知轮询（StartNotificationPollingAsync），│
+│    每30秒检查工单变更通知                                    │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -516,7 +518,7 @@
 
 ## 4. 代码分离状态
 
-所有 `*.razor.cs` code-behind 文件为 **新建未提交**（untracked），说明列表页从单体 `.razor` 向分离模式迁移正在进行中。
+所有 `*.razor.cs` code-behind 文件为 **已提交**（committed），列表页从单体 `.razor` 向分离模式迁移已完成。
 
 ---
 
@@ -555,4 +557,4 @@
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
 >
-> **最后更新：2026-07-15（V17）** — 新增质量证明书模块(3页) + 理化检测创建页(8页) + 待发货项列表页 + 生产标准创建页(2页)；生产标准全列筛选支持
+> **最后更新：2026-07-17（V18）** — 新增质量证明书模块(3页) + 理化检测创建页(8页) + 待发货项列表页 + 生产标准创建页(2页)；生产标准全列筛选支持；code-behind 分离迁移状态更新
