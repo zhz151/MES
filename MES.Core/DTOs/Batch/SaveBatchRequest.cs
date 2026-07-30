@@ -61,7 +61,7 @@ public class SaveBatchRequest
 
     public int? CurrentValidQty { get; set; }
 
-    public decimal? CurrentValidWeight { get; set; }
+    public int? CurrentValidWeight { get; set; }
 
     public bool? IsForceCompleted { get; set; }
 

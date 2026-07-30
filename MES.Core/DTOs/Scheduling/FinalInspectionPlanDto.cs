@@ -14,7 +14,7 @@ public class FinalInspectionPlanDto
     public string? BatchNo { get; set; }              // 生产编号
     public string? TagNo { get; set; }                 // 挂牌号
     public string? PlantGrade { get; set; }            // 原料钢号
-    public decimal? CurrentValidWeight { get; set; }   // 重量(kg)
+    public int? CurrentValidWeight { get; set; }   // 重量(kg)
 
     // ========== G2 关联工单 ==========
     public string? WorkOrderNo { get; set; }           // 工单号

@@ -77,7 +77,7 @@ public class AvailableInProcessBatchDto
     /// <summary>现有效原料支数</summary>
     public int? CurrentValidQty { get; set; }
     /// <summary>现有效原料重量(kg)</summary>
-    public decimal? CurrentValidWeight { get; set; }
+    public int? CurrentValidWeight { get; set; }
     /// <summary>来源库存批次号</summary>
     public string? SourceBatchNo { get; set; }
     /// <summary>原料类型</summary>

@@ -16,7 +16,7 @@ public class BatchPlanDto
     public string BatchNo { get; set; } = string.Empty;
     public string? TagNo { get; set; }
     public string PlantGrade { get; set; } = string.Empty;
-    public decimal? CurrentValidWeight { get; set; }
+    public int? CurrentValidWeight { get; set; }
 
     // ===== G2：关联工单信息 =====
     public string WorkOrderNo { get; set; } = string.Empty;

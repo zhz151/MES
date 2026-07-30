@@ -18,7 +18,7 @@ public class ColdRollPlanServiceTests : TestBase
 
     private ProductionBatch CreateBatch(AppDbContext ctx, string batchNo, string workOrderNo,
         string processName, int seqNumber, bool isFinished,
-        decimal weight = 1000m,
+        int weight = 1000,
         string? currentGroupName = null,
         string? currentSectionName = null,
         bool? currentSectionCompleted = null,
@@ -111,7 +111,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false,
-            currentGroupName: null, currentSectionName: null, weight: 2000m);
+            currentGroupName: null, currentSectionName: null, weight: 2000);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
@@ -157,7 +157,7 @@ public class ColdRollPlanServiceTests : TestBase
             TotalWeight = 1000m,
             TotalItemCount = 1,
             TechnicalRequirements = "NORMAL",
-            CurrentValidWeight = 1000m,
+            CurrentValidWeight = 1000,
             RowVersion = new byte[8],
             ProcessGroups = new List<ProcessGroup>
             {
@@ -183,7 +183,7 @@ public class ColdRollPlanServiceTests : TestBase
             currentGroupName: "60冷轧",
             currentSectionName: "冷轧拔",
             currentSectionCompleted: false,
-            weight: 3000m);
+            weight: 3000);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
@@ -198,8 +198,8 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetPlanAsync_工段筛选()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false, weight: 1000m);
-        CreateBatch(ctx, "B002", "WO002", "50冷轧", 1, isFinished: false, weight: 2000m);
+        CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false, weight: 1000);
+        CreateBatch(ctx, "B002", "WO002", "50冷轧", 1, isFinished: false, weight: 2000);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
@@ -238,7 +238,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false,
-            currentGroupName: null, currentSectionName: null, weight: 2000m);
+            currentGroupName: null, currentSectionName: null, weight: 2000);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: "A急",
             productionFlowProperty: "正常", mainNoAttentionProcess: "60冷轧");
         await ctx.SaveChangesAsync();

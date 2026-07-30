@@ -23,7 +23,7 @@ public class BatchPlanServiceTests : TestBase
         string? currentGroupName = null, string? currentSectionName = null,
         bool? currentSectionCompleted = null,
         string? nextProcess = null, string? nextSectionName = null,
-        decimal currentValidWeight = 1000m)
+        int currentValidWeight = 1000)
     {
         var batch = new ProductionBatch
         {
@@ -241,8 +241,8 @@ public class BatchPlanServiceTests : TestBase
     public async Task GetPagedAsync_Extras包含汇总数据()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", currentValidWeight: 500m);
-        CreateBatch(ctx, "B002", "WO002", currentValidWeight: 1500m);
+        CreateBatch(ctx, "B001", "WO001", currentValidWeight: 500);
+        CreateBatch(ctx, "B002", "WO002", currentValidWeight: 1500);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);

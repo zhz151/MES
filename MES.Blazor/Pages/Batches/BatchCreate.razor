@@ -565,7 +565,7 @@
                             </td>
                             <td><MudNumericField T="int" @bind-Value="request.ProductionRatio" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" /></td>
                             <td><MudNumericField T="int?" @bind-Value="request.CurrentValidQty" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td>
-                            <td><MudNumericField T="decimal?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td>
+                            <td><MudNumericField T="int?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td>
                             <td><MudTextField T="string" @bind-Value="request.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
                             <td><MudTextField T="string" @bind-Value="request.SolutionParams" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
                             <td><MudTextField T="string" @bind-Value="request.QualityRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
@@ -1113,7 +1113,7 @@
 
     private void SyncValidWeightFromInput()
     {
-        request.CurrentValidWeight = request.InputWeight;
+        request.CurrentValidWeight = (int?)request.InputWeight;
     }
 
     private async Task FillFromAvailableBatch(AvailableBatchDto batch)
@@ -1129,7 +1129,7 @@
         request.InputQuantity = batch.OutboundQuantity;
         request.InputWeight = batch.OutboundWeight;
         request.CurrentValidQty = batch.OutboundQuantity;
-        request.CurrentValidWeight = batch.OutboundWeight;
+        request.CurrentValidWeight = (int?)batch.OutboundWeight;
         warehouseName = batch.WarehouseName;
         sourceWorkOrderNo = batch.WorkOrderNo;
 
@@ -1739,7 +1739,7 @@
             request.SourceRemark = _noSourceRemark;
             // 默认有效值等于领料值
             request.CurrentValidQty = _noSourceInputQty;
-            request.CurrentValidWeight = _noSourceInputWeight;
+            request.CurrentValidWeight = (int)_noSourceInputWeight;
         }
 
         // ========== 理论单支重验证（警告，可继续保存） ==========

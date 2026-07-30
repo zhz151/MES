@@ -87,7 +87,7 @@ public class ProductionBatchDetailDto
     public string? SourceRemark { get; set; }
     public string? SourceProductionNo { get; set; }
     public int? CurrentValidQty { get; set; }
-    public decimal? CurrentValidWeight { get; set; }
+    public int? CurrentValidWeight { get; set; }
     public decimal? TheoreticalUnitWeight { get; set; }
 
     // ========== 审计字段 ==========

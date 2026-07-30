@@ -366,9 +366,9 @@ public class ProductionBatch : BaseEntity
     public int? CurrentValidQty { get; set; }
 
     /// <summary>
-    /// 现有效原料重量
+    /// 现有效原料重量(kg，整数值)
     /// </summary>
-    public decimal? CurrentValidWeight { get; set; }
+    public int? CurrentValidWeight { get; set; }
 
     /// <summary>
     /// 理论成品支 = CurrentValidQty × ProductionRatio（整数值）

@@ -36,7 +36,7 @@ public class ProductionBatchListDto
     public int RemainingWorkDays { get; set; }
     public int TotalWorkDays { get; set; }
     public int? CurrentValidQty { get; set; }
-    public decimal? CurrentValidWeight { get; set; }
+    public int? CurrentValidWeight { get; set; }
     public string CreatedBy { get; set; } = null!;
 
     // ========== 工单冗余字段 ==========

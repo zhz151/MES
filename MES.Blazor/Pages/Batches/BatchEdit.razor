@@ -508,7 +508,7 @@
                                 </td>
                                 <td><MudNumericField T="int?" @bind-Value="request.ProductionRatio" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" /></td>
                                 <td><MudNumericField T="int?" @bind-Value="request.CurrentValidQty" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" @bind-Value:after="RecalcValidWeightOnQtyChange" /></td>
-                                <td><MudNumericField T="decimal?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td>
+                                <td><MudNumericField T="int?" @bind-Value="request.CurrentValidWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td>
                                 <td><MudTextField T="string" @bind-Value="request.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
                                 <td><MudTextField T="string" @bind-Value="request.SolutionParams" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
                                 <td><MudTextField T="string" @bind-Value="request.QualityRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
@@ -1130,7 +1130,7 @@
             && request.InputQuantity is > 0
             && request.InputWeight.HasValue)
         {
-            request.CurrentValidWeight = request.InputWeight.Value / request.InputQuantity.Value * request.CurrentValidQty.Value;
+            request.CurrentValidWeight = (int?)(request.InputWeight.Value / request.InputQuantity.Value * request.CurrentValidQty.Value);
         }
     }
 

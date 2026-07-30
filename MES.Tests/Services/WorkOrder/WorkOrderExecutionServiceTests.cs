@@ -432,7 +432,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             InputQuantity = 50,
             InputWeight = 1250m,
             CurrentValidQty = 50,
-            CurrentValidWeight = 1250m,
+            CurrentValidWeight = 1250,
             ProductionRatio = 2,
             RowVersion = new byte[8],
             ProcessGroups = new List<ProcessGroup>
@@ -500,7 +500,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             InputQuantity = 50,
             InputWeight = 1250m,
             CurrentValidQty = 50,
-            CurrentValidWeight = 1250m,
+            CurrentValidWeight = 1250,
             RowVersion = new byte[8],
             ProcessGroups = new List<ProcessGroup>
             {
@@ -562,7 +562,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             InputQuantity = 50,
             InputWeight = 1250m,
             CurrentValidQty = 50,
-            CurrentValidWeight = 1250m,
+            CurrentValidWeight = 1250,
             ProductionRatio = 1,
             RowVersion = new byte[8],
             ProcessGroups = new List<ProcessGroup>
@@ -889,7 +889,7 @@ public class WorkOrderExecutionServiceTests : TestBase
                 InputQuantity = 50,
                 InputWeight = 1250m,
                 CurrentValidQty = 50,
-                CurrentValidWeight = 1250m,
+                CurrentValidWeight = 1250,
                 ProductionRatio = 2,
                 RowVersion = new byte[8],
                 ProcessGroups = new List<ProcessGroup>
@@ -1006,7 +1006,7 @@ public class WorkOrderExecutionServiceTests : TestBase
             InputQuantity = 100,
             InputWeight = 2500m,
             CurrentValidQty = 100,
-            CurrentValidWeight = 2500m,
+            CurrentValidWeight = 2500,
             RowVersion = new byte[8],
             ProcessGroups = new List<ProcessGroup>
             {

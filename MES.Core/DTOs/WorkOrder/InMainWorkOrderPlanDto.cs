@@ -70,7 +70,7 @@ public class AvailableMainWorkOrderBatchDto
     /// <summary>有效原料支数</summary>
     public int? CurrentValidQty { get; set; }
     /// <summary>有效原料重量(kg)</summary>
-    public decimal? CurrentValidWeight { get; set; }
+    public int? CurrentValidWeight { get; set; }
     /// <summary>主号总重量(kg)</summary>
     public decimal MainTotalWeight { get; set; }
     /// <summary>主号流转比(%)</summary>

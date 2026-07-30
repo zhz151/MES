@@ -67,7 +67,7 @@ public class MaterialReceiveCheckServiceTests : TestBase
             ProductionType = "InProcess",
             ManufacturingItem = "OrderFinished",
             CurrentValidQty = 100,
-            CurrentValidWeight = 5000m,
+            CurrentValidWeight = 5000,
             Salesman = "张三",
             SettlementMethod = "Weighing",
             StandardCode = "GB/T 14976",

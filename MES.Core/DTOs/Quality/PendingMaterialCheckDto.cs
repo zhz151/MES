@@ -12,7 +12,7 @@ public class PendingMaterialCheckDto
     public string? TagNo { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
-    public decimal CurrentValidWeight { get; set; }
+    public int CurrentValidWeight { get; set; }
     public DateTime? CurrentExecDate { get; set; }
     public string? CurrentSectionName { get; set; }
 

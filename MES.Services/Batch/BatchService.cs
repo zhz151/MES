@@ -678,7 +678,7 @@ public class BatchService : IBatchService
                     if (entity.InputQuantity.HasValue)
                         sourceBatch.CurrentValidQty = (sourceBatch.CurrentValidQty ?? 0) - entity.InputQuantity.Value;
                     if (entity.InputWeight.HasValue)
-                        sourceBatch.CurrentValidWeight = (sourceBatch.CurrentValidWeight ?? 0) - entity.InputWeight.Value;
+                        sourceBatch.CurrentValidWeight = (int?)((sourceBatch.CurrentValidWeight ?? 0) - entity.InputWeight.Value);
                     await _context.SaveChangesAsync();
 
                     await _materialPlanService.DismissInMainWorkOrderPlanByBatchAndWorkOrderAsync(sourceBatch.Id, entity.WorkOrderNo);

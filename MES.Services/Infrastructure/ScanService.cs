@@ -229,7 +229,7 @@ public class ScanService : IScanService
         decimal? unitWeight = null;
         if (batch.TotalQuantity > 0)
         {
-            var weight = batch.CurrentValidWeight.GetValueOrDefault(batch.TotalWeight);
+            var weight = batch.CurrentValidWeight ?? batch.TotalWeight;
             unitWeight = Math.Round(weight / batch.TotalQuantity, 4);
         }
 

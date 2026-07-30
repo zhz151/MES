@@ -60,7 +60,7 @@ public class UpdateProductionBatchRequest
 
     public int? CurrentValidQty { get; set; }
 
-    public decimal? CurrentValidWeight { get; set; }
+    public int? CurrentValidWeight { get; set; }
 
     // 批次字段
     public bool? IsForceCompleted { get; set; }

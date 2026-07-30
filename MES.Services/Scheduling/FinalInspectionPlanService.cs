@@ -340,7 +340,7 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
         public string? BatchNo { get; set; }
         public string? TagNo { get; set; }
         public string? PlantGrade { get; set; }
-        public decimal? CurrentValidWeight { get; set; }
+        public int? CurrentValidWeight { get; set; }
         public string? WorkOrderNo { get; set; }
         public string? Specification { get; set; }
         public string? LengthStatus { get; set; }

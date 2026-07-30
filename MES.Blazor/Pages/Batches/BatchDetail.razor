@@ -311,7 +311,7 @@
                     <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">投料类型</MudText><MudText Typo="Typo.body2">@(batch.InputType.HasValue ? DisplayHelper.GetInputTypeText(batch.InputType.Value) : "-")</MudText></div>
                     <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">源生产编号</MudText><MudText Typo="Typo.body2">@(batch.SourceProductionNo ?? "-")</MudText></div>
                     <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">有效支数</MudText><MudText Typo="Typo.body2">@(batch.CurrentValidQty?.ToString() ?? "-") 支</MudText></div>
-                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">有效重量(kg)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.CurrentValidWeight)</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">有效重量(kg)</MudText><MudText Typo="Typo.body2">@(batch.CurrentValidWeight?.ToString() ?? "-")</MudText></div>
                     <div style="min-width:200px;flex:1;"><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料备注</MudText><MudText Typo="Typo.body2">@(batch.SourceRemark ?? "-")</MudText></div>
                 </div>
 

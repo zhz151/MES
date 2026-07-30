@@ -65,7 +65,7 @@ public class CreateProductionBatchRequest
 
     public int? CurrentValidQty { get; set; }
 
-    public decimal? CurrentValidWeight { get; set; }
+    public int? CurrentValidWeight { get; set; }
 
     // ========== 工单字段（前端可修改，不传则从工单自动复制） ==========
 
