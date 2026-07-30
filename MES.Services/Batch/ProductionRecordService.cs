@@ -1013,10 +1013,10 @@ public class ProductionRecordService : IProductionRecordService
             .ThenBy(p => p.InDate)
             .ToListAsync();
 
-        // 3e. 加载仓库入库记录（按批次号匹配，不限入库来源）
+        // 3e. 加载仓库入库记录（按批次号+物料类型匹配，排除次品/报废品入库）
         var inventoryBatches = await _context.InventoryBatches
             .Include(ib => ib.Warehouse)
-            .Where(ib => ib.ProductionBatchNo == batch.BatchNo)
+            .Where(ib => ib.ProductionBatchNo == batch.BatchNo && ib.MaterialType == batch.ManufacturingItem)
             .OrderByDescending(ib => ib.InboundDate)
             .ToListAsync();
 
@@ -1318,10 +1318,10 @@ public class ProductionRecordService : IProductionRecordService
                 .ToListAsync();
             bool hasMaterialCheck = materialChecks.Count > 0;
 
-            // 3e. 加载仓库入库记录（按批次号匹配，不限入库来源）
+            // 3e. 加载仓库入库记录（按批次号+物料类型匹配，排除次品/报废品入库）
             var inventoryBatches = await _context.InventoryBatches
                 .Include(ib => ib.Warehouse)
-                .Where(ib => ib.ProductionBatchNo == batch.BatchNo)
+                .Where(ib => ib.ProductionBatchNo == batch.BatchNo && ib.MaterialType == batch.ManufacturingItem)
                 .OrderByDescending(ib => ib.InboundDate)
                 .ToListAsync();
 
@@ -1619,12 +1619,15 @@ public class ProductionRecordService : IProductionRecordService
             .Where(n => n != null)
             .Distinct()
             .ToList();
-        var warehouseBatchNos = await _context.InventoryBatches
+        var warehouseBatchEntries = await _context.InventoryBatches
             .Where(ib => ib.ProductionBatchNo != null && allBatchNos.Contains(ib.ProductionBatchNo))
-            .Select(ib => ib.ProductionBatchNo)
+            .Select(ib => new { ib.ProductionBatchNo, ib.MaterialType })
             .Distinct()
             .ToListAsync();
-        var warehouseBatchNoSet = new HashSet<string>(warehouseBatchNos.Where(n => n != null)!, StringComparer.OrdinalIgnoreCase);
+        var warehouseBatchKeySet = new HashSet<string>(
+            warehouseBatchEntries.Where(x => x.ProductionBatchNo != null)
+                .Select(x => $"{x.ProductionBatchNo}|{x.MaterialType}"),
+            StringComparer.OrdinalIgnoreCase);
 
         // 7. 逐批次计算跟踪字段
         var dsExtraDaysMap = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
@@ -1642,7 +1645,7 @@ public class ProductionRecordService : IProductionRecordService
 
             // 检验到料：状态判定优先级：完成（成检+入库）> 成检 > 在产/未产
             var hasCheck = materialCheckLookup.TryGetValue(batchId, out var batchMaterialChecks);
-            var hasWarehouse = batch.BatchNo != null && warehouseBatchNoSet.Contains(batch.BatchNo);
+            var hasWarehouse = batch.BatchNo != null && warehouseBatchKeySet.Contains($"{batch.BatchNo}|{batch.ManufacturingItem}");
             if (hasCheck && hasWarehouse)
             {
                 // 同时有成检到料和仓库入库记录 → 完成
