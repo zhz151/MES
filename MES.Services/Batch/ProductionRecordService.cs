@@ -1013,10 +1013,10 @@ public class ProductionRecordService : IProductionRecordService
             .ThenBy(p => p.InDate)
             .ToListAsync();
 
-        // 3e. 加载仓库入库记录（按批次号+物料类型匹配，排除次品/报废品入库）
+        // 3e. 加载仓库入库记录（按批次号匹配，物料类型在内存中动态判定）
         var inventoryBatches = await _context.InventoryBatches
             .Include(ib => ib.Warehouse)
-            .Where(ib => ib.ProductionBatchNo == batch.BatchNo && ib.MaterialType == batch.ManufacturingItem)
+            .Where(ib => ib.ProductionBatchNo == batch.BatchNo)
             .OrderByDescending(ib => ib.InboundDate)
             .ToListAsync();
 
@@ -1078,8 +1078,10 @@ public class ProductionRecordService : IProductionRecordService
                 var hasMaterialCheck = sectionName == SectionDefs.Inspection
                     && materialCheckPgIds.Contains(pg.Id);
 
-                // 仓库入库匹配：该工段为"入库"且有库存批次记录
-                var hasWarehouse = sectionName == SectionDefs.Warehouse && inventoryBatches.Count > 0;
+                // 仓库入库匹配：该工段为"入库"且有匹配的库存批次记录
+                // 有效投料重量>0时需物料类型一致（排除次品入库），=0时全匹配（全次品场景）
+                var hasWarehouse = sectionName == SectionDefs.Warehouse && inventoryBatches.Count > 0
+                    && (batch.CurrentValidWeight <= 0 || inventoryBatches.Any(ib => ib.MaterialType == batch.ManufacturingItem));
 
                 // 确定状态
                 SectionStatus sectionStatus;
@@ -1318,14 +1320,17 @@ public class ProductionRecordService : IProductionRecordService
                 .ToListAsync();
             bool hasMaterialCheck = materialChecks.Count > 0;
 
-            // 3e. 加载仓库入库记录（按批次号+物料类型匹配，排除次品/报废品入库）
+            // 3e. 加载仓库入库记录（按批次号匹配，物料类型在内存中动态判定）
             var inventoryBatches = await _context.InventoryBatches
                 .Include(ib => ib.Warehouse)
-                .Where(ib => ib.ProductionBatchNo == batch.BatchNo && ib.MaterialType == batch.ManufacturingItem)
+                .Where(ib => ib.ProductionBatchNo == batch.BatchNo)
                 .OrderByDescending(ib => ib.InboundDate)
                 .ToListAsync();
 
-            bool hasWarehouse = inventoryBatches.Count > 0;
+            // 仓库入库动态匹配：有效投料重量>0时需物料类型一致（排除次品入库），=0时全匹配（全次品场景）
+            bool hasWarehouse = batch.CurrentValidWeight > 0
+                ? inventoryBatches.Any(ib => ib.MaterialType == batch.ManufacturingItem)
+                : inventoryBatches.Count > 0;
             if (hasMaterialCheck)
             {
                 batch.CurrentExecDate = materialChecks.Max(m => (DateTime?)m.ReceiveDate);
@@ -1431,7 +1436,9 @@ public class ProductionRecordService : IProductionRecordService
             // ====== 仓库入库覆盖：入库后当前工段为"入库"，无下一工段 ======
             if (hasWarehouse)
             {
-                var latestInbound = inventoryBatches[0]; // 已按 InboundDate 降序
+                var latestInbound = batch.CurrentValidWeight > 0
+                    ? inventoryBatches.First(ib => ib.MaterialType == batch.ManufacturingItem)
+                    : inventoryBatches[0];
                 batch.CurrentSectionName = SectionDefs.Warehouse; // "入库"
                 batch.CurrentExecDate = latestInbound.InboundDate;
                 batch.NextSectionName = "-";
@@ -1624,9 +1631,15 @@ public class ProductionRecordService : IProductionRecordService
             .Select(ib => new { ib.ProductionBatchNo, ib.MaterialType })
             .Distinct()
             .ToListAsync();
-        var warehouseBatchKeySet = new HashSet<string>(
+        // 复合键集合：有效投料>0时需精确匹配"批次号|物料类型"
+        var warehouseKeySet = new HashSet<string>(
             warehouseBatchEntries.Where(x => x.ProductionBatchNo != null)
                 .Select(x => $"{x.ProductionBatchNo}|{x.MaterialType}"),
+            StringComparer.OrdinalIgnoreCase);
+        // 纯批次号集合：有效投料=0（全次品）时只需匹配批次号
+        var warehouseBatchOnlySet = new HashSet<string>(
+            warehouseBatchEntries.Where(x => x.ProductionBatchNo != null)
+                .Select(x => x.ProductionBatchNo!),
             StringComparer.OrdinalIgnoreCase);
 
         // 7. 逐批次计算跟踪字段
@@ -1645,7 +1658,10 @@ public class ProductionRecordService : IProductionRecordService
 
             // 检验到料：状态判定优先级：完成（成检+入库）> 成检 > 在产/未产
             var hasCheck = materialCheckLookup.TryGetValue(batchId, out var batchMaterialChecks);
-            var hasWarehouse = batch.BatchNo != null && warehouseBatchKeySet.Contains($"{batch.BatchNo}|{batch.ManufacturingItem}");
+            // 仓库入库动态匹配：有效投料重量>0时需物料类型一致（排除次品入库），=0时全匹配（全次品场景）
+            var hasWarehouse = batch.BatchNo != null && (batch.CurrentValidWeight > 0
+                ? warehouseKeySet.Contains($"{batch.BatchNo}|{batch.ManufacturingItem}")
+                : warehouseBatchOnlySet.Contains(batch.BatchNo));
             if (hasCheck && hasWarehouse)
             {
                 // 同时有成检到料和仓库入库记录 → 完成
