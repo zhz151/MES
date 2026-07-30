@@ -380,6 +380,14 @@ public static class DbInitializer
                 new() { Category = "DefaultValue", CategoryDisplay = "工单-标准周期", Context = "工单", ParamKey = "StandardCycle", ParamValue = 3m, Remark = "默认标准周期(天)" },
                 new() { Category = "DefaultValue", CategoryDisplay = "批次-最大序号", Context = "批次", ParamKey = "BatchMaxSequence", ParamValue = 9999m, Remark = "批次号最大序号" },
                 new() { Category = "DefaultValue", CategoryDisplay = "工单-荒管成品系数", Context = "工单", ParamKey = "RoughTubeFinishRatio", ParamValue = 0.92m, Remark = "荒管转成品系数" },
+
+                // ===== MaterialPlanTolerance 用料计划执行容差 =====
+                new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "ExternalLower", ParamValue = 0.97m, Remark = "对外计划下限(97%)，圆棒穿孔/荒管采购/成品采购" },
+                new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "ExternalUpper", ParamValue = 1.03m, Remark = "对外计划上限(103%)，圆棒穿孔/荒管采购/成品采购" },
+                new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "WarehouseLower", ParamValue = 0.95m, Remark = "对内-仓库下限(95%)，库存使用/库料改制" },
+                new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "WarehouseUpper", ParamValue = 1.50m, Remark = "对内-仓库上限(150%)，库存使用/库料改制" },
+                new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "ProductionLower", ParamValue = 0.90m, Remark = "对内-生产下限(90%)，在产改制/在产主工单" },
+                new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "ProductionUpper", ParamValue = 1.50m, Remark = "对内-生产上限(150%)，在产改制/在产主工单" },
             };
 
             await context.ConfigParameters.AddRangeAsync(configParams);

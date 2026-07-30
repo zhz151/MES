@@ -38,8 +38,6 @@ public class RawMaterialLockPlanAndExecutionDto
     public decimal TotalWeight { get; set; }
 
     // ========== G2: 用料计划 ==========
-    public DateTime? LatestPlanDate { get; set; }
-    public decimal MaterialPlanRate { get; set; }
     public MaterialPlanStatus MaterialPlanStatus { get; set; }
     public string MaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MaterialPlanStatus);
     public decimal MainNoMaterialPlanRate { get; set; }
@@ -52,9 +50,6 @@ public class RawMaterialLockPlanAndExecutionDto
 
     /// <summary>用料占比文本：如"穿105% 荒160% 成20% 库40%"</summary>
     public string? MaterialPlanProportion { get; set; }
-
-    /// <summary>要求到货日（最晚）</summary>
-    public DateTime? LatestRequiredDate { get; set; }
 
     // ========== G5: 物料执行实时信息 ==========
     public int PendingRoughTubeQty { get; set; }

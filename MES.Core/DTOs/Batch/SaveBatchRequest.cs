@@ -25,15 +25,9 @@ public class SaveBatchRequest
 
     public MaterialType? ManufacturingItem { get; set; }
 
-    public InboundSource? InboundSource { get; set; }
-
-    public DateTime? InboundDate { get; set; }
-
     // 仓库来源
     [MaxLength(50)]
     public string? SourceBatchNo { get; set; }
-
-    public int? WarehouseId { get; set; }
 
     public MaterialType? SourceMaterialType { get; set; }
 
@@ -57,8 +51,13 @@ public class SaveBatchRequest
 
     public decimal? InputWeight { get; set; }
 
+    public BatchInputType? InputType { get; set; }
+
     [MaxLength(500)]
     public string? SourceRemark { get; set; }
+
+    [MaxLength(50)]
+    public string? SourceProductionNo { get; set; }
 
     public int? CurrentValidQty { get; set; }
 

@@ -28,6 +28,7 @@ public static class EnumHelper
 
         Register<InventoryPlanStatus>(("Planned", "已计划"),
                                        ("Confirmed", "已确认"),
+                                       ("Completed", "已完成"),
                                        ("Cancelled", "已取消"));
 
         Register<LengthStatus>(("Fixed", "定尺"),
@@ -102,10 +103,8 @@ public static class EnumHelper
                                     ("WorkOrderDeleted", "工单已删除"),
                                     ("OrderDeleted", "订单已删除"),
                                     ("OrderChanged", "订单已变更"),
-                                    ("WorkOrderChanged", "工单内容已变更"));
-
-        Register<NotificationChangeType>(("Deleted", "订单已删除"),
-                                          ("ItemChanged", "项次已变更"));
+                                    ("WorkOrderChanged", "工单内容已变更"),
+                                    ("BatchPlanAutoCompleted", "批次变更自动完成"));
 
         Register<BatchStatus>(("None", "未产"),
                                ("InProgress", "在产"),
@@ -223,6 +222,10 @@ public static class EnumHelper
                                       ("ProcessInspection", "过程检验"),
                                       ("FinalInspection", "成品检验"),
                                       ("MaterialReceiveCheck", "成检到料"));
+
+        Register<BatchInputType>(("Warehouse", "仓库投料"),
+                                 ("SplitFromNumber", "编号拆分"),
+                                 ("Other", "其它"));
     }
 
     private static void Register<T>(params (string value, string display)[] mappings) where T : Enum

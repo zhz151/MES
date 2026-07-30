@@ -932,6 +932,21 @@ public class ProductionRecordService : IProductionRecordService
         return batchIds.Count;
     }
 
+    /// <summary>
+    /// 回填所有批次的理论成品量（含强制完成批次）
+    /// 仅计算 TheoreticalOutputQty/Weight/UnitWeight，不修改其他跟踪字段
+    /// </summary>
+    public async Task<int> BackfillTheoreticalOutputAsync()
+    {
+        var batchIds = await _context.ProductionBatches
+            .Select(b => b.Id)
+            .ToListAsync();
+        if (batchIds.Count == 0) return 0;
+
+        await BatchUpdateTrackingFromRecordsAsync(batchIds);
+        return batchIds.Count;
+    }
+
     // ========== 批次跟踪可视化 ==========
 
     public async Task<BatchTrackingVisualDto> GetTrackingVisualAsync(int batchId)
@@ -1274,6 +1289,7 @@ public class ProductionRecordService : IProductionRecordService
         var coldRollCompleteRatio = await GetConfigAsync("ProductionThreshold", "ColdRollCompleteRatio", 0.95m);
         var validInputUpper = await GetConfigAsync("ProductionThreshold", "ValidInputUpper", 1.03m);
         var validInputLower = await GetConfigAsync("ProductionThreshold", "ValidInputLower", 0.97m);
+        var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
 
         var batch = await _context.ProductionBatches
             .Include(b => b.ProcessGroups)
@@ -1412,6 +1428,23 @@ public class ProductionRecordService : IProductionRecordService
                 processInspections, picklingInRecords, hasMaterialCheck,
                 materialChecks.OrderByDescending(m => m.SequenceNumber).FirstOrDefault(), materialCheckSeq, materialCheckPg, coldRollCompleteRatio, dayMap, dsExtraDaysMap);
 
+            // ====== 仓库入库覆盖：入库后当前工段为"入库"，无下一工段 ======
+            if (hasWarehouse)
+            {
+                var latestInbound = inventoryBatches[0]; // 已按 InboundDate 降序
+                batch.CurrentSectionName = SectionDefs.Warehouse; // "入库"
+                batch.CurrentExecDate = latestInbound.InboundDate;
+                batch.NextSectionName = "-";
+                batch.NextProcess = null;
+                batch.CorrespondingSpec = null;
+                batch.CurrentGroupName = null;
+                batch.CurrentEquipmentName = null;
+                batch.CurrentSpec = null;
+                batch.CurrentOutsource = null;
+                batch.CurrentSectionCompleted = null;
+                batch.RemainingWorkDays = 0;
+            }
+
             // ====== 8. 有效投料疑问（与批量模式一致，基于投料对比）=====
             // 对照现有效原料支数与投料支数，相差超过阈值 → 疑问
             batch.ValidInputQuestion = false;
@@ -1421,6 +1454,9 @@ public class ProductionRecordService : IProductionRecordService
                 batch.ValidInputQuestion = ratio < validInputLower || ratio > validInputUpper;
             }
 
+            // ====== 9. 理论成品量计算 ======
+            ComputeTheoreticalOutput(batch, groupDiscountRate);
+
             _context.ProductionBatches.Update(batch);
             await _context.SaveChangesAsync();
         }
@@ -1429,6 +1465,37 @@ public class ProductionRecordService : IProductionRecordService
             _logger.LogError(ex, "刷新批次跟踪字段失败 (BatchId={BatchId})", batchId);
             throw;
         }
+    }
+
+    private static void ComputeTheoreticalOutput(ProductionBatch batch, decimal groupDiscountRate)
+    {
+        // 理论成品支 = CurrentValidQty × ProductionRatio
+        if (batch.ProductionRatio > 0 && batch.CurrentValidQty.HasValue)
+            batch.TheoreticalOutputQty = batch.CurrentValidQty.Value * batch.ProductionRatio;
+        else
+            batch.TheoreticalOutputQty = null;
+
+        // 理论成品重 = CurrentValidWeight × (1 - 有效工序组数 × 折扣率)
+        int? targetWt = null;
+        if (batch.CurrentValidWeight.HasValue)
+        {
+            var effectiveGroupCount = batch.ProcessGroups?
+                .Count(pg => pg.ProcessName != ProcessNames.InProcessRepair
+                    && pg.ProcessName != ProcessNames.AdditionalFinalInspection
+                    && pg.GetNonEmptySections().Count > 0) ?? 0;
+            var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
+            if (discount < 0) discount = 0;
+            targetWt = (int?)(batch.CurrentValidWeight.Value * discount);
+        }
+        batch.TheoreticalOutputWeight = targetWt;
+
+        // 理论单支重 = 理论成品重 / 理论成品支（1位小数）
+        if (batch.TheoreticalOutputQty.HasValue && batch.TheoreticalOutputQty.Value > 0
+            && batch.TheoreticalOutputWeight.HasValue)
+            batch.TheoreticalUnitWeight = Math.Round(
+                (decimal)batch.TheoreticalOutputWeight.Value / batch.TheoreticalOutputQty.Value, 1);
+        else
+            batch.TheoreticalUnitWeight = null;
     }
 
     /// <summary>
@@ -1442,6 +1509,7 @@ public class ProductionRecordService : IProductionRecordService
         var coldRollCompleteRatio = await GetConfigAsync("ProductionThreshold", "ColdRollCompleteRatio", 0.95m);
         var validInputUpper = await GetConfigAsync("ProductionThreshold", "ValidInputUpper", 1.03m);
         var validInputLower = await GetConfigAsync("ProductionThreshold", "ValidInputLower", 0.97m);
+        var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
 
         // 1. 加载所有批次 + ProcessGroups
         var batchDict = await _context.ProductionBatches
@@ -1474,6 +1542,7 @@ public class ProductionRecordService : IProductionRecordService
                 var allSections = b.ProcessGroups
                     .SelectMany(pg => GetSectionsFromProcessGroup(pg)
                         .Select(s => (s.SectionName, s.Sequence)))
+                    .Where(s => s.SectionName != SectionDefs.Warehouse)
                     .ToList();
                 var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(b.PlantGrade);
                 b.TotalWorkDays = CalculateTotalWorkDays(
@@ -1482,6 +1551,7 @@ public class ProductionRecordService : IProductionRecordService
                     dayMap,
                     dsExtraMap2,
                     b.DeliveryState);
+                ComputeTheoreticalOutput(b, groupDiscountRate);
             }
             _context.ProductionBatches.UpdateRange(batchDict.Values);
             await _context.SaveChangesAsync();
@@ -1627,6 +1697,21 @@ public class ProductionRecordService : IProductionRecordService
                 batchMaterialChecks?.FirstOrDefault(), materialCheckSeq, materialCheckPg,
                 coldRollCompleteRatio, dayMap, dsExtraDaysMap);
 
+            // 仓库入库覆盖：入库后当前工段为"入库"，无下一工段（批量模式）
+            if (hasWarehouse)
+            {
+                batch.CurrentSectionName = SectionDefs.Warehouse;
+                batch.NextSectionName = "-";
+                batch.NextProcess = null;
+                batch.CorrespondingSpec = null;
+                batch.CurrentGroupName = null;
+                batch.CurrentEquipmentName = null;
+                batch.CurrentSpec = null;
+                batch.CurrentOutsource = null;
+                batch.CurrentSectionCompleted = null;
+                batch.RemainingWorkDays = 0;
+            }
+
             // 有效投料疑问
             // 对照现有效原料支数与投料支数，相差超过 5% → 疑问
             batch.ValidInputQuestion = false;
@@ -1635,6 +1720,7 @@ public class ProductionRecordService : IProductionRecordService
                 var ratio = (decimal)batch.CurrentValidQty.Value / batch.InputQuantity.Value;
                 batch.ValidInputQuestion = ratio < validInputLower || ratio > validInputUpper;
             }
+            ComputeTheoreticalOutput(batch, groupDiscountRate);
         }
 
         _context.ProductionBatches.UpdateRange(batchDict.Values);
@@ -1839,8 +1925,11 @@ public class ProductionRecordService : IProductionRecordService
                 : null;
         }
 
-        // ====== 剩余工量计算 ======
-        var sectionTuples = allSections.Select(s => (s.SectionName, s.Sequence)).ToList();
+        // ====== 剩余工量计算（排除"入库"工段） ======
+        var sectionTuples = allSections
+            .Where(s => s.SectionName != SectionDefs.Warehouse)
+            .Select(s => (s.SectionName, s.Sequence))
+            .ToList();
         batch.RemainingWorkDays = CalculateRemainingWorkDays(
             batch.Status,
             batch.CurrentSectionCompleted,

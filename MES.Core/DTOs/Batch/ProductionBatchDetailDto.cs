@@ -71,15 +71,11 @@ public class ProductionBatchDetailDto
     public string? ItemDetails { get; set; }
     public string TechnicalRequirements { get; set; } = null!;
 
-    // ========== 仓库冗余 ==========
+    // ========== 投料信息 ==========
     public string? SourceBatchNo { get; set; }
-    public int? WarehouseId { get; set; }
     public MaterialType? SourceMaterialType { get; set; }
     public string? SourceMaterialTypeDisplay => SourceMaterialType.HasValue ? EnumHelper.GetDisplayName(SourceMaterialType.Value) : null;
-    public InboundSource? InboundSource { get; set; }
-    public string? InboundSourceDisplay => InboundSource.HasValue ? EnumHelper.GetDisplayName(InboundSource.Value) : null;
     public string? SourceName { get; set; }
-    public DateTime? InboundDate { get; set; }
     public string? SourceHeatNo { get; set; }
     public string? SourcePlantGrade { get; set; }
     public string? SourceSpecification { get; set; }
@@ -87,9 +83,12 @@ public class ProductionBatchDetailDto
     public decimal? SourceUnitWeight { get; set; }
     public int? InputQuantity { get; set; }
     public decimal? InputWeight { get; set; }
+    public BatchInputType? InputType { get; set; }
     public string? SourceRemark { get; set; }
+    public string? SourceProductionNo { get; set; }
     public int? CurrentValidQty { get; set; }
     public decimal? CurrentValidWeight { get; set; }
+    public decimal? TheoreticalUnitWeight { get; set; }
 
     // ========== 审计字段 ==========
     public DateTimeOffset CreatedTime { get; set; }

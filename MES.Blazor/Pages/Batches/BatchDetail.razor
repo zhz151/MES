@@ -296,58 +296,58 @@
             </div>
             @if (_showWarehouseInfo)
             {
-            <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来源库存批次</MudText><MudText Typo="Typo.body2">@(batch.SourceBatchNo ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来源工单号</MudText><MudText Typo="Typo.body2">@(batch.WorkOrderNo ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料类型</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialTypeText(batch.SourceMaterialType)</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">入库来源</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetInboundSourceText(batch.InboundSource)</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来料单位</MudText><MudText Typo="Typo.body2">@(batch.SourceName ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">入库日期</MudText><MudText Typo="Typo.body2">@(batch.InboundDate?.ToString("yyyy-MM-dd") ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">炉号</MudText><MudText Typo="Typo.body2">@(batch.SourceHeatNo ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工厂牌号</MudText><MudText Typo="Typo.body2">@(batch.SourcePlantGrade ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">名义规格</MudText><MudText Typo="Typo.body2">@(batch.SourceSpecification ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(batch.SourceLengthStatus)</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">单支重</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.SourceUnitWeight) kg</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料支数</MudText><MudText Typo="Typo.body2">@(batch.InputQuantity?.ToString() ?? "-") 支</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.InputWeight) kg</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料备注</MudText><MudText Typo="Typo.body2">@(batch.SourceRemark ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">现有效原料支数</MudText><MudText Typo="Typo.body2">@(batch.CurrentValidQty?.ToString() ?? "-") 支</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">现有效原料重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.CurrentValidWeight) kg</MudText></div>
-            </div>
-
-            @if (batch.SourceItems.Count > 0)
-            {
-                <MudDivider Class="my-3" />
-                <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.ListAlt" Class="mr-1" Size="Size.Small" />合并投料明细
-                </MudText>
-                <div class="detail-table-scroll">
-                    <MudTable T="SourceBatchItemDto" Items="batch.SourceItems" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
-                        <HeaderContent>
-                            <MudTh>批次号</MudTh>
-                            <MudTh>原料类型</MudTh>
-                            <MudTh>来料单位</MudTh>
-                            <MudTh>炉号</MudTh>
-                            <MudTh>工厂牌号</MudTh>
-                            <MudTh>规格</MudTh>
-                            <MudTh>仓库</MudTh>
-                            <MudTh Class="text-right">领料支数</MudTh>
-                            <MudTh Class="text-right">领料重量(kg)</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd><MudText Typo="Typo.body2" Class="font-weight-bold">@context.BatchNo</MudText></MudTd>
-                            <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialType)</MudTd>
-                            <MudTd>@(context.SourceName ?? "-")</MudTd>
-                            <MudTd>@(context.HeatNo ?? "-")</MudTd>
-                            <MudTd>@(context.PlantGrade ?? "-")</MudTd>
-                            <MudTd>@(context.Specification ?? "-")</MudTd>
-                            <MudTd>@(context.WarehouseName ?? "-")</MudTd>
-                            <MudTd Class="text-right">@context.InputQuantity</MudTd>
-                            <MudTd Class="text-right">@context.InputWeight.ToString("G29")</MudTd>
-                        </RowTemplate>
-                    </MudTable>
+                <!-- 投料字段列表（flex-wrap 无滚动条） -->
+                <div class="d-flex flex-wrap" style="gap: 0.4rem 1.5rem;">
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来源批次号</MudText><MudText Typo="Typo.body2">@(batch.SourceBatchNo ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料类型</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialTypeText(batch.SourceMaterialType)</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来料单位</MudText><MudText Typo="Typo.body2">@(batch.SourceName ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">炉号</MudText><MudText Typo="Typo.body2">@(batch.SourceHeatNo ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工厂牌号</MudText><MudText Typo="Typo.body2">@(batch.SourcePlantGrade ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">规格</MudText><MudText Typo="Typo.body2">@(batch.SourceSpecification ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(batch.SourceLengthStatus)</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">单支重(kg)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.SourceUnitWeight)</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料支数</MudText><MudText Typo="Typo.body2">@(batch.InputQuantity?.ToString() ?? "-") 支</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料重量(kg)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.InputWeight)</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">投料类型</MudText><MudText Typo="Typo.body2">@(batch.InputType.HasValue ? DisplayHelper.GetInputTypeText(batch.InputType.Value) : "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">源生产编号</MudText><MudText Typo="Typo.body2">@(batch.SourceProductionNo ?? "-")</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">有效支数</MudText><MudText Typo="Typo.body2">@(batch.CurrentValidQty?.ToString() ?? "-") 支</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">有效重量(kg)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.CurrentValidWeight)</MudText></div>
+                    <div style="min-width:200px;flex:1;"><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料备注</MudText><MudText Typo="Typo.body2">@(batch.SourceRemark ?? "-")</MudText></div>
                 </div>
-            }
+
+                @if (batch.SourceItems.Count > 0)
+                {
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.ListAlt" Class="mr-1" Size="Size.Small" />合并投料明细
+                    </MudText>
+                    <div class="detail-table-scroll">
+                        <MudTable T="SourceBatchItemDto" Items="batch.SourceItems" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
+                            <HeaderContent>
+                                <MudTh>批次号</MudTh>
+                                <MudTh>原料类型</MudTh>
+                                <MudTh>来料单位</MudTh>
+                                <MudTh>炉号</MudTh>
+                                <MudTh>工厂牌号</MudTh>
+                                <MudTh>规格</MudTh>
+                                <MudTh>仓库</MudTh>
+                                <MudTh Class="text-right">领料支数</MudTh>
+                                <MudTh Class="text-right">领料重量(kg)</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd><MudText Typo="Typo.body2" Class="font-weight-bold">@context.BatchNo</MudText></MudTd>
+                                <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialType)</MudTd>
+                                <MudTd>@(context.SourceName ?? "-")</MudTd>
+                                <MudTd>@(context.HeatNo ?? "-")</MudTd>
+                                <MudTd>@(context.PlantGrade ?? "-")</MudTd>
+                                <MudTd>@(context.Specification ?? "-")</MudTd>
+                                <MudTd>@(context.WarehouseName ?? "-")</MudTd>
+                                <MudTd Class="text-right">@context.InputQuantity</MudTd>
+                                <MudTd Class="text-right">@context.InputWeight.ToString("G29")</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                }
             }
         </MudPaper>
 

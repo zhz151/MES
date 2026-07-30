@@ -448,12 +448,55 @@ public partial class AppDbContext
             entity.Property(e => e.TotalWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
 
             // Group 2
-            entity.Property(e => e.LatestPlanDate).HasColumnType("date");
-            entity.Property(e => e.MaterialPlanRate).HasColumnType("decimal(7,2)").HasDefaultValue(0m);
             entity.Property(e => e.MaterialPlanStatus).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.MainNoMaterialPlanRate).HasColumnType("decimal(7,2)").HasDefaultValue(0m);
             entity.Property(e => e.MainNoMaterialPlanStatus).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.ProcessCycle).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.TheoreticalCutoffDate).HasColumnType("date");
+
+            // Group 3（新）: 圆棒穿孔计划执行
+            entity.Property(e => e.PiercingPlanWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.PiercingSubOutWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.PiercingSubStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.PiercingSubInWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.PiercingSubPendingWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.PiercingReturnStatus).IsRequired().HasDefaultValue(0);
+
+            // Group 4（新）: 荒管采购计划执行
+            entity.Property(e => e.SemiPlanWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.SemiOrderWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.SemiOrderStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.SemiInWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.SemiPendingWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.SemiInStatus).IsRequired().HasDefaultValue(0);
+
+            // Group 5（新）: 成品采购计划执行
+            entity.Property(e => e.FinishPlanWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.FinishOrderWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.FinishOrderStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.FinishInWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.FinishPendingWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.FinishInStatus).IsRequired().HasDefaultValue(0);
+
+            // Group 6（新）: 库存使用计划执行
+            entity.Property(e => e.InventoryPlanWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.InventoryOutWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.InventoryOutStatus).IsRequired().HasDefaultValue(0);
+
+            // Group 7（新）: 库料改制计划执行
+            entity.Property(e => e.ReworkPlanWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.ReworkPlanInputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.ReworkPlanInputStatus).IsRequired().HasDefaultValue(0);
+
+            // Group 8（新）: 在产改制计划执行
+            entity.Property(e => e.InProcessReworkPlanWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.InProcessReworkInputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.InProcessReworkInputStatus).IsRequired().HasDefaultValue(0);
+
+            // Group 9（新）: 在产主工单计划执行
+            entity.Property(e => e.InMainPlanWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.InMainInputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.InMainInputStatus).IsRequired().HasDefaultValue(0);
 
             // Group 5
             entity.Property(e => e.PendingRoughTubeQty).IsRequired().HasDefaultValue(0);

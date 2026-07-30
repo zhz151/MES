@@ -34,12 +34,12 @@ public class ReportService : IReportService
         var rangeFrom = fromDate.Date;
         var rangeTo = toDate.Date.AddDays(1); // 包含 toDate 全天
 
-        // 1. 投料荒管 — 批次中原料类型为"荒管"的投料重量，按 InboundDate 分组
+        // 1. 投料荒管 — 批次中原料类型为"荒管"的投料重量，按创建日期分组
         var roughTubeData = await _context.ProductionBatches
             .AsNoTracking()
-            .Where(b => b.SourceMaterialType == InventoryMaterialTypes.RoughTube && b.InboundDate.HasValue
-                        && b.InboundDate >= rangeFrom && b.InboundDate < rangeTo)
-            .GroupBy(b => b.InboundDate!.Value.Date)
+            .Where(b => b.SourceMaterialType == InventoryMaterialTypes.RoughTube
+                        && b.CreatedTime.DateTime >= rangeFrom && b.CreatedTime.DateTime < rangeTo)
+            .GroupBy(b => b.CreatedTime.DateTime.Date)
             .Select(g => new { Date = g.Key, Weight = g.Sum(b => b.InputWeight ?? 0m) })
             .ToListAsync();
 

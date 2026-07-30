@@ -700,7 +700,7 @@ public class WorkOrderExecutionServiceTests : TestBase
         await svc.RefreshAllAsync();
 
         var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
-        s.LatestPlanDate.Should().Be(new DateTime(2026, 7, 20)); // max of 6/15 and 7/20
+        s.MaterialPlanStatus.Should().Be(1); // Partial
     }
 
     [Fact]
@@ -892,7 +892,6 @@ public class WorkOrderExecutionServiceTests : TestBase
                 CurrentValidWeight = 1250m,
                 ProductionRatio = 2,
                 RowVersion = new byte[8],
-                InboundDate = DateTime.Today,
                 ProcessGroups = new List<ProcessGroup>
                 {
                     new() { ProcessName = "60冷轧", SequenceNumber = 1, ColdRollDraw = 1, Solution = 2 }
@@ -1009,7 +1008,6 @@ public class WorkOrderExecutionServiceTests : TestBase
             CurrentValidQty = 100,
             CurrentValidWeight = 2500m,
             RowVersion = new byte[8],
-            InboundDate = DateTime.Today,
             ProcessGroups = new List<ProcessGroup>
             {
                 new()

@@ -307,11 +307,8 @@ public static class DataExchangeRegistry
             new("关联项次", "OrderItemIds", typeof(string), isRequired: false),
             // 仓库冗余字段
             new("来源库存批次号", "SourceBatchNo", typeof(string), isRequired: false),
-            new("仓库编码", null!) { IsFkColumn = true, FkEntityKey = "Warehouse", FkLookupProperty = "Code", FkTargetProperty = "WarehouseId" },
             new("原料类型", "SourceMaterialType", typeof(string), isRequired: false),
-            new("入库来源", "InboundSource", typeof(string), isRequired: false),
             new("来料单位", "SourceName", typeof(string), isRequired: false),
-            new("入库日期", "InboundDate", typeof(DateTime?), isRequired: false),
             new("炉号", "SourceHeatNo", typeof(string), isRequired: false),
             new("来源工厂牌号", "SourcePlantGrade", typeof(string), isRequired: false),
             new("来源名义规格", "SourceSpecification", typeof(string), isRequired: false),
@@ -319,6 +316,8 @@ public static class DataExchangeRegistry
             new("单支重(kg)", "SourceUnitWeight", typeof(decimal?), isRequired: false),
             new("领料支数", "InputQuantity", typeof(int?), isRequired: false),
             new("领料重量(kg)", "InputWeight", typeof(decimal?), isRequired: false),
+            new("投料类型", "InputType", typeof(Core.Enums.BatchInputType), isEnum: true, isRequired: false),
+            new("源生产编号", "SourceProductionNo", typeof(string), isRequired: false),
             new("现有效支数", "CurrentValidQty", typeof(int?), isRequired: false),
             new("现有效重量(kg)", "CurrentValidWeight", typeof(decimal?), isRequired: false),
             // 系统跟踪字段

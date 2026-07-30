@@ -122,14 +122,10 @@ public partial class RawMaterialLockPlanAndExecution
         // G2: 用料计划
         var g2 = new List<ColumnDef>
         {
-            new() { Key = "LatestPlanDate",          Label = "计划截止日",      SortKey = "LatestPlanDate",          Width = "120", GroupKey = 2, GroupName = "用料计划" },
-            new() { Key = "MaterialPlanRate",        Label = "满足率(%)",      SortKey = "MaterialPlanRate",        Width = "80",                              GroupKey = 2, GroupName = "用料计划" },
             new() { Key = "MaterialPlanStatus",      Label = "用料计划状态",    SortKey = "MaterialPlanStatus",      FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未计划"), new("1","部分"), new("2","理论满足"), new("3","满足"), new("4","超量") }, GroupKey = 2, GroupName = "用料计划" },
             new() { Key = "MainNoMaterialPlanRate",  Label = "主号满足率(%)",  SortKey = "MainNoMaterialPlanRate",  Width = "80", Visible = false, GroupKey = 2, GroupName = "用料计划" },
             new() { Key = "MainNoMaterialPlanStatus",Label = "主号用料计划状态",SortKey = "MainNoMaterialPlanStatus",FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未计划"), new("1","部分"), new("2","理论满足"), new("3","满足"), new("4","超量") }, Visible = false, GroupKey = 2, GroupName = "用料计划" },
-            new() { Key = "ProcessCycle",            Label = "工艺周期(天)",    SortKey = "ProcessCycle",            Width = "80",                               GroupKey = 2, GroupName = "用料计划" },
             new() { Key = "MaterialPlanProportion",   Label = "用料占比",       SortKey = "MaterialPlanProportion",   Width = "120",                             GroupKey = 2, GroupName = "用料计划" },
-            new() { Key = "LatestRequiredDate",       Label = "要求到货日",      SortKey = "LatestRequiredDate",      Width = "120",                             GroupKey = 2, GroupName = "用料计划" },
         };
 
         // G5: 物料执行实时信息
@@ -526,14 +522,10 @@ public partial class RawMaterialLockPlanAndExecution
             "TotalQuantity" => sortDescending ? query.OrderByDescending(x => x.TotalQuantity) : query.OrderBy(x => x.TotalQuantity),
             "TotalMeters" => sortDescending ? query.OrderByDescending(x => x.TotalMeters) : query.OrderBy(x => x.TotalMeters),
             "TotalWeight" => sortDescending ? query.OrderByDescending(x => x.TotalWeight) : query.OrderBy(x => x.TotalWeight),
-            "LatestPlanDate" => sortDescending ? query.OrderByDescending(x => x.LatestPlanDate) : query.OrderBy(x => x.LatestPlanDate),
-            "MaterialPlanRate" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanRate) : query.OrderBy(x => x.MaterialPlanRate),
             "MaterialPlanStatus" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanStatus) : query.OrderBy(x => x.MaterialPlanStatus),
             "MainNoMaterialPlanRate" => sortDescending ? query.OrderByDescending(x => x.MainNoMaterialPlanRate) : query.OrderBy(x => x.MainNoMaterialPlanRate),
             "MainNoMaterialPlanStatus" => sortDescending ? query.OrderByDescending(x => x.MainNoMaterialPlanStatus) : query.OrderBy(x => x.MainNoMaterialPlanStatus),
-            "ProcessCycle" => sortDescending ? query.OrderByDescending(x => x.ProcessCycle) : query.OrderBy(x => x.ProcessCycle),
             "MaterialPlanProportion" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanProportion) : query.OrderBy(x => x.MaterialPlanProportion),
-            "LatestRequiredDate" => sortDescending ? query.OrderByDescending(x => x.LatestRequiredDate) : query.OrderBy(x => x.LatestRequiredDate),
             "PendingRoughTubeQty" => sortDescending ? query.OrderByDescending(x => x.PendingRoughTubeQty) : query.OrderBy(x => x.PendingRoughTubeQty),
             "PendingRoughTubeWeight" => sortDescending ? query.OrderByDescending(x => x.PendingRoughTubeWeight) : query.OrderBy(x => x.PendingRoughTubeWeight),
             "PendingOutsourceFinishQty" => sortDescending ? query.OrderByDescending(x => x.PendingOutsourceFinishQty) : query.OrderBy(x => x.PendingOutsourceFinishQty),
@@ -771,12 +763,8 @@ public partial class RawMaterialLockPlanAndExecution
             "TotalQuantity" => item.TotalQuantity,
             "TotalMeters" => item.TotalMeters,
             "TotalWeight" => item.TotalWeight,
-            "LatestPlanDate" => item.LatestPlanDate,
-            "MaterialPlanRate" => item.MaterialPlanRate,
             "MainNoMaterialPlanRate" => item.MainNoMaterialPlanRate,
-            "ProcessCycle" => item.ProcessCycle,
             "MaterialPlanProportion" => item.MaterialPlanProportion ?? "",
-            "LatestRequiredDate" => item.LatestRequiredDate,
             "PendingRoughTubeQty" => item.PendingRoughTubeQty,
             "PendingRoughTubeWeight" => item.PendingRoughTubeWeight,
             "PendingOutsourceFinishQty" => item.PendingOutsourceFinishQty,
@@ -1093,12 +1081,6 @@ public partial class RawMaterialLockPlanAndExecution
                 break;
 
             // G2
-            case "LatestPlanDate":
-                builder.AddContent(0, item.LatestPlanDate?.ToString("yyyy-MM-dd") ?? "-");
-                break;
-            case "MaterialPlanRate":
-                builder.AddContent(0, item.MaterialPlanRate > 0 ? $"{item.MaterialPlanRate:F1}%" : "-");
-                break;
             case "MaterialPlanStatus":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
@@ -1106,14 +1088,8 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetMaterialPlanStatusText(item.MaterialPlanStatus))));
                 builder.CloseComponent();
                 break;
-            case "ProcessCycle":
-                builder.AddContent(0, item.ProcessCycle > 0 ? $"{item.ProcessCycle}天" : "-");
-                break;
             case "MaterialPlanProportion":
                 builder.AddContent(0, item.MaterialPlanProportion ?? "-");
-                break;
-            case "LatestRequiredDate":
-                builder.AddContent(0, item.LatestRequiredDate?.ToString("yyyy-MM-dd") ?? "-");
                 break;
             case "MainNoMaterialPlanRate":
                 builder.AddContent(0, item.MainNoMaterialPlanRate > 0 ? $"{item.MainNoMaterialPlanRate:F1}%" : "-");

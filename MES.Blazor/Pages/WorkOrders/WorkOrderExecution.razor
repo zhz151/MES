@@ -24,6 +24,18 @@
             工单执行状况
         </MudText>
         <div class="d-flex align-center">
+            <MudButton Variant="Variant.Filled"
+                       Size="Size.Small"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="HandleRefreshAll"
+                       Disabled="@_isRefreshing">
+                @if (_isRefreshing)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                }
+                即时更新
+            </MudButton>
         </div>
     </div>
 

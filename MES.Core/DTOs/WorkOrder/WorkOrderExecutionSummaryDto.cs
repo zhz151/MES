@@ -40,47 +40,28 @@ public class WorkOrderExecutionSummaryDto
     public decimal TotalMeters { get; set; }
     public decimal TotalWeight { get; set; }
 
-    // ========== Group 2: 用料计划 ==========
-    public DateTime? LatestPlanDate { get; set; }
-    public decimal MaterialPlanRate { get; set; }
+    // ========== Group 2: 用料计划（来自用料计划总览 WorkOrderListSummary） ==========
+    /// <summary>工单计划状态(0=未计划 1=部分 2=理论满足 3=满足 4=超量)</summary>
     public MaterialPlanStatus MaterialPlanStatus { get; set; }
     public string MaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MaterialPlanStatus);
+
+    /// <summary>主号满足率(%)</summary>
     public decimal MainNoMaterialPlanRate { get; set; }
+
+    /// <summary>主号计划状态</summary>
     public MaterialPlanStatus MainNoMaterialPlanStatus { get; set; }
     public string MainNoMaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MainNoMaterialPlanStatus);
 
-    /// <summary>工艺周期（天）</summary>
-    public int ProcessCycle { get; set; }
-
-    /// <summary>用料占比：4种料态中有做计划的种数(0-4)</summary>
+    /// <summary>料态种数：4种料态中有做计划的种数(0-4)</summary>
     public int MaterialPlanCoveredCount { get; set; }
 
     /// <summary>用料占比文本：如"穿105% 荒160% 成20% 库40%"</summary>
     public string? MaterialPlanProportion { get; set; }
 
-    /// <summary>要求到货日（最晚）</summary>
-    public DateTime? LatestRequiredDate { get; set; }
+    /// <summary>理论截止投料日：交货日-(主号最大工艺周期+产能工量)</summary>
+    public DateTime? TheoreticalCutoffDate { get; set; }
 
-    // ========== Group 5: 物料执行实时信息（从采购订单聚合） ==========
-    /// <summary>待回荒管支数</summary>
-    public int PendingRoughTubeQty { get; set; }
-
-    /// <summary>待回荒管重量</summary>
-    public decimal PendingRoughTubeWeight { get; set; }
-
-    /// <summary>待回外购成支</summary>
-    public int PendingOutsourceFinishQty { get; set; }
-
-    /// <summary>待回外购成重</summary>
-    public decimal PendingOutsourceFinishWeight { get; set; }
-
-    /// <summary>理论成品支（Σ 每笔待回收支 × 投料倍率）</summary>
-    public decimal TheoreticalFinishQty { get; set; }
-
-    /// <summary>理论成品重（待回荒管重量 × 0.92 + 待回外购成重）</summary>
-    public decimal TheoreticalFinishWeight { get; set; }
-
-    // ========== Group 3: 投料数据 ==========
+    // ========== G11: 原始投料 ==========
     public DateTime? InputStartDate { get; set; }
     public DateTime? InputEndDate { get; set; }
     public int TotalBatchCount { get; set; }
@@ -93,13 +74,59 @@ public class WorkOrderExecutionSummaryDto
     public decimal MainNoInputOutputRatio { get; set; }
     public int MainNoInputStatus { get; set; }
 
-    // ========== Group 4: 有效数据 ==========
+    // ========== G4~G10: 7 种用料计划执行状况 ==========
+
+    // G4: 圆棒穿孔
+    public decimal PiercingPlanWeight { get; set; }
+    public decimal PiercingSubOutWeight { get; set; }
+    public int PiercingSubStatus { get; set; }
+    public decimal PiercingSubInWeight { get; set; }
+    public decimal PiercingSubPendingWeight { get; set; }
+    public int PiercingReturnStatus { get; set; }
+
+    // G5: 荒管采购
+    public decimal SemiPlanWeight { get; set; }
+    public decimal SemiOrderWeight { get; set; }
+    public int SemiOrderStatus { get; set; }
+    public decimal SemiInWeight { get; set; }
+    public decimal SemiPendingWeight { get; set; }
+    public int SemiInStatus { get; set; }
+
+    // G6: 成品采购
+    public decimal FinishPlanWeight { get; set; }
+    public decimal FinishOrderWeight { get; set; }
+    public int FinishOrderStatus { get; set; }
+    public decimal FinishInWeight { get; set; }
+    public decimal FinishPendingWeight { get; set; }
+    public int FinishInStatus { get; set; }
+
+    // G7: 库存使用
+    public decimal InventoryPlanWeight { get; set; }
+    public decimal InventoryOutWeight { get; set; }
+    public int InventoryOutStatus { get; set; }
+
+    // G8: 库料改制
+    public decimal ReworkPlanWeight { get; set; }
+    public decimal ReworkPlanInputWeight { get; set; }
+    public int ReworkPlanInputStatus { get; set; }
+
+    // G9: 在产改制
+    public decimal InProcessReworkPlanWeight { get; set; }
+    public decimal InProcessReworkInputWeight { get; set; }
+    public int InProcessReworkInputStatus { get; set; }
+
+    // G10: 在产主工单
+    public decimal InMainPlanWeight { get; set; }
+    public decimal InMainInputWeight { get; set; }
+    public int InMainInputStatus { get; set; }
+
+    // ========== Group 13: 合格流转 ==========
     public int ValidBatchCount { get; set; }
     public int ValidInputQuantity { get; set; }
     public decimal ValidInputWeight { get; set; }
     public decimal ValidOutputQty { get; set; }
     public decimal ValidOutputWeight { get; set; }
-    // ========== Group 6: 返整执行数据 ==========
+    // ========== Group 14: 返整执行 ==========
     public DateTime? ReworkInputEndDate { get; set; }
     public int ReworkBatchCount { get; set; }
     public int ReworkInputQuantity { get; set; }
@@ -107,7 +134,7 @@ public class WorkOrderExecutionSummaryDto
     public decimal ReworkTheoreticalOutputQty { get; set; }
     public decimal ReworkTheoreticalOutputWeight { get; set; }
 
-    // ========== Group 7: 有效流转 ==========
+    // ========== Group 12: 有效流转 ==========
     public decimal FlowOutputRatio { get; set; }
     public int FlowStatus { get; set; }
     public decimal MainNoFlowOutputRatio { get; set; }
@@ -116,21 +143,21 @@ public class WorkOrderExecutionSummaryDto
     public int FlowIncompleteBatchCount { get; set; }
     public int FlowMaxRemainingWorkDays { get; set; }
 
-    // ========== Group 8: 过程不合格 ==========
+    // ========== Group 19: 过程不合格 ==========
     public int DefectiveRawQty { get; set; }
     public decimal DefectiveRawWeight { get; set; }
     public decimal DefectiveOutputQty { get; set; }
     public decimal DefectiveOutputWeight { get; set; }
     public decimal DefectiveRatio { get; set; }
 
-    // ========== Group 9: 成检不合格 ==========
+    // ========== Group 20: 成检不合格 ==========
     public DateTime? InspectionStartDate { get; set; }
     public DateTime? InspectionEndDate { get; set; }
     public int InspectionDefectQty { get; set; }
     public decimal InspectionDefectWeight { get; set; }
     public decimal InspectionDefectRatio { get; set; }
 
-    // ========== Group 10: 汇总不合格 ==========
+    // ========== Group 18: 汇总不合格 ==========
     public decimal GeneralDefectWeight { get; set; }
     public decimal GeneralDefectRatio { get; set; }
     public decimal SeriousDefectWeight { get; set; }
@@ -138,7 +165,7 @@ public class WorkOrderExecutionSummaryDto
     public decimal ScrapWeight { get; set; }
     public decimal ScrapRatio { get; set; }
 
-    // ========== Group 11: 成品入库 ==========
+    // ========== Group 15: 成品入库 ==========
     public DateTime? WarehousingStartDate { get; set; }
     public DateTime? WarehousingEndDate { get; set; }
     public int WarehousingTotalQty { get; set; }
@@ -202,7 +229,84 @@ public class WorkOrderExecutionSummaryDto
 
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
 
-    // ========== G12: 关注状态 ==========
+    // ========== G4~G10 状态文本（5档） ==========
+    public string PiercingSubStatusText => PlanExecutionStatusText(PiercingSubStatus);
+    public string PiercingReturnStatusText => PlanExecutionStatusText(PiercingReturnStatus);
+    public string SemiOrderStatusText => PlanExecutionStatusText(SemiOrderStatus);
+    public string SemiInStatusText => PlanExecutionStatusText(SemiInStatus);
+    public string FinishOrderStatusText => PlanExecutionStatusText(FinishOrderStatus);
+    public string FinishInStatusText => PlanExecutionStatusText(FinishInStatus);
+    public string InventoryOutStatusText => PlanExecutionStatusText(InventoryOutStatus);
+    public string ReworkPlanInputStatusText => PlanExecutionStatusText(ReworkPlanInputStatus);
+    public string InProcessReworkInputStatusText => PlanExecutionStatusText(InProcessReworkInputStatus);
+    public string InMainInputStatusText => PlanExecutionStatusText(InMainInputStatus);
+
+    private static string PlanExecutionStatusText(int status) => status switch
+    {
+        0 => "无计划",
+        1 => "未执行",
+        2 => "部分",
+        3 => "已完成",
+        4 => "异常",
+        _ => "未知"
+    };
+
+    // ========== G3 汇总字段（工单号级，DTO 计算属性） ==========
+    /// <summary>计划投料总重量(kg)：G4~G10 七个计划量之和</summary>
+    public decimal TotalPlanWeight =>
+        PiercingPlanWeight + SemiPlanWeight + FinishPlanWeight
+        + InventoryPlanWeight + ReworkPlanWeight
+        + InProcessReworkPlanWeight + InMainPlanWeight;
+
+    /// <summary>现可投料总重量(kg)：G4回收量 + G5到货量 + G6到货量 + G7出库量 + G8投料量 + G9投料量 + G10投料量</summary>
+    public decimal TotalAvailableWeight =>
+        PiercingSubInWeight + SemiInWeight + FinishInWeight
+        + InventoryOutWeight + ReworkPlanInputWeight
+        + InProcessReworkInputWeight + InMainInputWeight;
+
+    /// <summary>理论缺失总料重量(kg)：计划投料总重量 − 现可投料总重量</summary>
+    public decimal TotalMissingWeight => Math.Max(0m, TotalPlanWeight - TotalAvailableWeight);
+
+    /// <summary>实际已投料量(kg) = 投料总重量(InputWeight)</summary>
+    public decimal ActualInputWeight => InputWeight;
+
+    /// <summary>实投主号状态 = 关联主号投料状态(MainNoInputStatus)</summary>
+    public int ActualMainNoInputStatus => MainNoInputStatus;
+    public string ActualMainNoInputStatusText => MainNoInputStatusText;
+
+    /// <summary>计划实投一致性：0=一致 1=疑问 2=错误</summary>
+    public int PlanInputConsistency
+    {
+        get
+        {
+            // (1) 实际投料量 > 可投料总重量 × 1.1 → 疑问
+            if (TotalPlanWeight > 0 && InputWeight > TotalAvailableWeight * 1.1m)
+                return 1;
+
+            // (2) 实投主号状态="满足"(2) 但 G4~G10 中存在"部分"(2) → 错误
+            if (MainNoInputStatus == 2)
+            {
+                var hasPartial = PiercingSubStatus == 2 || PiercingReturnStatus == 2
+                    || SemiOrderStatus == 2 || SemiInStatus == 2
+                    || FinishOrderStatus == 2 || FinishInStatus == 2
+                    || InventoryOutStatus == 2 || ReworkPlanInputStatus == 2
+                    || InProcessReworkInputStatus == 2 || InMainInputStatus == 2;
+                if (hasPartial) return 2;
+            }
+
+            return 0;
+        }
+    }
+
+    public string PlanInputConsistencyText => PlanInputConsistency switch
+    {
+        0 => "一致",
+        1 => "疑问",
+        2 => "错误",
+        _ => "未知"
+    };
+
+    // ========== G16: 实时关注 ==========
     public int ScheduleStage { get; set; }
     public int? TotalRemainingWorkDays { get; set; }
     public int? CapacityWorkDays { get; set; }
@@ -211,7 +315,7 @@ public class WorkOrderExecutionSummaryDto
     public int? DaysDiffFromDelivery { get; set; }
     public string? RawMaterialLockRemark { get; set; }
 
-    // ========== G11 状态文本 ==========
+    // ========== G15 状态文本（入库状态） ==========
     public string WoWarehousingStatusText => WoWarehousingStatus switch
     {
         0 => "无入库",
@@ -236,7 +340,7 @@ public class WorkOrderExecutionSummaryDto
         _ => "未知"
     };
 
-    // ========== G12 关注状态文本 ==========
+    // ========== G16 关注状态文本 ==========
     public string ScheduleStageText => ScheduleStage switch
     {
         0 => "工单完成",
@@ -246,7 +350,7 @@ public class WorkOrderExecutionSummaryDto
         _ => "未知"
     };
 
-    // ========== Group 14: 在产节点待量 ==========
+    // ========== Group 17: 在产节点待量 ==========
     public decimal? PendingSectionRoughTube { get; set; }
     public decimal? PendingSectionWarehouseFix { get; set; }
     public decimal? PendingSection60Roll { get; set; }
@@ -260,7 +364,7 @@ public class WorkOrderExecutionSummaryDto
     public int? MaxBatchRemainingWorkDays { get; set; }
     public string? MainNoAttentionProcess { get; set; }
 
-    // ========== Group 13: 工单需求调整 ==========
+    // ========== Group 2: 工单需求调整 ==========
     public bool IsUrging { get; set; }
     public bool IsBatchDelivery { get; set; }
     public bool IsPaused { get; set; }

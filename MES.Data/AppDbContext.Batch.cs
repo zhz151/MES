@@ -67,18 +67,17 @@ public partial class AppDbContext
             entity.Property(e => e.ItemDetails).HasColumnType("nvarchar(max)");
             entity.Property(e => e.TechnicalRequirements).IsRequired().HasMaxLength(20);
 
-            // 仓库冗余字段
+            // 投料信息字段
             entity.Property(e => e.SourceBatchNo).HasMaxLength(50);
             entity.Property(e => e.SourceMaterialType).HasMaxLength(30);
-            entity.Property(e => e.InboundSource).HasMaxLength(20);
             entity.Property(e => e.SourceName).HasMaxLength(200);
-            entity.Property(e => e.InboundDate).HasColumnType("datetime2");
             entity.Property(e => e.SourceHeatNo).HasMaxLength(50);
             entity.Property(e => e.SourcePlantGrade).HasMaxLength(50);
             entity.Property(e => e.SourceSpecification).HasMaxLength(100);
             entity.Property(e => e.SourceLengthStatus).HasMaxLength(20);
             entity.Property(e => e.SourceUnitWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.InputWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.InputType).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(BatchInputType.SplitFromNumber);
             entity.Property(e => e.CurrentValidQty);
             entity.Property(e => e.CurrentValidWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.IsClosed).IsRequired().HasDefaultValue(false);

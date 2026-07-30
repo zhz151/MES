@@ -291,7 +291,7 @@ public class ProductionBatch : BaseEntity
     /// </summary>
     public string TechnicalRequirements { get; set; } = null!;
 
-    // ========== 仓库信息冗余字段（从InventoryBatch复制） ==========
+    // ========== 投料信息字段 ==========
 
     /// <summary>
     /// 来源库存批次号
@@ -299,29 +299,14 @@ public class ProductionBatch : BaseEntity
     public string? SourceBatchNo { get; set; }
 
     /// <summary>
-    /// 关联仓库ID
-    /// </summary>
-    public int? WarehouseId { get; set; }
-
-    /// <summary>
     /// 原料类型（荒管/圆钢等）
     /// </summary>
     public string? SourceMaterialType { get; set; }
 
     /// <summary>
-    /// 入库来源
-    /// </summary>
-    public string? InboundSource { get; set; }
-
-    /// <summary>
     /// 来料单位
     /// </summary>
     public string? SourceName { get; set; }
-
-    /// <summary>
-    /// 入库日期
-    /// </summary>
-    public DateTime? InboundDate { get; set; }
 
     /// <summary>
     /// 炉号
@@ -359,10 +344,21 @@ public class ProductionBatch : BaseEntity
     public decimal? InputWeight { get; set; }
 
     /// <summary>
-    /// 原料备注
+    /// 投料类型：SplitFromNumber=编号拆分  Other=其它
+    /// </summary>
+    public BatchInputType InputType { get; set; } = BatchInputType.SplitFromNumber;
+
+    /// <summary>
+    /// 投料备注
     /// </summary>
     [MaxLength(500)]
     public string? SourceRemark { get; set; }
+
+    /// <summary>
+    /// 源生产编号
+    /// </summary>
+    [MaxLength(50)]
+    public string? SourceProductionNo { get; set; }
 
     /// <summary>
     /// 现有效原料支数
@@ -373,6 +369,21 @@ public class ProductionBatch : BaseEntity
     /// 现有效原料重量
     /// </summary>
     public decimal? CurrentValidWeight { get; set; }
+
+    /// <summary>
+    /// 理论成品支 = CurrentValidQty × ProductionRatio（整数值）
+    /// </summary>
+    public int? TheoreticalOutputQty { get; set; }
+
+    /// <summary>
+    /// 理论成品重 = CurrentValidWeight × (1 - 有效工序组数 × 折扣率)（整数值）
+    /// </summary>
+    public int? TheoreticalOutputWeight { get; set; }
+
+    /// <summary>
+    /// 理论单支重 = TheoreticalOutputWeight / TheoreticalOutputQty（保留1位小数）
+    /// </summary>
+    public decimal? TheoreticalUnitWeight { get; set; }
 
     // ========== 导航属性 ==========
 

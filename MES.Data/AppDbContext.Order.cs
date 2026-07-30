@@ -104,21 +104,6 @@ public partial class AppDbContext
             entity.HasOne(e => e.OrderItem).WithOne(oi => oi.ProductRequirement).HasForeignKey<ProductRequirement>(e => e.OrderItemId).OnDelete(DeleteBehavior.Cascade);
         });
     }
-    private static void ConfigureOrderChangeNotification(ModelBuilder builder)
-    {
-        builder.Entity<OrderChangeNotification>(entity =>
-        {
-            entity.ToTable("OrderChangeNotification");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.OrderNumber).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.ChangeType).IsRequired().HasConversion<string>().HasMaxLength(20);
-            entity.Property(e => e.WorkOrderCount).IsRequired().HasDefaultValue(0);
-            entity.Property(e => e.IsRead).IsRequired().HasDefaultValue(false);
-            entity.HasIndex(e => e.CreatedTime).HasDatabaseName("IX_OrderChangeNotification_CreatedTime");
-            entity.HasIndex(e => e.IsRead).HasDatabaseName("IX_OrderChangeNotification_IsRead");
-            entity.HasIndex(e => e.OrderNumber).HasDatabaseName("IX_OrderChangeNotification_OrderNumber");
-        });
-    }
     private static void ConfigureRefreshToken(ModelBuilder builder)
     {
         builder.Entity<RefreshToken>(entity =>

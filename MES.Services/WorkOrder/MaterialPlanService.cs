@@ -2035,7 +2035,7 @@ public class MaterialPlanService : IMaterialPlanService
                 p => p.ProductionBatchId,
                 b => b.Id,
                 (p, b) => new { p, b })
-            .Where(j => j.b.WorkOrderNo == "非工单")
+            .Where(j => j.b.WorkOrderNo == "非工单" && j.p.PlanStatus == InventoryPlanStatus.Planned)
             .Join(_context.WorkOrders.AsNoTracking(),
                 j => j.p.WorkOrderId,
                 wo => wo.Id,
@@ -2047,6 +2047,52 @@ public class MaterialPlanService : IMaterialPlanService
                 })
             .Distinct()
             .ToListAsync();
+    }
+
+    public async Task DismissInProcessReworkPlanByBatchAndWorkOrderAsync(int productionBatchId, string subWorkOrderNo)
+    {
+        var plans = await _context.InProcessReworkPlans
+            .Where(p => p.ProductionBatchId == productionBatchId
+                     && p.PlanStatus == InventoryPlanStatus.Planned)
+            .Join(_context.WorkOrders,
+                p => p.WorkOrderId,
+                wo => wo.Id,
+                (p, wo) => new { Plan = p, WorkOrder = wo })
+            .Where(j => j.WorkOrder.WorkOrderNo == subWorkOrderNo)
+            .Select(j => j.Plan)
+            .ToListAsync();
+
+        if (plans.Count == 0) return;
+
+        foreach (var plan in plans)
+            plan.PlanStatus = InventoryPlanStatus.Completed;
+
+        await _context.SaveChangesAsync();
+
+        foreach (var group in plans.GroupBy(p => p.WorkOrderId))
+            await UpdateMaterialPlanStatusAsync(group.Key);
+    }
+
+    /// <summary>
+    /// 根据批次ID消除所有待处理的在产改制计划（有效量变更/工单号变更时触发）
+    /// </summary>
+    public async Task DismissInProcessReworkPlansByBatchAsync(int productionBatchId)
+    {
+        var plans = await _context.InProcessReworkPlans
+            .Where(p => p.ProductionBatchId == productionBatchId
+                     && p.PlanStatus == InventoryPlanStatus.Planned)
+            .ToListAsync();
+
+        if (plans.Count == 0) return;
+
+        foreach (var plan in plans)
+            plan.PlanStatus = InventoryPlanStatus.Completed;
+
+        await _context.SaveChangesAsync();
+
+        // 触发对应工单的用料状态刷新
+        foreach (var group in plans.GroupBy(p => p.WorkOrderId))
+            await UpdateMaterialPlanStatusAsync(group.Key);
     }
 
     #endregion
@@ -2429,6 +2475,30 @@ public class MaterialPlanService : IMaterialPlanService
     /// <summary>
     /// 根据批次ID消除所有待处理的在产主工单计划通知（有效量变更时触发）
     /// </summary>
+    public async Task DismissInMainWorkOrderPlanByBatchAndWorkOrderAsync(int productionBatchId, string subWorkOrderNo)
+    {
+        var plans = await _context.InMainWorkOrderPlans
+            .Where(p => p.ProductionBatchId == productionBatchId
+                     && p.PlanStatus == InventoryPlanStatus.Planned)
+            .Join(_context.WorkOrders,
+                p => p.WorkOrderId,
+                wo => wo.Id,
+                (p, wo) => new { Plan = p, WorkOrder = wo })
+            .Where(j => j.WorkOrder.WorkOrderNo == subWorkOrderNo)
+            .Select(j => j.Plan)
+            .ToListAsync();
+
+        if (plans.Count == 0) return;
+
+        foreach (var plan in plans)
+            plan.PlanStatus = InventoryPlanStatus.Completed;
+
+        await _context.SaveChangesAsync();
+
+        foreach (var group in plans.GroupBy(p => p.WorkOrderId))
+            await UpdateMaterialPlanStatusAsync(group.Key);
+    }
+
     public async Task DismissInMainWorkOrderPlansByBatchAsync(int productionBatchId)
     {
         var plans = await _context.InMainWorkOrderPlans
@@ -3347,9 +3417,13 @@ public class MaterialPlanService : IMaterialPlanService
     {
         return await _context.InventoryPlans
             .AsNoTracking()
-            .Where(p => p.PlanStatus == InventoryPlanStatus.Planned)
+            .Where(p => p.PlanStatus == InventoryPlanStatus.Planned
+                     && !_context.OutboundRecords.Any(or =>
+                         or.BatchNo != null
+                         && or.BatchNo == p.InventoryBatchNo
+                         && or.OutboundType == OutboundType.ProductionPick))
             .Join(_context.InventoryBatches.AsNoTracking(),
-                p => p.BatchNo,
+                p => p.InventoryBatchNo,
                 b => b.BatchNo,
                 (p, b) => new { p, b })
             .Where(j => j.b.WarehouseId == warehouseId)

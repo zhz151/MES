@@ -924,6 +924,36 @@ input[type="number"]::-webkit-outer-spin-button {
 .col-g15 .col-group-badge { color: #E65100; background: #FFCC80; }
 .col-g15-cell { background: #FFF3E0 !important; }
 
+/* G4: 荒管采购 */
+.col-g16 { background: #E8EAF6 !important; }
+.col-g16 .col-group-badge { color: #283593; background: #C5CAE9; }
+.col-g16-cell { background: #E8EAF6 !important; }
+
+/* G5: 成品采购 */
+.col-g17 { background: #FCE4EC !important; }
+.col-g17 .col-group-badge { color: #AD1457; background: #F48FB1; }
+.col-g17-cell { background: #FCE4EC !important; }
+
+/* G6: 库存使用 */
+.col-g18 { background: #E0F7FA !important; }
+.col-g18 .col-group-badge { color: #00695C; background: #80DEEA; }
+.col-g18-cell { background: #E0F7FA !important; }
+
+/* G7: 库料改制 */
+.col-g19 { background: #F1F8E9 !important; }
+.col-g19 .col-group-badge { color: #33691E; background: #AED581; }
+.col-g19-cell { background: #F1F8E9 !important; }
+
+/* G8: 在产改制 */
+.col-g20 { background: #FFF8E1 !important; }
+.col-g20 .col-group-badge { color: #F57F17; background: #FFD54F; }
+.col-g20-cell { background: #FFF8E1 !important; }
+
+/* G9: 在产主工单 */
+.col-g21 { background: #F3E5F5 !important; }
+.col-g21 .col-group-badge { color: #6A1B9A; background: #CE93D8; }
+.col-g21-cell { background: #F3E5F5 !important; }
+
 /* G15 内联编辑控件紧凑样式 */
 .compact-select {
     font-size: 0.8rem;

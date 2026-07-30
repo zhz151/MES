@@ -45,7 +45,6 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<CustomerProfile> CustomerProfiles { get; set; } = null!;
     public DbSet<ProductRequirement> ProductRequirements { get; set; } = null!;
-    public DbSet<OrderChangeNotification> OrderChangeNotifications { get; set; } = null!;
     public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
     public DbSet<OrderDemandAdjustment> OrderDemandAdjustments { get; set; } = null!;
     public DbSet<OrderListSummary> OrderListSummaries { get; set; } = null!;
@@ -164,7 +163,6 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureOrderItem(builder);
         ConfigureCustomerProfile(builder);
         ConfigureProductRequirement(builder);
-        ConfigureOrderChangeNotification(builder);
         ConfigureRefreshToken(builder);
         ConfigureOrderDemandAdjustment(builder);
         ConfigureOrderListSummary(builder);

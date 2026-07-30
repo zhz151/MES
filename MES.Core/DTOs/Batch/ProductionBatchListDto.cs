@@ -79,5 +79,4 @@ public class ProductionBatchListDto
     public MaterialType? SourceMaterialType { get; set; }
     public string? SourceMaterialTypeDisplay => SourceMaterialType.HasValue ? EnumHelper.GetDisplayName(SourceMaterialType.Value) : null;
     public string? SourceName { get; set; }
-    public DateTime? InboundDate { get; set; }
 }

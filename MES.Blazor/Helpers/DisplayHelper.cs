@@ -203,9 +203,6 @@ public static class DisplayHelper
     /// <summary>获取通知类型中文文本</summary>
     public static string GetNotificationTypeText(NotificationType type) => EnumHelper.GetDisplayName(type);
 
-    /// <summary>获取通知变更类型中文文本</summary>
-    public static string GetNotificationChangeTypeText(NotificationChangeType type) => EnumHelper.GetDisplayName(type);
-
     /// <summary>获取处理方式中文文本</summary>
     public static string GetDisposalMethodText(DisposalMethod method) => EnumHelper.GetDisplayName(method);
 
@@ -229,6 +226,9 @@ public static class DisplayHelper
 
     /// <summary>获取工段状态中文文本</summary>
     public static string GetSectionStatusText(SectionStatus status) => EnumHelper.GetDisplayName(status);
+
+    /// <summary>获取投料类型中文文本</summary>
+    public static string GetInputTypeText(BatchInputType type) => EnumHelper.GetDisplayName(type);
 
     // ========== 非枚举文本（保持独立映射） ==========
 

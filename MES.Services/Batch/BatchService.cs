@@ -62,9 +62,10 @@ public class BatchService : IBatchService
     private readonly IMaterialPlanService _materialPlanService;
     private readonly IOperationLogService _operationLogService;
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
+    private readonly INotificationService _notificationService;
     private readonly IMemoryCache _cache;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, IMemoryCache cache)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
@@ -74,6 +75,7 @@ public class BatchService : IBatchService
         _materialPlanService = materialPlanService;
         _operationLogService = operationLogService;
         _qualityProcessTracking = qualityProcessTracking;
+        _notificationService = notificationService;
         _cache = cache;
     }
 
@@ -160,7 +162,6 @@ public class BatchService : IBatchService
                 (b.SourceSpecification != null && b.SourceSpecification.Contains(kw)) ||
                 (b.SourceMaterialType != null && b.SourceMaterialType.Contains(kw)) ||
                 (b.SourceLengthStatus != null && b.SourceLengthStatus.Contains(kw)) ||
-                (b.InboundSource != null && b.InboundSource.Contains(kw)) ||
                 (b.SolutionParams != null && b.SolutionParams.Contains(kw)));
         }
 
@@ -278,7 +279,6 @@ public class BatchService : IBatchService
             QualityRemark = b.QualityRemark,
             SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
             SourceName = b.SourceName,
-            InboundDate = b.InboundDate,
             ValidInputQuestion = b.ValidInputQuestion
         }).ToList();
 
@@ -357,7 +357,6 @@ public class BatchService : IBatchService
             QualityRemark = b.QualityRemark,
             SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
             SourceName = b.SourceName,
-            InboundDate = b.InboundDate,
             ValidInputQuestion = b.ValidInputQuestion
         }).ToList();
 
@@ -541,11 +540,8 @@ public class BatchService : IBatchService
 
             // 仓库来源
             SourceBatchNo = request.SourceBatchNo,
-            WarehouseId = request.WarehouseId,
             SourceMaterialType = request.SourceMaterialType?.ToString(),
-            InboundSource = request.InboundSource?.ToString(),
             SourceName = request.SourceName,
-            InboundDate = request.InboundDate,
             SourceHeatNo = request.SourceHeatNo,
             SourcePlantGrade = request.SourcePlantGrade,
             SourceSpecification = request.SourceSpecification,
@@ -553,7 +549,9 @@ public class BatchService : IBatchService
             SourceUnitWeight = request.SourceUnitWeight,
             InputQuantity = request.InputQuantity,
             InputWeight = request.InputWeight,
+            InputType = request.InputType,
             SourceRemark = request.SourceRemark,
+            SourceProductionNo = request.SourceProductionNo,
             CurrentValidQty = request.CurrentValidQty,
             CurrentValidWeight = request.CurrentValidWeight,
 
@@ -670,6 +668,24 @@ public class BatchService : IBatchService
                 }
             }
 
+            // 编号拆分模式：减少源批次有效量，消除关联用料计划通知
+            if (request.InputType == BatchInputType.SplitFromNumber && !string.IsNullOrEmpty(request.SourceProductionNo))
+            {
+                var sourceBatch = await _context.ProductionBatches
+                    .FirstOrDefaultAsync(b => b.BatchNo == request.SourceProductionNo);
+                if (sourceBatch != null)
+                {
+                    if (entity.InputQuantity.HasValue)
+                        sourceBatch.CurrentValidQty = (sourceBatch.CurrentValidQty ?? 0) - entity.InputQuantity.Value;
+                    if (entity.InputWeight.HasValue)
+                        sourceBatch.CurrentValidWeight = (sourceBatch.CurrentValidWeight ?? 0) - entity.InputWeight.Value;
+                    await _context.SaveChangesAsync();
+
+                    await _materialPlanService.DismissInMainWorkOrderPlanByBatchAndWorkOrderAsync(sourceBatch.Id, entity.WorkOrderNo);
+                    await _materialPlanService.DismissInProcessReworkPlanByBatchAndWorkOrderAsync(sourceBatch.Id, entity.WorkOrderNo);
+                }
+            }
+
             await transaction.CommitAsync();
         }
         catch
@@ -678,8 +694,17 @@ public class BatchService : IBatchService
             throw;
         }
 
-        // 刷新批次跟踪字段（包括有效投料疑问等计算字段）
+        // 刷新批次跟踪字段（包括有效投料疑问、理论成品量等计算字段）
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.Id);
+
+        // 编号拆分模式：同时刷新源批次的理论成品量（源批次 CurrentValidQty/Weight 已扣减）
+        if (request.InputType == BatchInputType.SplitFromNumber && !string.IsNullOrEmpty(request.SourceProductionNo))
+        {
+            var sourceBatch2 = await _context.ProductionBatches
+                .FirstOrDefaultAsync(b => b.BatchNo == request.SourceProductionNo);
+            if (sourceBatch2 != null)
+                await _productionRecordService.RefreshBatchTrackingFieldsAsync(sourceBatch2.Id);
+        }
 
         _logger.LogInformation("创建生产批次 {BatchNo} (工单: {WorkOrderNo})", batchNo, entity.WorkOrderNo);
 
@@ -745,7 +770,6 @@ public class BatchService : IBatchService
         entity.SolutionParams = request.SolutionParams ?? entity.SolutionParams;
         entity.Remark = request.Remark ?? entity.Remark;
         entity.SourceBatchNo = request.SourceBatchNo ?? entity.SourceBatchNo;
-        entity.WarehouseId = request.WarehouseId ?? entity.WarehouseId;
         entity.SourceMaterialType = request.SourceMaterialType?.ToString() ?? entity.SourceMaterialType;
         entity.SourceName = request.SourceName ?? entity.SourceName;
         entity.SourceHeatNo = request.SourceHeatNo ?? entity.SourceHeatNo;
@@ -755,7 +779,9 @@ public class BatchService : IBatchService
         entity.SourceUnitWeight = request.SourceUnitWeight ?? entity.SourceUnitWeight;
         entity.InputQuantity = request.InputQuantity ?? entity.InputQuantity;
         entity.InputWeight = request.InputWeight ?? entity.InputWeight;
+        entity.InputType = request.InputType ?? entity.InputType;
         entity.SourceRemark = request.SourceRemark ?? entity.SourceRemark;
+        entity.SourceProductionNo = request.SourceProductionNo ?? entity.SourceProductionNo;
         entity.CurrentValidQty = request.CurrentValidQty ?? entity.CurrentValidQty;
         entity.CurrentValidWeight = request.CurrentValidWeight ?? entity.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
@@ -815,8 +841,11 @@ public class BatchService : IBatchService
             }
 
             // 重新汇总 InputQuantity/InputWeight
-            entity.InputQuantity = request.SourceItems.Sum(s => s.InputQuantity);
-            entity.InputWeight = request.SourceItems.Sum(s => s.InputWeight);
+            if (request.SourceItems.Count > 0)
+            {
+                entity.InputQuantity = request.SourceItems.Sum(s => s.InputQuantity);
+                entity.InputWeight = request.SourceItems.Sum(s => s.InputWeight);
+            }
         }
 
         // ========== 制造状态与制造物品业务规则 ==========
@@ -885,6 +914,16 @@ public class BatchService : IBatchService
         if (entity.CurrentValidQty != oldValidQty || entity.CurrentValidWeight != oldValidWeight)
         {
             await _materialPlanService.DismissInMainWorkOrderPlansByBatchAsync(entity.Id);
+        }
+
+        // 工单号从「非工单」变更为正常工单时，消除在产改制计划通知（在产改制B模式）
+        if (oldWorkOrderNo == NotWorkOrder && entity.WorkOrderNo != NotWorkOrder)
+        {
+            await _materialPlanService.DismissInProcessReworkPlansByBatchAsync(entity.Id);
+            await _notificationService.CreateAsync(
+                NotificationType.BatchPlanAutoCompleted.ToString(),
+                "在产改制计划自动完成",
+                $"批次 {entity.BatchNo} 的工单号从「非工单」变更为 {entity.WorkOrderNo}，关联的在产改制计划已自动完成");
         }
 
         _logger.LogInformation("更新生产批次 {BatchNo} (Id={Id})", entity.BatchNo, id);
@@ -1161,12 +1200,9 @@ public class BatchService : IBatchService
         entity.QualityRemark = request.QualityRemark ?? entity.QualityRemark;
         entity.SolutionParams = request.SolutionParams ?? entity.SolutionParams;
         entity.ProductionType = request.ProductionType?.ToString() ?? entity.ProductionType;
-        entity.InboundSource = request.InboundSource?.ToString() ?? entity.InboundSource;
-        entity.InboundDate = request.InboundDate ?? entity.InboundDate;
         entity.Remark = request.Remark ?? entity.Remark;
         entity.ManufacturingItem = request.ManufacturingItem?.ToString() ?? entity.ManufacturingItem;
         entity.SourceBatchNo = request.SourceBatchNo ?? entity.SourceBatchNo;
-        entity.WarehouseId = request.WarehouseId ?? entity.WarehouseId;
         entity.SourceMaterialType = request.SourceMaterialType?.ToString() ?? entity.SourceMaterialType;
         entity.SourceName = request.SourceName ?? entity.SourceName;
         entity.SourceHeatNo = request.SourceHeatNo ?? entity.SourceHeatNo;
@@ -1176,7 +1212,9 @@ public class BatchService : IBatchService
         entity.SourceUnitWeight = request.SourceUnitWeight ?? entity.SourceUnitWeight;
         entity.InputQuantity = request.InputQuantity ?? entity.InputQuantity;
         entity.InputWeight = request.InputWeight ?? entity.InputWeight;
+        entity.InputType = request.InputType ?? entity.InputType;
         entity.SourceRemark = request.SourceRemark ?? entity.SourceRemark;
+        entity.SourceProductionNo = request.SourceProductionNo ?? entity.SourceProductionNo;
         entity.CurrentValidQty = request.CurrentValidQty ?? entity.CurrentValidQty;
         entity.CurrentValidWeight = request.CurrentValidWeight ?? entity.CurrentValidWeight;
         if (request.IsForceCompleted.HasValue) entity.IsForceCompleted = request.IsForceCompleted.Value;
@@ -1235,8 +1273,11 @@ public class BatchService : IBatchService
                 });
             }
 
-            entity.InputQuantity = request.SourceItems.Sum(s => s.InputQuantity);
-            entity.InputWeight = request.SourceItems.Sum(s => s.InputWeight);
+            if (request.SourceItems.Count > 0)
+            {
+                entity.InputQuantity = request.SourceItems.Sum(s => s.InputQuantity);
+                entity.InputWeight = request.SourceItems.Sum(s => s.InputWeight);
+            }
         }
 
         // ===== 2. 更新状态（如有） =====
@@ -1283,10 +1324,17 @@ public class BatchService : IBatchService
                 .Distinct()
                 .ToListAsync();
 
+            var referencedByMaterialReceiveCheck = await _context.MaterialReceiveChecks
+                .Where(m => oldIds.Contains(m.ProcessGroupId))
+                .Select(m => m.ProcessGroupId)
+                .Distinct()
+                .ToListAsync();
+
             referencedIds = new HashSet<int>(referencedByRecord
                 .Concat(referencedByOutsource)
                 .Concat(referencedByPicklingRecord)
-                .Concat(referencedByProcessInspection));
+                .Concat(referencedByProcessInspection)
+                .Concat(referencedByMaterialReceiveCheck));
             var toRemove = entity.ProcessGroups.Where(pg => !referencedIds.Contains(pg.Id)).ToList();
 
             if (toRemove.Count > 0)
@@ -1299,7 +1347,7 @@ public class BatchService : IBatchService
                 var refNames = entity.ProcessGroups
                     .Where(pg => referencedIds.Contains(pg.Id))
                     .Select(pg => $"{pg.ProcessName}(Id={pg.Id})");
-                _logger.LogWarning("批次 {BatchNo} 的 {Count} 个工序组因存在生产记录或委外记录引用而跳过删除: {Names}",
+                _logger.LogWarning("批次 {BatchNo} 的 {Count} 个工序组因存在生产记录、委外记录或成检到料引用而跳过删除: {Names}",
                     entity.BatchNo, referencedIds.Count, string.Join(", ", refNames));
             }
         }
@@ -1427,6 +1475,16 @@ public class BatchService : IBatchService
         if (entity.CurrentValidQty != oldValidQty || entity.CurrentValidWeight != oldValidWeight)
         {
             await _materialPlanService.DismissInMainWorkOrderPlansByBatchAsync(entity.Id);
+        }
+
+        // 工单号从「非工单」变更为正常工单时，消除在产改制计划通知（在产改制B模式）
+        if (oldWorkOrderNo == NotWorkOrder && entity.WorkOrderNo != NotWorkOrder)
+        {
+            await _materialPlanService.DismissInProcessReworkPlansByBatchAsync(entity.Id);
+            await _notificationService.CreateAsync(
+                NotificationType.BatchPlanAutoCompleted.ToString(),
+                "在产改制计划自动完成",
+                $"批次 {entity.BatchNo} 的工单号从「非工单」变更为 {entity.WorkOrderNo}，关联的在产改制计划已自动完成");
         }
 
         // ===== 5. 工序组已变更，刷新批次跟踪字段 =====
@@ -1800,7 +1858,6 @@ public class BatchService : IBatchService
                 (b.SourceSpecification != null && b.SourceSpecification.Contains(kw)) ||
                 (b.SourceMaterialType != null && b.SourceMaterialType.Contains(kw)) ||
                 (b.SourceLengthStatus != null && b.SourceLengthStatus.Contains(kw)) ||
-                (b.InboundSource != null && b.InboundSource.Contains(kw)) ||
                 (b.SolutionParams != null && b.SolutionParams.Contains(kw)));
         }
         if (!string.IsNullOrEmpty(request.WorkOrderNo))
@@ -1940,9 +1997,7 @@ public class BatchService : IBatchService
             // 仓库信息
             "SourceBatchNo" => (object?)b.SourceBatchNo ?? "",
             "SourceMaterialType" => (object?)b.SourceMaterialType ?? "",
-            "InboundSource" => (object?)b.InboundSource ?? "",
             "SourceName" => (object?)b.SourceName ?? "",
-            "InboundDate" => (object?)b.InboundDate ?? DBNull.Value,
             "SourceHeatNo" => (object?)b.SourceHeatNo ?? "",
             "SourcePlantGrade" => (object?)b.SourcePlantGrade ?? "",
             "SourceSpecification" => (object?)b.SourceSpecification ?? "",
@@ -2223,11 +2278,8 @@ public class BatchService : IBatchService
 
             // 仓库冗余
             SourceBatchNo = entity.SourceBatchNo,
-            WarehouseId = entity.WarehouseId,
             SourceMaterialType = !string.IsNullOrEmpty(entity.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(entity.SourceMaterialType) : null,
-            InboundSource = !string.IsNullOrEmpty(entity.InboundSource) ? EnumHelper.TryParse<InboundSource>(entity.InboundSource) : null,
             SourceName = entity.SourceName,
-            InboundDate = entity.InboundDate,
             SourceHeatNo = entity.SourceHeatNo,
             SourcePlantGrade = entity.SourcePlantGrade,
             SourceSpecification = entity.SourceSpecification,
@@ -2235,9 +2287,12 @@ public class BatchService : IBatchService
             SourceUnitWeight = entity.SourceUnitWeight,
             InputQuantity = entity.InputQuantity,
             InputWeight = entity.InputWeight,
+            InputType = entity.InputType,
             SourceRemark = entity.SourceRemark,
+            SourceProductionNo = entity.SourceProductionNo,
             CurrentValidQty = entity.CurrentValidQty,
             CurrentValidWeight = entity.CurrentValidWeight,
+            TheoreticalUnitWeight = entity.TheoreticalUnitWeight,
 
             // 审计
             CreatedTime = entity.CreatedTime,

@@ -33,16 +33,10 @@ public class CreateProductionBatchRequest
     [MaxLength(50)]
     public string? SourceBatchNo { get; set; }
 
-    public int? WarehouseId { get; set; }
-
     public MaterialType? SourceMaterialType { get; set; }
-
-    public InboundSource? InboundSource { get; set; }
 
     [MaxLength(200)]
     public string? SourceName { get; set; }
-
-    public DateTime? InboundDate { get; set; }
 
     [MaxLength(50)]
     public string? SourceHeatNo { get; set; }
@@ -61,8 +55,13 @@ public class CreateProductionBatchRequest
 
     public decimal? InputWeight { get; set; }
 
+    public BatchInputType InputType { get; set; } = BatchInputType.SplitFromNumber;
+
     [MaxLength(500)]
     public string? SourceRemark { get; set; }
+
+    [MaxLength(50)]
+    public string? SourceProductionNo { get; set; }
 
     public int? CurrentValidQty { get; set; }
 

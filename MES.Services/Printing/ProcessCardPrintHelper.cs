@@ -385,9 +385,7 @@ public static class ProcessCardPrintHelper
         {
             ["SourceBatchNo"] = ("仓库批", () => b.SourceBatchNo ?? "-"),
             ["SourceMaterialType"] = ("原料类型", () => EnumHelper.GetDisplayName<MaterialType>(b.SourceMaterialType)),
-            ["InboundSource"] = ("入库来源", () => EnumHelper.GetDisplayName<InboundSource>(b.InboundSource) ?? "-"),
             ["SourceName"] = ("来料单位", () => b.SourceName ?? "-"),
-            ["InboundDate"] = ("入库日期", () => b.InboundDate?.ToString("yyyy-MM-dd") ?? "-"),
             ["SourceHeatNo"] = ("炉号", () => b.SourceHeatNo ?? "-"),
             ["SourcePlantGrade"] = ("工厂牌号", () => b.SourcePlantGrade ?? "-"),
             ["SourceSpecification"] = ("名义规格", () => b.SourceSpecification ?? "-"),
@@ -395,6 +393,8 @@ public static class ProcessCardPrintHelper
             ["SourceUnitWeight"] = ("单支重(kg)", () => b.SourceUnitWeight?.ToString("G29") ?? "-"),
             ["InputQuantity"] = ("领料支数", () => b.InputQuantity?.ToString() ?? "-"),
             ["InputWeight"] = ("领料重量(kg)", () => b.InputWeight?.ToString("G29") ?? "-"),
+            ["InputType"] = ("投料类型", () => EnumHelper.GetDisplayName<BatchInputType>(b.InputType)),
+            ["SourceProductionNo"] = ("源生产编号", () => b.SourceProductionNo ?? "-"),
             ["SourceRemark"] = ("原料备注", () => b.SourceRemark ?? "-"),
             ["CurrentValidQty"] = ("有效原料支数", () => b.CurrentValidQty?.ToString() ?? "-"),
             ["CurrentValidWeight"] = ("有效原料重量(kg)", () => b.CurrentValidWeight?.ToString("G29") ?? "-"),

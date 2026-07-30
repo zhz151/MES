@@ -259,6 +259,11 @@ public interface IMaterialPlanService
     Task<List<PendingPlanBatchDto>> GetPendingInMainWorkOrderPlansAsync();
 
     /// <summary>
+    /// 根据批次ID和分工单号消除指定的在产主工单计划（新建批次投料时触发）
+    /// </summary>
+    Task DismissInMainWorkOrderPlanByBatchAndWorkOrderAsync(int productionBatchId, string subWorkOrderNo);
+
+    /// <summary>
     /// 根据批次ID消除所有待处理的在产主工单计划通知（有效量变更时触发）
     /// </summary>
     Task DismissInMainWorkOrderPlansByBatchAsync(int productionBatchId);
@@ -268,6 +273,16 @@ public interface IMaterialPlanService
     /// <summary>
     /// 获取所有待处理（Planned状态）的在产改制计划列�?    /// </summary>
     Task<List<PendingPlanBatchDto>> GetPendingInProcessReworkPlansAsync();
+
+    /// <summary>
+    /// 根据批次ID和分工单号消除指定的在产改制计划（新建批次投料时触发 Type A）
+    /// </summary>
+    Task DismissInProcessReworkPlanByBatchAndWorkOrderAsync(int productionBatchId, string subWorkOrderNo);
+
+    /// <summary>
+    /// 根据批次ID消除所有待处理的在产改制计划（有效量变更/工单号变更时触发）
+    /// </summary>
+    Task DismissInProcessReworkPlansByBatchAsync(int productionBatchId);
 
     // ========== 仓库通知 ==========
 

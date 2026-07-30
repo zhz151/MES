@@ -663,8 +663,6 @@ public class DataExchangeServiceTests : TestBase
         saved.TotalWeight.Should().Be(5000m);
         saved.TotalItemCount.Should().Be(2);
         saved.TechnicalRequirements.Should().Be(nameof(RequirementType.Special));
-        saved.WarehouseId.Should().Be(
-            ctx.Warehouses.Where(w => w.Code == "WH001").Select(w => w.Id).First());
         saved.DelayPenalty.Should().BeTrue();
     }
 

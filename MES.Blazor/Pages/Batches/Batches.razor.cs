@@ -25,6 +25,7 @@ public partial class Batches
     private List<PendingPlanBatchDto> _pendingInProcessReworkPlans = new();
     private List<PendingPlanBatchDto> _pendingInMainWorkOrderPlans = new();
     private List<NotificationDto>? _workOrderChangedNotices;
+    private CancellationTokenSource? _pollingCts;
     private bool _allSelected;
     private bool allSelected
     {
@@ -522,6 +523,9 @@ public partial class Batches
 
         // 自动加载工单内容变更通知
         await CheckWorkOrderChangedNotificationsAsync();
+
+        // 启动定时轮询刷新通知
+        _ = StartNotificationPollingAsync();
     }
 
     // ========== 在产改制计划通知 ==========
@@ -532,9 +536,9 @@ public partial class Batches
         {
             var result = await MaterialPlanService.GetPendingInProcessReworkPlansAsync();
             if (result.Success && result.Data != null)
-            {
                 _pendingInProcessReworkPlans = result.Data;
-            }
+            else
+                _pendingInProcessReworkPlans.Clear();
         }
         catch
         {
@@ -550,9 +554,9 @@ public partial class Batches
         {
             var result = await MaterialPlanService.GetPendingInMainWorkOrderPlansAsync();
             if (result.Success && result.Data != null)
-            {
                 _pendingInMainWorkOrderPlans = result.Data;
-            }
+            else
+                _pendingInMainWorkOrderPlans.Clear();
         }
         catch
         {
@@ -1058,5 +1062,37 @@ public partial class Batches
             Extras = extras
         };
         await PageState.SaveAsync("batches", state);
+    }
+
+    // ========== 定时轮询 ==========
+
+    private async Task StartNotificationPollingAsync()
+    {
+        _pollingCts = new CancellationTokenSource();
+        try
+        {
+            while (!_pollingCts.Token.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), _pollingCts.Token);
+                await LoadPendingInProcessReworkPlansAsync();
+                await LoadPendingInMainWorkOrderPlansAsync();
+                await CheckWorkOrdersAsync();
+                await CheckWorkOrderChangedNotificationsAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 正常取消，不做处理
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_pollingCts != null)
+        {
+            await _pollingCts.CancelAsync();
+            _pollingCts.Dispose();
+        }
     }
 }

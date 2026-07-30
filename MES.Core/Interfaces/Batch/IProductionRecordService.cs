@@ -59,6 +59,11 @@ public interface IProductionRecordService
     Task<int> RefreshAllBatchTrackingAsync();
 
     /// <summary>
+    /// 回填所有批次的理论成品量（含强制完成批次）
+    /// </summary>
+    Task<int> BackfillTheoreticalOutputAsync();
+
+    /// <summary>
     /// 获取批次跟踪可视化数据（前端进度图展示用�?    /// </summary>
     Task<BatchTrackingVisualDto> GetTrackingVisualAsync(int batchId);
 

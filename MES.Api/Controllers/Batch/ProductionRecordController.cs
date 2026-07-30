@@ -146,6 +146,17 @@ public class ProductionRecordController : ControllerBase
     }
 
     /// <summary>
+    /// 回填所有批次的理论成品量（TheoreticalOutputQty/Weight/UnitWeight）
+    /// </summary>
+    [HttpPost("backfill-theoretical-output")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> BackfillTheoreticalOutput()
+    {
+        var count = await _service.BackfillTheoreticalOutputAsync();
+        return Ok(ApiResponse.Ok($"已回填 {count} 个批次的理论成品量"));
+    }
+
+    /// <summary>
     /// 删除生产记录中所有"去油"和"酸洗"的旧数据（已被 PicklingInRecord 替代）
     /// </summary>
     [HttpDelete("cleanup-degrease-pickle")]

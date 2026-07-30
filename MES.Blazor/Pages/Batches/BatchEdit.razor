@@ -54,203 +54,193 @@
                     </div>
                 </CardHeaderContent>
                 <CardHeaderActions>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info"
-                               StartIcon="@(showAvailablePanel ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
-                               OnClick="ToggleAvailablePanel">
-                        @(showAvailablePanel ? "隐藏可用批次" : "显示可用批次")
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="FillFromWarehouse"
+                               Disabled="@(_selectedSources.Count == 0)">
+                        按仓库批填充
                     </MudButton>
                 </CardHeaderActions>
             </MudCardHeader>
             <MudCardContent>
-                @if (showAvailablePanel)
-                {
-                    <MudPaper Class="pa-3 mb-4" Elevation="1" Style="border:1px solid #e0e0e0; border-radius:8px;">
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">
-                            <MudIcon Icon="@Icons.Material.Filled.Inventory" Class="mr-1" Size="Size.Small" />
-                            可用库存批次
-                        </MudText>
-                        <MudGrid>
-                            <MudItem xs="12" md="6">
-                                <MudTextField T="string" @bind-Value="searchText" Label="筛选" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Immediate="true" DebounceInterval="500" />
-                            </MudItem>
-                        </MudGrid>
-                        @if (availableBatchesLoading)
-                        {
-                            <MudProgressCircular Indeterminate Size="Size.Small" Class="my-2" />
-                        }
-                        else if (availableBatches.Count == 0)
-                        {
-                        }
-                        else
-                        {
-                            <div style="overflow-x:auto; max-height:250px; overflow-y:auto;">
-                                <MudTable T="AvailableBatchDto" Items="@sortedAvailableBatches" RowsPerPage="5" RowsPerPageLabel="每页行数:" Dense="true" Hover="true" Elevation="0" Class="auto-table" Style="cursor:pointer;">
-                                    <HeaderContent>
-                                        <MudTh Style="width:100px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("BatchNo"))">
-                                                批次号
-                                                @if (sortColumn == "BatchNo") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:80px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("MaterialType"))">
-                                                原料类型
-                                                @if (sortColumn == "MaterialType") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:80px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("InboundSource"))">
-                                                入库来源
-                                                @if (sortColumn == "InboundSource") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:100px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("SourceName"))">
-                                                来料单位
-                                                @if (sortColumn == "SourceName") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:80px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("InboundDate"))">
-                                                入库日期
-                                                @if (sortColumn == "InboundDate") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:80px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("HeatNo"))">
-                                                炉号
-                                                @if (sortColumn == "HeatNo") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:80px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("PlantGrade"))">
-                                                工厂牌号
-                                                @if (sortColumn == "PlantGrade") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:80px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("Specification"))">
-                                                名义规格
-                                                @if (sortColumn == "Specification") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:60px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("LengthStatus"))">
-                                                长度状态
-                                                @if (sortColumn == "LengthStatus") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:60px;" Class="text-right">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("UnitWeight"))">
-                                                单支重
-                                                @if (sortColumn == "UnitWeight") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:100px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("WorkOrderNo"))">
-                                                关联工单号
-                                                @if (sortColumn == "WorkOrderNo") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:90px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("OutboundDate"))">
-                                                出库日期
-                                                @if (sortColumn == "OutboundDate") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:60px;" Class="text-right">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("OutboundQuantity"))">
-                                                支数
-                                                @if (sortColumn == "OutboundQuantity") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:80px;" Class="text-right">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("OutboundWeight"))">
-                                                重量(kg)
-                                                @if (sortColumn == "OutboundWeight") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:100px;">
-                                            <span Class="sortable-header" @onclick="@(() => ToggleSort("OutboundRemark"))">
-                                                出库备注
-                                                @if (sortColumn == "OutboundRemark") { <span Class="sort-arrow">@(sortAscending ? "▲" : "▼")</span> }
-                                            </span>
-                                        </MudTh>
-                                        <MudTh Style="width:60px;">操作</MudTh>
-                                    </HeaderContent>
-                                    <RowTemplate Context="batch">
-                                        <MudTd><b>@batch.BatchNo</b></MudTd>
-                                        <MudTd>@DisplayHelper.GetMaterialTypeText(batch.MaterialType)</MudTd>
-                                        <MudTd>@DisplayHelper.GetInboundSourceText(batch.InboundSource?.ToString())</MudTd>
-                                        <MudTd>@batch.SourceName</MudTd>
-                                        <MudTd>@batch.InboundDate?.ToString("yyyy-MM-dd")</MudTd>
-                                        <MudTd>@batch.HeatNo</MudTd>
-                                        <MudTd>@batch.PlantGrade</MudTd>
-                                        <MudTd>@batch.Specification</MudTd>
-                                        <MudTd>@DisplayHelper.GetLengthStatusText(batch.LengthStatus)</MudTd>
-                                        <MudTd Class="text-right">@batch.UnitWeight?.ToString("G29")</MudTd>
-                                        <MudTd>@batch.WorkOrderNo</MudTd>
-                                        <MudTd>@batch.OutboundDate?.ToString("yyyy-MM-dd")</MudTd>
-                                        <MudTd Class="text-right">@batch.OutboundQuantity</MudTd>
-                                        <MudTd Class="text-right">@batch.OutboundWeight?.ToString("G29")</MudTd>
-                                        <MudTd Class="table-cell-clamp-1">@(batch.OutboundRemark ?? "-")</MudTd>
-                                        <MudTd><MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Primary" Size="Size.Small" Title="添加" OnClick="@(() => AddSourceItem(batch))" /></MudTd>
-                                    </RowTemplate>
-                                    <PagerContent>
-                                        <MudTablePager RowsPerPageLabel="每页行数:" />
-                                    </PagerContent>
-                                </MudTable>
-                            </div>
-                        }
-                    </MudPaper>
-                }
+                <!-- 投料字段列表（13字段，单行） -->
+                <div style="overflow-x:auto;">
+                    <MudSimpleTable Dense="true" Class="auto-table compact-table" Style="min-width:2200px;">
+                        <thead>
+                            <tr>
+                                <th>来源批次号</th>
+                                <th>原料类型</th>
+                                <th>来料单位</th>
+                                <th>炉号</th>
+                                <th>工厂牌号</th>
+                                <th>规格</th>
+                                <th>长度状态</th>
+                                <th>单支重(kg)</th>
+                                <th>领料支数</th>
+                                <th>领料重量(kg)</th>
+                                <th>投料类型</th>
+                                <th>源生产编号</th>
+                                <th>原料备注</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <MudText Typo="Typo.body2">@request.SourceBatchNo</MudText>
+                                </td>
+                                <td>
+                                    @if (_isWarehouseMode)
+                                    {
+                                        <MudText Typo="Typo.body2">@DisplayHelper.GetMaterialTypeText(request.SourceMaterialType)</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudSelect T="MaterialType?" @bind-Value="formSourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                            <MudSelectItem Value="@((MaterialType?)null)">请选择</MudSelectItem>
+                                            @foreach (var val in Enum.GetValues<MaterialType>())
+                                            {
+                                                <MudSelectItem Value="@((MaterialType?)val)">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    }
+                                </td>
+                                <td>
+                                    @if (_isWarehouseMode)
+                                    {
+                                        <MudText Typo="Typo.body2">@request.SourceName</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudTextField T="string" @bind-Value="request.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                                    }
+                                </td>
+                                <td>
+                                    @if (_isWarehouseMode)
+                                    {
+                                        <MudText Typo="Typo.body2">@request.SourceHeatNo</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudTextField T="string" @bind-Value="request.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                                    }
+                                </td>
+                                <td>
+                                    @if (_isWarehouseMode)
+                                    {
+                                        <MudText Typo="Typo.body2">@request.SourcePlantGrade</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudTextField T="string" @bind-Value="request.SourcePlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                                    }
+                                </td>
+                                <td>
+                                    @if (_isWarehouseMode)
+                                    {
+                                        <MudText Typo="Typo.body2">@request.SourceSpecification</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudTextField T="string" @bind-Value="request.SourceSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                                    }
+                                </td>
+                                <td>
+                                    @if (_isWarehouseMode)
+                                    {
+                                        <MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(request.SourceLengthStatus?.ToString())</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudSelect T="string" @bind-Value="formSourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                            <MudSelectItem Value="@("")">请选择</MudSelectItem>
+                                            @foreach (var val in Enum.GetValues<LengthStatus>())
+                                            {
+                                                <MudSelectItem Value="@val.ToString()">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    }
+                                </td>
+                                <td>
+                                    @if (_isWarehouseMode)
+                                    {
+                                        <MudText Typo="Typo.body2">@request.SourceUnitWeight?.ToString("G29")</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" />
+                                    }
+                                </td>
+                                <td>
+                                    @if (_isWarehouseMode)
+                                    {
+                                        <MudText Typo="Typo.body2">@request.InputQuantity</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudNumericField T="int?" @bind-Value="request.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" />
+                                    }
+                                </td>
+                                <td>
+                                    @if (_isWarehouseMode)
+                                    {
+                                        <MudText Typo="Typo.body2">@request.InputWeight?.ToString("G29")</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudNumericField T="decimal?" @bind-Value="request.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" Min="0" />
+                                    }
+                                </td>
+                                <td>
+                                    @if (_hasSourceBatchNo)
+                                    {
+                                        <MudText Typo="Typo.body2">@DisplayHelper.GetInputTypeText(request.InputType ?? BatchInputType.Warehouse)</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudSelect T="BatchInputType" @bind-Value="formInputType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                            @foreach (var val in Enum.GetValues<BatchInputType>())
+                                            {
+                                                <MudSelectItem Value="@val">@DisplayHelper.GetInputTypeText(val)</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    }
+                                </td>
+                                <td>
+                                    <MudTextField T="string" @bind-Value="request.SourceProductionNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                                </td>
+                                <td>
+                                    <MudTextField T="string" @bind-Value="request.SourceRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+                </div>
 
-                <!-- 已选来源批次 -->
-                @if (_selectedSources.Count == 0 && !string.IsNullOrWhiteSpace(originalBatch?.SourceBatchNo))
+                <!-- 子表：来源库存批次 -->
+                @if (_selectedSources.Count > 0)
                 {
-                    <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-2">
-                        来源库存批次：<strong>@originalBatch.SourceBatchNo</strong>
-                        （原单源批次，可在可用批次中添加更多来源）
+                    <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Class="mr-1" Size="Size.Small" />
+                        来源库存批次
                     </MudText>
-                }
-                else if (_selectedSources.Count == 0 && originalBatch?.SourceMaterialType != null)
-                {
-                    <div class="d-flex flex-wrap" style="gap:0.6rem 2rem;">
-                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料类型</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetMaterialTypeText(originalBatch.SourceMaterialType)</MudText></div>
-                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">来料单位</MudText><MudText Typo="Typo.body2">@(originalBatch.SourceName ?? "-")</MudText></div>
-                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">炉号</MudText><MudText Typo="Typo.body2">@(originalBatch.SourceHeatNo ?? "-")</MudText></div>
-                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工厂牌号</MudText><MudText Typo="Typo.body2">@(originalBatch.SourcePlantGrade ?? "-")</MudText></div>
-                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">规格</MudText><MudText Typo="Typo.body2">@(originalBatch.SourceSpecification ?? "-")</MudText></div>
-                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(originalBatch.SourceLengthStatus)</MudText></div>
-                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料支数</MudText><MudText Typo="Typo.body2">@(originalBatch.InputQuantity?.ToString() ?? "-") 支</MudText></div>
-                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(originalBatch.InputWeight) kg</MudText></div>
-                        <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">原料备注</MudText><MudText Typo="Typo.body2">@(originalBatch.SourceRemark ?? "-")</MudText></div>
-                    </div>
-                }
-                else if (_selectedSources.Count == 0)
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-2">请从上方可用库存批次中选择来源</MudText>
-                }
-                else
-                {
                     <div style="overflow-x:auto;">
                         <MudTable T="SelectedSourceItem" Items="@_selectedSources" Dense="true" Hover="true" Elevation="0" Class="auto-table compact-table">
                             <HeaderContent>
                                 <MudTh Style="width:140px;">来源库存批次号</MudTh>
                                 <MudTh Style="width:100px;">原料类型</MudTh>
-                                <MudTh Style="width:140px;">入库来源</MudTh>
-                                <MudTh Style="width:120px;">来料单位</MudTh>
-                                <MudTh Style="width:120px;">入库日期</MudTh>
-                                <MudTh Style="width:100px;">炉号</MudTh>
-                                <MudTh Style="width:120px;">工厂牌号</MudTh>
-                                <MudTh Style="width:140px;">名义规格</MudTh>
-                                <MudTh Style="width:100px;">长度状态</MudTh>
-                                <MudTh Style="width:100px;">单支重(kg)</MudTh>
-                                <MudTh Style="width:90px;">领料支数</MudTh>
-                                <MudTh Style="width:110px;">领料重量(kg)</MudTh>
-                                <MudTh Style="width:120px;">仓库名称</MudTh>
-                                <MudTh Style="width:140px;">来源工单号</MudTh>
-                                <MudTh Style="width:60px;">操作</MudTh>
+                                <MudTh Style="width:100px;">入库来源</MudTh>
+                                <MudTh Style="width:100px;">来料单位</MudTh>
+                                <MudTh Style="width:90px;">入库日期</MudTh>
+                                <MudTh Style="width:90px;">炉号</MudTh>
+                                <MudTh Style="width:100px;">工厂牌号</MudTh>
+                                <MudTh Style="width:120px;">名义规格</MudTh>
+                                <MudTh Style="width:80px;">长度状态</MudTh>
+                                <MudTh Style="width:80px;">单支重(kg)</MudTh>
+                                <MudTh Style="width:80px;">领料支数</MudTh>
+                                <MudTh Style="width:90px;">领料重量(kg)</MudTh>
+                                <MudTh Style="width:100px;">仓库名称</MudTh>
+                                <MudTh Style="width:100px;">来源工单号</MudTh>
+                                <MudTh Style="width:100px;">操作</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="item">
                                 <MudTd><b>@item.BatchNo</b></MudTd>
@@ -263,11 +253,14 @@
                                 <MudTd>@item.Specification</MudTd>
                                 <MudTd>@DisplayHelper.GetLengthStatusText(item.LengthStatus)</MudTd>
                                 <MudTd Class="text-right">@item.UnitWeight?.ToString("G29")</MudTd>
-                                <MudTd><MudNumericField T="int" @bind-Value="item.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" @bind-Value:after="() => SyncRequestFromSources()" /></MudTd>
-                                <MudTd><MudNumericField T="decimal" @bind-Value="item.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" Min="0" @bind-Value:after="() => SyncRequestFromSources()" /></MudTd>
+                                <MudTd Class="text-right">@item.InputQuantity</MudTd>
+                                <MudTd Class="text-right">@item.InputWeight.ToString("G29")</MudTd>
                                 <MudTd>@item.WarehouseName</MudTd>
                                 <MudTd>@item.WorkOrderNo</MudTd>
-                                <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="@(() => RemoveSourceItem(item))" /></MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Info" Size="Size.Small" Title="按来源库存批次填充" OnClick="@(() => FillFromSourceItem(item))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="@(() => RemoveSourceItem(item))" />
+                                </MudTd>
                             </RowTemplate>
                         </MudTable>
                         <div class="d-flex justify-end mt-2" Style="gap:16px;">
@@ -277,6 +270,12 @@
                             </MudText>
                         </div>
                     </div>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-2">
+                        暂无来源库存批次。如无仓库来源，可直接在上方字段中手工填写投料信息。
+                    </MudAlert>
                 }
             </MudCardContent>
         </MudCard>
@@ -657,9 +656,7 @@
         WorkOrderNo = ""
     };
 
-    // ========== 仓库补充字段（不在UpdateProductionBatchRequest中） ==========
-    private InboundSource? editInboundSource;
-    private string? editInboundDateStr;
+    // ========== 仓库补充字段 ==========
     private string? editSourceWorkOrderNo;
 
     // ========== 合并投料 - 已选来源批次 ==========
@@ -787,79 +784,31 @@
         set => request.TechnicalRequirements = value;
     }
 
-    private string? formEditInboundSource
+    private MaterialType? formSourceMaterialType
     {
-        get => request.InboundSource?.ToString();
-        set => request.InboundSource = value != null ? Enum.Parse<InboundSource>(value) : null;
+        get => request.SourceMaterialType;
+        set => request.SourceMaterialType = value;
     }
 
-    // ========== 可用批次面板 ==========
+    private BatchInputType formInputType
+    {
+        get => request.InputType ?? BatchInputType.SplitFromNumber;
+        set => request.InputType = value;
+    }
+
+    private string formSourceLengthStatus
+    {
+        get => request.SourceLengthStatus?.ToString() ?? "";
+        set => request.SourceLengthStatus = string.IsNullOrEmpty(value) ? null : Enum.Parse<LengthStatus>(value);
+    }
+
+    private bool _hasSourceBatchNo => !string.IsNullOrEmpty(request.SourceBatchNo);
+    private bool _isWarehouseMode => request.InputType == BatchInputType.Warehouse;
+
+    // ========== 可用批次（仅用于初始化同步） ==========
     private List<AvailableBatchDto> availableBatches = new();
-    private bool availableBatchesLoading;
-    private bool showAvailablePanel;
-    private string searchText = "";
-    private string sortColumn = "BatchNo";
-    private bool sortAscending = true;
     private bool workOrderLoading;
     private bool lastBatchLoading;
-
-    private List<AvailableBatchDto> sortedAvailableBatches
-    {
-        get
-        {
-            var filtered = string.IsNullOrWhiteSpace(searchText)
-                ? availableBatches
-                : availableBatches.Where(b =>
-                    (b.BatchNo?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.MaterialType?.ToString()?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.InboundSource?.ToString()?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.SourceName?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.InboundDate?.ToString("yyyy-MM-dd")?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.HeatNo?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.OutboundQuantity?.ToString()?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.OutboundWeight?.ToString("G29")?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.WorkOrderNo?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.OutboundDate?.ToString("yyyy-MM-dd")?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.OutboundRemark?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.PlantGrade?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.Specification?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.LengthStatus?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.UnitWeight?.ToString("G29")?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false))
-                .ToList();
-
-            var sorted = sortColumn switch
-            {
-                "BatchNo" => filtered.OrderBy(b => b.BatchNo),
-                "MaterialType" => filtered.OrderBy(b => b.MaterialType),
-                "InboundSource" => filtered.OrderBy(b => b.InboundSource),
-                "SourceName" => filtered.OrderBy(b => b.SourceName),
-                "InboundDate" => filtered.OrderBy(b => b.InboundDate),
-                "HeatNo" => filtered.OrderBy(b => b.HeatNo),
-                "OutboundQuantity" => filtered.OrderBy(b => b.OutboundQuantity),
-                "OutboundWeight" => filtered.OrderBy(b => b.OutboundWeight),
-                "OutboundDate" => filtered.OrderBy(b => b.OutboundDate),
-                "OutboundRemark" => filtered.OrderBy(b => b.OutboundRemark),
-                "WorkOrderNo" => filtered.OrderBy(b => b.WorkOrderNo),
-                "PlantGrade" => filtered.OrderBy(b => b.PlantGrade),
-                "Specification" => filtered.OrderBy(b => b.Specification),
-                "LengthStatus" => filtered.OrderBy(b => b.LengthStatus),
-                "UnitWeight" => filtered.OrderBy(b => b.UnitWeight),
-                _ => filtered.OrderBy(b => b.BatchNo)
-            };
-            return sortAscending ? sorted.ToList() : sorted.Reverse().ToList();
-        }
-    }
-
-    private void ToggleSort(string column)
-    {
-        if (sortColumn == column)
-            sortAscending = !sortAscending;
-        else
-        {
-            sortColumn = column;
-            sortAscending = true;
-        }
-    }
 
     // ========== 工单字段列显示 ==========
     private List<ColumnDef> workOrderCols = new();
@@ -992,12 +941,9 @@
         request.SourceUnitWeight = originalBatch.SourceUnitWeight;
         request.InputQuantity = originalBatch.InputQuantity;
         request.InputWeight = originalBatch.InputWeight;
+        request.InputType = originalBatch.InputType;
         request.SourceRemark = originalBatch.SourceRemark;
-        editInboundSource = originalBatch.InboundSource;
-        request.InboundSource = originalBatch.InboundSource;
-        editInboundDateStr = originalBatch.InboundDate?.ToString("yyyy-MM-dd");
-        request.InboundDate = originalBatch.InboundDate;
-        request.WarehouseId = originalBatch.WarehouseId;
+        request.SourceProductionNo = originalBatch.SourceProductionNo;
         editSourceWorkOrderNo = originalBatch.WorkOrderNo;
 
         // 合并投料来源
@@ -1082,87 +1028,44 @@
         }).ToList();
     }
 
-    // ========== 可用批次面板 ==========
+    // ========== 投料信息填充 ==========
 
     private async Task LoadAvailableBatchesAsync()
     {
-        availableBatchesLoading = true;
         try
         {
             var result = await BatchService.GetAvailableBatchesAsync();
             if (result.Success && result.Data != null)
                 availableBatches = result.Data;
-            else if (!result.Success)
-                Snackbar.Add($"加载可用批次失败: {result.Message}", Severity.Warning);
         }
-        catch (Exception ex)
+        catch
         {
-            Snackbar.Add($"加载可用批次异常: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            availableBatchesLoading = false;
         }
     }
 
-    private void ToggleAvailablePanel()
+    private void FillFromWarehouse()
     {
-        showAvailablePanel = !showAvailablePanel;
-    }
-
-    // ========== 合并投料操作 ==========
-
-    private void AddSourceItem(AvailableBatchDto batch)
-    {
-        if (_selectedSources.Any(s => s.BatchNo == batch.BatchNo))
-        {
-            Snackbar.Add($"批次 {batch.BatchNo} 已添加", Severity.Warning);
-            return;
-        }
-
-        bool wasEmpty = _selectedSources.Count == 0;
-
-        _selectedSources.Add(new SelectedSourceItem
-        {
-            InventoryBatchId = batch.Id,
-            OutboundRecordId = batch.OutboundRecordId,
-            BatchNo = batch.BatchNo,
-            MaterialType = batch.MaterialType ?? default,
-            InboundSource = batch.InboundSource,
-            SourceName = batch.SourceName,
-            InboundDate = batch.InboundDate,
-            HeatNo = batch.HeatNo,
-            PlantGrade = batch.PlantGrade,
-            Specification = batch.Specification,
-            LengthStatus = string.IsNullOrWhiteSpace(batch.LengthStatus) ? nameof(LengthStatus.NonFixed) : batch.LengthStatus,
-            UnitWeight = batch.UnitWeight,
-            WarehouseName = batch.WarehouseName,
-            WorkOrderNo = batch.WorkOrderNo,
-            InputQuantity = batch.OutboundQuantity ?? 0,
-            InputWeight = batch.OutboundWeight ?? 0
-        });
-
+        if (_selectedSources.Count == 0) return;
+        FillRequestFromFirstSource();
         SyncRequestFromSources();
+        Snackbar.Add("已从首个仓库批次填充投料信息", Severity.Success);
+    }
 
-        if (wasEmpty)
-        {
-            FillRequestFromFirstSource();
-
-            if (!string.IsNullOrWhiteSpace(batch.WorkOrderNo) && string.IsNullOrWhiteSpace(request.WorkOrderNo))
-            {
-                request.WorkOrderNo = batch.WorkOrderNo;
-                Snackbar.Add($"已自动填充工单号 {batch.WorkOrderNo}，正在加载工单字段...", Severity.Info);
-                _ = ConfirmWorkOrder();
-            }
-            else
-            {
-                Snackbar.Add($"已添加批次 {batch.BatchNo}", Severity.Success);
-            }
-        }
-        else
-        {
-            Snackbar.Add($"已添加批次 {batch.BatchNo}", Severity.Success);
-        }
+    private void FillFromSourceItem(SelectedSourceItem item)
+    {
+        request.SourceBatchNo = item.BatchNo;
+        request.SourceMaterialType = item.MaterialType;
+        request.SourceName = item.SourceName;
+        request.SourceHeatNo = item.HeatNo;
+        request.SourcePlantGrade = item.PlantGrade;
+        request.SourceSpecification = item.Specification;
+        request.SourceLengthStatus = string.IsNullOrEmpty(item.LengthStatus) ? LengthStatus.NonFixed : Enum.Parse<LengthStatus>(item.LengthStatus);
+        request.SourceUnitWeight = item.UnitWeight;
+        request.InputQuantity = item.InputQuantity;
+        request.InputWeight = item.InputWeight;
+        request.InputType = BatchInputType.Warehouse;
+        editSourceWorkOrderNo = item.WorkOrderNo;
+        Snackbar.Add($"已从批次 {item.BatchNo} 填充投料信息", Severity.Success);
     }
 
     private void RemoveSourceItem(SelectedSourceItem item)
@@ -1185,19 +1088,15 @@
         if (_selectedSources.Count == 0) return;
         var first = _selectedSources[0];
         request.SourceBatchNo = first.BatchNo;
-        request.WarehouseId = first.InventoryBatchId;
         request.SourceMaterialType = first.MaterialType;
-        request.InboundSource = first.InboundSource;
         request.SourceName = first.SourceName;
-        request.InboundDate = first.InboundDate;
         request.SourceHeatNo = first.HeatNo;
         request.SourcePlantGrade = first.PlantGrade;
         request.SourceSpecification = first.Specification;
         request.SourceLengthStatus = string.IsNullOrEmpty(first.LengthStatus) ? LengthStatus.NonFixed : Enum.Parse<LengthStatus>(first.LengthStatus);
         request.SourceUnitWeight = first.UnitWeight;
+        request.InputType = BatchInputType.Warehouse;
         editSourceWorkOrderNo = first.WorkOrderNo;
-        editInboundSource = first.InboundSource;
-        editInboundDateStr = first.InboundDate?.ToString("yyyy-MM-dd");
     }
 
     private void SyncRequestFromSources()
@@ -1209,11 +1108,8 @@
     private void ClearEditRequestSourceFields()
     {
         request.SourceBatchNo = null;
-        request.WarehouseId = null;
         request.SourceMaterialType = null;
-        request.InboundSource = null;
         request.SourceName = null;
-        request.InboundDate = null;
         request.SourceHeatNo = null;
         request.SourcePlantGrade = null;
         request.SourceSpecification = null;
@@ -1221,15 +1117,8 @@
         request.SourceUnitWeight = null;
         request.InputQuantity = null;
         request.InputWeight = null;
+        request.SourceProductionNo = null;
         editSourceWorkOrderNo = null;
-        editInboundSource = null;
-        editInboundDateStr = null;
-    }
-
-    private Task FillFromAvailableBatch(AvailableBatchDto batch)
-    {
-        AddSourceItem(batch);
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -1712,8 +1601,6 @@
 
         // 验证
         var errors = new List<string>();
-        if (!string.IsNullOrEmpty(editInboundDateStr) && !DateTime.TryParse(editInboundDateStr, out _))
-            errors.Add("入库日期格式无效（正确格式：yyyy-MM-dd）");
 
         // ========== 统一必填（两路径共用） ==========
         var effectivePlantGrade = request.PlantGrade ?? originalBatch.PlantGrade;
@@ -1761,8 +1648,16 @@
         if (effectiveInputQuantity == null || effectiveInputQuantity <= 0)
             errors.Add("领料支数必须大于0");
 
-        if (_selectedSources.Count == 0 && string.IsNullOrWhiteSpace(request.SourceBatchNo ?? originalBatch!.SourceBatchNo))
-            errors.Add("请至少选择一个库存批次作为来源");
+        // ========== 投料类型验证 ==========
+        var effectiveInputType = request.InputType ?? (originalBatch != null ? originalBatch.InputType : null);
+        if (effectiveInputType == null)
+            errors.Add("投料类型不能为空");
+        else if (effectiveInputType == BatchInputType.SplitFromNumber)
+        {
+            var effectiveSourceProdNo = request.SourceProductionNo ?? originalBatch?.SourceProductionNo;
+            if (string.IsNullOrWhiteSpace(effectiveSourceProdNo))
+                errors.Add("投料类型为「编号拆分」时，源生产编号不能为空");
+        }
 
         // ========== 有工单路径额外验证 ==========
         var effectiveWorkOrderNo = request.WorkOrderNo ?? originalBatch!.WorkOrderNo;
@@ -1790,6 +1685,17 @@
             errors.Add("工序组存在工序名称为空的记录");
         ValidateEditProcessGroups(editProcessGroups, errors);
 
+        // 最大工序序号的制造规格必须等于工单成品规格
+        var effectiveWoNo3 = request.WorkOrderNo ?? originalBatch!.WorkOrderNo;
+        if (effectiveWoNo3 != "非工单" && editProcessGroups.Count > 0)
+        {
+            var specForLastPg = request.Specification ?? originalBatch!.Specification;
+            var lastPg = editProcessGroups.MaxBy(pg => pg.SequenceNumber);
+            if (lastPg != null && !string.IsNullOrWhiteSpace(lastPg.ManufacturingSpec)
+                && !string.Equals(lastPg.ManufacturingSpec, specForLastPg, StringComparison.OrdinalIgnoreCase))
+                errors.Add($"最大工序序号的制造规格「{lastPg.ManufacturingSpec}」必须等于工单成品规格「{specForLastPg}」");
+        }
+
         // ========== 制造状态与制造物品业务规则 ==========
         var effectiveMfgItem = request.ManufacturingItem ?? originalBatch!.ManufacturingItem;
         var effectiveMfgStatus = request.ManufacturingStatus ?? originalBatch!.ManufacturingStatus;
@@ -1810,6 +1716,32 @@
             return;
         }
 
+        // ========== 理论单支重验证（警告，可继续保存） ==========
+        var effectiveWoNo2 = request.WorkOrderNo ?? originalBatch!.WorkOrderNo;
+        var effectiveLenStatus2 = request.LengthStatus?.ToString() ?? originalBatch!.LengthStatus.ToString();
+        var effectiveCurValidWeight = request.CurrentValidWeight ?? originalBatch!.CurrentValidWeight ?? 0;
+        if (effectiveWoNo2 != "非工单"
+            && effectiveLenStatus2 == nameof(LengthStatus.Fixed)
+            && effectiveCurValidWeight > 500
+            && effectiveTotalWeight > 0 && effectiveTotalQuantity > 0)
+        {
+            var woUnitWeight = effectiveTotalWeight / (decimal)effectiveTotalQuantity;
+            var theoUnitWeight = ComputeEditTheoreticalUnitWeight();
+
+            if (theoUnitWeight.HasValue
+                && (woUnitWeight > theoUnitWeight.Value * 1.10m || woUnitWeight < theoUnitWeight.Value * 0.90m))
+            {
+                var dialog = await DialogService.ShowAsync<ConfirmDialog>("投料单重存疑", new DialogParameters
+                {
+                    ["Title"] = "投料单重存疑",
+                    ["ContentText"] = $"工单单支重（{woUnitWeight:G29}kg）与理论单支重（{theoUnitWeight:G29}kg）偏差超过10%，请确认投料数据是否正确。",
+                    ["ConfirmText"] = "仍然保存"
+                });
+                var result = await dialog.Result;
+                if (result.Canceled) return;
+            }
+        }
+
         _isSubmitting = true;
         try
         {
@@ -1820,13 +1752,10 @@
                 ProductionType = request.ProductionType,
                 ManufacturingItem = request.ManufacturingItem,
                 ManufacturingStatus = request.ManufacturingStatus,
-                InboundSource = request.InboundSource,
-                InboundDate = request.InboundDate,
                 QualityRemark = request.QualityRemark,
                 SolutionParams = request.SolutionParams,
                 Remark = request.Remark,
                 SourceBatchNo = request.SourceBatchNo,
-                WarehouseId = request.WarehouseId,
                 SourceMaterialType = request.SourceMaterialType,
                 SourceName = request.SourceName,
                 SourceHeatNo = request.SourceHeatNo,
@@ -1836,7 +1765,9 @@
                 SourceUnitWeight = request.SourceUnitWeight,
                 InputQuantity = request.InputQuantity,
                 InputWeight = request.InputWeight,
+                InputType = request.InputType,
                 SourceRemark = request.SourceRemark,
+                SourceProductionNo = request.SourceProductionNo,
                 CurrentValidQty = request.CurrentValidQty,
                 CurrentValidWeight = request.CurrentValidWeight,
                 ProductionRatio = request.ProductionRatio,
@@ -2002,5 +1933,46 @@
             pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
             pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse
         };
+    }
+
+    /// <summary>
+    /// 与服务端 ComputeTheoreticalOutput 一致：基于当前表单数据重算理论单支重
+    /// 理论成品支 = 有效支数 × 制成倍数
+    /// 理论成品重 = 有效重量 × MAX(0, 1 - 有效工序组数 × 0.025)
+    /// 理论单支重 = 理论成品重 / 理论成品支（1位小数）
+    /// </summary>
+    private decimal? ComputeEditTheoreticalUnitWeight()
+    {
+        var qty = request.CurrentValidQty ?? originalBatch?.CurrentValidQty;
+        var weight = request.CurrentValidWeight ?? originalBatch?.CurrentValidWeight;
+        var ratio = request.ProductionRatio ?? originalBatch?.ProductionRatio ?? 0;
+
+        if (ratio <= 0 || !qty.HasValue || qty.Value <= 0) return null;
+        var outputQty = qty.Value * ratio;
+
+        if (!weight.HasValue || weight.Value <= 0) return null;
+
+        var effectiveGroupCount = editProcessGroups
+            .Count(pg => pg.ProcessName != ProcessNames.InProcessRepair
+                && pg.ProcessName != ProcessNames.AdditionalFinalInspection
+                && HasNonEmptyEditSection(pg));
+
+        var discount = Math.Max(0, 1.0m - effectiveGroupCount * 0.025m);
+        var outputWeight = (int?)(weight.Value * discount);
+
+        if (!outputWeight.HasValue || outputWeight.Value <= 0) return null;
+        return Math.Round((decimal)outputWeight.Value / outputQty, 1);
+    }
+
+    private static bool HasNonEmptyEditSection(EditProcessGroupItem pg)
+    {
+        return pg.ColdRollDraw.HasValue || pg.OilPipeCut.HasValue
+            || pg.Degrease.HasValue || pg.Solution.HasValue
+            || pg.Straighten.HasValue || pg.Cut.HasValue
+            || pg.ThicknessMeasure.HasValue || pg.Pickle.HasValue
+            || pg.OuterPolish.HasValue || pg.InnerGrinding.HasValue
+            || pg.OuterSpotGrinding.HasValue || pg.Inspection.HasValue
+            || pg.WeldingHead.HasValue || pg.Lubrication.HasValue
+            || pg.Warehouse.HasValue;
     }
 }

@@ -33,7 +33,6 @@ public class DtoEntityMappingConsistencyTests
         (nameof(ProductionBatch.TechnicalRequirements), typeof(RequirementType), false),
         (nameof(ProductionBatch.SourceLengthStatus), typeof(LengthStatus), true),
         (nameof(ProductionBatch.SourceMaterialType), typeof(string), true), // 自由文本，非枚举
-        (nameof(ProductionBatch.InboundSource), typeof(string), true),      // 自由文本，非枚举
     };
 
     /// <summary>

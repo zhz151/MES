@@ -84,7 +84,6 @@
                                        Class="mr-2"
                                        OnClick="() => SetMode(WorkOrderGenerateMode.Regenerate)"
                                        Size="Size.Small">
-                                @*<MudIcon Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" Class="mr-1" />*@
                                 重新生成
                             </MudButton>
                             <MudButton Variant="@(generateMode == WorkOrderGenerateMode.Update ? Variant.Filled : Variant.Outlined)"
@@ -92,7 +91,6 @@
                                        Class="mr-2"
                                        OnClick="() => SetMode(WorkOrderGenerateMode.Update)"
                                        Size="Size.Small">
-                                @*<MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-1" />*@
                                 更新修改
                             </MudButton>
                             <MudTooltip Text="重新生成：删除所有原工单后全新创建（工单号重新分配）；更新修改：保留原工单号/主号/次号，仅增删项次">

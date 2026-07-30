@@ -97,15 +97,12 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     TotalWeight = e.TotalWeight,
 
                     // G2
-                    LatestPlanDate = e.LatestPlanDate,
-                    MaterialPlanRate = e.MaterialPlanRate,
                     MaterialPlanStatus = (MaterialPlanStatus)e.MaterialPlanStatus,
                     MainNoMaterialPlanRate = e.MainNoMaterialPlanRate,
                     MainNoMaterialPlanStatus = (MaterialPlanStatus)e.MainNoMaterialPlanStatus,
                     ProcessCycle = e.ProcessCycle,
                     MaterialPlanCoveredCount = e.MaterialPlanCoveredCount,
                     MaterialPlanProportion = e.MaterialPlanProportion,
-                    LatestRequiredDate = e.LatestRequiredDate,
 
                     // G5
                     PendingRoughTubeQty = e.PendingRoughTubeQty,
