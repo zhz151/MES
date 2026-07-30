@@ -76,6 +76,19 @@
         </MudAlert>
     }
 
+    <!-- 缺陷率预警通知 -->
+    @if (_defectRateAlerts is { Count: > 0 })
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+            <div>
+                @foreach (var alert in _defectRateAlerts)
+                {
+                    <div>批次 "@alert.BatchNo"（工单 @alert.WorkOrderNo）过程检验缺陷率达 @(alert.DefectRate)%（超阈值 3%），建议调整有效投料量！</div>
+                }
+            </div>
+        </MudAlert>
+    }
+
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>

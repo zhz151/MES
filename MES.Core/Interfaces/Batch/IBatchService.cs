@@ -123,4 +123,8 @@ public interface IBatchService
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
+    /// <summary>
+    /// 获取过程检验缺陷率超过 3% 的批次列表（建议调整有效投料量）
+    /// </summary>
+    Task<List<DefectRateBatchDto>> GetDefectRateAlertsAsync();
 }

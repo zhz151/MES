@@ -102,9 +102,9 @@ public class ProductionBatch : BaseEntity
     public string? NextProcess { get; set; }
 
     /// <summary>
-    /// 有效投料疑问（正常/疑问），基于最近过程检验与投料量比值计算，由 UpdateBatchTrackingFromRecords 刷新
+    /// 投料变更（无/有），由 UpdateBatchTrackingFromRecords 刷新，比较有效投料支数与领料支数是否一致
     /// </summary>
-    public bool? ValidInputQuestion { get; set; }
+    public bool? HasInputChange { get; set; }
 
     /// <summary>
     /// 当前工段是否完工：冷轧拔总重≥有效原料×95%→完工；工段委外有回收→完工；其它有记录即完工

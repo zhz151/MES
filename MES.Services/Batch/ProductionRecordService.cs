@@ -1289,8 +1289,6 @@ public class ProductionRecordService : IProductionRecordService
     private async Task UpdateBatchTrackingFromRecordsAsync(int batchId)
     {
         var coldRollCompleteRatio = await GetConfigAsync("ProductionThreshold", "ColdRollCompleteRatio", 0.95m);
-        var validInputUpper = await GetConfigAsync("ProductionThreshold", "ValidInputUpper", 1.03m);
-        var validInputLower = await GetConfigAsync("ProductionThreshold", "ValidInputLower", 0.97m);
         var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
 
         var batch = await _context.ProductionBatches
@@ -1426,7 +1424,7 @@ public class ProductionRecordService : IProductionRecordService
                 s.ProcessName, s.OutsourceVendor, s.SendOutDate, s.RecoveryCount
             )).ToList();
 
-            // 公共跟踪计算（除有效投料疑问外）
+            // 公共跟踪计算（除投料变更外）
             var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(batch.PlantGrade);
             var dsExtraDaysMap = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
             ComputeBatchTrackingCore(batch, pgSpecLookup, productionRecords, outsourceInfos,
@@ -1452,14 +1450,9 @@ public class ProductionRecordService : IProductionRecordService
                 batch.RemainingWorkDays = 0;
             }
 
-            // ====== 8. 有效投料疑问（与批量模式一致，基于投料对比）=====
-            // 对照现有效原料支数与投料支数，相差超过阈值 → 疑问
-            batch.ValidInputQuestion = false;
-            if (batch.InputQuantity.HasValue && batch.InputQuantity > 0 && batch.CurrentValidQty.HasValue)
-            {
-                var ratio = (decimal)batch.CurrentValidQty.Value / batch.InputQuantity.Value;
-                batch.ValidInputQuestion = ratio < validInputLower || ratio > validInputUpper;
-            }
+            // ====== 8. 投料变更：比较有效投料支数与领料支数是否一致 ======
+            batch.HasInputChange = batch.InputQuantity.HasValue && batch.CurrentValidQty.HasValue
+                && batch.InputQuantity.Value != batch.CurrentValidQty.Value;
 
             // ====== 9. 理论成品量计算 ======
             ComputeTheoreticalOutput(batch, groupDiscountRate);
@@ -1514,8 +1507,6 @@ public class ProductionRecordService : IProductionRecordService
         if (batchIds.Count == 0) return;
 
         var coldRollCompleteRatio = await GetConfigAsync("ProductionThreshold", "ColdRollCompleteRatio", 0.95m);
-        var validInputUpper = await GetConfigAsync("ProductionThreshold", "ValidInputUpper", 1.03m);
-        var validInputLower = await GetConfigAsync("ProductionThreshold", "ValidInputLower", 0.97m);
         var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
 
         // 1. 加载所有批次 + ProcessGroups
@@ -1709,7 +1700,7 @@ public class ProductionRecordService : IProductionRecordService
                 s.ProcessName, s.OutsourceVendor, s.SendOutDate, s.RecoveryCount
             )).ToList();
 
-            // 公共跟踪计算（除有效投料疑问外）
+            // 公共跟踪计算（除投料变更外）
             var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(batch.PlantGrade);
             ComputeBatchTrackingCore(batch, pgSpecLookup, productionRecords, outsourceInfos,
                 processInspections, picklingInRecords, hasCheck,
@@ -1731,14 +1722,9 @@ public class ProductionRecordService : IProductionRecordService
                 batch.RemainingWorkDays = 0;
             }
 
-            // 有效投料疑问
-            // 对照现有效原料支数与投料支数，相差超过 5% → 疑问
-            batch.ValidInputQuestion = false;
-            if (batch.InputQuantity.HasValue && batch.InputQuantity > 0 && batch.CurrentValidQty.HasValue)
-            {
-                var ratio = (decimal)batch.CurrentValidQty.Value / batch.InputQuantity.Value;
-                batch.ValidInputQuestion = ratio < validInputLower || ratio > validInputUpper;
-            }
+            // 投料变更：比较有效投料支数与领料支数是否一致
+            batch.HasInputChange = batch.InputQuantity.HasValue && batch.CurrentValidQty.HasValue
+                && batch.InputQuantity.Value != batch.CurrentValidQty.Value;
             ComputeTheoreticalOutput(batch, groupDiscountRate);
         }
 
@@ -1749,7 +1735,7 @@ public class ProductionRecordService : IProductionRecordService
     /// <summary>
     /// 公共跟踪计算核心（两个批次模式下共享）
     /// 计算：当前工段/工序/设备/委外/规格、截止执行日、完工状态、下一工段、剩余工量、全工量
-    /// 不包含：有效投料疑问（由调用方按各自逻辑计算）
+    /// 不包含：投料变更（由调用方按各自逻辑计算）
     /// </summary>
     private static void ComputeBatchTrackingCore(
         ProductionBatch batch,

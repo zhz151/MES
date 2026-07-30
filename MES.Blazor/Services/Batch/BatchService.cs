@@ -23,7 +23,7 @@ public class BatchService
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             if (!string.IsNullOrEmpty(query.WorkOrderNo)) url += $"&workOrderNo={Uri.EscapeDataString(query.WorkOrderNo)}";
             if (!string.IsNullOrEmpty(query.Status)) url += $"&status={Uri.EscapeDataString(query.Status)}";
-            if (!string.IsNullOrEmpty(query.ValidInputQuestion)) url += $"&validInputQuestion={Uri.EscapeDataString(query.ValidInputQuestion)}";
+            if (!string.IsNullOrEmpty(query.HasInputChange)) url += $"&hasInputChange={Uri.EscapeDataString(query.HasInputChange)}";
             if (!string.IsNullOrEmpty(query.TagNo)) url += $"&tagNo={Uri.EscapeDataString(query.TagNo)}";
             if (!string.IsNullOrEmpty(query.BatchNo)) url += $"&batchNo={Uri.EscapeDataString(query.BatchNo)}";
             if (query.StartDateFrom.HasValue) url += $"&startDateFrom={query.StartDateFrom:yyyy-MM-dd}";
@@ -197,6 +197,18 @@ public class BatchService
         catch (Exception ex) { return ApiResponse<List<CreateProcessGroupRequest>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    // ========== 缺陷率预警 ==========
+
+    public async Task<ApiResponse<List<DefectRateBatchDto>>> GetDefectRateAlertsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<DefectRateBatchDto>>>($"{BaseUrl}/defect-rate-alerts");
+            return response ?? ApiResponse<List<DefectRateBatchDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<DefectRateBatchDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 工单号验证 ==========
 
     public async Task<ApiResponse<List<BatchWorkOrderMismatchDto>>> VerifyWorkOrderNosAsync()
@@ -233,16 +245,16 @@ public class BatchService
         catch (Exception ex) { return ApiResponse<List<OperationLogDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    // ========== 通用查询（支持 validInputQuestion） ==========
+    // ========== 通用查询（支持 hasInputChange） ==========
 
-    public async Task<ApiResponse<PagedResult<ProductionBatchListDto>>> GetAllAsync(int pageIndex, int pageSize, string? keyword, string? sortBy, bool isDescending, string? filters, string? validInputQuestion)
+    public async Task<ApiResponse<PagedResult<ProductionBatchListDto>>> GetAllAsync(int pageIndex, int pageSize, string? keyword, string? sortBy, bool isDescending, string? filters, string? hasInputChange)
     {
         try
         {
             var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&sortBy={Uri.EscapeDataString(sortBy ?? ApiEndpoints.DefaultSortBy)}&isDescending={isDescending.ToString().ToLower()}";
             if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
             if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
-            if (!string.IsNullOrEmpty(validInputQuestion)) url += $"&validInputQuestion={Uri.EscapeDataString(validInputQuestion)}";
+            if (!string.IsNullOrEmpty(hasInputChange)) url += $"&hasInputChange={Uri.EscapeDataString(hasInputChange)}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<ProductionBatchListDto>>>(url)
                    ?? ApiResponse<PagedResult<ProductionBatchListDto>>.Fail("获取数据失败");
         }

@@ -321,7 +321,7 @@ public static class DataExchangeRegistry
             new("现有效支数", "CurrentValidQty", typeof(int?), isRequired: false),
             new("现有效重量(kg)", "CurrentValidWeight", typeof(decimal?), isRequired: false),
             // 系统跟踪字段
-            new("有效投料疑问", "ValidInputQuestion", typeof(bool?), isRequired: false, isSystem: true),
+            new("投料变更", "HasInputChange", typeof(bool?), isRequired: false, isSystem: true),
             new("当前工段完工", "CurrentSectionCompleted", typeof(bool?), isRequired: false, isSystem: true),
             new("剩余工量(天)", "RemainingWorkDays", typeof(int), isSystem: true),
             new("全工量(天)", "TotalWorkDays", typeof(int), isSystem: true),

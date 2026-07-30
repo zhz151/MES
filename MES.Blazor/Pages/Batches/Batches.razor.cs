@@ -25,6 +25,7 @@ public partial class Batches
     private List<PendingPlanBatchDto> _pendingInProcessReworkPlans = new();
     private List<PendingPlanBatchDto> _pendingInMainWorkOrderPlans = new();
     private List<NotificationDto>? _workOrderChangedNotices;
+    private List<DefectRateBatchDto> _defectRateAlerts = new();
     private CancellationTokenSource? _pollingCts;
     private bool _allSelected;
     private bool allSelected
@@ -98,8 +99,8 @@ public partial class Batches
         new() { Key = "ProductionRatio",    Label = "制成倍数", SortKey = "productionratio", Width = "80", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "CurrentValidQty",    Label = "现有效原料支数", SortKey = "currentvalidqty", Width = "80", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "CurrentValidWeight",  Label = "现有效原料重量", SortKey = "currentvalidweight", Width = "80", GroupKey = 1, GroupName = "批次基本信息" },
-        new() { Key = "ValidInputQuestion",   Label = "有效投料疑问", SortKey = null, FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
-            EnumOptions = new() { new("True", "疑问"), new("False", "正常") } },
+        new() { Key = "HasInputChange",   Label = "有效投料变更", SortKey = null, FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
+            EnumOptions = new() { new("True", "有"), new("False", "无") } },
         new() { Key = "CreatedBy",          Label = "创建人",   SortKey = "createdby", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "UpdatedTime",        Label = "最后更新时间", SortKey = "updatedtime", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
@@ -524,6 +525,9 @@ public partial class Batches
         // 自动加载工单内容变更通知
         await CheckWorkOrderChangedNotificationsAsync();
 
+        // 自动加载缺陷率预警通知
+        await LoadDefectRateAlertsAsync();
+
         // 启动定时轮询刷新通知
         _ = StartNotificationPollingAsync();
     }
@@ -597,6 +601,24 @@ public partial class Batches
         catch
         {
             _workOrderChangedNotices = null;
+        }
+    }
+
+    // ========== 缺陷率预警通知 ==========
+
+    private async Task LoadDefectRateAlertsAsync()
+    {
+        try
+        {
+            var result = await BatchService.GetDefectRateAlertsAsync();
+            if (result.Success && result.Data != null)
+                _defectRateAlerts = result.Data;
+            else
+                _defectRateAlerts.Clear();
+        }
+        catch
+        {
+            _defectRateAlerts.Clear();
         }
     }
 
@@ -776,7 +798,7 @@ public partial class Batches
         "TotalMeters" => ((int)item.TotalMeters).ToString(),
         "TotalWeight" => ((int)item.TotalWeight).ToString(),
         "TechnicalRequirements" => DisplayHelper.GetTechnicalRequirementsText(item.TechnicalRequirements),
-        "ValidInputQuestion" => item.ValidInputQuestion.HasValue ? DisplayHelper.GetYesNoText(item.ValidInputQuestion.Value) : "",
+        "HasInputChange" => item.HasInputChange.HasValue ? (item.HasInputChange.Value ? "有" : "无") : "",
         "CurrentSectionCompleted" => DisplayHelper.GetSectionCompletedText(item.CurrentSectionCompleted),
         "RemainingWorkDays" => item.RemainingWorkDays == 0 ? "0" : $"{item.RemainingWorkDays}天",
         "CreatedBy" => item.CreatedBy,
@@ -837,14 +859,14 @@ public partial class Batches
                     builder.AddContent(0, "");
                 }
                 break;
-            case "ValidInputQuestion":
-                if (item.ValidInputQuestion.HasValue)
+            case "HasInputChange":
+                if (item.HasInputChange.HasValue)
                 {
-                    var vq = item.ValidInputQuestion.Value;
+                    var hc = item.HasInputChange.Value;
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
-                    builder.AddAttribute(2, "Color", vq ? Color.Warning : Color.Success);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, vq ? "疑问" : "正常")));
+                    builder.AddAttribute(2, "Color", hc ? Color.Warning : Color.Success);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, hc ? "有" : "无")));
                     builder.CloseComponent();
                 }
                 break;
@@ -1073,11 +1095,12 @@ public partial class Batches
         {
             while (!_pollingCts.Token.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), _pollingCts.Token);
+                await Task.Delay(TimeSpan.FromMinutes(2), _pollingCts.Token);
                 await LoadPendingInProcessReworkPlansAsync();
                 await LoadPendingInMainWorkOrderPlansAsync();
                 await CheckWorkOrdersAsync();
                 await CheckWorkOrderChangedNotificationsAsync();
+                await LoadDefectRateAlertsAsync();
                 await InvokeAsync(StateHasChanged);
             }
         }

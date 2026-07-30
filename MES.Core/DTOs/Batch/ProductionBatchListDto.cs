@@ -63,9 +63,9 @@ public class ProductionBatchListDto
     public string TechnicalRequirements { get; set; } = null!;
 
     /// <summary>
-    /// 有效投料疑问：基于最近过程检验计算，正常/疑问
+    /// 有效投料变更：有效投料支数与领料支数是否一致，有/无
     /// </summary>
-    public bool? ValidInputQuestion { get; set; }
+    public bool? HasInputChange { get; set; }
 
     // ========== 扩展字段（从 Entity 补充） ==========
     public string? Remark { get; set; }

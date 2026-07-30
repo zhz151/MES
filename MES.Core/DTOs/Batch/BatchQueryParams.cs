@@ -43,9 +43,9 @@ public class BatchQueryParams : QueryParams
     public string? ProductionSubNo { get; set; }
 
     /// <summary>
-    /// 有效投料疑问筛选（正常/疑问）
+    /// 投料变更筛选（无/有）
     /// </summary>
-    public string? ValidInputQuestion { get; set; }
+    public string? HasInputChange { get; set; }
 
     /// <summary>
     /// 开始日期范围起始

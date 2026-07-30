@@ -279,7 +279,7 @@ public class BatchService : IBatchService
             QualityRemark = b.QualityRemark,
             SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
             SourceName = b.SourceName,
-            ValidInputQuestion = b.ValidInputQuestion
+            HasInputChange = b.HasInputChange
         }).ToList();
 
         return new PagedResult<ProductionBatchListDto>
@@ -357,7 +357,7 @@ public class BatchService : IBatchService
             QualityRemark = b.QualityRemark,
             SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
             SourceName = b.SourceName,
-            ValidInputQuestion = b.ValidInputQuestion
+            HasInputChange = b.HasInputChange
         }).ToList();
 
         return mappedItems;
@@ -1951,7 +1951,7 @@ public class BatchService : IBatchService
             "IsClosed" => b.IsClosed,
             "CurrentValidQty" => (object?)b.CurrentValidQty ?? DBNull.Value,
             "CurrentValidWeight" => (object?)b.CurrentValidWeight ?? DBNull.Value,
-            "ValidInputQuestion" => b.ValidInputQuestion,
+            "HasInputChange" => b.HasInputChange,
             "CreatedBy" => b.CreatedBy,
             "CreatedTime" => b.CreatedTime,
             "UpdatedTime" => b.UpdatedTime,
@@ -2176,6 +2176,67 @@ public class BatchService : IBatchService
             throw new BusinessException($"当月生产编号已用尽（最大序号 {batchMaxSequence}）");
 
         return $"{prefix}-{nextSeq:D4}";
+    }
+
+    public async Task<List<DefectRateBatchDto>> GetDefectRateAlertsAsync()
+    {
+        // 过程检验按批次分组，聚合次品支数和检验支数，取最新检验时间
+        var defectGroups = await _context.ProcessInspections
+            .AsNoTracking()
+            .Where(p => p.Quantity.HasValue && p.Quantity.Value > 0)
+            .GroupBy(p => p.ProductionBatchId)
+            .Select(g => new
+            {
+                ProductionBatchId = g.Key,
+                TotalDefectQty = (g.Sum(p => p.DefectReworkQuantity ?? 0)
+                                + g.Sum(p => p.DefectWarehouseQuantity ?? 0)
+                                + g.Sum(p => p.DefectScrapQuantity ?? 0)),
+                TotalInspectionQty = g.Sum(p => p.Quantity ?? 0),
+                MaxInspectionTime = g.Max(p => (DateTimeOffset?)p.CreatedTime)
+            })
+            .Where(x => x.TotalInspectionQty > 0
+                     && (decimal)x.TotalDefectQty / (decimal)x.TotalInspectionQty > 0.03m)
+            .ToListAsync();
+
+        if (defectGroups.Count == 0)
+            return new List<DefectRateBatchDto>();
+
+        var batchIds = defectGroups.Select(x => x.ProductionBatchId).ToList();
+
+        // 关联批次表获取批次信息（排除已完成批次）
+        var batches = await _context.ProductionBatches
+            .AsNoTracking()
+            .Where(b => batchIds.Contains(b.Id) && b.Status != BatchStatus.Completed)
+            .Select(b => new { b.Id, b.BatchNo, b.WorkOrderNo, b.HasInputChange, b.UpdatedTime })
+            .ToListAsync();
+
+        var batchMap = batches.ToDictionary(b => b.Id, b => b);
+
+        // 消除逻辑：仅当 HasInputChange==true 且批次最后更新时间 >= 最新检验时间 → 已处理，不展示
+        var result = defectGroups
+            .Where(x => batchMap.ContainsKey(x.ProductionBatchId))
+            .Where(x =>
+            {
+                var b = batchMap[x.ProductionBatchId];
+                return b.HasInputChange != true || b.UpdatedTime < x.MaxInspectionTime;
+            })
+            .Select(x =>
+            {
+                var b = batchMap[x.ProductionBatchId];
+                return new DefectRateBatchDto
+                {
+                    BatchId = x.ProductionBatchId,
+                    BatchNo = b.BatchNo,
+                    WorkOrderNo = b.WorkOrderNo ?? "-",
+                    DefectRate = Math.Round((decimal)x.TotalDefectQty / (decimal)x.TotalInspectionQty * 100, 1)
+                };
+            })
+            .OrderByDescending(d => d.DefectRate)
+            .ToList();
+
+        _logger.LogInformation("缺陷率预警查询完成: 发现 {Count} 个批次超阈值（已排除已处理批次）", result.Count);
+
+        return result;
     }
 
     public async Task<List<BatchWorkOrderMismatchDto>> VerifyWorkOrderNosAsync()

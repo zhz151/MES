@@ -43,7 +43,7 @@ public class BatchController : ControllerBase
         [FromQuery] string? status = null,
         [FromQuery] string? tagNo = null,
         [FromQuery] string? batchNo = null,
-        [FromQuery] string? validInputQuestion = null,
+        [FromQuery] string? hasInputChange = null,
         [FromQuery] DateTime? startDateFrom = null,
         [FromQuery] DateTime? startDateTo = null,
         [FromQuery] string? filters = null)
@@ -60,7 +60,7 @@ public class BatchController : ControllerBase
             Status = status,
             TagNo = tagNo,
             BatchNo = batchNo,
-            ValidInputQuestion = validInputQuestion,
+            HasInputChange = hasInputChange,
             StartDateFrom = startDateFrom,
             StartDateTo = startDateTo
         };
@@ -219,6 +219,16 @@ public class BatchController : ControllerBase
     {
         var result = await _service.GetNextBatchNoAsync();
         return Ok(ApiResponse<string>.Ok(result, "查询成功"));
+    }
+
+    // ========== 缺陷率预警 ==========
+
+    [HttpGet("defect-rate-alerts")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<DefectRateBatchDto>>>> GetDefectRateAlerts()
+    {
+        var result = await _service.GetDefectRateAlertsAsync();
+        return Ok(ApiResponse<List<DefectRateBatchDto>>.Ok(result, "查询成功"));
     }
 
     // ========== 工单号验证 ==========
