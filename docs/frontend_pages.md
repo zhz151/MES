@@ -1,6 +1,6 @@
 # MES 前端页面结构参考
 
-> 生成日期：2026-07-17（V18）
+> 生成日期：2026-08-01（V19）
 > 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
 
 ---
@@ -13,7 +13,7 @@
 |-------|---------|----------|-------|---------|
 | 首页 | 首页 | 所有 | 1 | 0 |
 | 订单 | 订单管理 | OrderStaff/Director | 7 | 3 |
-| 工单 | 工单管理 | WorkOrderStaff/Director | 15 | 4 |
+| 工单 | 工单管理 | WorkOrderStaff/Director | 16 | 5 |
 | 计划排程 | 计划排程 | 所有 | 8 | 7 |
 | 批次 | 批次管理 | BatchStaff/Director | 14 | 6 |
 | 质量 | 质量管理 | QualityStaff/Director | 32 | 16 |
@@ -57,8 +57,8 @@
 ### 2.2 工单上下文
 
 ```
-路由前缀: /workorders, /material-plan-overview, /workorder-overview, /workorder-execution, /order-demand-adjustment
-菜单: 工单管理 → [工单首页, 用料计划总览, 工单总览, 工单需求调整, 工单执行状况]
+路由前缀: /workorders, /material-plan-overview, /workorder-overview, /workorder-execution, /order-demand-adjustment, /fixed-length-work-order-view
+菜单: 工单管理 → [工单首页, 用料计划总览, 工单总览, 工单需求调整, 工单执行状况, 定尺工单定尺数据]
 
 ┌─ 工单管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -84,7 +84,9 @@
 │                                                           │
 │  OrderDemandAdjustment.razor      /order-demand-adjustment        [列表页]  │
 │                                                           │
-│  列表页: WorkOrders, MaterialPlanOverview, WorkOrderExecution, OrderDemandAdjustment  │
+│  FixedLengthWorkOrderView.razor   /fixed-length-work-order-view  [列表页]  │
+│                                                           │
+│  列表页: WorkOrders, MaterialPlanOverview, WorkOrderExecution, OrderDemandAdjustment, FixedLengthWorkOrderView  │
 │  ※ 页面文件在 Pages/WorkOrders/ 目录                        │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -444,7 +446,7 @@
 
 ## 3. 列表页完整清单（需检查加载/排序/筛选）
 
-共 **64 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
+共 **66 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
 
 | # | 页面文件 | 路由 | 上下文 | 内联编辑 | 备注 |
 |---|---------|------|-------|---------|------|
@@ -453,7 +455,7 @@
 | 3 | GradeMappings.razor | /grade-mappings | 生产标准 | | |
 | 4 | WorkOrders.razor | /workorders | 工单 | ✅ | |
 | 5 | MaterialPlanOverview.razor | /material-plan-overview | 工单 | | |
-| 7 | **Batches.razor** | /batches | 批次 | | ✅ 已过规范检查 |
+| 6 | **Batches.razor** | /batches | 批次 | | ✅ 已过规范检查 |
 | 7 | **ProductionRecords.razor** | /production-records | 批次 | | 列分组4组（G1执行信息/G2产出数据/G3工艺参数/G4追溯信息）+ ExcelFilter + 内联编辑 + 分组标题栏 |
 | 8 | **SectionOutsources.razor** | /section-outsources | 批次 | | |
 | 9 | **OutsourceRecoveries.razor** | /outsource-recoveries | 批次 | | |
@@ -513,6 +515,7 @@
 | 63 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页 |
 | 64 | PendingDelivery.razor | /warehouse/pending-delivery | 仓库 | | 待发货项列表页 |
 | 65 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选 |
+| 66 | FixedLengthWorkOrderView.razor | /fixed-length-work-order-view | 工单 | | 定尺工单联通视图，主号级按长度实时聚合 + 分组标题栏 + 分页汇总（仅 PlannedQuantity 可求和） |
 
 ---
 
@@ -556,5 +559,7 @@
 ---
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
+>
+> **最后更新：2026-08-01（V19）** — 工单上下文新增定尺工单联通视图（FixedLengthWorkOrderView，1页，列表页数 4→5）；§3 列表页清单补入该页并修正编号错乱（原 #6 缺失、#7 重复，现 #1-#66 连续），计数 64→66
 >
 > **最后更新：2026-07-17（V18）** — 新增质量证明书模块(3页) + 理化检测创建页(8页) + 待发货项列表页 + 生产标准创建页(2页)；生产标准全列筛选支持；code-behind 分离迁移状态更新
