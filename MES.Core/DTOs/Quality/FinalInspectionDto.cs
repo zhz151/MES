@@ -51,8 +51,11 @@ public class FinalInspectionDto
     /// <summary>规格</summary>
     public string? Specification { get; set; }
 
-    /// <summary>定尺长度</summary>
+    /// <summary>定尺长度（批次长度状态=定尺时填写）</summary>
     public string? FixedLength { get; set; }
+
+    /// <summary>非定尺长度范围（批次长度状态&lt;&gt;定尺时填写）</summary>
+    public string? NonFixedLengthRange { get; set; }
 
     /// <summary>生产类型</summary>
     public string? ProductionType { get; set; }
@@ -65,6 +68,13 @@ public class FinalInspectionDto
 
     /// <summary>交货状态</summary>
     public string? DeliveryState { get; set; }
+
+    /// <summary>制造状态（来自关联生产批次）</summary>
+    public string? ManufacturingStatus { get; set; }
+
+    /// <summary>是否交付态（制造状态==交货状态为"是"）</summary>
+    public string? IsDeliveryStatusDisplay =>
+        string.Equals(ManufacturingStatus, DeliveryState, StringComparison.OrdinalIgnoreCase) ? "是" : "否";
 
     /// <summary>设备名称</summary>
     public string? EquipmentName { get; set; }
@@ -79,14 +89,18 @@ public class FinalInspectionDto
     /// <summary>检验支数</summary>
     public int? Quantity { get; set; }
 
-    /// <summary>检验重量</summary>
-    public decimal? Weight { get; set; }
+    /// <summary>成检类型</summary>
+    public string? InspectionType { get; set; }
+    public string? InspectionTypeDisplay => !string.IsNullOrEmpty(InspectionType) && EnumHelper.TryParse<InspectionType>(InspectionType) is { } it ? EnumHelper.GetDisplayName(it) : null;
+
+    /// <summary>理论检验重量</summary>
+    public int? Weight { get; set; }
 
     /// <summary>合格支数</summary>
     public int? QualifiedQuantity { get; set; }
 
-    /// <summary>合格重量</summary>
-    public decimal? QualifiedWeight { get; set; }
+    /// <summary>理论合格重量</summary>
+    public int? QualifiedWeight { get; set; }
 
     /// <summary>合格中让步放行支数</summary>
     public int? QualifiedConcessionQuantity { get; set; }
@@ -94,16 +108,25 @@ public class FinalInspectionDto
     /// <summary>让步说明</summary>
     public string? ConcessionRemark { get; set; }
 
-    /// <summary>不合格返整支数</summary>
+    /// <summary>次品返整支数</summary>
     public int? DefectReworkQuantity { get; set; }
 
-    /// <summary>不合格入库支数</summary>
+    /// <summary>次品入库支数</summary>
     public int? DefectWarehouseQuantity { get; set; }
 
-    /// <summary>不合格报废支数</summary>
+    /// <summary>次品报废支数</summary>
     public int? DefectScrapQuantity { get; set; }
 
-    /// <summary>不合格情况描述</summary>
+    /// <summary>次品返整重量</summary>
+    public int? DefectReworkWeight { get; set; }
+
+    /// <summary>次品入库重量</summary>
+    public int? DefectWarehouseWeight { get; set; }
+
+    /// <summary>次品报废重量</summary>
+    public int? DefectScrapWeight { get; set; }
+
+    /// <summary>次品情况描述</summary>
     public string? DefectDescription { get; set; }
 
     /// <summary>外径范围（尺寸检验专用）</summary>
@@ -197,8 +220,11 @@ public class BatchLookupResultDto
     /// <summary>规格</summary>
     public string? Specification { get; set; }
 
-    /// <summary>定尺长度</summary>
+    /// <summary>定尺长度（批次长度状态=定尺时填写）</summary>
     public string? FixedLength { get; set; }
+
+    /// <summary>非定尺长度范围（批次长度状态&lt;&gt;定尺时填写）</summary>
+    public string? NonFixedLengthRange { get; set; }
 
     /// <summary>生产类型</summary>
     public string? ProductionType { get; set; }
@@ -211,6 +237,15 @@ public class BatchLookupResultDto
 
     /// <summary>交货状态</summary>
     public string? DeliveryState { get; set; }
+
+    /// <summary>制造状态</summary>
+    public string? ManufacturingStatus { get; set; }
+
+    /// <summary>成检类型（继承自到料检验，无则默认正式成检）</summary>
+    public string? InspectionType { get; set; }
+
+    /// <summary>单支重（定尺=总重/总支，非定尺=理论单支重；用于前端重量自动回填）</summary>
+    public decimal? UnitWeight { get; set; }
 }
 
 /// <summary>
@@ -248,6 +283,8 @@ public class CreateFinalInspectionRequest
     public string? Specification { get; set; }
     [MaxLength(50)]
     public string? FixedLength { get; set; }
+    [MaxLength(100)]
+    public string? NonFixedLengthRange { get; set; }
     [MaxLength(50)]
     public string? ProductionType { get; set; }
     [MaxLength(50)]
@@ -260,15 +297,18 @@ public class CreateFinalInspectionRequest
     [MaxLength(50)]
     public string? Operator { get; set; }
     public int? Quantity { get; set; }
-    public decimal? Weight { get; set; }
+    public int? Weight { get; set; }
     public int? QualifiedQuantity { get; set; }
-    public decimal? QualifiedWeight { get; set; }
+    public int? QualifiedWeight { get; set; }
     public int? QualifiedConcessionQuantity { get; set; }
     [MaxLength(500)]
     public string? ConcessionRemark { get; set; }
     public int? DefectReworkQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }
+    public int? DefectReworkWeight { get; set; }
+    public int? DefectWarehouseWeight { get; set; }
+    public int? DefectScrapWeight { get; set; }
     [MaxLength(500)]
     public string? DefectDescription { get; set; }
     [MaxLength(100)]
@@ -329,21 +369,30 @@ public class UpdateFinalInspectionRequest
     [Required(ErrorMessage = "检验日期不能为空")]
     public DateTime InspectionDate { get; set; }
 
+    [MaxLength(50)]
+    public string? FixedLength { get; set; }
+
+    [MaxLength(100)]
+    public string? NonFixedLengthRange { get; set; }
+
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
     public ShiftType? Shift { get; set; }
     [MaxLength(50)]
     public string? Operator { get; set; }
     public int? Quantity { get; set; }
-    public decimal? Weight { get; set; }
+    public int? Weight { get; set; }
     public int? QualifiedQuantity { get; set; }
-    public decimal? QualifiedWeight { get; set; }
+    public int? QualifiedWeight { get; set; }
     public int? QualifiedConcessionQuantity { get; set; }
     [MaxLength(500)]
     public string? ConcessionRemark { get; set; }
     public int? DefectReworkQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }
+    public int? DefectReworkWeight { get; set; }
+    public int? DefectWarehouseWeight { get; set; }
+    public int? DefectScrapWeight { get; set; }
     [MaxLength(500)]
     public string? DefectDescription { get; set; }
     [MaxLength(100)]

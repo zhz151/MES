@@ -80,7 +80,12 @@ public partial class AppDbContext
             entity.Property(e => e.InputType).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(BatchInputType.SplitFromNumber);
             entity.Property(e => e.CurrentValidQty);
             entity.Property(e => e.CurrentValidWeight).HasColumnType("decimal(18,3)");
-            entity.Property(e => e.IsClosed).IsRequired().HasDefaultValue(false);
+
+            // 成切跟踪字段
+            entity.Property(e => e.CutRequirement).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.CutExecution);
+            entity.Property(e => e.CutQuantity);
+            entity.Property(e => e.CutDoubt);
 
             // 索引
             entity.HasIndex(e => e.BatchNo).IsUnique().HasDatabaseName("UK_ProductionBatch_BatchNo");
@@ -105,7 +110,6 @@ public partial class AppDbContext
             entity.Property(e => e.WallThicknessTolerance).HasMaxLength(50);
             entity.Property(e => e.ManufacturingLength).HasMaxLength(100);
             entity.Property(e => e.CuttingTreatment).HasMaxLength(200);
-            entity.Property(e => e.ManufacturingMultiple).IsRequired();
             entity.Property(e => e.BatchNo).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);
 
@@ -191,6 +195,7 @@ public partial class AppDbContext
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.ProductStatus).HasMaxLength(20);
+            entity.Property(e => e.LengthStatus).HasMaxLength(20);
             entity.Property(e => e.CuttingMultiple).HasColumnType("decimal(5,2)");
             entity.Property(e => e.FinishedCutLength).HasColumnType("decimal(18,2)");
             entity.Property(e => e.PostCutQuantity);
@@ -211,9 +216,16 @@ public partial class AppDbContext
 
             entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_ProductionRecord_BatchId");
             entity.HasIndex(e => e.ProcessGroupId).HasDatabaseName("IX_ProductionRecord_ProcessGroupId");
+            // 非断切工段：同一批次+工序组内工段唯一
             entity.HasIndex(e => new { e.ProductionBatchId, e.ProcessGroupId, e.SectionName })
                 .IsUnique()
-                .HasDatabaseName("UK_ProductionRecord_Section");
+                .HasDatabaseName("UK_ProductionRecord_Section")
+                .HasFilter("[FinishedCutLength] IS NULL");
+            // 断切工段：同一批次+工序组+工段，按执行日期+成品断切长度唯一（同批可多条不同长度）
+            entity.HasIndex(e => new { e.ProductionBatchId, e.ProcessGroupId, e.SectionName, e.ExecDate, e.FinishedCutLength })
+                .IsUnique()
+                .HasDatabaseName("UK_ProductionRecord_Section_Cut")
+                .HasFilter("[FinishedCutLength] IS NOT NULL");
         });
     }
     private static void ConfigureSectionOutsource(ModelBuilder builder)

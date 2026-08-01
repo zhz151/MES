@@ -468,9 +468,6 @@ namespace MES.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("ManufacturingMultiple")
-                        .HasColumnType("int");
-
                     b.Property<string>("ManufacturingSpec")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -601,6 +598,20 @@ namespace MES.Data.Migrations
                     b.Property<decimal?>("CurrentValidWeight")
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<bool?>("CutDoubt")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("CutExecution")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("CutQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("CutRequirement")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("DelayPenalty")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -633,11 +644,6 @@ namespace MES.Data.Migrations
 
                     b.Property<decimal?>("InputWeight")
                         .HasColumnType("decimal(18,3)");
-
-                    b.Property<bool>("IsClosed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsForceCompleted")
                         .ValueGeneratedOnAdd()
@@ -991,6 +997,10 @@ namespace MES.Data.Migrations
                     b.Property<decimal?>("FinishedCutLength")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("LengthStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("ManufacturingSpec")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -1071,7 +1081,13 @@ namespace MES.Data.Migrations
 
                     b.HasIndex("ProductionBatchId", "ProcessGroupId", "SectionName")
                         .IsUnique()
-                        .HasDatabaseName("UK_ProductionRecord_Section");
+                        .HasDatabaseName("UK_ProductionRecord_Section")
+                        .HasFilter("[FinishedCutLength] IS NULL");
+
+                    b.HasIndex("ProductionBatchId", "ProcessGroupId", "SectionName", "ExecDate", "FinishedCutLength")
+                        .IsUnique()
+                        .HasDatabaseName("UK_ProductionRecord_Section_Cut")
+                        .HasFilter("[FinishedCutLength] IS NOT NULL");
 
                     b.ToTable("ProductionRecord", (string)null);
                 });
@@ -3751,10 +3767,19 @@ namespace MES.Data.Migrations
                     b.Property<int?>("DefectReworkQuantity")
                         .HasColumnType("int");
 
+                    b.Property<int?>("DefectReworkWeight")
+                        .HasColumnType("int");
+
                     b.Property<int?>("DefectScrapQuantity")
                         .HasColumnType("int");
 
+                    b.Property<int?>("DefectScrapWeight")
+                        .HasColumnType("int");
+
                     b.Property<int?>("DefectWarehouseQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DefectWarehouseWeight")
                         .HasColumnType("int");
 
                     b.Property<string>("DetectionFrequency")
@@ -3777,6 +3802,10 @@ namespace MES.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("FixedLength")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<int?>("HoldTime")
                         .HasColumnType("int");
 
@@ -3796,6 +3825,9 @@ namespace MES.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("InspectionType")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("InstrumentModel")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -3805,6 +3837,10 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("NdtMethod")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NonFixedLengthRange")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -4486,6 +4522,9 @@ namespace MES.Data.Migrations
                     b.Property<string>("DataSource")
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("InspectionType")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsForceCompleted")
                         .HasColumnType("bit");
@@ -7159,6 +7198,72 @@ namespace MES.Data.Migrations
                     b.ToTable("Warehouse", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.WorkOrder.FixedLengthWorkOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("Length")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PlannedQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductionMainNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SalesOrderNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("WorkOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("WorkOrderNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkOrderId")
+                        .HasDatabaseName("IX_FixedLengthWorkOrder_WorkOrderId");
+
+                    b.HasIndex("WorkOrderNo")
+                        .HasDatabaseName("IX_FixedLengthWorkOrder_WorkOrderNo");
+
+                    b.HasIndex("WorkOrderId", "Length")
+                        .IsUnique()
+                        .HasDatabaseName("UK_FixedLengthWorkOrder_WorkOrderLength");
+
+                    b.HasIndex("SalesOrderNo", "ProductionMainNo", "Length")
+                        .HasDatabaseName("IX_FixedLengthWorkOrder_SalesOrderMainNoLength");
+
+                    b.ToTable("FixedLengthWorkOrder", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.WorkOrder.InMainWorkOrderPlan", b =>
                 {
                     b.Property<int>("Id")
@@ -9550,6 +9655,15 @@ namespace MES.Data.Migrations
                         .WithMany()
                         .HasForeignKey("InventoryBatchId")
                         .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.WorkOrder.FixedLengthWorkOrder", b =>
+                {
+                    b.HasOne("MES.Data.Entities.WorkOrder.WorkOrder", null)
+                        .WithMany()
+                        .HasForeignKey("WorkOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

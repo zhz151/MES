@@ -20,5 +20,5 @@ public interface IDataImportService
     /// <summary>
     /// 执行导入（事务内操作）
     /// </summary>
-    Task<ImportResult> ImportAsync(string entityKey, byte[] fileData, string strategy, string? userName);
+    Task<ImportResult> ImportAsync(string entityKey, byte[] fileData, string? userName);
 }

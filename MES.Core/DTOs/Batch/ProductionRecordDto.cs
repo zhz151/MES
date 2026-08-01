@@ -35,6 +35,9 @@ public class ProductionRecordDto
 
     /// <summary>产品状态（荒管/在制/成品），由系统自动计算</summary>
     public string? ProductStatus { get; set; }
+
+    /// <summary>长度状态（定尺/范围尺/非定尺），断切成品时自动填充</summary>
+    public string? LengthStatus { get; set; }
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }
     public int? PostCutQuantity { get; set; }

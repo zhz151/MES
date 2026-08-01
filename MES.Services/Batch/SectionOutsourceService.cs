@@ -367,7 +367,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             .Where(pg => pg.ProductionBatchId == batch.Id)
             .ToListAsync();
         entity.ProductStatus = ProductStatusHelper.Calculate(
-            entity.ProcessName, entity.ManufacturingSpec, batch.ManufacturingItem, processGroups);
+            entity.ProcessName, entity.ManufacturingSpec, batch.ManufacturingItem, processGroups, batch.Specification);
 
         _context.SectionOutsources.Add(entity);
         await _context.SaveChangesAsync();
@@ -519,7 +519,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 request.ProcessName,
                 request.ManufacturingSpec,
                 batch.ManufacturingItem,
-                batchProcessGroups);
+                batchProcessGroups,
+                batch.Specification);
 
             entities.Add(new SectionOutsource
             {

@@ -72,7 +72,8 @@ public partial class FinalInspections
     {
         "Quantity", "Weight", "QualifiedQuantity", "QualifiedWeight",
         "QualifiedConcessionQuantity", "DefectReworkQuantity",
-        "DefectWarehouseQuantity", "DefectScrapQuantity"
+        "DefectWarehouseQuantity", "DefectScrapQuantity",
+        "DefectReworkWeight", "DefectWarehouseWeight", "DefectScrapWeight"
     };
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
@@ -101,6 +102,12 @@ public partial class FinalInspections
             EnumOptions = new() { new("DayShift","白班"), new("MiddleShift","中班"), new("NightShift","夜班") } },
         new() { Key = "Operator",               Label = "操作员",     SortKey = "operator", FilterType = "string", Width = "120",
             GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "InspectionType",         Label = "成检类型",   SortKey = "inspectiontype", FilterType = "enum", Width = "100",
+            GroupKey = 1, GroupName = "G1 检验执行",
+            EnumOptions = new() { new("PreInspection","预成检"), new("FormalInspection","正式成检") } },
+        new() { Key = "IsDeliveryStatus",      Label = "是否交付态", SortKey = "isdeliverystatus", FilterType = "enum", Width = "100",
+            GroupKey = 1, GroupName = "G1 检验执行",
+            EnumOptions = new() { new("是","是"), new("否","否") } },
         new() { Key = "QualificationLevel",    Label = "资格等级",   SortKey = "qualificationlevel", FilterType = "string", Width = "100",
             GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "BatchNo",                Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120",
@@ -117,6 +124,9 @@ public partial class FinalInspections
             EnumOptions = Enum.GetValues<MaterialType>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetMaterialTypeText(e))).ToList() },
         new() { Key = "Salesman",               Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "ManufacturingStatus",   Label = "制造状态",   SortKey = "manufacturingstatus", FilterType = "enum", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次",
+            EnumOptions = Enum.GetValues<DeliveryState>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetDeliveryStateText(e))).ToList() },
         new() { Key = "DeliveryState",          Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次",
             EnumOptions = Enum.GetValues<DeliveryState>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetDeliveryStateText(e))).ToList() },
@@ -139,13 +149,15 @@ public partial class FinalInspections
         // G3: 检验结果
         new() { Key = "FixedLength",            Label = "定尺长度",   SortKey = "fixedlength", FilterType = "string", Width = "120",
             GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "NonFixedLengthRange",    Label = "非定尺长度范围", SortKey = "nonfixedlengthrange", FilterType = "string", Width = "120",
+            GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "Quantity",               Label = "检验支数",   SortKey = "quantity", Width = "80",
             GroupKey = 3, GroupName = "G3 检验结果" },
-        new() { Key = "Weight",                 Label = "检验重量",   SortKey = "weight", Width = "80",
+        new() { Key = "Weight",                 Label = "理论检验重量",   SortKey = "weight", Width = "80",
             GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "QualifiedQuantity",      Label = "合格支数",     SortKey = "qualifiedquantity", Width = "80",
             GroupKey = 3, GroupName = "G3 检验结果" },
-        new() { Key = "QualifiedWeight",        Label = "合格重量",     SortKey = "qualifiedweight", Width = "80",
+        new() { Key = "QualifiedWeight",        Label = "理论合格重量",     SortKey = "qualifiedweight", Width = "80",
             GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "QualifiedConcessionQuantity", Label = "含让步放行支", SortKey = "qualifiedconcessionquantity", Width = "80",
             GroupKey = 3, GroupName = "G3 检验结果" },
@@ -158,6 +170,12 @@ public partial class FinalInspections
         new() { Key = "DefectWarehouseQuantity",Label = "次品入库支",   SortKey = "defectwarehousequantity", Width = "80",
             GroupKey = 4, GroupName = "G4 不合格处理" },
         new() { Key = "DefectScrapQuantity",    Label = "次品报废支",   SortKey = "defectscrapquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "DefectReworkWeight",     Label = "次品返整重",   SortKey = "defectreworkweight", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "DefectWarehouseWeight",  Label = "次品入库重",   SortKey = "defectwarehouseweight", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格处理" },
+        new() { Key = "DefectScrapWeight",      Label = "次品报废重",   SortKey = "defectscrapweight", Width = "80",
             GroupKey = 4, GroupName = "G4 不合格处理" },
         new() { Key = "DefectDescription",      Label = "次品情况描述", SortKey = "defectdescription", FilterType = "string", Width = "120",
             GroupKey = 4, GroupName = "G4 不合格处理" },
@@ -537,15 +555,20 @@ public partial class FinalInspections
         public string? EquipmentName { get; set; }
         public ShiftType? Shift { get; set; }
         public string? Operator { get; set; }
+        public string? FixedLength { get; set; }
+        public string? NonFixedLengthRange { get; set; }
         public int? Quantity { get; set; }
-        public decimal? Weight { get; set; }
+        public int? Weight { get; set; }
         public int? QualifiedQuantity { get; set; }
-        public decimal? QualifiedWeight { get; set; }
+        public int? QualifiedWeight { get; set; }
         public int? QualifiedConcessionQuantity { get; set; }
         public string? ConcessionRemark { get; set; }
         public int? DefectReworkQuantity { get; set; }
         public int? DefectWarehouseQuantity { get; set; }
         public int? DefectScrapQuantity { get; set; }
+        public int? DefectReworkWeight { get; set; }
+        public int? DefectWarehouseWeight { get; set; }
+        public int? DefectScrapWeight { get; set; }
         public string? DefectDescription { get; set; }
         public string? OuterDiameterRange { get; set; }
         public string? WallThicknessRange { get; set; }
@@ -578,6 +601,8 @@ public partial class FinalInspections
             EquipmentName = item.EquipmentName,
             Shift = item.Shift,
             Operator = item.Operator,
+            FixedLength = item.FixedLength,
+            NonFixedLengthRange = item.NonFixedLengthRange,
             Quantity = item.Quantity,
             Weight = item.Weight,
             QualifiedQuantity = item.QualifiedQuantity,
@@ -587,6 +612,9 @@ public partial class FinalInspections
             DefectReworkQuantity = item.DefectReworkQuantity,
             DefectWarehouseQuantity = item.DefectWarehouseQuantity,
             DefectScrapQuantity = item.DefectScrapQuantity,
+            DefectReworkWeight = item.DefectReworkWeight,
+            DefectWarehouseWeight = item.DefectWarehouseWeight,
+            DefectScrapWeight = item.DefectScrapWeight,
             DefectDescription = item.DefectDescription,
             OuterDiameterRange = item.OuterDiameterRange,
             WallThicknessRange = item.WallThicknessRange,
@@ -638,6 +666,8 @@ public partial class FinalInspections
                 EquipmentName = cache.EquipmentName,
                 Shift = cache.Shift,
                 Operator = cache.Operator,
+                FixedLength = cache.FixedLength,
+                NonFixedLengthRange = cache.NonFixedLengthRange,
                 Quantity = cache.Quantity,
                 Weight = cache.Weight,
                 QualifiedQuantity = cache.QualifiedQuantity,
@@ -647,6 +677,9 @@ public partial class FinalInspections
                 DefectReworkQuantity = cache.DefectReworkQuantity,
                 DefectWarehouseQuantity = cache.DefectWarehouseQuantity,
                 DefectScrapQuantity = cache.DefectScrapQuantity,
+                DefectReworkWeight = cache.DefectReworkWeight,
+                DefectWarehouseWeight = cache.DefectWarehouseWeight,
+                DefectScrapWeight = cache.DefectScrapWeight,
                 DefectDescription = cache.DefectDescription,
                 OuterDiameterRange = cache.OuterDiameterRange,
                 WallThicknessRange = cache.WallThicknessRange,
@@ -677,6 +710,8 @@ public partial class FinalInspections
                 item.EquipmentName = result.Data.EquipmentName;
                 item.Shift = result.Data.Shift;
                 item.Operator = result.Data.Operator;
+                item.FixedLength = result.Data.FixedLength;
+                item.NonFixedLengthRange = result.Data.NonFixedLengthRange;
                 item.Quantity = result.Data.Quantity;
                 item.Weight = result.Data.Weight;
                 item.QualifiedQuantity = result.Data.QualifiedQuantity;
@@ -686,6 +721,9 @@ public partial class FinalInspections
                 item.DefectReworkQuantity = result.Data.DefectReworkQuantity;
                 item.DefectWarehouseQuantity = result.Data.DefectWarehouseQuantity;
                 item.DefectScrapQuantity = result.Data.DefectScrapQuantity;
+                item.DefectReworkWeight = result.Data.DefectReworkWeight;
+                item.DefectWarehouseWeight = result.Data.DefectWarehouseWeight;
+                item.DefectScrapWeight = result.Data.DefectScrapWeight;
                 item.DefectDescription = result.Data.DefectDescription;
                 item.OuterDiameterRange = result.Data.OuterDiameterRange;
                 item.WallThicknessRange = result.Data.WallThicknessRange;
@@ -746,20 +784,27 @@ public partial class FinalInspections
         "Specification" => item.Specification,
         "Salesman" => item.Salesman,
         "DeliveryState" => item.DeliveryState,
+        "ManufacturingStatus" => DisplayHelper.GetDeliveryStateText(item.ManufacturingStatus),
+        "IsDeliveryStatus" => item.IsDeliveryStatusDisplay,
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
         "FixedLength" => item.FixedLength,
+        "NonFixedLengthRange" => item.NonFixedLengthRange,
         "EquipmentName" => item.EquipmentName,
         "Shift" => DisplayHelper.GetShiftTypeText(item.Shift),
         "Operator" => item.Operator,
+        "InspectionType" => DisplayHelper.GetInspectionTypeText(item.InspectionType),
         "Quantity" => item.Quantity?.ToString(),
-        "Weight" => DisplayHelper.FormatNullableDecimalAsInt(item.Weight),
+        "Weight" => DisplayHelper.FormatNullableInt(item.Weight),
         "QualifiedQuantity" => item.QualifiedQuantity?.ToString(),
-        "QualifiedWeight" => DisplayHelper.FormatNullableDecimalAsInt(item.QualifiedWeight),
+        "QualifiedWeight" => DisplayHelper.FormatNullableInt(item.QualifiedWeight),
         "QualifiedConcessionQuantity" => item.QualifiedConcessionQuantity?.ToString(),
         "ConcessionRemark" => item.ConcessionRemark,
         "DefectReworkQuantity" => item.DefectReworkQuantity?.ToString(),
         "DefectWarehouseQuantity" => item.DefectWarehouseQuantity?.ToString(),
         "DefectScrapQuantity" => item.DefectScrapQuantity?.ToString(),
+        "DefectReworkWeight" => DisplayHelper.FormatNullableInt(item.DefectReworkWeight),
+        "DefectWarehouseWeight" => DisplayHelper.FormatNullableInt(item.DefectWarehouseWeight),
+        "DefectScrapWeight" => DisplayHelper.FormatNullableInt(item.DefectScrapWeight),
         "DefectDescription" => item.DefectDescription,
         "OuterDiameterRange" => item.OuterDiameterRange,
         "WallThicknessRange" => item.WallThicknessRange,
@@ -790,6 +835,7 @@ public partial class FinalInspections
     {
         "InspectionItem" => DisplayHelper.GetInspectionItemText(item.InspectionItem),
         "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
+        "InspectionType" => DisplayHelper.GetInspectionTypeText(item.InspectionType),
         _ => GetCellRawValue(item, key) ?? ""
     };
 
@@ -1035,10 +1081,12 @@ public partial class FinalInspections
     private bool IsCellEditable(string key) => key switch
     {
         "InspectionDate" or "EquipmentName" or "Shift" or "Operator"
+            or "FixedLength" or "NonFixedLengthRange"
             or "Quantity" or "Weight"
             or "QualifiedQuantity" or "QualifiedWeight"
             or "QualifiedConcessionQuantity" or "ConcessionRemark"
             or "DefectReworkQuantity" or "DefectWarehouseQuantity" or "DefectScrapQuantity"
+            or "DefectReworkWeight" or "DefectWarehouseWeight" or "DefectScrapWeight"
             or "DefectDescription" or "OuterDiameterRange" or "WallThicknessRange"
             or "LengthAllowanceRange" or "Pressure" or "HoldTime"
             or "QualificationLevel" or "InspectionStandard" or "InspectionGrade"
@@ -1113,8 +1161,39 @@ public partial class FinalInspections
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
                 break;
+            case "ManufacturingStatus":
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.ManufacturingStatus));
+                break;
+            case "IsDeliveryStatus":
+                builder.AddContent(0, item.IsDeliveryStatusDisplay);
+                break;
             case "FixedLength":
-                builder.AddContent(0, item.FixedLength);
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", cache.FixedLength);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.FixedLength = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.FixedLength);
+                }
+                break;
+            case "NonFixedLengthRange":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudTextField<string>>(0);
+                    builder.AddAttribute(1, "Value", cache.NonFixedLengthRange);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.NonFixedLengthRange = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.NonFixedLengthRange);
+                }
                 break;
             case "EquipmentName":
                 if (isEditing && cache != null)
@@ -1169,6 +1248,9 @@ public partial class FinalInspections
                     builder.AddContent(0, item.Operator);
                 }
                 break;
+            case "InspectionType":
+                builder.AddContent(0, DisplayHelper.GetInspectionTypeText(item.InspectionType));
+                break;
             case "Quantity":
                 if (isEditing && cache != null)
                 {
@@ -1187,17 +1269,16 @@ public partial class FinalInspections
             case "Weight":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudNumericField<decimal?>>(0);
+                    builder.OpenComponent<MudNumericField<int?>>(0);
                     builder.AddAttribute(1, "Value", cache.Weight);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => cache.Weight = v));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.Weight = v));
                     builder.AddAttribute(3, "Class", "compact-input");
                     builder.AddAttribute(4, "HideSpinButtons", true);
-                    builder.AddAttribute(5, "Format", "G29");
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsInt(item.Weight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.Weight));
                 }
                 break;
             case "QualifiedQuantity":
@@ -1218,17 +1299,16 @@ public partial class FinalInspections
             case "QualifiedWeight":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudNumericField<decimal?>>(0);
+                    builder.OpenComponent<MudNumericField<int?>>(0);
                     builder.AddAttribute(1, "Value", cache.QualifiedWeight);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => cache.QualifiedWeight = v));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.QualifiedWeight = v));
                     builder.AddAttribute(3, "Class", "compact-input");
                     builder.AddAttribute(4, "HideSpinButtons", true);
-                    builder.AddAttribute(5, "Format", "G29");
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsInt(item.QualifiedWeight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.QualifiedWeight));
                 }
                 break;
             case "QualifiedConcessionQuantity":
@@ -1303,6 +1383,51 @@ public partial class FinalInspections
                 else
                 {
                     builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectScrapQuantity));
+                }
+                break;
+            case "DefectReworkWeight":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.DefectReworkWeight);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.DefectReworkWeight = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectReworkWeight));
+                }
+                break;
+            case "DefectWarehouseWeight":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.DefectWarehouseWeight);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.DefectWarehouseWeight = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectWarehouseWeight));
+                }
+                break;
+            case "DefectScrapWeight":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.DefectScrapWeight);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.DefectScrapWeight = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectScrapWeight));
                 }
                 break;
             case "DefectDescription":

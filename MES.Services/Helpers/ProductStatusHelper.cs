@@ -12,21 +12,24 @@ public static class ProductStatusHelper
     /// <summary>
     /// 计算制造状态（荒管/在制/成品）
     /// </summary>
+    /// <param name="finishedSpec">成品规格（= 批次 Specification）。成品判定标准：制造规格 == 成品规格。</param>
     public static string Calculate(
         string processName,
         string? manufacturingSpec,
         string? batchManufacturingItem,
-        List<ProcessGroup> processGroups)
+        List<ProcessGroup> processGroups,
+        string? finishedSpec = null)
     {
-        // 确定最后一个工序名
+        // 确定最后一个工序名（仅供"在制修检→荒管"判定使用）
         var lastProcessName = processGroups
             .OrderByDescending(pg => pg.SequenceNumber)
             .Select(pg => pg.ProcessName)
             .FirstOrDefault();
 
-        // 成品（优先级最高）：最后一个工序且制造物品含"成品"含义
-        // 注意：此检查必须在荒管检查之前，因为"在制修检"可能是末道工序+成品
-        if (lastProcessName != null && processName == lastProcessName
+        // 成品（优先级最高）：制造规格 == 成品规格 且 制造物品含"成品"含义
+        // 注意：此检查必须在荒管检查之前。
+        // 成品工序组 = ManufacturingSpec == 成品规格 的工序组（可能多个，含"附加成检"），不再按 SequenceNumber 最大判定
+        if (finishedSpec != null && string.Equals(manufacturingSpec, finishedSpec, StringComparison.OrdinalIgnoreCase)
             && IsFinishedManufacturingItem(batchManufacturingItem))
             return "成品";
 

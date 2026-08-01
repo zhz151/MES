@@ -87,6 +87,11 @@ public class ProductionRecord : BaseEntity
     public string? ProductStatus { get; set; }
 
     /// <summary>
+    /// 长度状态（定尺/范围尺/非定尺），断切成品时自动从批次冗余（存储枚举字符串）
+    /// </summary>
+    public string? LengthStatus { get; set; }
+
+    /// <summary>
     /// 断切倍数
     /// </summary>
     public decimal? CuttingMultiple { get; set; }

@@ -127,4 +127,9 @@ public interface IBatchService
     /// 获取过程检验缺陷率超过 3% 的批次列表（建议调整有效投料量）
     /// </summary>
     Task<List<DefectRateBatchDto>> GetDefectRateAlertsAsync();
+
+    /// <summary>
+    /// 将未设置制造状态的批次的 ManufacturingStatus 回填为 DeliveryState 的值
+    /// </summary>
+    Task<int> PopulateManufacturingStatusAsync();
 }

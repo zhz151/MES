@@ -1999,27 +1999,11 @@ public class MaterialPlanService : IMaterialPlanService
     }
 
     /// <summary>
-    /// 获取当前执行工序组的制成倍数
+    /// 获取可改制换算倍数：统一使用批次制成倍数 ProductionRatio（&gt;0 时），否则回退 1
     /// </summary>
     private static int GetCurrentProcessGroupMultiple(ProductionBatch batch)
     {
-        if (batch.ProcessGroups == null || batch.ProcessGroups.Count == 0)
-            return 1;
-
-        // 优先匹配当前正在执行的工序组（通过 CurrentSpec 匹配 ManufacturingSpec）
-        if (!string.IsNullOrEmpty(batch.CurrentSpec))
-        {
-            var matched = batch.ProcessGroups
-                .Where(pg => pg.ManufacturingSpec == batch.CurrentSpec)
-                .OrderByDescending(pg => pg.SequenceNumber)
-                .FirstOrDefault();
-            if (matched != null && matched.ManufacturingMultiple > 0)
-                return matched.ManufacturingMultiple;
-        }
-
-        // 回退：取最后一个工序组的制成倍数
-        var last = batch.ProcessGroups.OrderByDescending(pg => pg.SequenceNumber).FirstOrDefault();
-        return last?.ManufacturingMultiple > 0 ? last.ManufacturingMultiple : 1;
+        return batch.ProductionRatio > 0 ? batch.ProductionRatio : 1;
     }
 
     /// <summary>

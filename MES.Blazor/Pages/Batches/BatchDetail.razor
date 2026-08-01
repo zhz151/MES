@@ -80,6 +80,21 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制成倍数</MudText><MudText Typo="Typo.body2">@(batch.ProductionRatio.ToString())</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">备注</MudText><MudText Typo="Typo.body2">@(batch.Remark ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetBatchStatusText(batch.Status)</MudText></div>
+                <div>
+                    <MudText Typo="Typo.caption" Class="detail-label font-weight-bold">有效投料变更</MudText>
+                    <MudText Typo="Typo.body2">
+                        @if (batch.HasInputChange.HasValue)
+                        {
+                            <MudChip Size="Size.Small" Color="@(batch.HasInputChange.Value ? Color.Warning : Color.Success)">
+                                @(batch.HasInputChange.Value ? "有" : "无")
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <span>-</span>
+                        }
+                    </MudText>
+                </div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">创建人</MudText><MudText Typo="Typo.body2">@batch.CreatedBy</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">创建时间</MudText><MudText Typo="Typo.body2">@batch.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">最后更新</MudText><MudText Typo="Typo.body2">@batch.UpdatedBy / @batch.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</MudText></div>
@@ -138,6 +153,52 @@
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default"
                                    StartIcon="@Icons.Material.Filled.Undo"
                                    OnClick="UnforceCompleteAsync">释放</MudButton>
+                    }
+                </div>
+            </div>
+        </MudPaper>
+
+        <!-- ===== 区块二b：成切跟踪 ===== -->
+        <MudPaper Class="detail-card-bg pa-4 mb-3" Elevation="0">
+            <MudText Typo="Typo.subtitle2" Class="detail-label font-weight-bold mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.ContentCut" Class="mr-1" Size="Size.Small" />成切跟踪
+            </MudText>
+            <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
+                <div>
+                    <MudText Typo="Typo.caption" Class="detail-label font-weight-bold">成切需求</MudText>
+                    <MudChip Size="Size.Small" Color="@(batch.CutRequirement ? Color.Success : Color.Default)">@batch.CutRequirementDisplay</MudChip>
+                </div>
+                <div>
+                    <MudText Typo="Typo.caption" Class="detail-label font-weight-bold">成切执行</MudText>
+                    @if (batch.CutExecution.HasValue)
+                    {
+                        <MudChip Size="Size.Small" Color="@(batch.CutExecution.Value ? Color.Success : Color.Warning)">@(batch.CutExecution.Value ? "是" : "否")</MudChip>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2">略</MudText>
+                    }
+                </div>
+                <div>
+                    <MudText Typo="Typo.caption" Class="detail-label font-weight-bold">成切支数</MudText>
+                    @if (batch.CutQuantity.HasValue)
+                    {
+                        <MudText Typo="Typo.body2">@(batch.CutQuantity.Value) 支</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2">略</MudText>
+                    }
+                </div>
+                <div>
+                    <MudText Typo="Typo.caption" Class="detail-label font-weight-bold">成切存疑</MudText>
+                    @if (batch.CutDoubt.HasValue)
+                    {
+                        <MudChip Size="Size.Small" Color="@(batch.CutDoubt.Value ? Color.Error : Color.Success)">@(batch.CutDoubt.Value ? "疑问" : "正常")</MudChip>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2">略</MudText>
                     }
                 </div>
             </div>
@@ -456,7 +517,6 @@
                             <MudTh>壁厚公差</MudTh>
                             <MudTh>制造长度</MudTh>
                             <MudTh>断切处理</MudTh>
-                            <MudTh>制成倍数</MudTh>
                             <MudTh>备注</MudTh>
                             <MudTh>冷轧拔</MudTh>
                             <MudTh>油管断</MudTh>
@@ -482,7 +542,6 @@
                             <MudTd title="@context.WallThicknessTolerance"><MudText Typo="Typo.body2">@(context.WallThicknessTolerance ?? "-")</MudText></MudTd>
                             <MudTd title="@context.ManufacturingLength"><MudText Typo="Typo.body2">@(context.ManufacturingLength ?? "-")</MudText></MudTd>
                             <MudTd title="@context.CuttingTreatment"><MudText Typo="Typo.body2">@(context.CuttingTreatment ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@context.ManufacturingMultiple</MudText></MudTd>
                             <MudTd title="@context.Remark"><MudText Typo="Typo.body2">@(context.Remark ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.ColdRollDraw?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.OilPipeCut?.ToString() ?? "-")</MudText></MudTd>

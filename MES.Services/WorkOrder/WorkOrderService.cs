@@ -985,12 +985,15 @@ public class WorkOrderService : IWorkOrderService
                         .Where(p => existingIds.Contains(p.WorkOrderId)).ToListAsync();
                     var inProcessReworkPlans = await _context.InProcessReworkPlans
                         .Where(p => existingIds.Contains(p.WorkOrderId)).ToListAsync();
+                    var fixedLengthRows = await _context.FixedLengthWorkOrders
+                        .Where(p => existingIds.Contains(p.WorkOrderId)).ToListAsync();
 
                     if (semiPlans.Any()) _context.PurchaseSemiPlans.RemoveRange(semiPlans);
                     if (finishPlans.Any()) _context.PurchaseFinishedPlans.RemoveRange(finishPlans);
                     if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
                     if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
                     if (inProcessReworkPlans.Any()) _context.InProcessReworkPlans.RemoveRange(inProcessReworkPlans);
+                    if (fixedLengthRows.Any()) _context.FixedLengthWorkOrders.RemoveRange(fixedLengthRows);
 
                     // 清理读模型行
                     var delListRows = await _context.Set<WorkOrderListSummary>()
@@ -1013,6 +1016,7 @@ public class WorkOrderService : IWorkOrderService
 
                 var workOrdersToAdd = new List<WoEntity>();
                 generatedWorkOrders = new List<GeneratedWorkOrderDto>();
+                var newGroupItemsList = new List<List<OrderItem>>();
 
                 foreach (var workOrderGroup in request.WorkOrders)
                 {
@@ -1071,6 +1075,7 @@ public class WorkOrderService : IWorkOrderService
                     };
 
                     workOrdersToAdd.Add(workOrder);
+                    newGroupItemsList.Add(groupItems);
 
                     generatedWorkOrders.Add(new GeneratedWorkOrderDto
                     {
@@ -1091,6 +1096,20 @@ public class WorkOrderService : IWorkOrderService
                 for (int i = 0; i < workOrdersToAdd.Count; i++)
                 {
                     generatedWorkOrders[i].Id = workOrdersToAdd[i].Id;
+                }
+
+                // 构建定尺工单（按长度聚合，从长到短）
+                var builtFixedLengthRows = new List<FixedLengthWorkOrder>();
+                for (int i = 0; i < workOrdersToAdd.Count; i++)
+                {
+                    builtFixedLengthRows.AddRange(BuildFixedLengthWorkOrders(
+                        workOrdersToAdd[i].Id, workOrdersToAdd[i].WorkOrderNo,
+                        workOrdersToAdd[i].SalesOrderNo, workOrdersToAdd[i].ProductionMainNo, newGroupItemsList[i]));
+                }
+                if (builtFixedLengthRows.Any())
+                {
+                    _context.FixedLengthWorkOrders.AddRange(builtFixedLengthRows);
+                    await _context.SaveChangesAsync();
                 }
 
                 await transaction.CommitAsync();
@@ -1220,6 +1239,8 @@ public class WorkOrderService : IWorkOrderService
 
         var result = new List<GeneratedWorkOrderDto>();
         var workOrdersToAdd = new List<WoEntity>();
+        var rebuildFixedEntries = new List<(int WorkOrderId, string WorkOrderNo, string SalesOrderNo, string ProductionMainNo, List<OrderItem> Items)>();
+        var newGroupItemsList = new List<List<OrderItem>>();
 
         // 6. 事务处理
         var transaction = await _context.Database.BeginTransactionAsync();
@@ -1292,6 +1313,9 @@ public class WorkOrderService : IWorkOrderService
                         existingWo.TechnicalRequirements = technicalRequirements;
                         existingWo.Status = WorkOrderStatus.Confirmed;
 
+                        // 记录定尺工单重建项（更新分支，existingWo.Id 已有）
+                        rebuildFixedEntries.Add((existingWo.Id, existingWo.WorkOrderNo, existingWo.SalesOrderNo, group.ProductionMainNo, groupItems));
+
                         if (!changed) changed = true;
 
                         result.Add(new GeneratedWorkOrderDto
@@ -1354,6 +1378,7 @@ public class WorkOrderService : IWorkOrderService
                         };
 
                         workOrdersToAdd.Add(workOrder);
+                        newGroupItemsList.Add(groupItems);
 
                         _logger.LogInformation("更新修改新建工单: {WorkOrderNo}, 主号 {MainNo}", workOrderNo, group.ProductionMainNo);
                     }
@@ -1376,12 +1401,15 @@ public class WorkOrderService : IWorkOrderService
                             .Where(p => p.WorkOrderId == wo.Id).ToListAsync();
                         var inProcessReworkPlans = await _context.InProcessReworkPlans
                             .Where(p => p.WorkOrderId == wo.Id).ToListAsync();
+                        var fixedLengthRows = await _context.FixedLengthWorkOrders
+                            .Where(p => p.WorkOrderId == wo.Id).ToListAsync();
 
                         if (semiPlans.Any()) _context.PurchaseSemiPlans.RemoveRange(semiPlans);
                         if (finishPlans.Any()) _context.PurchaseFinishedPlans.RemoveRange(finishPlans);
                         if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
                         if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
                         if (inProcessReworkPlans.Any()) _context.InProcessReworkPlans.RemoveRange(inProcessReworkPlans);
+                        if (fixedLengthRows.Any()) _context.FixedLengthWorkOrders.RemoveRange(fixedLengthRows);
 
                         // 清理读模型行（删除工单的执行状况不会在后续增量刷新中被清除）
                         var delListSummary = await _context.Set<WorkOrderListSummary>()
@@ -1421,6 +1449,37 @@ public class WorkOrderService : IWorkOrderService
                         TotalWeight = workOrdersToAdd[i].TotalWeight,
                         IsModified = true
                     });
+                }
+
+                // 10b. 重建定尺工单（更新 + 新建，先删旧行再插新行，长度从长到短）
+                var fixedRebuildIds = rebuildFixedEntries.Select(e => e.WorkOrderId)
+                    .Concat(workOrdersToAdd.Select(w => w.Id))
+                    .Distinct()
+                    .ToList();
+                if (fixedRebuildIds.Count != 0)
+                {
+                    var oldRows = await _context.FixedLengthWorkOrders
+                        .Where(f => fixedRebuildIds.Contains(f.WorkOrderId))
+                        .ToListAsync();
+                    if (oldRows.Any())
+                    {
+                        _context.FixedLengthWorkOrders.RemoveRange(oldRows);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    var newRows = new List<FixedLengthWorkOrder>();
+                    foreach (var (wid, wno, so, pm, items) in rebuildFixedEntries)
+                        newRows.AddRange(BuildFixedLengthWorkOrders(wid, wno, so, pm, items));
+                    for (int i = 0; i < workOrdersToAdd.Count; i++)
+                        newRows.AddRange(BuildFixedLengthWorkOrders(
+                            workOrdersToAdd[i].Id, workOrdersToAdd[i].WorkOrderNo,
+                            workOrdersToAdd[i].SalesOrderNo, workOrdersToAdd[i].ProductionMainNo, newGroupItemsList[i]));
+
+                    if (newRows.Any())
+                    {
+                        _context.FixedLengthWorkOrders.AddRange(newRows);
+                        await _context.SaveChangesAsync();
+                    }
                 }
 
                 await transaction.CommitAsync();
@@ -1492,6 +1551,29 @@ public class WorkOrderService : IWorkOrderService
 
         return (minLength, maxLength, totalQuantity, totalMeters, totalWeight,
                 itemDetailsBuilder.Length > 0 ? itemDetailsBuilder.ToString() : null, technicalRequirements);
+    }
+
+    /// <summary>
+    /// 按长度聚合构建定尺工单数据
+    /// 仅取定尺项次（LengthStatus=Fixed 且 Quantity>0 且 MaxLength>0），同长度 Quantity 求和，长度从长到短排列
+    /// </summary>
+    private List<FixedLengthWorkOrder> BuildFixedLengthWorkOrders(
+        int workOrderId, string workOrderNo, string salesOrderNo, string productionMainNo, List<OrderItem> groupItems)
+    {
+        return groupItems
+            .Where(i => i.LengthStatus == LengthStatus.Fixed && i.Quantity.HasValue && i.Quantity > 0 && i.MaxLength.HasValue && i.MaxLength > 0)
+            .GroupBy(i => i.MaxLength!.Value)
+            .Select(g => new FixedLengthWorkOrder
+            {
+                WorkOrderId = workOrderId,
+                WorkOrderNo = workOrderNo,
+                SalesOrderNo = salesOrderNo,
+                ProductionMainNo = productionMainNo,
+                Length = g.Key,
+                PlannedQuantity = g.Sum(i => i.Quantity!.Value)
+            })
+            .OrderByDescending(f => f.Length)
+            .ToList();
     }
 
     #endregion
@@ -2352,11 +2434,13 @@ public class WorkOrderService : IWorkOrderService
         var invPlans = await _context.InventoryPlans.Where(p => p.WorkOrderId == id).ToListAsync();
         var piercingPlans = await _context.RoundBarPiercingPlans.Where(p => p.WorkOrderId == id).ToListAsync();
         var inProcessReworkPlans = await _context.InProcessReworkPlans.Where(p => p.WorkOrderId == id).ToListAsync();
+        var fixedLengthRows = await _context.FixedLengthWorkOrders.Where(p => p.WorkOrderId == id).ToListAsync();
         if (semiPlans.Any()) _context.PurchaseSemiPlans.RemoveRange(semiPlans);
         if (finishPlans.Any()) _context.PurchaseFinishedPlans.RemoveRange(finishPlans);
         if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
         if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
         if (inProcessReworkPlans.Any()) _context.InProcessReworkPlans.RemoveRange(inProcessReworkPlans);
+        if (fixedLengthRows.Any()) _context.FixedLengthWorkOrders.RemoveRange(fixedLengthRows);
 
         // 直接清理该工单的读模型行（双重保险，即使后续完整刷新失败也不会留下脏数据）
         var summaryRow = await _context.Set<WorkOrderListSummary>()

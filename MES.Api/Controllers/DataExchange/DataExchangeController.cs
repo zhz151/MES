@@ -87,7 +87,7 @@ public class DataExchangeController : ControllerBase
     [HttpPost("import/{entityKey}")]
     [Authorize(Roles = Roles.Admin)]
     public async Task<ActionResult<ApiResponse<ImportResult>>> Import(
-        string entityKey, IFormFile file, [FromQuery] string strategy = "skip")
+        string entityKey, IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest(ApiResponse<ImportResult>.Fail("请选择文件"));
@@ -96,24 +96,11 @@ public class DataExchangeController : ControllerBase
         await file.CopyToAsync(ms);
         var data = ms.ToArray();
 
-        var result = await _service.ImportAsync(entityKey, data, strategy, User.Identity?.Name);
+        var result = await _service.ImportAsync(entityKey, data, User.Identity?.Name);
         var message = result.HasRolledBack
             ? $"导入失败，已回滚。共 {result.TotalRows} 行全部失败。"
             : $"导入完成: 成功 {result.SuccessCount}，失败 {result.FailedCount}";
         return Ok(ApiResponse<ImportResult>.Ok(result, message));
-    }
-
-    /// <summary>
-    /// 修复现有生产记录中错误的 SequenceNumber（组内序号）
-    /// 因旧版缓存键只用了"批次号+工段名称"，修正为"批次号+工序名称+制造规格+工段名称"
-    /// </summary>
-    [HttpPost("fix-sequence-numbers")]
-    [Authorize(Roles = Roles.Admin)]
-    public async Task<ActionResult<ApiResponse<int>>> FixSequenceNumbers()
-    {
-        var fixedCount = await _service.FixSequenceNumbersAsync();
-        _logger.LogInformation("SequenceNumber 数据修复完成，共修复 {Count} 条", fixedCount);
-        return Ok(ApiResponse<int>.Ok(fixedCount, $"修复完成，共修正 {fixedCount} 条记录"));
     }
 
     /// <summary>

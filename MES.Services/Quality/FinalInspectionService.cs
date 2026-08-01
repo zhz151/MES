@@ -57,15 +57,56 @@ public class FinalInspectionService : IFinalInspectionService
     private readonly ILogger<FinalInspectionService> _logger;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
+    private readonly IFixedLengthWorkOrderService _fixedLengthWorkOrderService;
     private readonly IMemoryCache _cache;
 
-    public FinalInspectionService(AppDbContext context, ILogger<FinalInspectionService> logger, IWorkOrderExecutionService workOrderExecutionService, IQualityProcessTrackingService qualityProcessTracking, IMemoryCache cache)
+    public FinalInspectionService(AppDbContext context, ILogger<FinalInspectionService> logger, IWorkOrderExecutionService workOrderExecutionService, IQualityProcessTrackingService qualityProcessTracking, IFixedLengthWorkOrderService fixedLengthWorkOrderService, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
         _workOrderExecutionService = workOrderExecutionService;
         _qualityProcessTracking = qualityProcessTracking;
+        _fixedLengthWorkOrderService = fixedLengthWorkOrderService;
         _cache = cache;
+    }
+
+    /// <summary>
+    /// 解析定尺长度字符串（如 "6000mm" 或 "6000"）为数值，无法解析返回 null。
+    /// </summary>
+    private static decimal? ParseFixedLength(string? fixedLength)
+    {
+        if (string.IsNullOrWhiteSpace(fixedLength)) return null;
+        var s = fixedLength.Trim();
+        if (s.EndsWith("mm", StringComparison.OrdinalIgnoreCase))
+            s = s[..^2].Trim();
+        return decimal.TryParse(s, out var value) ? value : null;
+    }
+
+    /// <summary>
+    /// 校验成品检验定尺长度：当「订单号+主号」存在定尺工单时，定尺长度必须属于该主号下的定尺长度集合。
+    /// 返回 null 表示通过，否则返回错误信息（不含行号前缀，由调用方补充）。
+    /// </summary>
+    private async Task<string?> ValidateFixedLengthAsync(string? salesOrderNo, string? productionMainNo, string? fixedLength)
+    {
+        if (string.IsNullOrWhiteSpace(fixedLength)) return null;
+        if (string.IsNullOrWhiteSpace(salesOrderNo) || string.IsNullOrWhiteSpace(productionMainNo)) return null;
+        var validLengths = await _fixedLengthWorkOrderService
+            .GetLengthsByMainNoAsync(salesOrderNo, productionMainNo);
+        return ValidateFixedLength(salesOrderNo, productionMainNo, fixedLength, validLengths);
+    }
+
+    /// <summary>
+    /// 定尺长度校验纯函数（预取集合版，供批量创建复用避免循环内 N+1 查询）。
+    /// </summary>
+    private static string? ValidateFixedLength(
+        string salesOrderNo, string productionMainNo, string? fixedLength, HashSet<decimal> validLengths)
+    {
+        if (string.IsNullOrWhiteSpace(fixedLength)) return null;
+        var parsed = ParseFixedLength(fixedLength);
+        if (parsed == null) return $"定尺长度格式不正确({fixedLength})";
+        if (validLengths.Count == 0) return null; // 该订单号+主号非定尺，跳过校验
+        if (validLengths.Contains(parsed.Value)) return null;
+        return $"成品检验定尺长度({fixedLength})不属于该订单号+主号({salesOrderNo}/{productionMainNo})下的定尺长度";
     }
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
@@ -180,9 +221,9 @@ public class FinalInspectionService : IFinalInspectionService
             Salesman = pb?.Salesman,
             LengthStatus = pb?.LengthStatus,
             DeliveryState = pb?.DeliveryState,
-            FixedLength = pb != null && pb.LengthStatus == LengthStatus.Fixed.ToString() && pb.MinLength.HasValue
-                ? $"{pb.MinLength.Value:G29}mm"
-                : null,
+            ManufacturingStatus = pb?.ManufacturingStatus,
+            FixedLength = entity.FixedLength,
+            NonFixedLengthRange = entity.NonFixedLengthRange,
             EquipmentName = entity.EquipmentName,
             Shift = entity.Shift,
             Operator = entity.Operator,
@@ -196,6 +237,10 @@ public class FinalInspectionService : IFinalInspectionService
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
             DefectDescription = entity.DefectDescription,
+            InspectionType = entity.InspectionType,
+            DefectReworkWeight = entity.DefectReworkWeight,
+            DefectWarehouseWeight = entity.DefectWarehouseWeight,
+            DefectScrapWeight = entity.DefectScrapWeight,
             OuterDiameterRange = entity.OuterDiameterRange,
             WallThicknessRange = entity.WallThicknessRange,
             LengthAllowanceRange = entity.LengthAllowanceRange,
@@ -319,6 +364,12 @@ public class FinalInspectionService : IFinalInspectionService
                     case "DeliveryState":
                         queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.DeliveryState));
                         break;
+                    case "ManufacturingStatus":
+                        queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.ManufacturingStatus));
+                        break;
+                    case "IsDeliveryStatus":
+                        queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.ManufacturingStatus == r.ProductionBatch.DeliveryState ? "是" : "否"));
+                        break;
                     default:
                         remainingFilters.Add(filter);
                         break;
@@ -349,6 +400,7 @@ public class FinalInspectionService : IFinalInspectionService
                 Id = r.Id,
                 InspectionItem = r.InspectionItem,
                 InspectionDate = r.InspectionDate,
+                InspectionType = r.InspectionType,
                 BatchNo = r.BatchNo,
                 ProductionBatchId = r.ProductionBatchId,
                 ManufacturingItem = ParseMaterialType(pb?.ManufacturingItem),
@@ -363,9 +415,9 @@ public class FinalInspectionService : IFinalInspectionService
                 Salesman = pb?.Salesman,
                 LengthStatus = pb?.LengthStatus,
                 DeliveryState = pb?.DeliveryState,
-                FixedLength = pb != null && pb.LengthStatus == LengthStatus.Fixed.ToString() && pb.MinLength.HasValue
-                    ? $"{pb.MinLength.Value:G29}mm"
-                    : null,
+                ManufacturingStatus = pb?.ManufacturingStatus,
+                FixedLength = r.FixedLength,
+                NonFixedLengthRange = r.NonFixedLengthRange,
                 EquipmentName = r.EquipmentName,
                 Shift = r.Shift,
                 Operator = r.Operator,
@@ -379,6 +431,9 @@ public class FinalInspectionService : IFinalInspectionService
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,
                 DefectDescription = r.DefectDescription,
+                DefectReworkWeight = r.DefectReworkWeight,
+                DefectWarehouseWeight = r.DefectWarehouseWeight,
+                DefectScrapWeight = r.DefectScrapWeight,
                 OuterDiameterRange = r.OuterDiameterRange,
                 WallThicknessRange = r.WallThicknessRange,
                 LengthAllowanceRange = r.LengthAllowanceRange,
@@ -424,6 +479,7 @@ public class FinalInspectionService : IFinalInspectionService
                 Id = r.Id,
                 InspectionItem = r.InspectionItem,
                 InspectionDate = r.InspectionDate,
+                InspectionType = r.InspectionType,
                 BatchNo = r.BatchNo,
                 ProductionBatchId = r.ProductionBatchId,
                 ManufacturingItem = EnumHelper.TryParse<MaterialType>(r.ProductionBatch.ManufacturingItem),
@@ -438,9 +494,9 @@ public class FinalInspectionService : IFinalInspectionService
                 Salesman = r.ProductionBatch.Salesman,
                 LengthStatus = r.ProductionBatch.LengthStatus,
                 DeliveryState = r.ProductionBatch.DeliveryState,
-                FixedLength = r.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && r.ProductionBatch.MinLength.HasValue
-                    ? $"{r.ProductionBatch.MinLength.Value:G29}mm"
-                    : null,
+                ManufacturingStatus = r.ProductionBatch.ManufacturingStatus,
+                FixedLength = r.FixedLength,
+                NonFixedLengthRange = r.NonFixedLengthRange,
                 EquipmentName = r.EquipmentName,
                 Shift = r.Shift,
                 Operator = r.Operator,
@@ -454,6 +510,9 @@ public class FinalInspectionService : IFinalInspectionService
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,
                 DefectDescription = r.DefectDescription,
+                DefectReworkWeight = r.DefectReworkWeight,
+                DefectWarehouseWeight = r.DefectWarehouseWeight,
+                DefectScrapWeight = r.DefectScrapWeight,
                 OuterDiameterRange = r.OuterDiameterRange,
                 WallThicknessRange = r.WallThicknessRange,
                 LengthAllowanceRange = r.LengthAllowanceRange,
@@ -495,24 +554,71 @@ public class FinalInspectionService : IFinalInspectionService
                 request.ProductionBatchId = batch.Id;
         }
 
+        // 解析批次获取工单号等信息
+        var prodBatch = await _context.ProductionBatches
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == request.ProductionBatchId);
+
+        // 定尺长度校验：批次长度状态=定尺→定尺长度必填；长度状态<>定尺→定尺长度必须为空
+        if (prodBatch != null)
+        {
+            if (prodBatch.LengthStatus == LengthStatus.Fixed.ToString() && string.IsNullOrWhiteSpace(request.FixedLength))
+                throw new BusinessException("批次长度状态为'定尺'，定尺长度不能为空");
+            if (prodBatch.LengthStatus != LengthStatus.Fixed.ToString() && !string.IsNullOrWhiteSpace(request.FixedLength))
+                throw new BusinessException("批次长度状态非'定尺'，定尺长度必须为空");
+        }
+
+        // 成品检验定尺长度归属校验（按「订单号+主号」维度）
+        var fixedLengthError = await ValidateFixedLengthAsync(prodBatch?.SalesOrderNo, prodBatch?.ProductionMainNo, request.FixedLength);
+        if (fixedLengthError != null)
+            throw new BusinessException(fixedLengthError);
+
+        // 自动判定成检类型：优先从 MaterialReceiveCheck 继承
+        string? inspectionType = null;
+        if (prodBatch != null)
+        {
+            var mrCheck = await _context.MaterialReceiveChecks
+                .AsNoTracking()
+                .Where(m => m.ProductionBatchId == prodBatch.Id)
+                .Select(m => m.InspectionType)
+                .FirstOrDefaultAsync();
+            inspectionType = mrCheck ?? nameof(InspectionType.FormalInspection);
+        }
+
+        // 单支重计算（自动填充重量用）
+        decimal? unitWeight = null;
+        if (prodBatch != null)
+        {
+            if (prodBatch.LengthStatus == LengthStatus.Fixed.ToString() && prodBatch.TotalQuantity > 0)
+                unitWeight = prodBatch.TotalWeight / prodBatch.TotalQuantity;
+            else if (prodBatch.TheoreticalUnitWeight.HasValue)
+                unitWeight = prodBatch.TheoreticalUnitWeight.Value;
+        }
+
         var entity = new FinalInspection
         {
             InspectionItem = request.InspectionItem,
             InspectionDate = request.InspectionDate,
             BatchNo = request.BatchNo,
             ProductionBatchId = request.ProductionBatchId,
+            InspectionType = inspectionType,
+            FixedLength = request.FixedLength,
+            NonFixedLengthRange = request.NonFixedLengthRange,
             EquipmentName = request.EquipmentName,
             Shift = request.Shift,
             Operator = request.Operator,
             Quantity = request.Quantity,
-            Weight = request.Weight,
+            Weight = request.Weight ?? (unitWeight.HasValue && request.Quantity.HasValue ? (int?)(unitWeight.Value * request.Quantity.Value) : null),
             QualifiedQuantity = request.QualifiedQuantity,
-            QualifiedWeight = request.QualifiedWeight,
+            QualifiedWeight = request.QualifiedWeight ?? (unitWeight.HasValue && request.QualifiedQuantity.HasValue ? (int?)(unitWeight.Value * request.QualifiedQuantity.Value) : null),
             QualifiedConcessionQuantity = request.QualifiedConcessionQuantity,
             ConcessionRemark = request.ConcessionRemark,
             DefectReworkQuantity = request.DefectReworkQuantity,
             DefectWarehouseQuantity = request.DefectWarehouseQuantity,
             DefectScrapQuantity = request.DefectScrapQuantity,
+            DefectReworkWeight = request.DefectReworkWeight ?? (unitWeight.HasValue && request.DefectReworkQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectReworkQuantity.Value) : null),
+            DefectWarehouseWeight = request.DefectWarehouseWeight ?? (unitWeight.HasValue && request.DefectWarehouseQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectWarehouseQuantity.Value) : null),
+            DefectScrapWeight = request.DefectScrapWeight ?? (unitWeight.HasValue && request.DefectScrapQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectScrapQuantity.Value) : null),
             DefectDescription = request.DefectDescription,
             OuterDiameterRange = request.OuterDiameterRange,
             WallThicknessRange = request.WallThicknessRange,
@@ -564,9 +670,9 @@ public class FinalInspectionService : IFinalInspectionService
             Salesman = entity.ProductionBatch?.Salesman,
             LengthStatus = entity.ProductionBatch?.LengthStatus,
             DeliveryState = entity.ProductionBatch?.DeliveryState,
-            FixedLength = entity.ProductionBatch != null && entity.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && entity.ProductionBatch.MinLength.HasValue
-                ? $"{entity.ProductionBatch.MinLength.Value:G29}mm"
-                : null,
+            ManufacturingStatus = entity.ProductionBatch?.ManufacturingStatus,
+            FixedLength = entity.FixedLength,
+            NonFixedLengthRange = entity.NonFixedLengthRange,
             EquipmentName = entity.EquipmentName,
             Shift = entity.Shift,
             Operator = entity.Operator,
@@ -580,6 +686,10 @@ public class FinalInspectionService : IFinalInspectionService
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
             DefectDescription = entity.DefectDescription,
+            InspectionType = entity.InspectionType,
+            DefectReworkWeight = entity.DefectReworkWeight,
+            DefectWarehouseWeight = entity.DefectWarehouseWeight,
+            DefectScrapWeight = entity.DefectScrapWeight,
             OuterDiameterRange = entity.OuterDiameterRange,
             WallThicknessRange = entity.WallThicknessRange,
             LengthAllowanceRange = entity.LengthAllowanceRange,
@@ -631,7 +741,26 @@ public class FinalInspectionService : IFinalInspectionService
         if (concessionQty.HasValue && qualifiedQty.HasValue && concessionQty.Value > qualifiedQty.Value)
             throw new BusinessException($"让步放行支数({concessionQty})不能大于合格支数({qualifiedQty})");
 
+        // ③ 定尺长度校验（按合并后的值校验）
+        var batchInfo = await _context.ProductionBatches
+            .AsNoTracking()
+            .Where(b => b.Id == entity.ProductionBatchId)
+            .Select(b => new { b.LengthStatus, b.SalesOrderNo, b.ProductionMainNo })
+            .FirstOrDefaultAsync();
+        var fixedLengthValue = request.FixedLength ?? entity.FixedLength;
+        if (batchInfo?.LengthStatus == LengthStatus.Fixed.ToString() && string.IsNullOrWhiteSpace(fixedLengthValue))
+            throw new BusinessException("批次长度状态为'定尺'，定尺长度不能为空");
+        if (batchInfo?.LengthStatus != LengthStatus.Fixed.ToString() && !string.IsNullOrWhiteSpace(fixedLengthValue))
+            throw new BusinessException("批次长度状态非'定尺'，定尺长度必须为空");
+
+        // 成品检验定尺长度归属校验（按「订单号+主号」维度，用生效值校验）
+        var fixedLengthError = await ValidateFixedLengthAsync(batchInfo?.SalesOrderNo, batchInfo?.ProductionMainNo, fixedLengthValue);
+        if (fixedLengthError != null)
+            throw new BusinessException(fixedLengthError);
+
         entity.InspectionDate = request.InspectionDate;
+        entity.FixedLength = request.FixedLength ?? entity.FixedLength;
+        entity.NonFixedLengthRange = request.NonFixedLengthRange ?? entity.NonFixedLengthRange;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
         entity.Shift = request.Shift ?? entity.Shift;
         entity.Operator = request.Operator ?? entity.Operator;
@@ -644,6 +773,9 @@ public class FinalInspectionService : IFinalInspectionService
         entity.DefectReworkQuantity = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
         entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
         entity.DefectScrapQuantity = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
+        entity.DefectReworkWeight = request.DefectReworkWeight ?? entity.DefectReworkWeight;
+        entity.DefectWarehouseWeight = request.DefectWarehouseWeight ?? entity.DefectWarehouseWeight;
+        entity.DefectScrapWeight = request.DefectScrapWeight ?? entity.DefectScrapWeight;
         entity.DefectDescription = request.DefectDescription ?? entity.DefectDescription;
         entity.OuterDiameterRange = request.OuterDiameterRange ?? entity.OuterDiameterRange;
         entity.WallThicknessRange = request.WallThicknessRange ?? entity.WallThicknessRange;
@@ -692,9 +824,9 @@ public class FinalInspectionService : IFinalInspectionService
             Salesman = entity.ProductionBatch?.Salesman,
             LengthStatus = entity.ProductionBatch?.LengthStatus,
             DeliveryState = entity.ProductionBatch?.DeliveryState,
-            FixedLength = entity.ProductionBatch != null && entity.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && entity.ProductionBatch.MinLength.HasValue
-                ? $"{entity.ProductionBatch.MinLength.Value:G29}mm"
-                : null,
+            ManufacturingStatus = entity.ProductionBatch?.ManufacturingStatus,
+            FixedLength = entity.FixedLength,
+            NonFixedLengthRange = entity.NonFixedLengthRange,
             EquipmentName = entity.EquipmentName,
             Shift = entity.Shift,
             Operator = entity.Operator,
@@ -708,6 +840,10 @@ public class FinalInspectionService : IFinalInspectionService
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
             DefectDescription = entity.DefectDescription,
+            InspectionType = entity.InspectionType,
+            DefectReworkWeight = entity.DefectReworkWeight,
+            DefectWarehouseWeight = entity.DefectWarehouseWeight,
+            DefectScrapWeight = entity.DefectScrapWeight,
             OuterDiameterRange = entity.OuterDiameterRange,
             WallThicknessRange = entity.WallThicknessRange,
             LengthAllowanceRange = entity.LengthAllowanceRange,
@@ -763,6 +899,17 @@ public class FinalInspectionService : IFinalInspectionService
         {
             if (!batchLookup.ContainsKey(bn))
                 throw new BusinessException($"批次不存在: {bn}");
+        }
+
+        // 预取：各批次所属「订单号+主号」的定尺长度集合（定尺长度校验用，避免循环内 N+1 查询）
+        var fixedLengthSets = new Dictionary<string, HashSet<decimal>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var b in batchLookup.Values)
+        {
+            if (string.IsNullOrWhiteSpace(b.SalesOrderNo) || string.IsNullOrWhiteSpace(b.ProductionMainNo)) continue;
+            var key = $"{b.SalesOrderNo.Trim()}|{b.ProductionMainNo.Trim()}";
+            if (fixedLengthSets.ContainsKey(key)) continue;
+            fixedLengthSets[key] = await _fixedLengthWorkOrderService
+                .GetLengthsByMainNoAsync(b.SalesOrderNo, b.ProductionMainNo);
         }
 
         // 预查询：各批次已有的成品检验记录（用于重复校验）
@@ -823,9 +970,32 @@ public class FinalInspectionService : IFinalInspectionService
                 if (request.Weight.Value > maxWeight)
                     errors.Add($"第{i + 1}行：检验重量({request.Weight})不能大于现有效原料重量({maxWeight})");
             }
+
+            // 5) 定尺长度校验：批次长度状态=定尺→定尺长度必填；长度状态<>定尺→定尺长度必须为空
+            if (batch.LengthStatus == LengthStatus.Fixed.ToString() && string.IsNullOrWhiteSpace(request.FixedLength))
+                errors.Add($"第{i + 1}行：批次长度状态为'定尺'，定尺长度不能为空");
+            if (batch.LengthStatus != LengthStatus.Fixed.ToString() && !string.IsNullOrWhiteSpace(request.FixedLength))
+                errors.Add($"第{i + 1}行：批次长度状态非'定尺'，定尺长度必须为空");
+
+            // 6) 成品检验定尺长度归属校验（按「订单号+主号」维度）
+            var fixedLengthErr = ValidateFixedLength(
+                batch.SalesOrderNo, batch.ProductionMainNo, request.FixedLength,
+                fixedLengthSets.GetValueOrDefault($"{batch.SalesOrderNo.Trim()}|{batch.ProductionMainNo.Trim()}", new HashSet<decimal>()));
+            if (fixedLengthErr != null)
+                errors.Add($"第{i + 1}行：{fixedLengthErr}");
         }
         if (errors.Any())
             throw new BusinessException(string.Join("；", errors));
+
+        // 预加载各批次的成检类型
+        var batchInspTypes = await _context.MaterialReceiveChecks
+            .AsNoTracking()
+            .Where(m => allBatchIds.Contains(m.ProductionBatchId))
+            .Select(m => new { m.ProductionBatchId, m.InspectionType })
+            .ToListAsync();
+        var inspTypeByBatchId = batchInspTypes
+            .GroupBy(x => x.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.First().InspectionType ?? nameof(InspectionType.FormalInspection));
 
         var entities = requests.Select(r =>
         {
@@ -836,6 +1006,9 @@ public class FinalInspectionService : IFinalInspectionService
                 InspectionDate = r.InspectionDate,
                 BatchNo = r.BatchNo,
                 ProductionBatchId = batch.Id,
+                InspectionType = inspTypeByBatchId.GetValueOrDefault(batch.Id, nameof(InspectionType.FormalInspection)),
+                FixedLength = r.FixedLength,
+                NonFixedLengthRange = r.NonFixedLengthRange,
                 EquipmentName = r.EquipmentName,
                 Shift = r.Shift,
                 Operator = r.Operator,
@@ -849,6 +1022,9 @@ public class FinalInspectionService : IFinalInspectionService
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,
                 DefectDescription = r.DefectDescription,
+                DefectReworkWeight = r.DefectReworkWeight,
+                DefectWarehouseWeight = r.DefectWarehouseWeight,
+                DefectScrapWeight = r.DefectScrapWeight,
                 OuterDiameterRange = r.OuterDiameterRange,
                 WallThicknessRange = r.WallThicknessRange,
                 LengthAllowanceRange = r.LengthAllowanceRange,
@@ -911,9 +1087,9 @@ public class FinalInspectionService : IFinalInspectionService
             Salesman = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.Salesman : null,
             LengthStatus = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.LengthStatus : null,
             DeliveryState = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.DeliveryState : null,
-            FixedLength = batchLookup.TryGetValue(e.BatchNo, out bl) && bl.LengthStatus == LengthStatus.Fixed.ToString() && bl.MinLength.HasValue
-                ? $"{bl.MinLength.Value:G29}mm"
-                : null,
+            ManufacturingStatus = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.ManufacturingStatus : null,
+            FixedLength = e.FixedLength,
+            NonFixedLengthRange = e.NonFixedLengthRange,
             EquipmentName = e.EquipmentName,
             Shift = e.Shift,
             Operator = e.Operator,
@@ -927,6 +1103,10 @@ public class FinalInspectionService : IFinalInspectionService
             DefectWarehouseQuantity = e.DefectWarehouseQuantity,
             DefectScrapQuantity = e.DefectScrapQuantity,
             DefectDescription = e.DefectDescription,
+            InspectionType = e.InspectionType,
+            DefectReworkWeight = e.DefectReworkWeight,
+            DefectWarehouseWeight = e.DefectWarehouseWeight,
+            DefectScrapWeight = e.DefectScrapWeight,
             OuterDiameterRange = e.OuterDiameterRange,
             WallThicknessRange = e.WallThicknessRange,
             LengthAllowanceRange = e.LengthAllowanceRange,
@@ -971,14 +1151,14 @@ public class FinalInspectionService : IFinalInspectionService
                     FurnaceNo = r.ProductionBatch.SourceHeatNo,
                     PlantGrade = r.ProductionBatch.PlantGrade,
                     Specification = r.ProductionBatch.Specification,
-                    FixedLength = r.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && r.ProductionBatch.MinLength.HasValue
-                        ? r.ProductionBatch.MinLength.Value.ToString("G29") + "mm"
-                        : null,
+                    FixedLength = r.FixedLength,
+                    NonFixedLengthRange = r.NonFixedLengthRange,
                     ProductionType = r.ProductionBatch.ProductionType,
                     Salesman = r.ProductionBatch.Salesman,
                     r.EquipmentName,
                     r.Shift,
                     r.Operator,
+                    r.InspectionType,
                     r.ConcessionRemark,
                     r.DefectDescription,
                     r.OuterDiameterRange,
@@ -1001,6 +1181,8 @@ public class FinalInspectionService : IFinalInspectionService
                     r.DetectionSpeed,
                     r.Remark,
                     DeliveryState = r.ProductionBatch.DeliveryState,
+                    ManufacturingStatus = r.ProductionBatch.ManufacturingStatus,
+                    IsDeliveryStatus = r.ProductionBatch.ManufacturingStatus == r.ProductionBatch.DeliveryState ? "是" : "否",
                     r.DataSource
                 })
                 .ToListAsync();
@@ -1016,12 +1198,16 @@ public class FinalInspectionService : IFinalInspectionService
                 ["PlantGrade"] = all.Select(x => x.PlantGrade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["FixedLength"] = all.Select(x => x.FixedLength ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["NonFixedLengthRange"] = all.Select(x => x.NonFixedLengthRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["ProductionType"] = all.Select(x => x.ProductionType ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["Salesman"] = all.Select(x => x.Salesman ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["DeliveryState"] = all.Select(x => x.DeliveryState ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["ManufacturingStatus"] = all.Select(x => x.ManufacturingStatus ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["IsDeliveryStatus"] = all.Select(x => x.IsDeliveryStatus ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["EquipmentName"] = all.Select(x => x.EquipmentName ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["Shift"] = all.Select(x => x.Shift?.ToString() ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["Operator"] = all.Select(x => x.Operator ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["InspectionType"] = all.Select(x => x.InspectionType ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["ConcessionRemark"] = all.Select(x => x.ConcessionRemark ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["DefectDescription"] = all.Select(x => x.DefectDescription ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["OuterDiameterRange"] = all.Select(x => x.OuterDiameterRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
@@ -1070,12 +1256,28 @@ public class FinalInspectionService : IFinalInspectionService
                 ProductionType = b.ProductionType,
                 Salesman = b.Salesman,
                 DeliveryState = b.DeliveryState,
+                ManufacturingStatus = b.ManufacturingStatus,
                 LengthStatus = b.LengthStatus,
                 FixedLength = b.LengthStatus == LengthStatus.Fixed.ToString() && b.MinLength.HasValue
                     ? b.MinLength.Value.ToString("G29") + "mm"
-                    : null
+                    : null,
+                // 单支重（与 CreateAsync 自动填充逻辑一致）：定尺=总重/总支，非定尺=理论单支重
+                UnitWeight = b.LengthStatus == LengthStatus.Fixed.ToString() && b.TotalQuantity > 0
+                    ? b.TotalWeight / b.TotalQuantity
+                    : b.TheoreticalUnitWeight
             })
             .FirstOrDefaultAsync();
+
+        if (batch != null)
+        {
+            // 成检类型：优先继承到料检验，否则默认正式成检（与 CreateAsync 判定一致）
+            var mrCheck = await _context.MaterialReceiveChecks
+                .AsNoTracking()
+                .Where(m => m.ProductionBatchId == batch.ProductionBatchId)
+                .Select(m => m.InspectionType)
+                .FirstOrDefaultAsync();
+            batch.InspectionType = mrCheck ?? nameof(InspectionType.FormalInspection);
+        }
 
         return batch;
     }
@@ -1134,6 +1336,10 @@ public class FinalInspectionService : IFinalInspectionService
             ("salesman", true) => queryable.OrderByDescending(r => r.ProductionBatch.Salesman ?? ""),
             ("deliverystate", false) => queryable.OrderBy(r => r.ProductionBatch.DeliveryState ?? ""),
             ("deliverystate", true) => queryable.OrderByDescending(r => r.ProductionBatch.DeliveryState ?? ""),
+            ("manufacturingstatus", false) => queryable.OrderBy(r => r.ProductionBatch.ManufacturingStatus ?? ""),
+            ("manufacturingstatus", true) => queryable.OrderByDescending(r => r.ProductionBatch.ManufacturingStatus ?? ""),
+            ("isdeliverystatus", false) => queryable.OrderBy(r => r.ProductionBatch.ManufacturingStatus == r.ProductionBatch.DeliveryState ? "是" : "否"),
+            ("isdeliverystatus", true) => queryable.OrderByDescending(r => r.ProductionBatch.ManufacturingStatus == r.ProductionBatch.DeliveryState ? "是" : "否"),
             ("workorderno", false) => queryable.OrderBy(r => r.ProductionBatch.WorkOrderNo ?? ""),
             ("workorderno", true) => queryable.OrderByDescending(r => r.ProductionBatch.WorkOrderNo ?? ""),
             ("salesorderno", false) => queryable.OrderBy(r => r.ProductionBatch.SalesOrderNo ?? ""),
@@ -1148,10 +1354,12 @@ public class FinalInspectionService : IFinalInspectionService
             ("specification", true) => queryable.OrderByDescending(r => r.ProductionBatch.Specification ?? ""),
             ("lengthstatus", false) => queryable.OrderBy(r => r.ProductionBatch.LengthStatus ?? ""),
             ("lengthstatus", true) => queryable.OrderByDescending(r => r.ProductionBatch.LengthStatus ?? ""),
-            ("fixedlength", false) => queryable.OrderBy(r => r.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && r.ProductionBatch.MinLength.HasValue
-                ? r.ProductionBatch.MinLength.Value.ToString("G29") + "mm" : ""),
-            ("fixedlength", true) => queryable.OrderByDescending(r => r.ProductionBatch.LengthStatus == LengthStatus.Fixed.ToString() && r.ProductionBatch.MinLength.HasValue
-                ? r.ProductionBatch.MinLength.Value.ToString("G29") + "mm" : ""),
+            ("fixedlength", false) => queryable.OrderBy(r => r.FixedLength ?? ""),
+            ("fixedlength", true) => queryable.OrderByDescending(r => r.FixedLength ?? ""),
+            ("nonfixedlengthrange", false) => queryable.OrderBy(r => r.NonFixedLengthRange ?? ""),
+            ("nonfixedlengthrange", true) => queryable.OrderByDescending(r => r.NonFixedLengthRange ?? ""),
+            ("inspectiontype", false) => queryable.OrderBy(r => r.InspectionType ?? ""),
+            ("inspectiontype", true) => queryable.OrderByDescending(r => r.InspectionType ?? ""),
             // 检验结果排序
             ("quantity", false) => queryable.OrderBy(r => r.Quantity),
             ("quantity", true) => queryable.OrderByDescending(r => r.Quantity),
@@ -1173,6 +1381,12 @@ public class FinalInspectionService : IFinalInspectionService
             ("defectscrapquantity", true) => queryable.OrderByDescending(r => r.DefectScrapQuantity),
             ("defectdescription", false) => queryable.OrderBy(r => r.DefectDescription ?? ""),
             ("defectdescription", true) => queryable.OrderByDescending(r => r.DefectDescription ?? ""),
+            ("defectreworkweight", false) => queryable.OrderBy(r => r.DefectReworkWeight),
+            ("defectreworkweight", true) => queryable.OrderByDescending(r => r.DefectReworkWeight),
+            ("defectwarehouseweight", false) => queryable.OrderBy(r => r.DefectWarehouseWeight),
+            ("defectwarehouseweight", true) => queryable.OrderByDescending(r => r.DefectWarehouseWeight),
+            ("defectscrapweight", false) => queryable.OrderBy(r => r.DefectScrapWeight),
+            ("defectscrapweight", true) => queryable.OrderByDescending(r => r.DefectScrapWeight),
             ("outerdiameterrange", false) => queryable.OrderBy(r => r.OuterDiameterRange ?? ""),
             ("outerdiameterrange", true) => queryable.OrderByDescending(r => r.OuterDiameterRange ?? ""),
             ("wallthicknessrange", false) => queryable.OrderBy(r => r.WallThicknessRange ?? ""),

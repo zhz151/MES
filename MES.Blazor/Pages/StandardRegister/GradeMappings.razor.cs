@@ -585,7 +585,7 @@ public partial class GradeMappings
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
                     builder.AddAttribute(2, "Color", item.SpecialMaterial ? Color.Warning : Color.Default);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.SpecialMaterial ? DisplayHelper.GetRequirementTypeText(RequirementType.Special) : DisplayHelper.GetRequirementTypeText(RequirementType.Normal))));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.SpecialMaterial ? col.BoolTrueLabel : col.BoolFalseLabel)));
                     builder.CloseComponent();
                 }
                 break;

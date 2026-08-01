@@ -22,6 +22,7 @@ public class ProductionBatchListDto
     public string ManufacturingItemDisplay => EnumHelper.GetDisplayName(ManufacturingItem);
     public BatchStatus Status { get; set; }
     public string StatusDisplay => EnumHelper.GetDisplayName(Status);
+    public bool IsForceCompleted { get; set; }
     public int ProductionRatio { get; set; }
     public DateTime? CurrentExecDate { get; set; }
     public string? CurrentGroupName { get; set; }
@@ -38,6 +39,7 @@ public class ProductionBatchListDto
     public int? CurrentValidQty { get; set; }
     public int? CurrentValidWeight { get; set; }
     public string CreatedBy { get; set; } = null!;
+    public string? UpdatedBy { get; set; }
 
     // ========== 工单冗余字段 ==========
     public DateTime SignDate { get; set; }
@@ -57,6 +59,12 @@ public class ProductionBatchListDto
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
     public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
+    public decimal OuterDiameterNegative { get; set; }
+    public decimal OuterDiameterPositive { get; set; }
+    public decimal WallThicknessNegative { get; set; }
+    public decimal WallThicknessPositive { get; set; }
+    public decimal? MinLength { get; set; }
+    public decimal? MaxLength { get; set; }
     public int TotalQuantity { get; set; }
     public decimal TotalMeters { get; set; }
     public decimal TotalWeight { get; set; }
@@ -66,6 +74,24 @@ public class ProductionBatchListDto
     /// 有效投料变更：有效投料支数与领料支数是否一致，有/无
     /// </summary>
     public bool? HasInputChange { get; set; }
+
+    // ========== 成切跟踪 ==========
+
+    /// <summary>成切需求：成品工序组（制造规格=成品规格）内是否有「断切」工段</summary>
+    public bool CutRequirement { get; set; }
+    public string CutRequirementDisplay => CutRequirement ? "是" : "否";
+
+    /// <summary>成切执行：需求=否→略；成品工序组内已有断切生产记录→是；否则→否</summary>
+    public bool? CutExecution { get; set; }
+    public string? CutExecutionDisplay => CutExecution switch { true => "是", false => "否", null => "略" };
+
+    /// <summary>成切支数：断切生产记录 PostCutQuantity（切后支数）汇总；无→略</summary>
+    public int? CutQuantity { get; set; }
+    public string? CutQuantityDisplay => CutQuantity.HasValue ? CutQuantity.Value.ToString() : "略";
+
+    /// <summary>成切存疑：需求/执行=否→略；|成切支数−理论成品支|/理论成品支&gt;5%→疑问；否则→正常</summary>
+    public bool? CutDoubt { get; set; }
+    public string? CutDoubtDisplay => CutDoubt switch { true => "疑问", false => "正常", null => "略" };
 
     // ========== 扩展字段（从 Entity 补充） ==========
     public string? Remark { get; set; }
@@ -79,4 +105,16 @@ public class ProductionBatchListDto
     public MaterialType? SourceMaterialType { get; set; }
     public string? SourceMaterialTypeDisplay => SourceMaterialType.HasValue ? EnumHelper.GetDisplayName(SourceMaterialType.Value) : null;
     public string? SourceName { get; set; }
+    public string? SourceBatchNo { get; set; }
+    public string? SourcePlantGrade { get; set; }
+    public decimal? SourceUnitWeight { get; set; }
+    public BatchInputType InputType { get; set; }
+    public string InputTypeDisplay => EnumHelper.GetDisplayName(InputType);
+    public string? SourceLengthStatus { get; set; }
+    public string? SourceProductionNo { get; set; }
+
+    // ========== 理论计算字段 ==========
+    public int? TheoreticalOutputQty { get; set; }
+    public int? TheoreticalOutputWeight { get; set; }
+    public decimal? TheoreticalUnitWeight { get; set; }
 }

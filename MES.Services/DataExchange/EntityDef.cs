@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MES.Services.DataExchange;
 
@@ -21,6 +22,9 @@ public class EntityDef
         ImportOrder = importOrder;
         KeyColumn = keyColumn;
         CompositeKeyColumns = compositeKeyColumns;
+        // 统一补充主键 ID 系统列：覆盖模式按 ID 精确匹配（有 ID 行更新，无 ID 行新增）
+        if (!columns.Any(c => c.Property == "Id"))
+            columns.Insert(0, new ColumnDef("ID", "Id", typeof(int), isRequired: false, isSystem: true));
         Columns = columns;
     }
 }

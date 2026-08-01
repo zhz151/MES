@@ -113,6 +113,12 @@ public static class DisplayHelper
     /// <summary>获取成品检验项目中文文本</summary>
     public static string GetInspectionItemText(InspectionItem item) => EnumHelper.GetDisplayName(item);
 
+    /// <summary>获取成检类型中文文本</summary>
+    public static string GetInspectionTypeText(InspectionType? type) => type.HasValue ? EnumHelper.GetDisplayName(type.Value) : "-";
+
+    /// <summary>获取成检类型中文文本（字符串版本）</summary>
+    public static string GetInspectionTypeText(string? type) => EnumHelper.GetDisplayName<InspectionType>(type);
+
     /// <summary>获取设备生命周期状态中文文本（字符串版本）</summary>
     public static string GetLifecycleStatusText(string? status) => EnumHelper.GetDisplayName<LifecycleStatus>(status);
 

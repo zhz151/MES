@@ -467,7 +467,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 Remark = request.Remark,
                 DataSource = request.DataSource ?? "MANUAL",
                 ProductStatus = ProductStatusHelper.Calculate(request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem,
-                    pgByBatch.GetValueOrDefault(batchId) ?? new())
+                    pgByBatch.GetValueOrDefault(batchId) ?? new(), batch.Specification)
             };
 
             entities.Add(entity);
@@ -565,9 +565,9 @@ public class ProcessInspectionService : IProcessInspectionService
         entity.QualifiedWeight = request.QualifiedWeight ?? entity.QualifiedWeight;
         entity.QualifiedConcessionQuantity = request.QualifiedConcessionQuantity ?? entity.QualifiedConcessionQuantity;
         entity.ConcessionRemark = request.ConcessionRemark ?? entity.ConcessionRemark;
-        entity.DefectReworkQuantity = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
-        entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
-        entity.DefectScrapQuantity = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
+        entity.DefectReworkQuantity = request.DefectReworkQuantity ?? 0;
+        entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? 0;
+        entity.DefectScrapQuantity = request.DefectScrapQuantity ?? 0;
 
         // 自动计算理论重量
         var effectiveQty = request.Quantity ?? entity.Quantity;

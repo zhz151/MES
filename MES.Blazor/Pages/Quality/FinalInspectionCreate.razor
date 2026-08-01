@@ -202,6 +202,7 @@
         new() { Key = "EquipmentName",            Label = "设备名称",                    GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "Shift",                    Label = "班次",                        GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "Operator",                 Label = "操作员",                      GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "InspectionType",           Label = "成检类型",                    GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "QualificationLevel",       Label = "资格等级",                    GroupKey = 1, GroupName = "G1 检验执行" },
 
         // ========== G2：生产批次 ==========
@@ -220,18 +221,22 @@
 
         // ========== G3：检验结果 ==========
         new() { Key = "FixedLength",              Label = "定尺长度",                    GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "NonFixedLengthRange",      Label = "非定尺长度范围",              GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "Quantity",                 Label = "检验支数",                    GroupKey = 3, GroupName = "G3 检验结果" },
-        new() { Key = "Weight",                   Label = "检验重量",                    GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "Weight",                   Label = "理论检验重量",                    GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "QualifiedQuantity",        Label = "合格支数",                    GroupKey = 3, GroupName = "G3 检验结果" },
-        new() { Key = "QualifiedWeight",          Label = "合格重量",                    GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "QualifiedWeight",          Label = "理论合格重量",                    GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "QualifiedConcessionQuantity", Label = "含让步放行支",             GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "ConcessionRemark",         Label = "让步说明",                    GroupKey = 3, GroupName = "G3 检验结果" },
 
-        // ========== G4：不合格处理 ==========
-        new() { Key = "DefectReworkQuantity",     Label = "不合格返整支",                GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectWarehouseQuantity",  Label = "不合格入库支",                GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectScrapQuantity",      Label = "不合格报废支",                GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectDescription",        Label = "不合格情况描述",              GroupKey = 4, GroupName = "G4 不合格处理" },
+        // ========== G4：次品处理 ==========
+        new() { Key = "DefectReworkQuantity",     Label = "次品返整支",                  GroupKey = 4, GroupName = "G4 次品处理" },
+        new() { Key = "DefectWarehouseQuantity",  Label = "次品入库支",                  GroupKey = 4, GroupName = "G4 次品处理" },
+        new() { Key = "DefectScrapQuantity",      Label = "次品报废支",                  GroupKey = 4, GroupName = "G4 次品处理" },
+        new() { Key = "DefectReworkWeight",       Label = "次品返整重",                  GroupKey = 4, GroupName = "G4 次品处理" },
+        new() { Key = "DefectWarehouseWeight",    Label = "次品入库重",                  GroupKey = 4, GroupName = "G4 次品处理" },
+        new() { Key = "DefectScrapWeight",        Label = "次品报废重",                  GroupKey = 4, GroupName = "G4 次品处理" },
+        new() { Key = "DefectDescription",        Label = "次品情况描述",                GroupKey = 4, GroupName = "G4 次品处理" },
 
         // ========== G5：尺寸值 ==========
         new() { Key = "OuterDiameterRange",       Label = "外径范围",                    GroupKey = 5, GroupName = "G5 尺寸值" },
@@ -305,19 +310,25 @@
         public LengthStatus? LengthStatus { get; set; }
         public string? DeliveryState { get; set; }
         public string? FixedLength { get; set; }
+        public string? NonFixedLengthRange { get; set; }
         public ShiftType? Shift { get; set; }
         public string? EquipmentName { get; set; }
         public string? Operator { get; set; }
         public string? QualificationLevel { get; set; }
+        public string? InspectionType { get; set; }
+        public decimal? UnitWeight { get; set; }
         public int? Quantity { get; set; }
-        public decimal? Weight { get; set; }
+        public int? Weight { get; set; }
         public int? QualifiedQuantity { get; set; }
-        public decimal? QualifiedWeight { get; set; }
+        public int? QualifiedWeight { get; set; }
         public int? QualifiedConcessionQuantity { get; set; }
         public string? ConcessionRemark { get; set; }
         public int? DefectReworkQuantity { get; set; }
         public int? DefectWarehouseQuantity { get; set; }
         public int? DefectScrapQuantity { get; set; }
+        public int? DefectReworkWeight { get; set; }
+        public int? DefectWarehouseWeight { get; set; }
+        public int? DefectScrapWeight { get; set; }
         public string? DefectDescription { get; set; }
         public string? OuterDiameterRange { get; set; }
         public string? WallThicknessRange { get; set; }
@@ -394,6 +405,7 @@
         "EquipmentName" => 80,
         "Shift" => 60,
         "Operator" => 60,
+        "InspectionType" => 80,
         "QualificationLevel" => 80,
         "BatchNo" => 150,
         "TagNo" => 80,
@@ -409,6 +421,7 @@
         "Specification" => 80,
         "LengthStatus" => 80,
         "FixedLength" => 80,
+        "NonFixedLengthRange" => 110,
         "Quantity" => 70,
         "Weight" => 70,
         "QualifiedQuantity" => 70,
@@ -418,6 +431,9 @@
         "DefectReworkQuantity" => 80,
         "DefectWarehouseQuantity" => 80,
         "DefectScrapQuantity" => 80,
+        "DefectReworkWeight" => 80,
+        "DefectWarehouseWeight" => 80,
+        "DefectScrapWeight" => 80,
         "DefectDescription" => 100,
         "OuterDiameterRange" => 80,
         "WallThicknessRange" => 80,
@@ -578,6 +594,9 @@
             row.Salesman = lookup.Salesman;
             row.DeliveryState = lookup.DeliveryState;
             row.LengthStatus = Enum.TryParse<LengthStatus>(lookup.LengthStatus, true, out var ls) ? ls : null;
+            row.FixedLength = lookup.FixedLength;
+            row.InspectionType = lookup.InspectionType;
+            row.UnitWeight = lookup.UnitWeight;
         }
     }
 
@@ -595,6 +614,12 @@
                 errors.Add($"第{i + 1}行：检验日期不能为空");
             if (!string.IsNullOrWhiteSpace(r.InspectionDate) && !DateTime.TryParse(r.InspectionDate, out _))
                 errors.Add($"第{i + 1}行：检验日期格式无效（请用 yyyy-MM-dd）");
+
+            // 定尺长度校验：批次长度状态=定尺→定尺长度必填；非定尺→定尺长度必须为空
+            if (r.LengthStatus == LengthStatus.Fixed && string.IsNullOrWhiteSpace(r.FixedLength))
+                errors.Add($"第{i + 1}行：批次长度状态为'定尺'，定尺长度不能为空");
+            if (r.LengthStatus.HasValue && r.LengthStatus.Value != LengthStatus.Fixed && !string.IsNullOrWhiteSpace(r.FixedLength))
+                errors.Add($"第{i + 1}行：批次长度状态非'定尺'，定尺长度必须为空");
 
             // 检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
             if (r.Quantity.HasValue)
@@ -636,6 +661,7 @@
                     PlantGrade = r.PlantGrade,
                     Specification = r.Specification,
                     FixedLength = r.FixedLength,
+                    NonFixedLengthRange = r.NonFixedLengthRange,
                     ProductionType = r.ProductionType?.ToString(),
                     Salesman = r.Salesman,
                     LengthStatus = r.LengthStatus?.ToString(),
@@ -651,6 +677,9 @@
                     DefectReworkQuantity = r.DefectReworkQuantity,
                     DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                     DefectScrapQuantity = r.DefectScrapQuantity,
+                    DefectReworkWeight = r.DefectReworkWeight,
+                    DefectWarehouseWeight = r.DefectWarehouseWeight,
+                    DefectScrapWeight = r.DefectScrapWeight,
                     DefectDescription = r.DefectDescription,
                     OuterDiameterRange = r.OuterDiameterRange,
                     WallThicknessRange = r.WallThicknessRange,
@@ -835,6 +864,10 @@
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(r.DeliveryState));
                 break;
+            case "InspectionType":
+                // 成检类型由服务端自动判定，创建页仅做展示
+                builder.AddContent(0, DisplayHelper.GetInspectionTypeText(r.InspectionType));
+                break;
             // G2 只读文本（自动从批次填充）
             case "TagNo":
             case "Salesman":
@@ -852,6 +885,9 @@
             case "DefectReworkQuantity":
             case "DefectWarehouseQuantity":
             case "DefectScrapQuantity":
+            case "DefectReworkWeight":
+            case "DefectWarehouseWeight":
+            case "DefectScrapWeight":
             case "HoldTime":
                 {
                     int? val = col.Key switch
@@ -862,6 +898,9 @@
                         "DefectReworkQuantity" => r.DefectReworkQuantity,
                         "DefectWarehouseQuantity" => r.DefectWarehouseQuantity,
                         "DefectScrapQuantity" => r.DefectScrapQuantity,
+                        "DefectReworkWeight" => r.DefectReworkWeight,
+                        "DefectWarehouseWeight" => r.DefectWarehouseWeight,
+                        "DefectScrapWeight" => r.DefectScrapWeight,
                         "HoldTime" => r.HoldTime,
                         _ => null
                     };
@@ -875,12 +914,30 @@
                     {
                         switch (col.Key)
                         {
-                            case "Quantity": r.Quantity = v; break;
-                            case "QualifiedQuantity": r.QualifiedQuantity = v; break;
+                            case "Quantity":
+                                r.Quantity = v;
+                                AutoFillWeight(r, "Weight", "Quantity");
+                                break;
+                            case "QualifiedQuantity":
+                                r.QualifiedQuantity = v;
+                                AutoFillWeight(r, "QualifiedWeight", "QualifiedQuantity");
+                                break;
                             case "QualifiedConcessionQuantity": r.QualifiedConcessionQuantity = v; break;
-                            case "DefectReworkQuantity": r.DefectReworkQuantity = v; break;
-                            case "DefectWarehouseQuantity": r.DefectWarehouseQuantity = v; break;
-                            case "DefectScrapQuantity": r.DefectScrapQuantity = v; break;
+                            case "DefectReworkQuantity":
+                                r.DefectReworkQuantity = v;
+                                AutoFillWeight(r, "DefectReworkWeight", "DefectReworkQuantity");
+                                break;
+                            case "DefectWarehouseQuantity":
+                                r.DefectWarehouseQuantity = v;
+                                AutoFillWeight(r, "DefectWarehouseWeight", "DefectWarehouseQuantity");
+                                break;
+                            case "DefectScrapQuantity":
+                                r.DefectScrapQuantity = v;
+                                AutoFillWeight(r, "DefectScrapWeight", "DefectScrapQuantity");
+                                break;
+                            case "DefectReworkWeight": r.DefectReworkWeight = v; break;
+                            case "DefectWarehouseWeight": r.DefectWarehouseWeight = v; break;
+                            case "DefectScrapWeight": r.DefectScrapWeight = v; break;
                             case "HoldTime": r.HoldTime = v; break;
                         }
                     }));
@@ -890,31 +947,41 @@
                 }
             case "Weight":
             case "QualifiedWeight":
-            case "Pressure":
                 {
-                    decimal? val = col.Key switch
+                    int? val = col.Key switch
                     {
                         "Weight" => r.Weight,
                         "QualifiedWeight" => r.QualifiedWeight,
-                        "Pressure" => r.Pressure,
                         _ => null
                     };
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Size", Size.Small);
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.AddAttribute(5, "Value", val);
+                    builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v =>
+                    {
+                        switch (col.Key)
+                        {
+                            case "Weight": r.Weight = v; break;
+                            case "QualifiedWeight": r.QualifiedWeight = v; break;
+                        }
+                    }));
+                    builder.AddAttribute(7, "Clearable", true);
+                    builder.CloseComponent();
+                    break;
+                }
+            case "Pressure":
+                {
                     builder.OpenComponent<MudNumericField<decimal?>>(0);
                     builder.AddAttribute(1, "Dense", true);
                     builder.AddAttribute(2, "Variant", Variant.Outlined);
                     builder.AddAttribute(3, "Size", Size.Small);
                     builder.AddAttribute(4, "HideSpinButtons", true);
                     builder.AddAttribute(5, "Format", "G29");
-                    builder.AddAttribute(6, "Value", val);
-                    builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v =>
-                    {
-                        switch (col.Key)
-                        {
-                            case "Weight": r.Weight = v; break;
-                            case "QualifiedWeight": r.QualifiedWeight = v; break;
-                            case "Pressure": r.Pressure = v; break;
-                        }
-                    }));
+                    builder.AddAttribute(6, "Value", r.Pressure);
+                    builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.Pressure = v));
                     builder.AddAttribute(8, "Clearable", true);
                     builder.CloseComponent();
                     break;
@@ -935,6 +1002,47 @@
         }
     };
 
+    /// <summary>
+    /// 支数输入后自动回填对应重量（仅当重量为空时，不覆盖用户手填值）。
+    /// 公式：单支重 × 支数，与服务端 CreateAsync 兜底逻辑一致。
+    /// </summary>
+    private void AutoFillWeight(EditRow r, string weightKey, string qtyKey)
+    {
+        if (r.UnitWeight is null) return;
+        int? qty = qtyKey switch
+        {
+            "Quantity" => r.Quantity,
+            "QualifiedQuantity" => r.QualifiedQuantity,
+            "DefectReworkQuantity" => r.DefectReworkQuantity,
+            "DefectWarehouseQuantity" => r.DefectWarehouseQuantity,
+            "DefectScrapQuantity" => r.DefectScrapQuantity,
+            _ => null
+        };
+        if (!qty.HasValue || qty.Value <= 0) return;
+
+        int? weight = weightKey switch
+        {
+            "Weight" => r.Weight,
+            "QualifiedWeight" => r.QualifiedWeight,
+            "DefectReworkWeight" => r.DefectReworkWeight,
+            "DefectWarehouseWeight" => r.DefectWarehouseWeight,
+            "DefectScrapWeight" => r.DefectScrapWeight,
+            _ => null
+        };
+        if (weight.HasValue) return; // 已有值不覆盖
+
+        var newWeight = (int?)(r.UnitWeight.Value * qty.Value);
+        switch (weightKey)
+        {
+            case "Weight": r.Weight = newWeight; break;
+            case "QualifiedWeight": r.QualifiedWeight = newWeight; break;
+            case "DefectReworkWeight": r.DefectReworkWeight = newWeight; break;
+            case "DefectWarehouseWeight": r.DefectWarehouseWeight = newWeight; break;
+            case "DefectScrapWeight": r.DefectScrapWeight = newWeight; break;
+        }
+        StateHasChanged();
+    }
+
     private static string? GetStringField(EditRow r, string key) => key switch
     {
         "EquipmentName" => r.EquipmentName,
@@ -949,6 +1057,7 @@
         "PlantGrade" => r.PlantGrade,
         "Specification" => r.Specification,
         "FixedLength" => r.FixedLength,
+        "NonFixedLengthRange" => r.NonFixedLengthRange,
         "ConcessionRemark" => r.ConcessionRemark,
         "DefectDescription" => r.DefectDescription,
         "OuterDiameterRange" => r.OuterDiameterRange,
@@ -987,6 +1096,7 @@
             case "PlantGrade": r.PlantGrade = value; break;
             case "Specification": r.Specification = value; break;
             case "FixedLength": r.FixedLength = value; break;
+            case "NonFixedLengthRange": r.NonFixedLengthRange = value; break;
             case "ConcessionRemark": r.ConcessionRemark = value; break;
             case "DefectDescription": r.DefectDescription = value; break;
             case "OuterDiameterRange": r.OuterDiameterRange = value; break;

@@ -158,7 +158,6 @@ public static class ProcessCardPrintHelper
                 };
                 var ratios = pgColumns.Select(c =>
                 {
-                    if (c.Key.Equals("ManufacturingMultiple", StringComparison.OrdinalIgnoreCase)) return 2;
                     if (c.Key.Equals("Remark", StringComparison.OrdinalIgnoreCase)) return 4;
                     return narrowKeys.Contains(c.Key) ? 1 : 3;
                 }).ToArray();
@@ -455,7 +454,6 @@ public static class ProcessCardPrintHelper
             "WallThicknessTolerance" => g.WallThicknessTolerance ?? "-",
             "ManufacturingLength" => g.ManufacturingLength ?? "-",
             "CuttingTreatment" => g.CuttingTreatment ?? "-",
-            "ManufacturingMultiple" => g.ManufacturingMultiple.ToString(),
             "Remark" => g.Remark ?? "-",
             "ColdRollDraw" => g.ColdRollDraw?.ToString() ?? "-",
             "OilPipeCut" => g.OilPipeCut?.ToString() ?? "-",

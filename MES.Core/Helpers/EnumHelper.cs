@@ -94,7 +94,7 @@ public static class EnumHelper
         Register<CustomerStatus>(("Active", "启用"),
                                   ("Inactive", "停用"));
 
-        Register<RequirementType>(("Normal", "常规"),
+        Register<RequirementType>(("Normal", "普通"),
                                    ("Special", "特殊"));
 
         Register<NotificationType>(("NewMaterial", "新物料确认"),
@@ -162,6 +162,9 @@ public static class EnumHelper
                                   ("EddyCurrent", "涡流"),
                                   ("Ultrasonic", "超声波"),
                                   ("PortColoring", "端口着色"));
+
+        Register<InspectionType>(("PreInspection", "预成检"),
+                                  ("FormalInspection", "正式成检"));
 
         Register<DisposalMethod>(("Rework", "返整"),
                                   ("WarehouseEntry", "入库"),

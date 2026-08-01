@@ -690,6 +690,34 @@ public partial class AppDbContext
         });
     }
 
+    private static void ConfigureFixedLengthWorkOrder(ModelBuilder builder)
+    {
+        builder.Entity<FixedLengthWorkOrder>(entity =>
+        {
+            entity.ToTable("FixedLengthWorkOrder");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkOrderId).IsRequired();
+            entity.Property(e => e.WorkOrderNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SalesOrderNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProductionMainNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Length).IsRequired().HasColumnType("decimal(18,2)");
+            entity.Property(e => e.PlannedQuantity).IsRequired();
+
+            entity.HasOne<WorkOrder>()
+                .WithMany()
+                .HasForeignKey(e => e.WorkOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_FixedLengthWorkOrder_WorkOrderId");
+            entity.HasIndex(e => e.WorkOrderNo).HasDatabaseName("IX_FixedLengthWorkOrder_WorkOrderNo");
+            entity.HasIndex(e => new { e.SalesOrderNo, e.ProductionMainNo, e.Length })
+                .HasDatabaseName("IX_FixedLengthWorkOrder_SalesOrderMainNoLength");
+            entity.HasIndex(e => new { e.WorkOrderId, e.Length })
+                .IsUnique()
+                .HasDatabaseName("UK_FixedLengthWorkOrder_WorkOrderLength");
+        });
+    }
+
     private static void ConfigureInMainWorkOrderPlan(ModelBuilder builder)
     {
         builder.Entity<InMainWorkOrderPlan>(entity =>

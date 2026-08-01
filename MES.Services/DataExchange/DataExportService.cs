@@ -146,18 +146,21 @@ public class DataExportService : IDataExportService
         if (!DataExchangeRegistry.Registry.TryGetValue(entityKey, out var def))
             throw new BusinessException($"不支持的实体类型: {entityKey}");
 
+        // 模板含主键 ID 列（与"下载数据"列完全一致）：ID 留空即新增，填写 ID 则按 ID 覆盖
+        var importColumns = def.Columns;
+
         using var package = new ExcelPackage();
         var sheet = package.Workbook.Worksheets.Add(def.DisplayName);
 
         // 表头
-        for (int i = 0; i < def.Columns.Count; i++)
-            sheet.Cells[1, i + 1].Value = def.Columns[i].Header;
-        sheet.Cells[1, 1, 1, def.Columns.Count].Style.Font.Bold = true;
+        for (int i = 0; i < importColumns.Count; i++)
+            sheet.Cells[1, i + 1].Value = importColumns[i].Header;
+        sheet.Cells[1, 1, 1, importColumns.Count].Style.Font.Bold = true;
 
         // 系统字段标记为灰色底色
-        for (int i = 0; i < def.Columns.Count; i++)
+        for (int i = 0; i < importColumns.Count; i++)
         {
-            if (def.Columns[i].IsSystem)
+            if (importColumns[i].IsSystem)
                 sheet.Cells[1, i + 1].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
         }
 
@@ -165,7 +168,7 @@ public class DataExportService : IDataExportService
         var sampleRow = 2;
         var fkReverseCache = await BuildFkReverseCacheForExportAsync(def);
         var orderItemExportCache = await BuildOrderItemExportCacheAsync(def);
-        foreach (var colDef in def.Columns)
+        foreach (var colDef in importColumns)
         {
             if (colDef.IsSystem) continue;
             if (colDef.EnumType != null)
@@ -174,34 +177,34 @@ public class DataExportService : IDataExportService
                     throw new BusinessException($"列 '{colDef.Header}' 的枚举类型 '{colDef.EnumType.FullName}' 无效");
                 var values = Enum.GetValues(colDef.EnumType);
                 if (values.Length > 0)
-                    sheet.Cells[sampleRow, def.Columns.IndexOf(colDef) + 1].Value = EnumHelper.GetDisplayName(colDef.EnumType, values.GetValue(0)!);
+                    sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = EnumHelper.GetDisplayName(colDef.EnumType, values.GetValue(0)!);
             }
             else if (colDef.IsFkColumn)
             {
                 // FK列：从缓存中取第一个示例值
                 var fkSample = GetFkSampleValue(colDef, fkReverseCache);
                 if (fkSample != null)
-                    sheet.Cells[sampleRow, def.Columns.IndexOf(colDef) + 1].Value = fkSample;
+                    sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = fkSample;
             }
             else if (colDef.PropertyType == typeof(DateTime) || colDef.PropertyType == typeof(DateTime?))
             {
-                sheet.Cells[sampleRow, def.Columns.IndexOf(colDef) + 1].Value = DateTime.Today.ToString("yyyy-MM-dd");
+                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = DateTime.Today.ToString("yyyy-MM-dd");
             }
             else if (colDef.PropertyType == typeof(bool) || colDef.PropertyType == typeof(bool?))
             {
-                sheet.Cells[sampleRow, def.Columns.IndexOf(colDef) + 1].Value = "是";
+                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = "是";
             }
             else if (colDef.PropertyType == typeof(int) || colDef.PropertyType == typeof(int?))
             {
-                sheet.Cells[sampleRow, def.Columns.IndexOf(colDef) + 1].Value = 1;
+                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = 1;
             }
             else if (colDef.PropertyType == typeof(decimal) || colDef.PropertyType == typeof(decimal?))
             {
-                sheet.Cells[sampleRow, def.Columns.IndexOf(colDef) + 1].Value = "0.00";
+                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = "0.00";
             }
             else if (!colDef.IsFkColumn)
             {
-                sheet.Cells[sampleRow, def.Columns.IndexOf(colDef) + 1].Value = colDef.Header;
+                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = colDef.Header;
             }
         }
 

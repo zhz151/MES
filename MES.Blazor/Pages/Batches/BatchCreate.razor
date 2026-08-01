@@ -635,7 +635,6 @@
                             @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTh Style="width:80px;">壁厚公差</MudTh> }
                             @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:80px;">制造长度</MudTh> }
                             @if (GetPgCol("CuttingTreatment").Visible) { <MudTh Style="width:80px;">断切处理</MudTh> }
-                            @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTh Style="width:80px;">制成倍数</MudTh> }
                             @if (GetPgCol("Remark").Visible) { <MudTh Style="width:120px;">备注</MudTh> }
                             @if (GetPgCol("ColdRollDraw").Visible) { <MudTh Style="width:80px;">冷轧拔</MudTh> }
                             @if (GetPgCol("OilPipeCut").Visible) { <MudTh Style="width:80px;">油管断</MudTh> }
@@ -672,7 +671,6 @@
                             @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.WallThicknessTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
                             @if (GetPgCol("ManufacturingLength").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
                             @if (GetPgCol("CuttingTreatment").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.CuttingTreatment" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
-                            @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTd><MudNumericField T="int" @bind-Value="pg.ManufacturingMultiple" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Min="1" /></MudTd> }
                             @if (GetPgCol("Remark").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
                             @if (GetPgCol("ColdRollDraw").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ColdRollDraw" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
                             @if (GetPgCol("OilPipeCut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OilPipeCut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
@@ -1425,7 +1423,6 @@
             new() { Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true },
             new() { Key = "ManufacturingLength", Label = "制造长度", Visible = true },
             new() { Key = "CuttingTreatment", Label = "断切处理", Visible = true },
-            new() { Key = "ManufacturingMultiple", Label = "制成倍数", Visible = true },
             new() { Key = "Remark", Label = "备注", Visible = true },
             new() { Key = "ColdRollDraw", Label = "冷轧拔", Visible = true },
             new() { Key = "OilPipeCut", Label = "油管断", Visible = true },
@@ -1488,7 +1485,7 @@
     {
         if (request.ProcessGroups == null)
             request.ProcessGroups = new List<CreateProcessGroupRequest>();
-        request.ProcessGroups.Add(new CreateProcessGroupRequest { ProcessName = "荒管处理", ManufacturingMultiple = 1 });
+        request.ProcessGroups.Add(new CreateProcessGroupRequest { ProcessName = "荒管处理" });
     }
 
     private Task DeleteProcessGroupRow(CreateProcessGroupRequest pg)

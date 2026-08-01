@@ -125,11 +125,6 @@ public class ProductionBatch : BaseEntity
     public int TotalWorkDays { get; set; }
 
     /// <summary>
-    /// 质量过程是否完结（人控开关，手动切换）
-    /// </summary>
-    public bool IsClosed { get; set; }
-
-    /// <summary>
     /// 备注
     /// </summary>
     public string? Remark { get; set; }
@@ -384,6 +379,29 @@ public class ProductionBatch : BaseEntity
     /// 理论单支重 = TheoreticalOutputWeight / TheoreticalOutputQty（保留1位小数）
     /// </summary>
     public decimal? TheoreticalUnitWeight { get; set; }
+
+    // ========== 成切跟踪字段 ==========
+
+    /// <summary>
+    /// 成切需求：成品关联的工序（ManufacturingSpec == 成品规格 batch.Specification 的工序组，可能多个，含"附加成检"）是否有「断切」工段
+    /// </summary>
+    public bool CutRequirement { get; set; }
+
+    /// <summary>
+    /// 成切执行：需求=否 → null（略）；成品工序组内已有「断切」生产记录 → true（是）；否则 → false（否）
+    /// </summary>
+    public bool? CutExecution { get; set; }
+
+    /// <summary>
+    /// 成切支数：成品工序组内「断切」生产记录的 PostCutQuantity（切后支数）汇总；无记录 → null
+    /// </summary>
+    public int? CutQuantity { get; set; }
+
+    /// <summary>
+    /// 成切存疑：需求=否 或 执行=否 → null（略）；
+    /// |成切支数−理论成品支|/理论成品支 &gt; 5% → true（疑问）；否则 → false（正常）；理论成品支不可得 → null（略）
+    /// </summary>
+    public bool? CutDoubt { get; set; }
 
     // ========== 导航属性 ==========
 

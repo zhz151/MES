@@ -93,7 +93,6 @@ public class DataFixServiceTests : TestBase
             SequenceNumber = 1,
             ProcessName = processName,
             ManufacturingSpec = "219*8",
-            ManufacturingMultiple = 1,
             ColdRollDraw = coldRollDraw,
             OilPipeCut = null,
             Degrease = null,

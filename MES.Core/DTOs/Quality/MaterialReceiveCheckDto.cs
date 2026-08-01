@@ -46,6 +46,10 @@ public class MaterialReceiveCheckDto
     /// <summary>是否是批次中的最后一个工序组（交货状态仅最后工序组有效）</summary>
     public bool IsLastProcessGroup { get; set; }
 
+    /// <summary>成检类型</summary>
+    public string? InspectionType { get; set; }
+    public string? InspectionTypeDisplay => !string.IsNullOrEmpty(InspectionType) && EnumHelper.TryParse<InspectionType>(InspectionType) is { } it ? EnumHelper.GetDisplayName(it) : null;
+
     // ========== 批次冗余字段 ==========
     public LengthStatus? LengthStatus { get; set; }
     public string? LengthStatusDisplay => LengthStatus.HasValue ? EnumHelper.GetDisplayName(LengthStatus.Value) : null;
@@ -54,6 +58,10 @@ public class MaterialReceiveCheckDto
     public string? Salesman { get; set; }
     public DeliveryState? DeliveryState { get; set; }
     public string? DeliveryStateDisplay => DeliveryState.HasValue ? EnumHelper.GetDisplayName(DeliveryState.Value) : null;
+
+    /// <summary>制造状态（批次执行的实际制造状态，与交货状态同枚举）</summary>
+    public string? ManufacturingStatus { get; set; }
+    public string? ManufacturingStatusDisplay => !string.IsNullOrEmpty(ManufacturingStatus) && EnumHelper.TryParse<DeliveryState>(ManufacturingStatus) is { } ms ? EnumHelper.GetDisplayName(ms) : null;
 
     /// <summary>创建时间</summary>
     public DateTimeOffset CreatedTime { get; set; }

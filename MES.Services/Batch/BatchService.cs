@@ -154,6 +154,7 @@ public class BatchService : IBatchService
                 b.Specification.Contains(kw) ||
                 b.LengthStatus.Contains(kw) ||
                 b.TechnicalRequirements.Contains(kw) ||
+                (b.ItemDetails != null && b.ItemDetails.Contains(kw)) ||
                 (b.Remark != null && b.Remark.Contains(kw)) ||
                 (b.QualityRemark != null && b.QualityRemark.Contains(kw)) ||
                 (b.SourceHeatNo != null && b.SourceHeatNo.Contains(kw)) ||
@@ -162,7 +163,13 @@ public class BatchService : IBatchService
                 (b.SourceSpecification != null && b.SourceSpecification.Contains(kw)) ||
                 (b.SourceMaterialType != null && b.SourceMaterialType.Contains(kw)) ||
                 (b.SourceLengthStatus != null && b.SourceLengthStatus.Contains(kw)) ||
-                (b.SolutionParams != null && b.SolutionParams.Contains(kw)));
+                (b.SolutionParams != null && b.SolutionParams.Contains(kw)) ||
+                (b.UpdatedBy != null && b.UpdatedBy.Contains(kw)) ||
+                (b.SourcePlantGrade != null && b.SourcePlantGrade.Contains(kw)) ||
+                (b.SourceProductionNo != null && b.SourceProductionNo.Contains(kw)) ||
+                (b.ManufacturingStatus != null && b.ManufacturingStatus.Contains(kw)) ||
+                (b.SourceRemark != null && b.SourceRemark.Contains(kw)) ||
+                (b.OrderItemIds != null && b.OrderItemIds.Contains(kw)));
         }
 
         // 筛选条件
@@ -236,6 +243,7 @@ public class BatchService : IBatchService
             ProductionType = b.ProductionType,
             ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var r221) ? r221 : default,
             Status = b.Status,
+            IsForceCompleted = b.IsForceCompleted,
             ProductionRatio = b.ProductionRatio,
             CurrentExecDate = b.CurrentExecDate,
             CurrentGroupName = b.CurrentGroupName,
@@ -252,6 +260,7 @@ public class BatchService : IBatchService
             CurrentValidQty = b.CurrentValidQty,
             CurrentValidWeight = b.CurrentValidWeight,
             CreatedBy = b.CreatedBy,
+            UpdatedBy = b.UpdatedBy,
             SignDate = b.SignDate,
             Salesman = b.Salesman,
             EndCustomer = b.EndCustomer,
@@ -279,7 +288,26 @@ public class BatchService : IBatchService
             QualityRemark = b.QualityRemark,
             SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
             SourceName = b.SourceName,
-            HasInputChange = b.HasInputChange
+            HasInputChange = b.HasInputChange,
+            CutRequirement = b.CutRequirement,
+            CutExecution = b.CutExecution,
+            CutQuantity = b.CutQuantity,
+            CutDoubt = b.CutDoubt,
+            OuterDiameterNegative = b.OuterDiameterNegative,
+            OuterDiameterPositive = b.OuterDiameterPositive,
+            WallThicknessNegative = b.WallThicknessNegative,
+            WallThicknessPositive = b.WallThicknessPositive,
+            MinLength = b.MinLength,
+            MaxLength = b.MaxLength,
+            SourceBatchNo = b.SourceBatchNo,
+            SourcePlantGrade = b.SourcePlantGrade,
+            SourceUnitWeight = b.SourceUnitWeight,
+            InputType = b.InputType,
+            SourceLengthStatus = b.SourceLengthStatus,
+            SourceProductionNo = b.SourceProductionNo,
+            TheoreticalOutputQty = b.TheoreticalOutputQty,
+            TheoreticalOutputWeight = b.TheoreticalOutputWeight,
+            TheoreticalUnitWeight = b.TheoreticalUnitWeight
         }).ToList();
 
         return new PagedResult<ProductionBatchListDto>
@@ -314,6 +342,7 @@ public class BatchService : IBatchService
             ProductionType = b.ProductionType,
             ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var r299) ? r299 : default,
             Status = b.Status,
+            IsForceCompleted = b.IsForceCompleted,
             ProductionRatio = b.ProductionRatio,
             CurrentExecDate = b.CurrentExecDate,
             CurrentGroupName = b.CurrentGroupName,
@@ -330,6 +359,7 @@ public class BatchService : IBatchService
             CurrentValidQty = b.CurrentValidQty,
             CurrentValidWeight = b.CurrentValidWeight,
             CreatedBy = b.CreatedBy,
+            UpdatedBy = b.UpdatedBy,
             SignDate = b.SignDate,
             Salesman = b.Salesman,
             EndCustomer = b.EndCustomer,
@@ -357,7 +387,26 @@ public class BatchService : IBatchService
             QualityRemark = b.QualityRemark,
             SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
             SourceName = b.SourceName,
-            HasInputChange = b.HasInputChange
+            HasInputChange = b.HasInputChange,
+            CutRequirement = b.CutRequirement,
+            CutExecution = b.CutExecution,
+            CutQuantity = b.CutQuantity,
+            CutDoubt = b.CutDoubt,
+            OuterDiameterNegative = b.OuterDiameterNegative,
+            OuterDiameterPositive = b.OuterDiameterPositive,
+            WallThicknessNegative = b.WallThicknessNegative,
+            WallThicknessPositive = b.WallThicknessPositive,
+            MinLength = b.MinLength,
+            MaxLength = b.MaxLength,
+            SourceBatchNo = b.SourceBatchNo,
+            SourcePlantGrade = b.SourcePlantGrade,
+            SourceUnitWeight = b.SourceUnitWeight,
+            InputType = b.InputType,
+            SourceLengthStatus = b.SourceLengthStatus,
+            SourceProductionNo = b.SourceProductionNo,
+            TheoreticalOutputQty = b.TheoreticalOutputQty,
+            TheoreticalOutputWeight = b.TheoreticalOutputWeight,
+            TheoreticalUnitWeight = b.TheoreticalUnitWeight
         }).ToList();
 
         return mappedItems;
@@ -614,7 +663,6 @@ public class BatchService : IBatchService
                         WallThicknessTolerance = pg.WallThicknessTolerance,
                         ManufacturingLength = pg.ManufacturingLength,
                         CuttingTreatment = pg.CuttingTreatment,
-                        ManufacturingMultiple = pg.ManufacturingMultiple,
                         Remark = pg.Remark,
                         ColdRollDraw = pg.ColdRollDraw,
                         OilPipeCut = pg.OilPipeCut,
@@ -1374,7 +1422,6 @@ public class BatchService : IBatchService
                 existingReferenced.WallThicknessTolerance = pgReq.WallThicknessTolerance;
                 existingReferenced.ManufacturingLength = pgReq.ManufacturingLength;
                 existingReferenced.CuttingTreatment = pgReq.CuttingTreatment;
-                existingReferenced.ManufacturingMultiple = pgReq.ManufacturingMultiple;
                 existingReferenced.Remark = pgReq.Remark;
                 existingReferenced.ColdRollDraw = pgReq.ColdRollDraw;
                 existingReferenced.OilPipeCut = pgReq.OilPipeCut;
@@ -1404,7 +1451,6 @@ public class BatchService : IBatchService
                 WallThicknessTolerance = pgReq.WallThicknessTolerance,
                 ManufacturingLength = pgReq.ManufacturingLength,
                 CuttingTreatment = pgReq.CuttingTreatment,
-                ManufacturingMultiple = pgReq.ManufacturingMultiple,
                 Remark = pgReq.Remark,
                 ColdRollDraw = pgReq.ColdRollDraw,
                 OilPipeCut = pgReq.OilPipeCut,
@@ -1543,7 +1589,6 @@ public class BatchService : IBatchService
             WallThicknessTolerance = request.WallThicknessTolerance,
             ManufacturingLength = request.ManufacturingLength,
             CuttingTreatment = request.CuttingTreatment,
-            ManufacturingMultiple = request.ManufacturingMultiple,
             Remark = request.Remark,
             ColdRollDraw = request.ColdRollDraw,
             OilPipeCut = request.OilPipeCut,
@@ -1692,7 +1737,6 @@ public class BatchService : IBatchService
                 WallThicknessTolerance = pg.WallThicknessTolerance,
                 ManufacturingLength = pg.ManufacturingLength,
                 CuttingTreatment = pg.CuttingTreatment,
-                ManufacturingMultiple = pg.ManufacturingMultiple,
                 Remark = pg.Remark,
                 ColdRollDraw = pg.ColdRollDraw,
                 OilPipeCut = pg.OilPipeCut,
@@ -1738,7 +1782,6 @@ public class BatchService : IBatchService
                 WallThicknessTolerance = pg.WallThicknessTolerance,
                 ManufacturingLength = pg.ManufacturingLength,
                 CuttingTreatment = pg.CuttingTreatment,
-                ManufacturingMultiple = pg.ManufacturingMultiple,
                 Remark = pg.Remark,
                 ColdRollDraw = pg.ColdRollDraw,
                 OilPipeCut = pg.OilPipeCut,
@@ -1850,6 +1893,17 @@ public class BatchService : IBatchService
                 (b.NextProcess != null && b.NextProcess.Contains(kw)) ||
                 b.ManufacturingItem.Contains(kw) ||
                 (b.ProductionType != null && b.ProductionType.Contains(kw)) ||
+                b.Salesman.Contains(kw) ||
+                (b.EndCustomer != null && b.EndCustomer.Contains(kw)) ||
+                b.MaterialName.Contains(kw) ||
+                b.SettlementMethod.Contains(kw) ||
+                b.StandardCode.Contains(kw) ||
+                b.DeliveryState.Contains(kw) ||
+                b.PlantGrade.Contains(kw) ||
+                b.Specification.Contains(kw) ||
+                b.LengthStatus.Contains(kw) ||
+                b.TechnicalRequirements.Contains(kw) ||
+                (b.ItemDetails != null && b.ItemDetails.Contains(kw)) ||
                 (b.Remark != null && b.Remark.Contains(kw)) ||
                 (b.QualityRemark != null && b.QualityRemark.Contains(kw)) ||
                 (b.SourceHeatNo != null && b.SourceHeatNo.Contains(kw)) ||
@@ -1858,7 +1912,13 @@ public class BatchService : IBatchService
                 (b.SourceSpecification != null && b.SourceSpecification.Contains(kw)) ||
                 (b.SourceMaterialType != null && b.SourceMaterialType.Contains(kw)) ||
                 (b.SourceLengthStatus != null && b.SourceLengthStatus.Contains(kw)) ||
-                (b.SolutionParams != null && b.SolutionParams.Contains(kw)));
+                (b.SolutionParams != null && b.SolutionParams.Contains(kw)) ||
+                (b.UpdatedBy != null && b.UpdatedBy.Contains(kw)) ||
+                (b.SourcePlantGrade != null && b.SourcePlantGrade.Contains(kw)) ||
+                (b.SourceProductionNo != null && b.SourceProductionNo.Contains(kw)) ||
+                (b.ManufacturingStatus != null && b.ManufacturingStatus.Contains(kw)) ||
+                (b.SourceRemark != null && b.SourceRemark.Contains(kw)) ||
+                (b.OrderItemIds != null && b.OrderItemIds.Contains(kw)));
         }
         if (!string.IsNullOrEmpty(request.WorkOrderNo))
             queryable = queryable.Where(b => b.WorkOrderNo.Contains(request.WorkOrderNo));
@@ -1948,16 +2008,22 @@ public class BatchService : IBatchService
             "ManufacturingItem" => TryGetEnumDisplay<MaterialType>(b.ManufacturingItem),
             "ProductionRatio" => b.ProductionRatio,
             "IsForceCompleted" => b.IsForceCompleted,
-            "IsClosed" => b.IsClosed,
             "CurrentValidQty" => (object?)b.CurrentValidQty ?? DBNull.Value,
             "CurrentValidWeight" => (object?)b.CurrentValidWeight ?? DBNull.Value,
             "HasInputChange" => b.HasInputChange,
+            "Remark" => (object?)b.Remark ?? "",
             "CreatedBy" => b.CreatedBy,
             "CreatedTime" => b.CreatedTime,
             "UpdatedTime" => b.UpdatedTime,
+            "UpdatedBy" => b.UpdatedBy,
             "CurrentExecDate" => (object?)b.CurrentExecDate ?? DBNull.Value,
             "CurrentSectionCompleted" => (object?)b.CurrentSectionCompleted ?? DBNull.Value,
+            "CutRequirement" => b.CutRequirement,
+            "CutExecution" => (object?)b.CutExecution ?? DBNull.Value,
+            "CutQuantity" => (object?)b.CutQuantity ?? DBNull.Value,
+            "CutDoubt" => (object?)b.CutDoubt ?? DBNull.Value,
             "RemainingWorkDays" => b.RemainingWorkDays,
+            "TotalWorkDays" => b.TotalWorkDays,
 
             // 工单信息
             "WorkOrderNo" => b.WorkOrderNo,
@@ -1980,6 +2046,12 @@ public class BatchService : IBatchService
             "TotalQuantity" => b.TotalQuantity,
             "TotalMeters" => b.TotalMeters,
             "TotalWeight" => b.TotalWeight,
+            "MinLength" => (object?)b.MinLength ?? DBNull.Value,
+            "MaxLength" => (object?)b.MaxLength ?? DBNull.Value,
+            "OuterDiameterNegative" => b.OuterDiameterNegative,
+            "OuterDiameterPositive" => b.OuterDiameterPositive,
+            "WallThicknessNegative" => b.WallThicknessNegative,
+            "WallThicknessPositive" => b.WallThicknessPositive,
             "TotalItemCount" => b.TotalItemCount,
             "ItemDetails" => (object?)b.ItemDetails ?? "",
             "TechnicalRequirements" => TryGetEnumDisplay<RequirementType>(b.TechnicalRequirements),
@@ -2003,9 +2075,14 @@ public class BatchService : IBatchService
             "SourceSpecification" => (object?)b.SourceSpecification ?? "",
             "SourceLengthStatus" => TryGetEnumDisplay<Core.Enums.LengthStatus>(b.SourceLengthStatus),
             "SourceUnitWeight" => (object?)b.SourceUnitWeight ?? DBNull.Value,
+            "InputType" => EnumHelper.GetDisplayName(b.InputType),
+            "SourceProductionNo" => (object?)b.SourceProductionNo ?? "",
             "InputQuantity" => (object?)b.InputQuantity ?? DBNull.Value,
             "InputWeight" => (object?)b.InputWeight ?? DBNull.Value,
             "SourceRemark" => (object?)b.SourceRemark ?? DBNull.Value,
+            "TheoreticalOutputQty" => (object?)b.TheoreticalOutputQty ?? DBNull.Value,
+            "TheoreticalOutputWeight" => (object?)b.TheoreticalOutputWeight ?? DBNull.Value,
+            "TheoreticalUnitWeight" => (object?)b.TheoreticalUnitWeight ?? DBNull.Value,
 
             // 质量
             "SolutionParams" => (object?)b.SolutionParams ?? "",
@@ -2089,7 +2166,18 @@ public class BatchService : IBatchService
                     b.StandardCode,
                     b.PlantGrade,
                     b.Specification,
-                    b.CreatedBy
+                    b.CreatedBy,
+                    b.Remark,
+                    b.UpdatedBy,
+                    b.SourceBatchNo,
+                    b.SourceProductionNo,
+                    b.SourcePlantGrade,
+                    b.SourceName,
+                    b.SourceHeatNo,
+                    b.SourceSpecification,
+                    b.SourceLengthStatus,
+                    b.SolutionParams,
+                    b.QualityRemark
                 })
                 .ToListAsync();
 
@@ -2119,6 +2207,17 @@ public class BatchService : IBatchService
                 ["PlantGrade"] = results.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
                 ["Specification"] = results.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
                 ["CreatedBy"] = results.Select(x => x.CreatedBy).Distinct().OrderBy(x => x).ToList(),
+                ["Remark"] = results.Select(x => x.Remark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["UpdatedBy"] = results.Select(x => x.UpdatedBy).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SourceBatchNo"] = results.Select(x => x.SourceBatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SourceProductionNo"] = results.Select(x => x.SourceProductionNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SourcePlantGrade"] = results.Select(x => x.SourcePlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SourceName"] = results.Select(x => x.SourceName).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SourceHeatNo"] = results.Select(x => x.SourceHeatNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SourceSpecification"] = results.Select(x => x.SourceSpecification).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SourceLengthStatus"] = results.Select(x => x.SourceLengthStatus).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SolutionParams"] = results.Select(x => x.SolutionParams).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["QualityRemark"] = results.Select(x => x.QualityRemark).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
             };
         }) ?? new Dictionary<string, List<string>>();
     }
@@ -2239,6 +2338,22 @@ public class BatchService : IBatchService
         return result;
     }
 
+    public async Task<int> PopulateManufacturingStatusAsync()
+    {
+        var batches = await _context.ProductionBatches
+            .Where(b => string.IsNullOrEmpty(b.ManufacturingStatus) && !string.IsNullOrEmpty(b.DeliveryState))
+            .ToListAsync();
+
+        foreach (var batch in batches)
+        {
+            batch.ManufacturingStatus = batch.DeliveryState;
+        }
+
+        var count = await _context.SaveChangesAsync();
+        _logger.LogInformation("批量回填制造状态完成: 更新 {Count} 个批次的 ManufacturingStatus", count);
+        return count;
+    }
+
     public async Task<List<BatchWorkOrderMismatchDto>> VerifyWorkOrderNosAsync()
     {
         // 获取所有生产批次中非空的工单号（排除NotWorkOrder标记）
@@ -2297,6 +2412,7 @@ public class BatchService : IBatchService
             CurrentEquipmentName = entity.CurrentEquipmentName,
             CurrentOutsource = entity.CurrentOutsource,
             CurrentSectionCompleted = entity.CurrentSectionCompleted,
+            HasInputChange = entity.HasInputChange,
             CurrentSpec = entity.CurrentSpec,
             NextSectionName = entity.NextSectionName,
             CorrespondingSpec = entity.CorrespondingSpec,
@@ -2353,7 +2469,15 @@ public class BatchService : IBatchService
             SourceProductionNo = entity.SourceProductionNo,
             CurrentValidQty = entity.CurrentValidQty,
             CurrentValidWeight = entity.CurrentValidWeight,
+            TheoreticalOutputQty = entity.TheoreticalOutputQty,
+            TheoreticalOutputWeight = entity.TheoreticalOutputWeight,
             TheoreticalUnitWeight = entity.TheoreticalUnitWeight,
+
+            // 成切跟踪
+            CutRequirement = entity.CutRequirement,
+            CutExecution = entity.CutExecution,
+            CutQuantity = entity.CutQuantity,
+            CutDoubt = entity.CutDoubt,
 
             // 审计
             CreatedTime = entity.CreatedTime,
@@ -2395,7 +2519,6 @@ public class BatchService : IBatchService
             WallThicknessTolerance = entity.WallThicknessTolerance,
             ManufacturingLength = entity.ManufacturingLength,
             CuttingTreatment = entity.CuttingTreatment,
-            ManufacturingMultiple = entity.ManufacturingMultiple,
             Remark = entity.Remark,
             ColdRollDraw = entity.ColdRollDraw,
             OilPipeCut = entity.OilPipeCut,

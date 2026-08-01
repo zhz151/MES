@@ -44,12 +44,7 @@ public interface IDataExchangeService
     /// <summary>
     /// 执行导入（事务内操作）
     /// </summary>
-    Task<ImportResult> ImportAsync(string entityKey, byte[] fileData, string strategy, string? userName);
-
-    /// <summary>
-    /// 修复现有生产记录中错误的 SequenceNumber 值
-    /// </summary>
-    Task<int> FixSequenceNumbersAsync();
+    Task<ImportResult> ImportAsync(string entityKey, byte[] fileData, string? userName);
 
     /// <summary>
     /// 一键修复所有系统计算字段

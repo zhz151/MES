@@ -45,14 +45,26 @@ namespace MES.Tests.Services;
 /// </summary>
 public class FinalInspectionServiceTests : TestBase
 {
-    private FinalInspectionService CreateService(AppDbContext ctx)
+    private FinalInspectionService CreateService(AppDbContext ctx, IFixedLengthWorkOrderService? fixedLengthSvc = null)
     {
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, fixedLengthSvc ?? Mock.Of<IFixedLengthWorkOrderService>(), new MemoryCache(new MemoryCacheOptions()));
     }
 
-    private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
+    /// <summary>
+    /// 构造一个定尺长度集合可配置的 IFixedLengthWorkOrderService Mock。
+    /// 默认返回空集合（等价于非定尺主号，跳过校验）。
+    /// </summary>
+    private static IFixedLengthWorkOrderService CreateFixedLengthSvcMock(params decimal[] lengths)
+    {
+        var mock = new Mock<IFixedLengthWorkOrderService>();
+        mock.Setup(s => s.GetLengthsByMainNoAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new HashSet<decimal>(lengths));
+        return mock.Object;
+    }
+
+    private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001", string lengthStatus = "NonFixed")
     {
         var batch = new ProductionBatch
         {
@@ -71,7 +83,7 @@ public class FinalInspectionServiceTests : TestBase
             SettlementMethod = "Weighing",
             StandardCode = "GB/T 14976",
             DeliveryState = "Hard",
-            LengthStatus = "NonFixed",
+            LengthStatus = lengthStatus,
             TechnicalRequirements = "无",
             SignDate = DateTime.Today,
             DeliveryDate = DateTime.Today.AddMonths(1),
@@ -102,9 +114,9 @@ public class FinalInspectionServiceTests : TestBase
             BatchNo = batchNo,
             ProductionBatchId = batch.Id,
             Quantity = 10,
-            Weight = 1000m,
+            Weight = 1000,
             QualifiedQuantity = 9,
-            QualifiedWeight = 950m
+            QualifiedWeight = 950
         };
         ctx.FinalInspections.Add(entity);
         await ctx.SaveChangesAsync();
@@ -212,9 +224,9 @@ public class FinalInspectionServiceTests : TestBase
             InspectionDate = DateTime.Today,
             BatchNo = "BATCH001",
             Quantity = 20,
-            Weight = 2000m,
+            Weight = 2000,
             QualifiedQuantity = 18,
-            QualifiedWeight = 1800m
+            QualifiedWeight = 1800
         });
 
         result.Should().NotBeNull();
@@ -223,6 +235,90 @@ public class FinalInspectionServiceTests : TestBase
 
         var saved = await ctx.FinalInspections.FirstAsync();
         saved.Quantity.Should().Be(20);
+    }
+
+    [Fact]
+    public async Task CreateAsync_定尺长度不在集合_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var act = () => svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            FixedLength = "6000mm"
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*成品检验定尺长度(6000mm)不属于该订单号+主号(SO-001/M-001)下的定尺长度*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_定尺长度在集合_成功创建()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var result = await svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            FixedLength = "4000mm"
+        });
+
+        result.Should().NotBeNull();
+        result.FixedLength.Should().Be("4000mm");
+    }
+
+    [Fact]
+    public async Task CreateAsync_定尺主号无定尺集合_跳过校验()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock()); // 空集合 = 主号下无定尺工单，跳过
+
+        var result = await svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            FixedLength = "6000mm"
+        });
+
+        result.Should().NotBeNull();
+        result.FixedLength.Should().Be("6000mm");
+    }
+
+    [Fact]
+    public async Task CreateAsync_定尺长度格式不正确_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var act = () => svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            FixedLength = "abc"
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*定尺长度格式不正确(abc)*");
     }
 
     // ========== UpdateAsync ==========
@@ -256,6 +352,27 @@ public class FinalInspectionServiceTests : TestBase
 
         var act = () => svc.UpdateAsync(999, new UpdateFinalInspectionRequest { InspectionDate = DateTime.Today });
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_定尺长度不在集合_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedInspectionAsync(ctx);
+        var id = await ctx.FinalInspections.Select(f => f.Id).FirstAsync();
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var act = () => svc.UpdateAsync(id, new UpdateFinalInspectionRequest
+        {
+            InspectionDate = DateTime.Today,
+            Quantity = 10,
+            QualifiedQuantity = 10,
+            FixedLength = "6000mm"
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*成品检验定尺长度(6000mm)不属于该订单号+主号(SO-001/M-001)下的定尺长度*");
     }
 
     // ========== BatchCreateAsync ==========
@@ -300,6 +417,22 @@ public class FinalInspectionServiceTests : TestBase
         });
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+    }
+
+    [Fact]
+    public async Task BatchCreateAsync_定尺长度不在集合_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx, "BATCH001", "Fixed");
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var act = () => svc.BatchCreateAsync(new List<CreateFinalInspectionRequest>
+        {
+            new() { InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today, BatchNo = "BATCH001", Quantity = 10, QualifiedQuantity = 10, FixedLength = "6000mm" }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*第1行：成品检验定尺长度(6000mm)不属于该订单号+主号(SO-001/M-001)下的定尺长度*");
     }
 
     // ========== LookupBatchAsync ==========
@@ -400,7 +533,7 @@ public class FinalInspectionServiceTests : TestBase
             BatchNo = "BATCH001",
             ProductionBatchId = batch.Id,
             Quantity = 10,
-            Weight = 1000m
+            Weight = 1000
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -423,7 +556,7 @@ public class FinalInspectionServiceTests : TestBase
             BatchNo = "BATCH001",
             ProductionBatchId = batch.Id,
             Quantity = 10,
-            Weight = 1000m,
+            Weight = 1000,
             Remark = "测试备注"
         });
         await ctx.SaveChangesAsync();

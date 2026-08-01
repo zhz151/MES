@@ -46,18 +46,8 @@ public class DataExchangeService : IDataExchangeService
     public Task<ImportPreviewResult> PreviewAsync(string entityKey, byte[] fileData, string? userName)
         => _importService.PreviewAsync(entityKey, fileData, userName);
 
-    public Task<ImportResult> ImportAsync(string entityKey, byte[] fileData, string strategy, string? userName)
-        => _importService.ImportAsync(entityKey, fileData, strategy, userName);
-
-    /// <summary>
-    /// 修复生产记录中错误的 SequenceNumber 值（委托给 DataFixService）
-    /// </summary>
-    public async Task<int> FixSequenceNumbersAsync()
-    {
-        _logger.LogInformation("FixSequenceNumbersAsync 已委托给 DataFixService.FixAllAsync");
-        var report = await _fixService.FixAllAsync();
-        return report.SequenceNumbersFixed;
-    }
+    public Task<ImportResult> ImportAsync(string entityKey, byte[] fileData, string? userName)
+        => _importService.ImportAsync(entityKey, fileData, userName);
 
     /// <summary>
     /// 一键修复所有系统计算字段

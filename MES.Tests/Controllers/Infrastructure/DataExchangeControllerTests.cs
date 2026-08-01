@@ -121,7 +121,7 @@ public class DataExchangeControllerTests : ControllerTestBase
     {
         // Arrange
         var importResult = new ImportResult { TotalRows = 5, SuccessCount = 4, FailedCount = 1 };
-        _serviceMock.Setup(x => x.ImportAsync("batch", It.IsAny<byte[]>(), "skip", It.IsAny<string?>()))
+        _serviceMock.Setup(x => x.ImportAsync("batch", It.IsAny<byte[]>(), It.IsAny<string?>()))
             .ReturnsAsync(importResult);
 
         using var ms = new MemoryStream(new byte[] { 0x01, 0x02 });
@@ -141,7 +141,7 @@ public class DataExchangeControllerTests : ControllerTestBase
     {
         // Arrange
         var importResult = new ImportResult { TotalRows = 5, SuccessCount = 0, FailedCount = 5, HasRolledBack = true };
-        _serviceMock.Setup(x => x.ImportAsync("batch", It.IsAny<byte[]>(), "skip", It.IsAny<string?>()))
+        _serviceMock.Setup(x => x.ImportAsync("batch", It.IsAny<byte[]>(), It.IsAny<string?>()))
             .ReturnsAsync(importResult);
 
         using var ms = new MemoryStream(new byte[] { 0x01, 0x02 });

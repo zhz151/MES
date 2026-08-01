@@ -79,6 +79,7 @@ public partial class MaterialReceiveChecks
         new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname", FilterType = "string", Width = "100", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "SequenceNumber",    Label = "执行序",     SortKey = "sequencenumber", FilterType = "string", Width = "80", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "IsForceCompleted",  Label = "强制完成",   SortKey = "isforcecompleted", FilterType = "boolean", Visible = false, BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60", GroupKey = 1, GroupName = "检验到料" },
+        new() { Key = "InspectionType",    Label = "成检类型",   SortKey = "inspectiontype", FilterType = "enum", Width = "100", GroupKey = 1, GroupName = "检验到料", EnumOptions = new() { new("PreInspection","预成检"), new("FormalInspection","正式成检") } },
         new() { Key = "Remark",            Label = "备注",        SortKey = "remark", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "UpdatedTime",       Label = "更新时间",   SortKey = "updatedtime", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "检验到料" },
 
@@ -95,7 +96,7 @@ public partial class MaterialReceiveChecks
         new() { Key = "SourceUnit",        Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "ProductionType",     Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120", Visible = false, GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("RoughTube","荒管生产"), new("InProcess","在制生产"), new("Inventory","库存"), new("OutsourcedPurchased","外购"), new("Rework","返整"), new("Subcontract","委外生产"), new("ExternalProcessing","对外加工") } },
         new() { Key = "Salesman",          Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "100", GroupKey = 2, GroupName = "批次信息" },
-        new() { Key = "DeliveryState",     Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态"), new("SolidSolutionStraightening","固溶矫直") } },
+        new() { Key = "ManufacturingStatus", Label = "制造状态",   SortKey = "manufacturingsstatus", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态"), new("SolidSolutionStraightening","固溶矫直") } },
     };
 
     // ========== 服务端数据加载 ==========
@@ -685,11 +686,15 @@ public partial class MaterialReceiveChecks
                 builder.AddContent(0, item.Salesman);
                 break;
 
-            case "DeliveryState":
+            case "ManufacturingStatus":
                 if (item.IsLastProcessGroup)
-                    builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState?.ToString()));
+                    builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.ManufacturingStatus));
                 else
                     builder.AddContent(0, "–");
+                break;
+
+            case "InspectionType":
+                builder.AddContent(0, DisplayHelper.GetInspectionTypeText(item.InspectionType));
                 break;
 
             case "ProcessName":

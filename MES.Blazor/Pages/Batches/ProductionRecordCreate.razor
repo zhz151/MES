@@ -207,6 +207,7 @@
         new() { Key = "TagNo",             Label = "挂牌号",                   GroupKey = 2, GroupName = "可填充" },
         new() { Key = "PlantGrade",        Label = "工厂牌号", IsRequired = true, GroupKey = 2, GroupName = "可填充" },
         new() { Key = "ManufacturingSpec", Label = "制造规格", IsRequired = true, GroupKey = 2, GroupName = "可填充" },
+        new() { Key = "ProductStatus",     Label = "产类",                     GroupKey = 2, GroupName = "可填充" },
 
         // ========== 组3：人员设备 ==========
         new() { Key = "Shift",             Label = "班次",                     GroupKey = 3, GroupName = "人员设备" },
@@ -223,6 +224,7 @@
         new() { Key = "CuttingMultiple",   Label = "断切倍数",                 GroupKey = 5, GroupName = "断切特有" },
         new() { Key = "FinishedCutLength", Label = "成品长度",                 GroupKey = 5, GroupName = "断切特有" },
         new() { Key = "PostCutQuantity",   Label = "切后支数",                 GroupKey = 5, GroupName = "断切特有" },
+        new() { Key = "LengthStatus",      Label = "长度状态",                 GroupKey = 5, GroupName = "断切特有" },
 
         // ========== 组6：固溶特有 ==========
         new() { Key = "SolutionTemperature", Label = "固溶温度(℃)",           GroupKey = 6, GroupName = "固溶特有" },
@@ -275,6 +277,8 @@
         public int? PostCutQuantity { get; set; }                                               // → Entity.PostCutQuantity
         public string? TagNo { get; set; }                                                      // → Entity.TagNo（来自批次信息）
         public string? PlantGrade { get; set; }                                                 // → Entity.PlantGrade（来自批次信息）
+        public string? ProductStatus { get; set; }                                              // 产类（自动计算，只读展示，不提交）
+        public string? LengthStatus { get; set; }                                               // 长度状态（断切成品时自动填充中文，只读展示，不提交）
         public string? Remark { get; set; }                                                     // → Entity.Remark
     }
 
@@ -331,6 +335,8 @@
         "TagNo" => 130,
         "PlantGrade" => 130,
         "ManufacturingSpec" => 170,
+        "ProductStatus" => 90,
+        "LengthStatus" => 90,
         "Shift" => 80,
         "Operator" => 100,
         "EquipmentName" => 120,
@@ -417,6 +423,8 @@
             newRow.TagNo = source.TagNo;
             newRow.PlantGrade = source.PlantGrade;
             newRow.ManufacturingSpec = source.ManufacturingSpec;
+            newRow.ProductStatus = source.ProductStatus;
+            newRow.LengthStatus = source.LengthStatus;
             newRow.Shift = source.Shift;
             newRow.Operator = source.Operator;
             newRow.EquipmentName = source.EquipmentName;
@@ -440,6 +448,8 @@
         row.TagNo = source.TagNo;
         row.PlantGrade = source.PlantGrade;
         row.ManufacturingSpec = source.ManufacturingSpec;
+        row.ProductStatus = source.ProductStatus;
+        row.LengthStatus = source.LengthStatus;
         row.Shift = source.Shift;
         row.Operator = source.Operator;
         row.EquipmentName = source.EquipmentName;
@@ -463,6 +473,13 @@
                 errors.Add($"第{i + 1}行：制造规格不能为空");
             if (string.IsNullOrWhiteSpace(r.PlantGrade))
                 errors.Add($"第{i + 1}行：工厂牌号不能为空");
+            if (r.LengthStatus == "定尺")
+            {
+                if (r.FinishedCutLength == null)
+                    errors.Add($"第{i + 1}行：长度状态为定尺时，成品长度不能为空");
+                if (r.PostCutQuantity == null)
+                    errors.Add($"第{i + 1}行：长度状态为定尺时，切后支数不能为空");
+            }
             if (!DateTime.TryParse(r.ExecDate, out _))
                 errors.Add($"第{i + 1}行：执行日期格式无效（请用 yyyy-MM-dd）");
         }
@@ -544,6 +561,8 @@
             row.TagNo = null;
             row.PlantGrade = null;
             row.ManufacturingSpec = null;
+            row.ProductStatus = null;
+            row.LengthStatus = null;
             StateHasChanged();
             return;
         }
@@ -559,6 +578,8 @@
             row.ManufacturingSpec = pg?.ManufacturingSpec;
         }
 
+        row.ProductStatus = ComputeProductStatus(row, batch);
+        row.LengthStatus = ComputeLengthStatus(row, batch);
         StateHasChanged();
     }
 
@@ -568,6 +589,8 @@
         if (string.IsNullOrWhiteSpace(row.ProcessName))
         {
             row.ManufacturingSpec = null;
+            row.ProductStatus = null;
+            row.LengthStatus = null;
             StateHasChanged();
             return;
         }
@@ -579,6 +602,8 @@
         if (!result.Success || result.Data == null)
         {
             row.ManufacturingSpec = null;
+            row.ProductStatus = null;
+            row.LengthStatus = null;
             StateHasChanged();
             return;
         }
@@ -587,6 +612,80 @@
         var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
         row.ManufacturingSpec = pg?.ManufacturingSpec;
 
+        row.ProductStatus = ComputeProductStatus(row, batch);
+        row.LengthStatus = ComputeLengthStatus(row, batch);
+        StateHasChanged();
+    }
+
+    /// <summary>产类计算：与后端 ProductStatusHelper.Calculate 保持一致的等价逻辑（成品 > 荒管 > 在制）</summary>
+    private static string? ComputeProductStatus(EditRow row, ProductionBatchDetailDto batch)
+    {
+        // 工序名称/制造规格未就绪时不展示
+        if (string.IsNullOrWhiteSpace(row.ProcessName) || string.IsNullOrWhiteSpace(row.ManufacturingSpec))
+            return null;
+
+        // 成品：制造规格 == 成品规格 且 制造物品含"成品"含义
+        if (!string.IsNullOrEmpty(batch.Specification)
+            && string.Equals(row.ManufacturingSpec, batch.Specification, StringComparison.OrdinalIgnoreCase)
+            && IsFinishedMaterialType(batch.ManufacturingItem))
+            return "成品";
+
+        // 荒管：工序名称为"荒管处理"
+        if (row.ProcessName == ProcessNames.RoughTubeProcessing)
+            return "荒管";
+
+        // 荒管：在制修检非末道 + 批次有荒管组 + 规格匹配
+        if (row.ProcessName == ProcessNames.InProcessRepair)
+        {
+            var lastProcessName = batch.ProcessGroups?
+                .OrderByDescending(p => p.SequenceNumber)
+                .Select(p => p.ProcessName)
+                .FirstOrDefault();
+            if (row.ProcessName != lastProcessName)
+            {
+                var hasRoughTube = batch.ProcessGroups?.Any(p => p.ProcessName == ProcessNames.RoughTubeProcessing) == true;
+                if (hasRoughTube)
+                {
+                    var roughTubeSpec = batch.ProcessGroups?
+                        .Where(p => p.ProcessName == ProcessNames.RoughTubeProcessing)
+                        .Select(p => p.ManufacturingSpec)
+                        .FirstOrDefault();
+                    if (roughTubeSpec != null && row.ManufacturingSpec == roughTubeSpec)
+                        return "荒管";
+                }
+            }
+        }
+
+        return "在制";
+    }
+
+    private static bool IsFinishedMaterialType(MaterialType mt) =>
+        mt == MaterialType.OrderFinished || mt == MaterialType.Finished
+        || mt == MaterialType.CriticalFinished || mt == MaterialType.SpecialDeliveryStatus;
+
+    /// <summary>长度状态计算：工段为"断切"且产类为"成品"时，依据批次填充其长度状态（中文），其余为空</summary>
+    private static string? ComputeLengthStatus(EditRow row, ProductionBatchDetailDto batch)
+    {
+        if (row.SectionName == SectionDefs.Cut && row.ProductStatus == "成品")
+            return EnumHelper.GetDisplayName(batch.LengthStatus);
+        return null;
+    }
+
+    /// <summary>工段名称变更 → 重算长度状态（断切成品时依据批次填充）</summary>
+    private async Task OnSectionNameChangedAsync(EditRow row)
+    {
+        if (string.IsNullOrWhiteSpace(row.BatchNo))
+            return;
+
+        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
+        if (!result.Success || result.Data == null)
+        {
+            row.LengthStatus = null;
+            StateHasChanged();
+            return;
+        }
+
+        row.LengthStatus = ComputeLengthStatus(row, result.Data);
         StateHasChanged();
     }
 
@@ -648,7 +747,7 @@
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(5, "Value", r.SectionName);
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.SectionName = v ?? ""));
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.SectionName = v ?? ""; await OnSectionNameChangedAsync(r); }));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
                     foreach (var sn in _allSectionOptions)
@@ -769,6 +868,8 @@
                 builder.AddAttribute(5, "Format", "G29");
                 builder.AddAttribute(6, "Value", r.FinishedCutLength);
                 builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.FinishedCutLength = v));
+                // 仅长度状态为"定尺"时可填写，否则只读（始终绑定，确保定尺时解除只读）
+                builder.AddAttribute(8, "ReadOnly", r.LengthStatus != "定尺");
                 builder.CloseComponent();
                 break;
             case "PostCutQuantity":
@@ -779,6 +880,19 @@
                 builder.AddAttribute(5, "HideSpinButtons",true);
                 builder.AddAttribute(5, "Value", r.PostCutQuantity);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.PostCutQuantity = v));
+                // 仅长度状态为"定尺"时可填写，否则只读（始终绑定，确保定尺时解除只读）
+                builder.AddAttribute(8, "ReadOnly", r.LengthStatus != "定尺");
+                builder.CloseComponent();
+                break;
+            case "LengthStatus":
+                // 长度状态：断切成品时自动从批次填充，只读展示
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "ReadOnly", true);
+                builder.AddAttribute(5, "Value", r.LengthStatus);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.LengthStatus = v));
                 builder.CloseComponent();
                 break;
             case "TagNo":
@@ -797,6 +911,17 @@
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(5, "Value",r.PlantGrade);
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.PlantGrade = v));
+                builder.CloseComponent();
+                break;
+            case "ProductStatus":
+                // 产类：由批次+工序自动计算，只读展示
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "ReadOnly", true);
+                builder.AddAttribute(5, "Value", r.ProductStatus);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.ProductStatus = v));
                 builder.CloseComponent();
                 break;
             case "Remark":

@@ -93,6 +93,10 @@
                     已选择: @selectedFile.Name (@(selectedFile.Size.ToString("N0")) bytes)
                 </MudText>
 
+                <MudText Class="mt-3" Typo="Typo.body2" Color="Color.Secondary">
+                    导入模式：覆盖（含新增）——有 ID 行按 ID 覆盖，无 ID 行新增（ID 留空即新增）
+                </MudText>
+
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.UploadFile"
@@ -122,10 +126,14 @@
                 </MudText>
 
                 <MudText Typo="Typo.body2" Class="mb-2">
-                    共 @previewResult.TotalRows 行，
-                    有效 @previewResult.ValidCount 行，
-                    错误 @previewResult.ErrorCount 行，
-                    重复 @previewResult.DuplicateCount 条
+                    共 @previewResult.TotalRows 行：
+                    <MudChip Size="Size.Small" Color="Color.Success">新增 @previewResult.AddCount</MudChip>
+                    <MudChip Size="Size.Small" Color="Color.Warning">覆盖 @previewResult.OverwriteCount</MudChip>
+                    @if (previewResult.InvalidIdCount > 0)
+                    {
+                        <MudChip Size="Size.Small" Color="Color.Error">ID不存在 @previewResult.InvalidIdCount</MudChip>
+                    }
+                    错误 @previewResult.ErrorCount
                 </MudText>
 
                 @if (previewResult.ErrorCount > 0 || previewResult.DuplicateCount > 0)
@@ -172,11 +180,9 @@
 
                 @if (previewResult.ValidCount > 0)
                 {
-                    <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">导入策略</MudText>
-                                    <MudSelect T="string" Label="导入策略" @bind-Value="importStrategy" Class="mb-3" Variant="Variant.Outlined">
-                        <MudSelectItem Value="@("skip")">跳过已存在的记录（保留原数据）</MudSelectItem>
-                        <MudSelectItem Value="@("overwrite")">覆盖已存在的记录（用Excel数据替换）</MudSelectItem>
-                    </MudSelect>
+                    <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">
+                        当前模式：覆盖（含新增）——有 ID 覆盖，无 ID 新增
+                    </MudText>
 
                     <MudButton Variant="Variant.Filled"
                                Color="Color.Success"
@@ -209,7 +215,7 @@
                 {
                     <MudText Typo="Typo.body2" Color="Color.Success" Class="mb-2">
                         导入完成: 共 @importResult.TotalRows 行，成功 @importResult.SuccessCount 行，
-                        失败 @importResult.FailedCount 行，策略: @(importResult.Strategy == "overwrite" ? "覆盖" : "跳过")
+                        失败 @importResult.FailedCount 行
                     </MudText>
                 }
 
@@ -269,7 +275,6 @@
     private IBrowserFile? selectedFile;
     private ImportPreviewResult? previewResult;
     private ImportResult? importResult;
-    private string importStrategy = "skip";
     private bool isLoading;
     private bool isPreviewing;
     private bool isImporting;
@@ -429,7 +434,7 @@
             await selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
             var fileData = ms.ToArray();
 
-            var result = await DataExchangeSvc.ImportAsync(selectedEntity, fileData, selectedFile.Name, importStrategy);
+            var result = await DataExchangeSvc.ImportAsync(selectedEntity, fileData, selectedFile.Name);
             if (result.Success && result.Data != null)
             {
                 importResult = result.Data;

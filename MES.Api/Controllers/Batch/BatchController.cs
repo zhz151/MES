@@ -231,6 +231,16 @@ public class BatchController : ControllerBase
         return Ok(ApiResponse<List<DefectRateBatchDto>>.Ok(result, "查询成功"));
     }
 
+    // ========== 制造状态回填 ==========
+
+    [HttpPost("populate-manufacturing-status")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<ApiResponse<int>>> PopulateManufacturingStatus()
+    {
+        var count = await _service.PopulateManufacturingStatusAsync();
+        return Ok(ApiResponse<int>.Ok(count, $"已回填 {count} 个批次的制造状态"));
+    }
+
     // ========== 工单号验证 ==========
 
     [HttpGet("verify-workorders")]

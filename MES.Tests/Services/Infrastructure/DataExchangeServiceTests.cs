@@ -97,7 +97,7 @@ public class DataExchangeServiceTests : TestBase
         var def = DataExchangeRegistry.Registry["ProductionBatch"];
         var headers = def.Columns.Select(c => c.Header).ToList();
 
-        headers.Should().Contain("有效投料疑问");
+        headers.Should().Contain("投料变更");
         headers.Should().Contain("当前工段完工");
         headers.Should().Contain("剩余工量(天)");
     }
@@ -119,7 +119,7 @@ public class DataExchangeServiceTests : TestBase
     {
         var def = DataExchangeRegistry.Registry["ProductionBatch"];
 
-        def.Columns.First(c => c.Header == "有效投料疑问").IsSystem.Should().BeTrue();
+        def.Columns.First(c => c.Header == "投料变更").IsSystem.Should().BeTrue();
         def.Columns.First(c => c.Header == "当前工段完工").IsSystem.Should().BeTrue();
         def.Columns.First(c => c.Header == "剩余工量(天)").IsSystem.Should().BeTrue();
     }
@@ -149,8 +149,10 @@ public class DataExchangeServiceTests : TestBase
         using var package = new ExcelPackage(new MemoryStream(bytes));
         var sheet = package.Workbook.Worksheets[0];
         sheet.Should().NotBeNull();
-        sheet.Cells[1, 1].Value.Should().Be("仓库编码");
-        sheet.Cells[1, 2].Value.Should().Be("仓库名称");
+        // 模板含 ID 系统列（第1列，与"下载数据"列完全一致）
+        sheet.Cells[1, 1].Value.Should().Be("ID");
+        sheet.Cells[1, 2].Value.Should().Be("仓库编码");
+        sheet.Cells[1, 3].Value.Should().Be("仓库名称");
     }
 
     [Fact]
@@ -165,8 +167,10 @@ public class DataExchangeServiceTests : TestBase
         using var package = new ExcelPackage(new MemoryStream(bytes));
         var sheet = package.Workbook.Worksheets[0];
         sheet.Should().NotBeNull();
-        sheet.Cells[1, 1].Value.Should().Be("客户编码");
-        sheet.Cells[1, 2].Value.Should().Be("客户单位");
+        // 模板含 ID 系统列（第1列，与"下载数据"列完全一致）
+        sheet.Cells[1, 1].Value.Should().Be("ID");
+        sheet.Cells[1, 2].Value.Should().Be("客户编码");
+        sheet.Cells[1, 3].Value.Should().Be("客户单位");
     }
 
     [Fact]
@@ -189,9 +193,9 @@ public class DataExchangeServiceTests : TestBase
 
         using var package = new ExcelPackage(new MemoryStream(bytes));
         var sheet = package.Workbook.Worksheets[0];
-        // 第2行应有示例数据
-        var sampleValue = sheet.Cells[2, 1].Value;
-        sampleValue.Should().NotBeNull();
+        // 第2行应有示例数据：ID 列（第1列）留空，业务列（第2列起）有示例值
+        sheet.Cells[2, 1].Value.Should().BeNull();
+        sheet.Cells[2, 2].Value.Should().NotBeNull();
     }
 
     // ========== ExportAsync ==========
@@ -212,9 +216,12 @@ public class DataExchangeServiceTests : TestBase
         var sheet = package.Workbook.Worksheets[0];
         // 表头 + 2行数据 = 3行
         sheet.Dimension.Rows.Should().Be(3);
-        sheet.Cells[2, 1].Value.Should().Be("WH001");
-        sheet.Cells[2, 2].Value.Should().Be("测试仓库");
-        sheet.Cells[3, 1].Value.Should().Be("WH002");
+        // 导出含 ID 系统列（第1列），业务列从第2列开始
+        sheet.Cells[2, 1].Value.ToString().Should().Be("1");
+        sheet.Cells[2, 2].Value.Should().Be("WH001");
+        sheet.Cells[2, 3].Value.Should().Be("测试仓库");
+        sheet.Cells[3, 1].Value.ToString().Should().Be("2");
+        sheet.Cells[3, 2].Value.Should().Be("WH002");
     }
 
     [Fact]
@@ -358,7 +365,7 @@ public class DataExchangeServiceTests : TestBase
     }
 
     [Fact]
-    public async Task ImportAsync_仓库_基础导入_skip策略()
+    public async Task ImportAsync_仓库_基础导入()
     {
         var ctx = CreateDbContext();
         var svc = CreateTestableService(ctx);
@@ -366,7 +373,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("仓库档案", new() { "仓库编码", "仓库名称", "显示顺序", "是否启用" },
             new() { new() { "WH001", "一号仓库", "1", "是" } });
 
-        var result = await svc.ImportAsync("Warehouse", bytes, "skip", "test");
+        var result = await svc.ImportAsync("Warehouse", bytes, "test");
 
         result.SuccessCount.Should().Be(1);
         result.HasRolledBack.Should().BeFalse();
@@ -389,7 +396,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("仓库档案", new() { "仓库编码", "仓库名称", "显示顺序", "是否启用" },
             new() { new() { "WH001", "新名称", "2", "是" } });
 
-        var result = await svc.ImportAsync("Warehouse", bytes, "overwrite", "test");
+        var result = await svc.ImportAsync("Warehouse", bytes, "test");
 
         result.SuccessCount.Should().Be(1);
         result.HasRolledBack.Should().BeFalse();
@@ -400,25 +407,20 @@ public class DataExchangeServiceTests : TestBase
     }
 
     [Fact]
-    public async Task ImportAsync_仓库_跳过重复()
+    public async Task ImportAsync_仓库_带ID但ID不存在_报错()
     {
         var ctx = CreateDbContext();
-        ctx.Warehouses.Add(new Warehouse { Code = "WH001", Name = "原始名称", SortOrder = 1, IsActive = true });
-        await ctx.SaveChangesAsync();
-
         var svc = CreateTestableService(ctx);
 
-        var bytes = CreateTestExcel("仓库档案", new() { "仓库编码", "仓库名称", "显示顺序", "是否启用" },
-            new() { new() { "WH001", "跳过不应更新", "2", "是" } });
+        // 模板含 ID 列：填写库中不存在的 ID → 报错（防静默变新增导致重复）
+        var bytes = CreateTestExcel("仓库档案", new() { "ID", "仓库编码", "仓库名称", "显示顺序", "是否启用" },
+            new() { new() { "9999", "WH001", "不存在ID", "1", "是" } });
 
-        var result = await svc.ImportAsync("Warehouse", bytes, "skip", "test");
+        var result = await svc.ImportAsync("Warehouse", bytes, "test");
 
         result.SuccessCount.Should().Be(0);
-        result.Errors.Should().BeEmpty();
+        result.Errors.Should().Contain(e => e.Message.Contains("ID 为 9999"));
         result.HasRolledBack.Should().BeFalse();
-
-        var saved = await ctx.Warehouses.FirstAsync(w => w.Code == "WH001");
-        saved.Name.Should().Be("原始名称");
     }
 
     [Fact]
@@ -434,7 +436,7 @@ public class DataExchangeServiceTests : TestBase
                 new() { "WH003", "三号仓库", "3", "否" },
             });
 
-        var result = await svc.ImportAsync("Warehouse", bytes, "skip", "test");
+        var result = await svc.ImportAsync("Warehouse", bytes, "test");
 
         result.SuccessCount.Should().Be(3);
         var count = await ctx.Warehouses.CountAsync();
@@ -451,7 +453,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("仓库档案", new() { "仓库编码", "仓库名称", "显示顺序", "是否启用" },
             new() { new() { "WH001", "无备注仓库", "1", "是" } });
 
-        var result = await svc.ImportAsync("Warehouse", bytes, "skip", "test");
+        var result = await svc.ImportAsync("Warehouse", bytes, "test");
 
         result.SuccessCount.Should().Be(1);
         result.HasRolledBack.Should().BeFalse();
@@ -466,7 +468,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("客户档案", new() { "客户编码", "客户单位", "业务员", "状态", "备注" },
             new() { new() { "C001", "测试客户", "张三", "启用", "" } });
 
-        var result = await svc.ImportAsync("CustomerProfile", bytes, "skip", "test");
+        var result = await svc.ImportAsync("CustomerProfile", bytes, "test");
 
         result.SuccessCount.Should().Be(1);
         var saved = await ctx.CustomerProfiles.FirstAsync(c => c.CustomerCode == "C001");
@@ -482,7 +484,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("牌号对照", new() { "标准牌号", "工厂牌号", "密度(g/cm³)", "特殊材料" },
             new() { new() { "Q345B", "Q345B", "7.85", "是" } });
 
-        var result = await svc.ImportAsync("StandardGradeMapping", bytes, "skip", "test");
+        var result = await svc.ImportAsync("StandardGradeMapping", bytes, "test");
 
         result.SuccessCount.Should().Be(1);
         var saved = await ctx.StandardGradeMappings.FirstAsync(s => s.StandardGrade == "Q345B");
@@ -501,7 +503,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("供应商档案", new() { "供应商名称", "物料分类", "是否启用" },
             new() { new() { "测试供应商", "不锈钢管", "是" } });
 
-        var result = await svc.ImportAsync("SupplierProfile", bytes, "skip", "test");
+        var result = await svc.ImportAsync("SupplierProfile", bytes, "test");
 
         result.SuccessCount.Should().Be(1);
         var saved = await ctx.SupplierProfiles.FirstAsync(s => s.SupplierName == "测试供应商");
@@ -527,7 +529,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("供应商档案", new() { "供应商名称", "物料分类", "是否启用" },
             new() { new() { "新供应商", "不锈钢管", "是" } });
 
-        var result = await svc.ImportAsync("SupplierProfile", bytes, "skip", "test");
+        var result = await svc.ImportAsync("SupplierProfile", bytes, "test");
 
         result.SuccessCount.Should().Be(1);
         var saved = await ctx.SupplierProfiles.FirstAsync(s => s.SupplierName == "新供应商");
@@ -543,7 +545,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("物料", new() { "物料分类", "厂内钢种", "名义规格", "是否启用" },
             new() { new() { "管坯", "304", "Φ65", "是" } });
 
-        var result = await svc.ImportAsync("Material", bytes, "skip", "test");
+        var result = await svc.ImportAsync("Material", bytes, "test");
 
         result.SuccessCount.Should().Be(1);
         var saved = await ctx.Materials.FirstAsync(m => m.MaterialCategory == "管坯");
@@ -561,7 +563,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("设备", new() { "设备编号", "设备名称", "型号规格", "是否需点检", "是否需保养", "生命周期", "作用类型" },
             new() { new() { "EQ001", "冷拔机", "LB-100", "是", "是", "在用", "主生产设备" } });
 
-        var result = await svc.ImportAsync("Equipment", bytes, "skip", "test");
+        var result = await svc.ImportAsync("Equipment", bytes, "test");
 
         result.SuccessCount.Should().Be(1);
         var saved = await ctx.Equipment.FirstAsync(e => e.EquipmentCode == "EQ001");
@@ -584,12 +586,11 @@ public class DataExchangeServiceTests : TestBase
                 new() { "WH002", "二号", "2", "是" },
             });
 
-        var result = await svc.ImportAsync("Warehouse", bytes, "skip", "test");
+        var result = await svc.ImportAsync("Warehouse", bytes, "test");
 
         result.TotalRows.Should().Be(2);
         result.SuccessCount.Should().Be(2);
         result.FailedCount.Should().Be(0);
-        result.Strategy.Should().Be("skip");
         result.Errors.Should().BeEmpty();
     }
 
@@ -636,7 +637,7 @@ public class DataExchangeServiceTests : TestBase
             },
         });
 
-        var result = await svc.ImportAsync("ProductionBatch", bytes, "skip", "test");
+        var result = await svc.ImportAsync("ProductionBatch", bytes, "test");
 
         result.HasRolledBack.Should().BeFalse();
         result.Errors.Should().BeEmpty();
@@ -676,7 +677,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("客户档案", new() { "客户编码", "客户单位", "业务员", "状态" },
             new() { new() { "C001", "测试客户", "张三", "未知状态" } });
 
-        var result = await svc.ImportAsync("CustomerProfile", bytes, "skip", "test");
+        var result = await svc.ImportAsync("CustomerProfile", bytes, "test");
 
         result.SuccessCount.Should().Be(0);
         result.FailedCount.Should().Be(1);
@@ -693,7 +694,7 @@ public class DataExchangeServiceTests : TestBase
         var bytes = CreateTestExcel("销售订单", new() { "订单号", "签订日期", "客户编码", "状态" },
             new() { new() { "SO2026001", "2026-01-15", "C999", "已确认" } });
 
-        var result = await svc.ImportAsync("SalesOrder", bytes, "skip", "test");
+        var result = await svc.ImportAsync("SalesOrder", bytes, "test");
 
         // FK 解析失败 → 行级错误，SuccessCount = 0
         result.SuccessCount.Should().Be(0);

@@ -42,7 +42,7 @@ public class DataExchangeEnumRoundTripTests
         (typeof(MaterialType), "RoundBar", "圆棒"),
         (typeof(OutboundType), "ProductionPick", "生产领用"),
         (typeof(CustomerStatus), "Active", "启用"),
-        (typeof(RequirementType), "Normal", "常规"),
+        (typeof(RequirementType), "Normal", "普通"),
         (typeof(NotificationType), "NewMaterial", "新物料确认"),
         (typeof(BatchStatus), "None", "未产"),
         (typeof(PurchaseOrderStatus), "Open", "已下单"),

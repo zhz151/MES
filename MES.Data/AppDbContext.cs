@@ -64,6 +64,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<InProcessReworkPlan> InProcessReworkPlans { get; set; } = null!;
     public DbSet<InProcessReworkPlanProcessGroup> InProcessReworkPlanProcessGroups { get; set; } = null!;
     public DbSet<InMainWorkOrderPlan> InMainWorkOrderPlans { get; set; } = null!;
+    public DbSet<FixedLengthWorkOrder> FixedLengthWorkOrders { get; set; } = null!;
 
     // ========== 仓库上下文 ==========
 
@@ -182,6 +183,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureInProcessReworkPlan(builder);
         ConfigureInProcessReworkPlanProcessGroup(builder);
         ConfigureInMainWorkOrderPlan(builder);
+        ConfigureFixedLengthWorkOrder(builder);
 
         // ========== 物料上下文 ==========
         ConfigureMaterial(builder);

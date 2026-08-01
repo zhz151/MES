@@ -90,4 +90,21 @@ public class WorkOrderExecutionService
             return ApiResponse<WorkOrderExecutionRefreshResultDto>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// 获取全部定尺工单定尺数据列表（联通视图，主号级按长度实时聚合）
+    /// </summary>
+    public async Task<ApiResponse<List<FixedLengthWorkOrderListDto>>> GetFixedLengthListAsync()
+    {
+        try
+        {
+            var url = $"{ApiEndpoints.FixedLengthWorkOrder}/list";
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<FixedLengthWorkOrderListDto>>>(url);
+            return response ?? ApiResponse<List<FixedLengthWorkOrderListDto>>.Fail("获取定尺数据失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<FixedLengthWorkOrderListDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }

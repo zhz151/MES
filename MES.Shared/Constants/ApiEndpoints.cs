@@ -25,6 +25,7 @@ public static class ApiEndpoints
     // ===== WorkOrder 工单 =====
     public const string WorkOrder = "api/workorder";
     public const string WorkOrderExecution = "api/workorder-execution";
+    public const string FixedLengthWorkOrder = "api/fixed-length-work-order";
     public const string MaterialPlan = "api/material-plan";
     public const string Notification = "api/notification";
 

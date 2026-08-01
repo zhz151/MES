@@ -80,6 +80,7 @@ public static class ProductionRecordPrintHelper
                     _ => ""
                 },
                 ["ProductStatus"] = r.ProductStatus ?? "在制",
+                ["LengthStatus"] = EnumHelper.GetDisplayName<LengthStatus>(r.LengthStatus),
                 ["Remark"] = r.Remark ?? "",
                 ["CreatedTime"] = r.CreatedTime.ToString("yyyy-MM-dd HH:mm"),
                 ["UpdatedTime"] = r.UpdatedTime.ToString("yyyy-MM-dd HH:mm")

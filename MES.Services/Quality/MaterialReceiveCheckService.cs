@@ -168,6 +168,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             DeliveryState = isLastProcessGroup
                 ? EnumHelper.TryParse<DeliveryState>(batch?.DeliveryState)
                 : null,
+            ManufacturingStatus = batch?.ManufacturingStatus,
+            InspectionType = m.InspectionType,
             CreatedTime = m.CreatedTime,
             UpdatedTime = m.UpdatedTime
         };
@@ -253,6 +255,10 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         if (exists)
             throw new BusinessException($"该批次工序组「{entity.ProcessName}」已完成成检到料，不能重复创建");
 
+        // 自动判定成检类型（最后检验工序组=正式成检，否则=预成检）
+        var isLast = await IsLastProcessGroupAsync(batch.Id, entity.ProcessGroupId);
+        entity.InspectionType = isLast ? nameof(InspectionType.FormalInspection) : nameof(InspectionType.PreInspection);
+
         _context.MaterialReceiveChecks.Add(entity);
 
         // 批次设为成检
@@ -265,7 +271,6 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         await TryRefreshQualityProcessTrackingAsync(entity.Id);
         await TryRefreshExecutionSummaryAsync(batch.WorkOrderNo);
 
-        var isLast = await IsLastProcessGroupAsync(batch.Id, entity.ProcessGroupId);
         return MapToDto(entity, batch, isLastProcessGroup: isLast);
     }
 
@@ -344,6 +349,12 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             // 用 finalPgId 精确查找对应的工序组（避免 ProcessName / SequenceNumber 取错）
             var finalPg = allGroups.FirstOrDefault(pg => pg.Id == finalPgId) ?? matchedPg;
 
+            // 自动判定成检类型
+            var maxInspForBatch = allGroups
+                .Where(pg => pg.ProductionBatchId == batch.Id)
+                .Max(pg => pg.Inspection!.Value);
+            var isLastBatch = finalPg.Inspection!.Value >= maxInspForBatch;
+
             entities.Add(new MaterialReceiveCheck
             {
                 ProductionBatchId = request.ProductionBatchId,
@@ -356,7 +367,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 IsForceCompleted = false,
                 ProcessGroupId = finalPgId,
                 ProcessName = request.ProcessName ?? finalPg.ProcessName,
-                SequenceNumber = request.SequenceNumber ?? finalPg.Inspection!.Value
+                SequenceNumber = request.SequenceNumber ?? finalPg.Inspection!.Value,
+                InspectionType = isLastBatch ? nameof(InspectionType.FormalInspection) : nameof(InspectionType.PreInspection)
             });
         }
 
@@ -529,6 +541,12 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                     case "DeliveryState":
                         queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch.DeliveryState));
                         break;
+                    case "ManufacturingStatus":
+                        queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch.ManufacturingStatus));
+                        break;
+                    case "InspectionType":
+                        queryable = queryable.Where(m => filter.Values.Contains(m.InspectionType));
+                        break;
                     default:
                         remainingFilters.Add(filter);
                         break;
@@ -585,6 +603,10 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             ("salesman", true) => queryable.OrderByDescending(m => m.ProductionBatch.Salesman ?? ""),
             ("deliverystate", false) => queryable.OrderBy(m => m.ProductionBatch.DeliveryState ?? ""),
             ("deliverystate", true) => queryable.OrderByDescending(m => m.ProductionBatch.DeliveryState ?? ""),
+            ("manufacturingsstatus", false) => queryable.OrderBy(m => m.ProductionBatch.ManufacturingStatus ?? ""),
+            ("manufacturingsstatus", true) => queryable.OrderByDescending(m => m.ProductionBatch.ManufacturingStatus ?? ""),
+            ("inspectiontype", false) => queryable.OrderBy(m => m.InspectionType ?? ""),
+            ("inspectiontype", true) => queryable.OrderByDescending(m => m.InspectionType ?? ""),
             ("processname", false) => queryable.OrderBy(m => m.ProcessName ?? ""),
             ("processname", true) => queryable.OrderByDescending(m => m.ProcessName ?? ""),
             ("sequencenumber", false) => queryable.OrderBy(m => m.SequenceNumber),
@@ -602,7 +624,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 m.Id, m.ProductionBatchId, m.ReceiveDate, m.Shift, m.Checker,
                 m.Remark, m.DataSource,
                 m.BatchNo, m.IsForceCompleted,
-                m.ProcessGroupId, m.ProcessName, m.SequenceNumber,
+                m.ProcessGroupId, m.ProcessName, m.SequenceNumber, m.InspectionType,
                 m.CreatedTime, m.UpdatedTime,
                 // 通过 ProductionBatch 导航属性获取批次冗余字段
                 ManufacturingItem = m.ProductionBatch.ManufacturingItem,
@@ -616,7 +638,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 ProductionType = m.ProductionBatch.ProductionType,
                 LengthStatus = m.ProductionBatch.LengthStatus,
                 Salesman = m.ProductionBatch.Salesman,
-                DeliveryState = m.ProductionBatch.DeliveryState
+                DeliveryState = m.ProductionBatch.DeliveryState,
+                ManufacturingStatus = m.ProductionBatch.ManufacturingStatus
             })
             .ToListAsync();
 
@@ -634,6 +657,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             ProcessGroupId = m.ProcessGroupId,
             ProcessName = m.ProcessName,
             SequenceNumber = m.SequenceNumber,
+            InspectionType = m.InspectionType,
             ManufacturingItem = ParseMaterialType(m.ManufacturingItem),
             TagNo = m.TagNo,
             WorkOrderNo = m.WorkOrderNo,
@@ -646,6 +670,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             LengthStatus = EnumHelper.TryParse<LengthStatus>(m.LengthStatus),
             Salesman = m.Salesman,
             DeliveryState = EnumHelper.TryParse<DeliveryState>(m.DeliveryState),
+            ManufacturingStatus = m.ManufacturingStatus,
             CreatedTime = m.CreatedTime,
             UpdatedTime = m.UpdatedTime
         }).ToList();
@@ -688,7 +713,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             {
                 rc.Id, rc.ProductionBatchId, rc.BatchNo, rc.DataSource,
                 rc.IsForceCompleted, rc.ReceiveDate, rc.Shift, rc.Checker, rc.Remark,
-                rc.ProcessGroupId, rc.ProcessName, rc.SequenceNumber,
+                rc.ProcessGroupId, rc.ProcessName, rc.SequenceNumber, rc.InspectionType,
                 rc.CreatedTime, rc.UpdatedTime,
                 // 通过 ProductionBatch 导航属性
                 ManufacturingItem = rc.ProductionBatch.ManufacturingItem,
@@ -702,7 +727,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 ProductionType = rc.ProductionBatch.ProductionType,
                 LengthStatus = rc.ProductionBatch.LengthStatus,
                 Salesman = rc.ProductionBatch.Salesman,
-                DeliveryState = rc.ProductionBatch.DeliveryState
+                DeliveryState = rc.ProductionBatch.DeliveryState,
+                ManufacturingStatus = rc.ProductionBatch.ManufacturingStatus
             })
             .ToListAsync();
 
@@ -716,6 +742,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             ProcessGroupId = rc.ProcessGroupId,
             ProcessName = rc.ProcessName,
             SequenceNumber = rc.SequenceNumber,
+            InspectionType = rc.InspectionType,
             ManufacturingItem = ParseMaterialType(rc.ManufacturingItem),
             TagNo = rc.TagNo,
             WorkOrderNo = rc.WorkOrderNo,
@@ -728,6 +755,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             LengthStatus = EnumHelper.TryParse<LengthStatus>(rc.LengthStatus),
             Salesman = rc.Salesman,
             DeliveryState = EnumHelper.TryParse<DeliveryState>(rc.DeliveryState),
+            ManufacturingStatus = rc.ManufacturingStatus,
             ReceiveDate = rc.ReceiveDate,
             Shift = rc.Shift,
             Checker = rc.Checker,
@@ -913,7 +941,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 m.Id, m.ProductionBatchId, m.ReceiveDate, m.Shift, m.Checker,
                 m.Remark, m.DataSource,
                 m.BatchNo, m.IsForceCompleted,
-                m.ProcessGroupId, m.ProcessName, m.SequenceNumber,
+                m.ProcessGroupId, m.ProcessName, m.SequenceNumber, m.InspectionType,
                 m.CreatedTime, m.UpdatedTime,
                 // 通过 ProductionBatch 导航属性
                 ManufacturingItem = m.ProductionBatch.ManufacturingItem,
@@ -927,7 +955,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 ProductionType = m.ProductionBatch.ProductionType,
                 LengthStatus = m.ProductionBatch.LengthStatus,
                 Salesman = m.ProductionBatch.Salesman,
-                DeliveryState = m.ProductionBatch.DeliveryState
+                DeliveryState = m.ProductionBatch.DeliveryState,
+                ManufacturingStatus = m.ProductionBatch.ManufacturingStatus
             })
             .ToListAsync();
 
@@ -945,6 +974,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             ProcessGroupId = m.ProcessGroupId,
             ProcessName = m.ProcessName,
             SequenceNumber = m.SequenceNumber,
+            InspectionType = m.InspectionType,
             ManufacturingItem = ParseMaterialType(m.ManufacturingItem),
             TagNo = m.TagNo,
             WorkOrderNo = m.WorkOrderNo,
@@ -957,6 +987,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             LengthStatus = EnumHelper.TryParse<LengthStatus>(m.LengthStatus),
             Salesman = m.Salesman,
             DeliveryState = EnumHelper.TryParse<DeliveryState>(m.DeliveryState),
+            ManufacturingStatus = m.ManufacturingStatus,
             CreatedTime = m.CreatedTime,
             UpdatedTime = m.UpdatedTime
         }).ToList();

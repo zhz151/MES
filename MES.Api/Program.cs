@@ -242,6 +242,7 @@ builder.Services.AddScoped<IStandardRegisterService, StandardRegisterService>();
 
 // ========== 读模型上下文 ==========
 builder.Services.AddScoped<IWorkOrderExecutionService, WorkOrderExecutionService>();
+builder.Services.AddScoped<IFixedLengthWorkOrderService, FixedLengthWorkOrderService>();
 
 // ========== Scheduling 上下文 ==========
 builder.Services.AddScoped<IOrderDemandAdjustmentService, OrderDemandAdjustmentService>();

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using MES.Core.Enums;
 using MES.Data.Entities.Batch;
 
@@ -30,6 +31,13 @@ public class FinalInspection : BaseEntity
     /// </summary>
     public int ProductionBatchId { get; set; }
 
+    // ========== 成检类型 ==========
+
+    /// <summary>
+    /// 成检类型（PreInspection=预成检，FormalInspection=正式成检）
+    /// </summary>
+    public string? InspectionType { get; set; }
+
     // ========== 执行信息 ==========
 
     /// <summary>
@@ -47,6 +55,20 @@ public class FinalInspection : BaseEntity
     /// </summary>
     public string? Operator { get; set; }
 
+    // ========== 长度信息 ==========
+
+    /// <summary>
+    /// 定尺长度（批次长度状态=定尺时填写）
+    /// </summary>
+    [MaxLength(50)]
+    public string? FixedLength { get; set; }
+
+    /// <summary>
+    /// 非定尺长度范围（批次长度状态&lt;&gt;定尺时填写）
+    /// </summary>
+    [MaxLength(100)]
+    public string? NonFixedLengthRange { get; set; }
+
     // ========== 数量/重量 ==========
 
     /// <summary>
@@ -55,9 +77,9 @@ public class FinalInspection : BaseEntity
     public int? Quantity { get; set; }
 
     /// <summary>
-    /// 检验重量(kg)
+    /// 理论检验重量(kg，整数)
     /// </summary>
-    public decimal? Weight { get; set; }
+    public int? Weight { get; set; }
 
     // ========== 检验结果 ==========
 
@@ -67,9 +89,9 @@ public class FinalInspection : BaseEntity
     public int? QualifiedQuantity { get; set; }
 
     /// <summary>
-    /// 合格重量(kg)
+    /// 理论合格重量(kg，整数)
     /// </summary>
-    public decimal? QualifiedWeight { get; set; }
+    public int? QualifiedWeight { get; set; }
 
     /// <summary>
     /// 合格中让步放行支数
@@ -100,6 +122,23 @@ public class FinalInspection : BaseEntity
     /// 不合格情况描述
     /// </summary>
     public string? DefectDescription { get; set; }
+
+    // ========== 不合格处理重量 ==========
+
+    /// <summary>
+    /// 次品返整重量(kg，整数)
+    /// </summary>
+    public int? DefectReworkWeight { get; set; }
+
+    /// <summary>
+    /// 次品入库重量(kg，整数)
+    /// </summary>
+    public int? DefectWarehouseWeight { get; set; }
+
+    /// <summary>
+    /// 次品报废重量(kg，整数)
+    /// </summary>
+    public int? DefectScrapWeight { get; set; }
 
     // ========== 尺寸检验专用字段（仅InspectionItem=Dimension时有效） ==========
 

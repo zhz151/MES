@@ -170,6 +170,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -205,6 +206,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -259,6 +261,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -315,6 +318,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             ProductionRatio = 1,
             SourcePlantGrade = "20#",
@@ -352,6 +356,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -400,6 +405,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -441,6 +447,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -491,6 +498,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -539,6 +547,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -577,6 +586,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -627,6 +637,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -675,6 +686,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -690,7 +702,6 @@ public class BatchServiceTests : TestBase
         {
             ProcessName = "冷拔",
             ManufacturingSpec = "100*10",
-            ManufacturingMultiple = 1,
             ColdRollDraw = 1,
             Degrease = 2
         });
@@ -730,6 +741,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -781,6 +793,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -818,6 +831,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -863,6 +877,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -882,6 +897,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -932,6 +948,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -994,6 +1011,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -1036,6 +1054,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -1082,6 +1101,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -1115,6 +1135,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -1157,6 +1178,7 @@ public class BatchServiceTests : TestBase
             PlantGrade = "20#",
             Specification = "219×8",
             DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
             MaterialName = PipeManufacturingType.SeamlessPipe,
             LengthStatus = LengthStatus.NonFixed,
             TotalWeight = 1000m,
@@ -1205,8 +1227,8 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-1", ProductionType = ProductionType.RoughTube, ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = DeliveryState.SolutionAnnealedAndPickled, MaterialName = PipeManufacturingType.SeamlessPipe, LengthStatus = LengthStatus.NonFixed, TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
-        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-2", ProductionType = ProductionType.RoughTube, ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = DeliveryState.SolutionAnnealedAndPickled, MaterialName = PipeManufacturingType.SeamlessPipe, LengthStatus = LengthStatus.NonFixed, TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-1", ProductionType = ProductionType.RoughTube, ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = DeliveryState.SolutionAnnealedAndPickled, ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled, MaterialName = PipeManufacturingType.SeamlessPipe, LengthStatus = LengthStatus.NonFixed, TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CS-2", ProductionType = ProductionType.RoughTube, ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = DeliveryState.SolutionAnnealedAndPickled, ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled, MaterialName = PipeManufacturingType.SeamlessPipe, LengthStatus = LengthStatus.NonFixed, TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
 
         var entity1 = await ctx.ProductionBatches.FindAsync(b1.Id);
         entity1!.CurrentSpec = "B-Spec";
@@ -1227,8 +1249,8 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-1", ProductionType = ProductionType.RoughTube, ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = DeliveryState.SolutionAnnealedAndPickled, MaterialName = PipeManufacturingType.SeamlessPipe, LengthStatus = LengthStatus.NonFixed, TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
-        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-2", ProductionType = ProductionType.RoughTube, ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = DeliveryState.SolutionAnnealedAndPickled, MaterialName = PipeManufacturingType.SeamlessPipe, LengthStatus = LengthStatus.NonFixed, TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        var b1 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-1", ProductionType = ProductionType.RoughTube, ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = DeliveryState.SolutionAnnealedAndPickled, ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled, MaterialName = PipeManufacturingType.SeamlessPipe, LengthStatus = LengthStatus.NonFixed, TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        var b2 = await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "SORT-CORR-2", ProductionType = ProductionType.RoughTube, ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = DeliveryState.SolutionAnnealedAndPickled, ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled, MaterialName = PipeManufacturingType.SeamlessPipe, LengthStatus = LengthStatus.NonFixed, TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
 
         var entity1 = await ctx.ProductionBatches.FindAsync(b1.Id);
         entity1!.CorrespondingSpec = "B-Corr";
@@ -1249,7 +1271,7 @@ public class BatchServiceTests : TestBase
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
-        await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "CREATOR-TEST", ProductionType = ProductionType.RoughTube, ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = DeliveryState.SolutionAnnealedAndPickled, MaterialName = PipeManufacturingType.SeamlessPipe, LengthStatus = LengthStatus.NonFixed, TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
+        await svc.CreateAsync(new CreateProductionBatchRequest { WorkOrderNo = "非工单", TagNo = "CREATOR-TEST", ProductionType = ProductionType.RoughTube, ManufacturingItem = MaterialType.OrderFinished, PlantGrade = "20#", Specification = "219×8", DeliveryState = DeliveryState.SolutionAnnealedAndPickled, ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled, MaterialName = PipeManufacturingType.SeamlessPipe, LengthStatus = LengthStatus.NonFixed, TotalWeight = 1000m, ProductionRatio = 1, SourcePlantGrade = "20#", SourceSpecification = "219×8", SourceLengthStatus = LengthStatus.NonFixed, InputWeight = 1200m, InputQuantity = 100 });
         var entity = await ctx.ProductionBatches.FirstAsync(b => b.TagNo == "CREATOR-TEST");
         entity.CreatedBy = "测试创建人";
         await ctx.SaveChangesAsync();
@@ -1508,6 +1530,7 @@ public class BatchServiceTests : TestBase
             MaterialName = PipeManufacturingType.SeamlessPipe,
             SettlementMethod = SettlementMethod.Theoretical,
             DeliveryState = DeliveryState.Hard,
+            ManufacturingStatus = DeliveryState.Hard,
             LengthStatus = LengthStatus.NonFixed,
             TechnicalRequirements = RequirementType.Normal,
             PlantGrade = "304",

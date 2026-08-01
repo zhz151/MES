@@ -335,7 +335,7 @@ public class PicklingService : IPicklingService
             Remark = request.Remark,
             DataSource = request.DataSource ?? "MANUAL",
             ProductStatus = ProductStatusHelper.Calculate(
-                request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem, pgList)
+                request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem, pgList, batch.Specification)
         };
 
         _context.PicklingInRecords.Add(entity);
@@ -584,7 +584,7 @@ public class PicklingService : IPicklingService
                 Remark = request.Remark,
                 DataSource = request.DataSource ?? "MANUAL",
                 ProductStatus = ProductStatusHelper.Calculate(
-                    request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem, pgList)
+                    request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem, pgList, batch.Specification)
             });
         }
 

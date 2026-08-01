@@ -31,6 +31,7 @@ public class ProductionBatchDetailDto
     public string? CorrespondingSpec { get; set; }
     public string? NextProcess { get; set; }
     public bool? CurrentSectionCompleted { get; set; }
+    public bool? HasInputChange { get; set; }
     public int RemainingWorkDays { get; set; }
     public int TotalWorkDays { get; set; }
     public string? Remark { get; set; }
@@ -88,7 +89,27 @@ public class ProductionBatchDetailDto
     public string? SourceProductionNo { get; set; }
     public int? CurrentValidQty { get; set; }
     public int? CurrentValidWeight { get; set; }
+    public int? TheoreticalOutputQty { get; set; }
+    public int? TheoreticalOutputWeight { get; set; }
     public decimal? TheoreticalUnitWeight { get; set; }
+
+    // ========== 成切跟踪 ==========
+
+    /// <summary>成切需求：成品工序组（制造规格=成品规格）内是否有「断切」工段</summary>
+    public bool CutRequirement { get; set; }
+    public string CutRequirementDisplay => CutRequirement ? "是" : "否";
+
+    /// <summary>成切执行：需求=否→略；成品工序组内已有断切生产记录→是；否则→否</summary>
+    public bool? CutExecution { get; set; }
+    public string? CutExecutionDisplay => CutExecution switch { true => "是", false => "否", null => "略" };
+
+    /// <summary>成切支数：断切生产记录 PostCutQuantity（切后支数）汇总；无→略</summary>
+    public int? CutQuantity { get; set; }
+    public string? CutQuantityDisplay => CutQuantity.HasValue ? CutQuantity.Value.ToString() : "略";
+
+    /// <summary>成切存疑：需求/执行=否→略；|成切支数−理论成品支|/理论成品支&gt;5%→疑问；否则→正常</summary>
+    public bool? CutDoubt { get; set; }
+    public string? CutDoubtDisplay => CutDoubt switch { true => "疑问", false => "正常", null => "略" };
 
     // ========== 审计字段 ==========
     public DateTimeOffset CreatedTime { get; set; }

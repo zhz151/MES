@@ -69,6 +69,13 @@ public class MaterialReceiveCheck : BaseEntity
     /// </summary>
     public bool IsForceCompleted { get; set; }
 
+    // ========== 成检类型 ==========
+
+    /// <summary>
+    /// 成检类型（PreInspection=预成检，FormalInspection=正式成检）
+    /// </summary>
+    public string? InspectionType { get; set; }
+
     // ========== 导航属性 ==========
 
     /// <summary>
