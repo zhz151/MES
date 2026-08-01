@@ -2963,8 +2963,8 @@ public class WorkOrderService : IWorkOrderService
                     continue;
                 }
 
-                // 用关键字段匹配：标准号、交货状态、牌号、规格、长度状态
-                var matchedItems = orderItems.Where(oi =>
+                // 关键字段粗筛：标准号、交货状态、牌号、规格、长度状态
+                var candidates = orderItems.Where(oi =>
                     (oi.StandardNo == wo.StandardCode || (oi.StandardNo == null && wo.StandardCode == null)) &&
                     oi.DeliveryState == wo.DeliveryState &&
                     oi.PlantGrade == wo.PlantGrade &&
@@ -2972,19 +2972,28 @@ public class WorkOrderService : IWorkOrderService
                     oi.LengthStatus == wo.LengthStatus
                 ).ToList();
 
-                if (matchedItems.Count == 0)
+                if (candidates.Count == 0)
                 {
                     result.UnmatchedCount++;
                     result.Errors.Add($"工单 {wo.WorkOrderNo}: 订单 {wo.SalesOrderNo} 下未匹配到项次");
                     continue;
                 }
 
-                // 按顺序去重收集 Sequence
-                var sequences = matchedItems
-                    .Select(oi => oi.Sequence)
-                    .Distinct()
-                    .OrderBy(s => s)
-                    .ToList();
+                // 用 TotalQuantity 约束求解唯一项次组合。
+                // 原实现把"字段全同"的候选项次全量写入，导致同主号多工单被覆盖为主号全量项次；
+                // 现改为：候选子集的数量和必须恰好等于工单 TotalQuantity，且组合唯一才写入，否则标记需人工。
+                if (!TryFindUniqueItemSet(candidates, wo.TotalQuantity, out var sequences, out var ambiguous))
+                {
+                    result.UnmatchedCount++;
+                    result.Errors.Add($"工单 {wo.WorkOrderNo}: 无项次组合数量之和满足 TotalQuantity={wo.TotalQuantity}");
+                    continue;
+                }
+                if (ambiguous)
+                {
+                    result.AmbiguousCount++;
+                    result.Errors.Add($"工单 {wo.WorkOrderNo}: 存在多个项次组合满足 TotalQuantity={wo.TotalQuantity}，需人工确认");
+                    continue;
+                }
 
                 wo.OrderItemIds = string.Join(",", sequences);
                 result.SuccessCount++;
@@ -2993,7 +3002,7 @@ public class WorkOrderService : IWorkOrderService
             // 4. 批量保存
             await _context.SaveChangesAsync();
 
-            var msg = $"回填完成：共处理 {result.TotalProcessed} 条，成功 {result.SuccessCount} 条，未匹配 {result.UnmatchedCount} 条";
+            var msg = $"回填完成：共处理 {result.TotalProcessed} 条，成功 {result.SuccessCount} 条，未匹配 {result.UnmatchedCount} 条，需人工 {result.AmbiguousCount} 条";
             _logger.LogInformation(msg);
 
             return ApiResponse<BackfillResultDto>.Ok(result, msg);
@@ -3004,6 +3013,96 @@ public class WorkOrderService : IWorkOrderService
             result.Errors.Add($"系统异常: {ex.Message}");
             return ApiResponse<BackfillResultDto>.Fail("回填失败: " + ex.Message);
         }
+    }
+
+    /// <summary>
+    /// 用 TotalQuantity 约束求解唯一项次组合。
+    /// 将候选项次按数量归组（同数量项次视为同类型，消除置换爆炸），
+    /// 深度优先枚举各类型取几个，使数量和恰好等于 target。
+    /// </summary>
+    /// <param name="candidates">同订单下关键字段匹配到的候选项次</param>
+    /// <param name="target">工单 TotalQuantity</param>
+    /// <param name="seqList">唯一组合的 Sequence 列表（升序）</param>
+    /// <param name="ambiguous">true=存在多个不同组合，需人工确认</param>
+    /// <returns>true=找到组合（唯一或歧义）；false=无任何组合满足</returns>
+    private static bool TryFindUniqueItemSet(
+        IReadOnlyList<MES.Data.Entities.Order.OrderItem> candidates,
+        int target,
+        out List<int> seqList,
+        out bool ambiguous)
+    {
+        seqList = new List<int>();
+        ambiguous = false;
+
+        if (target <= 0) return false;
+        // 候选过多时枚举可能爆炸，直接交人工处理
+        if (candidates.Count > 40) return false;
+
+        // 按数量归组，qty 降序便于剪枝
+        var qtyGroups = candidates
+            .Where(oi => oi.Quantity.HasValue && oi.Quantity.Value > 0)
+            .GroupBy(oi => oi.Quantity!.Value)
+            .OrderByDescending(g => g.Key)
+            .Select(g => new
+            {
+                Qty = g.Key,
+                Seqs = g.Select(oi => oi.Sequence).OrderBy(s => s).ToArray(),
+            })
+            .ToArray();
+
+        if (qtyGroups.Length == 0) return false;
+
+        // 前缀最大可达和（剪枝）
+        var maxReach = new int[qtyGroups.Length + 1];
+        for (int i = qtyGroups.Length - 1; i >= 0; i--)
+            maxReach[i] = maxReach[i + 1] + qtyGroups[i].Qty * qtyGroups[i].Seqs.Length;
+
+        var bestVec = new int[qtyGroups.Length];
+        var bestSeq = new List<int>();
+        int found = 0;
+        const int limit = 2;
+
+        void Dfs(int idx, int remain, int[] vec)
+        {
+            if (found >= limit) return;
+            if (idx == qtyGroups.Length)
+            {
+                if (remain == 0)
+                {
+                    found++;
+                    if (found == 1)
+                    {
+                        Array.Copy(vec, bestVec, vec.Length);
+                        // 具体化：同数量项次等价，同类内取升序前 N 个
+                        for (int i = 0; i < vec.Length; i++)
+                        {
+                            var g = qtyGroups[i];
+                            for (int k = 0; k < vec[i]; k++) bestSeq.Add(g.Seqs[k]);
+                        }
+                        bestSeq.Sort();
+                    }
+                }
+                return;
+            }
+            var group = qtyGroups[idx];
+            // 剩余类型全部用上也凑不够 target，剪枝
+            if (maxReach[idx] < remain) return;
+            int maxK = Math.Min(group.Seqs.Length, remain / group.Qty);
+            for (int k = 0; k <= maxK; k++)
+            {
+                vec[idx] = k;
+                Dfs(idx + 1, remain - k * group.Qty, vec);
+                if (found >= limit) return;
+            }
+            vec[idx] = 0;
+        }
+
+        Dfs(0, target, new int[qtyGroups.Length]);
+
+        if (found == 0) return false;
+        if (found > 1) { ambiguous = true; return true; }
+        seqList = bestSeq;
+        return true;
     }
 
     #endregion
