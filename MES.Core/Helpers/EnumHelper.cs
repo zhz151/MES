@@ -229,6 +229,10 @@ public static class EnumHelper
         Register<BatchInputType>(("Warehouse", "仓库投料"),
                                  ("SplitFromNumber", "编号拆分"),
                                  ("Other", "其它"));
+
+        Register<CutDoubtType>(("QuantityMismatch", "疑问-数量"),
+                                ("MissingRecords", "疑问-缺少"),
+                                ("Normal", "正常"));
     }
 
     private static void Register<T>(params (string value, string display)[] mappings) where T : Enum

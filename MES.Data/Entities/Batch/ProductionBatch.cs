@@ -398,10 +398,11 @@ public class ProductionBatch : BaseEntity
     public int? CutQuantity { get; set; }
 
     /// <summary>
-    /// 成切存疑：需求=否 或 执行=否 → null（略）；
-    /// |成切支数−理论成品支|/理论成品支 &gt; 5% → true（疑问）；否则 → false（正常）；理论成品支不可得 → null（略）
+    /// 成切存疑：无需求 或 执行=否未到成检/完成 或 理论成品支不可得 → null（略）；
+    /// 有断切记录且 |成切支数−理论成品支|/理论成品支 &gt; 5% → QuantityMismatch（疑问-数量），≤ 5% → Normal（正常）；
+    /// 需求=是 且 执行=否 但批次已到成检/完成 且 非强制完成 → MissingRecords（疑问-缺少，即缺少成品切割记录）
     /// </summary>
-    public bool? CutDoubt { get; set; }
+    public CutDoubtType? CutDoubt { get; set; }
 
     // ========== 导航属性 ==========
 

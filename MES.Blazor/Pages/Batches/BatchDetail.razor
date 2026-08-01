@@ -194,7 +194,10 @@
                     <MudText Typo="Typo.caption" Class="detail-label font-weight-bold">成切存疑</MudText>
                     @if (batch.CutDoubt.HasValue)
                     {
-                        <MudChip Size="Size.Small" Color="@(batch.CutDoubt.Value ? Color.Error : Color.Success)">@(batch.CutDoubt.Value ? "疑问" : "正常")</MudChip>
+                        var cdVal = batch.CutDoubt.Value;
+                        var cdColor = cdVal switch { CutDoubtType.QuantityMismatch => Color.Error, CutDoubtType.MissingRecords => Color.Warning, CutDoubtType.Normal => Color.Success, _ => Color.Default };
+                        var cdText = cdVal switch { CutDoubtType.QuantityMismatch => "疑问-数量", CutDoubtType.MissingRecords => "疑问-缺少", CutDoubtType.Normal => "正常", _ => "略" };
+                        <MudChip Size="Size.Small" Color="@cdColor">@cdText</MudChip>
                     }
                     else
                     {

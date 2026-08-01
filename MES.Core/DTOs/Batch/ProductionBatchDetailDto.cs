@@ -107,9 +107,15 @@ public class ProductionBatchDetailDto
     public int? CutQuantity { get; set; }
     public string? CutQuantityDisplay => CutQuantity.HasValue ? CutQuantity.Value.ToString() : "略";
 
-    /// <summary>成切存疑：需求/执行=否→略；|成切支数−理论成品支|/理论成品支&gt;5%→疑问；否则→正常</summary>
-    public bool? CutDoubt { get; set; }
-    public string? CutDoubtDisplay => CutDoubt switch { true => "疑问", false => "正常", null => "略" };
+    /// <summary>成切存疑：略/正常/疑问-数量/疑问-缺少</summary>
+    public CutDoubtType? CutDoubt { get; set; }
+    public string? CutDoubtDisplay => CutDoubt switch
+    {
+        CutDoubtType.QuantityMismatch => "疑问-数量",
+        CutDoubtType.MissingRecords => "疑问-缺少",
+        CutDoubtType.Normal => "正常",
+        _ => "略"
+    };
 
     // ========== 审计字段 ==========
     public DateTimeOffset CreatedTime { get; set; }

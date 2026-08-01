@@ -10,6 +10,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Shared;
+using MES.Core.Enums;
 using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
 
@@ -118,7 +119,7 @@ public partial class Batches
 
         // ===== G4: 成品切割跟踪 =====
         new() { Key = "CutDoubt",       Label = "成切存疑", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 4, GroupName = "成品切割跟踪",
-            EnumOptions = new() { new("True", "疑问"), new("False", "正常") } },
+            EnumOptions = new() { new("QuantityMismatch", "疑问-数量"), new("MissingRecords", "疑问-缺少"), new("Normal", "正常") } },
         new() { Key = "CutRequirement", Label = "成切需求", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 4, GroupName = "成品切割跟踪",
             EnumOptions = new() { new("True", "是"), new("False", "否") } },
         new() { Key = "CutExecution",   Label = "成切执行", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 4, GroupName = "成品切割跟踪",
@@ -986,10 +987,24 @@ public partial class Batches
                 if (item.CutDoubt.HasValue)
                 {
                     var cd = item.CutDoubt.Value;
+                    var cdColor = cd switch
+                    {
+                        CutDoubtType.QuantityMismatch => Color.Error,
+                        CutDoubtType.MissingRecords => Color.Warning,
+                        CutDoubtType.Normal => Color.Success,
+                        _ => Color.Default
+                    };
+                    var cdText = cd switch
+                    {
+                        CutDoubtType.QuantityMismatch => "疑问-数量",
+                        CutDoubtType.MissingRecords => "疑问-缺少",
+                        CutDoubtType.Normal => "正常",
+                        _ => "略"
+                    };
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
-                    builder.AddAttribute(2, "Color", cd ? Color.Error : Color.Success);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, cd ? "疑问" : "正常")));
+                    builder.AddAttribute(2, "Color", cdColor);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, cdText)));
                     builder.CloseComponent();
                 }
                 else

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using MES.Core.Interfaces.DataExchange;
 using MES.Core.Constants;
+using MES.Core.Enums;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Warehouse;
 
@@ -334,7 +335,7 @@ public static class DataExchangeRegistry
             new("成切需求", "CutRequirement", typeof(bool), isRequired: false, isSystem: true),
             new("成切执行", "CutExecution", typeof(bool?), isRequired: false, isSystem: true),
             new("成切支数", "CutQuantity", typeof(int?), isRequired: false, isSystem: true),
-            new("成切存疑", "CutDoubt", typeof(bool?), isRequired: false, isSystem: true),
+            new("成切存疑", "CutDoubt", typeof(CutDoubtType?), isRequired: false, isSystem: true),
         }),
 
         ["PurchaseOrder"] = new EntityDef("物料-采购订单", "物料-采购订单", typeof(MES.Data.Entities.Materials.PurchaseOrder), 7, "OrderNo", new List<ColumnDef>

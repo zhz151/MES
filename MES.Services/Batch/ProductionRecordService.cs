@@ -1614,13 +1614,22 @@ public class ProductionRecordService : IProductionRecordService
             : null;
 
         // 成切存疑
-        if (!hasCutSection || cutRecords.Count == 0)
-            batch.CutDoubt = null;
+        if (!hasCutSection)
+            batch.CutDoubt = null; // 无需求 → 略
+        else if (cutRecords.Count == 0)
+        {
+            // 成切执行=否：需求有但无断切记录
+            // 批次已到成检/完成 且 非强制完成 → 疑问-缺少（缺失成品切割记录）
+            var reachedFinishedStage = batch.Status is BatchStatus.InFinalInspection or BatchStatus.Completed;
+            batch.CutDoubt = reachedFinishedStage && !batch.IsForceCompleted
+                ? CutDoubtType.MissingRecords
+                : null;
+        }
         else if (batch.TheoreticalOutputQty.HasValue && batch.TheoreticalOutputQty.Value > 0 && batch.CutQuantity.HasValue)
         {
             var diff = Math.Abs(batch.CutQuantity.Value - batch.TheoreticalOutputQty.Value);
             var ratio = (decimal)diff / batch.TheoreticalOutputQty.Value;
-            batch.CutDoubt = ratio > 0.05m;
+            batch.CutDoubt = ratio > 0.05m ? CutDoubtType.QuantityMismatch : CutDoubtType.Normal;
         }
         else
         {

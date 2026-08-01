@@ -85,7 +85,7 @@ public partial class AppDbContext
             entity.Property(e => e.CutRequirement).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.CutExecution);
             entity.Property(e => e.CutQuantity);
-            entity.Property(e => e.CutDoubt);
+            entity.Property(e => e.CutDoubt).HasConversion<string>().HasMaxLength(20);
 
             // 索引
             entity.HasIndex(e => e.BatchNo).IsUnique().HasDatabaseName("UK_ProductionBatch_BatchNo");

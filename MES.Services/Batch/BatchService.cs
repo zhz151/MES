@@ -2021,7 +2021,7 @@ public class BatchService : IBatchService
             "CutRequirement" => b.CutRequirement,
             "CutExecution" => (object?)b.CutExecution ?? DBNull.Value,
             "CutQuantity" => (object?)b.CutQuantity ?? DBNull.Value,
-            "CutDoubt" => (object?)b.CutDoubt ?? DBNull.Value,
+            "CutDoubt" => b.CutDoubt.HasValue ? EnumHelper.GetDisplayName(b.CutDoubt.Value) : "",
             "RemainingWorkDays" => b.RemainingWorkDays,
             "TotalWorkDays" => b.TotalWorkDays,
 

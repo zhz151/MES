@@ -37,6 +37,8 @@ using Moq;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Batch;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.Warehouse;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
@@ -675,7 +677,7 @@ public class ProductionRecordServiceTests : TestBase
         refreshed.CutRequirement.Should().BeTrue();
         refreshed.CutExecution.Should().BeTrue();
         refreshed.CutQuantity.Should().Be(100);
-        refreshed.CutDoubt.Should().BeFalse(); // |100-100|/100 = 0% ≤ 5% → 正常
+        refreshed.CutDoubt.Should().Be(CutDoubtType.Normal); // |100-100|/100 = 0% ≤ 5% → 正常
     }
 
     [Fact]
@@ -690,7 +692,7 @@ public class ProductionRecordServiceTests : TestBase
         refreshed.CutRequirement.Should().BeTrue();
         refreshed.CutExecution.Should().BeTrue();
         refreshed.CutQuantity.Should().Be(90);
-        refreshed.CutDoubt.Should().BeTrue(); // |90-100|/100 = 10% > 5% → 疑问
+        refreshed.CutDoubt.Should().Be(CutDoubtType.QuantityMismatch); // |90-100|/100 = 10% > 5% → 疑问-数量
     }
 
     [Fact]
@@ -714,7 +716,7 @@ public class ProductionRecordServiceTests : TestBase
     }
 
     [Fact]
-    public async Task RefreshCutTracking_成切执行否_有需求无记录()
+    public async Task RefreshCutTracking_成切执行否_状态在产_未到成检完成_略()
     {
         var ctx = CreateDbContext();
         var batch = await SeedCutBatchAsync(ctx, withCutRecord: false);
@@ -725,7 +727,92 @@ public class ProductionRecordServiceTests : TestBase
         refreshed.CutRequirement.Should().BeTrue();
         refreshed.CutExecution.Should().BeFalse();
         refreshed.CutQuantity.Should().BeNull();
+        // 需求=是、执行=否，但状态仍在产（未到成检/完成）→ 略
         refreshed.CutDoubt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RefreshCutTracking_执行否已达成检_疑问缺少()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutBatchAsync(ctx, withCutRecord: false, batchNo: "BATCH-CUT-MISS");
+        // 成检到料 → 刷新时 hasMaterialCheck=true，批次状态保持"成检"（不被覆盖为在产）
+        var pg = await ctx.ProcessGroups.FirstAsync(p => p.ProductionBatchId == batch.Id);
+        ctx.MaterialReceiveChecks.Add(new MaterialReceiveCheck
+        {
+            ProductionBatchId = batch.Id,
+            ReceiveDate = DateTime.Today,
+            ProcessGroupId = pg.Id,
+            ProcessName = "检验",
+            SequenceNumber = 1,
+            BatchNo = batch.BatchNo
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.InFinalInspection);
+        refreshed.CutRequirement.Should().BeTrue();
+        refreshed.CutExecution.Should().BeFalse();
+        refreshed.CutQuantity.Should().BeNull();
+        // 需求=是、执行=否、已到成检且非强制完成 → 疑问-缺少（缺失成品切割记录）
+        refreshed.CutDoubt.Should().Be(CutDoubtType.MissingRecords);
+    }
+
+    [Fact]
+    public async Task RefreshCutTracking_执行否已完成_疑问缺少()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutBatchAsync(ctx, withCutRecord: false, batchNo: "BATCH-CUT-DONE");
+        // 成检到料 + 仓库入库 → 刷新时批次状态=完成
+        var pg = await ctx.ProcessGroups.FirstAsync(p => p.ProductionBatchId == batch.Id);
+        ctx.MaterialReceiveChecks.Add(new MaterialReceiveCheck
+        {
+            ProductionBatchId = batch.Id,
+            ReceiveDate = DateTime.Today,
+            ProcessGroupId = pg.Id,
+            ProcessName = "检验",
+            SequenceNumber = 1,
+            BatchNo = batch.BatchNo
+        });
+        // 仓库：InventoryBatch.Warehouse 为 required 导航，InMemory 下 Include 需有对应记录
+        var warehouse = new Warehouse
+        {
+            Code = "WH-01",
+            Name = "成品库",
+            SortOrder = 1,
+            IsActive = true
+        };
+        ctx.Warehouses.Add(warehouse);
+        await ctx.SaveChangesAsync();
+        ctx.InventoryBatches.Add(new InventoryBatch
+        {
+            BatchNo = "CK-CUT-DONE",
+            ProductionBatchNo = batch.BatchNo,
+            InboundSource = "生产",
+            SourceName = "内部",
+            MaterialType = batch.ManufacturingItem,
+            PlantGrade = batch.PlantGrade,
+            Specification = batch.Specification,
+            InitialQuantity = 100,
+            InitialWeight = 5000m,
+            RemainingQuantity = 100,
+            RemainingWeight = 5000m,
+            WarehouseId = warehouse.Id,
+            InboundDate = DateTime.Today
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.Completed);
+        refreshed.CutRequirement.Should().BeTrue();
+        refreshed.CutExecution.Should().BeFalse();
+        refreshed.CutQuantity.Should().BeNull();
+        // 需求=是、执行=否、已完成且非强制完成 → 疑问-缺少
+        refreshed.CutDoubt.Should().Be(CutDoubtType.MissingRecords);
     }
 
     [Fact]
@@ -741,7 +828,7 @@ public class ProductionRecordServiceTests : TestBase
         refreshed.CutRequirement.Should().BeTrue();
         refreshed.CutExecution.Should().BeTrue();
         refreshed.CutQuantity.Should().Be(100);
-        refreshed.CutDoubt.Should().BeFalse();
+        refreshed.CutDoubt.Should().Be(CutDoubtType.Normal);
     }
 
     [Fact]
@@ -757,7 +844,7 @@ public class ProductionRecordServiceTests : TestBase
         refreshed.CutRequirement.Should().BeTrue();
         refreshed.CutExecution.Should().BeTrue();
         refreshed.CutQuantity.Should().Be(80); // 定尺 → 切后支数 PostCutQuantity
-        refreshed.CutDoubt.Should().BeTrue(); // |80-100|/100 = 20% > 5% → 疑问
+        refreshed.CutDoubt.Should().Be(CutDoubtType.QuantityMismatch); // |80-100|/100 = 20% > 5% → 疑问-数量
     }
 
     [Fact]
@@ -773,7 +860,7 @@ public class ProductionRecordServiceTests : TestBase
         refreshed.CutRequirement.Should().BeTrue();
         refreshed.CutExecution.Should().BeTrue();
         refreshed.CutQuantity.Should().Be(90); // 非定尺 → 加工支数 Quantity
-        refreshed.CutDoubt.Should().BeTrue(); // |90-100|/100 = 10% > 5% → 疑问
+        refreshed.CutDoubt.Should().Be(CutDoubtType.QuantityMismatch); // |90-100|/100 = 10% > 5% → 疑问-数量
     }
 
     [Fact]
