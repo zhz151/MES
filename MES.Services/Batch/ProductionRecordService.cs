@@ -63,6 +63,7 @@ public class ProductionRecordService : IProductionRecordService
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IFixedLengthWorkOrderService _fixedLengthWorkOrderService;
+    private readonly ISectionNameDisplayService _sectionNameDisplay;
     private readonly IMemoryCache _cache;
 
     private sealed record SectionOutsourceInfo(
@@ -85,6 +86,7 @@ public class ProductionRecordService : IProductionRecordService
         IQualityProcessTrackingService qualityProcessTracking,
         IWorkOrderExecutionService workOrderExecutionService,
         IFixedLengthWorkOrderService fixedLengthWorkOrderService,
+        ISectionNameDisplayService sectionNameDisplay,
         IMemoryCache cache)
     {
         _context = context;
@@ -95,6 +97,7 @@ public class ProductionRecordService : IProductionRecordService
         _qualityProcessTracking = qualityProcessTracking;
         _workOrderExecutionService = workOrderExecutionService;
         _fixedLengthWorkOrderService = fixedLengthWorkOrderService;
+        _sectionNameDisplay = sectionNameDisplay;
         _cache = cache;
     }
 
@@ -2820,7 +2823,7 @@ public class ProductionRecordService : IProductionRecordService
             })
             .ToListAsync();
 
-        return ProductionRecordPrintHelper.GenerateBatchPdf(items, columns);
+        return ProductionRecordPrintHelper.GenerateBatchPdf(items, columns, await _sectionNameDisplay.GetSectionNameMapAsync());
     }
 
     public async Task<byte[]> PrintProductionRecordAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? execDateFrom, DateTime? execDateTo)
@@ -2836,7 +2839,7 @@ public class ProductionRecordService : IProductionRecordService
             ExecDateTo = execDateTo
         };
         var paged = await GetAllProductionRecordsAsync(query);
-        return ProductionRecordPrintHelper.GenerateBatchPdf(paged.Items, columns);
+        return ProductionRecordPrintHelper.GenerateBatchPdf(paged.Items, columns, await _sectionNameDisplay.GetSectionNameMapAsync());
     }
 
     /// <summary>

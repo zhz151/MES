@@ -68,6 +68,7 @@ public class ProductionRecordServiceTests : TestBase
             qptMock.Object,
             Mock.Of<IWorkOrderExecutionService>(),
             fixedLengthSvc ?? Mock.Of<IFixedLengthWorkOrderService>(),
+            Mock.Of<ISectionNameDisplayService>(),
             new MemoryCache(new MemoryCacheOptions()));
     }
 

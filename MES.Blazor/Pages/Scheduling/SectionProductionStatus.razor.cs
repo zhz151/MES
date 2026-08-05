@@ -174,7 +174,7 @@ public partial class SectionProductionStatus
                     .Select(val => new ExcelFilterOption
                     {
                         Value = val!,
-                        Display = val!,
+                        Display = col.Key == "SectionName" ? SectionDisplayHelper.GetSectionNameText(val!) : val!,
                         Count = _allItems.Count(x => string.Equals(GetStringValue(x, col.Key), val, StringComparison.OrdinalIgnoreCase))
                     })
                     .ToList();

@@ -44,7 +44,7 @@ namespace MES.Services.Printing;
 /// </summary>
 public static class ProcessCardPrintHelper
 {
-    public static byte[] GeneratePdf(string title, List<ProductionBatch> batches, List<ProcessCardColumnDef> columns, string? companyName = null)
+    public static byte[] GeneratePdf(string title, List<ProductionBatch> batches, List<ProcessCardColumnDef> columns, string? companyName = null, IReadOnlyDictionary<string, string>? sectionNameMap = null)
     {
         var visibleCols = columns.Where(c => c.Visible).ToList();
 
@@ -62,7 +62,7 @@ public static class ProcessCardPrintHelper
 
                     var displayTitle = string.IsNullOrEmpty(companyName) ? title : $"{companyName} - {title}";
                     page.Header().Element(h => ComposeHeader(h, displayTitle, batch));
-                    page.Content().Element(c => ComposeContent(c, batch, groups, visibleCols));
+                    page.Content().Element(c => ComposeContent(c, batch, groups, visibleCols, sectionNameMap));
                 });
             }
         }).GeneratePdf();
@@ -97,14 +97,14 @@ public static class ProcessCardPrintHelper
 
     // ========== 内容 ==========
 
-    private static void ComposeContent(IContainer container, ProductionBatch batch, List<ProcessGroup> groups, List<ProcessCardColumnDef> visibleCols)
+    private static void ComposeContent(IContainer container, ProductionBatch batch, List<ProcessGroup> groups, List<ProcessCardColumnDef> visibleCols, IReadOnlyDictionary<string, string>? sectionNameMap = null)
     {
         container.Column(col =>
         {
             bool anyBlockRendered = false;
 
             // Block 1: 批次基本信息（多列2行）
-            var batchInfoFields = GetBatchInfoFields(batch, visibleCols);
+            var batchInfoFields = GetBatchInfoFields(batch, visibleCols, sectionNameMap);
             if (batchInfoFields.Count > 0)
             {
                 col.Item().Element(c => ComposeBlockTable(c, "批次基本信息", batchInfoFields, rows: 2, rowCols: new[] { 9, 11 },
@@ -343,7 +343,7 @@ public static class ProcessCardPrintHelper
 
     // ========== 字段值提取 ==========
 
-    private static List<(string Label, string Value)> GetBatchInfoFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols)
+    private static List<(string Label, string Value)> GetBatchInfoFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols, IReadOnlyDictionary<string, string>? sectionNameMap = null)
     {
         var map = new Dictionary<string, (string Label, Func<string> Value)>
         {
@@ -358,11 +358,11 @@ public static class ProcessCardPrintHelper
             ["ManufacturingItem"] = ("制造物品", () => EnumHelper.GetDisplayName<MaterialType>(b.ManufacturingItem)),
             ["ManufacturingStatus"] = ("制造状态", () => string.IsNullOrEmpty(b.ManufacturingStatus) ? "-" : (Enum.TryParse<DeliveryState>(b.ManufacturingStatus, out var ms) ? EnumHelper.GetDisplayName(ms) : b.ManufacturingStatus)),
             ["CurrentGroupName"] = ("当前工序", () => b.CurrentGroupName ?? "-"),
-            ["CurrentSectionName"] = ("当前工段", () => SectionKeys.ToChinese(b.CurrentSectionName) ?? "-"),
+            ["CurrentSectionName"] = ("当前工段", () => SectionDisplayText(b.CurrentSectionName, sectionNameMap) ?? "-"),
             ["CurrentEquipmentName"] = ("当前设备", () => b.CurrentEquipmentName ?? "-"),
             ["CurrentOutsource"] = ("当前委外", () => b.CurrentOutsource ?? "-"),
             ["CurrentSpec"] = ("当前规格", () => b.CurrentSpec ?? "-"),
-            ["NextSectionName"] = ("下一工段", () => SectionKeys.ToChinese(b.NextSectionName) ?? "-"),
+            ["NextSectionName"] = ("下一工段", () => SectionDisplayText(b.NextSectionName, sectionNameMap) ?? "-"),
             ["CorrespondingSpec"] = ("对应规格", () => b.CorrespondingSpec ?? "-"),
             ["NextProcess"] = ("下一工序", () => b.NextProcess ?? "-"),
             ["CreatedBy"] = ("创建人", () => b.CreatedBy ?? "-"),
@@ -502,6 +502,16 @@ public static class ProcessCardPrintHelper
                 result.Add((entry.Label, entry.Value()));
         }
         return result;
+    }
+
+    /// <summary>
+    /// 工段 Key → 中文：配置表 map 优先，兜底 SectionKeys 规范中文（未知值原样返回）。
+    /// </summary>
+    private static string? SectionDisplayText(string? keyOrName, IReadOnlyDictionary<string, string>? sectionNameMap)
+    {
+        if (!string.IsNullOrEmpty(keyOrName) && sectionNameMap != null && sectionNameMap.TryGetValue(keyOrName, out var cn))
+            return cn;
+        return SectionKeys.ToChinese(keyOrName);
     }
 
 }

@@ -313,7 +313,7 @@ public partial class SectionOutsources
             _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
             {
                 Value = v,
-                Display = v,
+                Display = kvp.Key is "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" ? SectionDisplayHelper.GetSectionNameText(v) : v,
                 Count = 0
             }).ToList();
         }

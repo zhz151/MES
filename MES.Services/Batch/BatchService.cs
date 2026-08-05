@@ -63,9 +63,10 @@ public class BatchService : IBatchService
     private readonly IOperationLogService _operationLogService;
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
     private readonly INotificationService _notificationService;
+    private readonly ISectionNameDisplayService _sectionNameDisplay;
     private readonly IMemoryCache _cache;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, IMemoryCache cache)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, ISectionNameDisplayService sectionNameDisplay, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
@@ -76,6 +77,7 @@ public class BatchService : IBatchService
         _operationLogService = operationLogService;
         _qualityProcessTracking = qualityProcessTracking;
         _notificationService = notificationService;
+        _sectionNameDisplay = sectionNameDisplay;
         _cache = cache;
     }
 
@@ -2229,7 +2231,7 @@ public class BatchService : IBatchService
             throw new BusinessException("未找到批次数据");
 
         var columns = request.Columns;
-        return ProcessCardPrintHelper.GeneratePdf("工 艺 流 转 卡", entities, columns);
+        return ProcessCardPrintHelper.GeneratePdf("工 艺 流 转 卡", entities, columns, sectionNameMap: await _sectionNameDisplay.GetSectionNameMapAsync());
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()

@@ -28,7 +28,7 @@ public static class ProductionRecordPrintHelper
         return GenerateBatchPdf(new List<ProductionRecordDto> { record }, new List<PrintColumnDef>());
     }
 
-    public static byte[] GenerateBatchPdf(List<ProductionRecordDto> records, List<PrintColumnDef> columns)
+    public static byte[] GenerateBatchPdf(List<ProductionRecordDto> records, List<PrintColumnDef> columns, IReadOnlyDictionary<string, string>? sectionNameMap = null)
     {
         // 如果未指定列，使用默认列
         if (columns == null || columns.Count == 0)
@@ -61,7 +61,7 @@ public static class ProductionRecordPrintHelper
                 ["ProductionMainNo"] = r.ProductionMainNo ?? "",
                 ["ProcessName"] = r.ProcessName,
                 ["ManufacturingSpec"] = r.ManufacturingSpec ?? "",
-                ["SectionName"] = SectionKeys.ToChinese(r.SectionName),
+                ["SectionName"] = SectionDisplayText(r.SectionName, sectionNameMap),
                 ["SequenceNumber"] = r.SequenceNumber.ToString(),
                 ["ExecDate"] = r.ExecDate.ToString("yyyy-MM-dd"),
                 ["EquipmentName"] = r.EquipmentName ?? "",
@@ -93,5 +93,15 @@ public static class ProductionRecordPrintHelper
         }).ToList();
 
         return TablePrintHelper.GeneratePdf("生产记录列表", items, columns);
+    }
+
+    /// <summary>
+    /// 工段 Key → 中文：配置表 map 优先，兜底 SectionKeys 规范中文（未知值原样返回）。
+    /// </summary>
+    private static string SectionDisplayText(string? keyOrName, IReadOnlyDictionary<string, string>? sectionNameMap)
+    {
+        if (!string.IsNullOrEmpty(keyOrName) && sectionNameMap != null && sectionNameMap.TryGetValue(keyOrName, out var cn))
+            return cn;
+        return SectionKeys.ToChinese(keyOrName) ?? "";
     }
 }

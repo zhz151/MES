@@ -387,7 +387,7 @@ public partial class BatchPlans
                     .Where(v => v != null)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(v => v)
-                    .Select(v => new ExcelFilterOption { Value = v!, Display = v!, Count = 0 })
+                    .Select(v => new ExcelFilterOption { Value = v!, Display = col.Key is "CurrentSectionName" or "PendingSectionName" ? SectionDisplayHelper.GetSectionNameText(v!) : v!, Count = 0 })
                     .ToList();
                 _filterContextOptions[col.Key] = distinct;
             }
