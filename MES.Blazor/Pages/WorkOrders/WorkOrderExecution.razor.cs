@@ -93,9 +93,29 @@ public partial class WorkOrderExecution
             new() { Key = "PlanInputConsistency",     Label = "计划实投一致性",  SortKey = "PlanInputConsistency",     Width = "100",                             GroupKey = 3, GroupName = "用料计划" },
         };
 
+        // G21: 次品总量（合格流转之后）
+        var g22 = new List<ColumnDef>
+        {
+            new() { Key = "ProcessInspectionDefectWeight",     Label = "过程检次品总重",  SortKey = "ProcessInspectionDefectWeight",     Width = "90",  GroupKey = 21, GroupName = "次品总量" },
+            new() { Key = "ProcessInspectionReworkWeight",    Label = "过程检返整量",    SortKey = "ProcessInspectionReworkWeight",    Width = "90",  GroupKey = 21, GroupName = "次品总量" },
+            new() { Key = "ProcessInspectionWarehouseWeight", Label = "过程检入库重",    SortKey = "ProcessInspectionWarehouseWeight", Width = "90",  GroupKey = 21, GroupName = "次品总量" },
+            new() { Key = "ProcessInspectionScrapWeight",     Label = "过程检报废重",    SortKey = "ProcessInspectionScrapWeight",     Width = "90",  GroupKey = 21, GroupName = "次品总量" },
+            new() { Key = "FinalInspectionDefectQty",         Label = "成检次品总支",    SortKey = "FinalInspectionDefectQty",         Width = "90",  GroupKey = 21, GroupName = "次品总量" },
+            new() { Key = "FinalInspectionDefectWeight",      Label = "成检次品总重",    SortKey = "FinalInspectionDefectWeight",      Width = "90",  GroupKey = 21, GroupName = "次品总量" },
+            new() { Key = "FinalInspectionReworkWeight",      Label = "成品检返整量",    SortKey = "FinalInspectionReworkWeight",      Width = "90",  GroupKey = 21, GroupName = "次品总量" },
+            new() { Key = "FinalInspectionWarehouseWeight",   Label = "成检入库重",      SortKey = "FinalInspectionWarehouseWeight",   Width = "90",  GroupKey = 21, GroupName = "次品总量" },
+            new() { Key = "FinalInspectionScrapWeight",       Label = "成检报废重",      SortKey = "FinalInspectionScrapWeight",       Width = "90",  GroupKey = 21, GroupName = "次品总量" },
+        };
+
         // G14: 返整执行数据
         var g6 = new List<ColumnDef>
         {
+            new() { Key = "ReworkTheoreticalProduceQty",    Label = "理论返整可产成支", SortKey = "ReworkTheoreticalProduceQty",    Width = "110", GroupKey = 14, GroupName = "返整执行" },
+            new() { Key = "ReworkTheoreticalProduceWeight", Label = "理论返整可产成重", SortKey = "ReworkTheoreticalProduceWeight", Width = "110", GroupKey = 14, GroupName = "返整执行" },
+            new() { Key = "PendingReworkOutputQty",         Label = "待返整成支",      SortKey = "PendingReworkOutputQty",         Width = "90",  GroupKey = 14, GroupName = "返整执行" },
+            new() { Key = "PendingReworkOutputWeight",      Label = "待返整成重",      SortKey = "PendingReworkOutputWeight",      Width = "90",  GroupKey = 14, GroupName = "返整执行" },
+            new() { Key = "ReworkMainNoStatus",             Label = "附返整主号状态", SortKey = "ReworkMainNoStatus",             Width = "110", GroupKey = 14, GroupName = "返整执行" },
+            new() { Key = "ReworkInputConsistency",         Label = "是否必返整",      SortKey = "ReworkInputConsistency",         Width = "100", GroupKey = 14, GroupName = "返整执行" },
             new() { Key = "ReworkInputEndDate",          Label = "返整投料截止日", SortKey = "ReworkInputEndDate",      Width = "120", GroupKey = 14, GroupName = "返整执行" },
             new() { Key = "ReworkBatchCount",            Label = "返整批次数",     SortKey = "ReworkBatchCount",        Width = "80",                          GroupKey = 14, GroupName = "返整执行" },
             new() { Key = "ReworkInputQuantity",         Label = "返整投料支数",   SortKey = "ReworkInputQuantity",    Width = "80", Visible = false,       GroupKey = 14, GroupName = "返整执行" },
@@ -142,37 +162,6 @@ public partial class WorkOrderExecution
             new() { Key = "FlowMaxRemainingWorkDays", Label = "最大剩余工量(天)",SortKey = "FlowMaxRemainingWorkDays", Width = "80",                         GroupKey = 12, GroupName = "有效流转" },
         };
 
-        // G19: 过程不合格
-        var g8 = new List<ColumnDef>
-        {
-            new() { Key = "DefectiveRawQty",         Label = "原料不合格支数", SortKey = "DefectiveRawQty",         Width = "80",                              GroupKey = 19, GroupName = "过程不合格" },
-            new() { Key = "DefectiveRawWeight",      Label = "原料不合格重量", SortKey = "DefectiveRawWeight",      Width = "80", Visible = false,       GroupKey = 19, GroupName = "过程不合格" },
-            new() { Key = "DefectiveOutputQty",      Label = "影响成品支数",   SortKey = "DefectiveOutputQty",      Width = "80",                           GroupKey = 19, GroupName = "过程不合格" },
-            new() { Key = "DefectiveOutputWeight",   Label = "影响成品重量",   SortKey = "DefectiveOutputWeight",   Width = "80", Visible = false,       GroupKey = 19, GroupName = "过程不合格" },
-            new() { Key = "DefectiveRatio",          Label = "不合格占比",     SortKey = "DefectiveRatio",          Width = "80",                                GroupKey = 19, GroupName = "过程不合格" },
-        };
-
-        // G20: 成检不合格
-        var g9 = new List<ColumnDef>
-        {
-            new() { Key = "InspectionStartDate",     Label = "成检起始日",    SortKey = "InspectionStartDate",    Width = "120", GroupKey = 20, GroupName = "成检不合格" },
-            new() { Key = "InspectionEndDate",       Label = "成检截止日",    SortKey = "InspectionEndDate",      Width = "120", GroupKey = 20, GroupName = "成检不合格" },
-            new() { Key = "InspectionDefectQty",     Label = "成检不合格支数", SortKey = "InspectionDefectQty",    Width = "80",                          GroupKey = 20, GroupName = "成检不合格" },
-            new() { Key = "InspectionDefectWeight",  Label = "成检不合格重量", SortKey = "InspectionDefectWeight", Width = "80", Visible = false,       GroupKey = 20, GroupName = "成检不合格" },
-            new() { Key = "InspectionDefectRatio",   Label = "成检不合格占比", SortKey = "InspectionDefectRatio",  Width = "80",                          GroupKey = 20, GroupName = "成检不合格" },
-        };
-
-        // G18: 汇总不合格
-        var g10 = new List<ColumnDef>
-        {
-            new() { Key = "GeneralDefectWeight",     Label = "一般问题重",     SortKey = "GeneralDefectWeight",     Width = "80",                          GroupKey = 18, GroupName = "汇总不合格" },
-            new() { Key = "GeneralDefectRatio",      Label = "一般问题占比",   SortKey = "GeneralDefectRatio",      Width = "80",                          GroupKey = 18, GroupName = "汇总不合格" },
-            new() { Key = "SeriousDefectWeight",     Label = "严重问题重",     SortKey = "SeriousDefectWeight",    Width = "80", Visible = false,       GroupKey = 18, GroupName = "汇总不合格" },
-            new() { Key = "SeriousDefectRatio",      Label = "严重问题占比",   SortKey = "SeriousDefectRatio",      Width = "80",                          GroupKey = 18, GroupName = "汇总不合格" },
-            new() { Key = "ScrapWeight",             Label = "成检报废重量",   SortKey = "ScrapWeight",            Width = "80", Visible = false,       GroupKey = 18, GroupName = "汇总不合格" },
-            new() { Key = "ScrapRatio",              Label = "成检报废占比",   SortKey = "ScrapRatio",              Width = "80",                          GroupKey = 18, GroupName = "汇总不合格" },
-        };
-
         // G15: 成品入库
         var g11 = new List<ColumnDef>
         {
@@ -181,14 +170,14 @@ public partial class WorkOrderExecution
             new() { Key = "WarehousingTotalQty",     Label = "入库总支数",    SortKey = "WarehousingTotalQty",     Width = "80",                        GroupKey = 15, GroupName = "成品入库" },
             new() { Key = "WarehousingTotalWeight",  Label = "入库总重量",    SortKey = "WarehousingTotalWeight",  Width = "80",                        GroupKey = 15, GroupName = "成品入库" },
             new() { Key = "WoWarehousingStatus",     Label = "工单入库状态",    SortKey = "WoWarehousingStatus",     FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无入库"), new("1","入库部分"), new("2","入库完结") }, GroupKey = 15, GroupName = "成品入库" },
-            new() { Key = "MainNoWarehousingStatus", Label = "主号入库状态",  SortKey = "MainNoWarehousingStatus", FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无入库"), new("1","入库部分"), new("2","入库完结") }, Visible = false, GroupKey = 15, GroupName = "成品入库" },
+            new() { Key = "MainNoWarehousingStatus", Label = "主号入库状态",  SortKey = "MainNoWarehousingStatus", FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无入库"), new("1","入库部分"), new("2","入库完结"), new("3","入库超额") }, Visible = false, GroupKey = 15, GroupName = "成品入库" },
             new() { Key = "OrderWarehousingStatus",  Label = "订单入库状态",  SortKey = "OrderWarehousingStatus", FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无入库"), new("1","入库部分"), new("2","入库完结") }, Visible = false, GroupKey = 15, GroupName = "成品入库" },
         };
 
         // G16: 实时关注
         var g12 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 16, GroupName = "实时关注" },
+            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","主号暂停"), new("1","主号完成"), new("2","原料锁定"), new("3","生产执行"), new("4","成品检验") }, GroupKey = 16, GroupName = "实时关注" },
             new() { Key = "TotalRemainingWorkDays",  Label = "工艺剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                        GroupKey = 16, GroupName = "实时关注" },
             new() { Key = "CapacityWorkDays",         Label = "产能工量(天)",  SortKey = "CapacityWorkDays",         Width = "80",                        GroupKey = 16, GroupName = "实时关注" },
             new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 16, GroupName = "实时关注" },
@@ -299,13 +288,11 @@ public partial class WorkOrderExecution
         all.AddRange(g3);   // 11 原始投料
         all.AddRange(g7);   // 12 有效流转
         all.AddRange(g4);   // 13 合格流转
+        all.AddRange(g22);  // 21 次品总量
         all.AddRange(g6);   // 14 返整执行
         all.AddRange(g11);  // 15 成品入库
         all.AddRange(g12);  // 16 实时关注
         all.AddRange(g14);  // 17 在产节点待量
-        all.AddRange(g10);  // 18 汇总不合格
-        all.AddRange(g8);   // 19 过程不合格
-        all.AddRange(g9);   // 20 成检不合格
         return all;
     }
 
@@ -321,23 +308,23 @@ public partial class WorkOrderExecution
         "TotalItemCount", "TotalQuantity",
         "TotalBatchCount", "InputQuantity",
         "ValidBatchCount", "ValidInputQuantity",
+        "ProcessInspectionDefectWeight", "ProcessInspectionReworkWeight",
+        "ProcessInspectionWarehouseWeight", "ProcessInspectionScrapWeight",
+        "FinalInspectionDefectQty", "FinalInspectionDefectWeight",
+        "FinalInspectionReworkWeight", "FinalInspectionWarehouseWeight", "FinalInspectionScrapWeight",
+        "ReworkTheoreticalProduceQty",
         "ReworkBatchCount", "ReworkInputQuantity",
         "FlowTotalBatchCount", "FlowIncompleteBatchCount",
-        "DefectiveRawQty", "InspectionDefectQty",
         "WarehousingTotalQty",
         // 支数 (decimal in DTO)
-        "ValidOutputQty", "ReworkTheoreticalOutputQty",
-        "DefectiveOutputQty",
+        "ValidOutputQty", "ReworkTheoreticalOutputQty", "PendingReworkOutputQty",
         // 米数
         "TotalMeters",
         // 重量
         "TotalWeight",
         "InputWeight", "TheoreticalOutputWeight",
-        "ValidInputWeight", "ValidOutputWeight",
+        "ValidInputWeight", "ValidOutputWeight", "ReworkTheoreticalProduceWeight", "PendingReworkOutputWeight",
         "ReworkInputWeight", "ReworkTheoreticalOutputWeight",
-        "DefectiveRawWeight", "DefectiveOutputWeight",
-        "InspectionDefectWeight",
-        "GeneralDefectWeight", "SeriousDefectWeight", "ScrapWeight",
         "WarehousingTotalWeight",
         // G17: 在产节点待量
         "PendingSectionRoughTube", "PendingSectionWarehouseFix",
@@ -998,6 +985,60 @@ public partial class WorkOrderExecution
                 builder.CloseComponent();
                 break;
 
+            case "ProcessInspectionDefectWeight":
+                builder.AddContent(0, item.ProcessInspectionDefectWeight?.ToString() ?? "-");
+                break;
+            case "ProcessInspectionWarehouseWeight":
+                builder.AddContent(0, item.ProcessInspectionWarehouseWeight?.ToString() ?? "-");
+                break;
+            case "ProcessInspectionScrapWeight":
+                builder.AddContent(0, item.ProcessInspectionScrapWeight?.ToString() ?? "-");
+                break;
+            case "FinalInspectionDefectQty":
+                builder.AddContent(0, item.FinalInspectionDefectQty?.ToString() ?? "-");
+                break;
+            case "FinalInspectionDefectWeight":
+                builder.AddContent(0, item.FinalInspectionDefectWeight?.ToString() ?? "-");
+                break;
+            case "FinalInspectionWarehouseWeight":
+                builder.AddContent(0, item.FinalInspectionWarehouseWeight?.ToString() ?? "-");
+                break;
+            case "FinalInspectionScrapWeight":
+                builder.AddContent(0, item.FinalInspectionScrapWeight?.ToString() ?? "-");
+                break;
+            case "ProcessInspectionReworkWeight":
+                builder.AddContent(0, item.ProcessInspectionReworkWeight?.ToString() ?? "-");
+                break;
+            case "FinalInspectionReworkWeight":
+                builder.AddContent(0, item.FinalInspectionReworkWeight?.ToString() ?? "-");
+                break;
+            case "ReworkTheoreticalProduceQty":
+                builder.AddContent(0, item.ReworkTheoreticalProduceQty?.ToString() ?? "-");
+                break;
+            case "ReworkTheoreticalProduceWeight":
+                builder.AddContent(0, item.ReworkTheoreticalProduceWeight?.ToString("G29") ?? "-");
+                break;
+            case "PendingReworkOutputQty":
+                builder.AddContent(0, item.PendingReworkOutputQty?.ToString("G29") ?? "-");
+                break;
+            case "PendingReworkOutputWeight":
+                builder.AddContent(0, item.PendingReworkOutputWeight?.ToString("G29") ?? "-");
+                break;
+            case "ReworkMainNoStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetValidMainNoStatusColor(item.ReworkMainNoStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ReworkMainNoStatusText)));
+                builder.CloseComponent();
+                break;
+            case "ReworkInputConsistency":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetReworkInputConsistencyColor(item.ReworkInputConsistency));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ReworkInputConsistencyText)));
+                builder.CloseComponent();
+                break;
+
             case "ReworkInputEndDate":
                 builder.AddContent(0, item.ReworkInputEndDate?.ToString("yyyy-MM-dd") ?? "-");
                 break;
@@ -1091,60 +1132,6 @@ public partial class WorkOrderExecution
                 break;
             case "ValidOutputWeight":
                 builder.AddContent(0, ((int)item.ValidOutputWeight).ToString()); // §10.7
-                break;
-
-            // ========== G19: 过程不合格 ==========
-            case "DefectiveRawQty":
-                builder.AddContent(0, item.DefectiveRawQty > 0 ? item.DefectiveRawQty.ToString() : "-");
-                break;
-            case "DefectiveRawWeight":
-                builder.AddContent(0, item.DefectiveRawWeight > 0 ? ((int)item.DefectiveRawWeight).ToString() : "-"); // §10.7
-                break;
-            case "DefectiveOutputQty":
-                builder.AddContent(0, item.DefectiveOutputQty > 0 ? ((int)item.DefectiveOutputQty).ToString() : "-"); // §10.7
-                break;
-            case "DefectiveOutputWeight":
-                builder.AddContent(0, item.DefectiveOutputWeight > 0 ? ((int)item.DefectiveOutputWeight).ToString() : "-"); // §10.7
-                break;
-            case "DefectiveRatio":
-                builder.AddContent(0, item.DefectiveRatio > 0 ? $"{item.DefectiveRatio:F1}%" : "-");
-                break;
-
-            // ========== G20: 成检不合格 ==========
-            case "InspectionStartDate":
-                builder.AddContent(0, item.InspectionStartDate?.ToString("yyyy-MM-dd") ?? "-");
-                break;
-            case "InspectionEndDate":
-                builder.AddContent(0, item.InspectionEndDate?.ToString("yyyy-MM-dd") ?? "-");
-                break;
-            case "InspectionDefectQty":
-                builder.AddContent(0, item.InspectionDefectQty > 0 ? item.InspectionDefectQty.ToString() : "-");
-                break;
-            case "InspectionDefectWeight":
-                builder.AddContent(0, item.InspectionDefectWeight > 0 ? ((int)item.InspectionDefectWeight).ToString() : "-"); // §10.7
-                break;
-            case "InspectionDefectRatio":
-                builder.AddContent(0, item.InspectionDefectRatio > 0 ? $"{item.InspectionDefectRatio:F1}%" : "-");
-                break;
-
-            // ========== G18: 汇总不合格 ==========
-            case "GeneralDefectWeight":
-                builder.AddContent(0, item.GeneralDefectWeight > 0 ? ((int)item.GeneralDefectWeight).ToString() : "-"); // §10.7
-                break;
-            case "GeneralDefectRatio":
-                builder.AddContent(0, item.GeneralDefectRatio > 0 ? $"{item.GeneralDefectRatio:F1}%" : "-");
-                break;
-            case "SeriousDefectWeight":
-                builder.AddContent(0, item.SeriousDefectWeight > 0 ? ((int)item.SeriousDefectWeight).ToString() : "-"); // §10.7
-                break;
-            case "SeriousDefectRatio":
-                builder.AddContent(0, item.SeriousDefectRatio > 0 ? $"{item.SeriousDefectRatio:F1}%" : "-");
-                break;
-            case "ScrapWeight":
-                builder.AddContent(0, item.ScrapWeight > 0 ? ((int)item.ScrapWeight).ToString() : "-"); // §10.7
-                break;
-            case "ScrapRatio":
-                builder.AddContent(0, item.ScrapRatio > 0 ? $"{item.ScrapRatio:F1}%" : "-");
                 break;
 
             // ========== G15: 成品入库 ==========
@@ -1387,6 +1374,7 @@ public partial class WorkOrderExecution
             18 => "col-g18",
             19 => "col-g19",
             20 => "col-g20",
+            21 => "col-g21",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -1417,6 +1405,7 @@ public partial class WorkOrderExecution
             18 => "col-g18-cell",
             19 => "col-g19-cell",
             20 => "col-g20-cell",
+            21 => "col-g21-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
@@ -1430,6 +1419,13 @@ public partial class WorkOrderExecution
         MaterialPlanStatus.TheoreticalSatisfied => Color.Info,
         MaterialPlanStatus.Satisfied => Color.Success,
         MaterialPlanStatus.Excess => Color.Error,
+        _ => Color.Default
+    };
+
+    private static Color GetReworkInputConsistencyColor(string? consistency) => consistency switch
+    {
+        "是" => Color.Error,
+        "否" => Color.Success,
         _ => Color.Default
     };
 
@@ -1454,6 +1450,7 @@ public partial class WorkOrderExecution
         0 => Color.Default,
         1 => Color.Warning,
         2 => Color.Success,
+        3 => Color.Error,
         _ => Color.Default
     };
 
@@ -1470,10 +1467,11 @@ public partial class WorkOrderExecution
 
     private static Color GetScheduleStageColor(int stage) => stage switch
     {
-        0 => Color.Default,
-        1 => Color.Warning,
-        2 => Color.Success,
-        3 => Color.Info,
+        0 => Color.Error,       // 主号暂停
+        1 => Color.Success,     // 主号完成（闭环）
+        2 => Color.Warning,     // 原料锁定（待料）
+        3 => Color.Info,        // 生产执行
+        4 => Color.Primary,     // 成品检验
         _ => Color.Default
     };
 
@@ -1613,6 +1611,7 @@ public partial class WorkOrderExecution
         "ReworkPlanInputStatus" => item.ReworkPlanInputStatusText,
         "InProcessReworkInputStatus" => item.InProcessReworkInputStatusText,
         "InMainInputStatus" => item.InMainInputStatusText,
+        "ReworkInputConsistency" => item.ReworkInputConsistencyText,
         _ => GetRawPropertyValue(item, key)
     };
 
@@ -1643,6 +1642,21 @@ public partial class WorkOrderExecution
         "ActualInputWeight" => item.ActualInputWeight,
         "ActualMainNoInputStatus" => item.ActualMainNoInputStatusText ?? "",
         "PlanInputConsistency" => item.PlanInputConsistencyText ?? "",
+        "ProcessInspectionDefectWeight" => item.ProcessInspectionDefectWeight,
+        "ProcessInspectionReworkWeight" => item.ProcessInspectionReworkWeight,
+        "ProcessInspectionWarehouseWeight" => item.ProcessInspectionWarehouseWeight,
+        "ProcessInspectionScrapWeight" => item.ProcessInspectionScrapWeight,
+        "FinalInspectionDefectQty" => item.FinalInspectionDefectQty,
+        "FinalInspectionDefectWeight" => item.FinalInspectionDefectWeight,
+        "FinalInspectionReworkWeight" => item.FinalInspectionReworkWeight,
+        "FinalInspectionWarehouseWeight" => item.FinalInspectionWarehouseWeight,
+        "FinalInspectionScrapWeight" => item.FinalInspectionScrapWeight,
+        "ReworkTheoreticalProduceQty" => item.ReworkTheoreticalProduceQty,
+        "ReworkTheoreticalProduceWeight" => item.ReworkTheoreticalProduceWeight,
+        "PendingReworkOutputQty" => item.PendingReworkOutputQty,
+        "PendingReworkOutputWeight" => item.PendingReworkOutputWeight,
+        "ReworkMainNoStatus" => item.ReworkMainNoStatusText,
+        "ReworkInputConsistency" => item.ReworkInputConsistency ?? "",
         "ReworkInputEndDate" => item.ReworkInputEndDate,
         "ReworkBatchCount" => item.ReworkBatchCount,
         "ReworkInputQuantity" => item.ReworkInputQuantity,
@@ -1668,22 +1682,6 @@ public partial class WorkOrderExecution
         "ValidInputWeight" => item.ValidInputWeight,
         "ValidOutputQty" => item.ValidOutputQty,
         "ValidOutputWeight" => item.ValidOutputWeight,
-        "DefectiveRawQty" => item.DefectiveRawQty,
-        "DefectiveRawWeight" => item.DefectiveRawWeight,
-        "DefectiveOutputQty" => item.DefectiveOutputQty,
-        "DefectiveOutputWeight" => item.DefectiveOutputWeight,
-        "DefectiveRatio" => item.DefectiveRatio,
-        "InspectionStartDate" => item.InspectionStartDate,
-        "InspectionEndDate" => item.InspectionEndDate,
-        "InspectionDefectQty" => item.InspectionDefectQty,
-        "InspectionDefectWeight" => item.InspectionDefectWeight,
-        "InspectionDefectRatio" => item.InspectionDefectRatio,
-        "GeneralDefectWeight" => item.GeneralDefectWeight,
-        "GeneralDefectRatio" => item.GeneralDefectRatio,
-        "SeriousDefectWeight" => item.SeriousDefectWeight,
-        "SeriousDefectRatio" => item.SeriousDefectRatio,
-        "ScrapWeight" => item.ScrapWeight,
-        "ScrapRatio" => item.ScrapRatio,
         "WarehousingStartDate" => item.WarehousingStartDate,
         "WarehousingEndDate" => item.WarehousingEndDate,
         "WarehousingTotalQty" => item.WarehousingTotalQty,

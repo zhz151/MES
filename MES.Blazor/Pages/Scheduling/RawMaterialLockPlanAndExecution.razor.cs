@@ -68,7 +68,6 @@ public partial class RawMaterialLockPlanAndExecution
         "TheoreticalFinishQty", "TheoreticalFinishWeight",
         "InputQuantity", "InputWeight", "TheoreticalOutputQty", "TheoreticalOutputWeight",
         "FlowTotalBatchCount", "FlowIncompleteBatchCount",
-        "GeneralDefectWeight", "SeriousDefectWeight", "ScrapWeight",
     };
 
     private int _pageSize = 10;
@@ -167,21 +166,10 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "FlowIncompleteBatchCount",   Label = "流转未完成批次数",SortKey = "FlowIncompleteBatchCount",   Width = "80", Visible = false, GroupKey = 7, GroupName = "有效流转" },
         };
 
-        // G10: 汇总不合格
-        var g10 = new List<ColumnDef>
-        {
-            new() { Key = "GeneralDefectWeight",     Label = "一般问题重",     SortKey = "GeneralDefectWeight",     Width = "80",                          GroupKey = 10, GroupName = "汇总不合格" },
-            new() { Key = "GeneralDefectRatio",      Label = "一般问题占比",   SortKey = "GeneralDefectRatio",      Width = "80",                          GroupKey = 10, GroupName = "汇总不合格" },
-            new() { Key = "SeriousDefectWeight",     Label = "严重问题重",     SortKey = "SeriousDefectWeight",     Width = "80", Visible = false,         GroupKey = 10, GroupName = "汇总不合格" },
-            new() { Key = "SeriousDefectRatio",      Label = "严重问题占比",   SortKey = "SeriousDefectRatio",      Width = "80", Visible = false,         GroupKey = 10, GroupName = "汇总不合格" },
-            new() { Key = "ScrapWeight",             Label = "成检报废重量",   SortKey = "ScrapWeight",            Width = "80",                          GroupKey = 10, GroupName = "汇总不合格" },
-            new() { Key = "ScrapRatio",              Label = "成检报废占比",   SortKey = "ScrapRatio",              Width = "80",                          GroupKey = 10, GroupName = "汇总不合格" },
-        };
-
         // G12: 实时关注
         var g12 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","无需排产"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","主号暂停"), new("1","主号完成"), new("2","原料锁定"), new("3","生产执行"), new("4","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "CapacityWorkDays",         Label = "产能工量(天)",  SortKey = "CapacityWorkDays",         Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
@@ -215,7 +203,6 @@ public partial class RawMaterialLockPlanAndExecution
         all.AddRange(g5);
         all.AddRange(g3);
         all.AddRange(g7);
-        all.AddRange(g10);
         all.AddRange(g12);
         all.AddRange(g13);
         all.AddRange(g15);
@@ -550,12 +537,6 @@ public partial class RawMaterialLockPlanAndExecution
             "FlowMaxRemainingWorkDays" => sortDescending ? query.OrderByDescending(x => x.FlowMaxRemainingWorkDays) : query.OrderBy(x => x.FlowMaxRemainingWorkDays),
             "FlowTotalBatchCount" => sortDescending ? query.OrderByDescending(x => x.FlowTotalBatchCount) : query.OrderBy(x => x.FlowTotalBatchCount),
             "FlowIncompleteBatchCount" => sortDescending ? query.OrderByDescending(x => x.FlowIncompleteBatchCount) : query.OrderBy(x => x.FlowIncompleteBatchCount),
-            "GeneralDefectWeight" => sortDescending ? query.OrderByDescending(x => x.GeneralDefectWeight) : query.OrderBy(x => x.GeneralDefectWeight),
-            "GeneralDefectRatio" => sortDescending ? query.OrderByDescending(x => x.GeneralDefectRatio) : query.OrderBy(x => x.GeneralDefectRatio),
-            "SeriousDefectWeight" => sortDescending ? query.OrderByDescending(x => x.SeriousDefectWeight) : query.OrderBy(x => x.SeriousDefectWeight),
-            "SeriousDefectRatio" => sortDescending ? query.OrderByDescending(x => x.SeriousDefectRatio) : query.OrderBy(x => x.SeriousDefectRatio),
-            "ScrapWeight" => sortDescending ? query.OrderByDescending(x => x.ScrapWeight) : query.OrderBy(x => x.ScrapWeight),
-            "ScrapRatio" => sortDescending ? query.OrderByDescending(x => x.ScrapRatio) : query.OrderBy(x => x.ScrapRatio),
             "ScheduleStage" => sortDescending ? query.OrderByDescending(x => x.ScheduleStage) : query.OrderBy(x => x.ScheduleStage),
             "TotalRemainingWorkDays" => sortDescending ? query.OrderByDescending(x => x.TotalRemainingWorkDays) : query.OrderBy(x => x.TotalRemainingWorkDays),
             "CapacityWorkDays" => sortDescending ? query.OrderByDescending(x => x.CapacityWorkDays) : query.OrderBy(x => x.CapacityWorkDays),
@@ -784,12 +765,6 @@ public partial class RawMaterialLockPlanAndExecution
             "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays,
             "FlowTotalBatchCount" => item.FlowTotalBatchCount,
             "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount,
-            "GeneralDefectWeight" => item.GeneralDefectWeight,
-            "GeneralDefectRatio" => item.GeneralDefectRatio,
-            "SeriousDefectWeight" => item.SeriousDefectWeight,
-            "SeriousDefectRatio" => item.SeriousDefectRatio,
-            "ScrapWeight" => item.ScrapWeight,
-            "ScrapRatio" => item.ScrapRatio,
             "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
             "CapacityWorkDays" => item.CapacityWorkDays,
             "UrgencyLevel" => item.UrgencyLevel ?? "",
@@ -1196,26 +1171,6 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddContent(0, item.FlowIncompleteBatchCount > 0 ? item.FlowIncompleteBatchCount.ToString() : "-");
                 break;
 
-            // G10
-            case "GeneralDefectWeight":
-                builder.AddContent(0, item.GeneralDefectWeight > 0 ? ((int)item.GeneralDefectWeight).ToString() : "-");
-                break;
-            case "GeneralDefectRatio":
-                builder.AddContent(0, item.GeneralDefectRatio > 0 ? $"{item.GeneralDefectRatio:F1}%" : "-");
-                break;
-            case "SeriousDefectWeight":
-                builder.AddContent(0, item.SeriousDefectWeight > 0 ? ((int)item.SeriousDefectWeight).ToString() : "-");
-                break;
-            case "SeriousDefectRatio":
-                builder.AddContent(0, item.SeriousDefectRatio > 0 ? $"{item.SeriousDefectRatio:F1}%" : "-");
-                break;
-            case "ScrapWeight":
-                builder.AddContent(0, item.ScrapWeight > 0 ? ((int)item.ScrapWeight).ToString() : "-");
-                break;
-            case "ScrapRatio":
-                builder.AddContent(0, item.ScrapRatio > 0 ? $"{item.ScrapRatio:F1}%" : "-");
-                break;
-
             // G12
             case "ScheduleStage":
                 builder.OpenComponent<MudChip>(0);
@@ -1374,10 +1329,11 @@ public partial class RawMaterialLockPlanAndExecution
 
     private static Color GetScheduleStageColor(int stage) => stage switch
     {
-        0 => Color.Default,
-        1 => Color.Warning,
-        2 => Color.Success,
-        3 => Color.Info,
+        0 => Color.Error,       // 主号暂停
+        1 => Color.Success,     // 主号完成（闭环）
+        2 => Color.Warning,     // 原料锁定（待料）
+        3 => Color.Info,        // 生产执行
+        4 => Color.Primary,     // 成品检验
         _ => Color.Default
     };
 

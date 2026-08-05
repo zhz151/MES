@@ -104,7 +104,8 @@ public static class EnumHelper
                                     ("OrderDeleted", "订单已删除"),
                                     ("OrderChanged", "订单已变更"),
                                     ("WorkOrderChanged", "工单内容已变更"),
-                                    ("BatchPlanAutoCompleted", "批次变更自动完成"));
+                                    ("BatchPlanAutoCompleted", "批次变更自动完成"),
+                                    ("InboundMismatchAlert", "入库状态不一致"));
 
         Register<BatchStatus>(("None", "未产"),
                                ("InProgress", "在产"),

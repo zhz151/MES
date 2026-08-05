@@ -84,10 +84,13 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                 (x.FurnaceNo != null && x.FurnaceNo.Contains(kw)) ||
                 (x.WorkOrderNo != null && x.WorkOrderNo.Contains(kw)) ||
                 (x.SalesOrderNo != null && x.SalesOrderNo.Contains(kw)) ||
+                (x.ProductionMainNo != null && x.ProductionMainNo.Contains(kw)) ||
                 (x.TagNo != null && x.TagNo.Contains(kw)) ||
                 (x.SourceUnit != null && x.SourceUnit.Contains(kw)) ||
                 (x.Salesman != null && x.Salesman.Contains(kw)) ||
-                (x.DeliveryState != null && x.DeliveryState.Contains(kw))
+                (x.DeliveryState != null && x.DeliveryState.Contains(kw)) ||
+                (x.ManufacturingStatus != null && x.ManufacturingStatus.Contains(kw)) ||
+                (x.EndCustomer != null && x.EndCustomer.Contains(kw))
             );
         }
 
@@ -154,13 +157,16 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             .Select(e => new
             {
                 e.Id, e.ProductionBatchId, e.BatchNo,
+                e.InspectionType, e.IsDeliveryStatus,
                 ManufacturingItemStr = e.ManufacturingItem,
-                e.TagNo, e.WorkOrderNo, e.SalesOrderNo, e.SourceUnit, e.FurnaceNo,
+                e.TagNo, e.WorkOrderNo, e.SalesOrderNo, e.ProductionMainNo, e.SourceUnit, e.FurnaceNo,
                 e.PlantGrade, e.Specification,
                 ProductionTypeStr = e.ProductionType,
                 LengthStatusStr = e.LengthStatus,
                 e.ProductionWeight, e.IsForceCompleted, e.Salesman,
+                e.ManufacturingStatus,
                 DeliveryStateStr = e.DeliveryState,
+                e.EndCustomer,
                 e.ReceiveDate, e.Shift, e.Checker, e.CreatedTime, e.UpdatedTime,
                 e.PmiDate, e.VisualDate, e.DimensionDate, e.EndoscopyDate,
                 e.HydroDate, e.UnderwaterPneumaticDate, e.EddyCurrentDate,
@@ -178,10 +184,13 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             Id = e.Id,
             ProductionBatchId = e.ProductionBatchId,
             BatchNo = e.BatchNo,
+            InspectionType = e.InspectionType,
+            IsDeliveryStatus = e.IsDeliveryStatus,
             ManufacturingItem = ParseMaterialType(e.ManufacturingItemStr),
             TagNo = e.TagNo,
             WorkOrderNo = e.WorkOrderNo,
             SalesOrderNo = e.SalesOrderNo,
+            ProductionMainNo = e.ProductionMainNo,
             SourceUnit = e.SourceUnit,
             FurnaceNo = e.FurnaceNo,
             PlantGrade = e.PlantGrade,
@@ -191,7 +200,9 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             ProductionWeight = e.ProductionWeight,
             IsForceCompleted = e.IsForceCompleted,
             Salesman = e.Salesman,
+            ManufacturingStatus = e.ManufacturingStatus,
             DeliveryState = e.DeliveryStateStr != null ? Enum.Parse<DeliveryState>(e.DeliveryStateStr) : null,
+            EndCustomer = e.EndCustomer,
             ReceiveDate = e.ReceiveDate,
             Shift = e.Shift != null && Enum.TryParse<ShiftType>(e.Shift, out var s) ? s : (ShiftType?)null,
             Checker = e.Checker,
@@ -248,6 +259,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                     e.FurnaceNo,
                     e.WorkOrderNo,
                     e.SalesOrderNo,
+                    e.ProductionMainNo,
                     e.SourceUnit,
                     e.Salesman,
                     e.TagNo,
@@ -278,6 +290,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                 ["FurnaceNo"] = all.Select(x => x.FurnaceNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
                 ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
                 ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
                 ["SourceUnit"] = all.Select(x => x.SourceUnit).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
                 ["Salesman"] = all.Select(x => x.Salesman).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
                 ["QualityStatus"] = all.Select(x => x.QualityStatus).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
@@ -299,88 +312,13 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
 
     /// <summary>
     /// 按成检到料ID刷新物化行（从源表重新计算并Upsert）
+    /// 唯一键：批次 + 成检类型（IsDeliveryStatus 为信息列，随批次当前制造状态实时计算，不参与唯一性）
     /// </summary>
     public async Task RefreshByMrCheckIdAsync(int mrCheckId)
-    {
-        // 1. 查 MRCheck
-        var rc = await _context.MaterialReceiveChecks
-            .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == mrCheckId);
-        if (rc == null) return;
-
-        // 2. 查 ProductionBatch
-        var pb = await _context.ProductionBatches
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == rc.ProductionBatchId);
-
-        // 3. 查关联的 FinalInspections
-        var inspections = await _context.FinalInspections
-            .AsNoTracking()
-            .Where(fi => fi.ProductionBatchId == rc.ProductionBatchId)
-            .ToListAsync();
-
-        // 4. 查关联的 InventoryBatches（通过 rc.BatchNo 关联，与 rc 的 BatchNo 冗余字段值一致）
-        var inventoryBatches = !string.IsNullOrWhiteSpace(rc.BatchNo)
-            ? await _context.InventoryBatches
-                .AsNoTracking()
-                .Where(ib => ib.ProductionBatchNo == rc.BatchNo)
-                .ToListAsync()
-            : new List<InventoryBatch>();
-
-        // 5. 查关联的 ProductionRecords（仅 Cut 工段）
-        var cutRecords = await _context.ProductionRecords
-            .AsNoTracking()
-            .Where(pr => pr.ProductionBatchId == rc.ProductionBatchId
-                      && pr.SectionName == SectionDefs.Cut
-                      && pr.ProductStatus == "成品")
-            .ToListAsync();
-
-        // 6. 计算各字段值
-        var qualityStatus = inspections.Count > 0
-            ? (inventoryBatches.Count > 0 ? "完成检验" : "检验中")
-            : (inventoryBatches.Count > 0 ? "入库存疑" : "待检验");
-
-        var pmiDate = GetInspectionDate(inspections, InspectionItem.PMIInspection);
-        var visualDate = GetInspectionDate(inspections, InspectionItem.VisualInspection);
-        var dimensionDate = GetInspectionDate(inspections, InspectionItem.Dimension);
-        var endoscopyDate = GetInspectionDate(inspections, InspectionItem.Endoscopy);
-        var hydroDate = GetInspectionDate(inspections, InspectionItem.HydrostaticPressure);
-        var underwaterPneumaticDate = GetInspectionDate(inspections, InspectionItem.UnderwaterPneumatic);
-        var eddyCurrentDate = GetInspectionDate(inspections, InspectionItem.EddyCurrent);
-        var ultrasonicDate = GetInspectionDate(inspections, InspectionItem.Ultrasonic);
-        var portColoringDate = GetInspectionDate(inspections, InspectionItem.PortColoring);
-
-        var now = DateTime.Now;
-
-        // 7. Upsert 物化行
-        var existing = await _context.QualityProcessTrackings
-            .FirstOrDefaultAsync(q => q.MaterialReceiveCheckId == mrCheckId);
-
-        if (existing != null)
-        {
-            // 更新已有记录
-            MapSourceToEntity(existing, rc, pb, inspections, inventoryBatches, cutRecords,
-                qualityStatus, pmiDate, visualDate, dimensionDate, endoscopyDate,
-                hydroDate, underwaterPneumaticDate, eddyCurrentDate, ultrasonicDate,
-                portColoringDate, now);
-            _context.Entry(existing).State = EntityState.Modified;
-        }
-        else
-        {
-            // 新增
-            var entity = new QualityProcessTracking();
-            MapSourceToEntity(entity, rc, pb, inspections, inventoryBatches, cutRecords,
-                qualityStatus, pmiDate, visualDate, dimensionDate, endoscopyDate,
-                hydroDate, underwaterPneumaticDate, eddyCurrentDate, ultrasonicDate,
-                portColoringDate, now);
-            _context.QualityProcessTrackings.Add(entity);
-        }
-
-        await _context.SaveChangesAsync();
-    }
+        => await RefreshByMrCheckIdsAsync(new[] { mrCheckId });
 
     /// <summary>
-    /// 按批次ID刷新物化行（查找关联的 MRCheck 后调用 RefreshByMrCheckIdAsync）
+    /// 按批次ID刷新物化行（查找关联的 MRCheck 后批量刷新）
     /// </summary>
     public async Task RefreshByProductionBatchIdAsync(int productionBatchId)
     {
@@ -388,11 +326,8 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             .Where(r => r.ProductionBatchId == productionBatchId)
             .Select(r => r.Id)
             .ToListAsync();
-
-        foreach (var id in mrCheckIds)
-        {
-            await RefreshByMrCheckIdAsync(id);
-        }
+        if (mrCheckIds.Count == 0) return;
+        await RefreshByMrCheckIdsAsync(mrCheckIds);
     }
 
     /// <summary>
@@ -404,11 +339,207 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             .Where(r => r.BatchNo == batchNo)
             .Select(r => r.Id)
             .ToListAsync();
+        if (mrCheckIds.Count == 0) return;
+        await RefreshByMrCheckIdsAsync(mrCheckIds);
+    }
 
-        foreach (var id in mrCheckIds)
+    /// <summary>
+    /// 全量刷新所有物化行（聚合口径/唯一键变更后的存量重算；分块避免 IN 参数超限）
+    /// </summary>
+    public async Task RefreshAllAsync()
+    {
+        var mrCheckIds = await _context.MaterialReceiveChecks
+            .AsNoTracking()
+            .Select(r => r.Id)
+            .ToListAsync();
+        foreach (var chunk in ChunkBatchIds(mrCheckIds, 1000))
+            await RefreshByMrCheckIdsAsync(chunk);
+    }
+
+    /// <summary>
+    /// 批量刷新多个 MRCheck 的物化行。
+    /// 所有关联数据（批次/成检/入库/断切记录/QPT 行）一次批量加载，消除逐行 N+1 查询。
+    /// 断切记录按批次分块 IN 查询，避免 SQL Server 2100 参数上限。
+    /// 注意：QPT 行必须用跟踪查询加载，依赖 EF identity resolution 保证同一 DB 行同一实例，
+    ///       避免 upsert（Modified/Remove）时因重复跟踪实例而冲突。
+    /// </summary>
+    private async Task RefreshByMrCheckIdsAsync(ICollection<int> mrCheckIds)
+    {
+        if (mrCheckIds.Count == 0) return;
+
+        // 1. 一次查所有 MRCheck
+        var rcs = await _context.MaterialReceiveChecks
+            .AsNoTracking()
+            .Where(r => mrCheckIds.Contains(r.Id))
+            .ToListAsync();
+        if (rcs.Count == 0) return;
+
+        var involvedBatchIds = rcs.Select(r => r.ProductionBatchId).Distinct().ToList();
+        var involvedBatchNos = rcs
+            .Where(r => r.InspectionType != nameof(InspectionType.PreInspection))
+            .Select(r => r.BatchNo)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct()
+            .ToList();
+
+        // 2. 一次查所有涉及的批次
+        var pbDict = await _context.ProductionBatches
+            .AsNoTracking()
+            .Where(p => involvedBatchIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
+        // 3. 一次查所有涉及的成检记录
+        var inspectionsByBatch = (await _context.FinalInspections
+            .AsNoTracking()
+            .Where(fi => involvedBatchIds.Contains(fi.ProductionBatchId))
+            .ToListAsync())
+            .GroupBy(fi => fi.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // 4. 一次查所有涉及的入库记录（仅正式成检关联；按批号分组，物料/制造状态在内存匹配）
+        var inboundByBatchNo = new Dictionary<string, List<InventoryBatch>>(StringComparer.OrdinalIgnoreCase);
+        if (involvedBatchNos.Count > 0)
         {
-            await RefreshByMrCheckIdAsync(id);
+            var inboundRows = await _context.InventoryBatches
+                .AsNoTracking()
+                .Where(ib => ib.ProductionBatchNo != null && involvedBatchNos.Contains(ib.ProductionBatchNo))
+                .ToListAsync();
+            foreach (var ib in inboundRows)
+            {
+                if (ib.ProductionBatchNo == null) continue;
+                if (!inboundByBatchNo.TryGetValue(ib.ProductionBatchNo, out var list))
+                    inboundByBatchNo[ib.ProductionBatchNo] = list = new List<InventoryBatch>();
+                list.Add(ib);
+            }
         }
+
+        // 5. 一次查所有涉及的断切成品记录（分块避免 IN 参数超限）
+        var cutRecordsByBatch = new Dictionary<int, List<ProductionRecord>>();
+        foreach (var chunk in ChunkBatchIds(involvedBatchIds, 1000))
+        {
+            var cutRows = await _context.ProductionRecords
+                .AsNoTracking()
+                .Where(pr => chunk.Contains(pr.ProductionBatchId)
+                          && pr.SectionName == SectionDefs.Cut
+                          && pr.ProductStatus == "成品"
+                          && pr.IsPreCut != true) // 预成切不计入成品切割支数
+                .ToListAsync();
+            foreach (var r in cutRows)
+            {
+                if (!cutRecordsByBatch.TryGetValue(r.ProductionBatchId, out var list))
+                    cutRecordsByBatch[r.ProductionBatchId] = list = new List<ProductionRecord>();
+                list.Add(r);
+            }
+        }
+
+        // 6. 一次查所有涉及的 QPT 行（跟踪查询：历史归属 + 目标键行）
+        var ownedRowsByMrCheckId = (await _context.QualityProcessTrackings
+            .Where(q => mrCheckIds.Contains(q.MaterialReceiveCheckId))
+            .ToListAsync())
+            .GroupBy(q => q.MaterialReceiveCheckId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        var qptRowsByBatch = (await _context.QualityProcessTrackings
+            .Where(q => involvedBatchIds.Contains(q.ProductionBatchId))
+            .ToListAsync())
+            .GroupBy(q => q.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var now = DateTime.Now;
+
+        // 7. 逐行计算并 Upsert
+        foreach (var rc in rcs)
+        {
+            var pb = pbDict.GetValueOrDefault(rc.ProductionBatchId);
+
+            // 关联的成检（按批次 + 成检类型匹配）
+            var inspections = inspectionsByBatch.GetValueOrDefault(rc.ProductionBatchId)?
+                .Where(fi => string.Equals(fi.InspectionType, rc.InspectionType, StringComparison.OrdinalIgnoreCase))
+                .ToList() ?? new List<FinalInspection>();
+
+            // 关联的入库（同生产批号 + 同物料类型 + 同制造状态 三条件匹配；预成检不关联）
+            var inventoryBatches = pb != null && rc.InspectionType != nameof(InspectionType.PreInspection)
+                ? (inboundByBatchNo.TryGetValue(pb.BatchNo, out var ibList)
+                    ? ibList
+                        .Where(ib => string.Equals(ib.MaterialType, pb.ManufacturingItem, StringComparison.OrdinalIgnoreCase)
+                                  && string.Equals(ib.ManufacturingStatus, pb.ManufacturingStatus, StringComparison.OrdinalIgnoreCase))
+                        .ToList()
+                    : new List<InventoryBatch>())
+                : new List<InventoryBatch>();
+
+            // 关联的断切成品记录
+            var cutRecords = cutRecordsByBatch.GetValueOrDefault(rc.ProductionBatchId) ?? new List<ProductionRecord>();
+
+            // 计算各字段值
+            var qualityStatus = inspections.Count > 0
+                ? (inventoryBatches.Count > 0 ? "完成检验" : "检验中")
+                : (inventoryBatches.Count > 0 ? "入库存疑" : "待检验");
+
+            var pmiDate = GetInspectionDate(inspections, InspectionItem.PMIInspection);
+            var visualDate = GetInspectionDate(inspections, InspectionItem.VisualInspection);
+            var dimensionDate = GetInspectionDate(inspections, InspectionItem.Dimension);
+            var endoscopyDate = GetInspectionDate(inspections, InspectionItem.Endoscopy);
+            var hydroDate = GetInspectionDate(inspections, InspectionItem.HydrostaticPressure);
+            var underwaterPneumaticDate = GetInspectionDate(inspections, InspectionItem.UnderwaterPneumatic);
+            var eddyCurrentDate = GetInspectionDate(inspections, InspectionItem.EddyCurrent);
+            var ultrasonicDate = GetInspectionDate(inspections, InspectionItem.Ultrasonic);
+            var portColoringDate = GetInspectionDate(inspections, InspectionItem.PortColoring);
+
+            // 交付态（信息列，随批次当前制造状态实时计算；不参与唯一性）
+            var isDeliveryStatus = pb != null
+                && !string.IsNullOrEmpty(pb.ManufacturingStatus)
+                && !string.IsNullOrEmpty(pb.DeliveryState)
+                && string.Equals(pb.ManufacturingStatus, pb.DeliveryState, StringComparison.OrdinalIgnoreCase)
+                ? "是" : "否";
+
+            // Upsert 物化行
+            // 本 MRCheck 历史归属的行（唯一键调整后旧行需清理）
+            var ownedRows = ownedRowsByMrCheckId.GetValueOrDefault(rc.Id) ?? new List<QualityProcessTracking>();
+
+            // 目标键行（批次+成检类型）
+            var targetByKey = qptRowsByBatch.GetValueOrDefault(rc.ProductionBatchId)?
+                .FirstOrDefault(q => string.Equals(q.InspectionType, rc.InspectionType, StringComparison.OrdinalIgnoreCase));
+
+            QualityProcessTracking entity;
+            if (targetByKey != null)
+            {
+                entity = targetByKey;
+                entity.MaterialReceiveCheckId = rc.Id;
+                MapSourceToEntity(entity, rc, pb, inspections, inventoryBatches, cutRecords,
+                    qualityStatus, pmiDate, visualDate, dimensionDate, endoscopyDate,
+                    hydroDate, underwaterPneumaticDate, eddyCurrentDate, ultrasonicDate,
+                    portColoringDate, isDeliveryStatus, now);
+                _context.Entry(entity).State = EntityState.Modified;
+            }
+            else
+            {
+                entity = ownedRows.FirstOrDefault() ?? new QualityProcessTracking();
+                MapSourceToEntity(entity, rc, pb, inspections, inventoryBatches, cutRecords,
+                    qualityStatus, pmiDate, visualDate, dimensionDate, endoscopyDate,
+                    hydroDate, underwaterPneumaticDate, eddyCurrentDate, ultrasonicDate,
+                    portColoringDate, isDeliveryStatus, now);
+                if (entity.Id == 0)
+                    _context.QualityProcessTrackings.Add(entity);
+                else
+                    _context.Entry(entity).State = EntityState.Modified;
+            }
+
+            // 清理本 MRCheck 名下不再匹配目标键的旧行
+            foreach (var stale in ownedRows.Where(q => q.Id != entity.Id))
+            {
+                _context.QualityProcessTrackings.Remove(stale);
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// 分块工具：避免 SQL Server IN 子句 2100 参数上限
+    /// </summary>
+    private static IEnumerable<List<int>> ChunkBatchIds(List<int> ids, int size)
+    {
+        for (var i = 0; i < ids.Count; i += size)
+            yield return ids.Skip(i).Take(size).ToList();
     }
 
     private static MaterialType? ParseMaterialType(string? value)
@@ -442,11 +573,15 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         DateTime? pmiDate, DateTime? visualDate, DateTime? dimensionDate,
         DateTime? endoscopyDate, DateTime? hydroDate, DateTime? underwaterPneumaticDate,
         DateTime? eddyCurrentDate, DateTime? ultrasonicDate, DateTime? portColoringDate,
+        string isDeliveryStatus,
         DateTime refreshTime)
     {
         // 关联标识
         entity.MaterialReceiveCheckId = rc.Id;
         entity.ProductionBatchId = rc.ProductionBatchId;
+        // 两字段唯一键（批次+成检类型）；IsDeliveryStatus 为信息列
+        entity.InspectionType = rc.InspectionType;
+        entity.IsDeliveryStatus = isDeliveryStatus;
 
         // G1（批次冗余字段从 ProductionBatch 获取）
         entity.BatchNo = rc.BatchNo;
@@ -454,16 +589,18 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         entity.TagNo = pb?.TagNo;
         entity.WorkOrderNo = pb?.WorkOrderNo;
         entity.SalesOrderNo = pb?.SalesOrderNo;
+        entity.ProductionMainNo = pb?.ProductionMainNo;
         entity.SourceUnit = pb?.SourceName;
         entity.FurnaceNo = pb?.SourceHeatNo;
         entity.PlantGrade = pb?.PlantGrade;
         entity.Specification = pb?.Specification;
         entity.ProductionType = pb?.ProductionType;
         entity.LengthStatus = pb?.LengthStatus;
-        entity.ProductionWeight = pb?.CurrentValidWeight;
         entity.IsForceCompleted = rc.IsForceCompleted;
         entity.Salesman = pb?.Salesman;
+        entity.ManufacturingStatus = pb?.ManufacturingStatus;
         entity.DeliveryState = pb?.DeliveryState;
+        entity.EndCustomer = pb?.EndCustomer;
         entity.ReceiveDate = rc.ReceiveDate;
         entity.Shift = rc.Shift?.ToString();
         entity.Checker = rc.Checker;
@@ -479,13 +616,46 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         entity.PortColoringDate = portColoringDate;
         entity.InspectionCount = inspections.Select(fi => fi.InspectionItem).Distinct().Count();
 
-        // G3
-        entity.ProductionCutQuantity = cutRecords.Sum(pr => pr.PostCutQuantity ?? 0);
-        entity.TotalQuantity = inspections.Max(fi => (int?)(fi.Quantity ?? 0)) ?? 0;
-        entity.QualifiedQuantity = inspections.Min(fi => (int?)(fi.QualifiedQuantity ?? 0)) ?? 0;
+        // G3 生产支数（三态口径，参考成切跟踪/定尺工单「免切理论支」逻辑）：
+        //   1) 无需成品切割（CutRequirement=false）→ 批次理论成品支数
+        //   2) 需成品切割 + 长度状态=定尺 → 断切成品记录切后支数(PostCutQuantity)汇总
+        //   3) 需成品切割 + 长度状态<>定尺 → 断切成品记录加工支数(Quantity)汇总
+        if (pb?.CutRequirement != true)
+        {
+            entity.ProductionCutQuantity = pb?.TheoreticalOutputQty ?? 0;
+        }
+        else if (string.Equals(pb.LengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase))
+        {
+            entity.ProductionCutQuantity = cutRecords.Sum(pr => pr.PostCutQuantity ?? 0);
+        }
+        else
+        {
+            entity.ProductionCutQuantity = cutRecords.Sum(pr => pr.Quantity ?? 0);
+        }
+        // 生产重量：非定尺=批次理论成品重量（算法不变）；定尺=产品单支重 × 生产支数（产品单支重缺失时回退理论单支重）
+        if (pb == null || !string.Equals(pb.LengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase))
+        {
+            entity.ProductionWeight = pb?.TheoreticalOutputWeight;
+        }
+        else
+        {
+            var unitWeight = pb.ProductUnitWeight ?? pb.TheoreticalUnitWeight;
+            entity.ProductionWeight = unitWeight.HasValue
+                ? unitWeight.Value * entity.ProductionCutQuantity
+                : null;
+        }
+        // 三个次品：按唯一性（批次+成检类型）汇总全部检验记录
         entity.DefectReworkQuantity = inspections.Sum(fi => fi.DefectReworkQuantity ?? 0);
         entity.DefectWarehouseQuantity = inspections.Sum(fi => fi.DefectWarehouseQuantity ?? 0);
         entity.DefectScrapQuantity = inspections.Sum(fi => fi.DefectScrapQuantity ?? 0);
+        // 检验支数：按（唯一性+检验项目）分组汇总 Quantity，跨检验项目取最大
+        // （同一项目多条记录各代表一批受检管子，需求和；不同项目覆盖管子数可能不同，取最大为受检总数）
+        entity.TotalQuantity = inspections
+            .GroupBy(fi => fi.InspectionItem)
+            .Max(g => (int?)g.Sum(fi => fi.Quantity ?? 0)) ?? 0;
+        // 理论合格支：检验支数 - 三个次品汇总（负值归零，防御跨项目重复计数）
+        entity.QualifiedQuantity = Math.Max(0,
+            entity.TotalQuantity - entity.DefectReworkQuantity - entity.DefectWarehouseQuantity - entity.DefectScrapQuantity);
         entity.MaxInspectionDate = inspections.Max(fi => (DateTime?)fi.InspectionDate);
 
         // G4

@@ -204,7 +204,7 @@ public class InventorySyncService : IInventorySyncService
         result.SalesOrderNo = batch.SalesOrderNo;
         result.OrderItemIds = batch.OrderItemIds;
         result.HeatNo = batch.SourceHeatNo;
-        result.SurfaceCondition = batch.ManufacturingStatus;
+        result.ManufacturingStatus = batch.ManufacturingStatus;
         result.SupplierName = batch.SourceName;
         return result;
     }

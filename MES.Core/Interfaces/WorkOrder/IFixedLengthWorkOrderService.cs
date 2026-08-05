@@ -1,3 +1,4 @@
+using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.WorkOrder;
 
 namespace MES.Core.Interfaces.WorkOrder;
@@ -16,4 +17,9 @@ public interface IFixedLengthWorkOrderService
     /// 获取全部定尺工单定尺数据列表（主号级按长度实时聚合）
     /// </summary>
     Task<List<FixedLengthWorkOrderListDto>> GetListAsync();
+
+    /// <summary>
+    /// 生成打印 PDF（前端已准备数据，枚举字段已转中文）
+    /// </summary>
+    Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
 }

@@ -133,9 +133,9 @@ public class InventoryBatch : BaseEntity
     // ========== 位置与状态 ==========
 
     /// <summary>
-    /// 表面状态（固溶酸洗/精密矫直等）
+    /// 制造状态（DeliveryState 枚举名，与 ProductionBatch.ManufacturingStatus 同枚举体系）
     /// </summary>
-    public string? SurfaceCondition { get; set; }
+    public string? ManufacturingStatus { get; set; }
 
     /// <summary>
     /// 放置区域

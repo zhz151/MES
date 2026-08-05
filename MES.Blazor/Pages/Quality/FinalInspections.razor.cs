@@ -66,6 +66,9 @@ public partial class FinalInspections
     private int _totalTableWidth =>
         _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 90;
 
+    // ========== 实时健康校验通知条 ==========
+    private FinalInspectionHealthSummaryDto? _healthSummary;
+
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
@@ -122,8 +125,6 @@ public partial class FinalInspections
         new() { Key = "ManufacturingItem",     Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次",
             EnumOptions = Enum.GetValues<MaterialType>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetMaterialTypeText(e))).ToList() },
-        new() { Key = "Salesman",               Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "120",
-            GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "ManufacturingStatus",   Label = "制造状态",   SortKey = "manufacturingstatus", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次",
             EnumOptions = Enum.GetValues<DeliveryState>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetDeliveryStateText(e))).ToList() },
@@ -133,6 +134,12 @@ public partial class FinalInspections
         new() { Key = "WorkOrderNo",            Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "SalesOrderNo",           Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "ProductionMainNo",       Label = "主号",       SortKey = "productionmainno", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "Salesman",               Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "EndCustomer",            Label = "最终用户",   SortKey = "endcustomer", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "SourceUnit",             Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次" },
@@ -145,6 +152,10 @@ public partial class FinalInspections
         new() { Key = "LengthStatus",           Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次",
             EnumOptions = Enum.GetValues<LengthStatus>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetLengthStatusText(e))).ToList() },
+        new() { Key = "ProductionCutQuantity",  Label = "生产支数",   SortKey = "productioncutquantity", FilterType = "number", Width = "80",
+            GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "ProductionWeight",       Label = "生产重量(kg)", SortKey = "productionweight", FilterType = "number", Width = "80",
+            GroupKey = 2, GroupName = "G2 生产批次" },
 
         // G3: 检验结果
         new() { Key = "FixedLength",            Label = "定尺长度",   SortKey = "fixedlength", FilterType = "string", Width = "120",
@@ -270,12 +281,14 @@ public partial class FinalInspections
                 _totalCount = result.Data.TotalCount;
                 _currentPage = state.Page + 1;
                 ComputePageSums();
+                await LoadHealthSummaryAsync(dateFrom, dateTo, filtersJson);
             }
             else
             {
                 _pageItems = new();
                 _totalCount = 0;
                 _pageSums.Clear();
+                _healthSummary = null;
             }
         }
         catch (Exception ex)
@@ -552,6 +565,7 @@ public partial class FinalInspections
     private class EditCache
     {
         public string InspectionDate { get; set; } = "";
+        public string? InspectionType { get; set; }
         public string? EquipmentName { get; set; }
         public ShiftType? Shift { get; set; }
         public string? Operator { get; set; }
@@ -598,6 +612,7 @@ public partial class FinalInspections
         _editCache[item.Id] = new EditCache
         {
             InspectionDate = item.InspectionDate.ToString("yyyy-MM-dd"),
+            InspectionType = item.InspectionType,
             EquipmentName = item.EquipmentName,
             Shift = item.Shift,
             Operator = item.Operator,
@@ -663,6 +678,7 @@ public partial class FinalInspections
             var request = new UpdateFinalInspectionRequest
             {
                 InspectionDate = inspectionDate,
+                InspectionType = cache.InspectionType,
                 EquipmentName = cache.EquipmentName,
                 Shift = cache.Shift,
                 Operator = cache.Operator,
@@ -707,6 +723,7 @@ public partial class FinalInspections
             if (result.Success && result.Data != null)
             {
                 item.InspectionDate = result.Data.InspectionDate;
+                item.InspectionType = result.Data.InspectionType;
                 item.EquipmentName = result.Data.EquipmentName;
                 item.Shift = result.Data.Shift;
                 item.Operator = result.Data.Operator;
@@ -784,7 +801,10 @@ public partial class FinalInspections
         "Specification" => item.Specification,
         "Salesman" => item.Salesman,
         "DeliveryState" => item.DeliveryState,
-        "ManufacturingStatus" => DisplayHelper.GetDeliveryStateText(item.ManufacturingStatus),
+        "ManufacturingStatus" => item.ManufacturingStatusDisplay,
+        "EndCustomer" => item.EndCustomer,
+        "ProductionCutQuantity" => item.ProductionCutQuantity?.ToString(),
+        "ProductionWeight" => item.ProductionWeight?.ToString("G29"),
         "IsDeliveryStatus" => item.IsDeliveryStatusDisplay,
         "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
         "FixedLength" => item.FixedLength,
@@ -838,6 +858,28 @@ public partial class FinalInspections
         "InspectionType" => DisplayHelper.GetInspectionTypeText(item.InspectionType),
         _ => GetCellRawValue(item, key) ?? ""
     };
+
+    // ========== 实时健康校验通知条 ==========
+
+    private async Task LoadHealthSummaryAsync(DateTime? dateFrom, DateTime? dateTo, string? filtersJson)
+    {
+        try
+        {
+            var result = await FinalInspectionService.GetFinalInspectionHealthSummaryAsync(
+                keyword: string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                inspectionDateFrom: dateFrom,
+                inspectionDateTo: dateTo,
+                filters: filtersJson);
+            if (result.Success && result.Data != null)
+                _healthSummary = result.Data;
+            else
+                _healthSummary = null;
+        }
+        catch
+        {
+            _healthSummary = null;
+        }
+    }
 
     // ========== 分页汇总（B33） ==========
 
@@ -975,6 +1017,18 @@ public partial class FinalInspections
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
         return cls;
+    }
+
+    /// <summary>
+    /// 定尺长度显示去掉 "mm" 后缀（历史/导入数据可能带单位，列表仅显示数值）
+    /// </summary>
+    private static string? FormatFixedLength(string? fixedLength)
+    {
+        if (string.IsNullOrWhiteSpace(fixedLength)) return fixedLength;
+        var trimmed = fixedLength.Trim();
+        return trimmed.EndsWith("mm", StringComparison.OrdinalIgnoreCase)
+            ? trimmed[..^2].Trim()
+            : trimmed;
     }
 
     private class GroupHeaderInfo
@@ -1137,6 +1191,9 @@ public partial class FinalInspections
             case "SalesOrderNo":
                 builder.AddContent(0, item.SalesOrderNo);
                 break;
+            case "ProductionMainNo":
+                builder.AddContent(0, item.ProductionMainNo);
+                break;
             case "SourceUnit":
                 builder.AddContent(0, item.SourceUnit);
                 break;
@@ -1162,7 +1219,16 @@ public partial class FinalInspections
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
                 break;
             case "ManufacturingStatus":
-                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.ManufacturingStatus));
+                builder.AddContent(0, item.ManufacturingStatusDisplay);
+                break;
+            case "EndCustomer":
+                builder.AddContent(0, item.EndCustomer);
+                break;
+            case "ProductionCutQuantity":
+                builder.AddContent(0, item.ProductionCutQuantity?.ToString());
+                break;
+            case "ProductionWeight":
+                builder.AddContent(0, item.ProductionWeight?.ToString("G29"));
                 break;
             case "IsDeliveryStatus":
                 builder.AddContent(0, item.IsDeliveryStatusDisplay);
@@ -1178,7 +1244,8 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, item.FixedLength);
+                    // 定尺长度显示去掉 "mm" 后缀（历史/导入数据可能带单位）
+                    builder.AddContent(0, FormatFixedLength(item.FixedLength));
                 }
                 break;
             case "NonFixedLengthRange":
@@ -1249,7 +1316,30 @@ public partial class FinalInspections
                 }
                 break;
             case "InspectionType":
-                builder.AddContent(0, DisplayHelper.GetInspectionTypeText(item.InspectionType));
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudSelect<string?>>(0);
+                    builder.AddAttribute(1, "Value", cache.InspectionType);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.InspectionType = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "Clearable", true);
+                    builder.AddAttribute(5, "ChildContent", (RenderFragment)(b =>
+                    {
+                        b.OpenComponent<MudSelectItem<string?>>(0);
+                        b.AddAttribute(1, "Value", nameof(InspectionType.FormalInspection));
+                        b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.FormalInspection)))));
+                        b.CloseComponent();
+                        b.OpenComponent<MudSelectItem<string?>>(0);
+                        b.AddAttribute(1, "Value", nameof(InspectionType.PreInspection));
+                        b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.PreInspection)))));
+                        b.CloseComponent();
+                    }));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.GetInspectionTypeText(item.InspectionType));
+                }
                 break;
             case "Quantity":
                 if (isEditing && cache != null)

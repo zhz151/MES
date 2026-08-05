@@ -223,14 +223,14 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
 
             var uLevel = b.UrgencyLevel ?? "";
             var isKeyBatch =
-                (b.ScheduleStage == 2 &&
+                (b.ScheduleStage == 3 &&
                  (uLevel == "A+急" || uLevel == "A急") &&
                  (pendingProcess == "荒管处理" ||
                   (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
                       && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSection == SectionDefs.ColdRollDraw)) ||
                   pendingProcess == "收尾-成检"))
                 ||
-                (b.ScheduleStage == 1 &&
+                (b.ScheduleStage == 2 &&
                  (b.IsUrging || b.IsBatchDelivery) &&
                  (uLevel == "A+急" || uLevel == "A急") &&
                  (pendingProcess == "荒管处理" ||

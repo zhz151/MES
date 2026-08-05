@@ -159,41 +159,75 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
 
     public async Task<bool> SaveUrgingAsync(int workOrderId, bool isUrging, bool isBatchDelivery, bool isPaused, string? adjustmentRemark)
     {
-        var existing = await _context.Set<OrderDemandAdjustment>()
-            .FirstOrDefaultAsync(u => u.WorkOrderId == workOrderId);
+        // 联动连带：不允许"工单暂停"，只能"主号暂停"。
+        // 联动范围 = 同主号（SalesOrderNo + ProductionMainNo）下未入库完结的工单（WoWarehousingStatus != 2），
+        // 已闭环（入库完结/超额）的工单不被暂停/恢复牵连。
+        var currentSummary = await _context.Set<WorkOrderExecutionSummary>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.WorkOrderId == workOrderId);
 
-        if (existing != null)
+        var affectedWorkOrderIds = new List<int> { workOrderId };
+        if (currentSummary != null && !string.IsNullOrEmpty(currentSummary.SalesOrderNo))
         {
-            existing.IsUrging = isUrging;
-            existing.IsBatchDelivery = isBatchDelivery;
-            existing.IsPaused = isPaused;
-            existing.AdjustmentRemark = adjustmentRemark;
-            _context.Entry(existing).State = EntityState.Modified;
+            var siblings = await _context.Set<WorkOrderExecutionSummary>()
+                .AsNoTracking()
+                .Where(s => s.SalesOrderNo == currentSummary.SalesOrderNo
+                    && s.ProductionMainNo == currentSummary.ProductionMainNo
+                    && s.WorkOrderId != workOrderId
+                    && s.WoWarehousingStatus != 2)
+                .Select(s => s.WorkOrderId)
+                .ToListAsync();
+            affectedWorkOrderIds.AddRange(siblings);
         }
-        else
+
+        var existingAdjustments = await _context.Set<OrderDemandAdjustment>()
+            .Where(u => affectedWorkOrderIds.Contains(u.WorkOrderId))
+            .ToListAsync();
+        var existingByWorkOrderId = existingAdjustments.ToDictionary(u => u.WorkOrderId);
+
+        foreach (var wid in affectedWorkOrderIds)
         {
-            _context.Set<OrderDemandAdjustment>().Add(new OrderDemandAdjustment
+            var isCurrent = wid == workOrderId;
+            if (existingByWorkOrderId.TryGetValue(wid, out var adj))
             {
-                WorkOrderId = workOrderId,
-                IsUrging = isUrging,
-                IsBatchDelivery = isBatchDelivery,
-                IsPaused = isPaused,
-                AdjustmentRemark = adjustmentRemark,
-            });
+                if (isCurrent)
+                {
+                    adj.IsUrging = isUrging;
+                    adj.IsBatchDelivery = isBatchDelivery;
+                    adj.AdjustmentRemark = adjustmentRemark;
+                }
+                // 暂停状态联动同步：同主号下未完结工单保持一致
+                adj.IsPaused = isPaused;
+                _context.Entry(adj).State = EntityState.Modified;
+            }
+            else
+            {
+                _context.Set<OrderDemandAdjustment>().Add(new OrderDemandAdjustment
+                {
+                    WorkOrderId = wid,
+                    IsUrging = isCurrent ? isUrging : false,
+                    IsBatchDelivery = isCurrent ? isBatchDelivery : false,
+                    IsPaused = isPaused,
+                    AdjustmentRemark = isCurrent ? adjustmentRemark : null,
+                });
+            }
         }
 
         await _context.SaveChangesAsync();
 
-        // 实时同步读模型：IsPaused 变化需立即反映到 WorkOrderExecutionSummary.UrgencyLevel（E停）
-        // 增量刷新：仅刷新该工单及其同 SalesOrderNo 的兄弟工单
-        var workOrderNo = await _context.WorkOrders
-            .AsNoTracking()
-            .Where(w => w.Id == workOrderId)
-            .Select(w => w.WorkOrderNo)
-            .FirstOrDefaultAsync();
-        if (!string.IsNullOrEmpty(workOrderNo))
+        // 实时同步读模型：IsPaused 变化需立即反映到 WorkOrderExecutionSummary.UrgencyLevel（E停）及关注状态
+        // 增量刷新：刷新当前工单及其同主号下被联动改动的工单（从 WorkOrders 取工单号，保证无 summary 行也能刷新）
+        var affectedNos = (await _context.WorkOrders
+                .AsNoTracking()
+                .Where(w => affectedWorkOrderIds.Contains(w.Id))
+                .Select(w => w.WorkOrderNo)
+                .ToListAsync())
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (affectedNos.Count > 0)
         {
-            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { workOrderNo });
+            await _workOrderExecutionService.RefreshByWorkOrderNosAsync(affectedNos);
         }
 
         return true;

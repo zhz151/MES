@@ -68,7 +68,7 @@ public partial class InboundHistory
     {
         "InboundDate", "LengthStatus", "MinLength", "MaxLength",
         "InitialQuantity", "InitialWeight", "UnitWeight", "Meters",
-        "SurfaceCondition", "LocationArea", "LocationRack", "HeatNo", "Remark",
+        "ManufacturingStatus", "LocationArea", "LocationRack", "HeatNo", "Remark",
         "IsLinkedToWorkOrder",
     };
 
@@ -88,7 +88,7 @@ public partial class InboundHistory
     {
         "InboundDate", "InboundSource", "ProductionBatchNo",
         "MaterialType", "PlantGrade", "Specification", "ActualSpecification",
-        "HeatNo", "SurfaceCondition",
+        "HeatNo", "ManufacturingStatus",
         "LengthStatus", "MinLength", "MaxLength",
         "InitialQuantity", "InitialWeight", "UnitWeight",
         "LocationArea", "LocationRack", "Remark",
@@ -100,7 +100,7 @@ public partial class InboundHistory
         "InboundDate", "InboundSource", "SourceOrderNo", "ProductionBatchNo", "TagNo",
         "SalesOrderNo", "OrderItemIds", "IsLinkedToWorkOrder", "WorkOrderNo",
         "MaterialType", "PlantGrade", "Specification", "SourceName",
-        "HeatNo", "SurfaceCondition",
+        "HeatNo", "ManufacturingStatus",
         "LengthStatus", "MinLength", "MaxLength",
         "InitialQuantity", "InitialWeight", "UnitWeight",
         "LocationArea", "LocationRack", "Remark",
@@ -236,7 +236,7 @@ public partial class InboundHistory
              },
         new() { Key = "HeatNo",              Label = "来料原始炉号",     SortKey = "HeatNo", FilterType = "string", Width = "120",
              },
-        new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "SurfaceCondition", FilterType = "enum", Width = "110",
+        new() { Key = "ManufacturingStatus",    Label = "制造状态", SortKey = "ManufacturingStatus", FilterType = "enum", Width = "110",
             EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
                 new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
                 new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
@@ -361,7 +361,7 @@ public partial class InboundHistory
         SetGroup(cols, "UnitWeight", 3, "手工填写");
         SetGroup(cols, "LengthStatus", 3, "手工填写");
         SetGroup(cols, "HeatNo", 3, "手工填写");
-        SetGroup(cols, "SurfaceCondition", 3, "手工填写");
+        SetGroup(cols, "ManufacturingStatus", 3, "手工填写");
         SetGroup(cols, "LocationArea", 3, "手工填写");
         SetGroup(cols, "LocationRack", 3, "手工填写");
         SetGroup(cols, "Remark", 3, "手工填写");
@@ -384,7 +384,7 @@ public partial class InboundHistory
         SetGroup(cols, "ActualSpecification", 4, "入库计量");
         SetGroup(cols, "SourceName", 3, "物料信息");
         SetGroup(cols, "HeatNo", 3, "物料信息");
-        SetGroup(cols, "SurfaceCondition", 3, "物料信息");
+        SetGroup(cols, "ManufacturingStatus", 3, "物料信息");
         SetGroup(cols, "InitialQuantity", 4, "入库计量");
         SetGroup(cols, "InitialWeight", 4, "入库计量");
         SetGroup(cols, "UnitWeight", 4, "入库计量");
@@ -408,7 +408,7 @@ public partial class InboundHistory
         SetGroup(cols, "Specification", 2, "物料信息");
         SetGroup(cols, "ActualSpecification", 2, "物料信息");
         SetGroup(cols, "HeatNo", 2, "物料信息");
-        SetGroup(cols, "SurfaceCondition", 2, "物料信息");
+        SetGroup(cols, "ManufacturingStatus", 2, "物料信息");
         SetGroup(cols, "LengthStatus", 3, "长度信息");
         SetGroup(cols, "MinLength", 3, "长度信息");
         SetGroup(cols, "MaxLength", 3, "长度信息");
@@ -437,7 +437,7 @@ public partial class InboundHistory
         SetGroup(cols, "Specification", 3, "物料信息");
         SetGroup(cols, "SourceName", 3, "物料信息");
         SetGroup(cols, "HeatNo", 3, "物料信息");
-        SetGroup(cols, "SurfaceCondition", 3, "物料信息");
+        SetGroup(cols, "ManufacturingStatus", 3, "物料信息");
         SetGroup(cols, "LengthStatus", 4, "长度信息");
         SetGroup(cols, "MinLength", 4, "长度信息");
         SetGroup(cols, "MaxLength", 4, "长度信息");
@@ -542,7 +542,7 @@ public partial class InboundHistory
         "MaterialType" => 130,
         "PlantGrade" => 130,
         "HeatNo" => 140,
-        "SurfaceCondition" => 110,
+        "ManufacturingStatus" => 110,
         "BatchNo" => 120,
         _ => 120
     };
@@ -727,8 +727,8 @@ public partial class InboundHistory
             }
         }
 
-        // SurfaceCondition 列显示中文并过滤非法值
-        if (_filterContextOptions.TryGetValue("SurfaceCondition", out var surfaceOptions))
+        // ManufacturingStatus 列显示中文并过滤非法值
+        if (_filterContextOptions.TryGetValue("ManufacturingStatus", out var surfaceOptions))
         {
             surfaceOptions.RemoveAll(opt => !Enum.TryParse<DeliveryState>(opt.Value, out _));
             foreach (var opt in surfaceOptions)
@@ -1050,9 +1050,9 @@ public partial class InboundHistory
                 if (!string.IsNullOrEmpty(item.LengthStatus))
                     builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
                 break;
-            case "SurfaceCondition":
-                if (item.SurfaceCondition.HasValue)
-                    builder.AddContent(0, item.SurfaceConditionDisplay);
+            case "ManufacturingStatus":
+                if (item.ManufacturingStatus.HasValue)
+                    builder.AddContent(0, item.ManufacturingStatusDisplay);
                 break;
             default:
                 var val = GetCellStringValue(item, col.Key);
@@ -1100,7 +1100,7 @@ public partial class InboundHistory
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
         "LengthStatus" => item.LengthStatus,
-        "SurfaceCondition" => item.SurfaceCondition?.ToString(),
+        "ManufacturingStatus" => item.ManufacturingStatus?.ToString(),
         "LocationArea" => item.LocationArea,
         "LocationRack" => item.LocationRack,
         "Remark" => item.Remark,
@@ -1130,7 +1130,7 @@ public partial class InboundHistory
             case "PlantGrade": item.PlantGrade = value ?? ""; break;
             case "Specification": item.Specification = value ?? ""; break;
             case "LengthStatus": item.LengthStatus = value; break;
-            case "SurfaceCondition": item.SurfaceCondition = !string.IsNullOrEmpty(value) ? EnumHelper.Parse<DeliveryState>(value) : null; break;
+            case "ManufacturingStatus": item.ManufacturingStatus = !string.IsNullOrEmpty(value) ? EnumHelper.Parse<DeliveryState>(value) : null; break;
             case "LocationArea": item.LocationArea = value; break;
             case "LocationRack": item.LocationRack = value; break;
             case "Remark": item.Remark = value; break;
@@ -1403,10 +1403,10 @@ public partial class InboundHistory
 
             if (_lastResolvedWarehouseCode != "FG")
             {
-                // 非成品仓额外发送：入库日期、炉号、物料状态
+                // 非成品仓额外发送：入库日期、炉号、制造状态
                 request.InboundDate = parsedDate;
                 request.HeatNo = string.IsNullOrEmpty(item.HeatNo) ? null : item.HeatNo;
-                request.SurfaceCondition = item.SurfaceCondition;
+                request.ManufacturingStatus = item.ManufacturingStatus;
             }
 
             // IsLinkedToWorkOrder 级联

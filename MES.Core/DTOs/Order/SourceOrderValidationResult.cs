@@ -21,8 +21,8 @@ public class SourceOrderValidationResult
     public string? OrderItemIds { get; set; }
     /// <summary>炉号（生产批次查询时填充）</summary>
     public string? HeatNo { get; set; }
-    /// <summary>物料状态/交货状态（生产批次查询时填充）</summary>
-    public string? SurfaceCondition { get; set; }
+    /// <summary>制造状态/交货状态（生产批次查询时填充）</summary>
+    public string? ManufacturingStatus { get; set; }
 }
 
 public class SourceOrderValidationRequest

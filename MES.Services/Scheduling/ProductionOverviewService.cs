@@ -86,7 +86,7 @@ public class ProductionOverviewService : IProductionOverviewService
         // ========== 查询基础数据 ==========
         var summaries = await _context.Set<WorkOrderExecutionSummary>()
             .AsNoTracking()
-            .Where(s => s.ScheduleStage >= 1)
+            .Where(s => s.ScheduleStage >= 2)
             .Select(s => new
             {
                 s.DeliveryDate,
@@ -99,9 +99,9 @@ public class ProductionOverviewService : IProductionOverviewService
             })
             .ToListAsync();
 
-        var stage1TotalWeight = summaries.Where(s => s.ScheduleStage == 1).Sum(s => (decimal)s.TotalWeight);
-        var stage1OutsourceFinishWeight = summaries.Where(s => s.ScheduleStage == 1).Sum(s => (decimal)s.PendingOutsourceFinishWeight);
-        var stage1InputWeight = summaries.Where(s => s.ScheduleStage == 1).Sum(s => (decimal)s.InputWeight);
+        var stage1TotalWeight = summaries.Where(s => s.ScheduleStage == 2).Sum(s => (decimal)s.TotalWeight);
+        var stage1OutsourceFinishWeight = summaries.Where(s => s.ScheduleStage == 2).Sum(s => (decimal)s.PendingOutsourceFinishWeight);
+        var stage1InputWeight = summaries.Where(s => s.ScheduleStage == 2).Sum(s => (decimal)s.InputWeight);
 
         // ========== 批次数据 ==========
         var batches = await _context.Set<ProductionBatch>()
@@ -171,7 +171,7 @@ public class ProductionOverviewService : IProductionOverviewService
         foreach (var bucket in buckets)
         {
             var stage1InBucket = summaries
-                .Where(s => s.ScheduleStage == 1 && IsInBucket(s.DeliveryDate, bucket));
+                .Where(s => s.ScheduleStage == 2 && IsInBucket(s.DeliveryDate, bucket));
             var total = stage1InBucket.Sum(s => s.TotalWeight);
             var outsource = stage1InBucket.Sum(s => s.PendingOutsourceFinishWeight);
             var input = stage1InBucket.Sum(s => s.InputWeight);

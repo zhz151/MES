@@ -50,6 +50,15 @@ public class ProcessInspectionDto
     /// <summary>批次号（冗余，用于跨批次列表展示）</summary>
     public string? BatchNo { get; set; }
 
+    /// <summary>工单号（从批次导航属性投影，用于列表展示/搜索/筛选/排序）</summary>
+    public string? WorkOrderNo { get; set; }
+
+    /// <summary>订单号（从批次导航属性投影，用于列表展示/搜索/筛选/排序）</summary>
+    public string? SalesOrderNo { get; set; }
+
+    /// <summary>主号（从批次导航属性投影，用于列表展示/搜索/筛选/排序）</summary>
+    public string? ProductionMainNo { get; set; }
+
     /// <summary>创建时间</summary>
     public DateTimeOffset CreatedTime { get; set; }
 
@@ -59,7 +68,7 @@ public class ProcessInspectionDto
     /// <summary>数据来源（SCAN=扫码报工，MANUAL=手动录入）</summary>
     public string? DataSource { get; set; }
 
-    /// <summary>制造状态（荒管/在制/成品）</summary>
+    /// <summary>产类（荒管/在制/成品）</summary>
     public string? ProductStatus { get; set; }
 }
 

@@ -553,7 +553,11 @@ public partial class AppDbContext
             entity.Property(e => e.Shift).HasMaxLength(20);
             entity.Property(e => e.Checker).HasMaxLength(50);
             entity.Property(e => e.Salesman).HasMaxLength(50);
+            entity.Property(e => e.ManufacturingStatus).HasMaxLength(50);
             entity.Property(e => e.DeliveryState).HasMaxLength(50);
+            entity.Property(e => e.EndCustomer).HasMaxLength(200);
+            entity.Property(e => e.InspectionType).HasMaxLength(20);
+            entity.Property(e => e.IsDeliveryStatus).HasMaxLength(10);
             entity.Property(e => e.IsForceCompleted).IsRequired().HasDefaultValue(false);
 
             // G2: 检验日期
@@ -589,7 +593,11 @@ public partial class AppDbContext
             entity.Property(e => e.LastRefreshTime).HasColumnType("datetime2");
 
             // 索引
-            entity.HasIndex(e => e.MaterialReceiveCheckId).IsUnique().HasDatabaseName("UK_QPT_MaterialReceiveCheckId");
+            // 唯一键：批次 + 成检类型（同一组合一行；IsDeliveryStatus 为信息列非唯一键，MaterialReceiveCheckId 保留为普通关联列）
+            entity.HasIndex(e => new { e.ProductionBatchId, e.InspectionType })
+                .IsUnique()
+                .HasDatabaseName("UK_QPT_ProductionBatchType");
+            entity.HasIndex(e => e.MaterialReceiveCheckId).HasDatabaseName("IX_QPT_MaterialReceiveCheckId");
             entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_QPT_ProductionBatchId");
             entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_QPT_BatchNo");
             entity.HasIndex(e => e.SalesOrderNo).HasDatabaseName("IX_QPT_SalesOrderNo");

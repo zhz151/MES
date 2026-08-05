@@ -65,7 +65,7 @@ public partial class Batches
 
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "CurrentValidQty", "CurrentValidWeight",
+        "CurrentValidQty", "CurrentValidWeight", "ProcessInspectionReworkWeight", "ProcessInspectionScrapWeight",
         "TotalQuantity", "TotalMeters", "TotalWeight",
     };
 
@@ -107,8 +107,17 @@ public partial class Batches
             EnumOptions = new() { new("None", "未产"), new("InProgress", "在产"), new("InFinalInspection", "成检"), new("Completed", "完成"), new("Suspended", "暂停") } },
         new() { Key = "IsForceCompleted",   Label = "强制完成", SortKey = "isforcecompleted", FilterType = "enum", Width = "90", GroupKey = 2, GroupName = "现执行状态",
             EnumOptions = new() { new("True", "是"), new("False", "否") } },
+        new() { Key = "InspectionStage",    Label = "成检附加", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 2, GroupName = "现执行状态",
+            EnumOptions = new() { new("PreInspection", "预检"), new("FormalInspection", "终检") } },
 
         // ===== G3: 有效投料变更 =====
+        new() { Key = "ProcessInspectionQualifiedQty",    Label = "过程检合格支", SortKey = null, Width = "100", GroupKey = 3, GroupName = "有效投料变更" },
+        new() { Key = "ProcessInspectionQualifiedWeight", Label = "过程检合格量", SortKey = null, Width = "100", GroupKey = 3, GroupName = "有效投料变更" },
+        new() { Key = "ProcessInspectionTheoreticalQty",  Label = "过程检理论成品支", SortKey = null, Width = "110", GroupKey = 3, GroupName = "有效投料变更" },
+        new() { Key = "ProcessInspectionNeedAdjust",      Label = "需调整", SortKey = null, FilterType = "enum", Width = "80", GroupKey = 3, GroupName = "有效投料变更",
+            EnumOptions = new() { new("True", "是"), new("False", "-") } },
+        new() { Key = "ProcessInspectionReworkWeight", Label = "缺陷-返整量", SortKey = null, Width = "100", GroupKey = 3, GroupName = "有效投料变更" },
+        new() { Key = "ProcessInspectionScrapWeight",  Label = "缺陷-纯次品量", SortKey = null, Width = "100", GroupKey = 3, GroupName = "有效投料变更" },
         new() { Key = "HasInputChange",   Label = "有效投料变更", SortKey = null, FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "有效投料变更",
             EnumOptions = new() { new("True", "有"), new("False", "无") } },
         new() { Key = "CurrentValidQty",    Label = "现有效原料支数", SortKey = "currentvalidqty", Width = "80", GroupKey = 3, GroupName = "有效投料变更" },
@@ -193,6 +202,7 @@ public partial class Batches
         new() { Key = "TotalQuantity",      Label = "总支数",   SortKey = "totalquantity", Width = "80", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "TotalMeters",        Label = "总米数",   SortKey = "totalmeters", Width = "80", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "TotalWeight",        Label = "总重量",   SortKey = "totalweight", Width = "80", GroupKey = 8, GroupName = "产品要求" },
+        new() { Key = "ProductUnitWeight",  Label = "产品单支量", SortKey = "productunitweight", Width = "90", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "TotalItemCount",     Label = "总项次数", SortKey = "totalitemcount", Width = "80", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "TechnicalRequirements", Label = "技术要求", SortKey = "technicalrequirements", FilterType = "enum", Width = "120", GroupKey = 8, GroupName = "产品要求",
             EnumOptions = new() { new("Normal", "普通"), new("Special", "特殊") } },
@@ -782,6 +792,12 @@ public partial class Batches
         "CurrentSpec" => item.CurrentSpec,
         "NextSectionName" => item.NextSectionName,
         "CorrespondingSpec" => item.CorrespondingSpec,
+        "ProcessInspectionQualifiedQty" => item.ProcessInspectionQualifiedQty.HasValue ? item.ProcessInspectionQualifiedQty.Value.ToString("G29") : "",
+        "ProcessInspectionQualifiedWeight" => item.ProcessInspectionQualifiedWeight.HasValue ? item.ProcessInspectionQualifiedWeight.Value.ToString("G29") : "",
+        "ProcessInspectionTheoreticalQty" => item.ProcessInspectionTheoreticalQty.HasValue ? item.ProcessInspectionTheoreticalQty.Value.ToString("G29") : "",
+        "ProcessInspectionNeedAdjust" => item.ProcessInspectionNeedAdjust switch { true => "是", false => "-", null => "-" },
+        "ProcessInspectionReworkWeight" => item.ProcessInspectionReworkWeight == 0 ? "" : item.ProcessInspectionReworkWeight.ToString("G29"),
+        "ProcessInspectionScrapWeight" => item.ProcessInspectionScrapWeight == 0 ? "" : item.ProcessInspectionScrapWeight.ToString("G29"),
         "CurrentValidQty" => DisplayHelper.FormatNullableInt(item.CurrentValidQty),
         "CurrentValidWeight" => $"{(int)(item.CurrentValidWeight ?? 0)}",
         "ProductionRatio" => item.ProductionRatio.ToString(),
@@ -800,6 +816,7 @@ public partial class Batches
         "TotalQuantity" => item.TotalQuantity.ToString("G29"),
         "TotalMeters" => ((int)item.TotalMeters).ToString(),
         "TotalWeight" => ((int)item.TotalWeight).ToString(),
+        "ProductUnitWeight" => item.ProductUnitWeight.HasValue ? item.ProductUnitWeight.Value.ToString("G29") : "",
         "TechnicalRequirements" => item.TechnicalRequirements,
         "RemainingWorkDays" => item.RemainingWorkDays.ToString("G29"),
         "CreatedBy" => item.CreatedBy,
@@ -825,6 +842,13 @@ public partial class Batches
         "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
         "ManufacturingStatus" => item.ManufacturingStatusDisplay ?? "",
         "IsForceCompleted" => DisplayHelper.GetYesNoText(item.IsForceCompleted),
+        "InspectionStage" => item.InspectionStageDisplay ?? "",
+        "ProcessInspectionQualifiedQty" => item.ProcessInspectionQualifiedQty.HasValue ? item.ProcessInspectionQualifiedQty.Value.ToString("G29") : "",
+        "ProcessInspectionQualifiedWeight" => item.ProcessInspectionQualifiedWeight.HasValue ? item.ProcessInspectionQualifiedWeight.Value.ToString("G29") : "",
+        "ProcessInspectionTheoreticalQty" => item.ProcessInspectionTheoreticalQty.HasValue ? item.ProcessInspectionTheoreticalQty.Value.ToString("G29") : "",
+        "ProcessInspectionNeedAdjust" => item.ProcessInspectionNeedAdjust switch { true => "是", false => "-", null => "-" },
+        "ProcessInspectionReworkWeight" => item.ProcessInspectionReworkWeight == 0 ? "" : item.ProcessInspectionReworkWeight.ToString("G29"),
+        "ProcessInspectionScrapWeight" => item.ProcessInspectionScrapWeight == 0 ? "" : item.ProcessInspectionScrapWeight.ToString("G29"),
         "CurrentValidQty" => DisplayHelper.FormatNullableInt(item.CurrentValidQty),
         "CurrentValidWeight" => $"{(int)(item.CurrentValidWeight ?? 0)}",
         "ProductionRatio" => item.ProductionRatio.ToString(),
@@ -843,6 +867,7 @@ public partial class Batches
         "TotalQuantity" => item.TotalQuantity.ToString("G29"),
         "TotalMeters" => ((int)item.TotalMeters).ToString(),
         "TotalWeight" => ((int)item.TotalWeight).ToString(),
+        "ProductUnitWeight" => item.ProductUnitWeight.HasValue ? item.ProductUnitWeight.Value.ToString("G29") : "",
         "TechnicalRequirements" => DisplayHelper.GetTechnicalRequirementsText(item.TechnicalRequirements),
         "HasInputChange" => item.HasInputChange.HasValue ? (item.HasInputChange.Value ? "有" : "无") : "",
         "CurrentSectionCompleted" => DisplayHelper.GetSectionCompletedText(item.CurrentSectionCompleted),
@@ -934,6 +959,20 @@ public partial class Batches
                 else
                 {
                     builder.AddContent(0, "");
+                }
+                break;
+            case "ProcessInspectionNeedAdjust":
+                if (item.ProcessInspectionNeedAdjust == true)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Warning);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "-");
                 }
                 break;
             case "HasInputChange":

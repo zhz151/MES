@@ -43,5 +43,10 @@ public enum NotificationType
     /// <summary>
     /// 批次变更导致关联用料计划自动完成（在产改制/在产主工单）
     /// </summary>
-    BatchPlanAutoCompleted
+    BatchPlanAutoCompleted,
+
+    /// <summary>
+    /// 入库制造状态不一致（同生产批号+同制造物品匹配，但制造状态与生产批次不一致）
+    /// </summary>
+    InboundMismatchAlert
 }

@@ -1080,7 +1080,7 @@ public class MaterialPlanService : IMaterialPlanService
                 RemainingQuantity = b.RemainingQuantity,
                 RemainingWeight = b.RemainingWeight,
                 UnitWeight = b.UnitWeight,
-                SurfaceCondition = b.SurfaceCondition,
+                ManufacturingStatus = b.ManufacturingStatus,
                 LocationArea = b.LocationArea,
                 LocationRack = b.LocationRack,
             })
@@ -1259,7 +1259,7 @@ public class MaterialPlanService : IMaterialPlanService
                 RemainingQuantity = b.RemainingQuantity,
                 RemainingWeight = b.RemainingWeight,
                 UnitWeight = b.UnitWeight,
-                SurfaceCondition = b.SurfaceCondition,
+                ManufacturingStatus = b.ManufacturingStatus,
                 LocationArea = b.LocationArea,
                 LocationRack = b.LocationRack,
             })

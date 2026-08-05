@@ -519,7 +519,9 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
         // 先计算每行的个体一致性
         foreach (var item in items)
         {
-            bool stageMatch = item.PlanScheduleStage != null && item.PlanScheduleStage == item.ScheduleStage;
+            // 排程覆盖档位(4档)映射到关注状态档位(5档)后再比较
+            bool stageMatch = item.PlanScheduleStage != null
+                && MapPlanStageToSummaryStage(item.PlanScheduleStage.Value) == item.ScheduleStage;
             bool urgencyMatch = string.IsNullOrEmpty(item.PlanUrgencyLevel)
                 ? string.IsNullOrEmpty(item.UrgencyLevel)
                 : item.PlanUrgencyLevel == item.UrgencyLevel;
@@ -568,6 +570,16 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
             }
         }
     }
+
+    /// <summary>排程计划覆盖档位(4档) → 关注状态档位(5档)：0 工单完成→1 主号完成、1 原料锁定→2、2 生产执行→3、3 成品检验→4</summary>
+    private static int MapPlanStageToSummaryStage(int planStage) => planStage switch
+    {
+        0 => 1,
+        1 => 2,
+        2 => 3,
+        3 => 4,
+        _ => planStage
+    };
 
     private static IQueryable<WorkOrderScheduleDto> ApplySorting(
         IQueryable<WorkOrderScheduleDto> query, string? sortBy, bool isDescending)

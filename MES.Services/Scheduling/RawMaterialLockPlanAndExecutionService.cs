@@ -58,9 +58,9 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
 
     public async Task<PagedResult<RawMaterialLockPlanAndExecutionDto>> GetPagedAsync(QueryParams query)
     {
-        // G1-G12+G13: WorkOrderExecutionSummary（仅 ScheduleStage=1）
+        // G1-G12+G13: WorkOrderExecutionSummary（仅 ScheduleStage=2 原料锁定）
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
-            .Where(e => e.ScheduleStage == 1);
+            .Where(e => e.ScheduleStage == 2);
         // G15: RawMaterialLockPreExecution
         var preExecQuery = _context.Set<RawMaterialLockPreExecution>().AsNoTracking();
 
@@ -133,14 +133,6 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     FlowTotalBatchCount = e.FlowTotalBatchCount,
                     FlowIncompleteBatchCount = e.FlowIncompleteBatchCount,
                     FlowMaxRemainingWorkDays = e.FlowMaxRemainingWorkDays,
-
-                    // G10
-                    GeneralDefectWeight = e.GeneralDefectWeight,
-                    GeneralDefectRatio = e.GeneralDefectRatio,
-                    SeriousDefectWeight = e.SeriousDefectWeight,
-                    SeriousDefectRatio = e.SeriousDefectRatio,
-                    ScrapWeight = e.ScrapWeight,
-                    ScrapRatio = e.ScrapRatio,
 
                     // G12
                     ScheduleStage = e.ScheduleStage,
@@ -299,18 +291,18 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         {
             switch (summary.RawMaterialLockRemark)
             {
-                case "A质量影响":
+                case "A质量补料":
                     allAffectedIds.Add(summary.WorkOrderId);
                     break;
 
-                case "B已购未回":
-                case "C计划未执行":
-                case "D未完善计划":
+                case "B执行返整":
+                case "C执行计划":
+                case "D完善计划":
                     var sameGroupIds = await _context.Set<WorkOrderExecutionSummary>()
                         .Where(s => s.SalesOrderNo == summary.SalesOrderNo
                                  && s.ProductionMainNo == summary.ProductionMainNo
                                  && s.RawMaterialLockRemark == summary.RawMaterialLockRemark
-                                 && s.ScheduleStage == 1)
+                                 && s.ScheduleStage == 2)
                         .Select(s => s.WorkOrderId)
                         .ToListAsync();
                     foreach (var id in sameGroupIds)
@@ -323,7 +315,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     var otherGroupIds = await _context.Set<WorkOrderExecutionSummary>()
                         .Where(s => s.SalesOrderNo == summary.SalesOrderNo
                                  && s.ProductionMainNo == summary.ProductionMainNo
-                                 && s.ScheduleStage == 1)
+                                 && s.ScheduleStage == 2)
                         .Select(s => s.WorkOrderId)
                         .ToListAsync();
                     foreach (var id in otherGroupIds)
@@ -345,18 +337,18 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
 
         var summaryDict = allSummaries.ToDictionary(s => s.WorkOrderId);
 
-        // ---- A质量影响：直接跟随 IsPreInput ----
+        // ---- A质量补料：直接跟随 IsPreInput ----
         foreach (var pre in allPreExecs)
         {
             if (!summaryDict.TryGetValue(pre.WorkOrderId, out var s)) continue;
-            if (s.RawMaterialLockRemark != "A质量影响") continue;
+            if (s.RawMaterialLockRemark != "A质量补料") continue;
 
             if (pre.IsMainNoMaterialComplete != pre.IsPreInput)
                 pre.IsMainNoMaterialComplete = pre.IsPreInput;
         }
 
         // ---- B/C/D：按 (订单号, 主号, 原锁备注) 分组处理 ----
-        var groupCases = new[] { "B已购未回", "C计划未执行", "D未完善计划" };
+        var groupCases = new[] { "B执行返整", "C执行计划", "D完善计划" };
         var processedGroups = new HashSet<(string SalesOrderNo, string MainNo, string Remark)>();
 
         foreach (var pre in allPreExecs)
@@ -372,12 +364,12 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                 .Where(x => x.SalesOrderNo == s.SalesOrderNo
                          && x.ProductionMainNo == s.ProductionMainNo
                          && x.RawMaterialLockRemark == s.RawMaterialLockRemark
-                         && x.ScheduleStage == 1)
+                         && x.ScheduleStage == 2)
                 .Select(x => x.WorkOrderId)
                 .ToHashSet();
 
             // 组内全部就绪 → 全部主号齐全
-            // 某工单"就绪"条件：用户标记执行 OR (B类型+G5物料已回) OR (C/D类型+G7已流转)
+            // 某工单"就绪"条件：用户标记执行 OR (B/C/D类型+G7已流转)
             var shouldBeComplete = groupIds.All(id =>
             {
                 // 条件1：用户显式标记执行
@@ -386,11 +378,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
 
                 if (!summaryDict.TryGetValue(id, out var sum)) return false;
 
-                // 条件2：B已购未回 — G5待回荒管=0 且 待回外购成=0 → 物料已回
-                if (s.RawMaterialLockRemark == "B已购未回")
-                    return sum.PendingRoughTubeQty == 0 && sum.PendingOutsourceFinishQty == 0;
-
-                // 条件3：C计划未执行 / D未完善计划 — G7流转状态≥1 → 已开始流转
+                // 条件2：B执行返整 / C执行计划 / D完善计划 — G7流转状态≥1 → 已开始流转（返整执行/计划执行）
                 return sum.FlowStatus >= 1;
             });
 
@@ -422,7 +410,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         foreach (var pre in allPreExecs)
         {
             if (!summaryDict.TryGetValue(pre.WorkOrderId, out var s)) continue;
-            if (s.RawMaterialLockRemark == "A质量影响") continue;
+            if (s.RawMaterialLockRemark == "A质量补料") continue;
             if (groupCases.Contains(s.RawMaterialLockRemark)) continue;
 
             // 非 A/B/C/D（ScheduleStage!=1 或无需锁料）：默认 false
@@ -441,8 +429,8 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             {
                 if (!summaryDict.TryGetValue(pre.WorkOrderId, out var s)) continue;
 
-                // A质量影响：单工单维度
-                if (s.RawMaterialLockRemark == "A质量影响")
+                // A质量补料：单工单维度
+                if (s.RawMaterialLockRemark == "A质量补料")
                 {
                     if (budgetCompleteIds.Contains(pre.WorkOrderId) && !pre.IsMainNoMaterialComplete)
                         pre.IsMainNoMaterialComplete = true;
@@ -458,7 +446,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     .Where(x => x.SalesOrderNo == s.SalesOrderNo
                              && x.ProductionMainNo == s.ProductionMainNo
                              && x.RawMaterialLockRemark == s.RawMaterialLockRemark
-                             && x.ScheduleStage == 1)
+                             && x.ScheduleStage == 2)
                     .Select(x => x.WorkOrderId)
                     .ToHashSet();
 
@@ -489,7 +477,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             }
 
             // ---- IsBudgetComplete 覆盖：无备注工单按 (订单号, 主号) 分组 ----
-            var handledRemarks = new HashSet<string> { "A质量影响", "B已购未回", "C计划未执行", "D未完善计划" };
+            var handledRemarks = new HashSet<string> { "A质量补料", "B执行返整", "C执行计划", "D完善计划" };
             var otherBudgetIds = budgetCompleteIds
                 .Where(id => summaryDict.TryGetValue(id, out var s) && !handledRemarks.Contains(s.RawMaterialLockRemark ?? ""))
                 .ToHashSet();
@@ -504,7 +492,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     var groupIds = allSummaries
                         .Where(x => x.SalesOrderNo == sum.SalesOrderNo
                                  && x.ProductionMainNo == sum.ProductionMainNo
-                                 && x.ScheduleStage == 1)
+                                 && x.ScheduleStage == 2)
                         .Select(x => x.WorkOrderId)
                         .ToHashSet();
 
@@ -543,24 +531,24 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         if (summaries.Count == 0) return;
 
         var allTargetIds = new HashSet<int>();
-        var groupCases = new[] { "B已购未回", "C计划未执行", "D未完善计划" };
+        var groupCases = new[] { "B执行返整", "C执行计划", "D完善计划" };
 
         foreach (var summary in summaries)
         {
             switch (summary.RawMaterialLockRemark)
             {
-                case "A质量影响":
+                case "A质量补料":
                     allTargetIds.Add(summary.WorkOrderId);
                     break;
 
-                case "B已购未回":
-                case "C计划未执行":
-                case "D未完善计划":
+                case "B执行返整":
+                case "C执行计划":
+                case "D完善计划":
                     var groupIds = await _context.Set<WorkOrderExecutionSummary>()
                         .Where(s => s.SalesOrderNo == summary.SalesOrderNo
                                  && s.ProductionMainNo == summary.ProductionMainNo
                                  && s.RawMaterialLockRemark == summary.RawMaterialLockRemark
-                                 && s.ScheduleStage == 1)
+                                 && s.ScheduleStage == 2)
                         .Select(s => s.WorkOrderId)
                         .ToListAsync();
                     foreach (var id in groupIds)
@@ -572,7 +560,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     var otherIds = await _context.Set<WorkOrderExecutionSummary>()
                         .Where(s => s.SalesOrderNo == summary.SalesOrderNo
                                  && s.ProductionMainNo == summary.ProductionMainNo
-                                 && s.ScheduleStage == 1)
+                                 && s.ScheduleStage == 2)
                         .Select(s => s.WorkOrderId)
                         .ToListAsync();
                     foreach (var id in otherIds)

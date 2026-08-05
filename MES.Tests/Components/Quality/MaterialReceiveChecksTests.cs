@@ -11,7 +11,7 @@ public class MaterialReceiveChecksTests : TestBase
 {
     public MaterialReceiveChecksTests()
     {
-        RegisterServices(typeof(MaterialReceiveCheckService));
+        RegisterServices(typeof(MaterialReceiveCheckService), typeof(BatchService));
         ConfigureEmptyResponse("/api/material-receive-check/all");
     }
 

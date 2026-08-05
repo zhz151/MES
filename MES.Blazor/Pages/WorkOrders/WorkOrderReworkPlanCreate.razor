@@ -243,8 +243,8 @@
                                     </span>
                                 </MudTh>
                                 <MudTh Style="width:40px;">
-                                    <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.SurfaceCondition))" Style="cursor:pointer;">
-                                        @SortIcon("SurfaceCondition") 物料状态
+                                    <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.ManufacturingStatus))" Style="cursor:pointer;">
+                                        @SortIcon("ManufacturingStatus") 制造状态
                                     </span>
                                 </MudTh>
                                 <MudTh Style="width:48px;">
@@ -272,7 +272,7 @@
                                 <MudTd DataLabel="剩余支数">@context.RemainingQuantity</MudTd>
                                 <MudTd DataLabel="剩余重量">@context.RemainingWeight.ToString("G29")</MudTd>
                                 <MudTd DataLabel="理论单支重">@DisplayHelper.FormatNullableDecimal(context.UnitWeight)</MudTd>
-                                <MudTd DataLabel="物料状态">@context.SurfaceCondition</MudTd>
+                                <MudTd DataLabel="制造状态">@context.ManufacturingStatus</MudTd>
                                 <MudTd DataLabel="放置框架">@GetLocation(context)</MudTd>
                                 <MudTd DataLabel="投料制成倍" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))
@@ -381,7 +381,7 @@
                 nameof(AvailableInventoryBatchDto.RemainingQuantity) => SortQuery(query, b => b.RemainingQuantity),
                 nameof(AvailableInventoryBatchDto.RemainingWeight) => SortQuery(query, b => b.RemainingWeight),
                 nameof(AvailableInventoryBatchDto.UnitWeight) => SortQuery(query, b => b.UnitWeight),
-                nameof(AvailableInventoryBatchDto.SurfaceCondition) => SortQuery(query, b => b.SurfaceCondition),
+                nameof(AvailableInventoryBatchDto.ManufacturingStatus) => SortQuery(query, b => b.ManufacturingStatus),
                 nameof(AvailableInventoryBatchDto.LocationArea) => SortQuery(query, b => b.LocationArea),
                 _ => SortQuery(query, b => b.Specification)
             };

@@ -99,6 +99,9 @@ public class SectionOutsourceService : ISectionOutsourceService
                 ProductionBatchId = s.ProductionBatchId,
                 ProcessGroupId = s.ProcessGroupId,
                 BatchNo = s.ProductionBatch.BatchNo,
+                WorkOrderNo = s.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = s.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = s.ProductionBatch.ProductionMainNo,
                 ProcessName = s.ProcessName,
                 ManufacturingSpec = s.ManufacturingSpec,
                 SectionName = s.SectionName,
@@ -148,6 +151,9 @@ public class SectionOutsourceService : ISectionOutsourceService
                 s.ProcessName.Contains(kw) ||
                 s.SectionName.Contains(kw) ||
                 s.ProductionBatch.BatchNo.Contains(kw) ||
+                (s.ProductionBatch.WorkOrderNo != null && s.ProductionBatch.WorkOrderNo.Contains(kw)) ||
+                (s.ProductionBatch.SalesOrderNo != null && s.ProductionBatch.SalesOrderNo.Contains(kw)) ||
+                (s.ProductionBatch.ProductionMainNo != null && s.ProductionBatch.ProductionMainNo.Contains(kw)) ||
                 (s.TagNo != null && s.TagNo.Contains(kw)) ||
                 (s.ManufacturingSpec != null && s.ManufacturingSpec.Contains(kw)) ||
                 (s.PlantGrade != null && s.PlantGrade.Contains(kw)) ||
@@ -180,7 +186,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             queryable = queryable.Where(s => s.OutsourceRecoveries.Any(r => r.RecoveryDate < to));
         }
 
-        // 处理 BatchNo 导航属性筛选（SectionOutsource 实体无 BatchNo 属性，ApplyFilters 反射不到）
+        // 处理批次导航属性筛选（SectionOutsource 实体无 BatchNo/WorkOrderNo/SalesOrderNo/ProductionMainNo 属性，ApplyFilters 反射不到）
         if (query.Filters != null)
         {
             var batchNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("BatchNo", StringComparison.OrdinalIgnoreCase));
@@ -189,6 +195,33 @@ public class SectionOutsourceService : ISectionOutsourceService
                 queryable = queryable.Where(s => s.ProductionBatch != null
                     && batchNoFilter.Values.Contains(s.ProductionBatch.BatchNo));
                 query.Filters.Remove(batchNoFilter);
+            }
+
+            var workOrderNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("WorkOrderNo", StringComparison.OrdinalIgnoreCase));
+            if (workOrderNoFilter != null && workOrderNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(s => s.ProductionBatch != null
+                    && s.ProductionBatch.WorkOrderNo != null
+                    && workOrderNoFilter.Values.Contains(s.ProductionBatch.WorkOrderNo));
+                query.Filters.Remove(workOrderNoFilter);
+            }
+
+            var salesOrderNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("SalesOrderNo", StringComparison.OrdinalIgnoreCase));
+            if (salesOrderNoFilter != null && salesOrderNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(s => s.ProductionBatch != null
+                    && s.ProductionBatch.SalesOrderNo != null
+                    && salesOrderNoFilter.Values.Contains(s.ProductionBatch.SalesOrderNo));
+                query.Filters.Remove(salesOrderNoFilter);
+            }
+
+            var productionMainNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("ProductionMainNo", StringComparison.OrdinalIgnoreCase));
+            if (productionMainNoFilter != null && productionMainNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(s => s.ProductionBatch != null
+                    && s.ProductionBatch.ProductionMainNo != null
+                    && productionMainNoFilter.Values.Contains(s.ProductionBatch.ProductionMainNo));
+                query.Filters.Remove(productionMainNoFilter);
             }
         }
 
@@ -220,6 +253,12 @@ public class SectionOutsourceService : ISectionOutsourceService
         {
             ("batchno", false) => queryable.OrderBy(s => s.ProductionBatch.BatchNo),
             ("batchno", true) => queryable.OrderByDescending(s => s.ProductionBatch.BatchNo),
+            ("workorderno", false) => queryable.OrderBy(s => s.ProductionBatch.WorkOrderNo ?? ""),
+            ("workorderno", true) => queryable.OrderByDescending(s => s.ProductionBatch.WorkOrderNo ?? ""),
+            ("salesorderno", false) => queryable.OrderBy(s => s.ProductionBatch.SalesOrderNo ?? ""),
+            ("salesorderno", true) => queryable.OrderByDescending(s => s.ProductionBatch.SalesOrderNo ?? ""),
+            ("productionmainno", false) => queryable.OrderBy(s => s.ProductionBatch.ProductionMainNo ?? ""),
+            ("productionmainno", true) => queryable.OrderByDescending(s => s.ProductionBatch.ProductionMainNo ?? ""),
             ("processname", false) => queryable.OrderBy(s => s.ProcessName),
             ("processname", true) => queryable.OrderByDescending(s => s.ProcessName),
             ("sectionname", false) => queryable.OrderBy(s => s.SectionName),
@@ -270,6 +309,9 @@ public class SectionOutsourceService : ISectionOutsourceService
                 ProductionBatchId = s.ProductionBatchId,
                 ProcessGroupId = s.ProcessGroupId,
                 BatchNo = s.ProductionBatch.BatchNo,
+                WorkOrderNo = s.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = s.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = s.ProductionBatch.ProductionMainNo,
                 ProcessName = s.ProcessName,
                 ManufacturingSpec = s.ManufacturingSpec,
                 SectionName = s.SectionName,
@@ -362,7 +404,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             DataSource = request.DataSource ?? "MANUAL"
         };
 
-        // 计算制造状态
+        // 计算产类
         var processGroups = await _context.ProcessGroups
             .Where(pg => pg.ProductionBatchId == batch.Id)
             .ToListAsync();
@@ -513,7 +555,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                     sequenceNumber = pg.GetSectionSequence(request.SectionName) ?? 0;
             }
 
-            // 计算制造状态
+            // 计算产类
             var batchProcessGroups = pgByBatch.GetValueOrDefault(batch.Id, new List<ProcessGroup>());
             var productStatus = ProductStatusHelper.Calculate(
                 request.ProcessName,
@@ -573,6 +615,16 @@ public class SectionOutsourceService : ISectionOutsourceService
         entity.ExpectedReturnDate = request.ExpectedReturnDate ?? entity.ExpectedReturnDate;
         if (request.IsUrgent.HasValue) entity.IsUrgent = request.IsUrgent.Value;
         if (request.Remark != null) entity.Remark = request.Remark;
+
+        // 重算产品状态（产类）：与生产记录行为一致，更新时基于批次最新信息刷新
+        if (entity.ProductionBatch != null)
+        {
+            var processGroups = await _context.ProcessGroups
+                .Where(pg => pg.ProductionBatchId == entity.ProductionBatchId)
+                .ToListAsync();
+            entity.ProductStatus = ProductStatusHelper.Calculate(
+                entity.ProcessName, entity.ManufacturingSpec, entity.ProductionBatch.ManufacturingItem, processGroups, entity.ProductionBatch.Specification);
+        }
 
         await _context.SaveChangesAsync();
 
@@ -1034,6 +1086,9 @@ public class SectionOutsourceService : ISectionOutsourceService
         var data = items.Select(s => new Dictionary<string, object>
         {
             ["BatchNo"] = s.ProductionBatch.BatchNo,
+            ["WorkOrderNo"] = s.ProductionBatch.WorkOrderNo ?? "",
+            ["SalesOrderNo"] = s.ProductionBatch.SalesOrderNo ?? "",
+            ["ProductionMainNo"] = s.ProductionBatch.ProductionMainNo ?? "",
             ["ProcessName"] = s.ProcessName,
             ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
             ["SectionName"] = s.SectionName,
@@ -1087,6 +1142,9 @@ public class SectionOutsourceService : ISectionOutsourceService
         var data = paged.Items.Select(s => new Dictionary<string, object>
         {
             ["BatchNo"] = s.BatchNo,
+            ["WorkOrderNo"] = s.WorkOrderNo ?? "",
+            ["SalesOrderNo"] = s.SalesOrderNo ?? "",
+            ["ProductionMainNo"] = s.ProductionMainNo ?? "",
             ["ProcessName"] = s.ProcessName,
             ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
             ["SectionName"] = s.SectionName,
@@ -1257,6 +1315,9 @@ public class SectionOutsourceService : ISectionOutsourceService
             var results = await query.Select(s => new
             {
                 s.ProductionBatch.BatchNo,
+                s.ProductionBatch.WorkOrderNo,
+                s.ProductionBatch.SalesOrderNo,
+                s.ProductionBatch.ProductionMainNo,
                 s.ProcessName,
                 s.ManufacturingSpec,
                 s.SectionName,
@@ -1279,6 +1340,9 @@ public class SectionOutsourceService : ISectionOutsourceService
             return new Dictionary<string, List<string>>
             {
                 ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["WorkOrderNo"] = results.Select(x => x.WorkOrderNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SalesOrderNo"] = results.Select(x => x.SalesOrderNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["ProductionMainNo"] = results.Select(x => x.ProductionMainNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
                 ["ManufacturingSpec"] = results.Select(x => x.ManufacturingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
@@ -1450,6 +1514,9 @@ public class SectionOutsourceService : ISectionOutsourceService
                 ProductionBatchId = s.ProductionBatchId,
                 ProcessGroupId = s.ProcessGroupId,
                 BatchNo = s.ProductionBatch.BatchNo,
+                WorkOrderNo = s.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = s.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = s.ProductionBatch.ProductionMainNo,
                 ProcessName = s.ProcessName,
                 ManufacturingSpec = s.ManufacturingSpec,
                 SectionName = s.SectionName,

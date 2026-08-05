@@ -36,7 +36,7 @@ public class BatchInboundRequest
     public decimal? UnitWeight { get; set; }
     public decimal? Meters { get; set; }
     public string? ActualSpecification { get; set; }
-    public DeliveryState? SurfaceCondition { get; set; }
+    public DeliveryState? ManufacturingStatus { get; set; }
     public string? LocationArea { get; set; }
     public string? LocationRack { get; set; }
     public string? DefectReason { get; set; }
@@ -69,7 +69,7 @@ public class InboundRow
     public decimal? MaxLength { get; set; }
     public decimal? UnitWeight { get; set; }
     public decimal? Meters { get; set; }
-    public DeliveryState? SurfaceCondition { get; set; }
+    public DeliveryState? ManufacturingStatus { get; set; }
     public string? LocationArea { get; set; }
     public string? LocationRack { get; set; }
     public string? Remark { get; set; }

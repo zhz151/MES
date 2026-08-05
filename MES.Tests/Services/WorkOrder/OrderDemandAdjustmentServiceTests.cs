@@ -28,7 +28,39 @@ public class OrderDemandAdjustmentServiceTests : TestBase
         return new OrderDemandAdjustmentService(ctx, woMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
-    private void SeedSummary(AppDbContext ctx, string workOrderNo, int workOrderId, string salesman = "", string customerName = "", string plantGrade = "", string specification = "")
+    private void SeedWorkOrder(AppDbContext ctx, int id, string workOrderNo, string salesOrderNo = "SO001", string productionMainNo = "D01")
+    {
+        ctx.Set<MES.Data.Entities.WorkOrder.WorkOrder>().Add(new MES.Data.Entities.WorkOrder.WorkOrder
+        {
+            Id = id,
+            WorkOrderNo = workOrderNo,
+            SalesOrderNo = salesOrderNo,
+            ProductionMainNo = productionMainNo,
+            OrderItemIds = "1",
+            Status = WorkOrderStatus.Confirmed,
+            RowVersion = Array.Empty<byte>(),
+            SignDate = DateTime.Today,
+            Salesman = "张三",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = "GB/T 8163",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            PlantGrade = "304",
+            Specification = "219*8",
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.3m,
+            WallThicknessPositive = 0.3m,
+            LengthStatus = LengthStatus.Fixed,
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+        });
+    }
+
+    private void SeedSummary(AppDbContext ctx, string workOrderNo, int workOrderId, string salesman = "", string customerName = "", string plantGrade = "", string specification = "", int woWarehousingStatus = 1)
     {
         ctx.Set<WorkOrderExecutionSummary>().Add(new WorkOrderExecutionSummary
         {
@@ -50,6 +82,7 @@ public class OrderDemandAdjustmentServiceTests : TestBase
             TotalQuantity = 100,
             TotalMeters = 600,
             TotalWeight = 2500m,
+            WoWarehousingStatus = woWarehousingStatus,
             ScheduleStage = 1,
         });
     }
@@ -187,34 +220,7 @@ public class OrderDemandAdjustmentServiceTests : TestBase
     public async Task SaveUrgingAsync_创建新记录()
     {
         using var ctx = CreateDbContext();
-        ctx.Set<MES.Data.Entities.WorkOrder.WorkOrder>().Add(new MES.Data.Entities.WorkOrder.WorkOrder
-        {
-            Id = 1,
-            WorkOrderNo = "WO001",
-            SalesOrderNo = "SO001",
-            ProductionMainNo = "D01",
-            OrderItemIds = "1",
-            Status = WorkOrderStatus.Confirmed,
-            RowVersion = Array.Empty<byte>(),
-            SignDate = DateTime.Today,
-            Salesman = "张三",
-            DeliveryDate = DateTime.Today.AddMonths(1),
-            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
-            SettlementMethod = SettlementMethod.Theoretical,
-            StandardCode = "GB/T 8163",
-            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
-            PlantGrade = "304",
-            Specification = "219*8",
-            OuterDiameterNegative = 0.5m,
-            OuterDiameterPositive = 0.5m,
-            WallThicknessNegative = 0.3m,
-            WallThicknessPositive = 0.3m,
-            LengthStatus = LengthStatus.Fixed,
-            TotalQuantity = 100,
-            TotalMeters = 600,
-            TotalWeight = 2500m,
-            TotalItemCount = 1,
-        });
+        SeedWorkOrder(ctx, 1, "WO001");
         var woMock = new Mock<IWorkOrderExecutionService>();
         woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
         var svc = CreateService(ctx, woMock);
@@ -235,34 +241,7 @@ public class OrderDemandAdjustmentServiceTests : TestBase
     public async Task SaveUrgingAsync_更新已有记录()
     {
         using var ctx = CreateDbContext();
-        ctx.Set<MES.Data.Entities.WorkOrder.WorkOrder>().Add(new MES.Data.Entities.WorkOrder.WorkOrder
-        {
-            Id = 1,
-            WorkOrderNo = "WO001",
-            SalesOrderNo = "SO001",
-            ProductionMainNo = "D01",
-            OrderItemIds = "1",
-            Status = WorkOrderStatus.Confirmed,
-            RowVersion = Array.Empty<byte>(),
-            SignDate = DateTime.Today,
-            Salesman = "张三",
-            DeliveryDate = DateTime.Today.AddMonths(1),
-            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
-            SettlementMethod = SettlementMethod.Theoretical,
-            StandardCode = "GB/T 8163",
-            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
-            PlantGrade = "304",
-            Specification = "219*8",
-            OuterDiameterNegative = 0.5m,
-            OuterDiameterPositive = 0.5m,
-            WallThicknessNegative = 0.3m,
-            WallThicknessPositive = 0.3m,
-            LengthStatus = LengthStatus.Fixed,
-            TotalQuantity = 100,
-            TotalMeters = 600,
-            TotalWeight = 2500m,
-            TotalItemCount = 1,
-        });
+        SeedWorkOrder(ctx, 1, "WO001");
         ctx.Set<OrderDemandAdjustment>().Add(new OrderDemandAdjustment
         {
             WorkOrderId = 1,
@@ -286,6 +265,70 @@ public class OrderDemandAdjustmentServiceTests : TestBase
         updated.IsPaused.Should().BeTrue();
         updated.AdjustmentRemark.Should().Be("新备注");
         woMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveUrgingAsync_主号联动连带_同主号未完结工单同步暂停()
+    {
+        using var ctx = CreateDbContext();
+        SeedWorkOrder(ctx, 1, "WO001");
+        SeedWorkOrder(ctx, 2, "WO002");
+        // 同主号（SO001/D01）下两个工单均未入库完结
+        SeedSummary(ctx, "WO001", 1, woWarehousingStatus: 1);
+        SeedSummary(ctx, "WO002", 2, woWarehousingStatus: 1);
+        await ctx.SaveChangesAsync();
+
+        var woMock = new Mock<IWorkOrderExecutionService>();
+        woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
+        var svc = CreateService(ctx, woMock);
+
+        // 暂停 WO001 → 主号暂停联动，WO002 一并暂停
+        var result = await svc.SaveUrgingAsync(1, true, false, true, "主号暂停备注");
+
+        result.Should().BeTrue();
+        var adjustments = await ctx.Set<OrderDemandAdjustment>().ToListAsync();
+        adjustments.Should().HaveCount(2);
+
+        var w1 = adjustments.Single(u => u.WorkOrderId == 1);
+        w1.IsUrging.Should().BeTrue();
+        w1.IsPaused.Should().BeTrue();
+        w1.AdjustmentRemark.Should().Be("主号暂停备注");
+
+        var w2 = adjustments.Single(u => u.WorkOrderId == 2);
+        w2.IsUrging.Should().BeFalse();
+        w2.IsPaused.Should().BeTrue();
+        w2.AdjustmentRemark.Should().BeNull();
+
+        woMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(n =>
+            n.Contains("WO001", StringComparer.OrdinalIgnoreCase) && n.Contains("WO002", StringComparer.OrdinalIgnoreCase))), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveUrgingAsync_联动连带_已入库完结工单不同步()
+    {
+        using var ctx = CreateDbContext();
+        SeedWorkOrder(ctx, 1, "WO001");
+        SeedWorkOrder(ctx, 2, "WO002");
+        // WO001 未入库完结，WO002 已入库完结（主号闭环）
+        SeedSummary(ctx, "WO001", 1, woWarehousingStatus: 1);
+        SeedSummary(ctx, "WO002", 2, woWarehousingStatus: 2);
+        await ctx.SaveChangesAsync();
+
+        var woMock = new Mock<IWorkOrderExecutionService>();
+        woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
+        var svc = CreateService(ctx, woMock);
+
+        var result = await svc.SaveUrgingAsync(1, true, false, true, "主号暂停备注");
+
+        result.Should().BeTrue();
+        // 只有当前工单被写入，已完结工单不被牵连
+        var adjustments = await ctx.Set<OrderDemandAdjustment>().ToListAsync();
+        adjustments.Should().HaveCount(1);
+        adjustments.Single().WorkOrderId.Should().Be(1);
+        adjustments.Single().IsPaused.Should().BeTrue();
+
+        woMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(n =>
+            n.Contains("WO001", StringComparer.OrdinalIgnoreCase) && !n.Contains("WO002", StringComparer.OrdinalIgnoreCase))), Times.Once);
     }
 
     // ==================== GetFilterContextsAsync 测试 ====================

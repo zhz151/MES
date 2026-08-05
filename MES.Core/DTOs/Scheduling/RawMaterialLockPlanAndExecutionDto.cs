@@ -4,7 +4,7 @@ using MES.Core.Helpers;
 namespace MES.Core.DTOs.Scheduling;
 
 /// <summary>
-/// 原锁计划 DTO（G1+G2+G5+G3+G7+G10+G12+G13+G15）
+/// 原锁计划 DTO（G1+G2+G5+G3+G7+G12+G13+G15）
 /// </summary>
 public class RawMaterialLockPlanAndExecutionDto
 {
@@ -81,14 +81,6 @@ public class RawMaterialLockPlanAndExecutionDto
     public int FlowIncompleteBatchCount { get; set; }
     public int FlowMaxRemainingWorkDays { get; set; }
 
-    // ========== G10: 汇总不合格 ==========
-    public decimal GeneralDefectWeight { get; set; }
-    public decimal GeneralDefectRatio { get; set; }
-    public decimal SeriousDefectWeight { get; set; }
-    public decimal SeriousDefectRatio { get; set; }
-    public decimal ScrapWeight { get; set; }
-    public decimal ScrapRatio { get; set; }
-
     // ========== G12: 实时关注 ==========
     public int ScheduleStage { get; set; }
     public int? TotalRemainingWorkDays { get; set; }
@@ -127,10 +119,11 @@ public class RawMaterialLockPlanAndExecutionDto
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
     public string ScheduleStageText => ScheduleStage switch
     {
-        0 => "工单完成",
-        1 => "原料锁定",
-        2 => "生产执行",
-        3 => "成品检验",
+        0 => "主号暂停",
+        1 => "主号完成",
+        2 => "原料锁定",
+        3 => "生产执行",
+        4 => "成品检验",
         _ => "未知"
     };
     public string UrgingText => IsUrging ? "是" : "否";

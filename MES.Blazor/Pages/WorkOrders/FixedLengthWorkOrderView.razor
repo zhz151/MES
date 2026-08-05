@@ -5,6 +5,7 @@
 @inject IJSRuntime JS
 @inject PageStateService PageState
 @inject ColumnPrefsService ColumnPrefs
+@inject HttpClient Http
 
 @attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
@@ -46,7 +47,7 @@
                 <div id="fixed-length-work-order-list-table" class="mt-1">
                 @{
                     var _groupHeaders = GetGroupHeaders();
-                    var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
+                    var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
                 }
                 @* 工具栏：列显隐（左）+ 记录数（右） *@
                 <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
@@ -63,6 +64,24 @@
                         </MudButton>
                     </div>
                     <div class="d-flex align-center" style="margin-left:auto;">
+                        <MudButton Variant="Variant.Outlined"
+                                   Size="Size.Small"
+                                   Color="Color.Primary"
+                                   Class="ml-2"
+                                   StartIcon="@Icons.Material.Filled.Print"
+                                   OnClick="PrintAll"
+                                   Disabled="@(_filteredItems.Count == 0)">
+                            打印全部
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled"
+                                   Size="Size.Small"
+                                   Color="Color.Primary"
+                                   Class="ml-2"
+                                   StartIcon="@Icons.Material.Filled.Print"
+                                   OnClick="PrintSelected"
+                                   Disabled="@(_selectedItems.Count == 0)">
+                            打印选中 (@_selectedItems.Count)
+                        </MudButton>
                         <MudText Typo="Typo.body2" Class="ml-4">
                             共 @_filteredItems.Count 条记录
                         </MudText>
@@ -92,6 +111,13 @@
                         @{
                             int? _prevGk = null;
                         }
+                        <MudTh Class="col-selection-th" Style="width:40px;min-width:40px;max-width:40px;padding:0 4px;">
+                            <MudCheckBox T="bool"
+                                         Value="@(_selectedItems.Count > 0 && _selectedItems.Count == _filteredItems.Count)"
+                                         ValueChanged="@((bool v) => SelectAllItems(v))"
+                                         Dense="true"
+                                         TriState="false" />
+                        </MudTh>
                         @foreach (var col in _visibleColumns)
                         {
                             var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
@@ -117,24 +143,31 @@
                         @{
                             int? _prevGk2 = null;
                         }
+                        <MudTd Class="col-selection-td" Style="width:40px;min-width:40px;max-width:40px;padding:0 4px;">
+                            <MudCheckBox T="bool"
+                                         Value="@(_selectedItems.Contains(item))"
+                                         ValueChanged="@((bool v) => ToggleSelection(item, v))"
+                                         Dense="true" />
+                        </MudTd>
                         @foreach (var col in _visibleColumns)
                         {
                             var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                             _prevGk2 = col.GroupKey;
                             var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                            <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
+                            <MudTd Class="@($"{_cellClass} {GetAlignClass(col)}")">@RenderCell(item, col)</MudTd>
                         }
                     </RowTemplate>
                     <FooterContent>
                         @{
                             int? _prevGk3 = null;
                         }
+                        <MudTd Style="width:40px;min-width:40px;max-width:40px;"></MudTd>
                         @foreach (var col in _visibleColumns)
                         {
                             var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                             _prevGk3 = col.GroupKey;
                             var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
-                            <MudTd Class="@_footerClass" Style="@($"width: {col.Width}px")">
+                            <MudTd Class="@($"{_footerClass} {GetAlignClass(col)}")" Style="@($"width: {col.Width}px")">
                                 <span class="col-footer-sum">@RenderFooterCell(col)</span>
                             </MudTd>
                         }

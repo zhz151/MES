@@ -11,11 +11,25 @@ public class QualityProcessTrackingDto
     public int Id { get; set; }
     public int ProductionBatchId { get; set; }
     public string? BatchNo { get; set; }
+    public string? InspectionType { get; set; }
+    public string? InspectionTypeDisplay => !string.IsNullOrEmpty(InspectionType) && EnumHelper.TryParse<InspectionType>(InspectionType) is { } it ? EnumHelper.GetDisplayName(it) : null;
+
+    /// <summary>
+    /// 是否正式成检（成检类型==FormalInspection；null/其他/预成检均视为非正式成检）
+    /// 仅正式成检时「制造状态/是否交付态」才有效，否则统一显示 "-"
+    /// </summary>
+    public bool IsFormalInspection =>
+        string.Equals(InspectionType, nameof(MES.Core.Enums.InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>是否交付态（存储值："是"/"否"；非正式成检统一显示 "-"）</summary>
+    public string? IsDeliveryStatus { get; set; }
+    public string? IsDeliveryStatusDisplay => IsFormalInspection ? IsDeliveryStatus : "-";
     public MaterialType? ManufacturingItem { get; set; }
     public string? ManufacturingItemDisplay => ManufacturingItem.HasValue ? EnumHelper.GetDisplayName(ManufacturingItem.Value) : null;
     public string? TagNo { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
+    public string? ProductionMainNo { get; set; }
     public string? SourceUnit { get; set; }
     public string? FurnaceNo { get; set; }
     public string? PlantGrade { get; set; }
@@ -30,8 +44,13 @@ public class QualityProcessTrackingDto
     public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
     public string? Checker { get; set; }
     public string? Salesman { get; set; }
+    public string? ManufacturingStatus { get; set; }
+    public string? ManufacturingStatusDisplay => !IsFormalInspection
+        ? "-"
+        : !string.IsNullOrEmpty(ManufacturingStatus) && EnumHelper.TryParse<DeliveryState>(ManufacturingStatus) is { } ms ? EnumHelper.GetDisplayName(ms) : "-";
     public DeliveryState? DeliveryState { get; set; }
     public string? DeliveryStateDisplay => DeliveryState.HasValue ? EnumHelper.GetDisplayName(DeliveryState.Value) : null;
+    public string? EndCustomer { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
     public DateTimeOffset UpdatedTime { get; set; }
 
@@ -49,8 +68,8 @@ public class QualityProcessTrackingDto
 
     // ========== G3: 检验汇总 ==========
     public int ProductionCutQuantity { get; set; }           // 生产支数（断切成品切后支数和）
-    public int TotalQuantity { get; set; }                   // 检验支数（单项最大值）
-    public int QualifiedQuantity { get; set; }               // 合格支数（单项最小值）
+    public int TotalQuantity { get; set; }                   // 检验支数（按唯一性+检验项目汇总 Quantity，跨项目取最大）
+    public int QualifiedQuantity { get; set; }               // 理论合格支（检验支数 - 三次品汇总）
     public int DefectReworkQuantity { get; set; }            // 返整支数合计
     public int DefectWarehouseQuantity { get; set; }         // 不合格入库支数合计
     public int DefectScrapQuantity { get; set; }             // 报废支数合计

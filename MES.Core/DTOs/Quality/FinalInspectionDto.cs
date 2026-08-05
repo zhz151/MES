@@ -39,6 +39,9 @@ public class FinalInspectionDto
     /// <summary>关联订单号</summary>
     public string? SalesOrderNo { get; set; }
 
+    /// <summary>主号（从批次导航属性投影）</summary>
+    public string? ProductionMainNo { get; set; }
+
     /// <summary>来料单位</summary>
     public string? SourceUnit { get; set; }
 
@@ -72,9 +75,36 @@ public class FinalInspectionDto
     /// <summary>制造状态（来自关联生产批次）</summary>
     public string? ManufacturingStatus { get; set; }
 
-    /// <summary>是否交付态（制造状态==交货状态为"是"）</summary>
-    public string? IsDeliveryStatusDisplay =>
-        string.Equals(ManufacturingStatus, DeliveryState, StringComparison.OrdinalIgnoreCase) ? "是" : "否";
+    /// <summary>
+    /// 制造状态显示（仅正式成检有效；非正式成检/空统一显示 "-"）
+    /// </summary>
+    public string? ManufacturingStatusDisplay => !IsFormalInspection
+        ? "-"
+        : !string.IsNullOrEmpty(ManufacturingStatus) && EnumHelper.TryParse<DeliveryState>(ManufacturingStatus) is { } ms ? EnumHelper.GetDisplayName(ms) : "-";
+
+    /// <summary>最终用户（来自关联生产批次）</summary>
+    public string? EndCustomer { get; set; }
+
+    /// <summary>生产支数（来自关联生产批次；需切割→批次 CutQuantity，免切割→批次理论成品支数）</summary>
+    public int? ProductionCutQuantity { get; set; }
+
+    /// <summary>生产重量（来自关联生产批次理论成品重量）</summary>
+    public decimal? ProductionWeight { get; set; }
+
+    /// <summary>
+    /// 是否正式成检（成检类型==FormalInspection；null/其他/预成检均视为非正式成检）
+    /// 仅正式成检时「制造状态/是否交付态」才有效，否则统一显示 "-"
+    /// </summary>
+    public bool IsFormalInspection =>
+        string.Equals(InspectionType, nameof(MES.Core.Enums.InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 是否交付态显示（制造状态==交货状态为"是"；仅正式成检有效，非正式成检显示 "-"）
+    /// </summary>
+    public string? IsDeliveryStatusDisplay => !IsFormalInspection
+        ? "-"
+        : !string.IsNullOrEmpty(ManufacturingStatus) && !string.IsNullOrEmpty(DeliveryState)
+          && string.Equals(ManufacturingStatus, DeliveryState, StringComparison.OrdinalIgnoreCase) ? "是" : "否";
 
     /// <summary>设备名称</summary>
     public string? EquipmentName { get; set; }
@@ -208,6 +238,9 @@ public class BatchLookupResultDto
     /// <summary>关联订单号</summary>
     public string? SalesOrderNo { get; set; }
 
+    /// <summary>主号（从批次导航属性投影）</summary>
+    public string? ProductionMainNo { get; set; }
+
     /// <summary>来料单位</summary>
     public string? SourceUnit { get; set; }
 
@@ -241,6 +274,15 @@ public class BatchLookupResultDto
     /// <summary>制造状态</summary>
     public string? ManufacturingStatus { get; set; }
 
+    /// <summary>最终用户</summary>
+    public string? EndCustomer { get; set; }
+
+    /// <summary>生产支数（需切割→批次成切支数，免切割→理论成品支数）</summary>
+    public int? ProductionCutQuantity { get; set; }
+
+    /// <summary>生产重量（理论成品重量）</summary>
+    public decimal? ProductionWeight { get; set; }
+
     /// <summary>成检类型（继承自到料检验，无则默认正式成检）</summary>
     public string? InspectionType { get; set; }
 
@@ -265,6 +307,13 @@ public class CreateFinalInspectionRequest
 
     /// <summary>生产批次ID（可由BatchNo自动解析）</summary>
     public int ProductionBatchId { get; set; }
+
+    /// <summary>
+    /// 成检类型（PreInspection=预成检，FormalInspection=正式成检）
+    /// 不传时服务端按「优先正式成检」自动判定；传了则以传入值为准
+    /// </summary>
+    [MaxLength(20)]
+    public string? InspectionType { get; set; }
 
     public MaterialType? ManufacturingItem { get; set; }
     [MaxLength(50)]
@@ -369,6 +418,13 @@ public class UpdateFinalInspectionRequest
     [Required(ErrorMessage = "检验日期不能为空")]
     public DateTime InspectionDate { get; set; }
 
+    /// <summary>
+    /// 成检类型（PreInspection=预成检，FormalInspection=正式成检）
+    /// 传了则校验（必须在批次成检到料类型集合内）并更新；不传保留原值
+    /// </summary>
+    [MaxLength(20)]
+    public string? InspectionType { get; set; }
+
     [MaxLength(50)]
     public string? FixedLength { get; set; }
 
@@ -437,4 +493,24 @@ public class UpdateFinalInspectionRequest
 
     [MaxLength(500)]
     public string? Remark { get; set; }
+}
+
+/// <summary>
+/// 成品检验健康汇总DTO（按当前筛选条件统计「成检类型与成检到料不符」的生产编号）
+/// </summary>
+public class FinalInspectionHealthSummaryDto
+{
+    /// <summary>筛选后的成品检验记录总数</summary>
+    public int TotalCount { get; set; }
+
+    /// <summary>成检类型疑问：批次有成检到料，但记录成检类型不在到料类型集合内</summary>
+    public List<string> InspectionTypeMismatchBatchNos { get; set; } = new();
+
+    /// <summary>无成检到料：批次完全无到料记录（本不该存在成品检验）</summary>
+    public List<string> NoMaterialCheckBatchNos { get; set; } = new();
+
+    public int InspectionTypeMismatchCount => InspectionTypeMismatchBatchNos.Count;
+    public int NoMaterialCheckCount => NoMaterialCheckBatchNos.Count;
+    public int NormalCount => TotalCount - InspectionTypeMismatchCount - NoMaterialCheckCount;
+    public int IssueCount => InspectionTypeMismatchCount + NoMaterialCheckCount;
 }

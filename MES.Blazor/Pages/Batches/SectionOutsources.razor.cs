@@ -111,6 +111,9 @@ public partial class SectionOutsources
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "WorkOrderNo",         Label = "工单号",       SortKey = "workorderno",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "SalesOrderNo",        Label = "订单号",       SortKey = "salesorderno",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "ProductionMainNo",    Label = "主号",         SortKey = "productionmainno",    FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
@@ -126,7 +129,7 @@ public partial class SectionOutsources
         new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "ExpectedReturnDate",  Label = "要求收回日期", SortKey = "expectedreturndate",  FilterType = "date", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "IsUrgent",            Label = "紧急",         SortKey = "isurgent",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60", GroupKey = 1, GroupName = "委外信息" },
-        new() { Key = "ProductStatus",       Label = "制造状态",     SortKey = "productstatus",       FilterType = "string", Width = "80", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "ProductStatus",       Label = "产类",         SortKey = "productstatus",       FilterType = "string", Width = "80", GroupKey = 1, GroupName = "委外信息" },
         // ----- 元信息（归属委外记录） -----
         new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "委外信息",
@@ -530,6 +533,15 @@ public partial class SectionOutsources
                 builder.AddAttribute(3, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => Navigation.NavigateTo($"/batches/{item.ProductionBatchId}")));
                 builder.AddAttribute(4, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.BatchNo)));
                 builder.CloseComponent();
+                break;
+            case "WorkOrderNo":
+                builder.AddContent(0, item.WorkOrderNo);
+                break;
+            case "SalesOrderNo":
+                builder.AddContent(0, item.SalesOrderNo);
+                break;
+            case "ProductionMainNo":
+                builder.AddContent(0, item.ProductionMainNo);
                 break;
             case "ProcessName":
                 builder.AddContent(0, item.ProcessName);

@@ -46,8 +46,8 @@ public class InventoryBatchDto
     public string? ActualSpecification { get; set; }
 
     // 位置状态
-    public DeliveryState? SurfaceCondition { get; set; }
-    public string? SurfaceConditionDisplay => SurfaceCondition.HasValue ? EnumHelper.GetDisplayName(SurfaceCondition.Value) : null;
+    public DeliveryState? ManufacturingStatus { get; set; }
+    public string? ManufacturingStatusDisplay => ManufacturingStatus.HasValue ? EnumHelper.GetDisplayName(ManufacturingStatus.Value) : null;
     public string? LocationArea { get; set; }
     public string? LocationRack { get; set; }
     public string? Remark { get; set; }

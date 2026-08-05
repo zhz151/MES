@@ -65,9 +65,9 @@ public class InventoryQueryParams : QueryParams
     public string? LengthStatus { get; set; }
 
     /// <summary>
-    /// 表面状态筛选
+    /// 制造状态筛选
     /// </summary>
-    public string? SurfaceCondition { get; set; }
+    public string? ManufacturingStatus { get; set; }
 
     /// <summary>
     /// 次品原因筛选

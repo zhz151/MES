@@ -490,6 +490,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">总支数</MudText><MudText Typo="Typo.body2">@batch.TotalQuantity 支</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">总米数</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(batch.TotalMeters) m</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">总重量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(batch.TotalWeight) kg</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">产品单支量</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.ProductUnitWeight) kg/支</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">技术要求</MudText><MudText Typo="Typo.body2">@FmtStr(DisplayHelper.GetTechnicalRequirementsText(batch.TechnicalRequirements))</MudText></div>
             </div>
             }

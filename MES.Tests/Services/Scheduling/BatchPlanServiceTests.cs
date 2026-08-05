@@ -197,7 +197,8 @@ public class BatchPlanServiceTests : TestBase
         var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
 
         var item = result.Items.Single();
-        item.ScheduleStage.Should().Be(2); // From WorkOrderExecutionSummary
+        // summary 5 档(2=原料锁定) 映射为排程 4 档(1)
+        item.ScheduleStage.Should().Be(1); // From WorkOrderExecutionSummary
     }
 
     [Fact]

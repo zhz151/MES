@@ -28,6 +28,22 @@ public class FinalInspectionService
         catch (Exception ex) { return ApiResponse<PagedResult<FinalInspectionDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    public async Task<ApiResponse<FinalInspectionHealthSummaryDto>> GetFinalInspectionHealthSummaryAsync(
+        string? keyword = null, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null, string? filters = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/health-summary";
+            if (!string.IsNullOrEmpty(keyword)) url += $"?keyword={Uri.EscapeDataString(keyword)}";
+            if (inspectionDateFrom.HasValue) url += $"&inspectionDateFrom={inspectionDateFrom.Value:yyyy-MM-dd}";
+            if (inspectionDateTo.HasValue) url += $"&inspectionDateTo={inspectionDateTo.Value:yyyy-MM-dd}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
+            return await _http.GetFromJsonAsync<ApiResponse<FinalInspectionHealthSummaryDto>>(url)
+                   ?? ApiResponse<FinalInspectionHealthSummaryDto>.Fail("获取健康汇总失败");
+        }
+        catch (Exception ex) { return ApiResponse<FinalInspectionHealthSummaryDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     public async Task<ApiResponse<List<FinalInspectionDto>>> GetAllListAsync()
     {
         try

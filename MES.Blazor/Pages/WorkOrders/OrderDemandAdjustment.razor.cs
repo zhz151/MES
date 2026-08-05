@@ -103,7 +103,7 @@ public partial class OrderDemandAdjustment
         // G12: 实时关注
         var g12 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","主号暂停"), new("1","主号完成"), new("2","原料锁定"), new("3","生产执行"), new("4","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "CapacityWorkDays",        Label = "产能工量(天)", SortKey = "CapacityWorkDays",        Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
@@ -766,10 +766,11 @@ public partial class OrderDemandAdjustment
 
     private static Color GetScheduleStageColor(int stage) => stage switch
     {
-        0 => Color.Default,
-        1 => Color.Warning,
-        2 => Color.Success,
-        3 => Color.Info,
+        0 => Color.Error,       // 主号暂停
+        1 => Color.Success,     // 主号完成（闭环）
+        2 => Color.Warning,     // 原料锁定（待料）
+        3 => Color.Info,        // 生产执行
+        4 => Color.Primary,     // 成品检验
         _ => Color.Default
     };
 

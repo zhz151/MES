@@ -1,12 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using MES.Core.Constants;
+using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Data;
 using MES.Data.Entities.Quality;
 using MES.Data.Entities.WorkOrder;
+using MES.Services.Printing;
 
 namespace MES.Services.WorkOrder;
 
@@ -15,7 +18,7 @@ namespace MES.Services.WorkOrder;
 /// </summary>
 public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
 {
-    /// <summary>制造状态=成品（ProductStatusHelper.Calculate 返回值）</summary>
+    /// <summary>产类=成品（ProductStatusHelper.Calculate 返回值）</summary>
     private const string FinishedProductStatus = "成品";
 
     /// <summary>IN 查询每批参数上限（SQL Server 默认 2100，留余量）</summary>
@@ -23,11 +26,13 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
 
     private readonly AppDbContext _context;
     private readonly ILogger<FixedLengthWorkOrderService> _logger;
+    private readonly IMemoryCache _cache;
 
-    public FixedLengthWorkOrderService(AppDbContext context, ILogger<FixedLengthWorkOrderService> logger)
+    public FixedLengthWorkOrderService(AppDbContext context, ILogger<FixedLengthWorkOrderService> logger, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<HashSet<decimal>> GetLengthsByMainNoAsync(string salesOrderNo, string productionMainNo)
@@ -42,6 +47,18 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
     }
 
     public async Task<List<FixedLengthWorkOrderListDto>> GetListAsync()
+    {
+        // 结果缓存：全量聚合（6 次查询 + 2 处全表拉内存）较慢，5 分钟绝对过期，
+        // 与 WorkOrderExecutionService 缓存模式一致。数据源（工单/批次/记录/入库）CRUD 无统一失效入口，
+        // 采用短 TTL 保证新鲜度，兼顾重复打开页面时的加载性能。
+        return await _cache.GetOrCreateAsync("FixedLengthWorkOrderService:List", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            return await GetListCoreAsync();
+        }) ?? new List<FixedLengthWorkOrderListDto>();
+    }
+
+    private async Task<List<FixedLengthWorkOrderListDto>> GetListCoreAsync()
     {
         // 1. 全部定尺工单行（工单号升序，长度降序）
         var fixedRows = await _context.FixedLengthWorkOrders
@@ -82,15 +99,17 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var allBatches = await _context.ProductionBatches
-            .Select(b => new { b.Id, b.SalesOrderNo, b.ProductionMainNo, b.TheoreticalOutputQty })
+            .Select(b => new { b.Id, b.SalesOrderNo, b.ProductionMainNo, b.TheoreticalOutputQty, b.CutRequirement })
             .ToListAsync();
         var batchMainKeyMap = new Dictionary<int, string>();
+        var batchCutReqMap = new Dictionary<int, bool>();
         var batchesByMainKey = new Dictionary<string, List<BatchBrief>>(StringComparer.OrdinalIgnoreCase);
         foreach (var b in allBatches)
         {
             var key = NormalizeMainKey(b.SalesOrderNo, b.ProductionMainNo);
             if (!involvedMainKeys.Contains(key)) continue;
             batchMainKeyMap[b.Id] = key;
+            batchCutReqMap[b.Id] = b.CutRequirement;
             if (!batchesByMainKey.TryGetValue(key, out var list))
                 batchesByMainKey[key] = list = new List<BatchBrief>();
             list.Add(new BatchBrief { Id = b.Id, TheoreticalOutputQty = b.TheoreticalOutputQty ?? 0 });
@@ -105,7 +124,8 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
                 .Where(r => chunk.Contains(r.ProductionBatchId)
                     && r.SectionName == SectionDefs.Cut
                     && r.ProductStatus == FinishedProductStatus
-                    && r.FinishedCutLength.HasValue)
+                    && r.FinishedCutLength.HasValue
+                    && r.IsPreCut != true) // 预成切不计入成品切割支数
                 .Select(r => new CutRecord
                 {
                     ProductionBatchId = r.ProductionBatchId,
@@ -176,6 +196,10 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
             if (!dict.TryGetValue(len, out var inspAgg))
                 dict[len] = inspAgg = new LengthInspAgg();
             inspAgg.ArrivedQuantity += rec.Quantity ?? 0;
+            if (batchCutReqMap.TryGetValue(rec.ProductionBatchId, out var isCut) && isCut)
+                inspAgg.CutArrivedQuantity += rec.Quantity ?? 0;
+            else
+                inspAgg.NonCutArrivedQuantity += rec.Quantity ?? 0;
             inspAgg.DefectQuantity += (rec.DefectReworkQuantity ?? 0) + (rec.DefectWarehouseQuantity ?? 0) + (rec.DefectScrapQuantity ?? 0);
             if (rec.InspectionDate != default && (inspAgg.InspectionDeadline == null || rec.InspectionDate > inspAgg.InspectionDeadline))
                 inspAgg.InspectionDeadline = rec.InspectionDate;
@@ -187,6 +211,47 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
         {
             var key = NormalizeMainKey(f.SalesOrderNo, f.ProductionMainNo);
             totalRequirementByKey[key] = totalRequirementByKey.GetValueOrDefault(key) + f.PlannedQuantity;
+        }
+
+        // 6.5 仓库成品入库（主号级聚合：经 WorkOrder 推断 ProductionMainNo，与成检口径一致，不依赖工单号精确匹配）
+        var inboundAggByMainKey = new Dictionary<string, Dictionary<decimal, InboundAgg>>(StringComparer.OrdinalIgnoreCase);
+        var inboundBatches = await (from ib in _context.InventoryBatches
+                                    join w in _context.WorkOrders on ib.WorkOrderNo equals w.WorkOrderNo
+                                    where ib.WorkOrderNo != null
+                                        && (ib.MaterialType == InventoryMaterialTypes.OrderFinished
+                                            || ib.MaterialType == InventoryMaterialTypes.SpecialDeliveryStatus)
+                                        && ib.MaxLength.HasValue
+                                    select new
+                                    {
+                                        w.SalesOrderNo,
+                                        w.ProductionMainNo,
+                                        ib.MaterialType,
+                                        ib.MaxLength,
+                                        ib.InitialQuantity,
+                                        ib.InboundDate
+                                    })
+                                    .ToListAsync();
+        foreach (var ib in inboundBatches)
+        {
+            var mainKey = NormalizeMainKey(ib.SalesOrderNo, ib.ProductionMainNo);
+            if (!involvedMainKeys.Contains(mainKey)) continue;
+            var len = ib.MaxLength!.Value;
+            if (!inboundAggByMainKey.TryGetValue(mainKey, out var inDict))
+                inboundAggByMainKey[mainKey] = inDict = new Dictionary<decimal, InboundAgg>();
+            if (!inDict.TryGetValue(len, out var inAgg))
+                inDict[len] = inAgg = new InboundAgg();
+            if (ib.MaterialType == InventoryMaterialTypes.SpecialDeliveryStatus)
+            {
+                inAgg.SpecialQty += ib.InitialQuantity;
+                if (ib.InboundDate != default && (inAgg.SpecialDate == null || ib.InboundDate > inAgg.SpecialDate))
+                    inAgg.SpecialDate = ib.InboundDate;
+            }
+            else
+            {
+                inAgg.OrderFinishedQty += ib.InitialQuantity;
+                if (ib.InboundDate != default && (inAgg.OrderFinishedDate == null || ib.InboundDate > inAgg.OrderFinishedDate))
+                    inAgg.OrderFinishedDate = ib.InboundDate;
+            }
         }
 
         // 7. 组装明细行（每行 = 工单号 + 长度，切割/成检为主号级该长度聚合）
@@ -210,20 +275,52 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
             }
 
             var arrQty = 0;
+            var cutArrQty = 0;
+            var nonCutArrQty = 0;
             var defectQty = 0;
             DateTime? inspDeadline = null;
             if (inspAggByMainKey.TryGetValue(mainKey, out var inspDict)
                 && inspDict.TryGetValue(f.Length, out var inspAgg))
             {
                 arrQty = inspAgg.ArrivedQuantity;
+                cutArrQty = inspAgg.CutArrivedQuantity;
+                nonCutArrQty = inspAgg.NonCutArrivedQuantity;
                 defectQty = inspAgg.DefectQuantity;
                 inspDeadline = inspAgg.InspectionDeadline;
             }
 
-            // 总现况分析（主号级）
+            // 成品入库（主号+长度 级，与成检口径一致；物料类型按交货状态区分：U型管=SpecialDeliveryStatus，非U型管=OrderFinished）
+            var isUTube = summary?.DeliveryState is "SolutionAnnealedAndPickledUTube" or "BrightUTube";
+            var inboundQty = 0;
+            DateTime? inboundDeadline = null;
+            if (inboundAggByMainKey.TryGetValue(mainKey, out var inDict)
+                && inDict.TryGetValue(f.Length, out var inAgg))
+            {
+                if (isUTube)
+                {
+                    inboundQty = inAgg.SpecialQty;
+                    inboundDeadline = inAgg.SpecialDate;
+                }
+                else
+                {
+                    inboundQty = inAgg.OrderFinishedQty;
+                    inboundDeadline = inAgg.OrderFinishedDate;
+                }
+            }
+
+            // 总现况分析（主号级；三档划分：无需切割 + 需切未切 + 切割理论 = 总投料）
             var mainNoTotalInput = batches?.Sum(b => b.TheoreticalOutputQty) ?? 0;
-            var mainNoUncut = batches?.Where(b => !cutBatchIds.Contains(b.Id)).Sum(b => b.TheoreticalOutputQty) ?? 0;
-            var mainNoCutTheoretical = batches?.Where(b => cutBatchIds.Contains(b.Id)).Sum(b => b.TheoreticalOutputQty) ?? 0;
+            var mainNoNoCutQty = batches?
+                .Where(b => batchCutReqMap.TryGetValue(b.Id, out var noCutReq) && !noCutReq)
+                .Sum(b => b.TheoreticalOutputQty) ?? 0;
+            var mainNoNeedCutUncutQty = batches?
+                .Where(b => !cutBatchIds.Contains(b.Id)
+                    && batchCutReqMap.TryGetValue(b.Id, out var needCutReq) && needCutReq)
+                .Sum(b => b.TheoreticalOutputQty) ?? 0;
+            var mainNoCutTheoretical = batches?
+                .Where(b => cutBatchIds.Contains(b.Id)
+                    && batchCutReqMap.TryGetValue(b.Id, out var cutReq) && cutReq)
+                .Sum(b => b.TheoreticalOutputQty) ?? 0;
 
             result.Add(new FixedLengthWorkOrderListDto
             {
@@ -248,10 +345,15 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
                 CutQuantity = cutQty,
                 InspectionDeadline = inspDeadline,
                 ArrivedQuantity = arrQty,
+                CutArrivedQuantity = cutArrQty,
+                NonCutArrivedQuantity = nonCutArrQty,
                 DefectQuantity = defectQty,
+                InboundDeadline = inboundDeadline,
+                InboundQuantity = inboundQty,
                 MainNoTotalRequirement = totalRequirementByKey.GetValueOrDefault(mainKey),
                 MainNoTotalInput = mainNoTotalInput,
-                MainNoUncut = mainNoUncut,
+                MainNoNoCutQty = mainNoNoCutQty,
+                MainNoNeedCutUncutQty = mainNoNeedCutUncutQty,
                 MainNoCutTheoretical = mainNoCutTheoretical,
                 MainNoCutActual = mainAgg?.CutActual ?? 0,
                 MainNoDefect = mainAgg?.Defect ?? 0
@@ -259,6 +361,13 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
         }
 
         return result;
+    }
+
+    /// <summary>生成打印 PDF（Mode B ⓪：前端已准备数据，枚举字段已转中文）</summary>
+    public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        var pdfBytes = TablePrintHelper.GeneratePdf(title, items, columns);
+        return Task.FromResult(pdfBytes);
     }
 
     /// <summary>主号聚合键（订单号+主号 大小写归一化）</summary>
@@ -301,6 +410,8 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
     private sealed class LengthInspAgg
     {
         public int ArrivedQuantity { get; set; }
+        public int CutArrivedQuantity { get; set; }
+        public int NonCutArrivedQuantity { get; set; }
         public int DefectQuantity { get; set; }
         public DateTime? InspectionDeadline { get; set; }
     }
@@ -310,6 +421,15 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
         public HashSet<int> CutBatchIds { get; } = new();
         public int CutActual { get; set; }
         public int Defect { get; set; }
+    }
+
+    /// <summary>成品入库聚合（按物料类型区分 U型管/非U型管）</summary>
+    private sealed class InboundAgg
+    {
+        public int OrderFinishedQty { get; set; }
+        public DateTime? OrderFinishedDate { get; set; }
+        public int SpecialQty { get; set; }
+        public DateTime? SpecialDate { get; set; }
     }
 
     private class CutRecord

@@ -29,4 +29,7 @@ public interface IQualityProcessTrackingService
 
     /// <summary>按批次号刷新物化�?/summary>
     Task RefreshByBatchNoAsync(string batchNo);
+
+    /// <summary>全量刷新所有物化行</summary>
+    Task RefreshAllAsync();
 }

@@ -72,6 +72,30 @@ public class FinalInspectionsController : ControllerBase
     }
 
     /// <summary>
+    /// 实时健康汇总（按当前筛选条件统计成检类型与成检到料不符的生产编号）
+    /// </summary>
+    [HttpGet("health-summary")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<FinalInspectionHealthSummaryDto>>> GetHealthSummary(
+        [FromQuery] string? keyword = null,
+        [FromQuery] DateTime? inspectionDateFrom = null,
+        [FromQuery] DateTime? inspectionDateTo = null,
+        [FromQuery] string? filters = null)
+    {
+        var query = new QueryParams
+        {
+            Keyword = keyword,
+            InspectionDateFrom = inspectionDateFrom,
+            InspectionDateTo = inspectionDateTo
+        };
+        if (!string.IsNullOrEmpty(filters))
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        var result = await _service.GetFinalInspectionHealthSummaryAsync(query);
+        return Ok(ApiResponse<FinalInspectionHealthSummaryDto>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
     /// 获取所有成品检验记录（无分页）
     /// </summary>
     [HttpGet("all-list")]

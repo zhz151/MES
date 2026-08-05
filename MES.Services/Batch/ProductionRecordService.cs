@@ -99,27 +99,49 @@ public class ProductionRecordService : IProductionRecordService
     }
 
     /// <summary>
-    /// 校验成品切割长度：当「订单号+主号」存在定尺工单时，切割长度必须属于该主号下的定尺长度集合。
+    /// 校验成品切割长度：当「订单号+主号」存在定尺工单时——
+    /// 正式成品切割：切割长度必须属于该主号下的定尺长度集合；
+    /// 预成切：切割长度必须不属于该主号下的定尺长度集合（预成切不是正式成品切割，应区别于正式成品长度）。
     /// 返回 null 表示通过，否则返回错误信息（不含行号前缀，由调用方补充）。
     /// </summary>
-    private async Task<string?> ValidateFinishedCutLengthAsync(ProductionBatch? batch, decimal? finishedCutLength)
+    private async Task<string?> ValidateFinishedCutLengthAsync(ProductionBatch? batch, decimal? finishedCutLength, bool isPreCut)
     {
         if (finishedCutLength == null || finishedCutLength <= 0 || batch == null) return null;
         var validLengths = await _fixedLengthWorkOrderService
             .GetLengthsByMainNoAsync(batch.SalesOrderNo, batch.ProductionMainNo);
-        return ValidateFinishedCutLength(batch.SalesOrderNo, batch.ProductionMainNo, finishedCutLength, validLengths);
+        return ValidateFinishedCutLength(batch.SalesOrderNo, batch.ProductionMainNo, finishedCutLength, isPreCut, validLengths);
     }
 
     /// <summary>
     /// 定尺长度校验纯函数（预取集合版，供批量创建复用避免循环内 N+1 查询）。
     /// </summary>
     private static string? ValidateFinishedCutLength(
-        string salesOrderNo, string productionMainNo, decimal? finishedCutLength, HashSet<decimal> validLengths)
+        string salesOrderNo, string productionMainNo, decimal? finishedCutLength, bool isPreCut, HashSet<decimal> validLengths)
     {
         if (finishedCutLength == null || finishedCutLength <= 0) return null;
         if (validLengths.Count == 0) return null; // 该订单号+主号非定尺，跳过校验
-        if (validLengths.Contains(finishedCutLength.Value)) return null;
+        var inSet = validLengths.Contains(finishedCutLength.Value);
+        if (isPreCut)
+        {
+            if (inSet) return $"预成切长度({finishedCutLength.Value.ToString("G29")}mm)不能属于该订单号+主号({salesOrderNo}/{productionMainNo})下的正式定尺长度（预成切应区别于正式成品长度）";
+            return null;
+        }
+        if (inSet) return null;
         return $"成品切割长度({finishedCutLength.Value.ToString("G29")}mm)不属于该订单号+主号({salesOrderNo}/{productionMainNo})下的定尺长度";
+    }
+
+    /// <summary>
+    /// 预成切一致性校验：预成切本质是"成品切割"行为，必须是断切工段，且必须填写成品长度。
+    /// 返回 null 表示通过，否则返回错误信息（不含行号前缀，由调用方补充）。
+    /// </summary>
+    private static string? ValidatePreCut(bool isPreCut, string? sectionName, decimal? finishedCutLength)
+    {
+        if (!isPreCut) return null;
+        if (sectionName != SectionDefs.Cut)
+            return "预成切必须是断切工段";
+        if (finishedCutLength == null || finishedCutLength <= 0)
+            return "预成切必须填写成品长度";
+        return null;
     }
 
     private async Task TryRefreshQualityProcessTrackingAsync(int productionBatchId)
@@ -216,6 +238,7 @@ public class ProductionRecordService : IProductionRecordService
                 SolutionTemperature = r.SolutionTemperature,
                 SoakTime = r.SoakTime,
                 ProductStatus = r.ProductStatus,
+                IsPreCut = r.IsPreCut,
                 LengthStatus = r.LengthStatus,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
@@ -268,7 +291,7 @@ public class ProductionRecordService : IProductionRecordService
             }
         }
 
-        // 加载该批次所有工序组，用于自动计算产品状态
+        // 加载该批次所有工序组，用于自动计算产类
         var batchProcessGroups = await _context.ProcessGroups
             .Where(pg => pg.ProductionBatchId == batchId)
             .ToListAsync();
@@ -292,6 +315,7 @@ public class ProductionRecordService : IProductionRecordService
             SolutionTemperature = request.SolutionTemperature,
             SoakTime = request.SoakTime,
             ProductStatus = productStatus,
+            IsPreCut = request.IsPreCut,
             LengthStatus = CalculateLengthStatus(request.SectionName, productStatus, batch.LengthStatus),
             CuttingMultiple = request.CuttingMultiple,
             FinishedCutLength = request.FinishedCutLength,
@@ -303,8 +327,13 @@ public class ProductionRecordService : IProductionRecordService
             DataSource = request.DataSource ?? "MANUAL"
         };
 
-        // 成品切割长度定尺校验（按「订单号+主号」维度）
-        var cutLengthError = await ValidateFinishedCutLengthAsync(batch, request.FinishedCutLength);
+        // 预成切一致性校验（必须是断切工段 + 必须填写成品长度）
+        var preCutError = ValidatePreCut(request.IsPreCut == true, request.SectionName, request.FinishedCutLength);
+        if (preCutError != null)
+            throw new BusinessException(preCutError);
+
+        // 成品切割长度校验（按「订单号+主号」维度；预成切时反转：长度必须不在正式定尺集合内）
+        var cutLengthError = await ValidateFinishedCutLengthAsync(batch, request.FinishedCutLength, request.IsPreCut == true);
         if (cutLengthError != null)
             throw new BusinessException(cutLengthError);
 
@@ -333,6 +362,7 @@ public class ProductionRecordService : IProductionRecordService
             SolutionTemperature = entity.SolutionTemperature,
             SoakTime = entity.SoakTime,
             ProductStatus = entity.ProductStatus,
+            IsPreCut = entity.IsPreCut,
             LengthStatus = entity.LengthStatus,
             CuttingMultiple = entity.CuttingMultiple,
             FinishedCutLength = entity.FinishedCutLength,
@@ -649,10 +679,16 @@ public class ProductionRecordService : IProductionRecordService
                     pendingCutKeys.Add(key);
             }
 
-            // 成品切割长度定尺校验（按「订单号+主号」维度，无论工段只要有值）
+            // 预成切一致性校验（必须是断切工段 + 必须填写成品长度）
+            var preCutErr = ValidatePreCut(request.IsPreCut == true, request.SectionName, request.FinishedCutLength);
+            if (preCutErr != null)
+                requestErrors.Add($"第{i + 1}行：{preCutErr}");
+
+            // 成品切割长度校验（按「订单号+主号」维度，无论工段只要有值；预成切时反转：长度必须不在正式定尺集合内）
             var cutLengthErr = ValidateFinishedCutLength(
                 batch.SalesOrderNo, batch.ProductionMainNo,
                 request.FinishedCutLength,
+                request.IsPreCut == true,
                 fixedLengthSets.GetValueOrDefault($"{batch.SalesOrderNo.Trim()}|{batch.ProductionMainNo.Trim()}", new HashSet<decimal>()));
             if (cutLengthErr != null)
                 requestErrors.Add($"第{i + 1}行：{cutLengthErr}");
@@ -708,6 +744,7 @@ public class ProductionRecordService : IProductionRecordService
                 SolutionTemperature = request.SolutionTemperature,
                 SoakTime = request.SoakTime,
                 ProductStatus = productStatus,
+                IsPreCut = request.IsPreCut,
                 LengthStatus = CalculateLengthStatus(request.SectionName, productStatus, batch.LengthStatus),
                 CuttingMultiple = request.CuttingMultiple,
                 FinishedCutLength = request.FinishedCutLength,
@@ -748,6 +785,7 @@ public class ProductionRecordService : IProductionRecordService
             SolutionTemperature = e.SolutionTemperature,
             SoakTime = e.SoakTime,
             ProductStatus = e.ProductStatus,
+            IsPreCut = e.IsPreCut,
             LengthStatus = e.LengthStatus,
             CuttingMultiple = e.CuttingMultiple,
             FinishedCutLength = e.FinishedCutLength,
@@ -764,7 +802,7 @@ public class ProductionRecordService : IProductionRecordService
         var entity = await _context.ProductionRecords.FindAsync(id)
             ?? throw new BusinessException("生产记录不存在");
 
-        // 加载批次及其工序组，用于重新计算产品状态
+        // 加载批次及其工序组，用于重新计算产类
         var batch = await _context.ProductionBatches.FindAsync(entity.ProductionBatchId);
         var batchProcessGroups = await _context.ProcessGroups
             .Where(pg => pg.ProductionBatchId == entity.ProductionBatchId)
@@ -792,13 +830,20 @@ public class ProductionRecordService : IProductionRecordService
         entity.FinishedCutLength = request.FinishedCutLength ?? entity.FinishedCutLength;
         entity.PostCutQuantity = request.PostCutQuantity ?? entity.PostCutQuantity;
         entity.FaceCutCount = request.FaceCutCount ?? entity.FaceCutCount;
+        entity.IsPreCut = request.IsPreCut ?? entity.IsPreCut;
         entity.TagNo = request.TagNo ?? entity.TagNo;
         entity.PlantGrade = request.PlantGrade ?? entity.PlantGrade;
         entity.Remark = request.Remark ?? entity.Remark;
 
-        // 成品切割长度定尺校验（按「订单号+主号」维度，用生效值校验）
+        // 预成切一致性校验（工段不可编辑，用 entity 生效工段；长度用生效值）
         var effectiveCutLength = request.FinishedCutLength ?? entity.FinishedCutLength;
-        var cutLengthError = await ValidateFinishedCutLengthAsync(batch, effectiveCutLength);
+        var effectiveIsPreCut = request.IsPreCut ?? entity.IsPreCut;
+        var preCutError = ValidatePreCut(effectiveIsPreCut == true, entity.SectionName, effectiveCutLength);
+        if (preCutError != null)
+            throw new BusinessException(preCutError);
+
+        // 成品切割长度校验（按「订单号+主号」维度，用生效值校验；预成切时反转：长度必须不在正式定尺集合内）
+        var cutLengthError = await ValidateFinishedCutLengthAsync(batch, effectiveCutLength, effectiveIsPreCut == true);
         if (cutLengthError != null)
             throw new BusinessException(cutLengthError);
 
@@ -827,6 +872,7 @@ public class ProductionRecordService : IProductionRecordService
             SolutionTemperature = entity.SolutionTemperature,
             SoakTime = entity.SoakTime,
             ProductStatus = entity.ProductStatus,
+            IsPreCut = entity.IsPreCut,
             LengthStatus = entity.LengthStatus,
             CuttingMultiple = entity.CuttingMultiple,
             FinishedCutLength = entity.FinishedCutLength,
@@ -1527,8 +1573,14 @@ public class ProductionRecordService : IProductionRecordService
             // ====== 9. 理论成品量计算 ======
             ComputeTheoreticalOutput(batch, groupDiscountRate);
 
-            // ====== 10. 成切跟踪计算（依赖理论成品支）======
+            // ====== 10. 成检附加（仅"成检"状态有效）+ 成切跟踪计算（依赖理论成品支）+ 过程检字段 ======
+            // 成检附加描述"成检"阶段的性质（预检/终检），仅 Status=成检 时计算，其余状态置空
+            batch.InspectionStage = batch.Status == BatchStatus.InFinalInspection
+                ? ComputeInspectionStage(materialChecks)
+                : null;
             ComputeCutTracking(batch, productionRecords);
+            ComputeProcessInspectionFields(batch, processInspections);
+            ComputeProductUnitWeight(batch);
 
             _context.ProductionBatches.Update(batch);
             await _context.SaveChangesAsync();
@@ -1572,15 +1624,34 @@ public class ProductionRecordService : IProductionRecordService
     }
 
     /// <summary>
+    /// 成检附加计算：依据成检到料记录的 InspectionType（PreInspection=预检，FormalInspection=终检）
+    /// 无到料 → null；含正式检验（或 InspectionType 为空/空白 → 按终检保守）→ FormalInspection（终检）；仅预成检 → PreInspection（预检）
+    /// </summary>
+    private static string? ComputeInspectionStage(IEnumerable<MaterialReceiveCheck>? materialChecks)
+    {
+        if (materialChecks == null) return null;
+        var list = materialChecks.ToList();
+        if (list.Count == 0) return null;
+
+        var hasFormal = list.Any(m =>
+            string.IsNullOrWhiteSpace(m.InspectionType)
+            || string.Equals(m.InspectionType, nameof(InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase));
+        return hasFormal ? nameof(InspectionType.FormalInspection) : nameof(InspectionType.PreInspection);
+    }
+
+    /// <summary>
     /// 成切跟踪计算（单批次/批量共用）
     /// 依赖顺序：必须先执行 ComputeTheoreticalOutput 取得理论成品支，再调用本方法。
     /// 判定标准：
     ///   成品关联的工序 = ManufacturingSpec == 成品规格（批次 Specification）的工序组（可能不止一个，均属成品工序）
     ///   成切需求 = 任一成品工序组内有「断切」工段
     ///   成切执行 = 需求=否→null；成品工序组内已有断切生产记录→是；否则→否
-    ///   成切支数 = 成品工序组内断切生产记录汇总（无记录→null）：
+    ///   成切支数 = 「产类=成品」的断切生产记录汇总（无→null），口径与成检追踪「生产支数」第2/3种一致：
     ///   批次长度状态=定尺→PostCutQuantity（切后支数）；非定尺→Quantity（加工支数）
     ///   成切存疑 = 需求=否或执行=否→null；|成切支数−理论成品支|/理论成品支&gt;5%→疑问；否则→正常；理论成品支不可得→null
+    ///   疑问-缺少（缺正式成切记录）：无正式断切记录且批次已到成检/完成且非强制完成。
+    ///     状态=成检 且 成检附加=预检（仅预成检流程）→ 正常（正式切割留待正式成检，非缺失）
+    ///     强制完成 → 略（人控短路）
     /// </summary>
     private static void ComputeCutTracking(ProductionBatch batch, List<ProductionRecord> productionRecords)
     {
@@ -1595,10 +1666,12 @@ public class ProductionRecordService : IProductionRecordService
             && batch.ProcessGroups!.Any(pg => finishedPgIds.Contains(pg.Id)
                 && GetSectionsFromProcessGroup(pg).Any(s => s.SectionName == SectionDefs.Cut));
 
-        // 成品工序组内的「断切」生产记录
+        // 成品工序组内的「断切」生产记录（预成切不是正式成品切割，不算"已成切"，排除）
         var cutRecords = finishedPgIds.Count > 0
             ? productionRecords
-                .Where(r => finishedPgIds.Contains(r.ProcessGroupId) && r.SectionName == SectionDefs.Cut)
+                .Where(r => finishedPgIds.Contains(r.ProcessGroupId)
+                    && r.SectionName == SectionDefs.Cut
+                    && r.IsPreCut != true)
                 .ToList()
             : new List<ProductionRecord>();
 
@@ -1606,9 +1679,14 @@ public class ProductionRecordService : IProductionRecordService
         batch.CutExecution = hasCutSection ? (cutRecords.Count > 0 ? true : false) : null;
 
         // 汇总字段：批次长度状态=定尺→切后支数(PostCutQuantity)；非定尺→加工支数(Quantity)
+        // 仅统计「产类=成品」的断切记录（不限工序组），口径与成检追踪「生产支数」第2/3种完全一致
+        // 预成切(IsPreCut=true)不是正式成品切割，不计入成切支数
         var isFixedLength = string.Equals(batch.LengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase);
-        batch.CutQuantity = cutRecords.Count > 0
-            ? cutRecords
+        var finishedCutRecords = productionRecords
+            .Where(r => r.SectionName == SectionDefs.Cut && r.ProductStatus == "成品" && r.IsPreCut != true)
+            .ToList();
+        batch.CutQuantity = finishedCutRecords.Count > 0
+            ? finishedCutRecords
                 .Where(r => isFixedLength ? r.PostCutQuantity.HasValue : r.Quantity.HasValue)
                 .Sum(r => isFixedLength ? r.PostCutQuantity!.Value : r.Quantity!.Value)
             : null;
@@ -1618,12 +1696,24 @@ public class ProductionRecordService : IProductionRecordService
             batch.CutDoubt = null; // 无需求 → 略
         else if (cutRecords.Count == 0)
         {
-            // 成切执行=否：需求有但无断切记录
-            // 批次已到成检/完成 且 非强制完成 → 疑问-缺少（缺失成品切割记录）
+            // 成切执行=否：需求有但无正式断切记录
             var reachedFinishedStage = batch.Status is BatchStatus.InFinalInspection or BatchStatus.Completed;
-            batch.CutDoubt = reachedFinishedStage && !batch.IsForceCompleted
-                ? CutDoubtType.MissingRecords
-                : null;
+            if (batch.IsForceCompleted)
+            {
+                // 强制完成：人控短路，不判缺失
+                batch.CutDoubt = null;
+            }
+            else if (batch.Status == BatchStatus.InFinalInspection
+                && string.Equals(batch.InspectionStage, nameof(InspectionType.PreInspection), StringComparison.OrdinalIgnoreCase))
+            {
+                // 成检+成检附加=预检：仅预成切流程，正式成切留待正式成检，属正常，非"缺失"
+                batch.CutDoubt = CutDoubtType.Normal;
+            }
+            else
+            {
+                // 批次已到成检/完成 且 非强制完成 → 疑问-缺少（缺失正式成品切割记录）
+                batch.CutDoubt = reachedFinishedStage ? CutDoubtType.MissingRecords : null;
+            }
         }
         else if (batch.TheoreticalOutputQty.HasValue && batch.TheoreticalOutputQty.Value > 0 && batch.CutQuantity.HasValue)
         {
@@ -1636,6 +1726,66 @@ public class ProductionRecordService : IProductionRecordService
             // 理论成品支不可得 → 无判定依据
             batch.CutDoubt = null;
         }
+    }
+
+    /// <summary>
+    /// 过程检字段计算（单批次/批量共用，持久化到批次表）
+    /// 依赖顺序：必须先执行 ComputeTheoreticalOutput 取得理论成品支/单支重，再调用本方法。
+    /// 口径（与批次首页「有效投料变更」组的投料变更决策辅助一致）：
+    ///   缺陷-返整量 = 全部过程检验 理论返整重 求和（返整会另开批次，不延续本批）
+    ///   缺陷-纯次品量 = 全部过程检验 理论报废重+理论入库重 求和（彻底退出正常流）
+    ///   过程检合格支/合格量 = 当前执行工序组（CurrentGroupName 匹配）全部检验 合格支/合格量 求和；无 → null
+    ///   过程检理论成品支 = Round(合格量 ÷ 合格支 ÷ 成品的理论单支重, AwayFromZero) × 合格支（重量口径折算）
+    ///   需调整 = 批次状态为 成检/完成 时固定 null；其余 过程检理论成品支 与 当前理论成品支 偏差 &gt; 3% → true；否则/无数据 → null
+    /// </summary>
+    private static void ComputeProcessInspectionFields(ProductionBatch batch, List<ProcessInspection> processInspections)
+    {
+        // 缺陷量：全量累计（不限工序组）
+        batch.ProcessInspectionReworkWeight = processInspections.Sum(p => p.TheoreticalReworkWeight ?? 0);
+        batch.ProcessInspectionScrapWeight = processInspections.Sum(p => (p.TheoreticalWarehouseWeight ?? 0) + (p.TheoreticalScrapWeight ?? 0));
+
+        // 合格支/合格量：当前执行工序组聚合
+        int qty = 0;
+        decimal weight = 0m;
+        if (!string.IsNullOrEmpty(batch.CurrentGroupName))
+        {
+            var currentGroupRows = processInspections
+                .Where(p => string.Equals(p.ProcessName, batch.CurrentGroupName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (currentGroupRows.Count > 0)
+            {
+                qty = currentGroupRows.Sum(p => p.QualifiedQuantity ?? 0);
+                weight = currentGroupRows.Sum(p => p.QualifiedWeight ?? 0);
+            }
+        }
+        batch.ProcessInspectionQualifiedQty = qty > 0 ? qty : (int?)null;
+        batch.ProcessInspectionQualifiedWeight = weight > 0 ? weight : (decimal?)null;
+
+        // 过程检理论成品支：重量口径折算
+        int? theoQty = null;
+        if (qty > 0 && weight > 0 && batch.TheoreticalUnitWeight is { } uw && uw > 0)
+            theoQty = (int)Math.Round(weight / qty / uw, 0, MidpointRounding.AwayFromZero) * qty;
+        batch.ProcessInspectionTheoreticalQty = theoQty;
+
+        // 需调整：成检/完成固定 null；其余与当前理论成品支偏差 > 3% → true
+        batch.ProcessInspectionNeedAdjust =
+            batch.Status != BatchStatus.InFinalInspection && batch.Status != BatchStatus.Completed
+            && theoQty is { } tq && batch.TheoreticalOutputQty is { } toq && toq > 0
+                ? Math.Abs(tq - toq) / (decimal)toq > 0.03m
+                : (bool?)null;
+    }
+
+    /// <summary>
+    /// 产品单支量计算（单批次/批量共用，持久化到批次表）
+    /// 口径：仅"定尺"批次有效 = 总重量/总支数，保留1位小数；非定尺 → null
+    /// </summary>
+    private static void ComputeProductUnitWeight(ProductionBatch batch)
+    {
+        if (string.Equals(batch.LengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase)
+            && batch.TotalWeight > 0 && batch.TotalQuantity > 0)
+            batch.ProductUnitWeight = Math.Round(batch.TotalWeight / batch.TotalQuantity, 1, MidpointRounding.AwayFromZero);
+        else
+            batch.ProductUnitWeight = null;
     }
 
     /// <summary>
@@ -1693,6 +1843,18 @@ public class ProductionRecordService : IProductionRecordService
             var fcRecordsByBatch = fcRecords.GroupBy(r => r.ProductionBatchId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
+            // 加载这些强制完成批次的过程检验（过程检字段持久化用，分片避免 SQL Server 2100 参数上限）
+            var fcInspections = new List<ProcessInspection>();
+            for (var i = 0; i < forceCompletedBatchIds.Count; i += 1000)
+            {
+                var ids = forceCompletedBatchIds.Skip(i).Take(1000).ToList();
+                fcInspections.AddRange(await _context.ProcessInspections
+                    .Where(p => ids.Contains(p.ProductionBatchId))
+                    .ToListAsync());
+            }
+            var fcInspectionsByBatch = fcInspections.GroupBy(p => p.ProductionBatchId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
             foreach (var id in forceCompletedBatchIds)
             {
                 var b = batchDict[id];
@@ -1709,7 +1871,15 @@ public class ProductionRecordService : IProductionRecordService
                     dsExtraDaysMap,
                     b.DeliveryState);
                 ComputeTheoreticalOutput(b, groupDiscountRate);
+                b.InspectionStage = b.Status == BatchStatus.InFinalInspection
+                    ? ComputeInspectionStage(materialCheckLookup.GetValueOrDefault(b.Id) ?? new())
+                    : null;
+                // 强制完成批次不判疑问-缺少（IsForceCompleted 短路），无需成检类型
                 ComputeCutTracking(b, fcRecordsByBatch.GetValueOrDefault(b.Id) ?? new());
+                // 过程检字段（强制完成批次不重算活跃跟踪，但过程检缺陷/合格聚合独立于工段跟踪）
+                ComputeProcessInspectionFields(b, fcInspectionsByBatch.GetValueOrDefault(b.Id) ?? new());
+                // 产品单支量（依赖批次自身 TotalWeight/TotalQuantity/LengthStatus）
+                ComputeProductUnitWeight(b);
             }
         }
 
@@ -1893,7 +2063,12 @@ public class ProductionRecordService : IProductionRecordService
             ComputeTheoreticalOutput(batch, groupDiscountRate);
 
             // 成切跟踪计算（依赖理论成品支）
+            batch.InspectionStage = batch.Status == BatchStatus.InFinalInspection
+                ? ComputeInspectionStage(batchMaterialChecks)
+                : null;
             ComputeCutTracking(batch, productionRecords);
+            ComputeProcessInspectionFields(batch, processInspections);
+            ComputeProductUnitWeight(batch);
         }
 
         _context.ProductionBatches.UpdateRange(batchDict.Values);
@@ -2133,6 +2308,9 @@ public class ProductionRecordService : IProductionRecordService
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
             queryable = queryable.Where(r => r.ProductionBatch.BatchNo.Contains(query.Keyword)
+                || (r.ProductionBatch.WorkOrderNo != null && r.ProductionBatch.WorkOrderNo.Contains(query.Keyword))
+                || (r.ProductionBatch.SalesOrderNo != null && r.ProductionBatch.SalesOrderNo.Contains(query.Keyword))
+                || (r.ProductionBatch.ProductionMainNo != null && r.ProductionBatch.ProductionMainNo.Contains(query.Keyword))
                 || r.ProcessName.Contains(query.Keyword)
                 || r.SectionName.Contains(query.Keyword)
                 || (r.ManufacturingSpec != null && r.ManufacturingSpec.Contains(query.Keyword))
@@ -2152,7 +2330,7 @@ public class ProductionRecordService : IProductionRecordService
         if (query.ExecDateTo.HasValue)
             queryable = queryable.Where(r => r.ExecDate <= query.ExecDateTo.Value);
 
-        // 处理 BatchNo 导航属性筛选（ProductionRecord 实体无 BatchNo 属性，ApplyFilters 反射不到）
+        // 处理批次导航属性筛选（ProductionRecord 实体无 BatchNo/WorkOrderNo/SalesOrderNo/ProductionMainNo 属性，ApplyFilters 反射不到）
         if (query.Filters != null)
         {
             var batchNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("BatchNo", StringComparison.OrdinalIgnoreCase));
@@ -2161,6 +2339,33 @@ public class ProductionRecordService : IProductionRecordService
                 queryable = queryable.Where(r => r.ProductionBatch != null
                     && batchNoFilter.Values.Contains(r.ProductionBatch.BatchNo));
                 query.Filters.Remove(batchNoFilter);
+            }
+
+            var workOrderNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("WorkOrderNo", StringComparison.OrdinalIgnoreCase));
+            if (workOrderNoFilter != null && workOrderNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.ProductionBatch != null
+                    && r.ProductionBatch.WorkOrderNo != null
+                    && workOrderNoFilter.Values.Contains(r.ProductionBatch.WorkOrderNo));
+                query.Filters.Remove(workOrderNoFilter);
+            }
+
+            var salesOrderNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("SalesOrderNo", StringComparison.OrdinalIgnoreCase));
+            if (salesOrderNoFilter != null && salesOrderNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.ProductionBatch != null
+                    && r.ProductionBatch.SalesOrderNo != null
+                    && salesOrderNoFilter.Values.Contains(r.ProductionBatch.SalesOrderNo));
+                query.Filters.Remove(salesOrderNoFilter);
+            }
+
+            var productionMainNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("ProductionMainNo", StringComparison.OrdinalIgnoreCase));
+            if (productionMainNoFilter != null && productionMainNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.ProductionBatch != null
+                    && r.ProductionBatch.ProductionMainNo != null
+                    && productionMainNoFilter.Values.Contains(r.ProductionBatch.ProductionMainNo));
+                query.Filters.Remove(productionMainNoFilter);
             }
         }
 
@@ -2190,6 +2395,7 @@ public class ProductionRecordService : IProductionRecordService
                 SolutionTemperature = r.SolutionTemperature,
                 SoakTime = r.SoakTime,
                 ProductStatus = r.ProductStatus,
+                IsPreCut = r.IsPreCut,
                 LengthStatus = r.LengthStatus,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
@@ -2200,6 +2406,9 @@ public class ProductionRecordService : IProductionRecordService
                 Remark = r.Remark,
                 DataSource = r.DataSource,
                 BatchNo = r.ProductionBatch.BatchNo,
+                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = r.ProductionBatch.ProductionMainNo,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             })
@@ -2238,6 +2447,7 @@ public class ProductionRecordService : IProductionRecordService
                 SolutionTemperature = r.SolutionTemperature,
                 SoakTime = r.SoakTime,
                 ProductStatus = r.ProductStatus,
+                IsPreCut = r.IsPreCut,
                 LengthStatus = r.LengthStatus,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
@@ -2248,6 +2458,9 @@ public class ProductionRecordService : IProductionRecordService
                 Remark = r.Remark,
                 DataSource = r.DataSource,
                 BatchNo = r.ProductionBatch.BatchNo,
+                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = r.ProductionBatch.ProductionMainNo,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             })
@@ -2277,6 +2490,12 @@ public class ProductionRecordService : IProductionRecordService
             ("execdate", true) => queryable.OrderByDescending(r => r.ExecDate),
             ("batchno", false) => queryable.OrderBy(r => r.ProductionBatch.BatchNo),
             ("batchno", true) => queryable.OrderByDescending(r => r.ProductionBatch.BatchNo),
+            ("workorderno", false) => queryable.OrderBy(r => r.ProductionBatch.WorkOrderNo ?? ""),
+            ("workorderno", true) => queryable.OrderByDescending(r => r.ProductionBatch.WorkOrderNo ?? ""),
+            ("salesorderno", false) => queryable.OrderBy(r => r.ProductionBatch.SalesOrderNo ?? ""),
+            ("salesorderno", true) => queryable.OrderByDescending(r => r.ProductionBatch.SalesOrderNo ?? ""),
+            ("productionmainno", false) => queryable.OrderBy(r => r.ProductionBatch.ProductionMainNo ?? ""),
+            ("productionmainno", true) => queryable.OrderByDescending(r => r.ProductionBatch.ProductionMainNo ?? ""),
             ("processname", false) => queryable.OrderBy(r => r.ProcessName),
             ("processname", true) => queryable.OrderByDescending(r => r.ProcessName),
             ("manufacturingspec", false) => queryable.OrderBy(r => r.ManufacturingSpec ?? ""),
@@ -2579,6 +2798,7 @@ public class ProductionRecordService : IProductionRecordService
                 SolutionTemperature = r.SolutionTemperature,
                 SoakTime = r.SoakTime,
                 ProductStatus = r.ProductStatus,
+                IsPreCut = r.IsPreCut,
                 LengthStatus = r.LengthStatus,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
@@ -2588,6 +2808,9 @@ public class ProductionRecordService : IProductionRecordService
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
                 BatchNo = r.ProductionBatch.BatchNo,
+                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = r.ProductionBatch.ProductionMainNo,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             })
@@ -2625,6 +2848,9 @@ public class ProductionRecordService : IProductionRecordService
                         select new
                         {
                             pb.BatchNo,
+                            pb.WorkOrderNo,
+                            pb.SalesOrderNo,
+                            pb.ProductionMainNo,
                             r.ProcessName,
                             r.ManufacturingSpec,
                             r.SectionName,
@@ -2645,6 +2871,9 @@ public class ProductionRecordService : IProductionRecordService
             return new Dictionary<string, List<string>>
             {
                 ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["WorkOrderNo"] = results.Select(x => x.WorkOrderNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["SalesOrderNo"] = results.Select(x => x.SalesOrderNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["ProductionMainNo"] = results.Select(x => x.ProductionMainNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["ProcessName"] = results.Select(x => x.ProcessName).Distinct().OrderBy(x => x).ToList(),
                 ["ManufacturingSpec"] = results.Select(x => x.ManufacturingSpec).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["SectionName"] = results.Select(x => x.SectionName).Distinct().OrderBy(x => x).ToList(),
@@ -2754,7 +2983,7 @@ public class ProductionRecordService : IProductionRecordService
     }
 
     /// <summary>
-    /// 自动计算产品状态（荒管/在制/成品）
+    /// 自动计算产类（荒管/在制/成品）
     /// </summary>
     private static string CalculateProductStatus(
         string processName,

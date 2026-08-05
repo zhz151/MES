@@ -115,6 +115,27 @@ public class MaterialReceiveCheckController : ControllerBase
     }
 
     /// <summary>
+    /// 实时健康汇总（按当前筛选条件统计异常记录数）
+    /// </summary>
+    [HttpGet("health-summary")]
+    [Authorize(Roles = Roles.Policies.QualityRead)]
+    public async Task<ActionResult<ApiResponse<MaterialCheckHealthSummaryDto>>> GetMaterialCheckHealthSummary(
+        [FromQuery] string? keyword = null,
+        [FromQuery] DateTime? receiveDateFrom = null,
+        [FromQuery] DateTime? receiveDateTo = null,
+        [FromQuery] string? filters = null)
+    {
+        var query = new QueryParams { PageIndex = 1, PageSize = 1, Keyword = keyword, ReceiveDateFrom = receiveDateFrom, ReceiveDateTo = receiveDateTo };
+        if (!string.IsNullOrEmpty(filters))
+        {
+            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
+        var result = await _service.GetMaterialCheckHealthSummaryAsync(query);
+        return Ok(ApiResponse<MaterialCheckHealthSummaryDto>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
     /// 获取待检验到料批次（成品检验阶段且未创建检验到料记录）
     /// </summary>
     [HttpGet("pending")]

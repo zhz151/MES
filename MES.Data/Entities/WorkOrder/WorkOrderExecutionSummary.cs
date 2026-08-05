@@ -205,6 +205,24 @@ public class WorkOrderExecutionSummary : BaseEntity
 
     // ========== Group 14: 返整执行数据（ProductionType=返整 且 ManufacturingItem=订单成品） ==========
     // 前端显示为 G14：返整执行
+    /// <summary>理论返整可产成支（支，整数值） = Σ(每条返整记录重量 ÷ 该记录原批次单支重)</summary>
+    public int? ReworkTheoreticalProduceQty { get; set; }
+
+    /// <summary>理论返整可产成重(kg) = 过程检返整量×0.92 + 成品检返整量×0.96（无返整量为空）</summary>
+    public decimal? ReworkTheoreticalProduceWeight { get; set; }
+
+    /// <summary>待返整成支 = 理论返整可产成支 − 返整理论成品支（无返整为空，负值归0）</summary>
+    public decimal? PendingReworkOutputQty { get; set; }
+
+    /// <summary>待返整成重 = 理论返整可产成重 − 返整理论成品重（无返整为空，负值归0）</summary>
+    public decimal? PendingReworkOutputWeight { get; set; }
+
+    /// <summary>附返整主号状态（0=未投料/1=部分/2=满足，主号级：有效流转基础上加待返整后按主号总需求判定）</summary>
+    public int ReworkMainNoStatus { get; set; }
+
+    /// <summary>是否必返整（是/否，主号级：附返整主号状态=满足 且 有效主号状态≠满足 时为"是"）</summary>
+    public string? ReworkInputConsistency { get; set; }
+
     /// <summary>返整投料截止日</summary>
     public DateTime? ReworkInputEndDate { get; set; }
 
@@ -222,6 +240,35 @@ public class WorkOrderExecutionSummary : BaseEntity
 
     /// <summary>返整理论成品重量</summary>
     public decimal ReworkTheoreticalOutputWeight { get; set; }
+
+    // ========== Group 21: 次品总量（过程检/成检次品聚合，仅订单成品批次） ==========
+    // 前端显示为 G21：次品总量（位于合格流转之后）
+    /// <summary>过程检次品总重(kg) = Σ(理论返整重 + 理论入库重 + 理论报废重)</summary>
+    public int? ProcessInspectionDefectWeight { get; set; }
+
+    /// <summary>过程检返整重(kg) = Σ 过程检验理论返整重</summary>
+    public int? ProcessInspectionReworkWeight { get; set; }
+
+    /// <summary>过程检入库重(kg) = Σ 过程检验理论入库重</summary>
+    public int? ProcessInspectionWarehouseWeight { get; set; }
+
+    /// <summary>过程检报废重(kg) = Σ 过程检验理论报废重</summary>
+    public int? ProcessInspectionScrapWeight { get; set; }
+
+    /// <summary>成检次品总支(支) = Σ(返整支数 + 入库支数 + 报废支数)</summary>
+    public int? FinalInspectionDefectQty { get; set; }
+
+    /// <summary>成检次品总重(kg) = Σ(返整重 + 入库重 + 报废重)</summary>
+    public int? FinalInspectionDefectWeight { get; set; }
+
+    /// <summary>成品检返整重(kg) = Σ 成品检验返整重</summary>
+    public int? FinalInspectionReworkWeight { get; set; }
+
+    /// <summary>成检入库重(kg) = Σ 成品检验入库重</summary>
+    public int? FinalInspectionWarehouseWeight { get; set; }
+
+    /// <summary>成检报废重(kg) = Σ 成品检验报废重</summary>
+    public int? FinalInspectionScrapWeight { get; set; }
 
     // ========== Group 12: 有效流转（Group 13 + Group 14 合并比值） ==========
     // 前端显示为 G12：有效流转
@@ -245,60 +292,6 @@ public class WorkOrderExecutionSummary : BaseEntity
 
     /// <summary>剩余工量（天）：关联批次中最大 RemainingWorkDays</summary>
     public int FlowMaxRemainingWorkDays { get; set; }
-
-    // ========== Group 19: 过程不合格（G11 − G13，负值归零） ==========
-    // 前端显示为 G19：过程不合格
-    /// <summary>原料不合格支数</summary>
-    public int DefectiveRawQty { get; set; }
-
-    /// <summary>原料不合格重量</summary>
-    public decimal DefectiveRawWeight { get; set; }
-
-    /// <summary>影响成品支数</summary>
-    public decimal DefectiveOutputQty { get; set; }
-
-    /// <summary>影响成品重量</summary>
-    public decimal DefectiveOutputWeight { get; set; }
-
-    /// <summary>不合格占比(%)</summary>
-    public decimal DefectiveRatio { get; set; }
-
-    // ========== Group 20: 成检不合格（从 FinalInspection 聚合） ==========
-    // 前端显示为 G20：成检不合格
-    /// <summary>成检起始日</summary>
-    public DateTime? InspectionStartDate { get; set; }
-
-    /// <summary>成检截止日</summary>
-    public DateTime? InspectionEndDate { get; set; }
-
-    /// <summary>成检不合格支数（总检验支数−总合格支数）</summary>
-    public int InspectionDefectQty { get; set; }
-
-    /// <summary>成检不合格重量</summary>
-    public decimal InspectionDefectWeight { get; set; }
-
-    /// <summary>成检不合格占比(%)</summary>
-    public decimal InspectionDefectRatio { get; set; }
-
-    // ========== Group 18: 汇总不合格 ==========
-    // 前端显示为 G18：汇总不合格
-    /// <summary>一般问题重（=G14 返整理论成品重）</summary>
-    public decimal GeneralDefectWeight { get; set; }
-
-    /// <summary>一般问题占比(%)</summary>
-    public decimal GeneralDefectRatio { get; set; }
-
-    /// <summary>严重问题重（G19影响成品重+G20成检不合格重−G14返整理论成品重，负值归零）</summary>
-    public decimal SeriousDefectWeight { get; set; }
-
-    /// <summary>严重问题占比(%)</summary>
-    public decimal SeriousDefectRatio { get; set; }
-
-    /// <summary>成检报废重量</summary>
-    public decimal ScrapWeight { get; set; }
-
-    /// <summary>成检报废占比(%)</summary>
-    public decimal ScrapRatio { get; set; }
 
     // ========== Group 15: 成品入库（从 InventoryBatch 聚合） ==========
     // 前端显示为 G15：成品入库
@@ -325,7 +318,7 @@ public class WorkOrderExecutionSummary : BaseEntity
 
     // ========== Group 16: 实时关注 ==========
     // 前端显示为 G16：实时关注
-    /// <summary>关注状态(0=工单完成 1=原料锁定 2=生产执行 3=成品检验)</summary>
+    /// <summary>关注状态(0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验)</summary>
     public int ScheduleStage { get; set; }
 
     /// <summary>剩余总工量（天）：根据关注状态取关联主号的工艺周期/剩余工量</summary>
@@ -343,7 +336,7 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>交期相差天数：工艺预计完成日 - 交货日期</summary>
     public int? DaysDiffFromDelivery { get; set; }
 
-    /// <summary>原锁备注：原料锁定原因（A质量影响/B已购未回/C计划未执行/D未完善计划），仅ScheduleStage=1时有值</summary>
+    /// <summary>原锁备注：原料锁定原因（A质量补料/B执行返整/C执行计划/D完善计划），仅ScheduleStage=2时有值</summary>
     public string? RawMaterialLockRemark { get; set; }
 
     // ========== Group 17: 在产节点待量（固定节点） ==========

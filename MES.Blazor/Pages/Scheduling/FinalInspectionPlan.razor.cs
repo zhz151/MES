@@ -106,7 +106,7 @@ public partial class FinalInspectionPlan
         // G3: 排程信息
         var g3 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",         Label = "计划状态",   SortKey = "ScheduleStage",         FilterType = "enum", Width = "110", EnumOptions = new() { new("-1","存错-无此工单"), new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, DisplayConverter = v => v is int s ? s switch { -1 => "存错-无此工单", 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", _ => "未知" } : null, GroupKey = 3, GroupName = "排程信息" },
+            new() { Key = "ScheduleStage",         Label = "计划状态",   SortKey = "ScheduleStage",         FilterType = "enum", Width = "110", EnumOptions = new() { new("-1","存错-无此工单"), new("0","主号暂停"), new("1","主号完成"), new("2","原料锁定"), new("3","生产执行"), new("4","成品检验") }, DisplayConverter = v => v is int s ? s switch { -1 => "存错-无此工单", 0 => "主号暂停", 1 => "主号完成", 2 => "原料锁定", 3 => "生产执行", 4 => "成品检验", _ => "未知" } : null, GroupKey = 3, GroupName = "排程信息" },
             new() { Key = "UrgencyLevel",          Label = "紧急程度",   SortKey = "UrgencyLevel",          FilterType = "enum", Width = "90",  EnumOptions = new() { new("A+急","A+急"), new("A急","A急"), new("B顺","B顺"), new("C缓","C缓"), new("D缓","D缓") }, GroupKey = 3, GroupName = "排程信息" },
         };
 
@@ -644,20 +644,21 @@ public partial class FinalInspectionPlan
                 var stageColor = item.ScheduleStage switch
                 {
                     -1 => Color.Error,
-                    0 => Color.Default,
-                    1 => Color.Warning,
-                    2 => Color.Success,
-                    3 => Color.Info,
-                    4 => Color.Secondary,
+                    0 => Color.Error,       // 主号暂停
+                    1 => Color.Success,     // 主号完成
+                    2 => Color.Warning,     // 原料锁定
+                    3 => Color.Info,        // 生产执行
+                    4 => Color.Primary,     // 成品检验
                     _ => Color.Default
                 };
                 var stageText = item.ScheduleStage switch
                 {
                     -1 => "存错-无此工单",
-                    0 => "工单完成",
-                    1 => "原料锁定",
-                    2 => "生产执行",
-                    3 => "成品检验",
+                    0 => "主号暂停",
+                    1 => "主号完成",
+                    2 => "原料锁定",
+                    3 => "生产执行",
+                    4 => "成品检验",
                     _ => "未知"
                 };
                 builder.CloseElement(); // close span

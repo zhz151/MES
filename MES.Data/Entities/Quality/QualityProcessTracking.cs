@@ -13,6 +13,15 @@ public class QualityProcessTracking : BaseEntity
     /// <summary>批次ID</summary>
     public int ProductionBatchId { get; set; }
 
+    /// <summary>成检类型（PreInspection=预成检，FormalInspection=正式成检；唯一键之一，与批次ID组合）</summary>
+    public string? InspectionType { get; set; }
+
+    /// <summary>
+    /// 是否交付态（批次制造状态==交货状态为"是"，否则"否"；信息列非唯一键，
+    /// 随批次当前制造状态实时计算）
+    /// </summary>
+    public string? IsDeliveryStatus { get; set; }
+
     // ========== G1: 批次信息（来自 MaterialReceiveCheck 冗余字段） ==========
     public string? BatchNo { get; set; }
     /// <summary>制造物品（MaterialType 枚举名：OrderFinished/Finished/Surplus/SpecialDeliveryStatus）</summary>
@@ -20,6 +29,7 @@ public class QualityProcessTracking : BaseEntity
     public string? TagNo { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
+    public string? ProductionMainNo { get; set; }
     public string? SourceUnit { get; set; }
     public string? FurnaceNo { get; set; }
     public string? PlantGrade { get; set; }
@@ -31,7 +41,9 @@ public class QualityProcessTracking : BaseEntity
     public string? Shift { get; set; }
     public string? Checker { get; set; }
     public string? Salesman { get; set; }
+    public string? ManufacturingStatus { get; set; }
     public string? DeliveryState { get; set; }
+    public string? EndCustomer { get; set; }
     public bool IsForceCompleted { get; set; }
 
     // ========== G2: 检验日期（按 InspectionItem 拆分） ==========
@@ -48,7 +60,9 @@ public class QualityProcessTracking : BaseEntity
 
     // ========== G3: 检验汇总 ==========
     public int ProductionCutQuantity { get; set; }
+    /// <summary>检验支数（按「批次+成检类型+检验项目」汇总 Quantity，跨项目取最大）</summary>
     public int TotalQuantity { get; set; }
+    /// <summary>理论合格支（检验支数 - 返整/入库/报废三次品汇总；负值归零）</summary>
     public int QualifiedQuantity { get; set; }
     public int DefectReworkQuantity { get; set; }
     public int DefectWarehouseQuantity { get; set; }

@@ -105,10 +105,11 @@ public class SalesOrderListDto
     /// </summary>
     public string ScheduleStageText => ScheduleStage switch
     {
-        0 => "完成",
-        1 => "原料锁定",
-        2 => "生产执行",
-        3 => "成品检验",
+        0 => "主号暂停",
+        1 => "主号完成",
+        2 => "原料锁定",
+        3 => "生产执行",
+        4 => "成品检验",
         _ => "未排产"
     };
 

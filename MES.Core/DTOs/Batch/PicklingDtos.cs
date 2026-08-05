@@ -18,6 +18,12 @@ public class PicklingInRecordDto
 
     /// <summary>批次号（冗余自 ProductionBatch）</summary>
     public string BatchNo { get; set; } = null!;
+    /// <summary>工单号（从批次导航属性投影）</summary>
+    public string? WorkOrderNo { get; set; }
+    /// <summary>订单号（从批次导航属性投影）</summary>
+    public string? SalesOrderNo { get; set; }
+    /// <summary>主号（从批次导航属性投影）</summary>
+    public string? ProductionMainNo { get; set; }
     /// <summary>工序名称</summary>
     public string ProcessName { get; set; } = null!;
     /// <summary>制造规格</summary>
@@ -44,7 +50,7 @@ public class PicklingInRecordDto
     public int? Quantity { get; set; }
     /// <summary>加工重量(kg)</summary>
     public decimal? Weight { get; set; }
-    /// <summary>制造状态（荒管/在制/成品）</summary>
+    /// <summary>产类（荒管/在制/成品）</summary>
     public string? ProductStatus { get; set; }
 
     public string? TagNo { get; set; }

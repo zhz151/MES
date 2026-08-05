@@ -38,8 +38,9 @@ public class InventoryServiceTests : TestBase
         var loggerSync = new Mock<ILogger<InventorySyncService>>();
         var syncMock = new Mock<IInventorySyncService>();
         var prMock = new Mock<IProductionRecordService>();
+        var notifMock = new Mock<INotificationService>();
 
-        var batchWrite = new InventoryBatchWriteService(ctx, woExecMock.Object, qualityMock.Object, prMock.Object, syncMock.Object, loggerBatch.Object);
+        var batchWrite = new InventoryBatchWriteService(ctx, woExecMock.Object, qualityMock.Object, prMock.Object, syncMock.Object, notifMock.Object, loggerBatch.Object);
         var outboundWrite = new OutboundWriteService(ctx, woExecMock.Object, loggerOutbound.Object);
         var syncService = new InventorySyncService(ctx, configMock.Object, woExecMock.Object, loggerSync.Object, new MemoryCache(new MemoryCacheOptions()));
 
@@ -834,7 +835,7 @@ public class InventoryServiceTests : TestBase
         // 直接插入 InventoryBatch
         ctx.InventoryBatches.AddRange(
             new InventoryBatch { BatchNo = "CK001", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, IsLinkedToWorkOrder = false },
-            new InventoryBatch { BatchNo = "CK002", WarehouseId = wh.Id, MaterialType = MaterialType.Finished.ToString(), PlantGrade = "Q235B", Specification = "159*6", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商B", InboundDate = DateTime.Today, InitialQuantity = 20, InitialWeight = 2000m, RemainingQuantity = 20, RemainingWeight = 2000m, IsLinkedToWorkOrder = true, SurfaceCondition = "酸洗", HeatNo = "H001", LocationArea = "A区", LocationRack = "R01" }
+            new InventoryBatch { BatchNo = "CK002", WarehouseId = wh.Id, MaterialType = MaterialType.Finished.ToString(), PlantGrade = "Q235B", Specification = "159*6", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商B", InboundDate = DateTime.Today, InitialQuantity = 20, InitialWeight = 2000m, RemainingQuantity = 20, RemainingWeight = 2000m, IsLinkedToWorkOrder = true, ManufacturingStatus = "酸洗", HeatNo = "H001", LocationArea = "A区", LocationRack = "R01" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -845,7 +846,7 @@ public class InventoryServiceTests : TestBase
         result["BatchNo"].Should().BeEquivalentTo(new[] { "CK001", "CK002" }, options => options.WithStrictOrdering());
         result["MaterialType"].Should().BeEquivalentTo(new[] { "OrderFinished", "Finished" });
         result["IsLinkedToWorkOrder"].Should().BeEquivalentTo(new[] { "False", "True" });
-        result["SurfaceCondition"].Should().Contain("酸洗");
+        result["ManufacturingStatus"].Should().Contain("酸洗");
         result["HeatNo"].Should().Contain("H001");
         result["LocationArea"].Should().Contain("A区");
     }

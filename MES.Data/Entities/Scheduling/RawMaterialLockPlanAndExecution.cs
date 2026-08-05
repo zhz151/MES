@@ -81,14 +81,6 @@ public class RawMaterialLockPlanAndExecution : BaseEntity
     public int FlowIncompleteBatchCount { get; set; }
     public int FlowMaxRemainingWorkDays { get; set; }
 
-    // ========== G10: 汇总不合格 ==========
-    public decimal GeneralDefectWeight { get; set; }
-    public decimal GeneralDefectRatio { get; set; }
-    public decimal SeriousDefectWeight { get; set; }
-    public decimal SeriousDefectRatio { get; set; }
-    public decimal ScrapWeight { get; set; }
-    public decimal ScrapRatio { get; set; }
-
     // ========== G12: 实时关注 ==========
     public int ScheduleStage { get; set; }
     public int? TotalRemainingWorkDays { get; set; }

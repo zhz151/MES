@@ -94,6 +94,9 @@ public class ProcessInspectionService : IProcessInspectionService
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
             queryable = queryable.Where(r => r.BatchNo!.Contains(query.Keyword)
+                || (r.ProductionBatch.WorkOrderNo != null && r.ProductionBatch.WorkOrderNo.Contains(query.Keyword))
+                || (r.ProductionBatch.SalesOrderNo != null && r.ProductionBatch.SalesOrderNo.Contains(query.Keyword))
+                || (r.ProductionBatch.ProductionMainNo != null && r.ProductionBatch.ProductionMainNo.Contains(query.Keyword))
                 || r.ProcessName.Contains(query.Keyword)
                 || r.SectionName.Contains(query.Keyword)
                 || (r.ManufacturingSpec != null && r.ManufacturingSpec.Contains(query.Keyword))
@@ -123,6 +126,34 @@ public class ProcessInspectionService : IProcessInspectionService
                 queryable = queryable.Where(r => r.BatchNo != null
                     && batchNoFilter.Values.Contains(r.BatchNo));
                 query.Filters.Remove(batchNoFilter);
+            }
+        }
+
+        // 处理批次导航属性筛选（实体无冗余字段，需手动处理）
+        if (query.Filters != null)
+        {
+            var woNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("WorkOrderNo", StringComparison.OrdinalIgnoreCase));
+            if (woNoFilter != null && woNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.ProductionBatch.WorkOrderNo != null
+                    && woNoFilter.Values.Contains(r.ProductionBatch.WorkOrderNo));
+                query.Filters.Remove(woNoFilter);
+            }
+
+            var salesOrderNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("SalesOrderNo", StringComparison.OrdinalIgnoreCase));
+            if (salesOrderNoFilter != null && salesOrderNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.ProductionBatch.SalesOrderNo != null
+                    && salesOrderNoFilter.Values.Contains(r.ProductionBatch.SalesOrderNo));
+                query.Filters.Remove(salesOrderNoFilter);
+            }
+
+            var productionMainNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("ProductionMainNo", StringComparison.OrdinalIgnoreCase));
+            if (productionMainNoFilter != null && productionMainNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(r => r.ProductionBatch.ProductionMainNo != null
+                    && productionMainNoFilter.Values.Contains(r.ProductionBatch.ProductionMainNo));
+                query.Filters.Remove(productionMainNoFilter);
             }
         }
 
@@ -166,6 +197,9 @@ public class ProcessInspectionService : IProcessInspectionService
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
                 BatchNo = r.BatchNo!,
+                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = r.ProductionBatch.ProductionMainNo,
                 DataSource = r.DataSource,
                 ProductStatus = r.ProductStatus,
                 CreatedTime = r.CreatedTime,
@@ -193,6 +227,9 @@ public class ProcessInspectionService : IProcessInspectionService
                 InspectionDate = pi.InspectionDate,
                 ProductionBatchId = pi.ProductionBatchId,
                 BatchNo = pi.BatchNo!,
+                WorkOrderNo = pi.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = pi.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = pi.ProductionBatch.ProductionMainNo,
                 ProcessName = pi.ProcessName,
                 ManufacturingSpec = pi.ManufacturingSpec,
                 SectionName = pi.SectionName,
@@ -234,6 +271,9 @@ public class ProcessInspectionService : IProcessInspectionService
 
             // 顺序执行各列 DISTINCT 查询（DbContext 非线程安全，禁止并行）
             var batchNos = await _context.ProcessInspections.Where(r => r.BatchNo != null).Select(r => r.BatchNo!).Distinct().OrderBy(v => v).ToListAsync();
+            var workOrderNos = await _context.ProcessInspections.Where(r => r.ProductionBatch.WorkOrderNo != null).Select(r => r.ProductionBatch.WorkOrderNo).Distinct().OrderBy(v => v).ToListAsync();
+            var salesOrderNos = await _context.ProcessInspections.Where(r => r.ProductionBatch.SalesOrderNo != null).Select(r => r.ProductionBatch.SalesOrderNo).Distinct().OrderBy(v => v).ToListAsync();
+            var productionMainNos = await _context.ProcessInspections.Where(r => r.ProductionBatch.ProductionMainNo != null).Select(r => r.ProductionBatch.ProductionMainNo).Distinct().OrderBy(v => v).ToListAsync();
             var processNames = await _context.ProcessInspections.Where(r => r.ProcessName != null).Select(r => r.ProcessName!).Distinct().OrderBy(v => v).ToListAsync();
             var manufacturingSpecs = await _context.ProcessInspections.Where(r => r.ManufacturingSpec != null && r.ManufacturingSpec != "").Select(r => r.ManufacturingSpec!).Distinct().OrderBy(v => v).ToListAsync();
             var sectionNames = await _context.ProcessInspections.Where(r => r.SectionName != null).Select(r => r.SectionName!).Distinct().OrderBy(v => v).ToListAsync();
@@ -253,6 +293,9 @@ public class ProcessInspectionService : IProcessInspectionService
             return new Dictionary<string, List<string>>
             {
                 ["BatchNo"] = batchNos,
+                ["WorkOrderNo"] = workOrderNos,
+                ["SalesOrderNo"] = salesOrderNos,
+                ["ProductionMainNo"] = productionMainNos,
                 ["ProcessName"] = processNames,
                 ["ManufacturingSpec"] = manufacturingSpecs,
                 ["SectionName"] = sectionNames,
@@ -518,6 +561,9 @@ public class ProcessInspectionService : IProcessInspectionService
             PlantGrade = e.PlantGrade,
             Remark = e.Remark,
             BatchNo = e.BatchNo,
+            WorkOrderNo = batchLookup.TryGetValue(e.BatchNo, out var createdBatch) ? createdBatch.WorkOrderNo : null,
+            SalesOrderNo = batchLookup.TryGetValue(e.BatchNo, out var cb2) ? cb2.SalesOrderNo : null,
+            ProductionMainNo = batchLookup.TryGetValue(e.BatchNo, out var cb3) ? cb3.ProductionMainNo : null,
             DataSource = e.DataSource,
             ProductStatus = e.ProductStatus,
             CreatedTime = e.CreatedTime,
@@ -582,6 +628,16 @@ public class ProcessInspectionService : IProcessInspectionService
         entity.PlantGrade = request.PlantGrade ?? entity.PlantGrade;
         entity.Remark = request.Remark ?? entity.Remark;
 
+        // 重算产品状态（产类）：与生产记录行为一致，更新时基于批次最新信息刷新
+        if (batch != null)
+        {
+            var batchProcessGroups = await _context.ProcessGroups
+                .Where(pg => pg.ProductionBatchId == entity.ProductionBatchId)
+                .ToListAsync();
+            entity.ProductStatus = ProductStatusHelper.Calculate(
+                entity.ProcessName, entity.ManufacturingSpec, batch.ManufacturingItem, batchProcessGroups, batch.Specification);
+        }
+
         await _context.SaveChangesAsync();
 
         // 刷新批次跟踪字段
@@ -619,6 +675,9 @@ public class ProcessInspectionService : IProcessInspectionService
             PlantGrade = entity.PlantGrade,
             Remark = entity.Remark,
             BatchNo = entity.BatchNo,
+            WorkOrderNo = batch?.WorkOrderNo,
+            SalesOrderNo = batch?.SalesOrderNo,
+            ProductionMainNo = batch?.ProductionMainNo,
             DataSource = entity.DataSource,
             CreatedTime = entity.CreatedTime,
             UpdatedTime = entity.UpdatedTime
@@ -671,6 +730,20 @@ public class ProcessInspectionService : IProcessInspectionService
 
     private static IQueryable<ProcessInspection> ApplySorting(IQueryable<ProcessInspection> queryable, string sortBy, bool isDescending)
     {
+        // 导航字段 WorkOrderNo/SalesOrderNo/ProductionMainNo 需特判（通用 ApplySort 只反射实体属性，不支持导航属性）
+        if (sortBy.Equals("workorderno", StringComparison.OrdinalIgnoreCase))
+            return isDescending
+                ? queryable.OrderByDescending(r => r.ProductionBatch.WorkOrderNo ?? "")
+                : queryable.OrderBy(r => r.ProductionBatch.WorkOrderNo ?? "");
+        if (sortBy.Equals("salesorderno", StringComparison.OrdinalIgnoreCase))
+            return isDescending
+                ? queryable.OrderByDescending(r => r.ProductionBatch.SalesOrderNo ?? "")
+                : queryable.OrderBy(r => r.ProductionBatch.SalesOrderNo ?? "");
+        if (sortBy.Equals("productionmainno", StringComparison.OrdinalIgnoreCase))
+            return isDescending
+                ? queryable.OrderByDescending(r => r.ProductionBatch.ProductionMainNo ?? "")
+                : queryable.OrderBy(r => r.ProductionBatch.ProductionMainNo ?? "");
+
         return queryable.ApplySort(sortBy, isDescending);
     }
 }

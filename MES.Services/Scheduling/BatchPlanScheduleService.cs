@@ -217,7 +217,16 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             x.b.CurrentEquipmentName,
             x.b.CurrentOutsource,
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
-            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : 0),
+            // G4（COALESCE：工单计划薄表优先，无覆盖则回退系统值；summary 关注状态 5 档映射到排程 4 档：0/1→0 完成、2→1 原料锁定、3→2 生产执行、4→3 成品检验）
+            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null
+                ? x.plan.ScheduleStage.Value
+                : (x.s != null
+                    ? (x.s.ScheduleStage == 0 || x.s.ScheduleStage == 1 ? 0
+                        : x.s.ScheduleStage == 2 ? 1
+                        : x.s.ScheduleStage == 3 ? 2
+                        : x.s.ScheduleStage == 4 ? 3
+                        : x.s.ScheduleStage)
+                    : 0),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
             IsUrging = x.s != null && x.s.IsUrging,
             IsBatchDelivery = x.s != null && x.s.IsBatchDelivery,

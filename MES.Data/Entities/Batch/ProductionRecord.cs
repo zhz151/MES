@@ -82,9 +82,14 @@ public class ProductionRecord : BaseEntity
     public int? SoakTime { get; set; }
 
     /// <summary>
-    /// 产品状态（荒管/在制/成品），由系统根据工序组和批次信息自动计算
+    /// 产类（荒管/在制/成品），由系统根据工序组和批次信息自动计算
     /// </summary>
     public string? ProductStatus { get; set; }
+
+    /// <summary>
+    /// 预成切（虽然是成品切割，但不是正式成品切割；不计入成品切割统计支数）
+    /// </summary>
+    public bool? IsPreCut { get; set; }
 
     /// <summary>
     /// 长度状态（定尺/范围尺/非定尺），断切成品时自动从批次冗余（存储枚举字符串）

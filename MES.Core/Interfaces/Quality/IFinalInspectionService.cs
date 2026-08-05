@@ -50,4 +50,9 @@ public interface IFinalInspectionService
 
     /// <summary>按条件打印全部记�?/summary>
     Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null, string? filters = null);
+
+    /// <summary>
+    /// 实时健康汇总（按当前筛选条件统计成检类型与成检到料不符的生产编号）
+    /// </summary>
+    Task<FinalInspectionHealthSummaryDto> GetFinalInspectionHealthSummaryAsync(QueryParams query);
 }

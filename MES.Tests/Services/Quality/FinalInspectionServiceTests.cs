@@ -123,6 +123,24 @@ public class FinalInspectionServiceTests : TestBase
         return entity;
     }
 
+    /// <summary>
+    /// 构造一条成检到料（批次无成检到料时，成品检验不允许提交）
+    /// </summary>
+    private async Task SeedMrCheckAsync(AppDbContext ctx, ProductionBatch batch, string inspectionType = nameof(InspectionType.FormalInspection))
+    {
+        ctx.MaterialReceiveChecks.Add(new MaterialReceiveCheck
+        {
+            ProductionBatchId = batch.Id,
+            BatchNo = batch.BatchNo,
+            ReceiveDate = DateTime.Today,
+            ProcessGroupId = batch.Id, // InMemory 不校验外键，取唯一值即可
+            ProcessName = "检验",
+            SequenceNumber = 1,
+            InspectionType = inspectionType
+        });
+        await ctx.SaveChangesAsync();
+    }
+
     // ========== GetAllAsync ==========
 
     [Fact]
@@ -215,7 +233,8 @@ public class FinalInspectionServiceTests : TestBase
     public async Task CreateAsync_成功创建()
     {
         var ctx = CreateDbContext();
-        await SeedBatchAsync(ctx);
+        var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch);
         var svc = CreateService(ctx);
 
         var result = await svc.CreateAsync(new CreateFinalInspectionRequest
@@ -226,7 +245,8 @@ public class FinalInspectionServiceTests : TestBase
             Quantity = 20,
             Weight = 2000,
             QualifiedQuantity = 18,
-            QualifiedWeight = 1800
+            QualifiedWeight = 1800,
+            DefectWarehouseQuantity = 2
         });
 
         result.Should().NotBeNull();
@@ -241,7 +261,8 @@ public class FinalInspectionServiceTests : TestBase
     public async Task CreateAsync_定尺长度不在集合_抛出BusinessException()
     {
         var ctx = CreateDbContext();
-        await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch);
         var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
 
         var act = () => svc.CreateAsync(new CreateFinalInspectionRequest
@@ -262,7 +283,8 @@ public class FinalInspectionServiceTests : TestBase
     public async Task CreateAsync_定尺长度在集合_成功创建()
     {
         var ctx = CreateDbContext();
-        await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch);
         var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
 
         var result = await svc.CreateAsync(new CreateFinalInspectionRequest
@@ -283,7 +305,8 @@ public class FinalInspectionServiceTests : TestBase
     public async Task CreateAsync_定尺主号无定尺集合_跳过校验()
     {
         var ctx = CreateDbContext();
-        await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch);
         var svc = CreateService(ctx, CreateFixedLengthSvcMock()); // 空集合 = 主号下无定尺工单，跳过
 
         var result = await svc.CreateAsync(new CreateFinalInspectionRequest
@@ -301,10 +324,35 @@ public class FinalInspectionServiceTests : TestBase
     }
 
     [Fact]
+    public async Task CreateAsync_预成检_定尺长度不在集合_跳过归属校验()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.PreInspection));
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var result = await svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            FixedLength = "6000mm", // 不在集合，但预成检跳过归属校验
+            InspectionType = nameof(InspectionType.PreInspection)
+        });
+
+        result.Should().NotBeNull();
+        result.FixedLength.Should().Be("6000mm");
+        result.InspectionType.Should().Be(nameof(InspectionType.PreInspection));
+    }
+
+    [Fact]
     public async Task CreateAsync_定尺长度格式不正确_抛出BusinessException()
     {
         var ctx = CreateDbContext();
-        await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch);
         var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
 
         var act = () => svc.CreateAsync(new CreateFinalInspectionRequest
@@ -319,6 +367,112 @@ public class FinalInspectionServiceTests : TestBase
 
         await act.Should().ThrowAsync<BusinessException>()
             .WithMessage("*定尺长度格式不正确(abc)*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_无成检到料_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx); // 批次无成检到料
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*无成检到料*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_支数不平衡_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch);
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 18
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*检验支数(20) ≠ 合格支数(18)*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_让步放行大于合格支数_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch);
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            QualifiedConcessionQuantity = 21
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*让步放行支数(21)不能大于合格支数(20)*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_指定到料不含的成检类型_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.FormalInspection)); // 到料只有正式成检
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            InspectionType = nameof(InspectionType.PreInspection)
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*成检到料不含*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_指定到料含的成检类型_成功()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.FormalInspection));
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            InspectionType = nameof(InspectionType.FormalInspection)
+        });
+
+        result.InspectionType.Should().Be(nameof(InspectionType.FormalInspection));
     }
 
     // ========== UpdateAsync ==========
@@ -375,14 +529,113 @@ public class FinalInspectionServiceTests : TestBase
             .WithMessage("*成品检验定尺长度(6000mm)不属于该订单号+主号(SO-001/M-001)下的定尺长度*");
     }
 
+    [Fact]
+    public async Task UpdateAsync_预成检_定尺长度不在集合_跳过归属校验()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.PreInspection));
+        await SeedInspectionAsync(ctx); // 默认 InspectionType=null
+        var id = await ctx.FinalInspections.Select(f => f.Id).FirstAsync();
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var result = await svc.UpdateAsync(id, new UpdateFinalInspectionRequest
+        {
+            InspectionDate = DateTime.Today,
+            Quantity = 10,
+            QualifiedQuantity = 10,
+            FixedLength = "6000mm", // 不在集合，但预成检跳过归属校验
+            InspectionType = nameof(InspectionType.PreInspection)
+        });
+
+        result.Should().NotBeNull();
+        result.FixedLength.Should().Be("6000mm");
+        result.InspectionType.Should().Be(nameof(InspectionType.PreInspection));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_改成检类型为到料集合内_成功()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.FormalInspection));
+        await SeedInspectionAsync(ctx); // 默认 InspectionType=null
+        var id = await ctx.FinalInspections.Select(f => f.Id).FirstAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.UpdateAsync(id, new UpdateFinalInspectionRequest
+        {
+            InspectionDate = DateTime.Today,
+            Quantity = 10,
+            QualifiedQuantity = 10,
+            InspectionType = nameof(InspectionType.FormalInspection)
+        });
+
+        result.InspectionType.Should().Be(nameof(InspectionType.FormalInspection));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_改成检类型为到料集合外_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.FormalInspection)); // 到料只有正式成检
+        await SeedInspectionAsync(ctx);
+        var id = await ctx.FinalInspections.Select(f => f.Id).FirstAsync();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.UpdateAsync(id, new UpdateFinalInspectionRequest
+        {
+            InspectionDate = DateTime.Today,
+            Quantity = 10,
+            QualifiedQuantity = 10,
+            InspectionType = nameof(InspectionType.PreInspection)
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*不含*");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_不传成检类型_保留原值()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.FormalInspection));
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = batch.BatchNo,
+            ProductionBatchId = batch.Id,
+            InspectionType = nameof(InspectionType.FormalInspection),
+            Quantity = 10,
+            QualifiedQuantity = 10
+        });
+        await ctx.SaveChangesAsync();
+        var id = await ctx.FinalInspections.Select(f => f.Id).FirstAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.UpdateAsync(id, new UpdateFinalInspectionRequest
+        {
+            InspectionDate = DateTime.Today,
+            Quantity = 10,
+            QualifiedQuantity = 10
+        });
+
+        result.InspectionType.Should().Be(nameof(InspectionType.FormalInspection));
+    }
+
     // ========== BatchCreateAsync ==========
 
     [Fact]
     public async Task BatchCreateAsync_成功批量创建()
     {
         var ctx = CreateDbContext();
-        await SeedBatchAsync(ctx, "BATCH001");
-        await SeedBatchAsync(ctx, "BATCH002");
+        var b1 = await SeedBatchAsync(ctx, "BATCH001");
+        var b2 = await SeedBatchAsync(ctx, "BATCH002");
+        await SeedMrCheckAsync(ctx, b1);
+        await SeedMrCheckAsync(ctx, b2);
         var svc = CreateService(ctx);
 
         var result = await svc.BatchCreateAsync(new List<CreateFinalInspectionRequest>
@@ -435,6 +688,40 @@ public class FinalInspectionServiceTests : TestBase
             .WithMessage("*第1行：成品检验定尺长度(6000mm)不属于该订单号+主号(SO-001/M-001)下的定尺长度*");
     }
 
+    [Fact]
+    public async Task BatchCreateAsync_预成检_定尺长度不在集合_跳过归属校验()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001", "Fixed");
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.PreInspection));
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var result = await svc.BatchCreateAsync(new List<CreateFinalInspectionRequest>
+        {
+            new() { InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today, BatchNo = "BATCH001", Quantity = 10, QualifiedQuantity = 10, FixedLength = "6000mm", InspectionType = nameof(InspectionType.PreInspection) }
+        });
+
+        result.Should().HaveCount(1);
+        result[0].FixedLength.Should().Be("6000mm");
+        result[0].InspectionType.Should().Be(nameof(InspectionType.PreInspection));
+    }
+
+    [Fact]
+    public async Task BatchCreateAsync_无成检到料_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx, "BATCH001"); // 批次无成检到料
+        var svc = CreateService(ctx);
+
+        var act = () => svc.BatchCreateAsync(new List<CreateFinalInspectionRequest>
+        {
+            new() { InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today, BatchNo = "BATCH001", Quantity = 10, QualifiedQuantity = 10 }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*无成检到料*");
+    }
+
     // ========== LookupBatchAsync ==========
 
     [Fact]
@@ -442,6 +729,7 @@ public class FinalInspectionServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch);
         var svc = CreateService(ctx);
 
         var result = await svc.LookupBatchAsync("BATCH001");
@@ -449,6 +737,20 @@ public class FinalInspectionServiceTests : TestBase
         result.Should().NotBeNull();
         result!.ProductionBatchId.Should().Be(batch.Id);
         result.ManufacturingItem.Should().Be("OrderFinished");
+        result.InspectionType.Should().Be(nameof(InspectionType.FormalInspection));
+    }
+
+    [Fact]
+    public async Task LookupBatchAsync_无到料_成检类型为空()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx); // 批次无成检到料
+        var svc = CreateService(ctx);
+
+        var result = await svc.LookupBatchAsync("BATCH001");
+
+        result.Should().NotBeNull();
+        result!.InspectionType.Should().BeNull();
     }
 
     [Fact]
@@ -726,5 +1028,49 @@ public class FinalInspectionServiceTests : TestBase
 
         contexts["BatchNo"].Should().HaveCount(1);
         contexts["TagNo"].Should().BeEmpty();
+    }
+
+    // ========== GetFinalInspectionHealthSummaryAsync ==========
+
+    [Fact]
+    public async Task GetFinalInspectionHealthSummaryAsync_成检类型与到料不符_分类列出生产编号()
+    {
+        var ctx = CreateDbContext();
+
+        // 批次1：有成检到料（正式成检）；两条成品检验：正式=正常，预成检=成检类型疑问
+        var batch1 = await SeedBatchAsync(ctx, "BATCH001");
+        await SeedMrCheckAsync(ctx, batch1, nameof(InspectionType.FormalInspection));
+        await AddFinalInspection(ctx, batch1, nameof(InspectionType.FormalInspection));
+        await AddFinalInspection(ctx, batch1, nameof(InspectionType.PreInspection));
+
+        // 批次2：无成检到料却有成品检验 → 无成检到料
+        var batch2 = await SeedBatchAsync(ctx, "BATCH002");
+        await AddFinalInspection(ctx, batch2, nameof(InspectionType.FormalInspection));
+
+        var svc = CreateService(ctx);
+
+        var summary = await svc.GetFinalInspectionHealthSummaryAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        summary.TotalCount.Should().Be(3);
+        summary.InspectionTypeMismatchBatchNos.Should().Contain("BATCH001");
+        summary.NoMaterialCheckBatchNos.Should().Contain("BATCH002");
+        summary.InspectionTypeMismatchCount.Should().Be(1);
+        summary.NoMaterialCheckCount.Should().Be(1);
+        summary.NormalCount.Should().Be(1);
+        summary.IssueCount.Should().Be(2);
+    }
+
+    private async Task AddFinalInspection(AppDbContext ctx, ProductionBatch batch, string? inspectionType)
+    {
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = batch.BatchNo,
+            ProductionBatchId = batch.Id,
+            InspectionType = inspectionType,
+            Quantity = 10
+        });
+        await ctx.SaveChangesAsync();
     }
 }

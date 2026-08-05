@@ -68,12 +68,58 @@ public class ProductionBatchListDto
     public int TotalQuantity { get; set; }
     public decimal TotalMeters { get; set; }
     public decimal TotalWeight { get; set; }
+
+    /// <summary>
+    /// 产品单支量(kg/支) = 总重量/总支数，仅"定尺"批次有效，非定尺为空；保留1位小数
+    /// </summary>
+    public decimal? ProductUnitWeight { get; set; }
+
     public string TechnicalRequirements { get; set; } = null!;
 
     /// <summary>
     /// 有效投料变更：有效投料支数与领料支数是否一致，有/无
     /// </summary>
     public bool? HasInputChange { get; set; }
+
+    /// <summary>
+    /// 过程检合格支：批次当前执行工序组全部过程检验的合格支数聚合；无检验/不在产 → null
+    /// </summary>
+    public int? ProcessInspectionQualifiedQty { get; set; }
+
+    /// <summary>
+    /// 过程检合格量(kg)：批次当前执行工序组全部过程检验的合格重量聚合；无检验/不在产 → null
+    /// </summary>
+    public decimal? ProcessInspectionQualifiedWeight { get; set; }
+
+    /// <summary>
+    /// 过程检理论成品支：Round(合格量 ÷ 合格支 ÷ 成品的理论单支重, AwayFromZero) × 合格支（重量口径折算）
+    /// </summary>
+    public int? ProcessInspectionTheoreticalQty { get; set; }
+
+    /// <summary>
+    /// 需调整：批次状态为 成检/完成 时固定 null（-）不判定；其余状态 过程检理论成品支 与 当前理论成品支 偏差 &gt; 3% → true（是）；否则/无数据 → null（-）
+    /// </summary>
+    public bool? ProcessInspectionNeedAdjust { get; set; }
+
+    /// <summary>
+    /// 缺陷-返整量（重量 kg）：过程检验 理论返整重 全量聚合（返整会另开批次，不延续本批）
+    /// </summary>
+    public int ProcessInspectionReworkWeight { get; set; }
+
+    /// <summary>
+    /// 缺陷-纯次品量（重量 kg）：过程检验 理论报废重+理论入库重 全量聚合（彻底退出正常流）
+    /// </summary>
+    public int ProcessInspectionScrapWeight { get; set; }
+
+    // ========== 成检附加 ==========
+
+    /// <summary>成检附加：仅"成检"状态有效——PreInspection=预检，FormalInspection=终检；其余状态/无到料为 null（空）</summary>
+    public string? InspectionStage { get; set; }
+    public string? InspectionStageDisplay => string.Equals(InspectionStage, nameof(InspectionType.PreInspection), StringComparison.OrdinalIgnoreCase)
+        ? "预检"
+        : string.Equals(InspectionStage, nameof(InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase)
+            ? "终检"
+            : "";
 
     // ========== 成切跟踪 ==========
 

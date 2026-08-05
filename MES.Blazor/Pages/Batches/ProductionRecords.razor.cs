@@ -78,6 +78,9 @@ public partial class ProductionRecords
         // ===== Group 1: 执行信息 =====
         new() { Key = "ExecDate",          Label = "执行日期",   SortKey = "execdate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "WorkOrderNo",       Label = "工单号",     SortKey = "workorderno",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "SalesOrderNo",      Label = "订单号",     SortKey = "salesorderno",      FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "ProductionMainNo",  Label = "主号",       SortKey = "productionmainno",  FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "ManufacturingSpec", Label = "制造规格",   SortKey = "manufacturingspec", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "SectionName",       Label = "工段名称",   SortKey = "sectionname",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
@@ -90,6 +93,8 @@ public partial class ProductionRecords
         new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "ProductStatus",      Label = "产类",       SortKey = "productstatus",         FilterType = "string", Width = "80", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "IsPreCut",           Label = "预成切",     SortKey = "isprecut",             FilterType = "enum", Width = "70", GroupKey = 2, GroupName = "产出数据",
+            EnumOptions = new() { new("true", "是") } },
         new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus",         FilterType = "string", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength", Width = "80", GroupKey = 2, GroupName = "产出数据" },
@@ -352,6 +357,7 @@ public partial class ProductionRecords
         public decimal? Weight { get; set; }
         public decimal? SolutionTemperature { get; set; }
         public int? SoakTime { get; set; }
+        public bool? IsPreCut { get; set; }
         public int? FaceCutCount { get; set; }
         public decimal? CuttingMultiple { get; set; }
         public decimal? FinishedCutLength { get; set; }
@@ -374,6 +380,7 @@ public partial class ProductionRecords
             Weight = item.Weight,
             SolutionTemperature = item.SolutionTemperature,
             SoakTime = item.SoakTime,
+            IsPreCut = item.IsPreCut,
             FaceCutCount = item.FaceCutCount,
             CuttingMultiple = item.CuttingMultiple,
             FinishedCutLength = item.FinishedCutLength,
@@ -420,6 +427,7 @@ public partial class ProductionRecords
                 Weight = cache.Weight,
                 SolutionTemperature = cache.SolutionTemperature,
                 SoakTime = cache.SoakTime,
+                IsPreCut = cache.IsPreCut,
                 FaceCutCount = cache.FaceCutCount,
                 CuttingMultiple = cache.CuttingMultiple,
                 FinishedCutLength = cache.FinishedCutLength,
@@ -442,6 +450,7 @@ public partial class ProductionRecords
                 item.SoakTime = result.Data.SoakTime;
                 item.FaceCutCount = result.Data.FaceCutCount;
                 item.ProductStatus = result.Data.ProductStatus;
+                item.IsPreCut = result.Data.IsPreCut;
                 item.CuttingMultiple = result.Data.CuttingMultiple;
                 item.FinishedCutLength = result.Data.FinishedCutLength;
                 item.PostCutQuantity = result.Data.PostCutQuantity;
@@ -642,6 +651,15 @@ public partial class ProductionRecords
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.BatchNo)));
                 builder.CloseComponent();
                 break;
+            case "WorkOrderNo":
+                builder.AddContent(0, item.WorkOrderNo);
+                break;
+            case "SalesOrderNo":
+                builder.AddContent(0, item.SalesOrderNo);
+                break;
+            case "ProductionMainNo":
+                builder.AddContent(0, item.ProductionMainNo);
+                break;
             case "ProcessName":
                 builder.AddContent(0, item.ProcessName);
                 break;
@@ -813,6 +831,34 @@ public partial class ProductionRecords
                     builder.AddAttribute(2, "Color", color);
                     builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, text)));
                     builder.CloseComponent();
+                }
+                break;
+            case "IsPreCut":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudSelect<bool?>>(0);
+                    builder.AddAttribute(1, "Value", cache.IsPreCut);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool?>(this, v => cache.IsPreCut = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "Dense", true);
+                    builder.AddAttribute(5, "Clearable", true);
+                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
+                    {
+                        // 空 = null（不设置 Value，默认即为 null）
+                        b2.OpenComponent<MudSelectItem<bool?>>(0);
+                        b2.AddContent(2, "");
+                        b2.CloseComponent();
+                        b2.OpenComponent<MudSelectItem<bool?>>(3);
+                        b2.AddAttribute(4, "Value", true);
+                        b2.AddAttribute(5, "Text", "是");
+                        b2.AddContent(6, "是");
+                        b2.CloseComponent();
+                    }));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.IsPreCut == true ? "是" : "");
                 }
                 break;
             case "LengthStatus":

@@ -338,6 +338,7 @@ public static class DbInitializer
                 new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "SmallBatchMaxQty", ParamValue = 20m, Remark = "小批量最大支数" },
                 new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "SmallBatchSatisfiedRate", ParamValue = 100m, Remark = "小批量满足率(%)" },
                 new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "SupplySatisfiedRate", ParamValue = 100m, Remark = "投料满足率(%)" },
+                new() { Category = "MaterialPlanStatus", CategoryDisplay = "工单-用料计划状态阈值", Context = "工单", ParamKey = "QualifiedRate", ParamValue = 98m, Remark = "定尺其它投料类型理论成品合格率(%)" },
 
                 // ===== ProcessingDiscount 加工折扣率 =====
                 new() { Category = "ProcessingDiscount", CategoryDisplay = "批次-加工损耗率", Context = "批次", ParamKey = "GroupDiscountRate", ParamValue = 0.025m, Remark = "每工序组加工损耗率" },

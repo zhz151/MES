@@ -61,7 +61,7 @@ public partial class AppDbContext
             entity.Property(e => e.ActualSpecification).HasMaxLength(100);
 
             // 位置与状态
-            entity.Property(e => e.SurfaceCondition).HasMaxLength(50);
+            entity.Property(e => e.ManufacturingStatus).HasMaxLength(50);
             entity.Property(e => e.LocationArea).HasMaxLength(50);
             entity.Property(e => e.LocationRack).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);

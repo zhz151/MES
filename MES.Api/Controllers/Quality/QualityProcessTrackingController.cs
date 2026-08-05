@@ -87,4 +87,13 @@ public class QualityProcessTrackingController : ControllerBase
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo, request.Filters);
         return File(pdfBytes, "application/pdf", "成检追踪-全部.pdf");
     }
+
+    /// <summary>全量刷新所有物化行（聚合口径/唯一键变更后的存量重算）</summary>
+    [HttpPost("refresh-all")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<int>>> RefreshAll()
+    {
+        await _service.RefreshAllAsync();
+        return Ok(ApiResponse<int>.Ok(0));
+    }
 }

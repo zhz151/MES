@@ -44,7 +44,7 @@ public static class ProductionRecordPrintHelper
                 new() { Key = "Shift", Label = "班次" },
                 new() { Key = "Quantity", Label = "加工支数" },
                 new() { Key = "Weight", Label = "加工重量" },
-                new() { Key = "ProductStatus", Label = "制造状态" },
+                new() { Key = "ProductStatus", Label = "产类" },
                 new() { Key = "DataSource", Label = "数据来源" },
                 new() { Key = "Remark", Label = "备注" },
             };
@@ -55,6 +55,9 @@ public static class ProductionRecordPrintHelper
             var dict = new Dictionary<string, object>
             {
                 ["BatchNo"] = r.BatchNo ?? "",
+                ["WorkOrderNo"] = r.WorkOrderNo ?? "",
+                ["SalesOrderNo"] = r.SalesOrderNo ?? "",
+                ["ProductionMainNo"] = r.ProductionMainNo ?? "",
                 ["ProcessName"] = r.ProcessName,
                 ["ManufacturingSpec"] = r.ManufacturingSpec ?? "",
                 ["SectionName"] = r.SectionName,

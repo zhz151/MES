@@ -1,7 +1,7 @@
 // 生产环境 Service Worker — 静态资源缓存优先，API 网络优先
 
-const STATIC_CACHE = 'mes-static-v1';
-const API_CACHE = 'mes-api-v1';
+const STATIC_CACHE = 'mes-static-v2';
+const API_CACHE = 'mes-api-v2';
 
 // 由 MSBuild 自动生成的资源哈希清单
 // 内容格式: self.assetsManifest = { assets: [{ hash, url }, ...] }

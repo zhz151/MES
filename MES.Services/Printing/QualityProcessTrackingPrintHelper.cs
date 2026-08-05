@@ -36,11 +36,14 @@ public static class QualityProcessTrackingPrintHelper
                 ["TagNo"] = dto.TagNo ?? "",
                 ["WorkOrderNo"] = dto.WorkOrderNo ?? "",
                 ["SalesOrderNo"] = dto.SalesOrderNo ?? "",
+                ["ProductionMainNo"] = dto.ProductionMainNo ?? "",
                 ["FurnaceNo"] = dto.FurnaceNo ?? "",
                 ["SourceUnit"] = dto.SourceUnit ?? "",
                 ["ProductionType"] = dto.ProductionType.HasValue ? EnumHelper.GetDisplayName(dto.ProductionType.Value) : "",
                 ["Salesman"] = dto.Salesman ?? "",
+                ["ManufacturingStatus"] = dto.ManufacturingStatusDisplay ?? "",
                 ["DeliveryState"] = dto.DeliveryState.HasValue ? EnumHelper.GetDisplayName(dto.DeliveryState.Value) : "",
+                ["EndCustomer"] = dto.EndCustomer ?? "",
                 ["ProductionWeight"] = dto.ProductionWeight?.ToString("G29") ?? "",
                 ["ProductionCutQuantity"] = dto.ProductionCutQuantity.ToString(),
 
@@ -74,8 +77,10 @@ public static class QualityProcessTrackingPrintHelper
                 ["InboundQuantity"] = dto.InboundQuantity.ToString(),
                 ["InboundWeight"] = dto.InboundWeight?.ToString("G29") ?? "",
 
-                // G6: 执行状态
-                ["QualityStatus"] = dto.IsForceCompleted ? "异常完成" : (dto.QualityStatus ?? ""),
+                // G6: 执行状态（预成检统一显示"略"）
+                ["QualityStatus"] = dto.InspectionType == nameof(InspectionType.PreInspection)
+                    ? "略"
+                    : dto.IsForceCompleted ? "异常完成" : (dto.QualityStatus ?? ""),
                 ["UpdatedTime"] = dto.UpdatedTime.ToString("yyyy-MM-dd HH:mm"),
             };
             return dict;

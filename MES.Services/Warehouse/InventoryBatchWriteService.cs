@@ -26,6 +26,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
     private readonly IProductionRecordService _productionRecordService;
     private readonly ILogger<InventoryBatchWriteService> _logger;
     private readonly IInventorySyncService _syncService;
+    private readonly INotificationService _notificationService;
     private static readonly SemaphoreSlim _batchNoLock = new(1, 1);
 
     private static InventoryBatchDto BatchToDto(InventoryBatch b) => new()
@@ -52,7 +53,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         RemainingQuantity = b.RemainingQuantity,
         RemainingWeight = b.RemainingWeight,
         ActualSpecification = b.ActualSpecification,
-        SurfaceCondition = EnumHelper.TryParse<DeliveryState>(b.SurfaceCondition),
+        ManufacturingStatus = EnumHelper.TryParse<DeliveryState>(b.ManufacturingStatus),
         LocationArea = b.LocationArea,
         LocationRack = b.LocationRack,
         Remark = b.Remark,
@@ -75,6 +76,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         IQualityProcessTrackingService qualityProcessTracking,
         IProductionRecordService productionRecordService,
         IInventorySyncService syncService,
+        INotificationService notificationService,
         ILogger<InventoryBatchWriteService> logger)
     {
         _context = context;
@@ -82,6 +84,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         _qualityProcessTracking = qualityProcessTracking;
         _productionRecordService = productionRecordService;
         _syncService = syncService;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -108,6 +111,57 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "质量过程跟踪刷新失败（不影响主流程）: BatchNo={BatchNo}", batchNo);
+        }
+    }
+
+    /// <summary>
+    /// 入库一致性校验（仅提醒不阻止）
+    /// 触发条件：同生产批号 + 同制造物品匹配，且入库制造状态与生产批次制造状态不一致
+    /// 三态一致不发；制造物品与批次本身不一致不发（不同物料类别，状态比较无意义）
+    /// 仅入库方显式填写制造状态且双方均非空时比较，避免空值误报
+    /// </summary>
+    private async Task CheckInboundConsistencyAndNotifyAsync(InventoryBatch entity)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(entity.ProductionBatchNo))
+                return;
+
+            var batch = await _context.ProductionBatches
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.BatchNo == entity.ProductionBatchNo);
+            if (batch == null) return;
+
+            // 制造物品与批次本身不一致 → 无需通知
+            if (string.IsNullOrEmpty(batch.ManufacturingItem)
+                || !string.Equals(entity.MaterialType, batch.ManufacturingItem, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // 制造状态一致（三态一致）或任一方为空 → 无需通知
+            if (string.IsNullOrEmpty(entity.ManufacturingStatus)
+                || string.IsNullOrEmpty(batch.ManufacturingStatus)
+                || string.Equals(entity.ManufacturingStatus, batch.ManufacturingStatus, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // 短时去重：同生产批号30分钟内未读通知不再重复发
+            var cutoff = DateTimeOffset.Now.AddMinutes(-30);
+            var recent = await _context.Notifications.AnyAsync(n =>
+                n.NotificationType == nameof(NotificationType.InboundMismatchAlert)
+                && n.Content != null
+                && n.Content.Contains(entity.ProductionBatchNo)
+                && !n.IsRead
+                && n.CreatedTime >= cutoff);
+            if (recent) return;
+
+            await _notificationService.CreateAsync(
+                nameof(NotificationType.InboundMismatchAlert),
+                $"入库制造状态不一致：{entity.ProductionBatchNo}",
+                $"入库批次 {entity.BatchNo}（生产批号 {entity.ProductionBatchNo}）的制造状态「{entity.ManufacturingStatus}」与生产批次制造状态「{batch.ManufacturingStatus}」不一致，请核对。",
+                targetId: entity.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "入库一致性通知失败（不影响主流程）: BatchNo={BatchNo}", entity.BatchNo);
         }
     }
 
@@ -237,7 +291,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             RemainingQuantity = request.InitialQuantity,
             RemainingWeight = request.InitialWeight,
             ActualSpecification = request.ActualSpecification,
-            SurfaceCondition = request.SurfaceCondition?.ToString(),
+            ManufacturingStatus = request.ManufacturingStatus?.ToString(),
             LocationArea = request.LocationArea,
             LocationRack = request.LocationRack,
             Remark = request.Remark,
@@ -274,6 +328,9 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         _context.InventoryBatches.Add(entity);
         await _context.SaveChangesAsync();
 
+        // 入库一致性通知（仅提醒）
+        await CheckInboundConsistencyAndNotifyAsync(entity);
+
         // 入库触发批次完成推进
         if (!string.IsNullOrEmpty(entity.ProductionBatchNo))
             await TryCompleteProductionBatchAsync(entity.ProductionBatchNo);
@@ -295,6 +352,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             throw new BusinessException("仓库不存在");
 
         var results = new List<string>();
+        var createdEntities = new List<InventoryBatch>();
         var productionBatchNos = new List<string?>();
         var workOrderNos = new List<string?>();
         var transaction = await _context.Database.BeginTransactionAsync();
@@ -344,7 +402,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                         RemainingQuantity = row.InitialQuantity,
                         RemainingWeight = row.InitialWeight,
                         ActualSpecification = row.ActualSpecification ?? request.ActualSpecification,
-                        SurfaceCondition = (row.SurfaceCondition ?? request.SurfaceCondition)?.ToString(),
+                        ManufacturingStatus = (row.ManufacturingStatus ?? request.ManufacturingStatus)?.ToString(),
                         LocationArea = row.LocationArea ?? request.LocationArea,
                         LocationRack = row.LocationRack ?? request.LocationRack,
                         Remark = row.Remark,
@@ -364,6 +422,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                     AutoFillWorkOrderInfo(entity, workOrders);
 
                     _context.InventoryBatches.Add(entity);
+                    createdEntities.Add(entity);
                     results.Add(batchNo);
                     productionBatchNos.Add(row.ProductionBatchNo ?? request.ProductionBatchNo);
                     workOrderNos.Add(row.WorkOrderNo);
@@ -378,6 +437,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                 throw;
             }
         }
+
+        // 入库一致性通知（仅提醒）
+        foreach (var created in createdEntities)
+            await CheckInboundConsistencyAndNotifyAsync(created);
 
         // 入库触发批次完成推进（去重）
         foreach (var pbn in productionBatchNos.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct())
@@ -429,7 +492,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         entity.MaxLength = request.MaxLength ?? entity.MaxLength;
         entity.UnitWeight = request.UnitWeight ?? entity.UnitWeight;
         entity.Meters = request.Meters ?? entity.Meters;
-        entity.SurfaceCondition = request.SurfaceCondition?.ToString() ?? entity.SurfaceCondition;
+        entity.ManufacturingStatus = request.ManufacturingStatus?.ToString() ?? entity.ManufacturingStatus;
         entity.LocationArea = request.LocationArea ?? entity.LocationArea;
         entity.LocationRack = request.LocationRack ?? entity.LocationRack;
         entity.Remark = request.Remark ?? entity.Remark;
@@ -504,6 +567,9 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         }
 
         await _context.SaveChangesAsync();
+
+        // 入库一致性通知（仅提醒）
+        await CheckInboundConsistencyAndNotifyAsync(entity);
 
         await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
         await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchNo);

@@ -257,9 +257,9 @@ public class AvailableInventoryBatchDto
     public decimal? UnitWeight { get; set; }
 
     /// <summary>
-    /// 表面状态
+    /// 制造状态
     /// </summary>
-    public string? SurfaceCondition { get; set; }
+    public string? ManufacturingStatus { get; set; }
 
     /// <summary>
     /// 放置区域

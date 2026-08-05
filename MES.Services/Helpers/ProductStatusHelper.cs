@@ -5,12 +5,12 @@ using MES.Data.Entities.Batch;
 namespace MES.Services.Helpers;
 
 /// <summary>
-/// 制造状态计算帮助类，统一"生产记录""去油酸洗""工单委外""过程检验"的 ProductStatus 计算逻辑。
+/// 产类计算帮助类，统一"生产记录""去油酸洗""工单委外""过程检验"的 ProductStatus 计算逻辑。
 /// </summary>
 public static class ProductStatusHelper
 {
     /// <summary>
-    /// 计算制造状态（荒管/在制/成品）
+    /// 计算产类（荒管/在制/成品）
     /// </summary>
     /// <param name="finishedSpec">成品规格（= 批次 Specification）。成品判定标准：制造规格 == 成品规格。</param>
     public static string Calculate(

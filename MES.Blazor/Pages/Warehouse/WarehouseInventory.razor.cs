@@ -86,7 +86,7 @@ public partial class WarehouseInventory
         new() { Key = "SourceOrderNo",       Label = "来源单号", SortKey = "SourceOrderNo", FilterType = "string", Width = "120" },
         new() { Key = "MaterialType",        Label = "物料类型", SortKey = "MaterialType", FilterType = "string", Width = "120" },
         new() { Key = "SourceName",          Label = "来料单位", SortKey = "SourceName", FilterType = "string", Width = "120" },
-        new() { Key = "SurfaceCondition",    Label = "物料状态", SortKey = "SurfaceCondition", FilterType = "enum", Width = "120",
+        new() { Key = "ManufacturingStatus",    Label = "制造状态", SortKey = "ManufacturingStatus", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
                 new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
                 new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
@@ -204,7 +204,7 @@ public partial class WarehouseInventory
         SetGroup(cols, "PlantGrade", 3, "物料信息");
         SetGroup(cols, "Specification", 3, "物料信息");
         SetGroup(cols, "SourceName", 3, "物料信息");
-        SetGroup(cols, "SurfaceCondition", 3, "物料信息");
+        SetGroup(cols, "ManufacturingStatus", 3, "物料信息");
         SetGroup(cols, "HeatNo", 3, "物料信息");
         SetGroup(cols, "ActualSpecification", 3, "物料信息");
 
@@ -340,8 +340,8 @@ public partial class WarehouseInventory
             case "ActualSpecification":
                 builder.AddContent(0, item.ActualSpecification);
                 break;
-            case "SurfaceCondition":
-                builder.AddContent(0, item.SurfaceConditionDisplay);
+            case "ManufacturingStatus":
+                builder.AddContent(0, item.ManufacturingStatusDisplay);
                 break;
             case "LocationArea":
                 builder.AddContent(0, TruncateSourceName(item.LocationArea));
@@ -557,8 +557,8 @@ public partial class WarehouseInventory
             }
         }
 
-        // SurfaceCondition 列显示中文并过滤非法值
-        if (_filterContextOptions.TryGetValue("SurfaceCondition", out var surfaceOptions))
+        // ManufacturingStatus 列显示中文并过滤非法值
+        if (_filterContextOptions.TryGetValue("ManufacturingStatus", out var surfaceOptions))
         {
             surfaceOptions.RemoveAll(opt => !Enum.TryParse<DeliveryState>(opt.Value, out _));
             foreach (var opt in surfaceOptions)
@@ -716,7 +716,7 @@ public partial class WarehouseInventory
         "PlantGrade" => 120,
         "Specification" => 120,
         "SourceName" => 120,
-        "SurfaceCondition" => 120,
+        "ManufacturingStatus" => 120,
         "HeatNo" => 120,
         "ActualSpecification" => 120,
         "LengthStatus" => 120,

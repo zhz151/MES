@@ -160,7 +160,7 @@ public class ProcessInspection : BaseEntity
     public string? PlantGrade { get; set; }
 
     /// <summary>
-    /// 制造状态（荒管/在制/成品）
+    /// 产类（荒管/在制/成品）
     /// </summary>
     public string? ProductStatus { get; set; }
 

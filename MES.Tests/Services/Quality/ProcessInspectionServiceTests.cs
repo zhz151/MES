@@ -203,6 +203,46 @@ public class ProcessInspectionServiceTests : TestBase
         result.Items.Should().HaveCount(1);
     }
 
+    [Fact]
+    public async Task GetAllAsync_WorkOrderNo投影搜索筛选排序()
+    {
+        var ctx = CreateDbContext();
+        var batch1 = await SeedBatchAsync(ctx, batchNo: "B001");
+        batch1.WorkOrderNo = "WO-AAA";
+        var batch2 = await SeedBatchAsync(ctx, batchNo: "B002");
+        batch2.WorkOrderNo = "WO-BBB";
+        await ctx.SaveChangesAsync();
+        await SeedInspectionAsync(ctx, batchNo: "B001");
+        await SeedInspectionAsync(ctx, batchNo: "B002");
+        var svc = CreateService(ctx);
+
+        // 投影：列表返回 DTO 的 WorkOrderNo 取自批次导航属性
+        var all = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+        all.Items.Select(i => i.WorkOrderNo).Should().BeEquivalentTo(new[] { "WO-AAA", "WO-BBB" });
+
+        // 关键字搜索命中工单号
+        var kw = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "WO-AAA" });
+        kw.Items.Should().ContainSingle(i => i.BatchNo == "B001");
+
+        // WorkOrderNo 列筛选
+        var filtered = await svc.GetAllAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "WorkOrderNo", Operator = "in", Values = new List<string> { "WO-BBB" } }
+            }
+        });
+        filtered.Items.Should().ContainSingle(i => i.BatchNo == "B002");
+
+        // 升序/降序排序
+        var asc = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "workorderno", IsDescending = false });
+        asc.Items.First().WorkOrderNo.Should().Be("WO-AAA");
+        var desc = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "workorderno", IsDescending = true });
+        desc.Items.First().WorkOrderNo.Should().Be("WO-BBB");
+    }
+
     // ========== BatchCreateAsync ==========
 
     [Fact]

@@ -224,6 +224,7 @@
         new() { Key = "CuttingMultiple",   Label = "断切倍数",                 GroupKey = 5, GroupName = "断切特有" },
         new() { Key = "FinishedCutLength", Label = "成品长度",                 GroupKey = 5, GroupName = "断切特有" },
         new() { Key = "PostCutQuantity",   Label = "切后支数",                 GroupKey = 5, GroupName = "断切特有" },
+        new() { Key = "IsPreCut",          Label = "预成切",                   GroupKey = 5, GroupName = "断切特有" },
         new() { Key = "LengthStatus",      Label = "长度状态",                 GroupKey = 5, GroupName = "断切特有" },
 
         // ========== 组6：固溶特有 ==========
@@ -272,6 +273,7 @@
         public decimal? SolutionTemperature { get; set; }                                        // → Entity.SolutionTemperature
         public int? SoakTime { get; set; }                                                       // → Entity.SoakTime
         public int? FaceCutCount { get; set; }                                                   // → Entity.FaceCutCount
+        public bool? IsPreCut { get; set; }                                                     // → Entity.IsPreCut（预成切，空/是）
         public decimal? CuttingMultiple { get; set; }                                           // → Entity.CuttingMultiple
         public decimal? FinishedCutLength { get; set; }                                         // → Entity.FinishedCutLength
         public int? PostCutQuantity { get; set; }                                               // → Entity.PostCutQuantity
@@ -344,6 +346,7 @@
         "Weight" => 120,
         "Remark" => 150,
         "FaceCutCount" => 80,
+        "IsPreCut" => 90,
         "CuttingMultiple" => 100,
         "FinishedCutLength" => 100,
         "PostCutQuantity" => 100,
@@ -480,6 +483,13 @@
                 if (r.PostCutQuantity == null)
                     errors.Add($"第{i + 1}行：长度状态为定尺时，切后支数不能为空");
             }
+            if (r.IsPreCut == true)
+            {
+                if (r.SectionName != SectionDefs.Cut)
+                    errors.Add($"第{i + 1}行：预成切必须是断切工段");
+                if (r.FinishedCutLength == null)
+                    errors.Add($"第{i + 1}行：预成切必须填写成品长度");
+            }
             if (!DateTime.TryParse(r.ExecDate, out _))
                 errors.Add($"第{i + 1}行：执行日期格式无效（请用 yyyy-MM-dd）");
         }
@@ -510,6 +520,7 @@
                 SolutionTemperature = r.SolutionTemperature,
                 SoakTime = r.SoakTime,
                 FaceCutCount = r.FaceCutCount,
+                IsPreCut = r.IsPreCut,
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
@@ -882,6 +893,28 @@
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.PostCutQuantity = v));
                 // 仅长度状态为"定尺"时可填写，否则只读（始终绑定，确保定尺时解除只读）
                 builder.AddAttribute(8, "ReadOnly", r.LengthStatus != "定尺");
+                builder.CloseComponent();
+                break;
+            case "IsPreCut":
+                // 预成切：空=null / 是=true，仅两态
+                builder.OpenComponent<MudSelect<bool?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "Value", r.IsPreCut);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<bool?>(this, v => r.IsPreCut = v));
+                builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
+                {
+                    // 空 = null（不设置 Value，默认即为 null）
+                    b.OpenComponent<MudSelectItem<bool?>>(0);
+                    b.AddContent(2, "");
+                    b.CloseComponent();
+                    b.OpenComponent<MudSelectItem<bool?>>(3);
+                    b.AddAttribute(4, "Value", true);
+                    b.AddAttribute(5, "Text", "是");
+                    b.AddContent(6, "是");
+                    b.CloseComponent();
+                }));
                 builder.CloseComponent();
                 break;
             case "LengthStatus":

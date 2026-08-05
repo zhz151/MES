@@ -20,6 +20,7 @@ public class NcrDto
     public string PipeCategoryDisplay => EnumHelper.GetDisplayName(PipeCategory);
     public string BatchNo { get; set; } = null!;
     public string? WorkOrderNo { get; set; }
+    public string? ProductionMainNo { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
     public int? DefectiveQuantity { get; set; }
@@ -189,6 +190,7 @@ public class NcrLookupResultDto
 {
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
+    public string? ProductionMainNo { get; set; }
     public string? TagNo { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }

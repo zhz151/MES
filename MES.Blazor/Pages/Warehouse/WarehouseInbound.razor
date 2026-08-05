@@ -241,7 +241,7 @@
         public int InitialQuantity { get; set; }
         public decimal InitialWeight { get; set; }
         public decimal? UnitWeight { get; set; }
-        public string? SurfaceCondition { get; set; }
+        public string? ManufacturingStatus { get; set; }
         public string? LocationArea { get; set; }
         public string? LocationRack { get; set; }
         public string? Remark { get; set; }
@@ -290,7 +290,7 @@
             new() { Key = "UnitWeight",          Label = "单支重",         IsCommon = true, Visible = false },
             new() { Key = "LengthStatus",        Label = "长度状态",       IsCommon = true, Visible = true },
             new() { Key = "HeatNo",              Label = "来料原始炉号",   IsCommon = true, Visible = false },
-            new() { Key = "SurfaceCondition",    Label = "物料状态",       IsCommon = true, Visible = true },
+            new() { Key = "ManufacturingStatus",    Label = "制造状态",       IsCommon = true, Visible = true },
             new() { Key = "LocationArea",        Label = "区域",           IsCommon = true, Visible = false },
             new() { Key = "LocationRack",        Label = "框架",           IsCommon = true, Visible = false },
             new() { Key = "Remark",              Label = "备注",           IsCommon = true, Visible = false },
@@ -333,7 +333,7 @@
             .Select(v => (v.ToString(), DisplayHelper.GetLengthStatusText(v)))
             .ToList();
 
-    private readonly List<(string Value, string Text)> _surfaceConditionOptions =
+    private readonly List<(string Value, string Text)> _manufacturingStatusOptions =
         Enum.GetValues<DeliveryState>()
             .Select(v => (v.ToString(), DisplayHelper.GetDeliveryStateText(v)))
             .ToList();
@@ -429,7 +429,7 @@
         "MaterialType" => 130,
         "PlantGrade" => 130,
         "HeatNo" => 140,
-        "SurfaceCondition" => 110,
+        "ManufacturingStatus" => 110,
         _ => 130
     };
 
@@ -543,7 +543,7 @@
         SetGroup(cols, "UnitWeight", 3, "手工填写");
         SetGroup(cols, "LengthStatus", 3, "手工填写");
         SetGroup(cols, "HeatNo", 3, "手工填写");
-        SetGroup(cols, "SurfaceCondition", 3, "手工填写");
+        SetGroup(cols, "ManufacturingStatus", 3, "手工填写");
         SetGroup(cols, "LocationArea", 3, "手工填写");
         SetGroup(cols, "LocationRack", 3, "手工填写");
         SetGroup(cols, "Remark", 3, "手工填写");
@@ -565,7 +565,7 @@
         SetGroup(cols, "ActualSpecification", 4, "入库计量");
         SetGroup(cols, "SourceName", 3, "物料信息");
         SetGroup(cols, "HeatNo", 3, "物料信息");
-        SetGroup(cols, "SurfaceCondition", 3, "物料信息");
+        SetGroup(cols, "ManufacturingStatus", 3, "物料信息");
         SetGroup(cols, "InitialQuantity", 4, "入库计量");
         SetGroup(cols, "InitialWeight", 4, "入库计量");
         SetGroup(cols, "UnitWeight", 4, "入库计量");
@@ -588,7 +588,7 @@
         SetGroup(cols, "Specification", 2, "物料信息");
         SetGroup(cols, "ActualSpecification", 2, "物料信息");
         SetGroup(cols, "HeatNo", 2, "物料信息");
-        SetGroup(cols, "SurfaceCondition", 2, "物料信息");
+        SetGroup(cols, "ManufacturingStatus", 2, "物料信息");
         SetGroup(cols, "LengthStatus", 3, "长度信息");
         SetGroup(cols, "MinLength", 3, "长度信息");
         SetGroup(cols, "MaxLength", 3, "长度信息");
@@ -629,7 +629,7 @@
         SetGroup(cols, "Specification", 6, "可填充");
         SetGroup(cols, "SourceName", 6, "可填充");
         SetGroup(cols, "HeatNo", 6, "可填充");
-        SetGroup(cols, "SurfaceCondition", 6, "可填充");
+        SetGroup(cols, "ManufacturingStatus", 6, "可填充");
     }
 
     private static void SetGroup(List<ColumnDef> cols, string key, int groupKey, string groupName)
@@ -786,7 +786,7 @@
                     case "PlantGrade": newRow.PlantGrade = source.PlantGrade; break;
                     case "Specification": newRow.Specification = source.Specification; break;
                     case "LengthStatus": newRow.LengthStatus = source.LengthStatus; break;
-                    case "SurfaceCondition": newRow.SurfaceCondition = source.SurfaceCondition; break;
+                    case "ManufacturingStatus": newRow.ManufacturingStatus = source.ManufacturingStatus; break;
                     case "LocationArea": newRow.LocationArea = source.LocationArea; break;
                     case "LocationRack": newRow.LocationRack = source.LocationRack; break;
                     case "UnitWeight": newRow.UnitWeight = source.UnitWeight; break;
@@ -882,9 +882,9 @@
                 if (row.UnitWeight.HasValue)
                     builder.AddContent(0, row.UnitWeight.Value.ToString("G29"));
                 break;
-            case "SurfaceCondition":
-                if (!string.IsNullOrEmpty(row.SurfaceCondition))
-                    builder.AddContent(0, DisplayHelper.GetDeliveryStateText(row.SurfaceCondition));
+            case "ManufacturingStatus":
+                if (!string.IsNullOrEmpty(row.ManufacturingStatus))
+                    builder.AddContent(0, DisplayHelper.GetDeliveryStateText(row.ManufacturingStatus));
                 break;
             case "LocationArea":
                 if (!string.IsNullOrEmpty(row.LocationArea))
@@ -1008,7 +1008,7 @@
 
     private static string GetColumnType(string key) => key switch
     {
-        "InboundSource" or "LengthStatus" or "MaterialType" or "SurfaceCondition" => "select",
+        "InboundSource" or "LengthStatus" or "MaterialType" or "ManufacturingStatus" => "select",
         "IsLinkedToWorkOrder" => "bool",
         "InitialQuantity" => "int",
         "SourceOrderSequence" => "nullable-int",
@@ -1031,7 +1031,7 @@
             case "select":
                 var options = col.Key == "LengthStatus" ? _lengthStatusOptions
                     : col.Key == "MaterialType" ? _materialTypeOptions
-                    : col.Key == "SurfaceCondition" ? _surfaceConditionOptions
+                    : col.Key == "ManufacturingStatus" ? _manufacturingStatusOptions
                     : _inboundSourceOptions;
                 var selVal = GetRowStringValue(row, col.Key);
                 builder.OpenComponent<MudSelect<string>>(0);
@@ -1153,7 +1153,7 @@
         "PlantGrade" => row.PlantGrade,
         "Specification" => row.Specification,
         "LengthStatus" => row.LengthStatus,
-        "SurfaceCondition" => row.SurfaceCondition,
+        "ManufacturingStatus" => row.ManufacturingStatus,
         "LocationArea" => row.LocationArea,
         "LocationRack" => row.LocationRack,
         "Remark" => row.Remark,
@@ -1183,7 +1183,7 @@
             case "PlantGrade": row.PlantGrade = value; break;
             case "Specification": row.Specification = value; break;
             case "LengthStatus": row.LengthStatus = value; break;
-            case "SurfaceCondition": row.SurfaceCondition = value; break;
+            case "ManufacturingStatus": row.ManufacturingStatus = value; break;
             case "LocationArea": row.LocationArea = value; break;
             case "LocationRack": row.LocationRack = value; break;
             case "Remark": row.Remark = value; break;
@@ -1238,7 +1238,7 @@
         row.InitialQuantity = source.InitialQuantity;
         row.InitialWeight = source.InitialWeight;
         row.UnitWeight = source.UnitWeight;
-        row.SurfaceCondition = source.SurfaceCondition;
+        row.ManufacturingStatus = source.ManufacturingStatus;
         row.LocationArea = source.LocationArea;
         row.LocationRack = source.LocationRack;
         row.Remark = source.Remark;
@@ -1404,7 +1404,7 @@
                 MaxLength = first.MaxLength,
                 UnitWeight = first.UnitWeight,
                 Meters = first.Meters,
-                SurfaceCondition = !string.IsNullOrEmpty(first.SurfaceCondition) ? EnumHelper.Parse<DeliveryState>(first.SurfaceCondition) : null,
+                ManufacturingStatus = !string.IsNullOrEmpty(first.ManufacturingStatus) ? EnumHelper.Parse<DeliveryState>(first.ManufacturingStatus) : null,
                 LocationArea = first.LocationArea,
                 LocationRack = first.LocationRack,
                 ProductionBatchNo = first.ProductionBatchNo,
@@ -1429,7 +1429,7 @@
                     MaxLength = r.MaxLength,
                     UnitWeight = r.UnitWeight,
                     Meters = r.Meters,
-                    SurfaceCondition = !string.IsNullOrEmpty(r.SurfaceCondition) ? EnumHelper.Parse<DeliveryState>(r.SurfaceCondition) : null,
+                    ManufacturingStatus = !string.IsNullOrEmpty(r.ManufacturingStatus) ? EnumHelper.Parse<DeliveryState>(r.ManufacturingStatus) : null,
                     LocationArea = r.LocationArea,
                     LocationRack = r.LocationRack,
                     Remark = r.Remark,
@@ -1521,7 +1521,7 @@
                 case "SalesOrderNo": row.SalesOrderNo = null; break;
                 case "OrderItemIds": row.OrderItemIds = null; break;
                 case "HeatNo": row.HeatNo = null; break;
-                case "SurfaceCondition": row.SurfaceCondition = null; break;
+                case "ManufacturingStatus": row.ManufacturingStatus = null; break;
             }
         }
 
@@ -1684,7 +1684,7 @@
                 return;
             }
 
-            // 填充当前行字段（MaterialType/SurfaceCondition 存储原始值，RenderCell 负责中文显示）
+            // 填充当前行字段（MaterialType/ManufacturingStatus 存储原始值，RenderCell 负责中文显示）
             var filled = new List<string>();
             if (!string.IsNullOrEmpty(data.MaterialCategory))
             {
@@ -1702,7 +1702,7 @@
             if (!string.IsNullOrEmpty(data.SalesOrderNo)) { row.SalesOrderNo = data.SalesOrderNo; filled.Add("订单号"); }
             if (!string.IsNullOrEmpty(data.OrderItemIds)) { row.OrderItemIds = data.OrderItemIds; filled.Add("项次"); }
             if (!string.IsNullOrEmpty(data.HeatNo)) { row.HeatNo = data.HeatNo; filled.Add("炉号"); }
-            if (!string.IsNullOrEmpty(data.SurfaceCondition)) { row.SurfaceCondition = data.SurfaceCondition; filled.Add("物料状态"); }
+            if (!string.IsNullOrEmpty(data.ManufacturingStatus)) { row.ManufacturingStatus = data.ManufacturingStatus; filled.Add("制造状态"); }
             if (!string.IsNullOrEmpty(data.SupplierName)) { row.SourceName = data.SupplierName; filled.Add("来料单位"); }
             if (!string.IsNullOrEmpty(data.ExpectedWorkOrderNo))
             {

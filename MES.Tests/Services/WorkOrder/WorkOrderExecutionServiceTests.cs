@@ -37,6 +37,8 @@ using MES.Data.Entities;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Order;
+using MES.Data.Entities.Quality;
+using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.WorkOrder;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
@@ -447,16 +449,320 @@ public class WorkOrderExecutionServiceTests : TestBase
         await svc.RefreshAllAsync();
 
         var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
-        // 定尺：理论成品支数 = 50 * 2 = 100，成品比 = 100/100 * 100 = 100%
+        // 定尺：批次生产类型为空（非库存/外购）→ 合格率 ×0.98
+        // 理论成品支数 = 50 * 2 * 0.98 = 98，成品比 = 98/100 * 100 = 98%
         s.TotalBatchCount.Should().Be(1);
         s.InputQuantity.Should().Be(50);
         s.InputWeight.Should().Be(1250m);
-        s.TheoreticalOutputQty.Should().Be(100); // 50 * 2
+        s.TheoreticalOutputQty.Should().Be(98); // 50 * 2 * 0.98
         // 有效工序段数 = 1（HasAnySection 按 ProcessGroup 计数），折扣 = 1 - 1*0.025 = 0.975
         // 理论成品重量 = 1250 * 0.975 = 1218.75
         s.TheoreticalOutputWeight.Should().Be(1218.75m);
-        s.InputOutputRatio.Should().Be(100); // 100/100*100
+        s.InputOutputRatio.Should().Be(98); // 98/100*100
+        s.InputStatus.Should().Be(1); // 部分
+        // G12 合格流转与 G11 同逻辑，基准为有效投料：50 * 2 * 0.98 = 98
+        s.ValidOutputQty.Should().Be(98);
+        s.ValidOutputWeight.Should().Be(1218.75m); // 1250 * 0.975
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_定尺库存批次按100合格率()
+    {
+        using var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed,
+            salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed,
+            totalQty: 100, totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        var batch = new ProductionBatch
+        {
+            BatchNo = "B001",
+            Status = BatchStatus.InProgress,
+            WorkOrderNo = "WO001",
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = "无缝管",
+            SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163",
+            DeliveryState = "SolutionAnnealedAndPickled",
+            LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished",
+            PlantGrade = "304",
+            Specification = "219*8",
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            TechnicalRequirements = "NORMAL",
+            InputQuantity = 50,
+            InputWeight = 1250m,
+            CurrentValidQty = 50,
+            CurrentValidWeight = 1250,
+            ProductionRatio = 2,
+            ProductionType = "Inventory",
+            RowVersion = new byte[8],
+            ProcessGroups = new List<ProcessGroup>
+            {
+                new() { ProcessName = "60冷轧", SequenceNumber = 1, ColdRollDraw = 1, Solution = 2 }
+            }
+        };
+        ctx.ProductionBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        // 库存批次定尺 ×100% 合格率：理论成品支 = 50 * 2 * 1.0 = 100，比值 = 100/100*100 = 100%
+        s.TheoreticalOutputQty.Should().Be(100);
+        s.InputOutputRatio.Should().Be(100);
         s.InputStatus.Should().Be(2); // 满足
+        // G12 合格流转同逻辑：库存 ×100%，有效投料 50 * 2 * 1.0 = 100
+        s.ValidOutputQty.Should().Be(100);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_定尺其它类型理论成品四舍五入取整()
+    {
+        using var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed,
+            salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed,
+            totalQty: 100, totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 非库存/外购批次：51 * 2 * 0.98 = 99.96 → 四舍五入取整 100
+        var batch = new ProductionBatch
+        {
+            BatchNo = "B001",
+            Status = BatchStatus.InProgress,
+            WorkOrderNo = "WO001",
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = "无缝管",
+            SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163",
+            DeliveryState = "SolutionAnnealedAndPickled",
+            LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished",
+            PlantGrade = "304",
+            Specification = "219*8",
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            TechnicalRequirements = "NORMAL",
+            InputQuantity = 51,
+            InputWeight = 1250m,
+            CurrentValidQty = 51,
+            CurrentValidWeight = 1250,
+            ProductionRatio = 2,
+            RowVersion = new byte[8],
+            ProcessGroups = new List<ProcessGroup>
+            {
+                new() { ProcessName = "60冷轧", SequenceNumber = 1, ColdRollDraw = 1, Solution = 2 }
+            }
+        };
+        ctx.ProductionBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        // 51 * 2 * 0.98 = 99.96 → 四舍五入 100；比值 = 100%
+        s.TheoreticalOutputQty.Should().Be(100);
+        s.InputOutputRatio.Should().Be(100);
+        s.InputStatus.Should().Be(2); // 满足
+        // G12 合格流转同逻辑：有效投料 51 * 2 * 0.98 = 99.96 → 100
+        s.ValidOutputQty.Should().Be(100);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_G12合格流转基准为有效投料与原始投料不同()
+    {
+        using var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed,
+            salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed,
+            totalQty: 100, totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 领料 51 支、有效投料 50 支（在产有损耗），非库存/外购 → 合格率 ×0.98
+        var batch = new ProductionBatch
+        {
+            BatchNo = "B001",
+            Status = BatchStatus.InProgress,
+            WorkOrderNo = "WO001",
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = "无缝管",
+            SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163",
+            DeliveryState = "SolutionAnnealedAndPickled",
+            LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished",
+            PlantGrade = "304",
+            Specification = "219*8",
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            TechnicalRequirements = "NORMAL",
+            InputQuantity = 51,
+            InputWeight = 1250m,
+            CurrentValidQty = 50,
+            CurrentValidWeight = 1200,
+            ProductionRatio = 2,
+            RowVersion = new byte[8],
+            ProcessGroups = new List<ProcessGroup>
+            {
+                new() { ProcessName = "60冷轧", SequenceNumber = 1, ColdRollDraw = 1, Solution = 2 }
+            }
+        };
+        ctx.ProductionBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        // G11 原始投料：领料 51 * 2 * 0.98 = 99.96 → 100；重量 1250 * 0.975 = 1218.75
+        s.TheoreticalOutputQty.Should().Be(100);
+        s.TheoreticalOutputWeight.Should().Be(1218.75m);
+        // G12 合格流转：有效投料 50 * 2 * 0.98 = 98；重量 1200 * 0.975 = 1170
+        s.ValidOutputQty.Should().Be(98);
+        s.ValidOutputWeight.Should().Be(1170m);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_G12含成检完成批次与G11范围一致()
+    {
+        using var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed,
+            salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed,
+            totalQty: 300, totalWeight: 7500m);
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 在产批次：领料 51 / 有效 50
+        var b1 = new ProductionBatch
+        {
+            BatchNo = "B001",
+            Status = BatchStatus.InProgress,
+            WorkOrderNo = "WO001",
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = "无缝管",
+            SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163",
+            DeliveryState = "SolutionAnnealedAndPickled",
+            LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished",
+            PlantGrade = "304",
+            Specification = "219*8",
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            TechnicalRequirements = "NORMAL",
+            InputQuantity = 51,
+            InputWeight = 1250m,
+            CurrentValidQty = 50,
+            CurrentValidWeight = 1200,
+            ProductionRatio = 2,
+            RowVersion = new byte[8],
+            ProcessGroups = new List<ProcessGroup>
+            {
+                new() { ProcessName = "60冷轧", SequenceNumber = 1, ColdRollDraw = 1, Solution = 2 }
+            }
+        };
+        // 已完成批次：领料 50 / 有效 48
+        var b2 = new ProductionBatch
+        {
+            BatchNo = "B002",
+            Status = BatchStatus.Completed,
+            WorkOrderNo = "WO001",
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = "无缝管",
+            SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163",
+            DeliveryState = "SolutionAnnealedAndPickled",
+            LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished",
+            PlantGrade = "304",
+            Specification = "219*8",
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            TechnicalRequirements = "NORMAL",
+            InputQuantity = 50,
+            InputWeight = 1200m,
+            CurrentValidQty = 48,
+            CurrentValidWeight = 1100,
+            ProductionRatio = 2,
+            RowVersion = new byte[8],
+            ProcessGroups = new List<ProcessGroup>
+            {
+                new() { ProcessName = "60冷轧", SequenceNumber = 1, ColdRollDraw = 1, Solution = 2 }
+            }
+        };
+        ctx.ProductionBatches.AddRange(b1, b2);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        // G12 批次范围与 G11 一致：含完成批次
+        s.TotalBatchCount.Should().Be(2);
+        s.ValidBatchCount.Should().Be(2);
+        s.ValidInputQuantity.Should().Be(98); // 50 + 48
+        // G11 = (51+50) * 2 * 0.98 = 197.96 → 198
+        s.TheoreticalOutputQty.Should().Be(198);
+        // G12 = (50+48) * 2 * 0.98 = 192.08 → 192
+        s.ValidOutputQty.Should().Be(192);
+        // G12 重量 = 1200*0.975 + 1100*0.975 = 1170 + 1072.5 = 2242.5
+        s.ValidOutputWeight.Should().Be(2242.5m);
     }
 
     [Fact]
@@ -521,7 +827,7 @@ public class WorkOrderExecutionServiceTests : TestBase
     }
 
     [Fact]
-    public async Task RefreshAllAsync_作废批次排除Group4()
+    public async Task RefreshAllAsync_G12含完成批次作废批次不计量()
     {
         using var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx, "测试客户");
@@ -617,10 +923,10 @@ public class WorkOrderExecutionServiceTests : TestBase
         s.TotalBatchCount.Should().Be(2);
         s.InputQuantity.Should().Be(80); // 50+30
 
-        // Group 4: 排除作废批次
-        s.ValidBatchCount.Should().Be(1);
-        s.ValidInputQuantity.Should().Be(50); // CurrentValidQty of valid batch only
-        s.ValidInputWeight.Should().Be(1250m); // CurrentValidWeight of valid batch only
+        // Group 12: 批次范围与 G11 一致（非返整+全部，含完成），作废批次有效投料为 0 不贡献量值
+        s.ValidBatchCount.Should().Be(2);
+        s.ValidInputQuantity.Should().Be(50); // 有效批次 50 + 作废批次 0
+        s.ValidInputWeight.Should().Be(1250m); // 有效批次 1250 + 作废批次 0
     }
 
     [Fact]
@@ -954,10 +1260,10 @@ public class WorkOrderExecutionServiceTests : TestBase
             s.MainNoMaterialPlanStatus.Should().Be(1); // Partial
 
             // MainNo 投料聚合
-            // 理论成品：两个工单各 50*2=100，合计 200
+            // 理论成品：两个工单各 50*2*0.98=98（批次非库存/外购 → ×98%），合计 196
             // 合计需求：100+200=300
-            // MainNo 比（定尺按支数）：(100+100)/(100+200)*100 = 200/300*100 = 66.67
-            s.MainNoInputOutputRatio.Should().Be(66.67m);
+            // MainNo 比（定尺按支数）：196/300*100 = 65.33
+            s.MainNoInputOutputRatio.Should().Be(65.33m);
             s.MainNoInputStatus.Should().Be(1); // 部分
         }
     }
@@ -1162,5 +1468,694 @@ public class WorkOrderExecutionServiceTests : TestBase
             MaterialPlanStatus = planStatus,
             MaterialPlanRate = planRate
         };
+    }
+
+    // ==================== G14 返整执行（4 新字段） ====================
+
+    [Fact]
+    public async Task RefreshAllAsync_G14返整执行_全工单返整量与理论可产支与一致()
+    {
+        using var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 正常批次（非返整）：其过程检返整量也计入（全工单范围）
+        var normalBatch = new ProductionBatch
+        {
+            BatchNo = "B001", Status = BatchStatus.InProgress, WorkOrderNo = "WO001", SalesOrderNo = "SO001",
+            ProductionMainNo = "D01", OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1), MaterialName = "无缝管", SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163", DeliveryState = "SolutionAnnealedAndPickled", LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished", ProductionType = "InProcess", PlantGrade = "304",
+            Specification = "219*8", TotalQuantity = 100, TotalMeters = 600, TotalWeight = 2500m,
+            TotalItemCount = 1, TechnicalRequirements = "NORMAL", CurrentValidQty = 50, CurrentValidWeight = 1250,
+            ProductionRatio = 2, RowVersion = new byte[8]
+        };
+        // 返整批次：理论单支重=25，投料重量=200；返整量合计=200 → 偏差 0 → 一致
+        var reworkBatch = new ProductionBatch
+        {
+            BatchNo = "B002", Status = BatchStatus.InProgress, WorkOrderNo = "WO001", SalesOrderNo = "SO001",
+            ProductionMainNo = "D01", OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1), MaterialName = "无缝管", SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163", DeliveryState = "SolutionAnnealedAndPickled", LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished", ProductionType = "Rework", PlantGrade = "304",
+            Specification = "219*8", TotalQuantity = 100, TotalMeters = 600, TotalWeight = 200m,
+            TotalItemCount = 1, TechnicalRequirements = "NORMAL", CurrentValidQty = 10, CurrentValidWeight = 200,
+            TheoreticalUnitWeight = 25m, RowVersion = new byte[8]
+        };
+        ctx.ProductionBatches.AddRange(normalBatch, reworkBatch);
+        await ctx.SaveChangesAsync();
+
+        // 过程检验：正常批次 50 + 返整批次 50 → 过程检返整量 = 100
+        ctx.ProcessInspections.Add(new ProcessInspection
+        {
+            ProductionBatchId = normalBatch.Id, ProcessGroupId = 1, ProcessName = "在制修检",
+            SectionName = "检验", SequenceNumber = 1, InspectionDate = DateTime.Today, TheoreticalReworkWeight = 50
+        });
+        ctx.ProcessInspections.Add(new ProcessInspection
+        {
+            ProductionBatchId = reworkBatch.Id, ProcessGroupId = 1, ProcessName = "在制修检",
+            SectionName = "检验", SequenceNumber = 1, InspectionDate = DateTime.Today, TheoreticalReworkWeight = 50
+        });
+        // 成品检验：返整批次 100 → 成品检返整量 = 100
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            ProductionBatchId = reworkBatch.Id, BatchNo = "B002", InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today, InspectionType = nameof(InspectionType.FormalInspection),
+            Quantity = 10, QualifiedQuantity = 10, DefectReworkWeight = 100
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync();
+        s.ProcessInspectionReworkWeight.Should().Be(100); // 全工单（含正常批次）
+        s.FinalInspectionReworkWeight.Should().Be(100);
+        s.ReworkInputWeight.Should().Be(200); // 仅返整批次投料重量
+        // 可产成支按返整记录的原批次单支重折算：
+        // normalBatch 过程检 50（原批次无单支重）不贡献；reworkBatch 过程检 50 + 成检 100 = 150 / 单支重25 = 6
+        s.ReworkTheoreticalProduceQty.Should().Be(6);
+        // 理论返整可产成重 = 过程检返整量100×0.92 + 成检返整量100×0.96 = 188
+        s.ReworkTheoreticalProduceWeight.Should().Be(188m);
+        // 待返整成支 = 可产成支6 − 返整理论成品支0 = 6
+        s.PendingReworkOutputQty.Should().Be(6m);
+        // 待返整成重 = 188 − 返整理论成品重200 = -12 → 负值归0
+        s.PendingReworkOutputWeight.Should().Be(0m);
+        // 附返整主号状态：有效流转(98) + 待返整(6) = 104% ≥ 100 → 满足(2)；有效主号 98% → 部分(1) → 必返整"是"
+        s.ReworkMainNoStatus.Should().Be(2);
+        s.ReworkInputConsistency.Should().Be("是");
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_G14返整执行_投料但无返整量判疑问()
+    {
+        using var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01");
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 返整批次：投料 100，但无任何过程检/成品检返整记录
+        var reworkBatch = new ProductionBatch
+        {
+            BatchNo = "B002", Status = BatchStatus.InProgress, WorkOrderNo = "WO001", SalesOrderNo = "SO001",
+            ProductionMainNo = "D01", OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1), MaterialName = "无缝管", SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163", DeliveryState = "SolutionAnnealedAndPickled", LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished", ProductionType = "Rework", PlantGrade = "304",
+            Specification = "219*8", TotalQuantity = 100, TotalMeters = 600, TotalWeight = 100m,
+            TotalItemCount = 1, TechnicalRequirements = "NORMAL", CurrentValidQty = 5, CurrentValidWeight = 100,
+            ProductUnitWeight = 25m, RowVersion = new byte[8]
+        };
+        ctx.ProductionBatches.Add(reworkBatch);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync();
+        s.ProcessInspectionReworkWeight.Should().BeNull();
+        s.FinalInspectionReworkWeight.Should().BeNull();
+        s.ReworkTheoreticalProduceQty.Should().BeNull();
+        s.ReworkInputWeight.Should().Be(100);
+        // 无返整量 → 理论返整可产成重/待返整均空；附返整=有效流转=0 → 未投料 → 不必返整"否"
+        s.ReworkTheoreticalProduceWeight.Should().BeNull();
+        s.PendingReworkOutputQty.Should().BeNull();
+        s.PendingReworkOutputWeight.Should().BeNull();
+        s.ReworkMainNoStatus.Should().Be(0);
+        s.ReworkInputConsistency.Should().Be("否");
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_G14返整执行_全返整批次无单支重_兜底领料重量除领料支数除制成倍数()
+    {
+        using var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 返整批次：无产品单支量/理论单支重（全返整），兜底按 领料重量÷领料支数÷制成倍数 = 500/(10*2)=25
+        var reworkBatch = new ProductionBatch
+        {
+            BatchNo = "B002", Status = BatchStatus.InProgress, WorkOrderNo = "WO001", SalesOrderNo = "SO001",
+            ProductionMainNo = "D01", OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1), MaterialName = "无缝管", SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163", DeliveryState = "SolutionAnnealedAndPickled", LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished", ProductionType = "Rework", PlantGrade = "304",
+            Specification = "219*8", TotalQuantity = 100, TotalMeters = 600, TotalWeight = 500m,
+            TotalItemCount = 1, TechnicalRequirements = "NORMAL", CurrentValidQty = 10, CurrentValidWeight = 200,
+            InputQuantity = 10, InputWeight = 500m, ProductionRatio = 2, RowVersion = new byte[8]
+        };
+        ctx.ProductionBatches.Add(reworkBatch);
+        await ctx.SaveChangesAsync();
+
+        // 成品检验：返整批次 200 → 成品检返整量 = 200
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            ProductionBatchId = reworkBatch.Id, BatchNo = "B002", InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today, InspectionType = nameof(InspectionType.FormalInspection),
+            Quantity = 10, QualifiedQuantity = 10, DefectReworkWeight = 200
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync();
+        s.FinalInspectionReworkWeight.Should().Be(200);
+        s.ReworkInputWeight.Should().Be(200);
+        // 兜底单支重 = 500/(10*2)=25 → 200/25 = 8
+        s.ReworkTheoreticalProduceQty.Should().Be(8);
+        // 理论返整可产成重 = 成检返整量200×0.96 = 192
+        s.ReworkTheoreticalProduceWeight.Should().Be(192m);
+        // 待返整成支 = 8 − 19.6 = -11.6 → 负值归0
+        s.PendingReworkOutputQty.Should().Be(0m);
+        // 待返整成重 = 192 − 返整理论成品重200 = -8 → 负值归0
+        s.PendingReworkOutputWeight.Should().Be(0m);
+        // 附返整 = (0 + 可产成支8)/100 = 8% → 部分(1) → 不必返整"否"
+        s.ReworkMainNoStatus.Should().Be(1);
+        s.ReworkInputConsistency.Should().Be("否");
+        // 返整理论成品支已按合格率折算（与合格流转对齐）：10×2×98% = 19.6
+        s.ReworkTheoreticalOutputQty.Should().Be(19.6m);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_G14返整执行_返整量按原批次单支重折算_工单无返整批次()
+    {
+        using var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 普通批次（InProcess，非返整）：理论单支重=22.4，产生成品检返整量 224
+        var sourceBatch = new ProductionBatch
+        {
+            BatchNo = "2601-574", Status = BatchStatus.InProgress, WorkOrderNo = "WO001", SalesOrderNo = "SO001",
+            ProductionMainNo = "D01", OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1), MaterialName = "无缝管", SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163", DeliveryState = "SolutionAnnealedAndPickled", LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished", ProductionType = "InProcess", PlantGrade = "304",
+            Specification = "219*8", TotalQuantity = 100, TotalMeters = 600, TotalWeight = 2500m,
+            TotalItemCount = 1, TechnicalRequirements = "NORMAL", CurrentValidQty = 50, CurrentValidWeight = 1081,
+            TheoreticalUnitWeight = 22.4m, RowVersion = new byte[8]
+        };
+        ctx.ProductionBatches.Add(sourceBatch);
+        await ctx.SaveChangesAsync();
+
+        // 成品检验：原批次 224 → 成品检返整量 = 224
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            ProductionBatchId = sourceBatch.Id, BatchNo = "2601-574", InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today, InspectionType = nameof(InspectionType.FormalInspection),
+            Quantity = 10, QualifiedQuantity = 10, DefectReworkWeight = 224
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync();
+        s.FinalInspectionReworkWeight.Should().Be(224);
+        s.ReworkInputWeight.Should().Be(0); // 工单无返整批次 → 投料 0
+        // 可产成支 = 返整量 / 原批次单支重 = 224 / 22.4 = 10
+        s.ReworkTheoreticalProduceQty.Should().Be(10);
+        // 理论返整可产成重 = 成检返整量224×0.96 = 215.04
+        s.ReworkTheoreticalProduceWeight.Should().Be(215.04m);
+        // 待返整成支 = 10 − 0 = 10；待返整成重 = 215.04 − 0 = 215.04（无返整批次 → 返整理论成品为0）
+        s.PendingReworkOutputQty.Should().Be(10m);
+        s.PendingReworkOutputWeight.Should().Be(215.04m);
+        // 附返整 = (0 + 10)/100 = 10% → 部分(1) → 不必返整"否"
+        s.ReworkMainNoStatus.Should().Be(1);
+        s.ReworkInputConsistency.Should().Be("否");
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_G14返整执行_无返整批次判略()
+    {
+        using var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01");
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync();
+        s.ReworkBatchCount.Should().Be(0);
+        s.ReworkInputWeight.Should().Be(0);
+        // 无返整 → 可产成重/待返整为空；附返整=有效=0 → 未投料(0) → 不必返整"否"
+        s.ReworkTheoreticalProduceWeight.Should().BeNull();
+        s.PendingReworkOutputQty.Should().BeNull();
+        s.PendingReworkOutputWeight.Should().BeNull();
+        s.ReworkMainNoStatus.Should().Be(0);
+        s.ReworkInputConsistency.Should().Be("否");
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_附返整主号状态_主号聚合满足且有效未满足判必返整()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        // 主号 D01 下两个工单：WO001 需求50（正常产出 49）、WO002 需求50（返整产出 0.98、可产成支 80）
+        var wo1 = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 50, totalWeight: 1250m);
+        var wo2 = CreateWorkOrder("WO002", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 50, totalWeight: 1250m);
+        ctx.WorkOrders.AddRange(wo1, wo2);
+        await ctx.SaveChangesAsync();
+
+        var normalBatch = new ProductionBatch
+        {
+            BatchNo = "B001", Status = BatchStatus.InProgress, WorkOrderNo = "WO001", SalesOrderNo = "SO001",
+            ProductionMainNo = "D01", OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1), MaterialName = "无缝管", SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163", DeliveryState = "SolutionAnnealedAndPickled", LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished", ProductionType = "InProcess", PlantGrade = "304",
+            Specification = "219*8", TotalQuantity = 50, TotalMeters = 300, TotalWeight = 1250m,
+            TotalItemCount = 1, TechnicalRequirements = "NORMAL", CurrentValidQty = 50, CurrentValidWeight = 1250,
+            ProductionRatio = 1, RowVersion = new byte[8]
+        };
+        // 返整批次：CurrentValidQty=1 → 返整理论成品支 = 1×1×98% = 0.98；单支重25
+        var reworkBatch = new ProductionBatch
+        {
+            BatchNo = "B002", Status = BatchStatus.InProgress, WorkOrderNo = "WO002", SalesOrderNo = "SO001",
+            ProductionMainNo = "D01", OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1), MaterialName = "无缝管", SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163", DeliveryState = "SolutionAnnealedAndPickled", LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished", ProductionType = "Rework", PlantGrade = "304",
+            Specification = "219*8", TotalQuantity = 50, TotalMeters = 300, TotalWeight = 2000m,
+            TotalItemCount = 1, TechnicalRequirements = "NORMAL", CurrentValidQty = 1, CurrentValidWeight = 2000,
+            ProductionRatio = 1, TheoreticalUnitWeight = 25m, RowVersion = new byte[8]
+        };
+        ctx.ProductionBatches.AddRange(normalBatch, reworkBatch);
+        await ctx.SaveChangesAsync();
+
+        // 成品检验：返整批次 2000 → 成品检返整量 = 2000，可产成支 = 2000/25 = 80
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            ProductionBatchId = reworkBatch.Id, BatchNo = "B002", InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today, InspectionType = nameof(InspectionType.FormalInspection),
+            Quantity = 1, QualifiedQuantity = 1, DefectReworkWeight = 2000
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var summaries = await ctx.Set<WorkOrderExecutionSummary>().ToListAsync();
+        summaries.Should().HaveCount(2);
+
+        // WO002 工单级：可产成重 = 2000×0.96 = 1920；待返整成支 = 80 − 0.98 = 79.02；待返整成重 = 1920−2000 归0
+        var s2 = summaries.Single(x => x.WorkOrderNo == "WO002");
+        s2.ReworkTheoreticalProduceQty.Should().Be(80);
+        s2.ReworkTheoreticalProduceWeight.Should().Be(1920m);
+        s2.PendingReworkOutputQty.Should().Be(79.02m);
+        s2.PendingReworkOutputWeight.Should().Be(0m);
+
+        // 主号级聚合：有效流转 = (49 + 0.98)/100 = 49.98% → 部分(1)；附返整 = (49 + 80)/100 = 129% → 满足(2) → 必返整"是"
+        foreach (var s in summaries)
+        {
+            s.ReworkMainNoStatus.Should().Be(2);
+            s.ReworkInputConsistency.Should().Be("是");
+        }
+    }
+
+    // ==================== G21 次品总量 ====================
+
+    [Fact]
+    public async Task RefreshAllAsync_G21次品总量_过程检与成检次品聚合且排除非订单成品批次()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 订单成品批次：过程检返整 30 + 入库 20 + 报废 10 = 次品总重 60；成检返整 40 + 入库 25 + 报废 15 = 次品总重 80
+        var batch = new ProductionBatch
+        {
+            BatchNo = "B001", Status = BatchStatus.InProgress, WorkOrderNo = "WO001", SalesOrderNo = "SO001",
+            ProductionMainNo = "D01", OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1), MaterialName = "无缝管", SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163", DeliveryState = "SolutionAnnealedAndPickled", LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished", ProductionType = "InProcess", PlantGrade = "304",
+            Specification = "219*8", TotalQuantity = 100, TotalMeters = 600, TotalWeight = 2500m,
+            TotalItemCount = 1, TechnicalRequirements = "NORMAL", CurrentValidQty = 50, CurrentValidWeight = 1250,
+            ProductionRatio = 2, RowVersion = new byte[8]
+        };
+        // 非订单成品批次（Surplus）：其过程检验不应计入
+        var surplusBatch = new ProductionBatch
+        {
+            BatchNo = "B002", Status = BatchStatus.InProgress, WorkOrderNo = "WO001", SalesOrderNo = "SO001",
+            ProductionMainNo = "D01", OrderItemIds = "1", SignDate = DateTime.Today, Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1), MaterialName = "无缝管", SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163", DeliveryState = "SolutionAnnealedAndPickled", LengthStatus = "Fixed",
+            ManufacturingItem = "Surplus", ProductionType = "InProcess", PlantGrade = "304",
+            Specification = "219*8", TotalQuantity = 100, TotalMeters = 600, TotalWeight = 2500m,
+            TotalItemCount = 1, TechnicalRequirements = "NORMAL", CurrentValidQty = 50, CurrentValidWeight = 1250,
+            ProductionRatio = 2, RowVersion = new byte[8]
+        };
+        ctx.ProductionBatches.AddRange(batch, surplusBatch);
+        await ctx.SaveChangesAsync();
+
+        // 过程检验：订单成品批次 返整30/入库20/报废10；非订单成品批次 999（不应计入）
+        ctx.ProcessInspections.Add(new ProcessInspection
+        {
+            ProductionBatchId = batch.Id, ProcessGroupId = 1, ProcessName = "在制修检",
+            SectionName = "检验", SequenceNumber = 1, InspectionDate = DateTime.Today,
+            TheoreticalReworkWeight = 30, TheoreticalWarehouseWeight = 20, TheoreticalScrapWeight = 10
+        });
+        ctx.ProcessInspections.Add(new ProcessInspection
+        {
+            ProductionBatchId = surplusBatch.Id, ProcessGroupId = 1, ProcessName = "在制修检",
+            SectionName = "检验", SequenceNumber = 1, InspectionDate = DateTime.Today,
+            TheoreticalReworkWeight = 999
+        });
+        // 成品检验：返整重40/入库25/报废15；支数 返整4 + 入库2 + 报废1 = 7
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            ProductionBatchId = batch.Id, BatchNo = "B001", InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today, InspectionType = nameof(InspectionType.FormalInspection),
+            Quantity = 10, QualifiedQuantity = 10,
+            DefectReworkWeight = 40, DefectWarehouseWeight = 25, DefectScrapWeight = 15,
+            DefectReworkQuantity = 4, DefectWarehouseQuantity = 2, DefectScrapQuantity = 1
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync();
+        // 过程检侧：次品总重 = 返整 + 入库 + 报废
+        s.ProcessInspectionReworkWeight.Should().Be(30);
+        s.ProcessInspectionWarehouseWeight.Should().Be(20);
+        s.ProcessInspectionScrapWeight.Should().Be(10);
+        s.ProcessInspectionDefectWeight.Should().Be(60);
+        // 成检侧：次品总支 = 支数之和；次品总重 = 返整 + 入库 + 报废
+        s.FinalInspectionReworkWeight.Should().Be(40);
+        s.FinalInspectionWarehouseWeight.Should().Be(25);
+        s.FinalInspectionScrapWeight.Should().Be(15);
+        s.FinalInspectionDefectQty.Should().Be(7);
+        s.FinalInspectionDefectWeight.Should().Be(80);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_G21次品总量_无任何检验记录判空()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01");
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync();
+        s.ProcessInspectionDefectWeight.Should().BeNull();
+        s.ProcessInspectionReworkWeight.Should().BeNull();
+        s.ProcessInspectionWarehouseWeight.Should().BeNull();
+        s.ProcessInspectionScrapWeight.Should().BeNull();
+        s.FinalInspectionDefectQty.Should().BeNull();
+        s.FinalInspectionDefectWeight.Should().BeNull();
+        s.FinalInspectionReworkWeight.Should().BeNull();
+        s.FinalInspectionWarehouseWeight.Should().BeNull();
+        s.FinalInspectionScrapWeight.Should().BeNull();
+    }
+
+    // ==================== 主号/订单入库状态（Group 15 聚合改造） ====================
+
+    [Fact]
+    public async Task RefreshAllAsync_主号入库状态按主号聚合量判定四档()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var warehouse = await SeedWarehouseAsync(ctx, "成品仓库");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+
+        // D01~D04 定尺（需求支数100）、D05~D06 非定尺（需求重量2500）
+        ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO002", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D02", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO003", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D03", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO004", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D04", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO005", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D05", lengthStatus: LengthStatus.NonFixed, totalQty: 100, totalWeight: 2500m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO006", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D06", lengthStatus: LengthStatus.NonFixed, totalQty: 100, totalWeight: 2500m));
+
+        // D01 入库100=需求 → 完结(2)；D02 入库120>需求 → 超额(3)；D03 入库50<需求 → 部分(1)；D04 无入库 → 0
+        ctx.InventoryBatches.Add(AddInbound("CK001", "WO001", "SO001", warehouse, 100, 2500m));
+        ctx.InventoryBatches.Add(AddInbound("CK002", "WO002", "SO001", warehouse, 120, 3000m));
+        ctx.InventoryBatches.Add(AddInbound("CK003", "WO003", "SO001", warehouse, 50, 1250m));
+        // D05 非定尺入库重2450（≥2500×0.95=2375 且 ≥2500−100=2400）→ 完结(2)；D06 入库重2000（<2375）→ 部分(1)
+        ctx.InventoryBatches.Add(AddInbound("CK005", "WO005", "SO001", warehouse, 98, 2450m));
+        ctx.InventoryBatches.Add(AddInbound("CK006", "WO006", "SO001", warehouse, 80, 2000m));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var summaries = await ctx.Set<WorkOrderExecutionSummary>().ToListAsync();
+        summaries.Should().HaveCount(6);
+
+        summaries.Single(s => s.ProductionMainNo == "D01").MainNoWarehousingStatus.Should().Be(2);
+        summaries.Single(s => s.ProductionMainNo == "D02").MainNoWarehousingStatus.Should().Be(3);
+        summaries.Single(s => s.ProductionMainNo == "D03").MainNoWarehousingStatus.Should().Be(1);
+        summaries.Single(s => s.ProductionMainNo == "D04").MainNoWarehousingStatus.Should().Be(0);
+        summaries.Single(s => s.ProductionMainNo == "D05").MainNoWarehousingStatus.Should().Be(2);
+        summaries.Single(s => s.ProductionMainNo == "D06").MainNoWarehousingStatus.Should().Be(1);
+
+        // 工单级独立判定不受主号聚合影响：D02 超额 120≥100 → 工单完结(2)
+        summaries.Single(s => s.WorkOrderNo == "WO002").WoWarehousingStatus.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_订单入库状态从主号状态上卷()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var warehouse = await SeedWarehouseAsync(ctx, "成品仓库");
+        var so100 = new SalesOrder { OrderNumber = "SO100", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so200 = new SalesOrder { OrderNumber = "SO200", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        var so300 = new SalesOrder { OrderNumber = "SO300", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.AddRange(so100, so200, so300);
+
+        // SO100：D01 完结(2) + D02 超额(3) → 订单2
+        ctx.WorkOrders.Add(CreateWorkOrder("WO100A", "SO100", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalQty: 100, totalWeight: 2500m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO100B", "SO100", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D02", totalQty: 100, totalWeight: 2500m));
+        // SO200：D01 完结(2) + D02 部分(1) → 订单1
+        ctx.WorkOrders.Add(CreateWorkOrder("WO200A", "SO200", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalQty: 100, totalWeight: 2500m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO200B", "SO200", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D02", totalQty: 100, totalWeight: 2500m));
+        // SO300：两主号均无入库 → 订单0
+        ctx.WorkOrders.Add(CreateWorkOrder("WO300A", "SO300", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalQty: 100, totalWeight: 2500m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO300B", "SO300", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D02", totalQty: 100, totalWeight: 2500m));
+
+        ctx.InventoryBatches.Add(AddInbound("CK101", "WO100A", "SO100", warehouse, 100, 2500m)); // D01 完结
+        ctx.InventoryBatches.Add(AddInbound("CK102", "WO100B", "SO100", warehouse, 120, 3000m)); // D02 超额
+        ctx.InventoryBatches.Add(AddInbound("CK201", "WO200A", "SO200", warehouse, 100, 2500m)); // D01 完结
+        ctx.InventoryBatches.Add(AddInbound("CK202", "WO200B", "SO200", warehouse, 50, 1250m));   // D02 部分
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var summaries = await ctx.Set<WorkOrderExecutionSummary>().ToListAsync();
+        summaries.Should().HaveCount(6);
+
+        summaries.Where(s => s.SalesOrderNo == "SO100")
+            .Should().OnlyContain(s => s.OrderWarehousingStatus == 2);
+        summaries.Where(s => s.SalesOrderNo == "SO200")
+            .Should().OnlyContain(s => s.OrderWarehousingStatus == 1);
+        summaries.Where(s => s.SalesOrderNo == "SO300")
+            .Should().OnlyContain(s => s.OrderWarehousingStatus == 0);
+    }
+
+    private InventoryBatch AddInbound(string batchNo, string workOrderNo, string salesOrderNo, Warehouse warehouse, int qty, decimal weight)
+    {
+        return new InventoryBatch
+        {
+            BatchNo = batchNo,
+            WarehouseId = warehouse.Id,
+            Warehouse = warehouse,
+            MaterialType = MES.Core.Constants.InventoryMaterialTypes.OrderFinished,
+            PlantGrade = "304",
+            Specification = "219*8",
+            InboundSource = "OrderFinished",
+            SourceName = "成品入库",
+            InboundDate = DateTime.Today,
+            WorkOrderNo = workOrderNo,
+            SalesOrderNo = salesOrderNo,
+            InitialQuantity = qty,
+            InitialWeight = weight,
+            RemainingQuantity = qty,
+            RemainingWeight = weight,
+            RowVersion = new byte[8]
+        };
+    }
+
+    /// <summary>构造"满足"批次：InputQuantity×ProductionRatio×合格率 0.98 = 100（=工单需求），主号有效流转=100 → MainNoFlowStatus=2</summary>
+    private ProductionBatch CreateSatisfiedBatch(string batchNo, string workOrderNo, string salesOrderNo, string mainNo, BatchStatus status, int inputQty = 51)
+    {
+        return new ProductionBatch
+        {
+            BatchNo = batchNo,
+            Status = status,
+            WorkOrderNo = workOrderNo,
+            SalesOrderNo = salesOrderNo,
+            ProductionMainNo = mainNo,
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "业务员A",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = "无缝管",
+            SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163",
+            DeliveryState = "SolutionAnnealedAndPickled",
+            LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished",
+            PlantGrade = "304",
+            Specification = "219*8",
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            TechnicalRequirements = "NORMAL",
+            InputQuantity = inputQty,
+            InputWeight = 1250m,
+            CurrentValidQty = inputQty,
+            CurrentValidWeight = 1250,
+            ProductionRatio = 2,
+            RowVersion = new byte[8],
+            ProcessGroups = new List<ProcessGroup>
+            {
+                new() { ProcessName = "60冷轧", SequenceNumber = 1, ColdRollDraw = 1, Solution = 2 }
+            }
+        };
+    }
+
+    // ==================== G16 关注状态 5 档（0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验） ====================
+
+    [Fact]
+    public async Task RefreshAllAsync_ScheduleStage五档_主号暂停档0()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress));
+        // 工单需求调整：主号暂停（联动连带保证同主号未完结工单一致）
+        ctx.Set<OrderDemandAdjustment>().Add(new OrderDemandAdjustment { WorkOrderId = wo.Id, IsUrging = false, IsBatchDelivery = false, IsPaused = true });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.MainNoFlowStatus.Should().Be(2); // 前提：有效流转满足
+        s.ScheduleStage.Should().Be(0);    // 主号暂停优先于一切
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_ScheduleStage五档_主号完成档1()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        await SeedWarehouseAsync(ctx, "成品仓库");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress));
+        // 完整入库 100 支 → 主号入库=完结(2)，真正闭环
+        var warehouse = await ctx.Warehouses.FirstAsync();
+        ctx.InventoryBatches.Add(AddInbound("CK001", "WO001", "SO001", warehouse, 100, 2500m));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.MainNoWarehousingStatus.Should().Be(2);
+        s.ScheduleStage.Should().Be(1);    // 主号完成
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_ScheduleStage五档_原料锁定档2()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        // 投料不足：10*2*0.98=19.6→20 → 有效流转=20% → 主号状态不满足
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress, inputQty: 10));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.MainNoFlowStatus.Should().NotBe(2);
+        s.MainNoWarehousingStatus.Should().Be(0);
+        s.ScheduleStage.Should().Be(2);    // 原料锁定（待料）
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_ScheduleStage五档_生产执行档3()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.MainNoFlowStatus.Should().Be(2);
+        s.ScheduleStage.Should().Be(3);    // 生产执行（存在未产/在产/暂停批次）
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_ScheduleStage五档_成品检验档4()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        // 批次已完成（无未产/在产/暂停批次）→ 成品检验档
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.Completed));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.MainNoFlowStatus.Should().Be(2);
+        s.ScheduleStage.Should().Be(4);    // 成品检验（主号已满足、无在产批次）
     }
 }

@@ -209,15 +209,19 @@
         new() { Key = "TagNo",                    Label = "挂牌号",                      GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "ProductionType",           Label = "生产类型",                    GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "ManufacturingItem",        Label = "制造物品",                    GroupKey = 2, GroupName = "G2 生产批次" },
-        new() { Key = "Salesman",                 Label = "业务员",                      GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "ManufacturingStatus",      Label = "制造状态",                    GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "DeliveryState",            Label = "交货状态",                    GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "WorkOrderNo",              Label = "关联工单号",                  GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "SalesOrderNo",             Label = "关联订单号",                  GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "Salesman",                 Label = "业务员",                      GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "EndCustomer",              Label = "最终用户",                    GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "SourceUnit",               Label = "来料单位",                    GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "FurnaceNo",                Label = "炉号",                        GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "PlantGrade",               Label = "工厂牌号",                    GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "Specification",            Label = "规格",                        GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "LengthStatus",             Label = "长度状态",                    GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "ProductionCutQuantity",    Label = "生产支数",                    GroupKey = 2, GroupName = "G2 生产批次" },
+        new() { Key = "ProductionWeight",         Label = "生产重量(kg)",                GroupKey = 2, GroupName = "G2 生产批次" },
 
         // ========== G3：检验结果 ==========
         new() { Key = "FixedLength",              Label = "定尺长度",                    GroupKey = 3, GroupName = "G3 检验结果" },
@@ -308,7 +312,11 @@
         public ProductionType? ProductionType { get; set; }
         public string? Salesman { get; set; }
         public LengthStatus? LengthStatus { get; set; }
+        public string? ManufacturingStatus { get; set; }
         public string? DeliveryState { get; set; }
+        public string? EndCustomer { get; set; }
+        public int? ProductionCutQuantity { get; set; }
+        public decimal? ProductionWeight { get; set; }
         public string? FixedLength { get; set; }
         public string? NonFixedLengthRange { get; set; }
         public ShiftType? Shift { get; set; }
@@ -411,15 +419,19 @@
         "TagNo" => 80,
         "ProductionType" => 80,
         "ManufacturingItem" => 100,
-        "Salesman" => 80,
+        "ManufacturingStatus" => 100,
         "DeliveryState" => 100,
         "WorkOrderNo" => 90,
         "SalesOrderNo" => 90,
+        "Salesman" => 80,
+        "EndCustomer" => 90,
         "SourceUnit" => 90,
         "FurnaceNo" => 80,
         "PlantGrade" => 80,
         "Specification" => 80,
         "LengthStatus" => 80,
+        "ProductionCutQuantity" => 80,
+        "ProductionWeight" => 90,
         "FixedLength" => 80,
         "NonFixedLengthRange" => 110,
         "Quantity" => 70,
@@ -530,15 +542,20 @@
         dest.EquipmentName = source.EquipmentName;
         dest.Shift = source.Shift;
         dest.Operator = source.Operator;
+        dest.InspectionType = source.InspectionType;
         dest.QualificationLevel = source.QualificationLevel;
         // G2：生产批次
         dest.TagNo = source.TagNo;
         dest.ProductionType = source.ProductionType;
         dest.ManufacturingItem = source.ManufacturingItem;
-        dest.Salesman = source.Salesman;
+        dest.ManufacturingStatus = source.ManufacturingStatus;
         dest.DeliveryState = source.DeliveryState;
         dest.WorkOrderNo = source.WorkOrderNo;
         dest.SalesOrderNo = source.SalesOrderNo;
+        dest.Salesman = source.Salesman;
+        dest.EndCustomer = source.EndCustomer;
+        dest.ProductionCutQuantity = source.ProductionCutQuantity;
+        dest.ProductionWeight = source.ProductionWeight;
         dest.SourceUnit = source.SourceUnit;
         dest.FurnaceNo = source.FurnaceNo;
         dest.PlantGrade = source.PlantGrade;
@@ -592,7 +609,11 @@
             row.Specification = lookup.Specification;
             row.ProductionType = Enum.TryParse<ProductionType>(lookup.ProductionType, true, out var pt) ? pt : null;
             row.Salesman = lookup.Salesman;
+            row.ManufacturingStatus = lookup.ManufacturingStatus;
             row.DeliveryState = lookup.DeliveryState;
+            row.EndCustomer = lookup.EndCustomer;
+            row.ProductionCutQuantity = lookup.ProductionCutQuantity;
+            row.ProductionWeight = lookup.ProductionWeight;
             row.LengthStatus = Enum.TryParse<LengthStatus>(lookup.LengthStatus, true, out var ls) ? ls : null;
             row.FixedLength = lookup.FixedLength;
             row.InspectionType = lookup.InspectionType;
@@ -652,6 +673,7 @@
                     InspectionItem = r.InspectionItem,
                     InspectionDate = date == default ? DateTime.Now : date,
                     BatchNo = r.BatchNo.Trim(),
+                    InspectionType = r.InspectionType,
                     ManufacturingItem = r.ManufacturingItem,
                     TagNo = r.TagNo,
                     WorkOrderNo = r.WorkOrderNo,
@@ -865,8 +887,26 @@
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(r.DeliveryState));
                 break;
             case "InspectionType":
-                // 成检类型由服务端自动判定，创建页仅做展示
-                builder.AddContent(0, DisplayHelper.GetInspectionTypeText(r.InspectionType));
+                // 成检类型：选批次后自动带出服务端判定值作默认，可下拉修改；清空则交回服务端自动判定
+                builder.OpenComponent<MudSelect<string?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "Value", r.InspectionType);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.InspectionType = v));
+                builder.AddAttribute(6, "Clearable", true);
+                builder.AddAttribute(10, "ChildContent", (RenderFragment)(cb =>
+                {
+                    cb.OpenComponent<MudSelectItem<string?>>(0);
+                    cb.AddAttribute(1, "Value", nameof(InspectionType.FormalInspection));
+                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.FormalInspection)))));
+                    cb.CloseComponent();
+                    cb.OpenComponent<MudSelectItem<string?>>(0);
+                    cb.AddAttribute(1, "Value", nameof(InspectionType.PreInspection));
+                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.PreInspection)))));
+                    cb.CloseComponent();
+                }));
+                builder.CloseComponent();
                 break;
             // G2 只读文本（自动从批次填充）
             case "TagNo":
@@ -877,7 +917,15 @@
             case "FurnaceNo":
             case "PlantGrade":
             case "Specification":
+            case "ManufacturingStatus":
+            case "EndCustomer":
                 builder.AddContent(0, GetStringField(r, col.Key));
+                break;
+            case "ProductionCutQuantity":
+                builder.AddContent(0, r.ProductionCutQuantity?.ToString());
+                break;
+            case "ProductionWeight":
+                builder.AddContent(0, r.ProductionWeight?.ToString("G29"));
                 break;
             case "Quantity":
             case "QualifiedQuantity":
@@ -1056,6 +1104,8 @@
         "FurnaceNo" => r.FurnaceNo,
         "PlantGrade" => r.PlantGrade,
         "Specification" => r.Specification,
+        "ManufacturingStatus" => r.ManufacturingStatus,
+        "EndCustomer" => r.EndCustomer,
         "FixedLength" => r.FixedLength,
         "NonFixedLengthRange" => r.NonFixedLengthRange,
         "ConcessionRemark" => r.ConcessionRemark,

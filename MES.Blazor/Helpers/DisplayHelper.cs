@@ -307,9 +307,25 @@ public static class DisplayHelper
     }
 
     /// <summary>
-    /// 获取排程关注阶段中文文本（int 字段）
+    /// 获取排程关注阶段中文文本（int 字段，关注状态 5 档：0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验）
     /// </summary>
     public static string GetScheduleStageText(int stage)
+    {
+        return stage switch
+        {
+            0 => "主号暂停",
+            1 => "主号完成",
+            2 => "原料锁定",
+            3 => "生产执行",
+            4 => "成品检验",
+            _ => "未知"
+        };
+    }
+
+    /// <summary>
+    /// 获取排程计划覆盖档位中文文本（WorkOrderPlan.ScheduleStage，4 档：0=工单完成 1=原料锁定 2=生产执行 3=成品检验）
+    /// </summary>
+    public static string GetPlanScheduleStageText(int stage)
     {
         return stage switch
         {

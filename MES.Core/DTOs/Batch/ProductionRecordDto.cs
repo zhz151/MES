@@ -33,8 +33,11 @@ public class ProductionRecordDto
     /// <summary>保温时间(min)，仅固溶工段使用</summary>
     public int? SoakTime { get; set; }
 
-    /// <summary>产品状态（荒管/在制/成品），由系统自动计算</summary>
+    /// <summary>产类（荒管/在制/成品），由系统自动计算</summary>
     public string? ProductStatus { get; set; }
+
+    /// <summary>预成切（虽然是成品切割，但不是正式成品切割；不计入成品切割统计支数）</summary>
+    public bool? IsPreCut { get; set; }
 
     /// <summary>长度状态（定尺/范围尺/非定尺），断切成品时自动填充</summary>
     public string? LengthStatus { get; set; }
@@ -54,6 +57,15 @@ public class ProductionRecordDto
 
     /// <summary>批次号（冗余，用于跨批次列表展示）</summary>
     public string? BatchNo { get; set; }
+
+    /// <summary>工单号（从批次导航属性投影）</summary>
+    public string? WorkOrderNo { get; set; }
+
+    /// <summary>订单号（从批次导航属性投影）</summary>
+    public string? SalesOrderNo { get; set; }
+
+    /// <summary>主号（从批次导航属性投影）</summary>
+    public string? ProductionMainNo { get; set; }
 
     /// <summary>创建时间</summary>
     public DateTimeOffset CreatedTime { get; set; }
@@ -121,6 +133,9 @@ public class CreateProductionRecordRequest
     /// <summary>保温时间(min)，仅固溶工段使用</summary>
     public int? SoakTime { get; set; }
 
+    /// <summary>预成切（虽然是成品切割，但不是正式成品切割；不计入成品切割统计支数）</summary>
+    public bool? IsPreCut { get; set; }
+
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }
     public int? PostCutQuantity { get; set; }
@@ -169,6 +184,9 @@ public class UpdateProductionRecordRequest
 
     /// <summary>保温时间(min)，仅固溶工段使用</summary>
     public int? SoakTime { get; set; }
+
+    /// <summary>预成切（虽然是成品切割，但不是正式成品切割；不计入成品切割统计支数）</summary>
+    public bool? IsPreCut { get; set; }
 
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }

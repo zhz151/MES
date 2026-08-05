@@ -1209,15 +1209,17 @@ public class OrderService : IOrderService
 
         if (executionSummaries.Count > 0)
         {
-            // ScheduleStage: 原料锁定(1) > 生产执行(2) > 成品检验(3) > 完成(0)
-            if (executionSummaries.Any(e => e.ScheduleStage == 1))
-                scheduleStage = 1;
+            // ScheduleStage: 主号暂停(0) > 原料锁定(2) > 生产执行(3) > 成品检验(4) > 主号完成(1)
+            if (executionSummaries.Any(e => e.ScheduleStage == 0))
+                scheduleStage = 0;
             else if (executionSummaries.Any(e => e.ScheduleStage == 2))
                 scheduleStage = 2;
             else if (executionSummaries.Any(e => e.ScheduleStage == 3))
                 scheduleStage = 3;
+            else if (executionSummaries.Any(e => e.ScheduleStage == 4))
+                scheduleStage = 4;
             else
-                scheduleStage = 0;
+                scheduleStage = 1;
 
             // UrgencyLevel: 取最紧急（A+ < A < B < C < D 字典序最小）
             var nonEmpty = executionSummaries

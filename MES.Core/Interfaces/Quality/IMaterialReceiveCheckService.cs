@@ -35,6 +35,11 @@ public interface IMaterialReceiveCheckService
     Task<PagedResult<MaterialReceiveCheckDto>> GetAllMaterialReceiveChecksAsync(QueryParams query);
 
     /// <summary>
+    /// 实时健康汇总（按当前筛选条件统计成检类型过期/工序组非检验数量）
+    /// </summary>
+    Task<MaterialCheckHealthSummaryDto> GetMaterialCheckHealthSummaryAsync(QueryParams query);
+
+    /// <summary>
     /// 获取所有检验到料记录（不含分页�?    /// </summary>
     Task<List<MaterialReceiveCheckDto>> GetAllMaterialReceiveCheckListAsync();
 

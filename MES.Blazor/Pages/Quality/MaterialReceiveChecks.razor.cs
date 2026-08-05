@@ -10,6 +10,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Batch;
 using System.Text.Json;
 using MES.Core.Enums;
 
@@ -72,6 +73,8 @@ public partial class MaterialReceiveChecks
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         // G1: 检验到料（实体数据）
+        new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "检验到料" },
+        new() { Key = "HealthIssue",       Label = "校验状态",   SortKey = null, FilterType = null, Width = "100", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "检验到料", EnumOptions = new() { new("SCAN","扫码"), new("MANUAL","手动") } },
         new() { Key = "Shift",             Label = "班次",        SortKey = "shift", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "检验到料", EnumOptions = new() { new("DayShift","白班"), new("MiddleShift","中班"), new("NightShift","夜班") } },
@@ -83,8 +86,7 @@ public partial class MaterialReceiveChecks
         new() { Key = "Remark",            Label = "备注",        SortKey = "remark", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "UpdatedTime",       Label = "更新时间",   SortKey = "updatedtime", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "检验到料" },
 
-        // G2: 批次信息（自动填充）
-        new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "批次信息" },
+        // G2: 批次信息（DTO 导航带出）
         new() { Key = "ManufacturingItem", Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("OrderFinished","订单成品"), new("Finished","备料成品"), new("Surplus","余库料"), new("SpecialDeliveryStatus","订成-非交付态") } },
         new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "Specification",     Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "批次信息" },
@@ -92,11 +94,13 @@ public partial class MaterialReceiveChecks
         new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "WorkOrderNo",       Label = "工单号",     SortKey = "workorderno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "SalesOrderNo",      Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
+        new() { Key = "ProductionMainNo",  Label = "主号",       SortKey = "productionmainno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "FurnaceNo",         Label = "炉号",       SortKey = "furnaceno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "SourceUnit",        Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "ProductionType",     Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120", Visible = false, GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("RoughTube","荒管生产"), new("InProcess","在制生产"), new("Inventory","库存"), new("OutsourcedPurchased","外购"), new("Rework","返整"), new("Subcontract","委外生产"), new("ExternalProcessing","对外加工") } },
         new() { Key = "Salesman",          Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "100", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "ManufacturingStatus", Label = "制造状态",   SortKey = "manufacturingsstatus", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态"), new("SolidSolutionStraightening","固溶矫直") } },
+        new() { Key = "IsDeliveryStatus",  Label = "是否交付态", SortKey = "isdeliverystatus", FilterType = "enum", Width = "90", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("是","是"), new("否","否") } },
     };
 
     // ========== 服务端数据加载 ==========
@@ -145,6 +149,9 @@ public partial class MaterialReceiveChecks
                 _totalCount = 0;
                 _pageSums.Clear();
             }
+
+            // 实时健康汇总（按当前筛选条件全量统计），并行拉取
+            await LoadHealthSummaryAsync(dateFrom, dateTo, filtersJson);
         }
         catch (Exception ex)
         {
@@ -158,6 +165,27 @@ public partial class MaterialReceiveChecks
             Items = _pageItems,
             TotalItems = _totalCount
         };
+    }
+
+    // ========== 实时健康汇总（顶部通知条） ==========
+
+    private MaterialCheckHealthSummaryDto? _healthSummary;
+
+    private async Task LoadHealthSummaryAsync(DateTime? dateFrom, DateTime? dateTo, string? filtersJson)
+    {
+        try
+        {
+            var summary = await MaterialCheckService.GetMaterialCheckHealthSummaryAsync(
+                keyword: string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                receiveDateFrom: dateFrom,
+                receiveDateTo: dateTo,
+                filters: filtersJson);
+            _healthSummary = summary.Success ? summary.Data : null;
+        }
+        catch
+        {
+            _healthSummary = null;
+        }
     }
 
     private string? SerializeFilters()
@@ -425,15 +453,36 @@ public partial class MaterialReceiveChecks
     private Dictionary<int, EditCache> _editCache = new();
     private bool _isSaving;
 
+    // 每个批次可重选的检验工序组选项（工序名称下拉数据源，按需懒加载）
+    private Dictionary<int, List<ProcessGroupDto>> _processGroupOptions = new();
+
+    private async Task LoadProcessGroupOptionsAsync(int batchId)
+    {
+        if (_processGroupOptions.ContainsKey(batchId)) return;
+        try
+        {
+            var result = await BatchService.GetProcessGroupsAsync(batchId);
+            if (result.Success && result.Data != null)
+                _processGroupOptions[batchId] = result.Data;
+        }
+        catch { /* 加载失败仅影响下拉，不阻断编辑 */ }
+    }
+
+    private List<ProcessGroupDto> GetProcessGroupOptions(int batchId)
+        => _processGroupOptions.TryGetValue(batchId, out var list) ? list : new();
+
     private class EditCache
     {
         public string ReceiveDate { get; set; } = string.Empty;
         public ShiftType? Shift { get; set; }
         public string? Checker { get; set; }
         public string? Remark { get; set; }
+
+        /// <summary>当前选中工序组ID（工序名称重选用）</summary>
+        public int ProcessGroupId { get; set; }
     }
 
-    private void StartEdit(MaterialReceiveCheckDto item)
+    private async Task StartEdit(MaterialReceiveCheckDto item)
     {
         if (!_editingIds.Add(item.Id)) return;
         _editCache[item.Id] = new EditCache
@@ -441,8 +490,11 @@ public partial class MaterialReceiveChecks
             ReceiveDate = item.ReceiveDate.ToString("yyyy-MM-dd"),
             Shift = item.Shift,
             Checker = item.Checker,
-            Remark = item.Remark
+            Remark = item.Remark,
+            ProcessGroupId = item.ProcessGroupId
         };
+        // 懒加载该批次检验工序组，供工序名称下拉重选
+        await LoadProcessGroupOptionsAsync(item.ProductionBatchId);
     }
 
     private void CancelEdit(MaterialReceiveCheckDto item)
@@ -471,7 +523,8 @@ public partial class MaterialReceiveChecks
                 ReceiveDate = parsedDate,
                 Shift = cache.Shift,
                 Checker = cache.Checker,
-                Remark = cache.Remark
+                Remark = cache.Remark,
+                ProcessGroupId = cache.ProcessGroupId
             };
 
             var result = await MaterialCheckService.UpdateMaterialReceiveCheckAsync(item.Id, request);
@@ -481,6 +534,11 @@ public partial class MaterialReceiveChecks
                 item.Shift = result.Data.Shift;
                 item.Checker = result.Data.Checker;
                 item.Remark = result.Data.Remark;
+                // 推导值：保存即按当前工艺卡重算（含重选工序组），同步回写展示
+                item.ProcessGroupId = result.Data.ProcessGroupId;
+                item.ProcessName = result.Data.ProcessName;
+                item.SequenceNumber = result.Data.SequenceNumber;
+                item.InspectionType = result.Data.InspectionType;
 
                 _editingIds.Remove(item.Id);
                 _editCache.Remove(item.Id);
@@ -553,6 +611,20 @@ public partial class MaterialReceiveChecks
                 builder.CloseComponent();
                 break;
 
+            case "HealthIssue":
+                // 实时校验状态：正常=绿，成检类型过期=橙，工序组非检验=红
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", item.HealthIssue switch
+                {
+                    "成检类型过期" => Color.Warning,
+                    "工序组非检验" => Color.Error,
+                    _ => Color.Success
+                });
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.HealthIssue ?? "正常")));
+                builder.CloseComponent();
+                break;
+
             case "ReceiveDate":
                 if (isEditing && cache != null)
                 {
@@ -580,6 +652,7 @@ public partial class MaterialReceiveChecks
             case "TagNo":
             case "WorkOrderNo":
             case "SalesOrderNo":
+            case "ProductionMainNo":
             case "FurnaceNo":
             case "SourceUnit":
                 builder.AddContent(0, typeof(MaterialReceiveCheckDto).GetProperty(col.Key)?.GetValue(item)?.ToString());
@@ -688,17 +761,47 @@ public partial class MaterialReceiveChecks
 
             case "ManufacturingStatus":
                 if (item.IsLastProcessGroup)
-                    builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.ManufacturingStatus));
+                    builder.AddContent(0, item.ManufacturingStatusDisplay);
                 else
-                    builder.AddContent(0, "–");
+                    builder.AddContent(0, "-");
                 break;
 
             case "InspectionType":
                 builder.AddContent(0, DisplayHelper.GetInspectionTypeText(item.InspectionType));
                 break;
 
+            case "IsDeliveryStatus":
+                builder.AddContent(0, item.IsDeliveryStatus ?? "-");
+                break;
+
             case "ProcessName":
-                builder.AddContent(0, item.ProcessName);
+                if (isEditing && cache != null)
+                {
+                    // 重选工序组：展示该批次检验工序组，联动重算执行序/成检类型
+                    var pgOptions = GetProcessGroupOptions(item.ProductionBatchId);
+                    builder.OpenComponent<MudSelect<int>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Value", cache.ProcessGroupId);
+                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<int>(this, v => cache.ProcessGroupId = v));
+                    builder.AddAttribute(5, "Class", "compact-input");
+                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                    {
+                        foreach (var pg in pgOptions)
+                        {
+                            b.OpenComponent<MudSelectItem<int>>(0);
+                            b.AddAttribute(1, "Value", pg.Id);
+                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                                b2.AddContent(0, pg.ProcessName)));
+                            b.CloseComponent();
+                        }
+                    }));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.ProcessName);
+                }
                 break;
 
             case "SequenceNumber":

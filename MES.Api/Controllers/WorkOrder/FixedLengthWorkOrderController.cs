@@ -29,4 +29,15 @@ public class FixedLengthWorkOrderController : ControllerBase
         var result = await _service.GetListAsync();
         return Ok(ApiResponse<List<FixedLengthWorkOrderListDto>>.Ok(result));
     }
+
+    /// <summary>
+    /// 生成打印 PDF（Mode B ⓪：前端已准备数据，枚举字段已转中文）
+    /// </summary>
+    [HttpPost("print-file")]
+    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    public async Task<IActionResult> PrintFile([FromBody] FixedLengthWorkOrderPrintRequest request)
+    {
+        var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "定尺工单定尺数据.pdf");
+    }
 }

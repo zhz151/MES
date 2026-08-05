@@ -84,23 +84,27 @@ public class FinalInspectionService : IFinalInspectionService
 
     /// <summary>
     /// 校验成品检验定尺长度：当「订单号+主号」存在定尺工单时，定尺长度必须属于该主号下的定尺长度集合。
+    /// 仅「正式成检」有此要求；「预成检」无需定尺长度归属校验。
     /// 返回 null 表示通过，否则返回错误信息（不含行号前缀，由调用方补充）。
     /// </summary>
-    private async Task<string?> ValidateFixedLengthAsync(string? salesOrderNo, string? productionMainNo, string? fixedLength)
+    private async Task<string?> ValidateFixedLengthAsync(string? salesOrderNo, string? productionMainNo, string? fixedLength, string? inspectionType)
     {
+        if (IsPreInspection(inspectionType)) return null; // 预成检无需定尺长度归属校验
         if (string.IsNullOrWhiteSpace(fixedLength)) return null;
         if (string.IsNullOrWhiteSpace(salesOrderNo) || string.IsNullOrWhiteSpace(productionMainNo)) return null;
         var validLengths = await _fixedLengthWorkOrderService
             .GetLengthsByMainNoAsync(salesOrderNo, productionMainNo);
-        return ValidateFixedLength(salesOrderNo, productionMainNo, fixedLength, validLengths);
+        return ValidateFixedLength(salesOrderNo, productionMainNo, fixedLength, validLengths, inspectionType);
     }
 
     /// <summary>
     /// 定尺长度校验纯函数（预取集合版，供批量创建复用避免循环内 N+1 查询）。
+    /// 仅「正式成检」有此要求；「预成检」无需定尺长度归属校验。
     /// </summary>
     private static string? ValidateFixedLength(
-        string salesOrderNo, string productionMainNo, string? fixedLength, HashSet<decimal> validLengths)
+        string salesOrderNo, string productionMainNo, string? fixedLength, HashSet<decimal> validLengths, string? inspectionType)
     {
+        if (IsPreInspection(inspectionType)) return null; // 预成检无需定尺长度归属校验
         if (string.IsNullOrWhiteSpace(fixedLength)) return null;
         var parsed = ParseFixedLength(fixedLength);
         if (parsed == null) return $"定尺长度格式不正确({fixedLength})";
@@ -108,6 +112,13 @@ public class FinalInspectionService : IFinalInspectionService
         if (validLengths.Contains(parsed.Value)) return null;
         return $"成品检验定尺长度({fixedLength})不属于该订单号+主号({salesOrderNo}/{productionMainNo})下的定尺长度";
     }
+
+    /// <summary>
+    /// 是否「预成检」：预成检无需定尺长度归属校验（其余类型含未知值均按需校验）。
+    /// </summary>
+    private static bool IsPreInspection(string? inspectionType)
+        => !string.IsNullOrWhiteSpace(inspectionType)
+           && string.Equals(inspectionType, nameof(InspectionType.PreInspection), StringComparison.OrdinalIgnoreCase);
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
     {
@@ -222,6 +233,11 @@ public class FinalInspectionService : IFinalInspectionService
             LengthStatus = pb?.LengthStatus,
             DeliveryState = pb?.DeliveryState,
             ManufacturingStatus = pb?.ManufacturingStatus,
+            EndCustomer = pb?.EndCustomer,
+            ProductionCutQuantity = pb != null && pb.CutRequirement
+                ? pb.CutQuantity
+                : pb?.TheoreticalOutputQty,
+            ProductionWeight = pb?.TheoreticalOutputWeight,
             FixedLength = entity.FixedLength,
             NonFixedLengthRange = entity.NonFixedLengthRange,
             EquipmentName = entity.EquipmentName,
@@ -266,12 +282,11 @@ public class FinalInspectionService : IFinalInspectionService
         };
     }
 
-    public async Task<PagedResult<FinalInspectionDto>> GetAllAsync(QueryParams query)
+    /// <summary>
+    /// 列表查询过滤（关键字/日期/自定义筛选），分页查询与健康汇总共用
+    /// </summary>
+    private IQueryable<FinalInspection> ApplyListQueryFilters(IQueryable<FinalInspection> queryable, QueryParams query)
     {
-        var queryable = _context.FinalInspections
-            .AsNoTracking()
-            .AsQueryable();
-
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
             var kw = query.Keyword;
@@ -282,6 +297,7 @@ public class FinalInspectionService : IFinalInspectionService
                 (r.ProductionBatch.TagNo != null && r.ProductionBatch.TagNo.Contains(kw)) ||
                 r.ProductionBatch.WorkOrderNo.Contains(kw) ||
                 r.ProductionBatch.SalesOrderNo.Contains(kw) ||
+                (r.ProductionBatch.ProductionMainNo != null && r.ProductionBatch.ProductionMainNo.Contains(kw)) ||
                 (r.ProductionBatch.Salesman != null && r.ProductionBatch.Salesman.Contains(kw)) ||
                 (r.ProductionBatch.SourceName != null && r.ProductionBatch.SourceName.Contains(kw)) ||
                 (r.ProductionBatch.SourceHeatNo != null && r.ProductionBatch.SourceHeatNo.Contains(kw)) ||
@@ -346,6 +362,9 @@ public class FinalInspectionService : IFinalInspectionService
                     case "SalesOrderNo":
                         queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.SalesOrderNo));
                         break;
+                    case "ProductionMainNo":
+                        queryable = queryable.Where(r => r.ProductionBatch.ProductionMainNo != null && filter.Values.Contains(r.ProductionBatch.ProductionMainNo));
+                        break;
                     case "FurnaceNo":
                         queryable = queryable.Where(r => r.ProductionBatch.SourceHeatNo != null && filter.Values.Contains(r.ProductionBatch.SourceHeatNo));
                         break;
@@ -360,6 +379,9 @@ public class FinalInspectionService : IFinalInspectionService
                         break;
                     case "Salesman":
                         queryable = queryable.Where(r => r.ProductionBatch.Salesman != null && filter.Values.Contains(r.ProductionBatch.Salesman));
+                        break;
+                    case "EndCustomer":
+                        queryable = queryable.Where(r => r.ProductionBatch.EndCustomer != null && filter.Values.Contains(r.ProductionBatch.EndCustomer));
                         break;
                     case "DeliveryState":
                         queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.DeliveryState));
@@ -378,7 +400,12 @@ public class FinalInspectionService : IFinalInspectionService
             query.Filters = remainingFilters;
         }
 
-        queryable = queryable.ApplyFilters(query.Filters);
+        return queryable.ApplyFilters(query.Filters);
+    }
+
+    public async Task<PagedResult<FinalInspectionDto>> GetAllAsync(QueryParams query)
+    {
+        var queryable = ApplyListQueryFilters(_context.FinalInspections.AsNoTracking().AsQueryable(), query);
         var totalCount = await queryable.CountAsync();
 
         queryable = ApplySorting(queryable, query.SortBy ?? "inspectiondate", query.IsDescending);
@@ -407,6 +434,7 @@ public class FinalInspectionService : IFinalInspectionService
                 TagNo = pb?.TagNo,
                 WorkOrderNo = pb?.WorkOrderNo,
                 SalesOrderNo = pb?.SalesOrderNo,
+                ProductionMainNo = pb?.ProductionMainNo,
                 SourceUnit = pb?.SourceName,
                 FurnaceNo = pb?.SourceHeatNo,
                 PlantGrade = pb?.PlantGrade,
@@ -416,6 +444,11 @@ public class FinalInspectionService : IFinalInspectionService
                 LengthStatus = pb?.LengthStatus,
                 DeliveryState = pb?.DeliveryState,
                 ManufacturingStatus = pb?.ManufacturingStatus,
+                EndCustomer = pb?.EndCustomer,
+                ProductionCutQuantity = pb != null && pb.CutRequirement
+                    ? pb.CutQuantity
+                    : pb?.TheoreticalOutputQty,
+                ProductionWeight = pb?.TheoreticalOutputWeight,
                 FixedLength = r.FixedLength,
                 NonFixedLengthRange = r.NonFixedLengthRange,
                 EquipmentName = r.EquipmentName,
@@ -469,6 +502,61 @@ public class FinalInspectionService : IFinalInspectionService
         };
     }
 
+    /// <summary>
+    /// 实时健康汇总（按当前筛选条件统计「成检类型与成检到料不符」的生产编号）
+    /// </summary>
+    public async Task<FinalInspectionHealthSummaryDto> GetFinalInspectionHealthSummaryAsync(QueryParams query)
+    {
+        var queryable = ApplyListQueryFilters(_context.FinalInspections.AsNoTracking().AsQueryable(), query);
+
+        var raw = await queryable
+            .Select(r => new { r.ProductionBatchId, r.InspectionType, r.BatchNo })
+            .ToListAsync();
+        if (raw.Count == 0)
+            return new FinalInspectionHealthSummaryDto { TotalCount = 0 };
+
+        // 取这些批次在成检到料中的 InspectionType 集合（一个批次可能多条：预成检+正式成检）
+        var batchIds = raw.Select(r => r.ProductionBatchId).Distinct().ToList();
+        var mrChecks = await _context.MaterialReceiveChecks
+            .AsNoTracking()
+            .Where(m => batchIds.Contains(m.ProductionBatchId))
+            .Select(m => new { m.ProductionBatchId, m.InspectionType })
+            .ToListAsync();
+        var inspTypesByBatch = mrChecks
+            .GroupBy(m => m.ProductionBatchId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => x.InspectionType)
+                      .Where(t => !string.IsNullOrWhiteSpace(t))
+                      .Select(t => t!.ToUpperInvariant())
+                      .ToHashSet());
+
+        var mismatchBatchNos = new List<string>();
+        var noCheckBatchNos = new List<string>();
+        foreach (var r in raw)
+        {
+            // 批次完全无成检到料（本不该存在成品检验，多为历史/批量数据）
+            if (!inspTypesByBatch.TryGetValue(r.ProductionBatchId, out var types) || types.Count == 0)
+            {
+                noCheckBatchNos.Add(r.BatchNo ?? "");
+                continue;
+            }
+            // 记录成检类型不在该批次到料类型集合内 → 成检类型疑问
+            if (string.IsNullOrWhiteSpace(r.InspectionType)
+                || !types.Contains(r.InspectionType.ToUpperInvariant()))
+            {
+                mismatchBatchNos.Add(r.BatchNo ?? "");
+            }
+        }
+
+        return new FinalInspectionHealthSummaryDto
+        {
+            TotalCount = raw.Count,
+            InspectionTypeMismatchBatchNos = mismatchBatchNos,
+            NoMaterialCheckBatchNos = noCheckBatchNos
+        };
+    }
+
     public async Task<List<FinalInspectionDto>> GetAllListAsync()
     {
         return await _context.FinalInspections
@@ -495,6 +583,11 @@ public class FinalInspectionService : IFinalInspectionService
                 LengthStatus = r.ProductionBatch.LengthStatus,
                 DeliveryState = r.ProductionBatch.DeliveryState,
                 ManufacturingStatus = r.ProductionBatch.ManufacturingStatus,
+                EndCustomer = r.ProductionBatch.EndCustomer,
+                ProductionCutQuantity = r.ProductionBatch.CutRequirement
+                    ? r.ProductionBatch.CutQuantity
+                    : r.ProductionBatch.TheoreticalOutputQty,
+                ProductionWeight = r.ProductionBatch.TheoreticalOutputWeight,
                 FixedLength = r.FixedLength,
                 NonFixedLengthRange = r.NonFixedLengthRange,
                 EquipmentName = r.EquipmentName,
@@ -568,29 +661,68 @@ public class FinalInspectionService : IFinalInspectionService
                 throw new BusinessException("批次长度状态非'定尺'，定尺长度必须为空");
         }
 
-        // 成品检验定尺长度归属校验（按「订单号+主号」维度）
-        var fixedLengthError = await ValidateFixedLengthAsync(prodBatch?.SalesOrderNo, prodBatch?.ProductionMainNo, request.FixedLength);
-        if (fixedLengthError != null)
-            throw new BusinessException(fixedLengthError);
-
-        // 自动判定成检类型：优先从 MaterialReceiveCheck 继承
+        // 成检类型：必须先存在成检到料，无到料则不允许提交成品检验
         string? inspectionType = null;
         if (prodBatch != null)
         {
-            var mrCheck = await _context.MaterialReceiveChecks
+            var mrChecks = await _context.MaterialReceiveChecks
                 .AsNoTracking()
                 .Where(m => m.ProductionBatchId == prodBatch.Id)
                 .Select(m => m.InspectionType)
-                .FirstOrDefaultAsync();
-            inspectionType = mrCheck ?? nameof(InspectionType.FormalInspection);
+                .ToListAsync();
+            if (mrChecks.Count == 0)
+                throw new BusinessException($"批次 {request.BatchNo} 无成检到料，不能提交成品检验");
+
+            // 前端可指定（下拉选择），否则自动判定（优先正式成检，其次预成检）
+            if (!string.IsNullOrWhiteSpace(request.InspectionType))
+            {
+                if (!Enum.TryParse<InspectionType>(request.InspectionType, true, out _))
+                    throw new BusinessException($"无效的成检类型: {request.InspectionType}");
+                // 指定的成检类型必须在到料类型集合内，防止创建即制造不符（与健康通知口径一致）
+                var mrCheckTypes = mrChecks
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Select(t => t!.ToUpperInvariant())
+                    .ToHashSet();
+                if (!mrCheckTypes.Contains(request.InspectionType.ToUpperInvariant()))
+                    throw new BusinessException($"批次 {request.BatchNo} 成检到料不含「{request.InspectionType}」类型，不能指定");
+                inspectionType = request.InspectionType;
+            }
+            else
+            {
+                inspectionType = mrChecks.Contains(nameof(InspectionType.FormalInspection))
+                    ? nameof(InspectionType.FormalInspection)
+                    : mrChecks.Contains(nameof(InspectionType.PreInspection))
+                        ? nameof(InspectionType.PreInspection)
+                        : nameof(InspectionType.FormalInspection);
+            }
         }
 
-        // 单支重计算（自动填充重量用）
+        // 成品检验定尺长度归属校验（按「订单号+主号」维度；仅正式成检要求，预成检无需）
+        var fixedLengthError = await ValidateFixedLengthAsync(prodBatch?.SalesOrderNo, prodBatch?.ProductionMainNo, request.FixedLength, inspectionType);
+        if (fixedLengthError != null)
+            throw new BusinessException(fixedLengthError);
+
+        // 支数平衡：检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数（与批量创建/更新口径一致）
+        if (request.Quantity.HasValue)
+        {
+            var sum = (request.QualifiedQuantity ?? 0) + (request.DefectReworkQuantity ?? 0)
+                + (request.DefectWarehouseQuantity ?? 0) + (request.DefectScrapQuantity ?? 0);
+            if (request.Quantity.Value != sum)
+                throw new BusinessException($"检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入库({request.DefectWarehouseQuantity ?? 0}) + 报废({request.DefectScrapQuantity ?? 0}) = {sum}");
+        }
+
+        // 让步放行支数 ≤ 合格支数
+        if (request.QualifiedConcessionQuantity.HasValue && request.QualifiedQuantity.HasValue
+            && request.QualifiedConcessionQuantity.Value > request.QualifiedQuantity.Value)
+            throw new BusinessException($"让步放行支数({request.QualifiedConcessionQuantity})不能大于合格支数({request.QualifiedQuantity})");
+
+        // 单支重计算（自动填充重量用）：定尺=产品单支量（1位小数），非定尺=理论单支重
+        // ProductUnitWeight 已由批次刷新链路对定尺批次回填（非定尺为 null），TotalWeight=0 时亦为 null
         decimal? unitWeight = null;
         if (prodBatch != null)
         {
-            if (prodBatch.LengthStatus == LengthStatus.Fixed.ToString() && prodBatch.TotalQuantity > 0)
-                unitWeight = prodBatch.TotalWeight / prodBatch.TotalQuantity;
+            if (prodBatch.ProductUnitWeight.HasValue)
+                unitWeight = prodBatch.ProductUnitWeight.Value;
             else if (prodBatch.TheoreticalUnitWeight.HasValue)
                 unitWeight = prodBatch.TheoreticalUnitWeight.Value;
         }
@@ -753,12 +885,33 @@ public class FinalInspectionService : IFinalInspectionService
         if (batchInfo?.LengthStatus != LengthStatus.Fixed.ToString() && !string.IsNullOrWhiteSpace(fixedLengthValue))
             throw new BusinessException("批次长度状态非'定尺'，定尺长度必须为空");
 
-        // 成品检验定尺长度归属校验（按「订单号+主号」维度，用生效值校验）
-        var fixedLengthError = await ValidateFixedLengthAsync(batchInfo?.SalesOrderNo, batchInfo?.ProductionMainNo, fixedLengthValue);
+        // 成品检验定尺长度归属校验（按「订单号+主号」维度，用生效值校验；仅正式成检要求，预成检无需）
+        var fixedLengthError = await ValidateFixedLengthAsync(batchInfo?.SalesOrderNo, batchInfo?.ProductionMainNo, fixedLengthValue, request.InspectionType ?? entity.InspectionType);
         if (fixedLengthError != null)
             throw new BusinessException(fixedLengthError);
 
+        // 成检类型：传了则校验枚举 + 与成检到料一致性；不传保留原值（与创建口径一致，防止编辑制造不符）
+        if (!string.IsNullOrWhiteSpace(request.InspectionType))
+        {
+            if (!Enum.TryParse<InspectionType>(request.InspectionType, true, out _))
+                throw new BusinessException($"无效的成检类型: {request.InspectionType}");
+            var mrCheckTypes = await _context.MaterialReceiveChecks
+                .AsNoTracking()
+                .Where(m => m.ProductionBatchId == entity.ProductionBatchId)
+                .Select(m => m.InspectionType)
+                .ToListAsync();
+            var availableTypes = mrCheckTypes
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => t!.ToUpperInvariant())
+                .ToHashSet();
+            if (availableTypes.Count == 0)
+                throw new BusinessException("该批次无成检到料，不能修改成检类型");
+            if (!availableTypes.Contains(request.InspectionType.ToUpperInvariant()))
+                throw new BusinessException($"该批次成检到料不含「{request.InspectionType}」类型，不能修改");
+        }
+
         entity.InspectionDate = request.InspectionDate;
+        entity.InspectionType = request.InspectionType ?? entity.InspectionType;
         entity.FixedLength = request.FixedLength ?? entity.FixedLength;
         entity.NonFixedLengthRange = request.NonFixedLengthRange ?? entity.NonFixedLengthRange;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
@@ -921,6 +1074,23 @@ public class FinalInspectionService : IFinalInspectionService
             .GroupBy(f => f.ProductionBatchId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // 预查询：各批次已有的成检到料（无到料不允许提交成品检验）
+        var batchInspTypes = await _context.MaterialReceiveChecks
+            .AsNoTracking()
+            .Where(m => allBatchIds.Contains(m.ProductionBatchId))
+            .Select(m => new { m.ProductionBatchId, m.InspectionType })
+            .ToListAsync();
+
+        // 各批次成检类型（已预加载 batchInspTypes，供归属校验提前使用）
+        var inspTypeByBatchId = batchInspTypes
+            .GroupBy(x => x.ProductionBatchId)
+            .ToDictionary(g => g.Key, g =>
+                g.Any(x => x.InspectionType == nameof(InspectionType.FormalInspection))
+                    ? nameof(InspectionType.FormalInspection)
+                    : g.Any(x => x.InspectionType == nameof(InspectionType.PreInspection))
+                        ? nameof(InspectionType.PreInspection)
+                        : nameof(InspectionType.FormalInspection));
+
         // 重复校验：日期 + 批次 + 检验项目 + 操作人 → 重复
         var errors = new List<string>();
         var seenKeys = new HashSet<string>(); // 本次提交内去重
@@ -977,25 +1147,27 @@ public class FinalInspectionService : IFinalInspectionService
             if (batch.LengthStatus != LengthStatus.Fixed.ToString() && !string.IsNullOrWhiteSpace(request.FixedLength))
                 errors.Add($"第{i + 1}行：批次长度状态非'定尺'，定尺长度必须为空");
 
-            // 6) 成品检验定尺长度归属校验（按「订单号+主号」维度）
+            // 6) 成品检验定尺长度归属校验（按「订单号+主号」维度；仅正式成检要求，预成检无需）
             var fixedLengthErr = ValidateFixedLength(
                 batch.SalesOrderNo, batch.ProductionMainNo, request.FixedLength,
-                fixedLengthSets.GetValueOrDefault($"{batch.SalesOrderNo.Trim()}|{batch.ProductionMainNo.Trim()}", new HashSet<decimal>()));
+                fixedLengthSets.GetValueOrDefault($"{batch.SalesOrderNo.Trim()}|{batch.ProductionMainNo.Trim()}", new HashSet<decimal>()),
+                !string.IsNullOrWhiteSpace(request.InspectionType)
+                    ? request.InspectionType
+                    : inspTypeByBatchId.GetValueOrDefault(batchId, nameof(InspectionType.FormalInspection)));
             if (fixedLengthErr != null)
                 errors.Add($"第{i + 1}行：{fixedLengthErr}");
+
+            // 7) 成检类型校验：允许不传（自动判定），传了必须是合法枚举值
+            if (!string.IsNullOrWhiteSpace(request.InspectionType)
+                && !Enum.TryParse<InspectionType>(request.InspectionType, true, out _))
+                errors.Add($"第{i + 1}行：无效的成检类型: {request.InspectionType}");
+
+            // 8) 必须存在成检到料，无到料则不允许提交成品检验
+            if (!batchInspTypes.Any(x => x.ProductionBatchId == batchId))
+                errors.Add($"第{i + 1}行：批次 {request.BatchNo} 无成检到料，不能提交成品检验");
         }
         if (errors.Any())
             throw new BusinessException(string.Join("；", errors));
-
-        // 预加载各批次的成检类型
-        var batchInspTypes = await _context.MaterialReceiveChecks
-            .AsNoTracking()
-            .Where(m => allBatchIds.Contains(m.ProductionBatchId))
-            .Select(m => new { m.ProductionBatchId, m.InspectionType })
-            .ToListAsync();
-        var inspTypeByBatchId = batchInspTypes
-            .GroupBy(x => x.ProductionBatchId)
-            .ToDictionary(g => g.Key, g => g.First().InspectionType ?? nameof(InspectionType.FormalInspection));
 
         var entities = requests.Select(r =>
         {
@@ -1006,7 +1178,9 @@ public class FinalInspectionService : IFinalInspectionService
                 InspectionDate = r.InspectionDate,
                 BatchNo = r.BatchNo,
                 ProductionBatchId = batch.Id,
-                InspectionType = inspTypeByBatchId.GetValueOrDefault(batch.Id, nameof(InspectionType.FormalInspection)),
+                InspectionType = !string.IsNullOrWhiteSpace(r.InspectionType)
+                    ? r.InspectionType
+                    : inspTypeByBatchId.GetValueOrDefault(batch.Id, nameof(InspectionType.FormalInspection)),
                 FixedLength = r.FixedLength,
                 NonFixedLengthRange = r.NonFixedLengthRange,
                 EquipmentName = r.EquipmentName,
@@ -1088,6 +1262,9 @@ public class FinalInspectionService : IFinalInspectionService
             LengthStatus = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.LengthStatus : null,
             DeliveryState = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.DeliveryState : null,
             ManufacturingStatus = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.ManufacturingStatus : null,
+            EndCustomer = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.EndCustomer : null,
+            ProductionCutQuantity = batchLookup.TryGetValue(e.BatchNo, out bl) ? (bl.CutRequirement ? bl.CutQuantity : bl.TheoreticalOutputQty) : null,
+            ProductionWeight = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.TheoreticalOutputWeight : null,
             FixedLength = e.FixedLength,
             NonFixedLengthRange = e.NonFixedLengthRange,
             EquipmentName = e.EquipmentName,
@@ -1147,6 +1324,7 @@ public class FinalInspectionService : IFinalInspectionService
                     TagNo = r.ProductionBatch.TagNo,
                     WorkOrderNo = r.ProductionBatch.WorkOrderNo,
                     SalesOrderNo = r.ProductionBatch.SalesOrderNo,
+                    ProductionMainNo = r.ProductionBatch.ProductionMainNo,
                     SourceUnit = r.ProductionBatch.SourceName,
                     FurnaceNo = r.ProductionBatch.SourceHeatNo,
                     PlantGrade = r.ProductionBatch.PlantGrade,
@@ -1155,6 +1333,7 @@ public class FinalInspectionService : IFinalInspectionService
                     NonFixedLengthRange = r.NonFixedLengthRange,
                     ProductionType = r.ProductionBatch.ProductionType,
                     Salesman = r.ProductionBatch.Salesman,
+                    EndCustomer = r.ProductionBatch.EndCustomer,
                     r.EquipmentName,
                     r.Shift,
                     r.Operator,
@@ -1193,6 +1372,7 @@ public class FinalInspectionService : IFinalInspectionService
                 ["TagNo"] = all.Select(x => x.TagNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["SourceUnit"] = all.Select(x => x.SourceUnit ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["FurnaceNo"] = all.Select(x => x.FurnaceNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["PlantGrade"] = all.Select(x => x.PlantGrade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
@@ -1201,6 +1381,7 @@ public class FinalInspectionService : IFinalInspectionService
                 ["NonFixedLengthRange"] = all.Select(x => x.NonFixedLengthRange ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["ProductionType"] = all.Select(x => x.ProductionType ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["Salesman"] = all.Select(x => x.Salesman ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["EndCustomer"] = all.Select(x => x.EndCustomer ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["DeliveryState"] = all.Select(x => x.DeliveryState ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["ManufacturingStatus"] = all.Select(x => x.ManufacturingStatus ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["IsDeliveryStatus"] = all.Select(x => x.IsDeliveryStatus ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
@@ -1257,26 +1438,33 @@ public class FinalInspectionService : IFinalInspectionService
                 Salesman = b.Salesman,
                 DeliveryState = b.DeliveryState,
                 ManufacturingStatus = b.ManufacturingStatus,
+                EndCustomer = b.EndCustomer,
+                ProductionCutQuantity = b.CutRequirement
+                    ? b.CutQuantity
+                    : b.TheoreticalOutputQty,
+                ProductionWeight = b.TheoreticalOutputWeight,
                 LengthStatus = b.LengthStatus,
                 FixedLength = b.LengthStatus == LengthStatus.Fixed.ToString() && b.MinLength.HasValue
-                    ? b.MinLength.Value.ToString("G29") + "mm"
+                    ? b.MinLength.Value.ToString("G29")
                     : null,
-                // 单支重（与 CreateAsync 自动填充逻辑一致）：定尺=总重/总支，非定尺=理论单支重
-                UnitWeight = b.LengthStatus == LengthStatus.Fixed.ToString() && b.TotalQuantity > 0
-                    ? b.TotalWeight / b.TotalQuantity
-                    : b.TheoreticalUnitWeight
+                // 单支重（与 CreateAsync 自动填充逻辑一致）：定尺=产品单支量（1位小数），非定尺=理论单支重
+                UnitWeight = b.ProductUnitWeight ?? b.TheoreticalUnitWeight
             })
             .FirstOrDefaultAsync();
 
         if (batch != null)
         {
-            // 成检类型：优先继承到料检验，否则默认正式成检（与 CreateAsync 判定一致）
-            var mrCheck = await _context.MaterialReceiveChecks
+            // 成检类型：优先正式成检，其次预成检；无到料则不带出（提交时由「无成检到料」校验拦截）
+            var mrCheckTypes = await _context.MaterialReceiveChecks
                 .AsNoTracking()
                 .Where(m => m.ProductionBatchId == batch.ProductionBatchId)
                 .Select(m => m.InspectionType)
-                .FirstOrDefaultAsync();
-            batch.InspectionType = mrCheck ?? nameof(InspectionType.FormalInspection);
+                .ToListAsync();
+            batch.InspectionType = mrCheckTypes.Contains(nameof(InspectionType.FormalInspection))
+                ? nameof(InspectionType.FormalInspection)
+                : mrCheckTypes.Contains(nameof(InspectionType.PreInspection))
+                    ? nameof(InspectionType.PreInspection)
+                    : null;
         }
 
         return batch;
@@ -1344,6 +1532,8 @@ public class FinalInspectionService : IFinalInspectionService
             ("workorderno", true) => queryable.OrderByDescending(r => r.ProductionBatch.WorkOrderNo ?? ""),
             ("salesorderno", false) => queryable.OrderBy(r => r.ProductionBatch.SalesOrderNo ?? ""),
             ("salesorderno", true) => queryable.OrderByDescending(r => r.ProductionBatch.SalesOrderNo ?? ""),
+            ("productionmainno", false) => queryable.OrderBy(r => r.ProductionBatch.ProductionMainNo ?? ""),
+            ("productionmainno", true) => queryable.OrderByDescending(r => r.ProductionBatch.ProductionMainNo ?? ""),
             ("sourceunit", false) => queryable.OrderBy(r => r.ProductionBatch.SourceName ?? ""),
             ("sourceunit", true) => queryable.OrderByDescending(r => r.ProductionBatch.SourceName ?? ""),
             ("furnaceno", false) => queryable.OrderBy(r => r.ProductionBatch.SourceHeatNo ?? ""),
@@ -1354,6 +1544,12 @@ public class FinalInspectionService : IFinalInspectionService
             ("specification", true) => queryable.OrderByDescending(r => r.ProductionBatch.Specification ?? ""),
             ("lengthstatus", false) => queryable.OrderBy(r => r.ProductionBatch.LengthStatus ?? ""),
             ("lengthstatus", true) => queryable.OrderByDescending(r => r.ProductionBatch.LengthStatus ?? ""),
+            ("endcustomer", false) => queryable.OrderBy(r => r.ProductionBatch.EndCustomer ?? ""),
+            ("endcustomer", true) => queryable.OrderByDescending(r => r.ProductionBatch.EndCustomer ?? ""),
+            ("productioncutquantity", false) => queryable.OrderBy(r => r.ProductionBatch.CutRequirement ? r.ProductionBatch.CutQuantity : r.ProductionBatch.TheoreticalOutputQty),
+            ("productioncutquantity", true) => queryable.OrderByDescending(r => r.ProductionBatch.CutRequirement ? r.ProductionBatch.CutQuantity : r.ProductionBatch.TheoreticalOutputQty),
+            ("productionweight", false) => queryable.OrderBy(r => r.ProductionBatch.TheoreticalOutputWeight),
+            ("productionweight", true) => queryable.OrderByDescending(r => r.ProductionBatch.TheoreticalOutputWeight),
             ("fixedlength", false) => queryable.OrderBy(r => r.FixedLength ?? ""),
             ("fixedlength", true) => queryable.OrderByDescending(r => r.FixedLength ?? ""),
             ("nonfixedlengthrange", false) => queryable.OrderBy(r => r.NonFixedLengthRange ?? ""),

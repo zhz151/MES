@@ -73,6 +73,22 @@ public class MaterialReceiveCheckService
         catch (Exception ex) { return ApiResponse<PagedResult<MaterialReceiveCheckDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    public async Task<ApiResponse<MaterialCheckHealthSummaryDto>> GetMaterialCheckHealthSummaryAsync(
+        string? keyword = null, DateTime? receiveDateFrom = null, DateTime? receiveDateTo = null, string? filters = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/health-summary";
+            if (!string.IsNullOrEmpty(keyword)) url += $"?keyword={Uri.EscapeDataString(keyword)}";
+            if (receiveDateFrom.HasValue) url += $"&receiveDateFrom={receiveDateFrom.Value:yyyy-MM-dd}";
+            if (receiveDateTo.HasValue) url += $"&receiveDateTo={receiveDateTo.Value:yyyy-MM-dd}";
+            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
+            return await _http.GetFromJsonAsync<ApiResponse<MaterialCheckHealthSummaryDto>>(url)
+                   ?? ApiResponse<MaterialCheckHealthSummaryDto>.Fail("获取健康汇总失败");
+        }
+        catch (Exception ex) { return ApiResponse<MaterialCheckHealthSummaryDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     public async Task<ApiResponse<List<MaterialReceiveCheckDto>>> GetAllMaterialReceiveCheckListAsync()
     {
         try

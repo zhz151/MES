@@ -155,7 +155,7 @@ public partial class Orders
         new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "③ 订单确认" },
         // ========== ④ 工单执行 ==========
         new() { Key = "schedulestage",     Label = "执行关注", SortKey = "schedulestage",     FilterType = "enum", Width = "100", GroupKey = 4, GroupName = "④ 工单执行",
-               EnumOptions = new List<EnumOption> { new("", "未排产"), new("0", "完成"), new("1", "原料锁定"), new("2", "生产执行"), new("3", "成品检验") },
+               EnumOptions = new List<EnumOption> { new("", "未排产"), new("0", "主号暂停"), new("1", "主号完成"), new("2", "原料锁定"), new("3", "生产执行"), new("4", "成品检验") },
                DisplayConverter = v => v is SalesOrderListDto d ? d.ScheduleStageText : "-" },
         new() { Key = "urgencylevel",      Label = "紧急性",   SortKey = "urgencylevel",      FilterType = "string", Width = "80", GroupKey = 4, GroupName = "④ 工单执行" },
         new() { Key = "estimatedcompletiondate", Label = "预计完成", SortKey = "estimatedcompletiondate", FilterType = "date", Width = "100", GroupKey = 4, GroupName = "④ 工单执行" },

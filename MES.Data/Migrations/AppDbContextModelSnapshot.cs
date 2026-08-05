@@ -646,6 +646,9 @@ namespace MES.Data.Migrations
                     b.Property<decimal?>("InputWeight")
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<string>("InspectionStage")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsForceCompleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -706,6 +709,27 @@ namespace MES.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool?>("ProcessInspectionNeedAdjust")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ProcessInspectionQualifiedQty")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("ProcessInspectionQualifiedWeight")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("ProcessInspectionReworkWeight")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ProcessInspectionScrapWeight")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ProcessInspectionTheoreticalQty")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("ProductUnitWeight")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("ProductionMainNo")
                         .IsRequired()
@@ -997,6 +1021,9 @@ namespace MES.Data.Migrations
 
                     b.Property<decimal?>("FinishedCutLength")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool?>("IsPreCut")
+                        .HasColumnType("bit");
 
                     b.Property<string>("LengthStatus")
                         .HasMaxLength(20)
@@ -4771,6 +4798,9 @@ namespace MES.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("ProductionMainNo")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("ReportDate")
                         .HasColumnType("datetime2");
 
@@ -5154,6 +5184,10 @@ namespace MES.Data.Migrations
                     b.Property<DateTime?>("EddyCurrentDate")
                         .HasColumnType("date");
 
+                    b.Property<string>("EndCustomer")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<DateTime?>("EndoscopyDate")
                         .HasColumnType("date");
 
@@ -5180,6 +5214,14 @@ namespace MES.Data.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<string>("InspectionType")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("IsDeliveryStatus")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<bool>("IsForceCompleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -5193,6 +5235,10 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("ManufacturingItem")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ManufacturingStatus")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
@@ -5219,6 +5265,9 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
+
+                    b.Property<string>("ProductionMainNo")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ProductionType")
                         .HasMaxLength(20)
@@ -5298,8 +5347,7 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("IX_QPT_BatchNo");
 
                     b.HasIndex("MaterialReceiveCheckId")
-                        .IsUnique()
-                        .HasDatabaseName("UK_QPT_MaterialReceiveCheckId");
+                        .HasDatabaseName("IX_QPT_MaterialReceiveCheckId");
 
                     b.HasIndex("ProductionBatchId")
                         .HasDatabaseName("IX_QPT_ProductionBatchId");
@@ -5315,6 +5363,11 @@ namespace MES.Data.Migrations
 
                     b.HasIndex("WorkOrderNo")
                         .HasDatabaseName("IX_QPT_WorkOrderNo");
+
+                    b.HasIndex("ProductionBatchId", "InspectionType")
+                        .IsUnique()
+                        .HasDatabaseName("UK_QPT_ProductionBatchType")
+                        .HasFilter("[InspectionType] IS NOT NULL");
 
                     b.ToTable("QualityProcessTracking", (string)null);
                 });
@@ -6700,6 +6753,10 @@ namespace MES.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("ManufacturingStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("MaterialType")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -6773,10 +6830,6 @@ namespace MES.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("SurfaceCondition")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("TagNo")
                         .HasMaxLength(50)
@@ -8265,31 +8318,6 @@ namespace MES.Data.Migrations
                     b.Property<int?>("DaysDiffFromDelivery")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("DefectiveOutputQty")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("DefectiveOutputWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("DefectiveRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<int>("DefectiveRawQty")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("DefectiveRawWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
                     b.Property<bool>("DeformedProcessCompleted")
                         .HasColumnType("bit");
 
@@ -8308,6 +8336,21 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTime?>("EstimatedProcessCompletionDate")
                         .HasColumnType("date");
+
+                    b.Property<int?>("FinalInspectionDefectQty")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FinalInspectionDefectWeight")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FinalInspectionReworkWeight")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FinalInspectionScrapWeight")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FinalInspectionWarehouseWeight")
+                        .HasColumnType("int");
 
                     b.Property<int>("FinishInStatus")
                         .ValueGeneratedOnAdd()
@@ -8364,16 +8407,6 @@ namespace MES.Data.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
-                    b.Property<decimal>("GeneralDefectRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("GeneralDefectWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
                     b.Property<int>("InMainInputStatus")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -8429,27 +8462,6 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
-
-                    b.Property<int>("InspectionDefectQty")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<decimal>("InspectionDefectRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("InspectionDefectWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<DateTime?>("InspectionEndDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("InspectionStartDate")
-                        .HasColumnType("datetime2");
 
                     b.Property<int>("InventoryOutStatus")
                         .ValueGeneratedOnAdd()
@@ -8561,6 +8573,12 @@ namespace MES.Data.Migrations
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
 
+                    b.Property<decimal?>("PendingReworkOutputQty")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("PendingReworkOutputWeight")
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<int>("PendingRoughTubeQty")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -8635,6 +8653,18 @@ namespace MES.Data.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<int?>("ProcessInspectionDefectWeight")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ProcessInspectionReworkWeight")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ProcessInspectionScrapWeight")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ProcessInspectionWarehouseWeight")
+                        .HasColumnType("int");
+
                     b.Property<string>("ProductionAttentionProcess")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -8660,6 +8690,9 @@ namespace MES.Data.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<string>("ReworkInputConsistency")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("ReworkInputEndDate")
                         .HasColumnType("date");
 
@@ -8672,6 +8705,11 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
+
+                    b.Property<int>("ReworkMainNoStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<int>("ReworkPlanInputStatus")
                         .ValueGeneratedOnAdd()
@@ -8698,6 +8736,12 @@ namespace MES.Data.Migrations
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
 
+                    b.Property<int?>("ReworkTheoreticalProduceQty")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("ReworkTheoreticalProduceWeight")
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<string>("SalesOrderNo")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -8712,16 +8756,6 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
-
-                    b.Property<decimal>("ScrapRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("ScrapWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
 
                     b.Property<int>("SemiInStatus")
                         .ValueGeneratedOnAdd()
@@ -8749,16 +8783,6 @@ namespace MES.Data.Migrations
                         .HasDefaultValue(0m);
 
                     b.Property<decimal>("SemiPlanWeight")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,3)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("SeriousDefectRatio")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(8,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<decimal>("SeriousDefectWeight")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);

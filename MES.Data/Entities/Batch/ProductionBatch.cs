@@ -272,6 +272,11 @@ public class ProductionBatch : BaseEntity
     public decimal TotalWeight { get; set; }
 
     /// <summary>
+    /// 产品单支量(kg/支) = 总重量/总支数，仅"定尺"批次有效，非定尺为空；保留1位小数
+    /// </summary>
+    public decimal? ProductUnitWeight { get; set; }
+
+    /// <summary>
     /// 总项次数
     /// </summary>
     public int TotalItemCount { get; set; }
@@ -403,6 +408,44 @@ public class ProductionBatch : BaseEntity
     /// 需求=是 且 执行=否 但批次已到成检/完成 且 非强制完成 → MissingRecords（疑问-缺少，即缺少成品切割记录）
     /// </summary>
     public CutDoubtType? CutDoubt { get; set; }
+
+    /// <summary>
+    /// 成检附加（InspectionType 枚举字符串）：PreInspection=预检，FormalInspection=终检
+    /// 由刷新时依据成检到料记录计算 —— 含正式检验（或 InspectionType 为空按终检保守）→ 终检；仅预成检 → 预检；无到料 → null
+    /// </summary>
+    public string? InspectionStage { get; set; }
+
+    // ========== 过程检字段（刷新时按过程检验聚合） ==========
+
+    /// <summary>
+    /// 过程检合格支：当前执行工序组全部过程检验的合格支数聚合；无检验/不在产 → null
+    /// </summary>
+    public int? ProcessInspectionQualifiedQty { get; set; }
+
+    /// <summary>
+    /// 过程检合格量(kg)：当前执行工序组全部过程检验的合格重量聚合；无检验/不在产 → null
+    /// </summary>
+    public decimal? ProcessInspectionQualifiedWeight { get; set; }
+
+    /// <summary>
+    /// 过程检理论成品支：Round(合格量 ÷ 合格支 ÷ 成品的理论单支重, AwayFromZero) × 合格支（重量口径折算）
+    /// </summary>
+    public int? ProcessInspectionTheoreticalQty { get; set; }
+
+    /// <summary>
+    /// 需调整：批次状态为 成检/完成 时固定 null（-）不判定；其余状态 过程检理论成品支 与 当前理论成品支 偏差 &gt; 3% → true（是）；否则/无数据 → null（-）
+    /// </summary>
+    public bool? ProcessInspectionNeedAdjust { get; set; }
+
+    /// <summary>
+    /// 缺陷-返整量（重量 kg）：过程检验 理论返整重 全量聚合（返整会另开批次，不延续本批）
+    /// </summary>
+    public int? ProcessInspectionReworkWeight { get; set; }
+
+    /// <summary>
+    /// 缺陷-纯次品量（重量 kg）：过程检验 理论报废重+理论入库重 全量聚合（彻底退出正常流）
+    /// </summary>
+    public int? ProcessInspectionScrapWeight { get; set; }
 
     // ========== 导航属性 ==========
 

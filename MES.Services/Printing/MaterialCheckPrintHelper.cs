@@ -53,6 +53,7 @@ public static class MaterialCheckPrintHelper
                 ["Salesman"] = m.Salesman ?? "",
                 ["DeliveryState"] = m.DeliveryState.HasValue ? EnumHelper.GetDisplayName(typeof(DeliveryState), m.DeliveryState.Value) : "",
                 ["IsForceCompleted"] = m.IsForceCompleted ? "是" : "否",
+                ["IsDeliveryStatus"] = m.IsDeliveryStatus ?? "-",
                 ["Remark"] = m.Remark ?? "",
                 ["CreatedTime"] = m.CreatedTime.ToString("yyyy-MM-dd HH:mm"),
                 ["UpdatedTime"] = m.UpdatedTime.ToString("yyyy-MM-dd HH:mm")

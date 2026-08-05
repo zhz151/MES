@@ -328,6 +328,211 @@ public class ProductionRecordServiceTests : TestBase
             .WithMessage("*成品切割长度(6000mm)不属于该订单号+主号(SO-001/M-001)下的定尺长度*");
     }
 
+    // ========== 预成切 ==========
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_预成切长度属于定尺集合_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var act = () => svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "断切",
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 4000m,
+            IsPreCut = true
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*预成切长度(4000mm)不能属于该订单号+主号(SO-001/M-001)下的正式定尺长度*");
+    }
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_预成切长度不在定尺集合_成功创建()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var result = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "断切",
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 6000m,
+            IsPreCut = true
+        });
+
+        result.Should().NotBeNull();
+        result.IsPreCut.Should().BeTrue();
+        result.FinishedCutLength.Should().Be(6000m);
+    }
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_预成切非定尺主号_跳过校验()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock()); // 空集合 = 非定尺，跳过校验
+
+        var result = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "断切",
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 6000m,
+            IsPreCut = true
+        });
+
+        result.Should().NotBeNull();
+        result.IsPreCut.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UpdateProductionRecordAsync_改为预成切且长度属于定尺集合_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var created = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "断切",
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 4000m
+        });
+
+        var act = () => svc.UpdateProductionRecordAsync(created.Id, new UpdateProductionRecordRequest
+        {
+            ExecDate = DateTime.Today,
+            IsPreCut = true,
+            FinishedCutLength = 4000m
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*预成切长度(4000mm)不能属于该订单号+主号(SO-001/M-001)下的正式定尺长度*");
+    }
+
+    [Fact]
+    public async Task UpdateProductionRecordAsync_改为预成切且长度不在定尺集合_成功()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var created = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "断切",
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 4000m
+        });
+
+        var result = await svc.UpdateProductionRecordAsync(created.Id, new UpdateProductionRecordRequest
+        {
+            ExecDate = DateTime.Today,
+            IsPreCut = true,
+            FinishedCutLength = 6000m
+        });
+
+        result.IsPreCut.Should().BeTrue();
+        result.FinishedCutLength.Should().Be(6000m);
+    }
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_预成切非断切工段_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var act = () => svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "冷轧拔", // 非断切工段
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 6000m,
+            IsPreCut = true
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*预成切必须是断切工段*");
+    }
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_预成切断切工段未填长度_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock());
+
+        var act = () => svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "断切",
+            ExecDate = DateTime.Today,
+            IsPreCut = true
+            // 未填 FinishedCutLength
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*预成切必须填写成品长度*");
+    }
+
+    [Fact]
+    public async Task UpdateProductionRecordAsync_预成切未填长度_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        // 创建断切记录但无成品长度（长度为空，长度校验跳过）
+        var created = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = "断切",
+            ExecDate = DateTime.Today
+        });
+
+        var act = () => svc.UpdateProductionRecordAsync(created.Id, new UpdateProductionRecordRequest
+        {
+            ExecDate = DateTime.Today,
+            IsPreCut = true
+            // 未传 FinishedCutLength，生效值仍为空
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*预成切必须填写成品长度*");
+    }
+
     [Fact]
     public async Task DeleteProductionRecordAsync_成功删除()
     {
@@ -656,6 +861,7 @@ public class ProductionRecordServiceTests : TestBase
                 SectionName = SectionDefs.Cut,
                 SequenceNumber = 5,
                 ExecDate = DateTime.Today,
+                ProductStatus = "成品",
                 PostCutQuantity = cutQty,
                 Quantity = processQty
             });
@@ -678,6 +884,195 @@ public class ProductionRecordServiceTests : TestBase
         refreshed.CutExecution.Should().BeTrue();
         refreshed.CutQuantity.Should().Be(100);
         refreshed.CutDoubt.Should().Be(CutDoubtType.Normal); // |100-100|/100 = 0% ≤ 5% → 正常
+    }
+
+    [Fact]
+    public async Task RefreshCutTracking_预成切记录不计入成切支数()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutBatchAsync(ctx, cutQty: 100); // 正式断切记录 PostCutQuantity=100
+
+        // 再添加一条预成切断切记录（成品，PostCutQuantity=50，IsPreCut=true）
+        var pgId = await ctx.ProcessGroups.Where(p => p.ProductionBatchId == batch.Id).Select(p => p.Id).FirstAsync();
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pgId,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionDefs.Cut,
+            SequenceNumber = 6,
+            ExecDate = DateTime.Today,
+            ProductStatus = "成品",
+            PostCutQuantity = 50,
+            Quantity = 10,
+            IsPreCut = true
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.CutRequirement.Should().BeTrue();
+        refreshed.CutExecution.Should().BeTrue(); // 有正式断切记录 → 已执行成切
+        refreshed.CutQuantity.Should().Be(100);   // 只计正式断切 100，预成切 50 不计入
+        refreshed.CutDoubt.Should().Be(CutDoubtType.Normal);
+    }
+
+    [Fact]
+    public async Task RefreshCutTracking_仅有预成切记录_不算已成切()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutBatchAsync(ctx, withCutRecord: false); // 无正式断切记录
+        var pgId = await ctx.ProcessGroups.Where(p => p.ProductionBatchId == batch.Id).Select(p => p.Id).FirstAsync();
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pgId,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionDefs.Cut,
+            SequenceNumber = 5,
+            ExecDate = DateTime.Today,
+            ProductStatus = "成品",
+            PostCutQuantity = 50,
+            Quantity = 10,
+            IsPreCut = true
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.CutRequirement.Should().BeTrue();
+        refreshed.CutExecution.Should().BeFalse(); // 仅有预成切，不算已成切
+        refreshed.CutQuantity.Should().BeNull();   // 预成切不计入成切支数
+        refreshed.CutDoubt.Should().BeNull();      // 状态在产，未到成检/完成 → 略
+    }
+
+    [Fact]
+    public async Task RefreshCutTracking_仅有预成切记录到预检验_判正常()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutBatchAsync(ctx, withCutRecord: false, batchNo: "BATCH-PRECUT-MISS");
+        // 预成切断切记录（成品，IsPreCut=true）
+        var pg = await ctx.ProcessGroups.FirstAsync(p => p.ProductionBatchId == batch.Id);
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionDefs.Cut,
+            SequenceNumber = 5,
+            ExecDate = DateTime.Today,
+            ProductStatus = "成品",
+            PostCutQuantity = 50,
+            Quantity = 10,
+            IsPreCut = true
+        });
+        // 预成检到料 → 刷新时 hasMaterialCheck=true，批次状态保持"成检"
+        ctx.MaterialReceiveChecks.Add(new MaterialReceiveCheck
+        {
+            ProductionBatchId = batch.Id,
+            ReceiveDate = DateTime.Today,
+            ProcessGroupId = pg.Id,
+            ProcessName = "检验",
+            SequenceNumber = 1,
+            BatchNo = batch.BatchNo,
+            InspectionType = nameof(InspectionType.PreInspection)
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.InFinalInspection);
+        refreshed.CutRequirement.Should().BeTrue();
+        refreshed.CutExecution.Should().BeFalse(); // 仅有预成切 → 不算已成切
+        refreshed.CutQuantity.Should().BeNull();   // 预成切不计入成切支数
+        refreshed.InspectionStage.Should().Be(nameof(InspectionType.PreInspection));
+        // 成检+成检附加=预检：正式成切留待正式成检，非"缺失" → 正常
+        refreshed.CutDoubt.Should().Be(CutDoubtType.Normal);
+    }
+
+    [Fact]
+    public async Task RefreshCutTracking_普通批次仅预检到料_执行否_判正常()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutBatchAsync(ctx, withCutRecord: false, batchNo: "BATCH-PRECUT-ONLYPRE");
+        // 无任何断切记录（无预成切、无正式），仅预成检到料
+        var pg = await ctx.ProcessGroups.FirstAsync(p => p.ProductionBatchId == batch.Id);
+        ctx.MaterialReceiveChecks.Add(new MaterialReceiveCheck
+        {
+            ProductionBatchId = batch.Id,
+            ReceiveDate = DateTime.Today,
+            ProcessGroupId = pg.Id,
+            ProcessName = "检验",
+            SequenceNumber = 1,
+            BatchNo = batch.BatchNo,
+            InspectionType = nameof(InspectionType.PreInspection)
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.InFinalInspection);
+        refreshed.CutRequirement.Should().BeTrue();
+        refreshed.CutExecution.Should().BeFalse();
+        refreshed.CutQuantity.Should().BeNull();
+        refreshed.InspectionStage.Should().Be(nameof(InspectionType.PreInspection));
+        // 成检+成检附加=预检、执行=否 → 正常
+        refreshed.CutDoubt.Should().Be(CutDoubtType.Normal);
+    }
+
+    [Fact]
+    public async Task RefreshCutTracking_仅有预成切记录到正式成检_判疑问缺少()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutBatchAsync(ctx, withCutRecord: false, batchNo: "BATCH-PRECUT-FORMAL");
+        // 预成切断切记录（成品，IsPreCut=true）
+        var pg = await ctx.ProcessGroups.FirstAsync(p => p.ProductionBatchId == batch.Id);
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionDefs.Cut,
+            SequenceNumber = 5,
+            ExecDate = DateTime.Today,
+            ProductStatus = "成品",
+            PostCutQuantity = 50,
+            Quantity = 10,
+            IsPreCut = true
+        });
+        // 正式成检到料：已进入正式成检却没有正式成切记录 → 疑问-缺少
+        ctx.MaterialReceiveChecks.Add(new MaterialReceiveCheck
+        {
+            ProductionBatchId = batch.Id,
+            ReceiveDate = DateTime.Today,
+            ProcessGroupId = pg.Id,
+            ProcessName = "检验",
+            SequenceNumber = 1,
+            BatchNo = batch.BatchNo,
+            InspectionType = nameof(InspectionType.FormalInspection)
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.InFinalInspection);
+        refreshed.CutRequirement.Should().BeTrue();
+        refreshed.CutExecution.Should().BeFalse(); // 仅有预成切 → 不算已成切
+        refreshed.CutQuantity.Should().BeNull();   // 预成切不计入成切支数
+        refreshed.InspectionStage.Should().Be(nameof(InspectionType.FormalInspection));
+        // 预成切批次但已到正式成检：缺正式成切仍属"缺失" → 疑问-缺少
+        refreshed.CutDoubt.Should().Be(CutDoubtType.MissingRecords);
     }
 
     [Fact]
@@ -756,6 +1151,7 @@ public class ProductionRecordServiceTests : TestBase
         refreshed.CutRequirement.Should().BeTrue();
         refreshed.CutExecution.Should().BeFalse();
         refreshed.CutQuantity.Should().BeNull();
+        refreshed.InspectionStage.Should().Be(nameof(InspectionType.FormalInspection)); // InspectionType 为空按终检保守
         // 需求=是、执行=否、已到成检且非强制完成 → 疑问-缺少（缺失成品切割记录）
         refreshed.CutDoubt.Should().Be(CutDoubtType.MissingRecords);
     }

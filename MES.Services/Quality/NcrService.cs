@@ -100,6 +100,7 @@ public class NcrService : INcrService
             queryable = queryable.Where(r =>
                 r.BatchNo.Contains(kw) ||
                 (r.WorkOrderNo != null && r.WorkOrderNo.Contains(kw)) ||
+                (r.ProductionMainNo != null && r.ProductionMainNo.Contains(kw)) ||
                 (r.PlantGrade != null && r.PlantGrade.Contains(kw)) ||
                 (r.Specification != null && r.Specification.Contains(kw)) ||
                 (r.ReportDepartment != null && r.ReportDepartment.Contains(kw)) ||
@@ -160,6 +161,7 @@ public class NcrService : INcrService
             .Select(b => new
             {
                 b.WorkOrderNo,
+                b.ProductionMainNo,
                 b.PlantGrade,
                 b.Specification
             })
@@ -174,6 +176,7 @@ public class NcrService : INcrService
             PipeCategory = request.PipeCategory,
             BatchNo = request.BatchNo,
             WorkOrderNo = request.WorkOrderNo ?? batch?.WorkOrderNo,
+            ProductionMainNo = batch?.ProductionMainNo,
             PlantGrade = request.PlantGrade ?? batch?.PlantGrade,
             Specification = request.Specification ?? batch?.Specification,
             DefectiveQuantity = request.DefectiveQuantity,
@@ -331,6 +334,7 @@ public class NcrService : INcrService
             {
                 WorkOrderNo = b.WorkOrderNo,
                 SalesOrderNo = b.SalesOrderNo,
+                ProductionMainNo = b.ProductionMainNo,
                 TagNo = b.TagNo,
                 PlantGrade = b.PlantGrade,
                 Specification = b.Specification
@@ -355,6 +359,7 @@ public class NcrService : INcrService
                     r.Reporter,
                     r.BatchNo,
                     r.WorkOrderNo,
+                    r.ProductionMainNo,
                     r.PlantGrade,
                     r.Specification,
                     r.ProblemDescription,
@@ -380,6 +385,7 @@ public class NcrService : INcrService
                 ["Reporter"] = results.Select(x => x.Reporter).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["BatchNo"] = results.Select(x => x.BatchNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["WorkOrderNo"] = results.Select(x => x.WorkOrderNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["ProductionMainNo"] = results.Select(x => x.ProductionMainNo).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["PlantGrade"] = results.Select(x => x.PlantGrade).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["Specification"] = results.Select(x => x.Specification).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
                 ["ProblemDescription"] = results.Select(x => x.ProblemDescription).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
@@ -652,6 +658,7 @@ public class NcrService : INcrService
             queryable = queryable.Where(r =>
                 r.BatchNo.Contains(kw) ||
                 (r.WorkOrderNo != null && r.WorkOrderNo.Contains(kw)) ||
+                (r.ProductionMainNo != null && r.ProductionMainNo.Contains(kw)) ||
                 (r.PlantGrade != null && r.PlantGrade.Contains(kw)) ||
                 (r.Specification != null && r.Specification.Contains(kw)) ||
                 (r.ReportDepartment != null && r.ReportDepartment.Contains(kw)) ||
@@ -708,6 +715,7 @@ public class NcrService : INcrService
             PipeCategory = r.PipeCategory,
             BatchNo = r.BatchNo,
             WorkOrderNo = r.WorkOrderNo,
+            ProductionMainNo = r.ProductionMainNo,
             PlantGrade = r.PlantGrade,
             Specification = r.Specification,
             DefectiveQuantity = r.DefectiveQuantity,
@@ -752,6 +760,7 @@ public class NcrService : INcrService
             PipeCategory = entity.PipeCategory,
             BatchNo = entity.BatchNo,
             WorkOrderNo = entity.WorkOrderNo,
+            ProductionMainNo = entity.ProductionMainNo,
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
             DefectiveQuantity = entity.DefectiveQuantity,

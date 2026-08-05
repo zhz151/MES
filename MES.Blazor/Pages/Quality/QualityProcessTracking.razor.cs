@@ -8,6 +8,7 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.Models;
+using MES.Core.Enums;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
 
@@ -47,27 +48,49 @@ public partial class QualityProcessTracking
     private static List<ColumnDef> GetAllColumnDefs()
     {
         // G1: 批次信息
+        var deliveryStateOptions = new List<EnumOption>
+        {
+            new("SolutionAnnealedAndPickled", "固溶酸洗"),
+            new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
+            new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"),
+            new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
+            new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"),
+            new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
+            new("Bright", "光亮"),
+            new("BrightUTube", "光亮-U型管"),
+            new("BrightCoiled", "光亮-盘管"),
+            new("Hard", "硬态"),
+            new("SolidSolutionStraightening", "固溶矫直")
+        };
         var g1 = new List<ColumnDef>
         {
             new() { Key = "BatchNo",              Label = "生产编号",       SortKey = "batchno",              FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "ManufacturingItem",     Label = "制造物品",       SortKey = "manufacturingitem",    FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
-                EnumOptions = new() { new("OrderFinished","订单成品"), new("Finished","备料成品"), new("Surplus","余库料"), new("SpecialDeliveryStatus","订成-非交付态") } },
-            new() { Key = "PlantGrade",            Label = "工厂牌号",       SortKey = "plantgrade",            FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "Specification",         Label = "规格",           SortKey = "specification",         FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "LengthStatus",          Label = "长度状态",       SortKey = "lengthstatus",          FilterType = "enum",    Width = "100", GroupKey = 1, GroupName = "批次信息",
-                EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") } },
-            new() { Key = "TagNo",                 Label = "挂牌号",         SortKey = "tagno",                 FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
-            new() { Key = "WorkOrderNo",           Label = "工单号",         SortKey = "workorderno",           FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
-            new() { Key = "SalesOrderNo",          Label = "订单号",         SortKey = "salesorderno",          FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
-            new() { Key = "FurnaceNo",             Label = "炉号",           SortKey = "furnaceno",             FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
-            new() { Key = "SourceUnit",            Label = "来料单位",       SortKey = "sourceunit",            FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
-            new() { Key = "ProductionType",        Label = "生产类型",       SortKey = "productiontype",        FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false,
+            new() { Key = "TagNo",                Label = "挂牌号",         SortKey = "tagno",                FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "InspectionType",       Label = "成检类型",       SortKey = "inspectiontype",       FilterType = "enum",    Width = "100", GroupKey = 1, GroupName = "批次信息",
+                EnumOptions = new() { new("PreInspection", "预成检"), new("FormalInspection", "正式成检") } },
+            new() { Key = "IsDeliveryStatus",     Label = "是否交付态",     SortKey = "isdeliverystatus",     FilterType = "enum",    Width = "90",  GroupKey = 1, GroupName = "批次信息",
+                EnumOptions = new() { new("是", "是"), new("否", "否") } },
+            new() { Key = "ProductionType",       Label = "生产类型",       SortKey = "productiontype",       FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false,
                 EnumOptions = new() { new("RoughTube","荒管生产"), new("InProcess","在制生产"), new("Inventory","库存"), new("OutsourcedPurchased","外购"), new("Rework","返整"), new("Subcontract","委外生产"), new("ExternalProcessing","对外加工") } },
-            new() { Key = "Salesman",              Label = "业务员",         SortKey = "salesman",              FilterType = "string",  Width = "100", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "DeliveryState",         Label = "交货状态",       SortKey = "deliverystate",         FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
-                EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态"), new("SolidSolutionStraightening","固溶矫直") } },
-            new() { Key = "ProductionWeight",      Label = "生产重量(kg)",  SortKey = "productionweight",      FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "ProductionCutQuantity", Label = "生产支数",       SortKey = "productioncutquantity", FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ManufacturingItem",    Label = "制造物品",       SortKey = "manufacturingitem",    FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
+                EnumOptions = new() { new("OrderFinished","订单成品"), new("Finished","备料成品"), new("Surplus","余库料"), new("SpecialDeliveryStatus","订成-非交付态") } },
+            new() { Key = "ManufacturingStatus",  Label = "制造状态",       SortKey = "manufacturingstatus",  FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
+                EnumOptions = deliveryStateOptions },
+            new() { Key = "DeliveryState",        Label = "交货状态",       SortKey = "deliverystate",        FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
+                EnumOptions = deliveryStateOptions },
+            new() { Key = "PlantGrade",           Label = "工厂牌号",       SortKey = "plantgrade",           FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "Specification",        Label = "规格",           SortKey = "specification",        FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "LengthStatus",         Label = "长度状态",       SortKey = "lengthstatus",         FilterType = "enum",    Width = "100", GroupKey = 1, GroupName = "批次信息",
+                EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") } },
+            new() { Key = "ProductionCutQuantity",Label = "生产支数",       SortKey = "productioncutquantity",FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ProductionWeight",     Label = "生产重量(kg)",  SortKey = "productionweight",     FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "FurnaceNo",            Label = "炉号",           SortKey = "furnaceno",            FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "SourceUnit",           Label = "来料单位",       SortKey = "sourceunit",           FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "WorkOrderNo",          Label = "工单号",         SortKey = "workorderno",          FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "SalesOrderNo",         Label = "订单号",         SortKey = "salesorderno",         FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "ProductionMainNo",     Label = "主号",           SortKey = "productionmainno",     FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "Salesman",             Label = "业务员",         SortKey = "salesman",             FilterType = "string",  Width = "100", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "EndCustomer",          Label = "最终用户",       SortKey = "endcustomer",          FilterType = "string",  Width = "150", GroupKey = 1, GroupName = "批次信息" },
         };
 
         // G2: 检验来料
@@ -100,7 +123,7 @@ public partial class QualityProcessTracking
         var g4 = new List<ColumnDef>
         {
             new() { Key = "TotalQuantity",              Label = "检验支数",       SortKey = "totalquantity",           FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
-            new() { Key = "QualifiedQuantity",           Label = "合格支数",       SortKey = "qualifiedquantity",       FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
+            new() { Key = "QualifiedQuantity",           Label = "理论合格支",     SortKey = "qualifiedquantity",       FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
             new() { Key = "DefectReworkQuantity",        Label = "返整支数",       SortKey = "defectreworkquantity",    FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
             new() { Key = "DefectWarehouseQuantity",     Label = "不合格入库",     SortKey = "defectwarehousequantity", FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
             new() { Key = "DefectScrapQuantity",         Label = "报废支数",       SortKey = "defectscrapquantity",     FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
@@ -590,6 +613,14 @@ public partial class QualityProcessTracking
                 builder.CloseComponent();
                 break;
 
+            case "InspectionType":
+                builder.AddContent(0, item.InspectionTypeDisplay);
+                break;
+
+            case "IsDeliveryStatus":
+                builder.AddContent(0, item.IsDeliveryStatusDisplay);
+                break;
+
             case "ManufacturingItem":
                 builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.ManufacturingItem?.ToString()));
                 break;
@@ -622,6 +653,10 @@ public partial class QualityProcessTracking
                 builder.AddContent(0, item.SalesOrderNo);
                 break;
 
+            case "ProductionMainNo":
+                builder.AddContent(0, item.ProductionMainNo);
+                break;
+
             case "FurnaceNo":
                 builder.AddContent(0, item.FurnaceNo);
                 break;
@@ -638,6 +673,14 @@ public partial class QualityProcessTracking
                 builder.AddContent(0, item.Salesman);
                 break;
 
+            case "EndCustomer":
+                builder.AddContent(0, item.EndCustomer);
+                break;
+
+            case "ManufacturingStatus":
+                builder.AddContent(0, item.ManufacturingStatusDisplay);
+                break;
+
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState?.ToString()));
                 break;
@@ -647,11 +690,11 @@ public partial class QualityProcessTracking
                 break;
 
             case "ProductionWeight":
-                builder.AddContent(0, item.ProductionWeight.HasValue ? ((int)item.ProductionWeight.Value).ToString() : "-");
+                builder.AddContent(0, item.ProductionWeight is > 0 ? ((int)item.ProductionWeight.Value).ToString() : "-");
                 break;
 
             case "ProductionCutQuantity":
-                builder.AddContent(0, item.ProductionCutQuantity);
+                builder.AddContent(0, item.ProductionCutQuantity > 0 ? item.ProductionCutQuantity.ToString() : "-");
                 break;
 
             case "ReceiveDate":
@@ -693,17 +736,17 @@ public partial class QualityProcessTracking
             case "DefectScrapQuantity":
                 {
                     var val = (int)(typeof(QualityProcessTrackingDto).GetProperty(col.Key)?.GetValue(item) ?? 0);
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(val));
+                    builder.AddContent(0, val > 0 ? val.ToString() : "-");
                 }
                 break;
 
             // === G4: 入库 ===
             case "InboundQuantity":
-                builder.AddContent(0, DisplayHelper.FormatNullableInt(item.InboundQuantity));
+                builder.AddContent(0, item.InboundQuantity is > 0 ? item.InboundQuantity.ToString() : "-");
                 break;
 
             case "InboundWeight":
-                builder.AddContent(0, DisplayHelper.FormatNullableDecimal(item.InboundWeight));
+                builder.AddContent(0, item.InboundWeight is > 0 ? DisplayHelper.FormatDecimal(item.InboundWeight.Value) : "-");
                 break;
 
             case "InboundDate":
@@ -713,6 +756,16 @@ public partial class QualityProcessTracking
             // === G5: 执行状态 ===
             case "QualityStatus":
                 {
+                    // 预成检不参与执行状态跟踪，统一显示"略"
+                    if (item.InspectionType == nameof(InspectionType.PreInspection))
+                    {
+                        builder.OpenComponent<MudChip>(0);
+                        builder.AddAttribute(1, "Size", Size.Small);
+                        builder.AddAttribute(2, "Color", Color.Default);
+                        builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "略")));
+                        builder.CloseComponent();
+                        break;
+                    }
                     var displayText = item.IsForceCompleted ? "异常完成" : item.QualityStatus;
                     var color = item.IsForceCompleted ? Color.Info :
                         item.QualityStatus switch

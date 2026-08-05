@@ -77,7 +77,7 @@
                                 <MudTh Style="width:55px;">剩余支数</MudTh>
                                 <MudTh Style="width:60px;">剩余重量</MudTh>
                                 <MudTh Style="width:60px;">理论单支重</MudTh>
-                                <MudTh Style="width:55px;">物料状态</MudTh>
+                                <MudTh Style="width:55px;">制造状态</MudTh>
                                 <MudTh Style="width:60px;">放置框架</MudTh>
                                 <MudTh Style="width:55px;">实际外径</MudTh>
                                 <MudTh Style="width:55px;">实际壁厚</MudTh>
@@ -101,7 +101,7 @@
                                 <MudTd DataLabel="剩余支数">@context.RemainingQuantity</MudTd>
                                 <MudTd DataLabel="剩余重量">@context.RemainingWeight.ToString("G29")</MudTd>
                                 <MudTd DataLabel="理论单支重">@DisplayHelper.FormatNullableDecimal(context.UnitWeight)</MudTd>
-                                <MudTd DataLabel="物料状态">@context.SurfaceCondition</MudTd>
+                                <MudTd DataLabel="制造状态">@context.ManufacturingStatus</MudTd>
                                 <MudTd DataLabel="放置框架">@GetLocation(context)</MudTd>
                                 <MudTd DataLabel="投料制成倍" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))

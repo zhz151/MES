@@ -88,8 +88,8 @@ public static class NcrPrintHelper
             AppendFieldRow(table, "反馈日期", n.ReportDate.ToString("yyyy-MM-dd"), "反馈部门", n.ReportDepartment ?? "");
             AppendFieldRow(table, "反馈人", n.Reporter ?? "", "钢管类别", GetMaterialTypeText(n.PipeCategory));
             AppendFieldRow(table, "生产编号", n.BatchNo, "工单号", n.WorkOrderNo ?? "");
-            AppendFieldRow(table, "牌号", n.PlantGrade ?? "", "规格", n.Specification ?? "");
-            AppendFieldRow(table, "不合格支数", n.DefectiveQuantity?.ToString("G29") ?? "0", "", "");
+            AppendFieldRow(table, "主号", n.ProductionMainNo ?? "", "牌号", n.PlantGrade ?? "");
+            AppendFieldRow(table, "规格", n.Specification ?? "", "不合格支数", n.DefectiveQuantity?.ToString("G29") ?? "0");
             AppendFieldSpan(table, "问题描述", n.ProblemDescription ?? "");
         });
 

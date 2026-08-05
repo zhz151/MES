@@ -6,6 +6,7 @@
 @using MES.Blazor.Shared
 @using MES.Core.DTOs.Quality
 @inject MaterialReceiveCheckService MaterialCheckService
+@inject BatchService BatchService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -72,6 +73,25 @@
                                   Placeholder="yyyy-MM-dd" />
                 </MudItem>
             </MudGrid>
+
+            <!-- 实时健康校验通知条（按当前筛选条件列出异常生产编号） -->
+            @if (_healthSummary is { IssueCount: > 0 } health)
+            {
+                <MudAlert Severity="Severity.Warning" Dismissible="true" Class="mb-3"
+                          OnClose="() => _healthSummary = null">
+                    <MudText Typo="Typo.body2">
+                        <strong>异常：</strong>
+                        @if (health.InspectionTypeExpiredBatchNos.Count > 0)
+                        {
+                            <div>（1）成检类型疑问：@string.Join("，", health.InspectionTypeExpiredBatchNos)</div>
+                        }
+                        @if (health.ProcessGroupNotInspectionBatchNos.Count > 0)
+                        {
+                            <div>（2）非成检批次：@string.Join("，", health.ProcessGroupNotInspectionBatchNos)</div>
+                        }
+                    </MudText>
+                </MudAlert>
+            }
 
             <!-- 待成检到料卡片 -->
             @if (_pendingItems.Any())
@@ -243,7 +263,7 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                            Color="Color.Warning" Size="Size.Small"
                                            Title="编辑"
-                                           OnClick="() => StartEdit(item)" />
+                                           OnClick="async () => await StartEdit(item)" />
                             <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                            Color="Color.Error" Size="Size.Small"
                                            Title="删除"

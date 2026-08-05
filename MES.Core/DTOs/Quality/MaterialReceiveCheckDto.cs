@@ -28,6 +28,7 @@ public class MaterialReceiveCheckDto
     public string? TagNo { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
+    public string? ProductionMainNo { get; set; }
     public string? SourceUnit { get; set; }
     public string? FurnaceNo { get; set; }
     public string? PlantGrade { get; set; }
@@ -50,6 +51,34 @@ public class MaterialReceiveCheckDto
     public string? InspectionType { get; set; }
     public string? InspectionTypeDisplay => !string.IsNullOrEmpty(InspectionType) && EnumHelper.TryParse<InspectionType>(InspectionType) is { } it ? EnumHelper.GetDisplayName(it) : null;
 
+    /// <summary>
+    /// 是否正式成检（成检类型==FormalInspection；null/其他/预成检均视为非正式成检）
+    /// 仅正式成检时「制造状态/是否交付态」才有效，否则统一显示 "-"
+    /// </summary>
+    public bool IsFormalInspection =>
+        string.Equals(InspectionType, nameof(MES.Core.Enums.InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 实时校验状态（列表加载时按当前工艺卡比对；null=正常）。
+    /// 「成检类型过期」=存储成检类型与当前最深检验节点判定不一致；「工序组非检验」=关联工序组已不存在或不再是检验工序组。
+    /// </summary>
+    public string? HealthIssue { get; set; }
+
+    /// <summary>
+    /// 批次原始交货状态（始终填充，用于交付态计算，不受"仅最后工序组有效"影响）
+    /// </summary>
+    public string? RawDeliveryState { get; set; }
+
+    /// <summary>
+    /// 是否交付态（批次制造状态==交货状态为"是"，否则"否"；纯计算派生，随批次当前状态）
+    /// 仅正式成检时有效，非正式成检返回 null（前端显示 "-"）
+    /// </summary>
+    public string? IsDeliveryStatus =>
+        !IsFormalInspection
+        ? null
+        : !string.IsNullOrEmpty(ManufacturingStatus) && !string.IsNullOrEmpty(RawDeliveryState)
+          && string.Equals(ManufacturingStatus, RawDeliveryState, StringComparison.OrdinalIgnoreCase) ? "是" : "否";
+
     // ========== 批次冗余字段 ==========
     public LengthStatus? LengthStatus { get; set; }
     public string? LengthStatusDisplay => LengthStatus.HasValue ? EnumHelper.GetDisplayName(LengthStatus.Value) : null;
@@ -61,13 +90,42 @@ public class MaterialReceiveCheckDto
 
     /// <summary>制造状态（批次执行的实际制造状态，与交货状态同枚举）</summary>
     public string? ManufacturingStatus { get; set; }
-    public string? ManufacturingStatusDisplay => !string.IsNullOrEmpty(ManufacturingStatus) && EnumHelper.TryParse<DeliveryState>(ManufacturingStatus) is { } ms ? EnumHelper.GetDisplayName(ms) : null;
+    public string? ManufacturingStatusDisplay => !IsFormalInspection
+        ? "-"
+        : !string.IsNullOrEmpty(ManufacturingStatus) && EnumHelper.TryParse<DeliveryState>(ManufacturingStatus) is { } ms ? EnumHelper.GetDisplayName(ms) : "-";
 
     /// <summary>创建时间</summary>
     public DateTimeOffset CreatedTime { get; set; }
 
     /// <summary>更新时间</summary>
     public DateTimeOffset UpdatedTime { get; set; }
+}
+
+/// <summary>
+/// 成检到料实时健康汇总（按当前筛选条件全量统计）
+/// </summary>
+public class MaterialCheckHealthSummaryDto
+{
+    /// <summary>筛选结果总数</summary>
+    public int TotalCount { get; set; }
+
+    /// <summary>成检类型疑问的生产编号（存储成检类型与当前工艺卡判定不一致）</summary>
+    public List<string> InspectionTypeExpiredBatchNos { get; set; } = new();
+
+    /// <summary>非成检批次的生产编号（关联工序组已不存在或不再是检验工序组）</summary>
+    public List<string> ProcessGroupNotInspectionBatchNos { get; set; } = new();
+
+    /// <summary>成检类型疑问数</summary>
+    public int InspectionTypeExpiredCount => InspectionTypeExpiredBatchNos.Count;
+
+    /// <summary>非成检批次数</summary>
+    public int ProcessGroupNotInspectionCount => ProcessGroupNotInspectionBatchNos.Count;
+
+    /// <summary>正常数</summary>
+    public int NormalCount => TotalCount - InspectionTypeExpiredCount - ProcessGroupNotInspectionCount;
+
+    /// <summary>异常总数</summary>
+    public int IssueCount => InspectionTypeExpiredCount + ProcessGroupNotInspectionCount;
 }
 
 /// <summary>
@@ -164,4 +222,9 @@ public class UpdateMaterialReceiveCheckRequest
 
     /// <summary>强制完成</summary>
     public bool? IsForceCompleted { get; set; }
+
+    /// <summary>
+    /// 重选工序组ID（可选；提交后服务端校验归属该批次并联动重算工序名称/执行序/成检类型）
+    /// </summary>
+    public int? ProcessGroupId { get; set; }
 }

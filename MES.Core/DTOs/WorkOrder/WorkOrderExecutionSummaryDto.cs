@@ -127,12 +127,37 @@ public class WorkOrderExecutionSummaryDto
     public decimal ValidOutputQty { get; set; }
     public decimal ValidOutputWeight { get; set; }
     // ========== Group 14: 返整执行 ==========
+    public int? ReworkTheoreticalProduceQty { get; set; }
+    public decimal? ReworkTheoreticalProduceWeight { get; set; }
+    public decimal? PendingReworkOutputQty { get; set; }
+    public decimal? PendingReworkOutputWeight { get; set; }
+    public int ReworkMainNoStatus { get; set; }
+    public string ReworkMainNoStatusText => ReworkMainNoStatus switch
+    {
+        0 => "未投料",
+        1 => "部分",
+        2 => "满足",
+        _ => ""
+    };
+    public string? ReworkInputConsistency { get; set; }
+    public string? ReworkInputConsistencyText => ReworkInputConsistency;
     public DateTime? ReworkInputEndDate { get; set; }
     public int ReworkBatchCount { get; set; }
     public int ReworkInputQuantity { get; set; }
     public decimal ReworkInputWeight { get; set; }
     public decimal ReworkTheoreticalOutputQty { get; set; }
     public decimal ReworkTheoreticalOutputWeight { get; set; }
+
+    // ========== Group 21: 次品总量 ==========
+    public int? ProcessInspectionDefectWeight { get; set; }
+    public int? ProcessInspectionReworkWeight { get; set; }
+    public int? ProcessInspectionWarehouseWeight { get; set; }
+    public int? ProcessInspectionScrapWeight { get; set; }
+    public int? FinalInspectionDefectQty { get; set; }
+    public int? FinalInspectionDefectWeight { get; set; }
+    public int? FinalInspectionReworkWeight { get; set; }
+    public int? FinalInspectionWarehouseWeight { get; set; }
+    public int? FinalInspectionScrapWeight { get; set; }
 
     // ========== Group 12: 有效流转 ==========
     public decimal FlowOutputRatio { get; set; }
@@ -142,28 +167,6 @@ public class WorkOrderExecutionSummaryDto
     public int FlowTotalBatchCount { get; set; }
     public int FlowIncompleteBatchCount { get; set; }
     public int FlowMaxRemainingWorkDays { get; set; }
-
-    // ========== Group 19: 过程不合格 ==========
-    public int DefectiveRawQty { get; set; }
-    public decimal DefectiveRawWeight { get; set; }
-    public decimal DefectiveOutputQty { get; set; }
-    public decimal DefectiveOutputWeight { get; set; }
-    public decimal DefectiveRatio { get; set; }
-
-    // ========== Group 20: 成检不合格 ==========
-    public DateTime? InspectionStartDate { get; set; }
-    public DateTime? InspectionEndDate { get; set; }
-    public int InspectionDefectQty { get; set; }
-    public decimal InspectionDefectWeight { get; set; }
-    public decimal InspectionDefectRatio { get; set; }
-
-    // ========== Group 18: 汇总不合格 ==========
-    public decimal GeneralDefectWeight { get; set; }
-    public decimal GeneralDefectRatio { get; set; }
-    public decimal SeriousDefectWeight { get; set; }
-    public decimal SeriousDefectRatio { get; set; }
-    public decimal ScrapWeight { get; set; }
-    public decimal ScrapRatio { get; set; }
 
     // ========== Group 15: 成品入库 ==========
     public DateTime? WarehousingStartDate { get; set; }
@@ -329,6 +332,7 @@ public class WorkOrderExecutionSummaryDto
         0 => "无入库",
         1 => "入库部分",
         2 => "入库完结",
+        3 => "入库超额",
         _ => "未知"
     };
 
@@ -343,10 +347,11 @@ public class WorkOrderExecutionSummaryDto
     // ========== G16 关注状态文本 ==========
     public string ScheduleStageText => ScheduleStage switch
     {
-        0 => "工单完成",
-        1 => "原料锁定",
-        2 => "生产执行",
-        3 => "成品检验",
+        0 => "主号暂停",
+        1 => "主号完成",
+        2 => "原料锁定",
+        3 => "生产执行",
+        4 => "成品检验",
         _ => "未知"
     };
 

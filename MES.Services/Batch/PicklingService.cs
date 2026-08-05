@@ -84,6 +84,9 @@ public class PicklingService : IPicklingService
                 s.ProcessName.Contains(kw) ||
                 s.SectionName.Contains(kw) ||
                 s.ProductionBatch.BatchNo.Contains(kw) ||
+                (s.ProductionBatch.WorkOrderNo != null && s.ProductionBatch.WorkOrderNo.Contains(kw)) ||
+                (s.ProductionBatch.SalesOrderNo != null && s.ProductionBatch.SalesOrderNo.Contains(kw)) ||
+                (s.ProductionBatch.ProductionMainNo != null && s.ProductionBatch.ProductionMainNo.Contains(kw)) ||
                 (s.TagNo != null && s.TagNo.Contains(kw)) ||
                 (s.ManufacturingSpec != null && s.ManufacturingSpec.Contains(kw)) ||
                 (s.PlantGrade != null && s.PlantGrade.Contains(kw)) ||
@@ -118,7 +121,7 @@ public class PicklingService : IPicklingService
             queryable = queryable.Where(s => s.PicklingOutRecords.Any(r => r.CompleteDate < to));
         }
 
-        // 处理 BatchNo 导航属性筛选
+        // 处理批次导航属性筛选（PicklingInRecord 实体无 BatchNo/WorkOrderNo/SalesOrderNo/ProductionMainNo 属性，ApplyFilters 反射不到）
         if (query.Filters != null)
         {
             var batchNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("BatchNo", StringComparison.OrdinalIgnoreCase));
@@ -127,6 +130,33 @@ public class PicklingService : IPicklingService
                 queryable = queryable.Where(s => s.ProductionBatch != null
                     && batchNoFilter.Values.Contains(s.ProductionBatch.BatchNo));
                 query.Filters.Remove(batchNoFilter);
+            }
+
+            var workOrderNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("WorkOrderNo", StringComparison.OrdinalIgnoreCase));
+            if (workOrderNoFilter != null && workOrderNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(s => s.ProductionBatch != null
+                    && s.ProductionBatch.WorkOrderNo != null
+                    && workOrderNoFilter.Values.Contains(s.ProductionBatch.WorkOrderNo));
+                query.Filters.Remove(workOrderNoFilter);
+            }
+
+            var salesOrderNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("SalesOrderNo", StringComparison.OrdinalIgnoreCase));
+            if (salesOrderNoFilter != null && salesOrderNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(s => s.ProductionBatch != null
+                    && s.ProductionBatch.SalesOrderNo != null
+                    && salesOrderNoFilter.Values.Contains(s.ProductionBatch.SalesOrderNo));
+                query.Filters.Remove(salesOrderNoFilter);
+            }
+
+            var productionMainNoFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("ProductionMainNo", StringComparison.OrdinalIgnoreCase));
+            if (productionMainNoFilter != null && productionMainNoFilter.Values?.Count > 0)
+            {
+                queryable = queryable.Where(s => s.ProductionBatch != null
+                    && s.ProductionBatch.ProductionMainNo != null
+                    && productionMainNoFilter.Values.Contains(s.ProductionBatch.ProductionMainNo));
+                query.Filters.Remove(productionMainNoFilter);
             }
         }
 
@@ -139,6 +169,12 @@ public class PicklingService : IPicklingService
         {
             ("batchno", false) => queryable.OrderBy(s => s.ProductionBatch.BatchNo),
             ("batchno", true) => queryable.OrderByDescending(s => s.ProductionBatch.BatchNo),
+            ("workorderno", false) => queryable.OrderBy(s => s.ProductionBatch.WorkOrderNo ?? ""),
+            ("workorderno", true) => queryable.OrderByDescending(s => s.ProductionBatch.WorkOrderNo ?? ""),
+            ("salesorderno", false) => queryable.OrderBy(s => s.ProductionBatch.SalesOrderNo ?? ""),
+            ("salesorderno", true) => queryable.OrderByDescending(s => s.ProductionBatch.SalesOrderNo ?? ""),
+            ("productionmainno", false) => queryable.OrderBy(s => s.ProductionBatch.ProductionMainNo ?? ""),
+            ("productionmainno", true) => queryable.OrderByDescending(s => s.ProductionBatch.ProductionMainNo ?? ""),
             ("processname", false) => queryable.OrderBy(s => s.ProcessName),
             ("processname", true) => queryable.OrderByDescending(s => s.ProcessName),
             ("sectionname", false) => queryable.OrderBy(s => s.SectionName),
@@ -189,6 +225,9 @@ public class PicklingService : IPicklingService
                 ProductionBatchId = s.ProductionBatchId,
                 ProcessGroupId = s.ProcessGroupId,
                 BatchNo = s.ProductionBatch.BatchNo,
+                WorkOrderNo = s.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = s.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = s.ProductionBatch.ProductionMainNo,
                 ProcessName = s.ProcessName,
                 ManufacturingSpec = s.ManufacturingSpec,
                 SectionName = s.SectionName,
@@ -310,7 +349,7 @@ public class PicklingService : IPicklingService
                 throw new BusinessException($"执行序号({sequenceNumber})超过该日期前已执行最大值({prevMax})+7={maxAllowed}");
         }
 
-        // 加载工序组列表用于计算制造状态
+        // 加载工序组列表用于计算产类
         var pgList = await _context.ProcessGroups
             .Where(pg => pg.ProductionBatchId == batch.Id)
             .ToListAsync();
@@ -561,7 +600,7 @@ public class PicklingService : IPicklingService
                 }
             }
 
-            // 计算产品状态
+            // 计算产类
             var pgList = pgByBatch.GetValueOrDefault(batchId, new List<ProcessGroup>());
 
             entities.Add(new PicklingInRecord
@@ -658,6 +697,23 @@ public class PicklingService : IPicklingService
         }
         if (request.Remark != null)
             entity.Remark = request.Remark;
+
+        // 重算产品状态（产类）：与生产记录行为一致，更新时基于批次最新信息刷新
+        if (entity.ProductionBatch != null)
+        {
+            var pgList = await _context.ProcessGroups
+                .Where(pg => pg.ProductionBatchId == entity.ProductionBatchId)
+                .ToListAsync();
+            entity.ProductStatus = ProductStatusHelper.Calculate(
+                entity.ProcessName, entity.ManufacturingSpec, entity.ProductionBatch.ManufacturingItem, pgList, entity.ProductionBatch.Specification);
+
+            // 级联同步该入缸下所有完工记录的产类，使其跟随入缸最新产类
+            var outRecords = await _context.PicklingOutRecords
+                .Where(r => r.PicklingInRecordId == entity.Id)
+                .ToListAsync();
+            foreach (var or in outRecords)
+                or.ProductStatus = entity.ProductStatus;
+        }
 
         await _context.SaveChangesAsync();
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.ProductionBatchId);
@@ -919,6 +975,12 @@ public class PicklingService : IPicklingService
         if (request.Shift != null)
             entity.Shift = request.Shift.ToString();
 
+        // 跟随入缸最新产类：完工记录的产类始终与关联入缸记录保持一致
+        var inRecord = await _context.PicklingInRecords
+            .FirstOrDefaultAsync(p => p.Id == entity.PicklingInRecordId);
+        if (inRecord != null)
+            entity.ProductStatus = inRecord.ProductStatus;
+
         await _context.SaveChangesAsync();
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.ProductionBatchId);
 
@@ -981,6 +1043,9 @@ public class PicklingService : IPicklingService
         var data = items.Select(s => new Dictionary<string, object>
         {
             ["BatchNo"] = s.ProductionBatch.BatchNo,
+            ["WorkOrderNo"] = s.ProductionBatch.WorkOrderNo ?? "",
+            ["SalesOrderNo"] = s.ProductionBatch.SalesOrderNo ?? "",
+            ["ProductionMainNo"] = s.ProductionBatch.ProductionMainNo ?? "",
             ["ProcessName"] = s.ProcessName,
             ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
             ["SequenceNumber"] = s.SequenceNumber,
@@ -1031,6 +1096,9 @@ public class PicklingService : IPicklingService
         var data = paged.Items.Select(s => new Dictionary<string, object>
         {
             ["BatchNo"] = s.BatchNo,
+            ["WorkOrderNo"] = s.WorkOrderNo ?? "",
+            ["SalesOrderNo"] = s.SalesOrderNo ?? "",
+            ["ProductionMainNo"] = s.ProductionMainNo ?? "",
             ["ProcessName"] = s.ProcessName,
             ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
             ["SequenceNumber"] = s.SequenceNumber,
@@ -1269,7 +1337,7 @@ public class PicklingService : IPicklingService
                 .ToListAsync();
             if (sequenceNumbers.Count > 0) dict["SequenceNumber"] = sequenceNumbers;
 
-            // BatchNo 来自导航属性
+            // BatchNo / 工单三字段来自导航属性
             var batchNos = await _context.PicklingInRecords
                 .AsNoTracking()
                 .Include(s => s.ProductionBatch)
@@ -1279,6 +1347,36 @@ public class PicklingService : IPicklingService
                 .OrderBy(x => x)
                 .ToListAsync();
             if (batchNos.Count > 0) dict["BatchNo"] = batchNos;
+
+            var workOrderNos = await _context.PicklingInRecords
+                .AsNoTracking()
+                .Include(s => s.ProductionBatch)
+                .Where(s => s.ProductionBatch.WorkOrderNo != null)
+                .Select(s => s.ProductionBatch.WorkOrderNo)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync();
+            if (workOrderNos.Count > 0) dict["WorkOrderNo"] = workOrderNos;
+
+            var salesOrderNos = await _context.PicklingInRecords
+                .AsNoTracking()
+                .Include(s => s.ProductionBatch)
+                .Where(s => s.ProductionBatch.SalesOrderNo != null)
+                .Select(s => s.ProductionBatch.SalesOrderNo)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync();
+            if (salesOrderNos.Count > 0) dict["SalesOrderNo"] = salesOrderNos;
+
+            var productionMainNos = await _context.PicklingInRecords
+                .AsNoTracking()
+                .Include(s => s.ProductionBatch)
+                .Where(s => s.ProductionBatch.ProductionMainNo != null)
+                .Select(s => s.ProductionBatch.ProductionMainNo)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync();
+            if (productionMainNos.Count > 0) dict["ProductionMainNo"] = productionMainNos;
 
             var remarks = await _context.PicklingInRecords
                 .AsNoTracking()

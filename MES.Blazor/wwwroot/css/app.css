@@ -322,6 +322,42 @@ input[type="number"]::-webkit-outer-spin-button {
     border-width: 1px !important;
 }
 
+/* ============================================================
+   Clearable 清除按钮（叉）缩至最小，悬停/聚焦时才显示
+   ============================================================ */
+
+/* 默认隐藏，仅悬停或聚焦输入框时浮现，避免遮挡输入文字 */
+.mud-input-clear,
+.mud-input-clear-button {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.mud-input:hover .mud-input-clear,
+.mud-input:focus-within .mud-input-clear,
+.mud-input:hover .mud-input-clear-button,
+.mud-input:focus-within .mud-input-clear-button {
+    visibility: visible;
+    opacity: 1;
+}
+
+.mud-input-clear .mud-icon-button,
+.mud-input-clear-button.mud-icon-button {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+}
+
+.mud-input-clear .mud-icon-root,
+.mud-input-clear-button .mud-icon-root {
+    width: 12px !important;
+    height: 12px !important;
+    font-size: 12px !important;
+}
+
 .mud-input-error.mud-input-outlined:focus-within .mud-input-outlined-border {
     border-color: var(--mud-palette-error) !important;
     border-width: 2px !important;
@@ -456,6 +492,16 @@ input[type="number"]::-webkit-outer-spin-button {
 /* 数据值左对齐（仅数据行） */
 .compact-table.mud-table tbody .mud-table-cell {
     text-align: left !important;
+}
+
+/* 数值类单元格居中（覆盖 compact-table 的 left !important，特异性更高） */
+.compact-table.mud-table tbody .mud-table-cell.text-center {
+    text-align: center !important;
+}
+
+/* 数值类单元格右对齐（覆盖 compact-table 的 left !important，特异性更高） */
+.compact-table.mud-table tbody .mud-table-cell.text-right {
+    text-align: right !important;
 }
 
 /* 输入框填满所在单元格宽度 */

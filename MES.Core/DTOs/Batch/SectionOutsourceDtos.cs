@@ -21,6 +21,12 @@ public class SectionOutsourceDto
 
     /// <summary>批次号（冗余）</summary>
     public string BatchNo { get; set; } = null!;
+    /// <summary>工单号（从批次导航属性投影）</summary>
+    public string? WorkOrderNo { get; set; }
+    /// <summary>订单号（从批次导航属性投影）</summary>
+    public string? SalesOrderNo { get; set; }
+    /// <summary>主号（从批次导航属性投影）</summary>
+    public string? ProductionMainNo { get; set; }
     /// <summary>工序名称（从ProcessGroup冗余）</summary>
     public string ProcessName { get; set; } = null!;
     /// <summary>制造规格（从ProcessGroup冗余）</summary>
@@ -73,7 +79,7 @@ public class SectionOutsourceDto
     /// <summary>数据来源（SCAN=扫码报工，MANUAL=手动录入）</summary>
     public string? DataSource { get; set; }
 
-    /// <summary>制造状态（荒管/在制/成品）</summary>
+    /// <summary>产类（荒管/在制/成品）</summary>
     public string? ProductStatus { get; set; }
 
     /// <summary>回收备注（最近一次回收记录的备注）</summary>

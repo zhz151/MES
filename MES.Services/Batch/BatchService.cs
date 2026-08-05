@@ -277,6 +277,7 @@ public class BatchService : IBatchService
             TotalQuantity = b.TotalQuantity,
             TotalMeters = b.TotalMeters,
             TotalWeight = b.TotalWeight,
+            ProductUnitWeight = b.ProductUnitWeight,
             TechnicalRequirements = b.TechnicalRequirements,
             Remark = b.Remark,
             SourceHeatNo = b.SourceHeatNo,
@@ -289,6 +290,13 @@ public class BatchService : IBatchService
             SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
             SourceName = b.SourceName,
             HasInputChange = b.HasInputChange,
+            ProcessInspectionQualifiedQty = b.ProcessInspectionQualifiedQty,
+            ProcessInspectionQualifiedWeight = b.ProcessInspectionQualifiedWeight,
+            ProcessInspectionTheoreticalQty = b.ProcessInspectionTheoreticalQty,
+            ProcessInspectionNeedAdjust = b.ProcessInspectionNeedAdjust,
+            ProcessInspectionReworkWeight = b.ProcessInspectionReworkWeight ?? 0,
+            ProcessInspectionScrapWeight = b.ProcessInspectionScrapWeight ?? 0,
+            InspectionStage = b.InspectionStage,
             CutRequirement = b.CutRequirement,
             CutExecution = b.CutExecution,
             CutQuantity = b.CutQuantity,
@@ -376,6 +384,7 @@ public class BatchService : IBatchService
             TotalQuantity = b.TotalQuantity,
             TotalMeters = b.TotalMeters,
             TotalWeight = b.TotalWeight,
+            ProductUnitWeight = b.ProductUnitWeight,
             TechnicalRequirements = b.TechnicalRequirements,
             Remark = b.Remark,
             SourceHeatNo = b.SourceHeatNo,
@@ -388,6 +397,13 @@ public class BatchService : IBatchService
             SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
             SourceName = b.SourceName,
             HasInputChange = b.HasInputChange,
+            ProcessInspectionQualifiedQty = b.ProcessInspectionQualifiedQty,
+            ProcessInspectionQualifiedWeight = b.ProcessInspectionQualifiedWeight,
+            ProcessInspectionTheoreticalQty = b.ProcessInspectionTheoreticalQty,
+            ProcessInspectionNeedAdjust = b.ProcessInspectionNeedAdjust,
+            ProcessInspectionReworkWeight = b.ProcessInspectionReworkWeight ?? 0,
+            ProcessInspectionScrapWeight = b.ProcessInspectionScrapWeight ?? 0,
+            InspectionStage = b.InspectionStage,
             CutRequirement = b.CutRequirement,
             CutExecution = b.CutExecution,
             CutQuantity = b.CutQuantity,
@@ -723,11 +739,24 @@ public class BatchService : IBatchService
                     .FirstOrDefaultAsync(b => b.BatchNo == request.SourceProductionNo);
                 if (sourceBatch != null)
                 {
+                    var oldValidQty = sourceBatch.CurrentValidQty;
+                    var oldValidWeight = sourceBatch.CurrentValidWeight;
                     if (entity.InputQuantity.HasValue)
                         sourceBatch.CurrentValidQty = (sourceBatch.CurrentValidQty ?? 0) - entity.InputQuantity.Value;
                     if (entity.InputWeight.HasValue)
                         sourceBatch.CurrentValidWeight = (int?)((sourceBatch.CurrentValidWeight ?? 0) - entity.InputWeight.Value);
                     await _context.SaveChangesAsync();
+
+                    // 拆分扣减留痕：记录源批次有效量扣减明细（前值→后值）
+                    if (sourceBatch.CurrentValidQty != oldValidQty || sourceBatch.CurrentValidWeight != oldValidWeight)
+                    {
+                        var parts = new List<string>();
+                        if (sourceBatch.CurrentValidQty != oldValidQty)
+                            parts.Add($"有效支数: {oldValidQty} → {sourceBatch.CurrentValidQty}");
+                        if (sourceBatch.CurrentValidWeight != oldValidWeight)
+                            parts.Add($"有效重量: {oldValidWeight?.ToString("G29")} → {sourceBatch.CurrentValidWeight?.ToString("G29")}kg");
+                        await _operationLogService.AddLogAsync("Batch", sourceBatch.Id, "变更", $"拆分扣减(子批次 {entity.BatchNo}): {string.Join("; ", parts)}");
+                    }
 
                     await _materialPlanService.DismissInMainWorkOrderPlanByBatchAndWorkOrderAsync(sourceBatch.Id, entity.WorkOrderNo);
                     await _materialPlanService.DismissInProcessReworkPlanByBatchAndWorkOrderAsync(sourceBatch.Id, entity.WorkOrderNo);
@@ -2018,6 +2047,11 @@ public class BatchService : IBatchService
             "UpdatedBy" => b.UpdatedBy,
             "CurrentExecDate" => (object?)b.CurrentExecDate ?? DBNull.Value,
             "CurrentSectionCompleted" => (object?)b.CurrentSectionCompleted ?? DBNull.Value,
+            "InspectionStage" => string.Equals(b.InspectionStage, nameof(InspectionType.PreInspection), StringComparison.OrdinalIgnoreCase)
+                ? "预检"
+                : string.Equals(b.InspectionStage, nameof(InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase)
+                    ? "终检"
+                    : "",
             "CutRequirement" => b.CutRequirement,
             "CutExecution" => (object?)b.CutExecution ?? DBNull.Value,
             "CutQuantity" => (object?)b.CutQuantity ?? DBNull.Value,
@@ -2449,6 +2483,7 @@ public class BatchService : IBatchService
             TotalQuantity = entity.TotalQuantity,
             TotalMeters = entity.TotalMeters,
             TotalWeight = entity.TotalWeight,
+            ProductUnitWeight = entity.ProductUnitWeight,
             TotalItemCount = entity.TotalItemCount,
             ItemDetails = entity.ItemDetails,
             TechnicalRequirements = entity.TechnicalRequirements,
@@ -2472,6 +2507,9 @@ public class BatchService : IBatchService
             TheoreticalOutputQty = entity.TheoreticalOutputQty,
             TheoreticalOutputWeight = entity.TheoreticalOutputWeight,
             TheoreticalUnitWeight = entity.TheoreticalUnitWeight,
+
+            // 成检附加
+            InspectionStage = entity.InspectionStage,
 
             // 成切跟踪
             CutRequirement = entity.CutRequirement,

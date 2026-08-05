@@ -51,7 +51,7 @@ public class InventoryService : IInventoryService
         RemainingQuantity = b.RemainingQuantity,
         RemainingWeight = b.RemainingWeight,
         ActualSpecification = b.ActualSpecification,
-        SurfaceCondition = EnumHelper.TryParse<DeliveryState>(b.SurfaceCondition),
+        ManufacturingStatus = EnumHelper.TryParse<DeliveryState>(b.ManufacturingStatus),
         LocationArea = b.LocationArea,
         LocationRack = b.LocationRack,
         Remark = b.Remark,
@@ -163,7 +163,7 @@ public class InventoryService : IInventoryService
                     b.PlantGrade.Contains(keyword) ||
                     b.Specification.Contains(keyword) ||
                     (b.HeatNo != null && b.HeatNo.Contains(keyword)) ||
-                    (b.SurfaceCondition != null && b.SurfaceCondition.Contains(keyword)) ||
+                    (b.ManufacturingStatus != null && b.ManufacturingStatus.Contains(keyword)) ||
                     (b.WorkOrderNo != null && b.WorkOrderNo.Contains(keyword)) ||
                     (b.ProductionBatchNo != null && b.ProductionBatchNo.Contains(keyword)) ||
                     b.InboundSource.Contains(keyword) ||
@@ -222,8 +222,8 @@ public class InventoryService : IInventoryService
         if (!string.IsNullOrEmpty(query.LengthStatus))
             queryable = queryable.Where(b => b.LengthStatus == query.LengthStatus);
 
-        if (!string.IsNullOrEmpty(query.SurfaceCondition))
-            queryable = queryable.Where(b => b.SurfaceCondition == query.SurfaceCondition);
+        if (!string.IsNullOrEmpty(query.ManufacturingStatus))
+            queryable = queryable.Where(b => b.ManufacturingStatus == query.ManufacturingStatus);
 
         if (!string.IsNullOrEmpty(query.DefectReason))
             queryable = queryable.Where(b => b.DefectReason != null && b.DefectReason.Contains(query.DefectReason));
@@ -286,9 +286,9 @@ public class InventoryService : IInventoryService
             "salesorderno" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.SalesOrderNo ?? "")
                 : queryable.OrderBy(b => b.SalesOrderNo ?? ""),
-            "surfacecondition" => query.IsDescending
-                ? queryable.OrderByDescending(b => b.SurfaceCondition ?? "")
-                : queryable.OrderBy(b => b.SurfaceCondition ?? ""),
+            "manufacturingstatus" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.ManufacturingStatus ?? "")
+                : queryable.OrderBy(b => b.ManufacturingStatus ?? ""),
             "lengthstatus" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.LengthStatus ?? "")
                 : queryable.OrderBy(b => b.LengthStatus ?? ""),
@@ -715,7 +715,7 @@ public class InventoryService : IInventoryService
                     b.SourceOrderNo,
                     b.MaterialType,
                     b.SourceName,
-                    b.SurfaceCondition,
+                    b.ManufacturingStatus,
                     b.LocationArea,
                     b.LocationRack,
                     b.HeatNo,
@@ -745,7 +745,7 @@ public class InventoryService : IInventoryService
                 ["SourceOrderNo"] = results.Where(x => x.SourceOrderNo != null).Select(x => x.SourceOrderNo!).Distinct().OrderBy(x => x).ToList(),
                 ["MaterialType"] = results.Select(x => x.MaterialType).Distinct().OrderBy(x => x).ToList(),
                 ["SourceName"] = results.Select(x => x.SourceName).Distinct().OrderBy(x => x).ToList(),
-                ["SurfaceCondition"] = results.Where(x => x.SurfaceCondition != null).Select(x => x.SurfaceCondition!).Distinct().OrderBy(x => x).ToList(),
+                ["ManufacturingStatus"] = results.Where(x => x.ManufacturingStatus != null).Select(x => x.ManufacturingStatus!).Distinct().OrderBy(x => x).ToList(),
                 ["LocationArea"] = results.Where(x => x.LocationArea != null).Select(x => x.LocationArea!).Distinct().OrderBy(x => x).ToList(),
                 ["LocationRack"] = results.Where(x => x.LocationRack != null).Select(x => x.LocationRack!).Distinct().OrderBy(x => x).ToList(),
                 ["HeatNo"] = results.Where(x => x.HeatNo != null).Select(x => x.HeatNo!).Distinct().OrderBy(x => x).ToList(),

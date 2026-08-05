@@ -232,7 +232,16 @@ public class BatchPlanService : IBatchPlanService
 
             // G4（COALESCE：工单计划薄表优先，无覆盖则回退系统值）
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
-            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : (x.b.WorkOrderNo == "非工单" ? 4 : -1)),
+            // G4（COALESCE：工单计划薄表优先，无覆盖则回退系统值；summary 关注状态 5 档映射到排程 4 档：0/1→0 完成、2→1 原料锁定、3→2 生产执行、4→3 成品检验）
+            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null
+                ? x.plan.ScheduleStage.Value
+                : (x.s != null
+                    ? (x.s.ScheduleStage == 0 || x.s.ScheduleStage == 1 ? 0
+                        : x.s.ScheduleStage == 2 ? 1
+                        : x.s.ScheduleStage == 3 ? 2
+                        : x.s.ScheduleStage == 4 ? 3
+                        : x.s.ScheduleStage)
+                    : (x.b.WorkOrderNo == "非工单" ? 4 : -1)),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
             ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : (x.b.WorkOrderNo == "非工单" ? "略" : "疑问")),
 
@@ -592,7 +601,16 @@ public class BatchPlanService : IBatchPlanService
             NextProcess = x.b.NextProcess,
             CorrespondingSpec = x.b.CorrespondingSpec,
             UrgencyLevel = x.plan != null && x.plan.UrgencyLevel != null ? x.plan.UrgencyLevel : (x.s != null ? x.s.UrgencyLevel : null),
-            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null ? x.plan.ScheduleStage.Value : (x.s != null ? x.s.ScheduleStage : (x.b.WorkOrderNo == "非工单" ? 4 : -1)),
+            // G4（COALESCE：工单计划薄表优先，无覆盖则回退系统值；summary 关注状态 5 档映射到排程 4 档：0/1→0 完成、2→1 原料锁定、3→2 生产执行、4→3 成品检验）
+            ScheduleStage = x.plan != null && x.plan.ScheduleStage != null
+                ? x.plan.ScheduleStage.Value
+                : (x.s != null
+                    ? (x.s.ScheduleStage == 0 || x.s.ScheduleStage == 1 ? 0
+                        : x.s.ScheduleStage == 2 ? 1
+                        : x.s.ScheduleStage == 3 ? 2
+                        : x.s.ScheduleStage == 4 ? 3
+                        : x.s.ScheduleStage)
+                    : (x.b.WorkOrderNo == "非工单" ? 4 : -1)),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
             ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : (x.b.WorkOrderNo == "非工单" ? "略" : "疑问")),
             IsUrging = x.s != null && x.s.IsUrging,
@@ -887,7 +905,14 @@ public class BatchPlanService : IBatchPlanService
                     b.NextProcess,
                     b.NextSectionName,
                     UrgencyLevel = s != null ? s.UrgencyLevel : null,
-                    ScheduleStage = s != null ? s.ScheduleStage : (int?)null,
+                    // 筛选上下文：与主列表一致，summary 关注状态 5 档映射到排程 4 档
+                    ScheduleStage = s != null
+                        ? (s.ScheduleStage == 0 || s.ScheduleStage == 1 ? 0
+                            : s.ScheduleStage == 2 ? 1
+                            : s.ScheduleStage == 3 ? 2
+                            : s.ScheduleStage == 4 ? 3
+                            : s.ScheduleStage)
+                        : (int?)null,
                     MainNoAttentionProcess = s != null ? s.MainNoAttentionProcess : null,
                     ProductionFlowProperty = s != null ? s.ProductionFlowProperty : (b.WorkOrderNo == "非工单" ? "略" : "疑问"),
                 };

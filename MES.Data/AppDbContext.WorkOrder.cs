@@ -527,6 +527,14 @@ public partial class AppDbContext
             entity.Property(e => e.ValidOutputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
 
             // Group 6
+            entity.Property(e => e.ProcessInspectionReworkWeight);
+            entity.Property(e => e.FinalInspectionReworkWeight);
+            entity.Property(e => e.ReworkTheoreticalProduceQty);
+            entity.Property(e => e.ReworkTheoreticalProduceWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PendingReworkOutputQty).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PendingReworkOutputWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.ReworkMainNoStatus).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.ReworkInputConsistency);
             entity.Property(e => e.ReworkInputEndDate).HasColumnType("date");
             entity.Property(e => e.ReworkBatchCount).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.ReworkInputQuantity).IsRequired().HasDefaultValue(0);
@@ -542,28 +550,6 @@ public partial class AppDbContext
             entity.Property(e => e.FlowTotalBatchCount).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.FlowIncompleteBatchCount).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.FlowMaxRemainingWorkDays).IsRequired().HasDefaultValue(0);
-
-            // Group 8: 过程不合格
-            entity.Property(e => e.DefectiveRawQty).IsRequired().HasDefaultValue(0);
-            entity.Property(e => e.DefectiveRawWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.DefectiveOutputQty).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.DefectiveOutputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.DefectiveRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
-
-            // Group 9: 成检不合格
-            entity.Property(e => e.InspectionStartDate).HasColumnType("datetime2");
-            entity.Property(e => e.InspectionEndDate).HasColumnType("datetime2");
-            entity.Property(e => e.InspectionDefectQty).IsRequired().HasDefaultValue(0);
-            entity.Property(e => e.InspectionDefectWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.InspectionDefectRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
-
-            // Group 10: 汇总不合格
-            entity.Property(e => e.GeneralDefectWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.GeneralDefectRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
-            entity.Property(e => e.SeriousDefectWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.SeriousDefectRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
-            entity.Property(e => e.ScrapWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.ScrapRatio).HasColumnType("decimal(8,2)").HasDefaultValue(0m);
 
             // Group 11: 成品入库
             entity.Property(e => e.WarehousingStartDate).HasColumnType("datetime2");
