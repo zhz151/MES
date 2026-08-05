@@ -16,6 +16,7 @@ using MES.Data.Entities.WorkOrder;
 using MES.Shared.Constants;
 using Microsoft.Extensions.DependencyInjection;
 using MES.Core.Enums;
+using MES.Core.Constants;
 
 namespace MES.Data.Seed;
 
@@ -237,37 +238,60 @@ public static class DbInitializer
             var workDays = new List<StandardWorkDay>
             {
                 // 通用配置（PlantGradePrefix = null）
-                new() { SectionName = "冷轧拔", PlantGradePrefix = null, StandardDays = 2,   Remark = "冷轧/冷拔" },
-                new() { SectionName = "油管断", PlantGradePrefix = null, StandardDays = 1,   Remark = null },
-                new() { SectionName = "去油",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
-                new() { SectionName = "乳液浸洗", PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "超声浸洗", PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "打布",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
-                new() { SectionName = "光亮退火", PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "固溶",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
-                new() { SectionName = "矫直",   PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "断切",   PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "测壁厚", PlantGradePrefix = null, StandardDays = 1,   Remark = null },
-                new() { SectionName = "酸洗",   PlantGradePrefix = null, StandardDays = 2,   Remark = "非3系牌号" },
-                new() { SectionName = "外抛光", PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "内抛",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
-                new() { SectionName = "内修磨", PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "外点磨", PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "喷砂",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
-                new() { SectionName = "喷丸",   PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "检验",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
-                new() { SectionName = "焊头",   PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "打头",   PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "润滑",   PlantGradePrefix = null, StandardDays = 1,   Remark = null },
-                new() { SectionName = "包装",   PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "入库",   PlantGradePrefix = null, StandardDays = 2,   Remark = null },
-                new() { SectionName = "备用1",  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
-                new() { SectionName = "备用2",  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.ColdRollDraw,      SectionKey = nameof(SectionDefs.ColdRollDraw),      DisplayOrder = 1,  IsEnabled = true,  PlantGradePrefix = null, StandardDays = 2,   Remark = "冷轧/冷拔" },
+                new() { SectionName = SectionDefs.OilPipeCut,        SectionKey = nameof(SectionDefs.OilPipeCut),        DisplayOrder = 2,  IsEnabled = true,  PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = SectionDefs.Degrease,          SectionKey = nameof(SectionDefs.Degrease),          DisplayOrder = 3,  IsEnabled = true,  PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = SectionDefs.EmulsionWash,      SectionKey = nameof(SectionDefs.EmulsionWash),      DisplayOrder = 4,  IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.UltrasonicWash,    SectionKey = nameof(SectionDefs.UltrasonicWash),    DisplayOrder = 5,  IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.ClothPolish,       SectionKey = nameof(SectionDefs.ClothPolish),       DisplayOrder = 6,  IsEnabled = true,  PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = SectionDefs.BrightAnnealing,   SectionKey = nameof(SectionDefs.BrightAnnealing),   DisplayOrder = 7,  IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.Solution,          SectionKey = nameof(SectionDefs.Solution),          DisplayOrder = 8,  IsEnabled = true,  PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = SectionDefs.Straighten,        SectionKey = nameof(SectionDefs.Straighten),        DisplayOrder = 9,  IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.Cut,               SectionKey = nameof(SectionDefs.Cut),               DisplayOrder = 10, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.ThicknessMeasure,  SectionKey = nameof(SectionDefs.ThicknessMeasure),  DisplayOrder = 11, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = SectionDefs.Pickle,            SectionKey = nameof(SectionDefs.Pickle),            DisplayOrder = 12, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 2,   Remark = "非3系牌号" },
+                new() { SectionName = SectionDefs.OuterPolish,       SectionKey = nameof(SectionDefs.OuterPolish),       DisplayOrder = 13, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.InnerPolish,       SectionKey = nameof(SectionDefs.InnerPolish),       DisplayOrder = 14, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = SectionDefs.InnerGrinding,     SectionKey = nameof(SectionDefs.InnerGrinding),     DisplayOrder = 15, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.OuterSpotGrinding, SectionKey = nameof(SectionDefs.OuterSpotGrinding), DisplayOrder = 16, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.SandBlasting,      SectionKey = nameof(SectionDefs.SandBlasting),      DisplayOrder = 17, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = SectionDefs.ShotBlasting,      SectionKey = nameof(SectionDefs.ShotBlasting),      DisplayOrder = 18, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.Inspection,        SectionKey = nameof(SectionDefs.Inspection),        DisplayOrder = 19, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = SectionDefs.WeldingHead,       SectionKey = nameof(SectionDefs.WeldingHead),       DisplayOrder = 20, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.Welding,           SectionKey = nameof(SectionDefs.Welding),           DisplayOrder = 21, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.Lubrication,       SectionKey = nameof(SectionDefs.Lubrication),       DisplayOrder = 22, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 1,   Remark = null },
+                new() { SectionName = SectionDefs.Packing,           SectionKey = nameof(SectionDefs.Packing),           DisplayOrder = 23, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.Warehouse,         SectionKey = nameof(SectionDefs.Warehouse),         DisplayOrder = 24, IsEnabled = true,  PlantGradePrefix = null, StandardDays = 2,   Remark = null },
+                new() { SectionName = SectionDefs.Extra1,            SectionKey = nameof(SectionDefs.Extra1),            DisplayOrder = 25, IsEnabled = false, PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
+                new() { SectionName = SectionDefs.Extra2,            SectionKey = nameof(SectionDefs.Extra2),            DisplayOrder = 26, IsEnabled = false, PlantGradePrefix = null, StandardDays = 0.5, Remark = null },
                 // 牌号前缀覆盖：3系牌号酸洗只需1天
-                new() { SectionName = "酸洗",   PlantGradePrefix = "3",  StandardDays = 1,   Remark = "3系牌号（304/316/321等）" },
+                new() { SectionName = SectionDefs.Pickle,            SectionKey = nameof(SectionDefs.Pickle),            DisplayOrder = 12, IsEnabled = true,  PlantGradePrefix = "3",  StandardDays = 1,   Remark = "3系牌号（304/316/321等）" },
             };
 
             await context.StandardWorkDays.AddRangeAsync(workDays);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 8b. 回填工段字典字段（SectionKey/DisplayOrder/IsEnabled）——幂等 ==========
+        // 存量数据迁移加列后 SectionKey 为 null，此处按 SectionName 反查补全；仅执行一次
+        var swdMissingKey = await context.StandardWorkDays
+            .Where(w => w.SectionKey == null)
+            .ToListAsync();
+        if (swdMissingKey.Count > 0)
+        {
+            foreach (var w in swdMissingKey)
+            {
+                var key = SectionDefs.PropertyToName
+                    .FirstOrDefault(kv => string.Equals(kv.Value, w.SectionName, StringComparison.OrdinalIgnoreCase))
+                    .Key;
+                if (string.IsNullOrEmpty(key)) continue;
+
+                w.SectionKey = key;
+                var idx = Array.IndexOf(SectionDefs.All, w.SectionName);
+                w.DisplayOrder = idx >= 0 ? idx + 1 : 999;
+                w.IsEnabled = !string.Equals(w.SectionName, SectionDefs.Extra1, StringComparison.OrdinalIgnoreCase)
+                           && !string.Equals(w.SectionName, SectionDefs.Extra2, StringComparison.OrdinalIgnoreCase);
+            }
             await context.SaveChangesAsync();
         }
 

@@ -6,6 +6,7 @@
 @using MES.Core.DTOs.Batch
 @inject SectionOutsourceService SectionOutsourceService
 @inject BatchService BatchService
+@inject StandardWorkDayService StandardWorkDayService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -187,6 +188,9 @@
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
 
+    // 工段下拉选项（从参数表加载启用工段，失败降级为预置 26 工段）
+    private List<string> _sectionOptions = new();
+
     // ========== 列定义 ==========
 
     private List<ColumnDef> _allColumns = new();
@@ -322,8 +326,19 @@
         public string? Remark { get; set; }
     }
 
+    // 加载启用工段下拉（从参数表，失败降级为预置 26 工段）
+    private async Task LoadSectionOptionsAsync()
+    {
+        var r = await StandardWorkDayService.GetEnabledSectionsAsync();
+        if (r.Success && r.Data != null)
+            _sectionOptions = r.Data.Select(x => x.SectionName).ToList();
+        else
+            _sectionOptions = new List<string>(SectionDefs.All);
+    }
+
     protected override async Task OnInitializedAsync()
     {
+        await LoadSectionOptionsAsync();
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("section-outsource-create", null);
         if (saved.Count > 0)
@@ -534,7 +549,7 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.SectionName = v ?? ""; await ApplyAutoFillAsync(r); }));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var sn in SectionDefs.All)
+                    foreach (var sn in _sectionOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
                         b.AddAttribute(1, "Value", sn);

@@ -13,6 +13,10 @@ public partial class AppDbContext
             entity.ToTable("StandardWorkDays");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SectionKey).HasMaxLength(50);
+            entity.Property(e => e.EnglishName).HasMaxLength(100);
+            entity.Property(e => e.DisplayOrder).IsRequired();
+            entity.Property(e => e.IsEnabled).IsRequired();
             entity.Property(e => e.PlantGradePrefix).HasMaxLength(50);
             entity.Property(e => e.StandardDays).IsRequired().HasColumnType("float");
             entity.Property(e => e.Remark).HasMaxLength(200);

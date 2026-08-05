@@ -12,8 +12,10 @@ public class ProcessCardPrintTests : TestBase
 {
     public ProcessCardPrintTests()
     {
-        RegisterServices(typeof(BatchService));
+        RegisterServices(typeof(BatchService), typeof(StandardWorkDayService));
         ConfigureEmptyResponse("/api/batch/list");
+        // 工段列从参数表加载；未配置时 fallback 为预置 26 工段，此处配置空响应触发降级路径
+        ConfigureEmptyResponse("/api/standard-work-day/enabled-sections");
     }
 
     [Fact]

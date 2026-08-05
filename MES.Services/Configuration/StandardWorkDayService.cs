@@ -60,6 +60,8 @@ public class StandardWorkDayService : IStandardWorkDayService
                 var keyword = kw;
                 queryable = queryable.Where(w =>
                     w.SectionName.Contains(keyword) ||
+                    (w.SectionKey != null && w.SectionKey.Contains(keyword)) ||
+                    (w.EnglishName != null && w.EnglishName.Contains(keyword)) ||
                     (w.PlantGradePrefix != null && w.PlantGradePrefix.Contains(keyword)) ||
                     (w.Remark != null && w.Remark.Contains(keyword)));
             }
@@ -70,7 +72,7 @@ public class StandardWorkDayService : IStandardWorkDayService
 
         // 排序
         var sortBy = string.IsNullOrEmpty(query.SortBy) || query.SortBy.Equals("CreatedTime", StringComparison.OrdinalIgnoreCase)
-            ? "SectionName"
+            ? "DisplayOrder"
             : query.SortBy;
         queryable = queryable.ApplySort(sortBy, query.IsDescending);
 
@@ -82,6 +84,10 @@ public class StandardWorkDayService : IStandardWorkDayService
             {
                 Id = w.Id,
                 SectionName = w.SectionName,
+                SectionKey = w.SectionKey,
+                EnglishName = w.EnglishName,
+                DisplayOrder = w.DisplayOrder,
+                IsEnabled = w.IsEnabled,
                 PlantGradePrefix = w.PlantGradePrefix,
                 StandardDays = w.StandardDays,
                 Remark = w.Remark
@@ -110,6 +116,10 @@ public class StandardWorkDayService : IStandardWorkDayService
         {
             Id = entity.Id,
             SectionName = entity.SectionName,
+            SectionKey = entity.SectionKey,
+            EnglishName = entity.EnglishName,
+            DisplayOrder = entity.DisplayOrder,
+            IsEnabled = entity.IsEnabled,
             PlantGradePrefix = entity.PlantGradePrefix,
             StandardDays = entity.StandardDays,
             Remark = entity.Remark
@@ -128,6 +138,10 @@ public class StandardWorkDayService : IStandardWorkDayService
                 throw new BusinessException("标准工量天数配置不存在");
 
             entity.SectionName = dto.SectionName;
+            entity.SectionKey = dto.SectionKey;
+            entity.EnglishName = dto.EnglishName;
+            entity.DisplayOrder = dto.DisplayOrder;
+            entity.IsEnabled = dto.IsEnabled;
             entity.PlantGradePrefix = dto.PlantGradePrefix;
             entity.StandardDays = dto.StandardDays;
             entity.Remark = dto.Remark;
@@ -138,6 +152,10 @@ public class StandardWorkDayService : IStandardWorkDayService
             var entity = new StandardWorkDay
             {
                 SectionName = dto.SectionName,
+                SectionKey = dto.SectionKey,
+                EnglishName = dto.EnglishName,
+                DisplayOrder = dto.DisplayOrder,
+                IsEnabled = dto.IsEnabled,
                 PlantGradePrefix = dto.PlantGradePrefix,
                 StandardDays = dto.StandardDays,
                 Remark = dto.Remark
@@ -190,5 +208,34 @@ public class StandardWorkDayService : IStandardWorkDayService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 获取启用工段列表：IsEnabled=true、SectionKey 非空，按 DisplayOrder 升序。
+    /// 同一 SectionKey 存在多行（牌号前缀覆盖）时，取通用行（PlantGradePrefix=null）为准，
+    /// 保证显示名/顺序唯一。
+    /// </summary>
+    public async Task<List<SectionInfoDto>> GetEnabledSectionsAsync()
+    {
+        var rows = await _context.StandardWorkDays
+            .AsNoTracking()
+            .Where(w => w.IsEnabled && w.SectionKey != null)
+            .ToListAsync();
+
+        return rows
+            .GroupBy(w => w.SectionKey!, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g
+                .OrderBy(x => x.PlantGradePrefix == null ? 0 : 1)
+                .ThenBy(x => x.DisplayOrder)
+                .First())
+            .OrderBy(x => x.DisplayOrder)
+            .Select(x => new SectionInfoDto
+            {
+                SectionKey = x.SectionKey!,
+                SectionName = x.SectionName,
+                DisplayOrder = x.DisplayOrder,
+                IsEnabled = x.IsEnabled
+            })
+            .ToList();
     }
 }

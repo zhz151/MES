@@ -36,6 +36,10 @@ public partial class StandardWorkDays
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "SectionName",     Label = "工段名称",   SortKey = "sectionname",     FilterType = null, IsRequired = true },
+        new() { Key = "SectionKey",      Label = "稳定 Key",   SortKey = "sectionkey",      FilterType = null },
+        new() { Key = "EnglishName",     Label = "英文名",     SortKey = "englishname",     FilterType = null },
+        new() { Key = "DisplayOrder",    Label = "显示顺序",   SortKey = "displayorder",    FilterType = null, IsRequired = true },
+        new() { Key = "IsEnabled",       Label = "启用",       SortKey = "isenabled",       FilterType = null },
         new() { Key = "PlantGradePrefix",Label = "牌号前缀",   SortKey = "plantgradeprefix",FilterType = null },
         new() { Key = "StandardDays",    Label = "标准天数",   SortKey = "standarddays",    FilterType = null, IsRequired = true },
         new() { Key = "Remark",          Label = "备注",       SortKey = "remark",          FilterType = null },
@@ -210,6 +214,8 @@ public partial class StandardWorkDays
         {
             Id = newId,
             SectionName = "",
+            DisplayOrder = 999,
+            IsEnabled = true,
             StandardDays = 1
         };
 
@@ -241,6 +247,10 @@ public partial class StandardWorkDays
     private class EditCache
     {
         public string SectionName { get; set; } = string.Empty;
+        public string? SectionKey { get; set; }
+        public string? EnglishName { get; set; }
+        public int DisplayOrder { get; set; }
+        public bool IsEnabled { get; set; } = true;
         public string? PlantGradePrefix { get; set; }
         public double StandardDays { get; set; }
         public string? Remark { get; set; }
@@ -255,6 +265,10 @@ public partial class StandardWorkDays
         _editCache[item.Id] = new EditCache
         {
             SectionName = item.SectionName,
+            SectionKey = item.SectionKey,
+            EnglishName = item.EnglishName,
+            DisplayOrder = item.DisplayOrder,
+            IsEnabled = item.IsEnabled,
             PlantGradePrefix = item.PlantGradePrefix,
             StandardDays = item.StandardDays,
             Remark = item.Remark
@@ -280,6 +294,7 @@ public partial class StandardWorkDays
 
         var errors = new List<string>();
         if (string.IsNullOrWhiteSpace(cache.SectionName)) errors.Add("工段名称不能为空");
+        if (cache.DisplayOrder <= 0) errors.Add("显示顺序必须大于0");
         if (cache.StandardDays <= 0) errors.Add("标准天数必须大于0");
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
@@ -288,10 +303,30 @@ public partial class StandardWorkDays
 
         try
         {
+            // SectionKey 为空时按工段名称自动反查填充（历史数据/新增行保底）
+            var sectionKey = cache.SectionKey;
+            if (string.IsNullOrWhiteSpace(sectionKey))
+            {
+                sectionKey = SectionDefs.PropertyToName
+                    .FirstOrDefault(kv => string.Equals(kv.Value, cache.SectionName, StringComparison.OrdinalIgnoreCase))
+                    .Key;
+
+                // 反查不到（自定义名且无预置 Key）时阻止保存，避免产生无 Key 行
+                if (string.IsNullOrWhiteSpace(sectionKey))
+                {
+                    Snackbar.Add($"工段名\"{cache.SectionName}\"不在预置 26 工段中，无法自动映射稳定 Key；请改用预置工段名，或复用\"备用1/备用2\"槽位改名", Severity.Warning);
+                    return;
+                }
+            }
+
             var dto = new StandardWorkDayDto
             {
                 Id = IsNewItem(item.Id) ? 0 : item.Id,
                 SectionName = cache.SectionName,
+                SectionKey = sectionKey,
+                EnglishName = cache.EnglishName,
+                DisplayOrder = cache.DisplayOrder,
+                IsEnabled = cache.IsEnabled,
                 PlantGradePrefix = cache.PlantGradePrefix,
                 StandardDays = cache.StandardDays,
                 Remark = cache.Remark

@@ -102,23 +102,85 @@
                         {
                             if (rowEditing && rowCache != null)
                             {
-                                <MudSelect T="string"
-                                           Dense="true"
-                                           Variant="Variant.Outlined"
-                                           Value="@rowCache.SectionName"
-                                           ValueChanged="@(v => rowCache.SectionName = v)"
-                                           Class="compact-input"
-                                           Required="true"
-                                           Label="工段名称">
-                                    @foreach (var sn in SectionDefs.All)
-                                    {
-                                        <MudSelectItem Value="@sn">@sn</MudSelectItem>
-                                    }
-                                </MudSelect>
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.SectionName"
+                                              ValueChanged="@(v => rowCache.SectionName = v)"
+                                              Class="compact-input"
+                                              Required="true"
+                                              Label="工段名称（可改名，槽位复用启新工段）" />
                             }
                             else
                             {
                                 @item.SectionName
+                            }
+                        }
+                        else if (col.Key == "SectionKey")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.SectionKey"
+                                              ValueChanged="@(v => rowCache.SectionKey = v)"
+                                              Class="compact-input"
+                                              Disabled="true"
+                                              Title="程序识别工段用，随名称自动映射" />
+                            }
+                            else
+                            {
+                                @item.SectionKey
+                            }
+                        }
+                        else if (col.Key == "EnglishName")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.EnglishName"
+                                              ValueChanged="@(v => rowCache.EnglishName = v)"
+                                              Class="compact-input" />
+                            }
+                            else
+                            {
+                                @item.EnglishName
+                            }
+                        }
+                        else if (col.Key == "DisplayOrder")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudNumericField T="int"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 HideSpinButtons="true"
+                                                 Value="@rowCache.DisplayOrder"
+                                                 ValueChanged="@(v => rowCache.DisplayOrder = v)"
+                                                 Class="compact-input"
+                                                 Min="1"
+                                                 Max="999" />
+                            }
+                            else
+                            {
+                                @item.DisplayOrder
+                            }
+                        }
+                        else if (col.Key == "IsEnabled")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSwitch T="bool" Dense="true"
+                                           Value="@rowCache.IsEnabled"
+                                           ValueChanged="@(async v => { rowCache.IsEnabled = v; })"
+                                           Color="Color.Primary" />
+                            }
+                            else
+                            {
+                                @(item.IsEnabled ? "启用" : "隐藏")
                             }
                         }
                         else if (col.Key == "PlantGradePrefix")

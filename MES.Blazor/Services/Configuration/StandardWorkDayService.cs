@@ -33,6 +33,19 @@ public class StandardWorkDayService
         }
     }
 
+    public async Task<ApiResponse<List<SectionInfoDto>>> GetEnabledSectionsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<SectionInfoDto>>>($"{BaseUrl}/enabled-sections");
+            return response ?? ApiResponse<List<SectionInfoDto>>.Fail("获取启用工段列表失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<SectionInfoDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     public async Task<ApiResponse<StandardWorkDayDto>> GetByIdAsync(int id)
     {
         try

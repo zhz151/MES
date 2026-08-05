@@ -5,6 +5,7 @@
 @using MES.Core.Enums
 @using MES.Core.DTOs.Batch
 @using MES.Core.DTOs.Infrastructure
+@using MES.Core.Constants
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
 @inject BatchService BatchService
@@ -16,6 +17,7 @@
 @inject IJSRuntime JS
 @inject IDialogService DialogService
 @inject HttpClient Http
+@inject StandardWorkDayService StandardWorkDayService
 @attribute [Authorize(Roles = Roles.Policies.BatchRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
@@ -522,32 +524,10 @@
                             <MudTh>制造长度</MudTh>
                             <MudTh>断切处理</MudTh>
                             <MudTh>备注</MudTh>
-                            <MudTh>冷轧拔</MudTh>
-                            <MudTh>油管断</MudTh>
-                            <MudTh>去油</MudTh>
-                            <MudTh>乳液浸洗</MudTh>
-                            <MudTh>超声浸洗</MudTh>
-                            <MudTh>打布</MudTh>
-                            <MudTh>光亮退火</MudTh>
-                            <MudTh>固溶</MudTh>
-                            <MudTh>矫直</MudTh>
-                            <MudTh>断切</MudTh>
-                            <MudTh>测壁厚</MudTh>
-                            <MudTh>酸洗</MudTh>
-                            <MudTh>外抛光</MudTh>
-                            <MudTh>内抛</MudTh>
-                            <MudTh>内修磨</MudTh>
-                            <MudTh>外点磨</MudTh>
-                            <MudTh>喷砂</MudTh>
-                            <MudTh>喷丸</MudTh>
-                            <MudTh>检验</MudTh>
-                            <MudTh>焊头</MudTh>
-                            <MudTh>打头</MudTh>
-                            <MudTh>润滑</MudTh>
-                            <MudTh>包装</MudTh>
-                            <MudTh>入库</MudTh>
-                            <MudTh>备用1</MudTh>
-                            <MudTh>备用2</MudTh>
+                            @foreach (var sc in _sectionCols)
+                            {
+                                <MudTh>@sc.SectionName</MudTh>
+                            }
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd><MudText Typo="Typo.body2">@context.SequenceNumber</MudText></MudTd>
@@ -558,32 +538,11 @@
                             <MudTd title="@context.ManufacturingLength"><MudText Typo="Typo.body2">@(context.ManufacturingLength ?? "-")</MudText></MudTd>
                             <MudTd title="@context.CuttingTreatment"><MudText Typo="Typo.body2">@(context.CuttingTreatment ?? "-")</MudText></MudTd>
                             <MudTd title="@context.Remark"><MudText Typo="Typo.body2">@(context.Remark ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.ColdRollDraw?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.OilPipeCut?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Degrease?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.EmulsionWash?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.UltrasonicWash?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.ClothPolish?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.BrightAnnealing?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Solution?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Straighten?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Cut?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.ThicknessMeasure?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Pickle?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.OuterPolish?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.InnerPolish?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.InnerGrinding?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.OuterSpotGrinding?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.SandBlasting?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.ShotBlasting?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Inspection?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.WeldingHead?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Welding?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Lubrication?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Packing?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Warehouse?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Extra1?.ToString() ?? "-")</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2">@(context.Extra2?.ToString() ?? "-")</MudText></MudTd>
+                            @foreach (var sc in _sectionCols)
+                            {
+                                var _v = GetSectionValue(context, sc.SectionKey);
+                                <MudTd><MudText Typo="Typo.body2">@(_v?.ToString() ?? "-")</MudText></MudTd>
+                            }
                         </RowTemplate>
                     </MudTable>
                 </div>
@@ -681,8 +640,65 @@
         return true;
     }
 
+    // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
+    private List<SectionInfoDto> _sectionCols = new();
+
+    private async Task LoadSectionColsAsync()
+    {
+        var r = await StandardWorkDayService.GetEnabledSectionsAsync();
+        if (r.Success && r.Data != null)
+        {
+            _sectionCols = r.Data;
+        }
+        else
+        {
+            _sectionCols = SectionDefs.PropertyNames
+                .Select((k, i) => new SectionInfoDto
+                {
+                    SectionKey = k,
+                    SectionName = SectionDefs.PropertyToName[k],
+                    DisplayOrder = i + 1,
+                    IsEnabled = true
+                })
+                .ToList();
+        }
+    }
+
+    // 工段列值读取（SectionKey → ProcessGroupDto 属性）
+    private static int? GetSectionValue(ProcessGroupDto pg, string key) => key switch
+    {
+        "ColdRollDraw" => pg.ColdRollDraw,
+        "OilPipeCut" => pg.OilPipeCut,
+        "Degrease" => pg.Degrease,
+        "EmulsionWash" => pg.EmulsionWash,
+        "UltrasonicWash" => pg.UltrasonicWash,
+        "ClothPolish" => pg.ClothPolish,
+        "BrightAnnealing" => pg.BrightAnnealing,
+        "Solution" => pg.Solution,
+        "Straighten" => pg.Straighten,
+        "Cut" => pg.Cut,
+        "ThicknessMeasure" => pg.ThicknessMeasure,
+        "Pickle" => pg.Pickle,
+        "OuterPolish" => pg.OuterPolish,
+        "InnerPolish" => pg.InnerPolish,
+        "InnerGrinding" => pg.InnerGrinding,
+        "OuterSpotGrinding" => pg.OuterSpotGrinding,
+        "SandBlasting" => pg.SandBlasting,
+        "ShotBlasting" => pg.ShotBlasting,
+        "Inspection" => pg.Inspection,
+        "WeldingHead" => pg.WeldingHead,
+        "Welding" => pg.Welding,
+        "Lubrication" => pg.Lubrication,
+        "Packing" => pg.Packing,
+        "Warehouse" => pg.Warehouse,
+        "Extra1" => pg.Extra1,
+        "Extra2" => pg.Extra2,
+        _ => null
+    };
+
     protected override async Task OnParametersSetAsync()
     {
+        await LoadSectionColsAsync();
         await LoadData();
     }
 

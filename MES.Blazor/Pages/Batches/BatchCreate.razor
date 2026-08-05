@@ -13,6 +13,7 @@
 @inject ISnackbar Snackbar
 @inject ColumnPrefsService ColumnPrefs
 @inject IDialogService DialogService
+@inject StandardWorkDayService StandardWorkDayService
 @attribute [Authorize(Roles = Roles.Policies.BatchWrite)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4" id="batch-create-table">
@@ -636,32 +637,13 @@
                             @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:80px;">制造长度</MudTh> }
                             @if (GetPgCol("CuttingTreatment").Visible) { <MudTh Style="width:80px;">断切处理</MudTh> }
                             @if (GetPgCol("Remark").Visible) { <MudTh Style="width:120px;">备注</MudTh> }
-                            @if (GetPgCol("ColdRollDraw").Visible) { <MudTh Style="width:80px;">冷轧拔</MudTh> }
-                            @if (GetPgCol("OilPipeCut").Visible) { <MudTh Style="width:80px;">油管断</MudTh> }
-                            @if (GetPgCol("Degrease").Visible) { <MudTh Style="width:60px;">去油</MudTh> }
-                            @if (GetPgCol("EmulsionWash").Visible) { <MudTh Style="width:80px;">乳液浸洗</MudTh> }
-                            @if (GetPgCol("UltrasonicWash").Visible) { <MudTh Style="width:80px;">超声浸洗</MudTh> }
-                            @if (GetPgCol("ClothPolish").Visible) { <MudTh Style="width:60px;">打布</MudTh> }
-                            @if (GetPgCol("BrightAnnealing").Visible) { <MudTh Style="width:60px;">光亮退火</MudTh> }
-                            @if (GetPgCol("Solution").Visible) { <MudTh Style="width:60px;">固溶</MudTh> }
-                            @if (GetPgCol("Straighten").Visible) { <MudTh Style="width:60px;">矫直</MudTh> }
-                            @if (GetPgCol("Cut").Visible) { <MudTh Style="width:60px;">断切</MudTh> }
-                            @if (GetPgCol("ThicknessMeasure").Visible) { <MudTh Style="width:60px;">测壁厚</MudTh> }
-                            @if (GetPgCol("Pickle").Visible) { <MudTh Style="width:60px;">酸洗</MudTh> }
-                            @if (GetPgCol("OuterPolish").Visible) { <MudTh Style="width:60px;">外抛光</MudTh> }
-                            @if (GetPgCol("InnerPolish").Visible) { <MudTh Style="width:60px;">内抛</MudTh> }
-                            @if (GetPgCol("InnerGrinding").Visible) { <MudTh Style="width:60px;">内修磨</MudTh> }
-                            @if (GetPgCol("OuterSpotGrinding").Visible) { <MudTh Style="width:60px;">外点磨</MudTh> }
-                            @if (GetPgCol("SandBlasting").Visible) { <MudTh Style="width:60px;">喷砂</MudTh> }
-                            @if (GetPgCol("ShotBlasting").Visible) { <MudTh Style="width:60px;">喷丸</MudTh> }
-                            @if (GetPgCol("Inspection").Visible) { <MudTh Style="width:60px;">检验</MudTh> }
-                            @if (GetPgCol("WeldingHead").Visible) { <MudTh Style="width:60px;">焊头</MudTh> }
-                            @if (GetPgCol("Welding").Visible) { <MudTh Style="width:60px;">打头</MudTh> }
-                            @if (GetPgCol("Lubrication").Visible) { <MudTh Style="width:60px;">润滑</MudTh> }
-                            @if (GetPgCol("Packing").Visible) { <MudTh Style="width:60px;">包装</MudTh> }
-                            @if (GetPgCol("Warehouse").Visible) { <MudTh Style="width:60px;">入库</MudTh> }
-                            @if (GetPgCol("Extra1").Visible) { <MudTh Style="width:60px;">备用1</MudTh> }
-                            @if (GetPgCol("Extra2").Visible) { <MudTh Style="width:60px;">备用2</MudTh> }
+                            @foreach (var sc in _sectionCols)
+                            {
+                                if (GetPgCol(sc.SectionKey).Visible)
+                                {
+                                    <MudTh Style="width:60px;">@sc.SectionName</MudTh>
+                                }
+                            }
                             <MudTh Style="width:45px;">操作</MudTh>
                         </HeaderContent>
                         <RowTemplate Context="pg">
@@ -683,32 +665,17 @@
                             @if (GetPgCol("ManufacturingLength").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
                             @if (GetPgCol("CuttingTreatment").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.CuttingTreatment" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
                             @if (GetPgCol("Remark").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
-                            @if (GetPgCol("ColdRollDraw").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ColdRollDraw" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("OilPipeCut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OilPipeCut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Degrease").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Degrease" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("EmulsionWash").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.EmulsionWash" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("UltrasonicWash").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.UltrasonicWash" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("ClothPolish").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ClothPolish" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("BrightAnnealing").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.BrightAnnealing" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Solution").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Solution" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Straighten").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Straighten" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Cut").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Cut" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("ThicknessMeasure").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ThicknessMeasure" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Pickle").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Pickle" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("OuterPolish").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OuterPolish" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("InnerPolish").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.InnerPolish" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("InnerGrinding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.InnerGrinding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("OuterSpotGrinding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.OuterSpotGrinding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("SandBlasting").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.SandBlasting" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("ShotBlasting").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.ShotBlasting" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Inspection").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Inspection" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("WeldingHead").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.WeldingHead" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Welding").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Welding" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Lubrication").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Lubrication" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Packing").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Packing" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Warehouse").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Warehouse" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Extra1").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Extra1" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
-                            @if (GetPgCol("Extra2").Visible) { <MudTd><MudNumericField T="int?" @bind-Value="pg.Extra2" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" /></MudTd> }
+                            @foreach (var sc in _sectionCols)
+                            {
+                                if (GetPgCol(sc.SectionKey).Visible)
+                                {
+                                    <MudTd>
+                                        <MudNumericField T="int?" Value="@GetSectionValue(pg, sc.SectionKey)"
+                                                         ValueChanged="@((int? v) => SetSectionValue(pg, sc.SectionKey, v))"
+                                                         Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" />
+                                    </MudTd>
+                                }
+                            }
                             <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="@(() => DeleteProcessGroupRow(pg))" /></MudTd>
                         </RowTemplate>
                     </MudTable>
@@ -1435,8 +1402,99 @@
 
     // ========== 工序组列显示 ==========
 
+    // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
+    private List<SectionInfoDto> _sectionCols = new();
+
+    private async Task LoadSectionColsAsync()
+    {
+        var r = await StandardWorkDayService.GetEnabledSectionsAsync();
+        if (r.Success && r.Data != null)
+        {
+            _sectionCols = r.Data;
+        }
+        else
+        {
+            _sectionCols = SectionDefs.PropertyNames
+                .Select((k, i) => new SectionInfoDto
+                {
+                    SectionKey = k,
+                    SectionName = SectionDefs.PropertyToName[k],
+                    DisplayOrder = i + 1,
+                    IsEnabled = true
+                })
+                .ToList();
+        }
+    }
+
+    // 工段列值读写（SectionKey → CreateProcessGroupRequest 属性）
+    private static int? GetSectionValue(CreateProcessGroupRequest pg, string key) => key switch
+    {
+        "ColdRollDraw" => pg.ColdRollDraw,
+        "OilPipeCut" => pg.OilPipeCut,
+        "Degrease" => pg.Degrease,
+        "EmulsionWash" => pg.EmulsionWash,
+        "UltrasonicWash" => pg.UltrasonicWash,
+        "ClothPolish" => pg.ClothPolish,
+        "BrightAnnealing" => pg.BrightAnnealing,
+        "Solution" => pg.Solution,
+        "Straighten" => pg.Straighten,
+        "Cut" => pg.Cut,
+        "ThicknessMeasure" => pg.ThicknessMeasure,
+        "Pickle" => pg.Pickle,
+        "OuterPolish" => pg.OuterPolish,
+        "InnerPolish" => pg.InnerPolish,
+        "InnerGrinding" => pg.InnerGrinding,
+        "OuterSpotGrinding" => pg.OuterSpotGrinding,
+        "SandBlasting" => pg.SandBlasting,
+        "ShotBlasting" => pg.ShotBlasting,
+        "Inspection" => pg.Inspection,
+        "WeldingHead" => pg.WeldingHead,
+        "Welding" => pg.Welding,
+        "Lubrication" => pg.Lubrication,
+        "Packing" => pg.Packing,
+        "Warehouse" => pg.Warehouse,
+        "Extra1" => pg.Extra1,
+        "Extra2" => pg.Extra2,
+        _ => null
+    };
+
+    private static void SetSectionValue(CreateProcessGroupRequest pg, string key, int? v)
+    {
+        switch (key)
+        {
+            case "ColdRollDraw": pg.ColdRollDraw = v; break;
+            case "OilPipeCut": pg.OilPipeCut = v; break;
+            case "Degrease": pg.Degrease = v; break;
+            case "EmulsionWash": pg.EmulsionWash = v; break;
+            case "UltrasonicWash": pg.UltrasonicWash = v; break;
+            case "ClothPolish": pg.ClothPolish = v; break;
+            case "BrightAnnealing": pg.BrightAnnealing = v; break;
+            case "Solution": pg.Solution = v; break;
+            case "Straighten": pg.Straighten = v; break;
+            case "Cut": pg.Cut = v; break;
+            case "ThicknessMeasure": pg.ThicknessMeasure = v; break;
+            case "Pickle": pg.Pickle = v; break;
+            case "OuterPolish": pg.OuterPolish = v; break;
+            case "InnerPolish": pg.InnerPolish = v; break;
+            case "InnerGrinding": pg.InnerGrinding = v; break;
+            case "OuterSpotGrinding": pg.OuterSpotGrinding = v; break;
+            case "SandBlasting": pg.SandBlasting = v; break;
+            case "ShotBlasting": pg.ShotBlasting = v; break;
+            case "Inspection": pg.Inspection = v; break;
+            case "WeldingHead": pg.WeldingHead = v; break;
+            case "Welding": pg.Welding = v; break;
+            case "Lubrication": pg.Lubrication = v; break;
+            case "Packing": pg.Packing = v; break;
+            case "Warehouse": pg.Warehouse = v; break;
+            case "Extra1": pg.Extra1 = v; break;
+            case "Extra2": pg.Extra2 = v; break;
+        }
+    }
+
     private async Task InitProcessGroupColumnsAsync()
     {
+        await LoadSectionColsAsync();
+
         pgCols = new List<ColumnDef>
         {
             new() { Key = "ProcessName", Label = "工序名称", Visible = true },
@@ -1446,33 +1504,18 @@
             new() { Key = "ManufacturingLength", Label = "制造长度", Visible = true },
             new() { Key = "CuttingTreatment", Label = "断切处理", Visible = true },
             new() { Key = "Remark", Label = "备注", Visible = true },
-            new() { Key = "ColdRollDraw", Label = "冷轧拔", Visible = true },
-            new() { Key = "OilPipeCut", Label = "油管断", Visible = true },
-            new() { Key = "Degrease", Label = "去油", Visible = true },
-            new() { Key = "EmulsionWash", Label = "乳液浸洗", Visible = true },
-            new() { Key = "UltrasonicWash", Label = "超声浸洗", Visible = true },
-            new() { Key = "ClothPolish", Label = "打布", Visible = true },
-            new() { Key = "BrightAnnealing", Label = "光亮退火", Visible = true },
-            new() { Key = "Solution", Label = "固溶", Visible = true },
-            new() { Key = "Straighten", Label = "矫直", Visible = true },
-            new() { Key = "Cut", Label = "断切", Visible = true },
-            new() { Key = "ThicknessMeasure", Label = "测壁厚", Visible = true },
-            new() { Key = "Pickle", Label = "酸洗", Visible = true },
-            new() { Key = "OuterPolish", Label = "外抛光", Visible = true },
-            new() { Key = "InnerPolish", Label = "内抛", Visible = true },
-            new() { Key = "InnerGrinding", Label = "内修磨", Visible = true },
-            new() { Key = "OuterSpotGrinding", Label = "外点磨", Visible = true },
-            new() { Key = "SandBlasting", Label = "喷砂", Visible = true },
-            new() { Key = "ShotBlasting", Label = "喷丸", Visible = true },
-            new() { Key = "Inspection", Label = "检验", Visible = true },
-            new() { Key = "WeldingHead", Label = "焊头", Visible = true },
-            new() { Key = "Welding", Label = "打头", Visible = true },
-            new() { Key = "Lubrication", Label = "润滑", Visible = true },
-            new() { Key = "Packing", Label = "包装", Visible = true },
-            new() { Key = "Warehouse", Label = "入库", Visible = true },
-            new() { Key = "Extra1", Label = "备用1", Visible = false },
-            new() { Key = "Extra2", Label = "备用2", Visible = false },
         };
+
+        // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
+        foreach (var sc in _sectionCols)
+        {
+            pgCols.Add(new ColumnDef
+            {
+                Key = sc.SectionKey,
+                Label = sc.SectionName,
+                Visible = true
+            });
+        }
 
         var saved = await ColumnPrefs.LoadAsync(PgColPrefsKey, null);
         if (saved.Count > 0)

@@ -3,6 +3,7 @@
 @using MES.Blazor.Services
 @using MES.Blazor.Helpers
 @using MES.Core.DTOs.Batch
+@using MES.Core.Constants
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
 @inject BatchService BatchService
@@ -12,6 +13,7 @@
 @inject IJSRuntime JS
 @inject PageStateService PageState
 @inject HttpClient Http
+@inject StandardWorkDayService StandardWorkDayService
 @attribute [Authorize(Roles = Roles.Policies.BatchRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -342,8 +344,10 @@
 
     private List<ProcessCardColumnDef> allColumns = new();
 
-    private static List<ProcessCardColumnDef> GetDefaultColumns() => new()
+    private List<ProcessCardColumnDef> GetDefaultColumns()
     {
+        var cols = new List<ProcessCardColumnDef>
+        {
         // === 批次基本信息 ===
         new() { BlockKey = "BatchInfo", Key = "BatchNo", Label = "生产编号", Visible = true },
         new() { BlockKey = "BatchInfo", Key = "TagNo", Label = "挂牌号", Visible = true },
@@ -424,38 +428,54 @@
         new() { BlockKey = "ProcessGroup", Key = "ManufacturingLength", Label = "制造长度", Visible = true },
         new() { BlockKey = "ProcessGroup", Key = "CuttingTreatment", Label = "断切处理", Visible = true },
         new() { BlockKey = "ProcessGroup", Key = "Remark", Label = "备注", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "ColdRollDraw", Label = "冷轧拔", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "OilPipeCut", Label = "油管断", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Degrease", Label = "去油", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "EmulsionWash", Label = "乳液浸洗", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "UltrasonicWash", Label = "超声浸洗", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "ClothPolish", Label = "打布", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "BrightAnnealing", Label = "光亮退火", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Solution", Label = "固溶", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Straighten", Label = "矫直", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Cut", Label = "断切", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "ThicknessMeasure", Label = "测壁厚", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Pickle", Label = "酸洗", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "OuterPolish", Label = "外抛光", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "InnerPolish", Label = "内抛", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "InnerGrinding", Label = "内修磨", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "OuterSpotGrinding", Label = "外点磨", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "SandBlasting", Label = "喷砂", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "ShotBlasting", Label = "喷丸", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Inspection", Label = "检验", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "WeldingHead", Label = "焊头", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Welding", Label = "打头", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Lubrication", Label = "润滑", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Packing", Label = "包装", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Warehouse", Label = "入库", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Extra1", Label = "备用1", Visible = false },
-        new() { BlockKey = "ProcessGroup", Key = "Extra2", Label = "备用2", Visible = false },
-    };
+        };
+
+        // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
+        foreach (var sc in _sectionCols)
+        {
+            cols.Add(new ProcessCardColumnDef
+            {
+                BlockKey = "ProcessGroup",
+                Key = sc.SectionKey,
+                Label = sc.SectionName,
+                Visible = true
+            });
+        }
+
+        return cols;
+    }
+
+    // ========== 工段列（从参数表加载，失败降级为预置 26 工段） ==========
+
+    private List<SectionInfoDto> _sectionCols = new();
+
+    private async Task LoadSectionColsAsync()
+    {
+        var r = await StandardWorkDayService.GetEnabledSectionsAsync();
+        if (r.Success && r.Data != null)
+        {
+            _sectionCols = r.Data;
+        }
+        else
+        {
+            _sectionCols = SectionDefs.PropertyNames
+                .Select((k, i) => new SectionInfoDto
+                {
+                    SectionKey = k,
+                    SectionName = SectionDefs.PropertyToName[k],
+                    DisplayOrder = i + 1,
+                    IsEnabled = true
+                })
+                .ToList();
+        }
+    }
 
     // ========== 初始化 ==========
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadSectionColsAsync();
+
         // 加载批次列表列偏好
         _allColumns = GetAllColumnDefs();
         var savedList = await ColumnPrefs.LoadAsync("process_card_print_list", null);

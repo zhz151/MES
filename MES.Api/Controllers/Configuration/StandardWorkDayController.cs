@@ -37,6 +37,13 @@ public class StandardWorkDayController : ControllerBase
         return Ok(ApiResponse<PagedResult<StandardWorkDayDto>>.Ok(result));
     }
 
+    [HttpGet("enabled-sections")]
+    public async Task<ActionResult<ApiResponse<List<SectionInfoDto>>>> GetEnabledSections()
+    {
+        var result = await _service.GetEnabledSectionsAsync();
+        return Ok(ApiResponse<List<SectionInfoDto>>.Ok(result));
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<StandardWorkDayDto>>> GetById(int id)
     {

@@ -4,6 +4,7 @@ using MudBlazor;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
+using MES.Core.Constants;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Configuration;
@@ -25,6 +26,9 @@ public partial class Workstations
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
+
+    // 工段下拉选项（从参数表加载启用工段，失败降级为预置 26 工段）
+    private List<string> _sectionOptions = new();
 
     // 排序状态
     private string sortColumn = "Code";
@@ -202,8 +206,19 @@ public partial class Workstations
 
     // ========== 初始化 ==========
 
+    // 加载启用工段下拉（从参数表，失败降级为预置 26 工段）
+    private async Task LoadSectionOptionsAsync()
+    {
+        var r = await StandardWorkDayService.GetEnabledSectionsAsync();
+        if (r.Success && r.Data != null)
+            _sectionOptions = r.Data.Select(x => x.SectionName).ToList();
+        else
+            _sectionOptions = new List<string>(SectionDefs.All);
+    }
+
     protected override async Task OnInitializedAsync()
     {
+        await LoadSectionOptionsAsync();
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("workstations", null);
         if (saved.Count > 0)

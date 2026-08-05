@@ -8,6 +8,7 @@
 @using MES.Core.DTOs.Batch
 @inject ProductionRecordService ProdRecordService
 @inject BatchService BatchService
+@inject StandardWorkDayService StandardWorkDayService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -357,16 +358,36 @@
 
     // ========== 下拉选项 ==========
 
-    private static readonly string[] _allSectionOptions = SectionDefs.All
-        .Where(s => s != SectionDefs.Degrease && s != SectionDefs.Pickle
-                 && s != SectionDefs.Inspection && s != SectionDefs.Warehouse)
-        .ToArray();
+    // 工段下拉选项（从参数表加载启用工段并排除不可记录工段，失败降级为预置 26 工段）
+    private List<string> _allSectionOptions = new();
 
     private static readonly List<(string Value, string Text)> _shiftOptions =
         Enum.GetValues<ShiftType>().Select(v => (v.ToString(), EnumHelper.GetDisplayName(v))).ToList();
 
+    // 加载启用工段下拉（从参数表，排除不可记录工段；失败降级为预置 26 工段）
+    private async Task LoadSectionOptionsAsync()
+    {
+        var r = await StandardWorkDayService.GetEnabledSectionsAsync();
+        var excludedKeys = new[] { "Degrease", "Pickle", "Inspection", "Warehouse" };
+        if (r.Success && r.Data != null)
+        {
+            _allSectionOptions = r.Data
+                .Where(x => !excludedKeys.Contains(x.SectionKey, StringComparer.OrdinalIgnoreCase))
+                .Select(x => x.SectionName)
+                .ToList();
+        }
+        else
+        {
+            _allSectionOptions = SectionDefs.All
+                .Where(s => s != SectionDefs.Degrease && s != SectionDefs.Pickle
+                         && s != SectionDefs.Inspection && s != SectionDefs.Warehouse)
+                .ToList();
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
+        await LoadSectionOptionsAsync();
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("production-records-create", null);
         if (saved.Count > 0)
