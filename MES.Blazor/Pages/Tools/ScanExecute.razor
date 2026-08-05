@@ -46,7 +46,7 @@
                         <MudText Typo="Typo.body2" Class="font-weight-bold" Color="Color.Primary">
                             @_workstationContext!.Name (@_workstationContext!.Code)
                         </MudText>
-                        <MudChip Size="Size.Small" Color="Color.Primary">@_workstationContext!.SectionName</MudChip>
+                        <MudChip Size="Size.Small" Color="Color.Primary">@SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName)</MudChip>
                         <MudChip Size="Size.Small" Color="Color.Tertiary">@GetReportTypeText(_workstationContext!.ReportType)</MudChip>
                         <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small"
                                    OnClick="ClearWorkstation" Style="font-size: 0.75rem; margin-left: auto;">
@@ -308,7 +308,7 @@
                             @if (_filteredGroups.Count > 1)
                             {
                                 <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2 font-weight-bold">
-                                    选择工序组（包含@(_workstationContext?.SectionName)的工序组）
+                                    选择工序组（包含@(SectionDisplayHelper.GetSectionNameText(_workstationContext?.SectionName))的工序组）
                                 </MudText>
                                 <div class="d-flex flex-column" style="gap: 6px;">
                                     @foreach (var g in _filteredGroups)
@@ -350,7 +350,7 @@
                                 @* 没有匹配工段的工序组，显示全部供选择 *@
                                 <MudText Typo="Typo.body2" Class="mt-3 mb-1" Color="Color.Warning">
                                     <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" />
-                                    未找到包含"@(_workstationContext?.SectionName)"的工序组，请手动选择：
+                                    未找到包含"@(SectionDisplayHelper.GetSectionNameText(_workstationContext?.SectionName))"的工序组，请手动选择：
                                 </MudText>
                                 <div class="d-flex flex-column" style="gap: 6px;">
                                     @foreach (var g in _batchGroupResult.ProcessGroups)
@@ -408,7 +408,7 @@
                                                 <MudIcon Icon="@(isSelected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Size="Size.Small" Color="Color.Primary" />
                                                 <div>
                                                     <MudText Typo="Typo.body2" Class="font-weight-bold">
-                                                        @rec.ProcessName — @rec.SectionName
+                                                        @rec.ProcessName — @SectionDisplayHelper.GetSectionNameText(rec.SectionName)
                                                     </MudText>
                                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                         @(rec.ManufacturingSpec ?? "-") | 入缸：@rec.InDate.ToString("yyyy-MM-dd") | @(rec.Quantity?.ToString() ?? "-")支 | @(rec.Weight?.ToString("G29") ?? "-")kg
@@ -516,7 +516,7 @@
                                             <MudIcon Icon="@(isSelected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Size="Size.Small" Color="Color.Primary" />
                                             <div>
                                                 <MudText Typo="Typo.body2" Class="font-weight-bold">
-                                                    @rec.OutsourceVendor — @rec.ProcessName / @rec.SectionName
+                                                    @rec.OutsourceVendor — @rec.ProcessName / @SectionDisplayHelper.GetSectionNameText(rec.SectionName)
                                                 </MudText>
                                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                     发出：@rec.SendOutDate.ToString("yyyy-MM-dd") | @(rec.SendQuantity?.ToString() ?? "-")支 / @(rec.SendWeight?.ToString("G29") ?? "-")kg
@@ -643,7 +643,7 @@
                         </div>
 
                         @* ========== 固溶专用字段（仅普通报工） ========== *@
-                        @if (_workstationContext!.ReportType == ReportTemplateType.ProductionRecord && _selectedSection == SectionDefs.Solution)
+                        @if (_workstationContext!.ReportType == ReportTemplateType.ProductionRecord && _selectedSection == SectionKeys.Solution)
                         {
                             <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-3 mb-1 font-weight-bold">固溶参数</MudText>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -663,7 +663,7 @@
                         }
 
                         @* ========== 断切专用字段（仅普通报工） ========== *@
-                        @if (_workstationContext!.ReportType == ReportTemplateType.ProductionRecord && _selectedSection == SectionDefs.Cut)
+                        @if (_workstationContext!.ReportType == ReportTemplateType.ProductionRecord && _selectedSection == SectionKeys.Cut)
                         {
                             <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-3 mb-1 font-weight-bold">断切参数</MudText>
                             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
@@ -720,7 +720,7 @@
                     <div class="d-flex flex-column">
                         <MudText Typo="Typo.h6" Class="mb-3 font-weight-bold">
                             <MudIcon Icon="@Icons.Material.Filled.Output" Color="Color.Primary" Class="mr-1" />
-                            出缸完工 — @_selectedPicklingInRecord.ProcessName / @_selectedPicklingInRecord.SectionName
+                            出缸完工 — @_selectedPicklingInRecord.ProcessName / @SectionDisplayHelper.GetSectionNameText(_selectedPicklingInRecord.SectionName)
                         </MudText>
 
                         @* 入缸记录摘要 *@
@@ -729,7 +729,7 @@
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">批次：</MudText>
                                 <MudText Typo="Typo.body2">@_selectedPicklingInRecord.BatchNo</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工序：</MudText>
-                                <MudText Typo="Typo.body2">@_selectedPicklingInRecord.ProcessName — @_selectedPicklingInRecord.SectionName</MudText>
+                                <MudText Typo="Typo.body2">@_selectedPicklingInRecord.ProcessName — @SectionDisplayHelper.GetSectionNameText(_selectedPicklingInRecord.SectionName)</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">牌号：</MudText>
                                 <MudText Typo="Typo.body2">@(_selectedPicklingInRecord.PlantGrade ?? "-")</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">规格：</MudText>
@@ -785,7 +785,7 @@
                     <div class="d-flex flex-column">
                         <MudText Typo="Typo.h6" Class="mb-3 font-weight-bold">
                             <MudIcon Icon="@Icons.Material.Filled.Output" Color="Color.Primary" Class="mr-1" />
-                            工段委外 — @_resolveResult.ProcessName / @_workstationContext!.SectionName
+                            工段委外 — @_resolveResult.ProcessName / @SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName)
                         </MudText>
 
                         @* 批次摘要 *@
@@ -796,7 +796,7 @@
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工序：</MudText>
                                 <MudText Typo="Typo.body2">@_resolveResult.ProcessName</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工段：</MudText>
-                                <MudText Typo="Typo.body2">@_workstationContext!.SectionName</MudText>
+                                <MudText Typo="Typo.body2">@SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName)</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">牌号：</MudText>
                                 <MudText Typo="Typo.body2">@_resolveResult.PlantGrade</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">规格：</MudText>
@@ -897,7 +897,7 @@
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">委外单位：</MudText>
                                 <MudText Typo="Typo.body2">@_selectedOutsourceRecord.OutsourceVendor</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工序：</MudText>
-                                <MudText Typo="Typo.body2">@_selectedOutsourceRecord.ProcessName — @_selectedOutsourceRecord.SectionName</MudText>
+                                <MudText Typo="Typo.body2">@_selectedOutsourceRecord.ProcessName — @SectionDisplayHelper.GetSectionNameText(_selectedOutsourceRecord.SectionName)</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">牌号：</MudText>
                                 <MudText Typo="Typo.body2">@(_selectedOutsourceRecord.PlantGrade ?? "-")</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">规格：</MudText>
@@ -986,7 +986,7 @@
                     <div class="d-flex flex-column">
                         <MudText Typo="Typo.h6" Class="mb-3 font-weight-bold">
                             <MudIcon Icon="@Icons.Material.Filled.EditNote" Color="Color.Primary" Class="mr-1" />
-                            过程检验 — @_resolveResult.ProcessName / @_workstationContext!.SectionName
+                            过程检验 — @_resolveResult.ProcessName / @SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName)
                         </MudText>
 
                         @* 批次摘要 *@
@@ -1411,7 +1411,7 @@
                         批次：@_submittedBatchNo
                     </MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-                        工段：@_submittedSection
+                        工段：@SectionDisplayHelper.GetSectionNameText(_submittedSection)
                     </MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                OnClick="ResetToScanBatch"
@@ -1812,7 +1812,7 @@
         if (!string.IsNullOrEmpty(sectionName))
         {
             _filteredGroups = _batchGroupResult.ProcessGroups
-                .Where(g => g.SectionNames.Contains(sectionName, StringComparer.OrdinalIgnoreCase))
+                .Where(g => g.SectionNames.Contains(SectionDisplayHelper.GetSectionNameText(sectionName), StringComparer.OrdinalIgnoreCase))
                 .ToList();
         }
         else
@@ -1980,7 +1980,7 @@
         // 工位上下文自动匹配工段
         _selectedSection = null;
         if (_hasWorkstation && !string.IsNullOrEmpty(_workstationContext?.SectionName)
-            && _resolveResult.AvailableSections.Any(s => s.SectionName == _workstationContext!.SectionName))
+            && _resolveResult.AvailableSections.Any(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName)))
         {
             _selectedSection = _workstationContext!.SectionName;
         }
@@ -2104,7 +2104,7 @@
                     return;
 
                 var section = _resolveResult.AvailableSections
-                    .FirstOrDefault(s => s.SectionName == _selectedSection);
+                    .FirstOrDefault(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_selectedSection));
 
                 var request = new CreateProductionRecordRequest
                 {
@@ -2149,7 +2149,7 @@
                     return;
 
                 var section = _resolveResult.AvailableSections
-                    .FirstOrDefault(s => s.SectionName == _selectedSection);
+                    .FirstOrDefault(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_selectedSection));
 
                 var request = new CreatePicklingInRecordRequest
                 {
@@ -2220,7 +2220,7 @@
                     ManufacturingSpec = _resolveResult.ManufacturingSpec ?? "",
                     SectionName = _workstationContext!.SectionName,
                     SequenceNumber = _resolveResult.AvailableSections
-                        .FirstOrDefault(s => s.SectionName == _workstationContext!.SectionName)?.SequenceNumber ?? 0,
+                        .FirstOrDefault(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName))?.SequenceNumber ?? 0,
                     OutsourceVendor = _sectionOutsourceVendor,
                     SendOutDate = DateTime.TryParse(_sectionOutsourceSendOutDate, out var sd) ? sd : DateTime.Today,
                     SendQuantity = _sectionOutsourceSendQuantity,
@@ -2286,7 +2286,7 @@
                     ManufacturingSpec = _resolveResult.ManufacturingSpec ?? "",
                     SectionName = _workstationContext!.SectionName,
                     SequenceNumber = _resolveResult.AvailableSections
-                        .FirstOrDefault(s => s.SectionName == _workstationContext!.SectionName)?.SequenceNumber ?? 0,
+                        .FirstOrDefault(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName))?.SequenceNumber ?? 0,
                     InspectionDate = DateTime.TryParse(_inspectionDate, out var id) ? id : DateTime.Today,
                     EquipmentName = _workstationContext?.EquipmentName,
                     Inspector = string.Join("、", _operators.Select(o => $"{o.Name}({o.Code})")),

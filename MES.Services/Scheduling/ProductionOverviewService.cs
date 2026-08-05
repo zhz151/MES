@@ -398,36 +398,41 @@ public class ProductionOverviewService : IProductionOverviewService
         int? Warehouse, int? Extra1, int? Extra2)
     {
         /// <summary>获取指定工段名称在此工序组中的执行序号，null 表示此工序组不含该工段</summary>
-        public int? GetSectionSequence(string sectionName) => sectionName switch
+        public int? GetSectionSequence(string? sectionName)
         {
-            SectionDefs.ColdRollDraw => ColdRollDraw,
-            SectionDefs.OilPipeCut => OilPipeCut,
-            SectionDefs.Degrease => Degrease,
-            SectionDefs.EmulsionWash => EmulsionWash,
-            SectionDefs.UltrasonicWash => UltrasonicWash,
-            SectionDefs.ClothPolish => ClothPolish,
-            SectionDefs.BrightAnnealing => BrightAnnealing,
-            SectionDefs.Solution => Solution,
-            SectionDefs.Straighten => Straighten,
-            SectionDefs.Cut => Cut,
-            SectionDefs.ThicknessMeasure => ThicknessMeasure,
-            SectionDefs.Pickle => Pickle,
-            SectionDefs.OuterPolish => OuterPolish,
-            SectionDefs.InnerPolish => InnerPolish,
-            SectionDefs.InnerGrinding => InnerGrinding,
-            SectionDefs.OuterSpotGrinding => OuterSpotGrinding,
-            SectionDefs.SandBlasting => SandBlasting,
-            SectionDefs.ShotBlasting => ShotBlasting,
-            SectionDefs.Inspection => Inspection,
-            SectionDefs.WeldingHead => WeldingHead,
-            SectionDefs.Welding => Welding,
-            SectionDefs.Lubrication => Lubrication,
-            SectionDefs.Packing => Packing,
-            SectionDefs.Warehouse => Warehouse,
-            SectionDefs.Extra1 => Extra1,
-            SectionDefs.Extra2 => Extra2,
-            _ => null
-        };
+            var key = SectionKeys.ToKey(sectionName);
+            if (key == null) return null;
+            return key switch
+            {
+                SectionKeys.ColdRollDraw => ColdRollDraw,
+                SectionKeys.OilPipeCut => OilPipeCut,
+                SectionKeys.Degrease => Degrease,
+                SectionKeys.EmulsionWash => EmulsionWash,
+                SectionKeys.UltrasonicWash => UltrasonicWash,
+                SectionKeys.ClothPolish => ClothPolish,
+                SectionKeys.BrightAnnealing => BrightAnnealing,
+                SectionKeys.Solution => Solution,
+                SectionKeys.Straighten => Straighten,
+                SectionKeys.Cut => Cut,
+                SectionKeys.ThicknessMeasure => ThicknessMeasure,
+                SectionKeys.Pickle => Pickle,
+                SectionKeys.OuterPolish => OuterPolish,
+                SectionKeys.InnerPolish => InnerPolish,
+                SectionKeys.InnerGrinding => InnerGrinding,
+                SectionKeys.OuterSpotGrinding => OuterSpotGrinding,
+                SectionKeys.SandBlasting => SandBlasting,
+                SectionKeys.ShotBlasting => ShotBlasting,
+                SectionKeys.Inspection => Inspection,
+                SectionKeys.WeldingHead => WeldingHead,
+                SectionKeys.Welding => Welding,
+                SectionKeys.Lubrication => Lubrication,
+                SectionKeys.Packing => Packing,
+                SectionKeys.Warehouse => Warehouse,
+                SectionKeys.Extra1 => Extra1,
+                SectionKeys.Extra2 => Extra2,
+                _ => null
+            };
+        }
     }
 
     private static List<(DateTime Start, DateTime End, string Label)> GenerateDateBuckets(DateTime today, int bucket1 = 15, int bucket2 = 30, int bucket3 = 45, int bucket4 = 60, int bucket5 = 90)

@@ -61,7 +61,7 @@ public class BatchPlanService : IBatchPlanService
         _context = context;
     }
 
-    // 冷轧类 Tab：工序在此列表中 → 需同时匹配工序名和"冷轧拔"工段
+    // 冷轧类 Tab：工序在此列表中 → 需同时匹配工序名和SectionKeys.ColdRollDraw工段
     private static readonly HashSet<string> _coldRollTabs = new()
     {
         "60冷轧", "50冷轧", "30冷轧", "20冷轧", "三辊冷轧", "冷拔"
@@ -121,10 +121,10 @@ public class BatchPlanService : IBatchPlanService
                 joined = joined.Where(x =>
                     (x.b.CurrentSectionCompleted == false &&
                      x.b.CurrentGroupName != null && x.b.CurrentGroupName.Contains(sectionTab) &&
-                     x.b.CurrentSectionName == "冷轧拔") ||
+                     x.b.CurrentSectionName == SectionKeys.ColdRollDraw) ||
                     (x.b.CurrentSectionCompleted != false &&
                      x.b.NextProcess != null && x.b.NextProcess.Contains(sectionTab) &&
-                     x.b.NextSectionName == "冷轧拔"));
+                     x.b.NextSectionName == SectionKeys.ColdRollDraw));
             }
             else if (sectionTab == "过程检验" || sectionTab == "成品检验" || sectionTab == "荒管检" || sectionTab == "在制检")
             {
@@ -132,7 +132,7 @@ public class BatchPlanService : IBatchPlanService
                 {
                     // 成品检验：工段=检验，且是本批次最大工序值
                     joined = joined.Where(x =>
-                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
+                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == SectionKeys.Inspection &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) ==
@@ -140,7 +140,7 @@ public class BatchPlanService : IBatchPlanService
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()) ||
-                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
+                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == SectionKeys.Inspection && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) ==
@@ -153,7 +153,7 @@ public class BatchPlanService : IBatchPlanService
                 {
                     // 过程检验/荒管检/在制检：工段=检验，且非本批次最大工序值
                     joined = joined.Where(x =>
-                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
+                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == SectionKeys.Inspection &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) >
@@ -161,7 +161,7 @@ public class BatchPlanService : IBatchPlanService
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()) ||
-                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
+                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == SectionKeys.Inspection && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) >
@@ -500,10 +500,10 @@ public class BatchPlanService : IBatchPlanService
                 joined = joined.Where(x =>
                     (x.b.CurrentSectionCompleted == false &&
                      x.b.CurrentGroupName != null && x.b.CurrentGroupName.Contains(sectionTab) &&
-                     x.b.CurrentSectionName == "冷轧拔") ||
+                     x.b.CurrentSectionName == SectionKeys.ColdRollDraw) ||
                     (x.b.CurrentSectionCompleted != false &&
                      x.b.NextProcess != null && x.b.NextProcess.Contains(sectionTab) &&
-                     x.b.NextSectionName == "冷轧拔"));
+                     x.b.NextSectionName == SectionKeys.ColdRollDraw));
             }
             else if (sectionTab == "过程检验" || sectionTab == "成品检验" || sectionTab == "荒管检" || sectionTab == "在制检")
             {
@@ -511,7 +511,7 @@ public class BatchPlanService : IBatchPlanService
                 {
                     // 成品检验：工段=检验，且是本批次最大工序值
                     joined = joined.Where(x =>
-                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
+                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == SectionKeys.Inspection &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) ==
@@ -519,7 +519,7 @@ public class BatchPlanService : IBatchPlanService
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()) ||
-                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
+                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == SectionKeys.Inspection && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) ==
@@ -532,7 +532,7 @@ public class BatchPlanService : IBatchPlanService
                 {
                     // 过程检验/荒管检/在制检：工段=检验，且非本批次最大工序值
                     joined = joined.Where(x =>
-                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
+                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == SectionKeys.Inspection &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) >
@@ -540,7 +540,7 @@ public class BatchPlanService : IBatchPlanService
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()) ||
-                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
+                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == SectionKeys.Inspection && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) >
@@ -674,7 +674,7 @@ public class BatchPlanService : IBatchPlanService
 
                 // 冷轧排程（本层）：仅当执行工段=冷轧拔时才填充
                 if (!string.IsNullOrEmpty(pendingProcess) && ProcessNames.IsColdRollOrDraw(pendingProcess)
-                    && pendingSectionName == SectionDefs.ColdRollDraw)
+                    && pendingSectionName == SectionKeys.ColdRollDraw)
                 {
                     item.CurrentCR_ProcessType = pendingProcess;
                     item.CurrentCR_RollingSpec = pendingPg.ManufacturingSpec;
@@ -861,17 +861,17 @@ public class BatchPlanService : IBatchPlanService
 
         return flowTarget switch
         {
-            // 成检：取工段"检验"的最大工序内序号
+            // 成检：取工段SectionKeys.Inspection的最大工序内序号
             "成检" => pgs.Where(pg => pg.Inspection.HasValue)
                         .Select(pg => (int?)pg.Inspection)
                         .Max(),
 
-            // 完工冷轧：匹配冷轧类型+工段"冷轧拔"，字段值+1
+            // 完工冷轧：匹配冷轧类型+工段SectionKeys.ColdRollDraw，字段值+1
             "完工冷轧" => pgs.FirstOrDefault(pg =>
                               pg.ProcessName == flowCRType && pg.ColdRollDraw.HasValue)
                           ?.ColdRollDraw + 1,
 
-            // 冷轧：匹配冷轧类型+工段"冷轧拔"的字段值
+            // 冷轧：匹配冷轧类型+工段SectionKeys.ColdRollDraw的字段值
             "冷轧" => pgs.FirstOrDefault(pg =>
                           pg.ProcessName == flowCRType && pg.ColdRollDraw.HasValue)
                       ?.ColdRollDraw,

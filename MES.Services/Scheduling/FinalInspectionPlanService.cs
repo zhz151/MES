@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
@@ -162,8 +163,8 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
         // 查询在产且工段=检验的批次（缩小数据范围）
         var candidates = await _context.ProductionBatches.AsNoTracking()
             .Where(b => (b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress) &&
-                        ((b.CurrentSectionCompleted == false && b.CurrentSectionName == "检验") ||
-                         (b.CurrentSectionCompleted != false && b.NextSectionName == "检验")))
+                        ((b.CurrentSectionCompleted == false && b.CurrentSectionName == SectionKeys.Inspection) ||
+                         (b.CurrentSectionCompleted != false && b.NextSectionName == SectionKeys.Inspection)))
             .Select(b => new BatchProjection
             {
                 Id = b.Id,
@@ -209,13 +210,13 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
             var maxSeq = pgs.Max(pg => pg.SequenceNumber);
 
             bool isFinalInspection = false;
-            if (b.CurrentSectionCompleted == false && b.CurrentSectionName == "检验" && b.CurrentGroupName != null)
+            if (b.CurrentSectionCompleted == false && b.CurrentSectionName == SectionKeys.Inspection && b.CurrentGroupName != null)
             {
                 var seq = pgs.Where(pg => pg.ProcessName == b.CurrentGroupName)
                     .Select(pg => (int?)pg.SequenceNumber).FirstOrDefault();
                 if (seq == maxSeq) isFinalInspection = true;
             }
-            else if (b.CurrentSectionCompleted != false && b.NextSectionName == "检验" && b.NextProcess != null)
+            else if (b.CurrentSectionCompleted != false && b.NextSectionName == SectionKeys.Inspection && b.NextProcess != null)
             {
                 var seq = pgs.Where(pg => pg.ProcessName == b.NextProcess)
                     .Select(pg => (int?)pg.SequenceNumber).FirstOrDefault();

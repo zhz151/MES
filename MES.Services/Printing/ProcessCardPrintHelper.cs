@@ -25,6 +25,7 @@ using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Batch;
 using MES.Services.Helpers;
+using MES.Core.Constants;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -357,11 +358,11 @@ public static class ProcessCardPrintHelper
             ["ManufacturingItem"] = ("制造物品", () => EnumHelper.GetDisplayName<MaterialType>(b.ManufacturingItem)),
             ["ManufacturingStatus"] = ("制造状态", () => string.IsNullOrEmpty(b.ManufacturingStatus) ? "-" : (Enum.TryParse<DeliveryState>(b.ManufacturingStatus, out var ms) ? EnumHelper.GetDisplayName(ms) : b.ManufacturingStatus)),
             ["CurrentGroupName"] = ("当前工序", () => b.CurrentGroupName ?? "-"),
-            ["CurrentSectionName"] = ("当前工段", () => b.CurrentSectionName ?? "-"),
+            ["CurrentSectionName"] = ("当前工段", () => SectionKeys.ToChinese(b.CurrentSectionName) ?? "-"),
             ["CurrentEquipmentName"] = ("当前设备", () => b.CurrentEquipmentName ?? "-"),
             ["CurrentOutsource"] = ("当前委外", () => b.CurrentOutsource ?? "-"),
             ["CurrentSpec"] = ("当前规格", () => b.CurrentSpec ?? "-"),
-            ["NextSectionName"] = ("下一工段", () => b.NextSectionName ?? "-"),
+            ["NextSectionName"] = ("下一工段", () => SectionKeys.ToChinese(b.NextSectionName) ?? "-"),
             ["CorrespondingSpec"] = ("对应规格", () => b.CorrespondingSpec ?? "-"),
             ["NextProcess"] = ("下一工序", () => b.NextProcess ?? "-"),
             ["CreatedBy"] = ("创建人", () => b.CreatedBy ?? "-"),

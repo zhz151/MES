@@ -137,7 +137,7 @@ public class ProductionRecordService : IProductionRecordService
     private static string? ValidatePreCut(bool isPreCut, string? sectionName, decimal? finishedCutLength)
     {
         if (!isPreCut) return null;
-        if (sectionName != SectionDefs.Cut)
+        if (sectionName != SectionKeys.Cut)
             return "预成切必须是断切工段";
         if (finishedCutLength == null || finishedCutLength <= 0)
             return "预成切必须填写成品长度";
@@ -286,7 +286,7 @@ public class ProductionRecordService : IProductionRecordService
             if (pg != null)
             {
                 var sections = GetSectionsFromProcessGroup(pg);
-                var match = sections.FirstOrDefault(s => s.SectionName == request.SectionName);
+                var match = sections.FirstOrDefault(s => SectionKeys.ToKey(s.SectionName) == request.SectionName);
                 sequenceNumber = match.Sequence;
             }
         }
@@ -440,11 +440,11 @@ public class ProductionRecordService : IProductionRecordService
 
         // 预查询：各批次已存在的冷轧拔记录（包含生产记录 + 委外记录）
         var existingColdRollDraw = await _context.ProductionRecords
-            .Where(r => allBatchIds.Contains(r.ProductionBatchId) && r.SectionName == SectionDefs.ColdRollDraw)
+            .Where(r => allBatchIds.Contains(r.ProductionBatchId) && r.SectionName == SectionKeys.ColdRollDraw)
             .Select(r => new { r.ProductionBatchId, r.ProcessGroupId })
             .ToListAsync();
         var outsourcedColdRollDraw = await _context.SectionOutsources
-            .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionDefs.ColdRollDraw)
+            .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionKeys.ColdRollDraw)
             .Select(o => new { o.ProductionBatchId, o.ProcessGroupId })
             .ToListAsync();
         var coldRollDrawExists = new HashSet<(int BatchId, int PgId)>(
@@ -483,7 +483,7 @@ public class ProductionRecordService : IProductionRecordService
         var pendingColdRollDraw = new HashSet<(int BatchId, int PgId)>();
         foreach (var request in requests)
         {
-            if (request.SectionName == SectionDefs.ColdRollDraw)
+            if (request.SectionName == SectionKeys.ColdRollDraw)
             {
                 var batch = batchLookup[request.BatchNo];
                 var batchId = batch.Id;
@@ -503,7 +503,7 @@ public class ProductionRecordService : IProductionRecordService
         for (int i = 0; i < requests.Count; i++)
         {
             var request = requests[i];
-            if (request.SectionName == SectionDefs.ColdRollDraw)
+            if (request.SectionName == SectionKeys.ColdRollDraw)
                 continue;
 
             var batch = batchLookup[request.BatchNo];
@@ -559,24 +559,24 @@ public class ProductionRecordService : IProductionRecordService
             if (pg != null)
             {
                 // 过程检验已独立为单独模块，生产记录中不允许使用"检验"工段
-                if (request.SectionName == SectionDefs.Inspection)
+                if (request.SectionName == SectionKeys.Inspection)
                 {
                     requestErrors.Add($"第{i + 1}行：工段「检验」已由过程检验模块管理，不允许在生产记录中使用");
                     continue;
                 }
                 var sections = GetSectionsFromProcessGroup(pg);
-                if (!sections.Any(s => s.SectionName == request.SectionName))
+                if (!sections.Any(s => SectionKeys.ToKey(s.SectionName) == request.SectionName))
                     requestErrors.Add($"第{i + 1}行：工段「{request.SectionName}」不存在于工序组「{pg.ProcessName}」中，无法提交");
             }
         }
 
         // 预查询：各批次各工序组的冷轧拔总重量（用于冷轧拔总加工重量验证，含自产 + 委外发出）
         var coldRollDrawWeightByKey = allExistingRecords
-            .Where(r => r.SectionName == SectionDefs.ColdRollDraw && r.Weight.HasValue)
+            .Where(r => r.SectionName == SectionKeys.ColdRollDraw && r.Weight.HasValue)
             .GroupBy(r => new { r.ProductionBatchId, r.ProcessGroupId })
             .ToDictionary(g => (g.Key.ProductionBatchId, g.Key.ProcessGroupId), g => g.Sum(r => r.Weight!.Value));
         var outsourcedCrWeights = await _context.SectionOutsources
-            .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionDefs.ColdRollDraw && o.SendWeight.HasValue)
+            .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionKeys.ColdRollDraw && o.SendWeight.HasValue)
             .GroupBy(o => new { o.ProductionBatchId, o.ProcessGroupId })
             .ToListAsync();
         foreach (var grp in outsourcedCrWeights)
@@ -591,13 +591,13 @@ public class ProductionRecordService : IProductionRecordService
 
         var simpleDuplicateSections = new HashSet<string>
         {
-            SectionDefs.OilPipeCut, SectionDefs.Degrease, SectionDefs.EmulsionWash,
-            SectionDefs.UltrasonicWash, SectionDefs.ClothPolish, SectionDefs.BrightAnnealing,
-            SectionDefs.Solution, SectionDefs.Straighten, SectionDefs.ThicknessMeasure,
-            SectionDefs.Pickle, SectionDefs.OuterPolish, SectionDefs.InnerPolish,
-            SectionDefs.InnerGrinding, SectionDefs.OuterSpotGrinding, SectionDefs.SandBlasting,
-            SectionDefs.ShotBlasting, SectionDefs.WeldingHead, SectionDefs.Welding,
-            SectionDefs.Lubrication, SectionDefs.Packing, SectionDefs.Extra1, SectionDefs.Extra2
+            SectionKeys.OilPipeCut, SectionKeys.Degrease, SectionKeys.EmulsionWash,
+            SectionKeys.UltrasonicWash, SectionKeys.ClothPolish, SectionKeys.BrightAnnealing,
+            SectionKeys.Solution, SectionKeys.Straighten, SectionKeys.ThicknessMeasure,
+            SectionKeys.Pickle, SectionKeys.OuterPolish, SectionKeys.InnerPolish,
+            SectionKeys.InnerGrinding, SectionKeys.OuterSpotGrinding, SectionKeys.SandBlasting,
+            SectionKeys.ShotBlasting, SectionKeys.WeldingHead, SectionKeys.Welding,
+            SectionKeys.Lubrication, SectionKeys.Packing, SectionKeys.Extra1, SectionKeys.Extra2
         };
 
         // 预取：各批次所属「订单号+主号」的定尺长度集合（成品切割长度校验用，避免循环内 N+1 查询）
@@ -646,13 +646,13 @@ public class ProductionRecordService : IProductionRecordService
                 else
                     pendingSimpleKeys.Add(key);
             }
-            else if (request.SectionName == SectionDefs.ColdRollDraw)
+            else if (request.SectionName == SectionKeys.ColdRollDraw)
             {
                 // 规则(2)：同批次+同工序组+同工段+同执行日期+同设备名称+同操作人 → 重复
                 var key = (batchId, pgId.Value, request.ExecDate.Date, request.EquipmentName ?? "", request.Operator ?? "");
                 var dup = batchRecords.Any(r =>
                     r.ProcessGroupId == pgId.Value &&
-                    r.SectionName == SectionDefs.ColdRollDraw &&
+                    r.SectionName == SectionKeys.ColdRollDraw &&
                     r.ExecDate.Date == request.ExecDate.Date &&
                     r.EquipmentName == request.EquipmentName &&
                     r.Operator == request.Operator)
@@ -668,13 +668,13 @@ public class ProductionRecordService : IProductionRecordService
                 if (totalWeight > (batch.CurrentValidWeight ?? batch.InputWeight))
                     requestErrors.Add($"第{i + 1}行：冷轧拔总加工重量({totalWeight})不能大于有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
             }
-            else if (request.SectionName == SectionDefs.Cut)
+            else if (request.SectionName == SectionKeys.Cut)
             {
                 // 规则(3)：同批次+同工序组+同工段+同成品长度 → 重复
                 var key = (batchId, pgId.Value, request.FinishedCutLength);
                 var dup = batchRecords.Any(r =>
                     r.ProcessGroupId == pgId.Value &&
-                    r.SectionName == SectionDefs.Cut &&
+                    r.SectionName == SectionKeys.Cut &&
                     r.FinishedCutLength == request.FinishedCutLength)
                     || pendingCutKeys.Contains(key);
                 if (dup)
@@ -724,7 +724,7 @@ public class ProductionRecordService : IProductionRecordService
                 if (pg != null)
                 {
                     var sections = GetSectionsFromProcessGroup(pg);
-                    var match = sections.FirstOrDefault(s => s.SectionName == request.SectionName);
+                    var match = sections.FirstOrDefault(s => SectionKeys.ToKey(s.SectionName) == request.SectionName);
                     sequenceNumber = match.Sequence;
                 }
             }
@@ -1029,7 +1029,7 @@ public class ProductionRecordService : IProductionRecordService
     public async Task<int> CleanupDegreasePickleRecordsAsync()
     {
         var records = await _context.ProductionRecords
-            .Where(r => r.SectionName == SectionDefs.Degrease || r.SectionName == SectionDefs.Pickle)
+            .Where(r => r.SectionName == SectionKeys.Degrease || r.SectionName == SectionKeys.Pickle)
             .ToListAsync();
         var count = records.Count;
         if (count > 0)
@@ -1557,7 +1557,7 @@ public class ProductionRecordService : IProductionRecordService
                 var latestInbound = batch.CurrentValidWeight > 0
                     ? inventoryBatches.First(ib => ib.MaterialType == batch.ManufacturingItem)
                     : inventoryBatches[0];
-                batch.CurrentSectionName = SectionDefs.Warehouse; // "入库"
+                batch.CurrentSectionName = SectionKeys.Warehouse; // "入库"
                 batch.CurrentExecDate = latestInbound.InboundDate;
                 batch.NextSectionName = "-";
                 batch.NextProcess = null;
@@ -1674,7 +1674,7 @@ public class ProductionRecordService : IProductionRecordService
         var cutRecords = finishedPgIds.Count > 0
             ? productionRecords
                 .Where(r => finishedPgIds.Contains(r.ProcessGroupId)
-                    && r.SectionName == SectionDefs.Cut
+                    && r.SectionName == SectionKeys.Cut
                     && r.IsPreCut != true)
                 .ToList()
             : new List<ProductionRecord>();
@@ -1687,7 +1687,7 @@ public class ProductionRecordService : IProductionRecordService
         // 预成切(IsPreCut=true)不是正式成品切割，不计入成切支数
         var isFixedLength = string.Equals(batch.LengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase);
         var finishedCutRecords = productionRecords
-            .Where(r => r.SectionName == SectionDefs.Cut && r.ProductStatus == "成品" && r.IsPreCut != true)
+            .Where(r => r.SectionName == SectionKeys.Cut && r.ProductStatus == "成品" && r.IsPreCut != true)
             .ToList();
         batch.CutQuantity = finishedCutRecords.Count > 0
             ? finishedCutRecords
@@ -2049,7 +2049,7 @@ public class ProductionRecordService : IProductionRecordService
             // 仓库入库覆盖：入库后当前工段为"入库"，无下一工段（批量模式）
             if (hasWarehouse)
             {
-                batch.CurrentSectionName = SectionDefs.Warehouse;
+                batch.CurrentSectionName = SectionKeys.Warehouse;
                 batch.NextSectionName = "-";
                 batch.NextProcess = null;
                 batch.CorrespondingSpec = null;
@@ -2186,7 +2186,7 @@ public class ProductionRecordService : IProductionRecordService
         else if (overallMaxSeq == materialCheckSeq && hasMaterialCheck)
         {
             batch.CurrentGroupName = materialCheckPg?.ProcessName;
-            batch.CurrentSectionName = SectionDefs.Inspection;
+            batch.CurrentSectionName = SectionKeys.Inspection;
             batch.CurrentEquipmentName = null;
             batch.CurrentSpec = materialCheckPg != null
                 ? pgSpecLookup.GetValueOrDefault(materialCheckPg.Id)
@@ -2209,12 +2209,12 @@ public class ProductionRecordService : IProductionRecordService
         {
             batch.CurrentSectionCompleted = null;
         }
-        else if (overallMaxSeq == maxRecordSeq && maxSeqRecord?.SectionName == SectionDefs.ColdRollDraw)
+        else if (overallMaxSeq == maxRecordSeq && maxSeqRecord?.SectionName == SectionKeys.ColdRollDraw)
         {
             // 冷轧拔：总加工重量 ≥ 有效原料重量 × 95% 才算完工
             var pgId = maxSeqRecord.ProcessGroupId;
             var totalWeight = productionRecords
-                .Where(r => r.ProcessGroupId == pgId && r.SectionName == SectionDefs.ColdRollDraw && r.Weight.HasValue)
+                .Where(r => r.ProcessGroupId == pgId && r.SectionName == SectionKeys.ColdRollDraw && r.Weight.HasValue)
                 .Sum(r => r.Weight!.Value);
             var threshold = (batch.CurrentValidWeight ?? batch.InputWeight ?? 0) * coldRollCompleteRatio;
             batch.CurrentSectionCompleted = totalWeight >= threshold;
@@ -2249,9 +2249,9 @@ public class ProductionRecordService : IProductionRecordService
                 .FirstOrDefault();
             if (firstPg != null)
             {
-                var firstSections = GetSectionsFromProcessGroup(firstPg);
-                var firstSection = firstSections.OrderBy(s => s.Sequence).FirstOrDefault();
-                batch.NextSectionName = firstSection.SectionName;
+                var firstSections = firstPg.GetNonEmptySectionKeys();
+                var firstSection = firstSections.OrderBy(s => s.SequenceNumber).FirstOrDefault();
+                batch.NextSectionName = firstSection.SectionKey;
                 batch.CorrespondingSpec = firstPg.ManufacturingSpec;
             }
             else
@@ -2265,7 +2265,7 @@ public class ProductionRecordService : IProductionRecordService
         {
             int nextSeq = overallMaxSeq + 1;
             var nextSection = allSections.FirstOrDefault(s => s.Sequence == nextSeq);
-            batch.NextSectionName = nextSection?.SectionName;
+            batch.NextSectionName = nextSection != null ? SectionKeys.ToKey(nextSection.SectionName) : null;
             batch.CorrespondingSpec = nextSection != null
                 ? pgSpecLookup.GetValueOrDefault(nextSection.pgId)
                 : null;
@@ -2942,7 +2942,8 @@ public class ProductionRecordService : IProductionRecordService
         double totalDays = 0;
         foreach (var section in allSections.Where(s => s.Sequence >= startSeq))
         {
-            totalDays += dayMap.GetValueOrDefault(section.SectionName, 0);
+            var sectionKey = SectionKeys.ToKey(section.SectionName);
+            totalDays += sectionKey != null ? dayMap.GetValueOrDefault(sectionKey, 0) : 0;
         }
 
         // 交货状态调整：从配置表读取附加天数
@@ -2974,7 +2975,8 @@ public class ProductionRecordService : IProductionRecordService
         double totalDays = 0;
         foreach (var section in allSections.Where(s => s.Sequence >= startSeq))
         {
-            totalDays += dayMap.GetValueOrDefault(section.SectionName, 0);
+            var sectionKey = SectionKeys.ToKey(section.SectionName);
+            totalDays += sectionKey != null ? dayMap.GetValueOrDefault(sectionKey, 0) : 0;
         }
 
         // 交货状态调整：从配置表读取附加天数
@@ -3003,7 +3005,7 @@ public class ProductionRecordService : IProductionRecordService
     /// 自动计算长度状态：工段为"断切"且产类为"成品"时，从批次冗余其长度状态；否则为空
     /// </summary>
     private static string? CalculateLengthStatus(string? sectionName, string? productStatus, string? batchLengthStatus)
-        => sectionName == SectionDefs.Cut && productStatus == "成品" ? batchLengthStatus : null;
+        => sectionName == SectionKeys.Cut && productStatus == "成品" ? batchLengthStatus : null;
 
     /// <summary>
     /// 判断制造物品是否属于"成品"类别（OrderFinishedProduct/PreparedMaterial/SpecialDeliveryStatus）

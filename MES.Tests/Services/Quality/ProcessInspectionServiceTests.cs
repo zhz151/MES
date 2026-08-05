@@ -13,6 +13,7 @@ using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.Batch;
@@ -126,7 +127,7 @@ public class ProcessInspectionServiceTests : TestBase
     }
 
     private async Task SeedInspectionAsync(AppDbContext ctx, string batchNo = "BATCH001",
-        string processName = "60冷轧", string sectionName = "冷轧拔")
+        string processName = "60冷轧", string sectionName = SectionKeys.ColdRollDraw)
     {
         var batch = await ctx.ProductionBatches.FirstOrDefaultAsync(b => b.BatchNo == batchNo);
         if (batch == null) batch = await SeedBatchAsync(ctx, batchNo);
@@ -257,7 +258,7 @@ public class ProcessInspectionServiceTests : TestBase
             ProductionBatchId = batch.Id,
             ProcessGroupId = pg.Id,
             ProcessName = "60冷轧",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ProductStatus = "成品"
         });
         await ctx.SaveChangesAsync();
@@ -270,7 +271,7 @@ public class ProcessInspectionServiceTests : TestBase
                 BatchNo = "BATCH001",
                 ProcessName = "60冷轧",
                 ManufacturingSpec = "219*8",
-                SectionName = "检验",
+                SectionName = SectionKeys.Inspection,
                 InspectionDate = DateTime.Today,
                 Quantity = 10,
                 QualifiedQuantity = 10,
@@ -304,7 +305,7 @@ public class ProcessInspectionServiceTests : TestBase
             new()
             {
                 BatchNo = "NONEXISTENT", ProcessName = "60冷轧",
-                ManufacturingSpec = "219*8", SectionName = "冷轧拔",
+                ManufacturingSpec = "219*8", SectionName = SectionKeys.ColdRollDraw,
                 InspectionDate = DateTime.Today
             }
         });
@@ -381,7 +382,7 @@ public class ProcessInspectionServiceTests : TestBase
             ProductionBatchId = batch.Id,
             ProcessName = "60冷轧",
             ManufacturingSpec = "273*10",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 1,
             InspectionDate = DateTime.Today,
             Quantity = 10,
@@ -406,7 +407,7 @@ public class ProcessInspectionServiceTests : TestBase
             ProductionBatchId = batch.Id,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 1,
             InspectionDate = DateTime.Today,
             Quantity = 10,
@@ -493,8 +494,8 @@ public class ProcessInspectionServiceTests : TestBase
     {
         ResetFilterContextCache();
         var ctx = CreateDbContext();
-        await SeedInspectionAsync(ctx, batchNo: "BATCH001", processName: "60冷轧", sectionName: "冷轧拔");
-        await SeedInspectionAsync(ctx, batchNo: "BATCH002", processName: "冷拔", sectionName: "冷轧拔");
+        await SeedInspectionAsync(ctx, batchNo: "BATCH001", processName: "60冷轧", sectionName: SectionKeys.ColdRollDraw);
+        await SeedInspectionAsync(ctx, batchNo: "BATCH002", processName: "冷拔", sectionName: SectionKeys.ColdRollDraw);
         var svc = CreateService(ctx);
 
         var contexts = await svc.GetFilterContextsAsync();
@@ -529,7 +530,7 @@ public class ProcessInspectionServiceTests : TestBase
         {
             ProductionBatchId = batch.Id,
             ProcessName = "60冷轧",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             BatchNo = "BATCH001",
             SequenceNumber = 1,
             InspectionDate = DateTime.Today,

@@ -13,6 +13,7 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Helpers;
+using MES.Core.Constants;
 using MES.Services.Printing;
 
 namespace MES.Services.Printing;
@@ -60,7 +61,7 @@ public static class ProductionRecordPrintHelper
                 ["ProductionMainNo"] = r.ProductionMainNo ?? "",
                 ["ProcessName"] = r.ProcessName,
                 ["ManufacturingSpec"] = r.ManufacturingSpec ?? "",
-                ["SectionName"] = r.SectionName,
+                ["SectionName"] = SectionKeys.ToChinese(r.SectionName),
                 ["SequenceNumber"] = r.SequenceNumber.ToString(),
                 ["ExecDate"] = r.ExecDate.ToString("yyyy-MM-dd"),
                 ["EquipmentName"] = r.EquipmentName ?? "",

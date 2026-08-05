@@ -164,7 +164,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today,
             Quantity = 10,
             Weight = 1000m
@@ -188,7 +188,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "NONEXISTENT",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today
         });
 
@@ -208,7 +208,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today,
             Quantity = 10
         });
@@ -247,7 +247,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today,
             FinishedCutLength = 6000m
         });
@@ -269,7 +269,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today,
             FinishedCutLength = 4000m
         });
@@ -291,7 +291,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today,
             FinishedCutLength = 6000m
         });
@@ -313,7 +313,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today,
             FinishedCutLength = 4000m
         });
@@ -343,7 +343,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today,
             FinishedCutLength = 4000m,
             IsPreCut = true
@@ -366,7 +366,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today,
             FinishedCutLength = 6000m,
             IsPreCut = true
@@ -390,7 +390,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today,
             FinishedCutLength = 6000m,
             IsPreCut = true
@@ -413,7 +413,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today,
             FinishedCutLength = 4000m
         });
@@ -442,7 +442,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today,
             FinishedCutLength = 4000m
         });
@@ -471,7 +471,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔", // 非断切工段
+            SectionName = SectionKeys.ColdRollDraw, // 非断切工段
             ExecDate = DateTime.Today,
             FinishedCutLength = 6000m,
             IsPreCut = true
@@ -494,7 +494,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today,
             IsPreCut = true
             // 未填 FinishedCutLength
@@ -518,7 +518,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "断切",
+            SectionName = SectionKeys.Cut,
             ExecDate = DateTime.Today
         });
 
@@ -546,7 +546,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today
         });
 
@@ -596,7 +596,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH-REC-SPEC",
             ProcessName = "60冷轧",
             ManufacturingSpec = "273*10",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today,
             Quantity = 10,
             Weight = 1000m
@@ -622,7 +622,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH-REC-REM",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today,
             Quantity = 10,
             Weight = 1000m,
@@ -651,7 +651,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today,
             Quantity = 10
         });
@@ -660,7 +660,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "冷拔",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today,
             Quantity = 20
         });
@@ -692,7 +692,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today,
             Quantity = 10
         });
@@ -703,7 +703,7 @@ public class ProductionRecordServiceTests : TestBase
             PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
-                new() { Field = "SectionName", Operator = "in", Values = new List<string> { "冷轧拔" } }
+                new() { Field = "SectionName", Operator = "in", Values = new List<string> { SectionKeys.ColdRollDraw } }
             }
         });
 
@@ -722,7 +722,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today,
             Quantity = 10
         });
@@ -755,7 +755,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today,
             Quantity = 10
         });
@@ -766,7 +766,7 @@ public class ProductionRecordServiceTests : TestBase
         contexts["BatchNo"].Should().Contain("BATCH001");
         contexts.Should().ContainKey("ProcessName");
         contexts["ProcessName"].Should().Contain("60冷轧");
-        contexts["SectionName"].Should().Contain("冷轧拔");
+        contexts["SectionName"].Should().Contain(SectionKeys.ColdRollDraw);
     }
 
     [Fact]
@@ -796,7 +796,7 @@ public class ProductionRecordServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             ExecDate = DateTime.Today,
             Quantity = 10,
             EquipmentName = null,
@@ -858,7 +858,7 @@ public class ProductionRecordServiceTests : TestBase
                 ProcessGroupId = pg.Id,
                 ProcessName = "60冷轧",
                 ManufacturingSpec = "219*8",
-                SectionName = SectionDefs.Cut,
+                SectionName = SectionKeys.Cut,
                 SequenceNumber = 5,
                 ExecDate = DateTime.Today,
                 ProductStatus = "成品",
@@ -900,7 +900,7 @@ public class ProductionRecordServiceTests : TestBase
             ProcessGroupId = pgId,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = SectionDefs.Cut,
+            SectionName = SectionKeys.Cut,
             SequenceNumber = 6,
             ExecDate = DateTime.Today,
             ProductStatus = "成品",
@@ -932,7 +932,7 @@ public class ProductionRecordServiceTests : TestBase
             ProcessGroupId = pgId,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = SectionDefs.Cut,
+            SectionName = SectionKeys.Cut,
             SequenceNumber = 5,
             ExecDate = DateTime.Today,
             ProductStatus = "成品",
@@ -965,7 +965,7 @@ public class ProductionRecordServiceTests : TestBase
             ProcessGroupId = pg.Id,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = SectionDefs.Cut,
+            SectionName = SectionKeys.Cut,
             SequenceNumber = 5,
             ExecDate = DateTime.Today,
             ProductStatus = "成品",
@@ -1042,7 +1042,7 @@ public class ProductionRecordServiceTests : TestBase
             ProcessGroupId = pg.Id,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = SectionDefs.Cut,
+            SectionName = SectionKeys.Cut,
             SequenceNumber = 5,
             ExecDate = DateTime.Today,
             ProductStatus = "成品",
@@ -1275,7 +1275,7 @@ public class ProductionRecordServiceTests : TestBase
             ProcessGroupId = pg.Id,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = SectionDefs.ColdRollDraw,
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 1,
             ExecDate = DateTime.Today
         });

@@ -310,11 +310,11 @@ public class PicklingService : IPicklingService
             var hasColdRollDraw = await _context.ProductionRecords
                 .AnyAsync(r => r.ProductionBatchId == batch.Id
                     && r.ProcessGroupId == processGroupId
-                    && r.SectionName == SectionDefs.ColdRollDraw)
+                    && r.SectionName == SectionKeys.ColdRollDraw)
                 || await _context.SectionOutsources
                     .AnyAsync(o => o.ProductionBatchId == batch.Id
                         && o.ProcessGroupId == processGroupId
-                        && o.SectionName == SectionDefs.ColdRollDraw);
+                        && o.SectionName == SectionKeys.ColdRollDraw);
             if (!hasColdRollDraw)
                 throw new BusinessException($"工序「{request.ProcessName}」必须首先记录「冷轧拔」工段，才能进行去油/酸洗");
         }
@@ -471,19 +471,19 @@ public class PicklingService : IPicklingService
         // 预查询已存在的冷轧拔记录（含生产记录、委外和入缸）
         var existingColdRollDraw = new HashSet<(int batchId, int pgId)>();
         var prodColdRollDraw = await _context.ProductionRecords
-            .Where(r => allBatchIds.Contains(r.ProductionBatchId) && r.SectionName == SectionDefs.ColdRollDraw)
+            .Where(r => allBatchIds.Contains(r.ProductionBatchId) && r.SectionName == SectionKeys.ColdRollDraw)
             .Select(r => new { r.ProductionBatchId, r.ProcessGroupId })
             .ToListAsync();
         foreach (var item in prodColdRollDraw)
             existingColdRollDraw.Add((item.ProductionBatchId, item.ProcessGroupId));
         var outsourcedColdRollDraw = await _context.SectionOutsources
-            .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionDefs.ColdRollDraw)
+            .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionKeys.ColdRollDraw)
             .Select(o => new { o.ProductionBatchId, o.ProcessGroupId })
             .ToListAsync();
         foreach (var item in outsourcedColdRollDraw)
             existingColdRollDraw.Add((item.ProductionBatchId, item.ProcessGroupId));
         var picklingColdRollDraw = existingRecords
-            .Where(r => r.SectionName == SectionDefs.ColdRollDraw)
+            .Where(r => r.SectionName == SectionKeys.ColdRollDraw)
             .Select(r => (r.ProductionBatchId, r.ProcessGroupId));
         foreach (var item in picklingColdRollDraw)
             existingColdRollDraw.Add(item);
@@ -496,7 +496,7 @@ public class PicklingService : IPicklingService
         var pendingColdRollDraw = new HashSet<(int batchId, int pgId)>();
         foreach (var request in requests)
         {
-            if (request.SectionName != SectionDefs.ColdRollDraw) continue;
+            if (request.SectionName != SectionKeys.ColdRollDraw) continue;
             if (!batches.TryGetValue(request.BatchNo, out var batch)) continue;
             var pgId = request.ProcessGroupId;
             if (pgId == null || pgId == 0)

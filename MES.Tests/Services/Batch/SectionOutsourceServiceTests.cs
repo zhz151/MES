@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Models;
@@ -78,7 +79,7 @@ public class SectionOutsourceServiceTests : TestBase
             ProductionBatchId = batchId,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 1,
             OutsourceVendor = vendor,
             SendOutDate = DateTime.Today,
@@ -185,7 +186,7 @@ public class SectionOutsourceServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             OutsourceVendor = "委外厂A",
             SendOutDate = DateTime.Today,
             SendQuantity = 10,
@@ -208,7 +209,7 @@ public class SectionOutsourceServiceTests : TestBase
             BatchNo = "NONEXISTENT",
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             OutsourceVendor = "委外厂A",
             SendOutDate = DateTime.Today
         });
@@ -229,9 +230,9 @@ public class SectionOutsourceServiceTests : TestBase
         var result = await svc.BatchCreateAsync(new List<CreateSectionOutsourceRequest>
         {
             new() { BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
-                SectionName = "冷轧拔", OutsourceVendor = "委外厂A", OutsourceSpec = "219*8", SendOutDate = DateTime.Today },
+                SectionName = SectionKeys.ColdRollDraw, OutsourceVendor = "委外厂A", OutsourceSpec = "219*8", SendOutDate = DateTime.Today },
             new() { BatchNo = "BATCH002", ProcessName = "酸洗", ManufacturingSpec = "219*8",
-                SectionName = "酸洗", OutsourceVendor = "委外厂B", OutsourceSpec = "219*8", SendOutDate = DateTime.Today }
+                SectionName = SectionKeys.Pickle, OutsourceVendor = "委外厂B", OutsourceSpec = "219*8", SendOutDate = DateTime.Today }
         });
 
         result.Should().HaveCount(2);
@@ -415,7 +416,7 @@ public class SectionOutsourceServiceTests : TestBase
             ManufacturingSpec = "273*10",
             PlantGrade = "304",
             OutsourceSpec = "273*10",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 1,
             OutsourceVendor = "委外厂A",
             SendOutDate = DateTime.Today,
@@ -442,7 +443,7 @@ public class SectionOutsourceServiceTests : TestBase
             ProductionBatchId = batch.Id,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 1,
             OutsourceVendor = "委外厂A",
             SendOutDate = DateTime.Today,
@@ -473,7 +474,7 @@ public class SectionOutsourceServiceTests : TestBase
             ProductionBatchId = batch.Id,
             ProcessName = "酸洗",
             ManufacturingSpec = "219*8",
-            SectionName = "酸洗",
+            SectionName = SectionKeys.Pickle,
             SequenceNumber = 2,
             OutsourceVendor = "委外厂B",
             SendOutDate = DateTime.Today,
@@ -579,7 +580,7 @@ public class SectionOutsourceServiceTests : TestBase
             ProductionBatchId = batch.Id,
             ProcessName = "酸洗",
             ManufacturingSpec = "273*10",
-            SectionName = "酸洗",
+            SectionName = SectionKeys.Pickle,
             SequenceNumber = 2,
             OutsourceVendor = "委外厂B",
             SendOutDate = DateTime.Today,
@@ -623,7 +624,7 @@ public class SectionOutsourceServiceTests : TestBase
             ProductionBatchId = batch.Id,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 1,
             OutsourceVendor = "委外厂A",
             SendOutDate = DateTime.Today,

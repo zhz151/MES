@@ -111,7 +111,7 @@
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">截止执行日</MudText><MudText Typo="Typo.body2">@(batch.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前工序</MudText><MudText Typo="Typo.body2">@(batch.CurrentGroupName ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前工段</MudText><MudText Typo="Typo.body2">@(batch.CurrentSectionName ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前工段</MudText><MudText Typo="Typo.body2">@(SectionDisplayHelper.GetSectionNameText(batch.CurrentSectionName) ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工段完工</MudText>
                     <MudText Typo="Typo.body2">
                         @if (batch.CurrentSectionCompleted.HasValue)
@@ -129,7 +129,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前设备</MudText><MudText Typo="Typo.body2">@(batch.CurrentEquipmentName ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前委外</MudText><MudText Typo="Typo.body2">@(batch.CurrentOutsource ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前规格</MudText><MudText Typo="Typo.body2">@(batch.CurrentSpec ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">下一工段</MudText><MudText Typo="Typo.body2">@(batch.NextSectionName ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">下一工段</MudText><MudText Typo="Typo.body2">@(SectionDisplayHelper.GetSectionNameText(batch.NextSectionName) ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">对应规格</MudText><MudText Typo="Typo.body2">@(batch.CorrespondingSpec ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">下一工序</MudText><MudText Typo="Typo.body2">@(batch.NextProcess ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">强制完成</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetYesNoText(batch.IsForceCompleted))</MudText></div>

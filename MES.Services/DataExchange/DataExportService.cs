@@ -3,7 +3,9 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using OfficeOpenXml;
+using MES.Core.Constants;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
 using MES.Data;
 using MES.Data.Entities.Order;
@@ -21,11 +23,14 @@ public class DataExportService : IDataExportService
 {
     protected readonly AppDbContext _context;
     private readonly ILogger<DataExportService> _logger;
+    private readonly ISectionNameDisplayService _sectionNameDisplay;
 
-    public DataExportService(AppDbContext context, ILogger<DataExportService> logger)
+    public DataExportService(AppDbContext context, ILogger<DataExportService> logger,
+        ISectionNameDisplayService sectionNameDisplay)
     {
         _context = context;
         _logger = logger;
+        _sectionNameDisplay = sectionNameDisplay;
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
     }
 
@@ -66,7 +71,7 @@ public class DataExportService : IDataExportService
                 // FK列：解析引用实体的业务主键值
                 if (colDef.IsFkColumn)
                 {
-                    var fkValue = ResolveFkExportValue(colDef, item, propertyCache, fkReverseCache, orderItemExportCache);
+                    var fkValue = await ResolveFkExportValue(colDef, item, propertyCache, fkReverseCache, orderItemExportCache);
                     if (fkValue != null)
                         sheet.Cells[row, col + 1].Value = fkValue;
                     continue;
@@ -121,6 +126,11 @@ public class DataExportService : IDataExportService
                 else if (value is decimal dec)
                 {
                     sheet.Cells[row, col + 1].Value = dec.ToString("G29");
+                }
+                else if (colDef.Property == "SectionName" && value is string sectionName)
+                {
+                    // SectionName 存储为英文 Key，导出显示中文
+                    sheet.Cells[row, col + 1].Value = await _sectionNameDisplay.ToDisplayAsync(sectionName);
                 }
                 else
                 {
@@ -362,7 +372,7 @@ public class DataExportService : IDataExportService
     /// <summary>
     /// 解析导出时 FK 列的显示值
     /// </summary>
-    private string? ResolveFkExportValue(ColumnDef colDef, object entity,
+    private async Task<string?> ResolveFkExportValue(ColumnDef colDef, object entity,
         Dictionary<string, PropertyInfo> propertyCache,
         Dictionary<string, Dictionary<int, string>> fkReverseCache,
         Dictionary<int, (string orderNo, int sequence)> orderItemExportCache)
@@ -421,7 +431,7 @@ public class DataExportService : IDataExportService
                     if (colDef.FkLookupProperty == "BatchNo" && parts.Length > 0)
                         return parts[0];
                     if (colDef.FkLookupProperty == "SectionName" && parts.Length > 1)
-                        return parts[1];
+                        return await _sectionNameDisplay.ToDisplayAsync(parts[1]);
                     if (colDef.FkLookupProperty == "OutsourceVendor" && parts.Length > 2)
                         return parts[2];
                 }
@@ -444,7 +454,7 @@ public class DataExportService : IDataExportService
                     if (colDef.FkLookupProperty == "BatchNo" && parts.Length > 0)
                         return parts[0];
                     if (colDef.FkLookupProperty == "SectionName" && parts.Length > 1)
-                        return parts[1];
+                        return await _sectionNameDisplay.ToDisplayAsync(parts[1]);
                 }
             }
             return null;

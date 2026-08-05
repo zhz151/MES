@@ -594,7 +594,7 @@ public partial class PicklingInRecords
                 builder.AddContent(0, item.InDate.ToString("yyyy-MM-dd"));
                 break;
             case "SectionName":
-                builder.AddContent(0, item.SectionName);
+                builder.AddContent(0, SectionDisplayHelper.GetSectionNameText(item.SectionName));
                 break;
             case "EquipmentName":
                 if (isEditing && cache != null)

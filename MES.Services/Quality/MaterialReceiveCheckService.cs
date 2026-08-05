@@ -939,7 +939,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         var batches = await _context.ProductionBatches.AsNoTracking()
             .Where(b => (b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress
                       || b.Status == BatchStatus.InFinalInspection)
-                     && (b.NextSectionName == "检验" || b.NextSectionName == null))
+                     && (b.NextSectionName == SectionKeys.Inspection || b.NextSectionName == null))
             .Select(b => new
             {
                 b.Id, b.BatchNo, b.WorkOrderNo, b.Salesman, b.TagNo,

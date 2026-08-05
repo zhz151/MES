@@ -174,13 +174,9 @@ public class ScanService : IScanService
             .OrderBy(pg => pg.SequenceNumber)
             .ToListAsync();
 
-        // 反向查找：SectionNameMap 是 PropertyName→ChineseName
-        // 建立 ChineseName→PropertyName 的反向映射
-        var reverseMap = SectionNameMap
-            .GroupBy(kv => kv.Value, kv => kv.Key)
-            .ToDictionary(g => g.Key, g => g.First());
-
-        if (!reverseMap.TryGetValue(sectionName, out var propertyName))
+        // 归一为稳定 Key（兼容中文/别名/Key 入参），作为 ProcessGroup 属性名直接使用
+        var propertyName = SectionKeys.ToKey(sectionName);
+        if (propertyName == null)
             return null;
 
         // 找到第一个有此工段的工序组

@@ -122,7 +122,7 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
         {
             cutRecords.AddRange(await _context.ProductionRecords
                 .Where(r => chunk.Contains(r.ProductionBatchId)
-                    && r.SectionName == SectionDefs.Cut
+                    && r.SectionName == SectionKeys.Cut
                     && r.ProductStatus == FinishedProductStatus
                     && r.FinishedCutLength.HasValue
                     && r.IsPreCut != true) // 预成切不计入成品切割支数

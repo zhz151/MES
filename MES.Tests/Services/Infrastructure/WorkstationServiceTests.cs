@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Constants;
 using MES.Core.Exceptions;
 using MES.Core.Models;
 using MES.Data;
@@ -21,7 +22,7 @@ public class WorkstationServiceTests : TestBase
     private WorkstationService CreateService(AppDbContext ctx) => new(ctx);
 
     private async Task<Workstation> SeedWorkstationAsync(AppDbContext ctx,
-        string code = "WS001", string sectionName = "酸洗", bool isActive = true)
+        string code = "WS001", string sectionName = SectionKeys.Pickle, bool isActive = true)
     {
         var ws = new Workstation
         {
@@ -67,14 +68,14 @@ public class WorkstationServiceTests : TestBase
     public async Task GetPagedAsync_按关键字搜索_返回匹配结果()
     {
         var ctx = CreateDbContext();
-        await SeedWorkstationAsync(ctx, "WS001", "酸洗");
-        await SeedWorkstationAsync(ctx, "WS002", "去油");
+        await SeedWorkstationAsync(ctx, "WS001", SectionKeys.Pickle);
+        await SeedWorkstationAsync(ctx, "WS002", SectionKeys.Degrease);
         var svc = CreateService(ctx);
 
-        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "酸洗" });
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = SectionKeys.Pickle });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].SectionName.Should().Be("酸洗");
+        result.Items[0].SectionName.Should().Be(SectionKeys.Pickle);
     }
 
     [Fact]
@@ -142,7 +143,7 @@ public class WorkstationServiceTests : TestBase
         {
             Code = "WS001",
             Name = "酸洗工位",
-            SectionName = "酸洗",
+            SectionName = SectionKeys.Pickle,
             ReportType = ReportTemplateType.PicklingInRecord
         });
 
@@ -164,7 +165,7 @@ public class WorkstationServiceTests : TestBase
             Id = ws.Id,
             Code = "WS001",
             Name = "更新名称",
-            SectionName = "去油",
+            SectionName = SectionKeys.Degrease,
             ReportType = ReportTemplateType.PicklingInRecord,
             IsActive = true
         });
@@ -173,7 +174,7 @@ public class WorkstationServiceTests : TestBase
 
         var updated = await ctx.Workstations.FindAsync(ws.Id);
         updated!.Name.Should().Be("更新名称");
-        updated.SectionName.Should().Be("去油");
+        updated.SectionName.Should().Be(SectionKeys.Degrease);
     }
 
     [Fact]
@@ -186,7 +187,7 @@ public class WorkstationServiceTests : TestBase
         {
             Id = 999,
             Code = "WS001",
-            SectionName = "酸洗",
+            SectionName = SectionKeys.Pickle,
             ReportType = ReportTemplateType.PicklingInRecord
         });
 

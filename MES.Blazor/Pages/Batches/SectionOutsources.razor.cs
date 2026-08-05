@@ -550,7 +550,7 @@ public partial class SectionOutsources
                 builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec ?? ""));
                 break;
             case "SectionName":
-                builder.AddContent(0, item.SectionName);
+                builder.AddContent(0, SectionDisplayHelper.GetSectionNameText(item.SectionName));
                 break;
             case "SequenceNumber":
                 builder.AddContent(0, item.SequenceNumber);
@@ -801,7 +801,7 @@ public partial class SectionOutsources
     {
         var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除 \"{item.OutsourceVendor} - {item.ProcessName}/{item.SectionName}\" 的委外记录吗？",
+            ["ContentText"] = $"确定要删除 \"{item.OutsourceVendor} - {item.ProcessName}/{SectionDisplayHelper.GetSectionNameText(item.SectionName)}\" 的委外记录吗？",
             ["ConfirmText"] = "删除"
         });
 

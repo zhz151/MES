@@ -65,15 +65,16 @@ public class SectionProductionStatusService : ISectionProductionStatusService
             .Where(b => b.Status != BatchStatus.Completed)
             .ToListAsync();
 
-        // 2. 构建维度集合：所有工序组的(工序组名称, 工段名称)唯一组合（排除"入库"工段）
+        // 2. 构建维度集合：所有工序组的(工序组名称, 工段Key)唯一组合（排除"入库"工段）
+        // 用 Key 版提取，与批次派生字段（CurrentSectionName/NextSectionName 迁移后存 Key）一致匹配
         var dimensions = allBatches
             .SelectMany(b => b.ProcessGroups)
-            .SelectMany(pg => pg.GetNonEmptySections()
-                .Where(s => s.SectionName != SectionDefs.Warehouse)
-                .Select(s => (ProcessGroupName: pg.ProcessName, s.SectionName)))
+            .SelectMany(pg => pg.GetNonEmptySectionKeys()
+                .Where(s => s.SectionKey != SectionKeys.Warehouse)
+                .Select(s => (ProcessGroupName: pg.ProcessName, s.SectionKey)))
             .Distinct()
             .OrderBy(d => d.ProcessGroupName)
-            .ThenBy(d => d.SectionName)
+            .ThenBy(d => d.SectionKey)
             .ToList();
 
         if (dimensions.Count == 0)

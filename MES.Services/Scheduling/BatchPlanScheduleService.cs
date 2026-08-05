@@ -131,17 +131,17 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                 joined = joined.Where(x =>
                     (x.b.CurrentSectionCompleted == false &&
                      x.b.CurrentGroupName != null && x.b.CurrentGroupName.Contains(sectionTab) &&
-                     x.b.CurrentSectionName == "冷轧拔") ||
+                     x.b.CurrentSectionName == SectionKeys.ColdRollDraw) ||
                     (x.b.CurrentSectionCompleted != false &&
                      x.b.NextProcess != null && x.b.NextProcess.Contains(sectionTab) &&
-                     x.b.NextSectionName == "冷轧拔"));
+                     x.b.NextSectionName == SectionKeys.ColdRollDraw));
             }
             else if (sectionTab == "过程检验" || sectionTab == "成品检验" || sectionTab == "荒管检" || sectionTab == "在制检")
             {
                 if (sectionTab == "成品检验")
                 {
                     joined = joined.Where(x =>
-                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
+                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == SectionKeys.Inspection &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) ==
@@ -149,7 +149,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()) ||
-                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
+                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == SectionKeys.Inspection && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) ==
@@ -162,7 +162,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                 {
                     // 过程检验/荒管检/在制检：工段=检验，且非最大工序值
                     joined = joined.Where(x =>
-                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == "检验" &&
+                        (x.b.CurrentSectionCompleted == false && x.b.CurrentSectionName == SectionKeys.Inspection &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) >
@@ -170,7 +170,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                              .Where(pg => pg.ProductionBatchId == x.b.Id && pg.ProcessName == x.b.CurrentGroupName)
                              .Select(pg => (int?)pg.SequenceNumber)
                              .FirstOrDefault()) ||
-                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == "检验" && x.b.NextProcess != null &&
+                        (x.b.CurrentSectionCompleted != false && x.b.NextSectionName == SectionKeys.Inspection && x.b.NextProcess != null &&
                          _context.Set<ProcessGroup>()
                              .Where(pg => pg.ProductionBatchId == x.b.Id)
                              .Max(pg => (int?)pg.SequenceNumber) >
@@ -298,7 +298,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
 
             // 冷轧排程（本层）：仅当执行工段=冷轧拔时才填充（与 GetAllAsync 保持一致）
             if (!string.IsNullOrEmpty(pendingProcess) && ProcessNames.IsColdRollOrDraw(pendingProcess)
-                && !string.IsNullOrEmpty(pendingSectionName) && pendingSectionName == SectionDefs.ColdRollDraw)
+                && !string.IsNullOrEmpty(pendingSectionName) && pendingSectionName == SectionKeys.ColdRollDraw)
             {
                 currentCR_ProcessType = pendingProcess;
                 currentCR_RollingSpec = pendingPg.ManufacturingSpec;
@@ -369,12 +369,12 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             var isKeyBatch = (b.ScheduleStage == 2 && isUrgent &&
                               (pendingProcess == "荒管处理" ||
                                (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                                   && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSectionName == SectionDefs.ColdRollDraw)) ||
+                                   && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSectionName == SectionKeys.ColdRollDraw)) ||
                                pendingProcess == "收尾-成检")) ||
                              (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery) && isUrgent &&
                               (pendingProcess == "荒管处理" ||
                                (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                                   && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSectionName == SectionDefs.ColdRollDraw)) ||
+                                   && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSectionName == SectionKeys.ColdRollDraw)) ||
                                pendingProcess == "收尾-成检"));
 
             if (b.MainNoAttentionProcess == "收尾-成检")

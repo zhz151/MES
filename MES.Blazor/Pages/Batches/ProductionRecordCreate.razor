@@ -1,6 +1,7 @@
 @page "/production-records/create"
 @using MES.Blazor.Services
 @using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Helpers
 @using MES.Blazor.Shared
 @using MES.Core.Constants
 @using MES.Core.Enums
@@ -358,8 +359,8 @@
 
     // ========== 下拉选项 ==========
 
-    // 工段下拉选项（从参数表加载启用工段并排除不可记录工段，失败降级为预置 26 工段）
-    private List<string> _allSectionOptions = new();
+    // 工段下拉选项（Key 存储值 + 中文显示文本；从参数表加载启用工段并排除不可记录工段，失败降级为预置 26 工段）
+    private List<(string Key, string Text)> _allSectionOptions = new();
 
     private static readonly List<(string Value, string Text)> _shiftOptions =
         Enum.GetValues<ShiftType>().Select(v => (v.ToString(), EnumHelper.GetDisplayName(v))).ToList();
@@ -368,19 +369,20 @@
     private async Task LoadSectionOptionsAsync()
     {
         var r = await StandardWorkDayService.GetEnabledSectionsAsync();
-        var excludedKeys = new[] { "Degrease", "Pickle", "Inspection", "Warehouse" };
+        var excludedKeys = new[] { SectionKeys.Degrease, SectionKeys.Pickle, SectionKeys.Inspection, SectionKeys.Warehouse };
         if (r.Success && r.Data != null)
         {
             _allSectionOptions = r.Data
                 .Where(x => !excludedKeys.Contains(x.SectionKey, StringComparer.OrdinalIgnoreCase))
-                .Select(x => x.SectionName)
+                .Select(x => (x.SectionKey, x.SectionName))
                 .ToList();
         }
         else
         {
-            _allSectionOptions = SectionDefs.All
-                .Where(s => s != SectionDefs.Degrease && s != SectionDefs.Pickle
-                         && s != SectionDefs.Inspection && s != SectionDefs.Warehouse)
+            _allSectionOptions = SectionKeys.All
+                .Where(k => k != SectionKeys.Degrease && k != SectionKeys.Pickle
+                         && k != SectionKeys.Inspection && k != SectionKeys.Warehouse)
+                .Select(k => (k, SectionDisplayHelper.GetSectionNameText(k)))
                 .ToList();
         }
     }
@@ -506,7 +508,7 @@
             }
             if (r.IsPreCut == true)
             {
-                if (r.SectionName != SectionDefs.Cut)
+                if (r.SectionName != SectionKeys.Cut)
                     errors.Add($"第{i + 1}行：预成切必须是断切工段");
                 if (r.FinishedCutLength == null)
                     errors.Add($"第{i + 1}行：预成切必须填写成品长度");
@@ -698,7 +700,7 @@
     /// <summary>长度状态计算：工段为"断切"且产类为"成品"时，依据批次填充其长度状态（中文），其余为空</summary>
     private static string? ComputeLengthStatus(EditRow row, ProductionBatchDetailDto batch)
     {
-        if (row.SectionName == SectionDefs.Cut && row.ProductStatus == "成品")
+        if (row.SectionName == SectionKeys.Cut && row.ProductStatus == "成品")
             return EnumHelper.GetDisplayName(batch.LengthStatus);
         return null;
     }
@@ -782,10 +784,11 @@
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.SectionName = v ?? ""; await OnSectionNameChangedAsync(r); }));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var sn in _allSectionOptions)
+                    foreach (var opt in _allSectionOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", sn);
+                        b.AddAttribute(1, "Value", opt.Key);
+                        b.AddContent(2, opt.Text);
                         b.CloseComponent();
                     }
                 }));

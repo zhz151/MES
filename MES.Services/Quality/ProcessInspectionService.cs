@@ -355,7 +355,7 @@ public class ProcessInspectionService : IProcessInspectionService
 
         // 预查询：各批次已存在的冷轧拔生产记录（用于冷轧/冷拔前置校验）
         var existingColdRollDraw = await _context.ProductionRecords
-            .Where(r => allBatchIds.Contains(r.ProductionBatchId) && r.SectionName == SectionDefs.ColdRollDraw)
+            .Where(r => allBatchIds.Contains(r.ProductionBatchId) && r.SectionName == SectionKeys.ColdRollDraw)
             .Select(r => new { r.ProductionBatchId, r.ProcessGroupId })
             .ToListAsync();
         var coldRollDrawExists = new HashSet<(int BatchId, int PgId)>(
@@ -365,7 +365,7 @@ public class ProcessInspectionService : IProcessInspectionService
         var pendingColdRollDraw = new HashSet<(int BatchId, int PgId)>();
         foreach (var req in requests)
         {
-            if (req.SectionName == SectionDefs.ColdRollDraw)
+            if (req.SectionName == SectionKeys.ColdRollDraw)
             {
                 var b = batchLookup[req.BatchNo];
                 var bId = b.Id;
@@ -412,7 +412,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 errors.Add($"第{i + 1}行：制造规格不能为空");
 
             // 工段必须是"检验"
-            if (request.SectionName != SectionDefs.Inspection)
+            if (request.SectionName != SectionKeys.Inspection)
                 errors.Add($"第{i + 1}行：工段必须为「检验」，不允许填写其他工段");
 
             // 执行序号跳跃限制：以每条记录的 InspectionDate 为准，对比该批次在此日期前已执行的最大序号，不能 > +7

@@ -37,7 +37,7 @@ public class MaterialPlanServiceTests : TestBase
         var loggerMock = new Mock<ILogger<MaterialPlanService>>();
         var mockDaySvc = new Mock<IStandardWorkDayService>();
         mockDaySvc.Setup(s => s.GetStandardDaysMapAsync(It.IsAny<string?>()))
-            .ReturnsAsync(() => SectionDefs.All.ToDictionary(s => s, s => 3.0));
+            .ReturnsAsync(() => SectionKeys.All.ToDictionary(s => s, s => 3.0));
         var mockDsSvc = new Mock<IStandardWorkDayDeliveryStateService>();
         mockDsSvc.Setup(s => s.GetDeliveryStateExtraDaysMapAsync())
             .ReturnsAsync(() => new Dictionary<string, double>());

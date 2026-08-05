@@ -12,6 +12,7 @@ using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Models;
@@ -86,7 +87,7 @@ public class PicklingServiceTests : TestBase
     }
 
     private async Task<PicklingInRecord> SeedInRecordAsync(AppDbContext ctx,
-        string batchNo = "BATCH001", string sectionName = "酸洗")
+        string batchNo = "BATCH001", string sectionName = SectionKeys.Pickle)
     {
         var batch = await ctx.ProductionBatches.FirstOrDefaultAsync(b => b.BatchNo == batchNo);
         if (batch == null) batch = await SeedBatchAsync(ctx, batchNo);
@@ -155,7 +156,7 @@ public class PicklingServiceTests : TestBase
             ProcessGroupId = pg.Id,
             ProcessName = "冷拔",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 1,
             ExecDate = DateTime.Today,
             Quantity = 20,
@@ -170,7 +171,7 @@ public class PicklingServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "冷拔",
             ManufacturingSpec = "219*8",
-            SectionName = "酸洗",
+            SectionName = SectionKeys.Pickle,
             InDate = DateTime.Today,
             Quantity = 20,
             Weight = 2000m
@@ -195,7 +196,7 @@ public class PicklingServiceTests : TestBase
             BatchNo = "NONEXISTENT",
             ProcessName = "冷拔",
             ManufacturingSpec = "219*8",
-            SectionName = "酸洗",
+            SectionName = SectionKeys.Pickle,
             InDate = DateTime.Today
         });
 

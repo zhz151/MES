@@ -18,42 +18,44 @@ namespace MES.Services.Extensions;
 public static class ProcessGroupExtensions
 {
     /// <summary>
-    /// 根据工段名称从工序组中获取对应的执行序号。
-    /// 先匹配标准工段名，再通过别名查找。
+    /// 根据工段名（Key/规范中文/别名均可）从工序组中获取对应的执行序号。
+    /// 入参先经 SectionKeys.ToKey 归一为稳定 Key 再匹配。
     /// </summary>
-    public static int? GetSectionSequence(this ProcessGroup pg, string? sectionName) => sectionName switch
+    public static int? GetSectionSequence(this ProcessGroup pg, string? sectionName)
     {
-        SectionDefs.ColdRollDraw => pg.ColdRollDraw,
-        SectionDefs.OilPipeCut => pg.OilPipeCut,
-        SectionDefs.Degrease => pg.Degrease,
-        SectionDefs.EmulsionWash => pg.EmulsionWash,
-        SectionDefs.UltrasonicWash => pg.UltrasonicWash,
-        SectionDefs.ClothPolish => pg.ClothPolish,
-        SectionDefs.BrightAnnealing => pg.BrightAnnealing,
-        SectionDefs.Solution => pg.Solution,
-        SectionDefs.Straighten => pg.Straighten,
-        SectionDefs.Cut => pg.Cut,
-        SectionDefs.ThicknessMeasure => pg.ThicknessMeasure,
-        SectionDefs.Pickle => pg.Pickle,
-        SectionDefs.OuterPolish => pg.OuterPolish,
-        SectionDefs.InnerPolish => pg.InnerPolish,
-        SectionDefs.InnerGrinding => pg.InnerGrinding,
-        SectionDefs.OuterSpotGrinding => pg.OuterSpotGrinding,
-        SectionDefs.SandBlasting => pg.SandBlasting,
-        SectionDefs.ShotBlasting => pg.ShotBlasting,
-        SectionDefs.Inspection => pg.Inspection,
-        SectionDefs.WeldingHead => pg.WeldingHead,
-        SectionDefs.Welding => pg.Welding,
-        SectionDefs.Lubrication => pg.Lubrication,
-        SectionDefs.Packing => pg.Packing,
-        SectionDefs.Warehouse => pg.Warehouse,
-        SectionDefs.Extra1 => pg.Extra1,
-        SectionDefs.Extra2 => pg.Extra2,
-        // 别名匹配
-        _ when SectionDefs.Aliases.TryGetValue(sectionName!, out var standard) =>
-            pg.GetSectionSequence(standard),
-        _ => null
-    };
+        var key = SectionKeys.ToKey(sectionName);
+        if (key == null) return null;
+        return key switch
+        {
+            SectionKeys.ColdRollDraw => pg.ColdRollDraw,
+            SectionKeys.OilPipeCut => pg.OilPipeCut,
+            SectionKeys.Degrease => pg.Degrease,
+            SectionKeys.EmulsionWash => pg.EmulsionWash,
+            SectionKeys.UltrasonicWash => pg.UltrasonicWash,
+            SectionKeys.ClothPolish => pg.ClothPolish,
+            SectionKeys.BrightAnnealing => pg.BrightAnnealing,
+            SectionKeys.Solution => pg.Solution,
+            SectionKeys.Straighten => pg.Straighten,
+            SectionKeys.Cut => pg.Cut,
+            SectionKeys.ThicknessMeasure => pg.ThicknessMeasure,
+            SectionKeys.Pickle => pg.Pickle,
+            SectionKeys.OuterPolish => pg.OuterPolish,
+            SectionKeys.InnerPolish => pg.InnerPolish,
+            SectionKeys.InnerGrinding => pg.InnerGrinding,
+            SectionKeys.OuterSpotGrinding => pg.OuterSpotGrinding,
+            SectionKeys.SandBlasting => pg.SandBlasting,
+            SectionKeys.ShotBlasting => pg.ShotBlasting,
+            SectionKeys.Inspection => pg.Inspection,
+            SectionKeys.WeldingHead => pg.WeldingHead,
+            SectionKeys.Welding => pg.Welding,
+            SectionKeys.Lubrication => pg.Lubrication,
+            SectionKeys.Packing => pg.Packing,
+            SectionKeys.Warehouse => pg.Warehouse,
+            SectionKeys.Extra1 => pg.Extra1,
+            SectionKeys.Extra2 => pg.Extra2,
+            _ => null
+        };
+    }
 
     /// <summary>
     /// 获取工序组中所有非空工段（含序号），按执行顺序排序
@@ -97,4 +99,14 @@ public static class ProcessGroupExtensions
 
         return result.OrderBy(s => s.SequenceNumber).ToList();
     }
+
+    /// <summary>
+    /// 获取工序组中所有非空工段的稳定 Key（含序号），按执行顺序排序。
+    /// 供存储值校验/派生写入使用（记录/批次 SectionName 存英文 Key）。
+    /// </summary>
+    public static List<(string SectionKey, int SequenceNumber)> GetNonEmptySectionKeys(this ProcessGroup pg)
+        => pg.GetNonEmptySections()
+            .Select(s => (SectionKeys.ToKey(s.SectionName)!, s.SequenceNumber))
+            .Where(x => x.Item1 != null)
+            .ToList();
 }

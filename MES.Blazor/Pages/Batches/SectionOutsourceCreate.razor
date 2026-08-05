@@ -1,6 +1,7 @@
 @page "/section-outsources/create"
 @using MES.Blazor.Services
 @using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Helpers
 @using MES.Blazor.Shared
 @using MES.Core.Constants
 @using MES.Core.DTOs.Batch
@@ -188,8 +189,8 @@
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
 
-    // 工段下拉选项（从参数表加载启用工段，失败降级为预置 26 工段）
-    private List<string> _sectionOptions = new();
+    // 工段下拉选项（Key 存储值 + 中文显示文本；从参数表加载启用工段，失败降级为预置 26 工段）
+    private List<(string Key, string Text)> _sectionOptions = new();
 
     // ========== 列定义 ==========
 
@@ -331,9 +332,9 @@
     {
         var r = await StandardWorkDayService.GetEnabledSectionsAsync();
         if (r.Success && r.Data != null)
-            _sectionOptions = r.Data.Select(x => x.SectionName).ToList();
+            _sectionOptions = r.Data.Select(x => (x.SectionKey, x.SectionName)).ToList();
         else
-            _sectionOptions = new List<string>(SectionDefs.All);
+            _sectionOptions = SectionKeys.All.Select(k => (k, SectionDisplayHelper.GetSectionNameText(k))).ToList();
     }
 
     protected override async Task OnInitializedAsync()
@@ -484,7 +485,7 @@
         if (string.IsNullOrWhiteSpace(row.SectionName))
             return;
 
-        if (row.SectionName == SectionDefs.ColdRollDraw)
+        if (row.SectionName == SectionKeys.ColdRollDraw)
         {
             var prevPg = processGroups?
                 .Where(p => p.SequenceNumber < currentPg.SequenceNumber)
@@ -549,10 +550,11 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.SectionName = v ?? ""; await ApplyAutoFillAsync(r); }));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var sn in _sectionOptions)
+                    foreach (var opt in _sectionOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", sn);
+                        b.AddAttribute(1, "Value", opt.Key);
+                        b.AddContent(2, opt.Text);
                         b.CloseComponent();
                     }
                 }));

@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -1514,12 +1515,12 @@ public class WorkOrderExecutionServiceTests : TestBase
         ctx.ProcessInspections.Add(new ProcessInspection
         {
             ProductionBatchId = normalBatch.Id, ProcessGroupId = 1, ProcessName = "在制修检",
-            SectionName = "检验", SequenceNumber = 1, InspectionDate = DateTime.Today, TheoreticalReworkWeight = 50
+            SectionName = SectionKeys.Inspection, SequenceNumber = 1, InspectionDate = DateTime.Today, TheoreticalReworkWeight = 50
         });
         ctx.ProcessInspections.Add(new ProcessInspection
         {
             ProductionBatchId = reworkBatch.Id, ProcessGroupId = 1, ProcessName = "在制修检",
-            SectionName = "检验", SequenceNumber = 1, InspectionDate = DateTime.Today, TheoreticalReworkWeight = 50
+            SectionName = SectionKeys.Inspection, SequenceNumber = 1, InspectionDate = DateTime.Today, TheoreticalReworkWeight = 50
         });
         // 成品检验：返整批次 100 → 成品检返整量 = 100
         ctx.FinalInspections.Add(new FinalInspection
@@ -1840,13 +1841,13 @@ public class WorkOrderExecutionServiceTests : TestBase
         ctx.ProcessInspections.Add(new ProcessInspection
         {
             ProductionBatchId = batch.Id, ProcessGroupId = 1, ProcessName = "在制修检",
-            SectionName = "检验", SequenceNumber = 1, InspectionDate = DateTime.Today,
+            SectionName = SectionKeys.Inspection, SequenceNumber = 1, InspectionDate = DateTime.Today,
             TheoreticalReworkWeight = 30, TheoreticalWarehouseWeight = 20, TheoreticalScrapWeight = 10
         });
         ctx.ProcessInspections.Add(new ProcessInspection
         {
             ProductionBatchId = surplusBatch.Id, ProcessGroupId = 1, ProcessName = "在制修检",
-            SectionName = "检验", SequenceNumber = 1, InspectionDate = DateTime.Today,
+            SectionName = SectionKeys.Inspection, SequenceNumber = 1, InspectionDate = DateTime.Today,
             TheoreticalReworkWeight = 999
         });
         // 成品检验：返整重40/入库25/报废15；支数 返整4 + 入库2 + 报废1 = 7

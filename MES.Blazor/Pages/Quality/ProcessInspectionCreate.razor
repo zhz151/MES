@@ -267,7 +267,7 @@
         public string BatchNo { get; set; } = string.Empty;
         public string ProcessName { get; set; } = string.Empty;
         public string? ManufacturingSpec { get; set; }
-        public string SectionName { get; set; } = "检验";
+        public string SectionName { get; set; } = SectionKeys.Inspection;
         public string? EquipmentName { get; set; }
         public string? Inspector { get; set; }
         public string? Shift { get; set; }
@@ -709,12 +709,19 @@
                 builder.CloseComponent();
                 break;
             case "SectionName":
-                builder.OpenComponent<MudTextField<string>>(0);
+                builder.OpenComponent<MudSelect<string>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(5, "Value",r.SectionName);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.SectionName = v ?? ""));
+                builder.AddAttribute(5, "Value", r.SectionName);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.SectionName = v ?? ""));
+                builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
+                {
+                    b.OpenComponent<MudSelectItem<string>>(0);
+                    b.AddAttribute(1, "Value", SectionKeys.Inspection);
+                    b.AddContent(2, SectionDisplayHelper.GetSectionNameText(SectionKeys.Inspection));
+                    b.CloseComponent();
+                }));
                 builder.CloseComponent();
                 break;
             case "EquipmentName":

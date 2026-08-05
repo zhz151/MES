@@ -13,10 +13,12 @@ namespace MES.Api.Controllers.Configuration;
 public class StandardWorkDayController : ControllerBase
 {
     private readonly IStandardWorkDayService _service;
+    private readonly ISectionNameDisplayService _displayService;
 
-    public StandardWorkDayController(IStandardWorkDayService service)
+    public StandardWorkDayController(IStandardWorkDayService service, ISectionNameDisplayService displayService)
     {
         _service = service;
+        _displayService = displayService;
     }
 
     [HttpGet("list")]
@@ -42,6 +44,15 @@ public class StandardWorkDayController : ControllerBase
     {
         var result = await _service.GetEnabledSectionsAsync();
         return Ok(ApiResponse<List<SectionInfoDto>>.Ok(result));
+    }
+
+    /// <summary>Key → 显示中文 映射（配置表优先，兜底 SectionDefs），前端显示层用</summary>
+    [HttpGet("section-name-map")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, string>>>> GetSectionNameMap()
+    {
+        var result = await _displayService.GetSectionNameMapAsync();
+        return Ok(ApiResponse<Dictionary<string, string>>.Ok(
+            new Dictionary<string, string>(result)));
     }
 
     [HttpGet("{id}")]

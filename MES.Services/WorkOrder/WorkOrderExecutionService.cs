@@ -1865,14 +1865,14 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         // 8个固定节点定义：(工序组名称, 工段名称)
         var nodeDefs = new (string ProcessName, string SectionName)[]
         {
-            ("荒管处理", SectionDefs.OuterPolish),
-            ("在制修检", SectionDefs.Inspection),
-            ("60冷轧", SectionDefs.ColdRollDraw),
-            ("50冷轧", SectionDefs.ColdRollDraw),
-            ("30冷轧", SectionDefs.ColdRollDraw),
-            ("20冷轧", SectionDefs.ColdRollDraw),
-            ("三辊冷轧", SectionDefs.ColdRollDraw),
-            ("冷拔", SectionDefs.ColdRollDraw),
+            ("荒管处理", SectionKeys.OuterPolish),
+            ("在制修检", SectionKeys.Inspection),
+            ("60冷轧", SectionKeys.ColdRollDraw),
+            ("50冷轧", SectionKeys.ColdRollDraw),
+            ("30冷轧", SectionKeys.ColdRollDraw),
+            ("20冷轧", SectionKeys.ColdRollDraw),
+            ("三辊冷轧", SectionKeys.ColdRollDraw),
+            ("冷拔", SectionKeys.ColdRollDraw),
         };
 
         // 使用所有非完成/成检批次（含正常 + 返整）
@@ -2990,36 +2990,41 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     /// 获取指定工段在工序组中的执行序号（用于工段级到达判断）
     /// 对应 ProductionOverviewService.ProcessGroupInfo.GetSectionSequence
     /// </summary>
-    private static int? GetSectionSequence(ProcessGroup pg, string sectionName) => sectionName switch
+    private static int? GetSectionSequence(ProcessGroup pg, string? sectionName)
     {
-        SectionDefs.ColdRollDraw => pg.ColdRollDraw,
-        SectionDefs.OilPipeCut => pg.OilPipeCut,
-        SectionDefs.Degrease => pg.Degrease,
-        SectionDefs.EmulsionWash => pg.EmulsionWash,
-        SectionDefs.UltrasonicWash => pg.UltrasonicWash,
-        SectionDefs.ClothPolish => pg.ClothPolish,
-        SectionDefs.BrightAnnealing => pg.BrightAnnealing,
-        SectionDefs.Solution => pg.Solution,
-        SectionDefs.Straighten => pg.Straighten,
-        SectionDefs.Cut => pg.Cut,
-        SectionDefs.ThicknessMeasure => pg.ThicknessMeasure,
-        SectionDefs.Pickle => pg.Pickle,
-        SectionDefs.OuterPolish => pg.OuterPolish,
-        SectionDefs.InnerPolish => pg.InnerPolish,
-        SectionDefs.InnerGrinding => pg.InnerGrinding,
-        SectionDefs.OuterSpotGrinding => pg.OuterSpotGrinding,
-        SectionDefs.SandBlasting => pg.SandBlasting,
-        SectionDefs.ShotBlasting => pg.ShotBlasting,
-        SectionDefs.Inspection => pg.Inspection,
-        SectionDefs.WeldingHead => pg.WeldingHead,
-        SectionDefs.Welding => pg.Welding,
-        SectionDefs.Lubrication => pg.Lubrication,
-        SectionDefs.Packing => pg.Packing,
-        SectionDefs.Warehouse => pg.Warehouse,
-        SectionDefs.Extra1 => pg.Extra1,
-        SectionDefs.Extra2 => pg.Extra2,
-        _ => null
-    };
+        var key = SectionKeys.ToKey(sectionName);
+        if (key == null) return null;
+        return key switch
+        {
+            SectionKeys.ColdRollDraw => pg.ColdRollDraw,
+            SectionKeys.OilPipeCut => pg.OilPipeCut,
+            SectionKeys.Degrease => pg.Degrease,
+            SectionKeys.EmulsionWash => pg.EmulsionWash,
+            SectionKeys.UltrasonicWash => pg.UltrasonicWash,
+            SectionKeys.ClothPolish => pg.ClothPolish,
+            SectionKeys.BrightAnnealing => pg.BrightAnnealing,
+            SectionKeys.Solution => pg.Solution,
+            SectionKeys.Straighten => pg.Straighten,
+            SectionKeys.Cut => pg.Cut,
+            SectionKeys.ThicknessMeasure => pg.ThicknessMeasure,
+            SectionKeys.Pickle => pg.Pickle,
+            SectionKeys.OuterPolish => pg.OuterPolish,
+            SectionKeys.InnerPolish => pg.InnerPolish,
+            SectionKeys.InnerGrinding => pg.InnerGrinding,
+            SectionKeys.OuterSpotGrinding => pg.OuterSpotGrinding,
+            SectionKeys.SandBlasting => pg.SandBlasting,
+            SectionKeys.ShotBlasting => pg.ShotBlasting,
+            SectionKeys.Inspection => pg.Inspection,
+            SectionKeys.WeldingHead => pg.WeldingHead,
+            SectionKeys.Welding => pg.Welding,
+            SectionKeys.Lubrication => pg.Lubrication,
+            SectionKeys.Packing => pg.Packing,
+            SectionKeys.Warehouse => pg.Warehouse,
+            SectionKeys.Extra1 => pg.Extra1,
+            SectionKeys.Extra2 => pg.Extra2,
+            _ => null
+        };
+    }
 
     // ========== 打印 ==========
 

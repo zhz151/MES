@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using MES.Core.Constants;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -462,7 +463,7 @@ public class NcrServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "冷拔",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             InspectionItem = InspectionItem.Dimension.ToString(),
             InspectionDate = DateTime.Today,
             Quantity = 100,
@@ -490,7 +491,7 @@ public class NcrServiceTests : TestBase
             BatchNo = "BATCH001",
             ProcessName = "冷拔",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             InspectionItem = InspectionItem.Dimension.ToString(),
             InspectionDate = DateTime.Today,
             Quantity = 100,

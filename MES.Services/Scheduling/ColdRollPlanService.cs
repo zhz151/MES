@@ -166,7 +166,7 @@ public class ColdRollPlanService : IColdRollPlanService
                 if (!string.IsNullOrEmpty(sectionFilter) && crPg.ProcessName != sectionFilter)
                     continue;
 
-                int targetGlobalSeq = crPg.GetSectionSequence(SectionDefs.ColdRollDraw) ?? 0;
+                int targetGlobalSeq = crPg.GetSectionSequence(SectionKeys.ColdRollDraw) ?? 0;
                 if (targetGlobalSeq <= 0) continue;
 
                 // 批次已在此工序组且已完成或无当前工段 → 视为已过此冷轧
@@ -176,7 +176,7 @@ public class ColdRollPlanService : IColdRollPlanService
                     if (string.IsNullOrEmpty(batch.CurrentSectionName))
                         continue;
                     // 冷轧拔已完成
-                    if (batch.CurrentSectionName == SectionDefs.ColdRollDraw
+                    if (batch.CurrentSectionName == SectionKeys.ColdRollDraw
                         && batch.CurrentSectionCompleted == true)
                         continue;
                 }
@@ -187,7 +187,7 @@ public class ColdRollPlanService : IColdRollPlanService
                 // 判断是否正在此工序组做冷轧拔（近日在轧），不使用 diff==0
                 bool isProducing = batch.Status == BatchStatus.InProgress
                     && !string.IsNullOrEmpty(batch.CurrentSectionName)
-                    && batch.CurrentSectionName == SectionDefs.ColdRollDraw
+                    && batch.CurrentSectionName == SectionKeys.ColdRollDraw
                     && batch.CurrentSectionCompleted == false
                     && currentPgSeq.HasValue
                     && crPg.SequenceNumber == currentPgSeq.Value;
@@ -215,7 +215,7 @@ public class ColdRollPlanService : IColdRollPlanService
                     if (ProcessNames.IsColdRollOrDraw(attentionProcess))
                     {
                         var attentionPg = sortedPgs.FirstOrDefault(pg => pg.ProcessName == attentionProcess);
-                        var attentionSectionSeq = attentionPg?.GetSectionSequence(SectionDefs.ColdRollDraw);
+                        var attentionSectionSeq = attentionPg?.GetSectionSequence(SectionKeys.ColdRollDraw);
                         if (attentionSectionSeq.HasValue)
                         {
                             isKeyBatch = currentGlobalSeq < attentionSectionSeq.Value + 1;

@@ -1,6 +1,7 @@
 @page "/pickling-in-records/create"
 @using MES.Blazor.Services
 @using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Helpers
 @using MES.Blazor.Shared
 @using MES.Core.Constants
 @using MES.Core.Enums
@@ -276,7 +277,7 @@
         new() { Key = "Remark",            Label = "备注",                     GroupKey = 4, GroupName = "加工计量" },
     };
 
-    private static readonly string[] _sectionOptions = { SectionDefs.Degrease, SectionDefs.Pickle };
+    private static readonly string[] _sectionOptions = { SectionKeys.Degrease, SectionKeys.Pickle };
 
     private static readonly List<(string Value, string Text)> _shiftOptions =
         Enum.GetValues<ShiftType>().Select(v => (v.ToString(), EnumHelper.GetDisplayName(v))).ToList();
@@ -452,10 +453,11 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.SectionName = v ?? ""));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var sn in _sectionOptions)
+                    foreach (var key in _sectionOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", sn);
+                        b.AddAttribute(1, "Value", key);
+                        b.AddContent(2, SectionDisplayHelper.GetSectionNameText(key));
                         b.CloseComponent();
                     }
                 }));

@@ -173,6 +173,7 @@ builder.Services.AddScoped<IGradePhysicalPropertyService, GradePhysicalPropertyS
 builder.Services.AddScoped<ISubStandardQuickViewService, SubStandardQuickViewService>();
 builder.Services.AddScoped<IStandardInspectionRequirementService, StandardInspectionRequirementService>();
 builder.Services.AddScoped<IStandardWorkDayService, StandardWorkDayService>();
+builder.Services.AddScoped<ISectionNameDisplayService, SectionNameDisplayService>();
 builder.Services.AddScoped<IStandardWorkDayDeliveryStateService, StandardWorkDayDeliveryStateService>();
 builder.Services.AddScoped<IConfigParameterService, ConfigParameterService>();
 builder.Services.AddScoped<IDailyOutputEstimateService, DailyOutputEstimateService>();

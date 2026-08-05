@@ -1204,6 +1204,12 @@ public class DataImportService : IDataImportService
                 value = await ResolveOrderItemIdsForImportAsync(cellValue);
             }
 
+            // 特殊处理：SectionName 存储改英文 Key（Excel 中文 → Key）
+            if (colDef.Property == "SectionName" && value is string sectionName)
+            {
+                value = SectionKeys.ToKey(sectionName);
+            }
+
             prop.SetValue(entity, value);
         }
 
@@ -1332,7 +1338,7 @@ public class DataImportService : IDataImportService
             if (colDef.FkRequiresJoin && colDef.FkEntityKey == "PicklingInRecord")
             {
                 var batchNo = row.Values.GetValueOrDefault("入缸批次号", "");
-                var sectionName = row.Values.GetValueOrDefault("入缸工段", "");
+                var sectionName = SectionKeys.ToKey(row.Values.GetValueOrDefault("入缸工段", ""));
                 var compositeKey = $"{batchNo}|{sectionName}";
 
                 if (fkCache.TryGetValue("PicklingInRecord", out var pkCache) && pkCache.TryGetValue(compositeKey, out var pkId))
@@ -1347,7 +1353,7 @@ public class DataImportService : IDataImportService
             if (colDef.FkRequiresJoin && colDef.FkEntityKey == "SectionOutsource")
             {
                 var batchNo = row.Values.GetValueOrDefault("批次号", "");
-                var sectionName = row.Values.GetValueOrDefault("工段名称", "");
+                var sectionName = SectionKeys.ToKey(row.Values.GetValueOrDefault("工段名称", ""));
                 var vendor = row.Values.GetValueOrDefault("委外单位", "");
                 var compositeKey = $"{batchNo}|{sectionName}|{vendor}";
 

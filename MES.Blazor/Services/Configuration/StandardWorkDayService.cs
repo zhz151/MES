@@ -46,6 +46,23 @@ public class StandardWorkDayService
         }
     }
 
+    /// <summary>
+    /// 获取工段 Key → 显示中文 映射（配置表优先，兜底 SectionDefs）。
+    /// 失败返回 null，调用方（MainLayout）保持 SectionDisplayHelper.OverrideMap 为 null 即可回退。
+    /// </summary>
+    public async Task<Dictionary<string, string>?> GetSectionNameMapAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, string>>>($"{BaseUrl}/section-name-map");
+            return response?.Success == true ? response.Data : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<ApiResponse<StandardWorkDayDto>> GetByIdAsync(int id)
     {
         try

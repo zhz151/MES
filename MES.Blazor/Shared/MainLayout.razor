@@ -1,9 +1,11 @@
 @* 文件路径: MES.Blazor/Shared/MainLayout.razor *@
 @using MES.Blazor.Services
+@using MES.Blazor.Helpers
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthProvider
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject IJSRuntime JSRuntime
+@inject StandardWorkDayService StandardWorkDayService
 @implements IDisposable
 
 <MudThemeProvider />
@@ -197,6 +199,11 @@
     {
         AuthProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
         await AuthProvider.GetAuthenticationStateAsync();
+
+        // 预加载工段显示映射（Key→中文），供全站 SectionDisplayHelper 显示使用
+        var sectionNameMap = await StandardWorkDayService.GetSectionNameMapAsync();
+        if (sectionNameMap != null)
+            SectionDisplayHelper.OverrideMap = sectionNameMap;
     }
 
     private void OnAuthenticationStateChanged(Task<AuthenticationState> task)

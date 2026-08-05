@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Data;
 using MES.Data.Entities;
@@ -181,7 +182,7 @@ public class ColdRollPlanServiceTests : TestBase
         // 批次当前正在做 60冷轧 的 冷轧拔 且未完成
         var batch = CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false,
             currentGroupName: "60冷轧",
-            currentSectionName: "冷轧拔",
+            currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
             weight: 3000);
         await ctx.SaveChangesAsync();

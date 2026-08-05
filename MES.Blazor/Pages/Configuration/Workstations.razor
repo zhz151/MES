@@ -207,15 +207,15 @@
                                            ValueChanged="@(v => rowCache.SectionName = v)"
                                            Class="compact-input"
                                            Label="工段">
-                                    @foreach (var sn in _sectionOptions)
+                                    @foreach (var opt in _sectionOptions)
                                     {
-                                        <MudSelectItem Value="@sn">@sn</MudSelectItem>
+                                        <MudSelectItem Value="@opt.Key">@opt.Text</MudSelectItem>
                                     }
                                 </MudSelect>
                             }
                             else
                             {
-                                @item.SectionName
+                                @SectionDisplayHelper.GetSectionNameText(item.SectionName)
                             }
                         }
                         else if (col.Key == "IsActive")

@@ -526,7 +526,7 @@ public partial class PicklingOutRecords
                 builder.AddContent(0, item.ProcessName ?? "");
                 break;
             case "SectionName":
-                builder.AddContent(0, item.SectionName ?? "");
+                builder.AddContent(0, SectionDisplayHelper.GetSectionNameText(item.SectionName ?? ""));
                 break;
             case "ManufacturingSpec":
                 builder.AddContent(0, item.ManufacturingSpec ?? "");

@@ -117,7 +117,8 @@ public class MaterialPlanService : IMaterialPlanService
         double totalDays = 0;
         foreach (var section in sections)
         {
-            totalDays += dayMap.GetValueOrDefault(section.SectionName, 0);
+            var sectionKey = SectionKeys.ToKey(section.SectionName);
+            totalDays += sectionKey != null ? dayMap.GetValueOrDefault(sectionKey, 0) : 0;
         }
 
         // 交货状态调整：从配置表读取附加天数

@@ -227,7 +227,7 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
                  (uLevel == "A+急" || uLevel == "A急") &&
                  (pendingProcess == "荒管处理" ||
                   (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                      && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSection == SectionDefs.ColdRollDraw)) ||
+                      && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSection == SectionKeys.ColdRollDraw)) ||
                   pendingProcess == "收尾-成检"))
                 ||
                 (b.ScheduleStage == 2 &&
@@ -235,12 +235,12 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
                  (uLevel == "A+急" || uLevel == "A急") &&
                  (pendingProcess == "荒管处理" ||
                   (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                      && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSection == SectionDefs.ColdRollDraw)) ||
+                      && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSection == SectionKeys.ColdRollDraw)) ||
                   pendingProcess == "收尾-成检"));
 
             if (!isKeyBatch) continue;
 
-            var isInspection = string.Equals(pendingSection, "检验", StringComparison.OrdinalIgnoreCase);
+            var isInspection = string.Equals(pendingSection, SectionKeys.Inspection, StringComparison.OrdinalIgnoreCase);
             var isFinalProcess = lastProcessLookup.TryGetValue(b.Id, out var lastProc)
                 && string.Equals(pendingProcess, lastProc, StringComparison.OrdinalIgnoreCase);
             var weightTons = (b.CurrentValidWeight ?? 0m) / 1000m;

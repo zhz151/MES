@@ -420,7 +420,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             var cutRows = await _context.ProductionRecords
                 .AsNoTracking()
                 .Where(pr => chunk.Contains(pr.ProductionBatchId)
-                          && pr.SectionName == SectionDefs.Cut
+                          && pr.SectionName == SectionKeys.Cut
                           && pr.ProductStatus == "成品"
                           && pr.IsPreCut != true) // 预成切不计入成品切割支数
                 .ToListAsync();

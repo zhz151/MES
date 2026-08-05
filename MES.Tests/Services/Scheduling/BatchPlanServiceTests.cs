@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Data;
@@ -209,7 +210,7 @@ public class BatchPlanServiceTests : TestBase
         // 批次在60冷轧工序，冷轧拔工段，未完成
         var batch = CreateBatch(ctx, "B001", "WO001",
             currentGroupName: "60冷轧",
-            currentSectionName: "冷轧拔",
+            currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false);
         // 需要 ProcessGroup 数据支持检查
         ctx.ProcessGroups.Add(new ProcessGroup

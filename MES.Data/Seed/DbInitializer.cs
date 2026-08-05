@@ -473,85 +473,85 @@ public static class DbInitializer
             }
 
             // A 外抛光
-            AddItem(settingMap["A"], "荒管处理", "外抛光", 1m, 1);
+            AddItem(settingMap["A"], "荒管处理", SectionKeys.OuterPolish, 1m, 1);
 
             // B 内修磨
-            AddItem(settingMap["B"], "荒管处理", "内修磨", 1m, 1);
+            AddItem(settingMap["B"], "荒管处理", SectionKeys.InnerGrinding, 1m, 1);
 
             // C 外点磨
-            AddItem(settingMap["C"], "荒管处理", "外点磨", 1m, 1);
+            AddItem(settingMap["C"], "荒管处理", SectionKeys.OuterSpotGrinding, 1m, 1);
 
             // D 荒管检
-            AddItem(settingMap["D"], "荒管处理", "检验", 1m, 1);
+            AddItem(settingMap["D"], "荒管处理", SectionKeys.Inspection, 1m, 1);
 
             // E 在制检：全部工序组工段=检验的汇总量，后处理减去 D+N
-            AddItem(settingMap["E"], "全部", "检验", 1m, 1);
+            AddItem(settingMap["E"], "全部", SectionKeys.Inspection, 1m, 1);
 
             // F 固溶
-            AddItem(settingMap["F"], "20冷轧", "固溶", 1m, 1);
-            AddItem(settingMap["F"], "30冷轧", "固溶", 1m, 2);
-            AddItem(settingMap["F"], "50冷轧", "固溶", 1m, 3);
-            AddItem(settingMap["F"], "60冷轧", "固溶", 1m, 4);
-            AddItem(settingMap["F"], "冷拔", "固溶", 1m, 5);
-            AddItem(settingMap["F"], "三辊冷轧", "固溶", 1m, 6);
-            AddItem(settingMap["F"], "在制修检", "固溶", 1m, 7);
+            AddItem(settingMap["F"], "20冷轧", SectionKeys.Solution, 1m, 1);
+            AddItem(settingMap["F"], "30冷轧", SectionKeys.Solution, 1m,2);
+            AddItem(settingMap["F"], "50冷轧", SectionKeys.Solution, 1m,3);
+            AddItem(settingMap["F"], "60冷轧", SectionKeys.Solution, 1m,4);
+            AddItem(settingMap["F"], "冷拔", SectionKeys.Solution, 1m,5);
+            AddItem(settingMap["F"], "三辊冷轧", SectionKeys.Solution, 1m,6);
+            AddItem(settingMap["F"], "在制修检", SectionKeys.Solution, 1m,7);
 
             // G 矫直
-            AddItem(settingMap["G"], "20冷轧", "矫直", 1m, 1);
-            AddItem(settingMap["G"], "30冷轧", "矫直", 1m, 2);
-            AddItem(settingMap["G"], "50冷轧", "矫直", 0.5m, 3);
-            AddItem(settingMap["G"], "60冷轧", "矫直", 0.5m, 4);
-            AddItem(settingMap["G"], "荒管处理", "矫直", 0.25m, 5);
-            AddItem(settingMap["G"], "冷拔", "矫直", 1m, 6);
-            AddItem(settingMap["G"], "三辊冷轧", "矫直", 1m, 7);
-            AddItem(settingMap["G"], "在制修检", "矫直", 1m, 8);
+            AddItem(settingMap["G"], "20冷轧", SectionKeys.Straighten, 1m, 1);
+            AddItem(settingMap["G"], "30冷轧", SectionKeys.Straighten, 1m,2);
+            AddItem(settingMap["G"], "50冷轧", SectionKeys.Straighten, 0.5m,3);
+            AddItem(settingMap["G"], "60冷轧", SectionKeys.Straighten, 0.5m,4);
+            AddItem(settingMap["G"], "荒管处理", SectionKeys.Straighten, 0.25m,5);
+            AddItem(settingMap["G"], "冷拔", SectionKeys.Straighten, 1m,6);
+            AddItem(settingMap["G"], "三辊冷轧", SectionKeys.Straighten, 1m,7);
+            AddItem(settingMap["G"], "在制修检", SectionKeys.Straighten, 1m,8);
 
             // H 切割
-            AddItem(settingMap["H"], "20冷轧", "断切", 1m, 1);
-            AddItem(settingMap["H"], "30冷轧", "断切", 1m, 2);
-            AddItem(settingMap["H"], "50冷轧", "断切", 0.5m, 3);
-            AddItem(settingMap["H"], "60冷轧", "断切", 0.5m, 4);
-            AddItem(settingMap["H"], "荒管处理", "断切", 0.25m, 5);
-            AddItem(settingMap["H"], "冷拔", "断切", 1m, 6);
-            AddItem(settingMap["H"], "三辊冷轧", "断切", 1m, 7);
-            AddItem(settingMap["H"], "在制修检", "断切", 0.25m, 8);
-            AddItem(settingMap["H"], "20冷轧", "油管断", 0.75m, 9);
-            AddItem(settingMap["H"], "30冷轧", "油管断", 0.75m, 10);
-            AddItem(settingMap["H"], "50冷轧", "油管断", 0.5m, 11);
-            AddItem(settingMap["H"], "60冷轧", "油管断", 0.5m, 12);
-            AddItem(settingMap["H"], "三辊冷轧", "油管断", 0.75m, 13);
+            AddItem(settingMap["H"], "20冷轧", SectionKeys.Cut, 1m, 1);
+            AddItem(settingMap["H"], "30冷轧", SectionKeys.Cut, 1m,2);
+            AddItem(settingMap["H"], "50冷轧", SectionKeys.Cut, 0.5m,3);
+            AddItem(settingMap["H"], "60冷轧", SectionKeys.Cut, 0.5m,4);
+            AddItem(settingMap["H"], "荒管处理", SectionKeys.Cut, 0.25m,5);
+            AddItem(settingMap["H"], "冷拔", SectionKeys.Cut, 1m,6);
+            AddItem(settingMap["H"], "三辊冷轧", SectionKeys.Cut, 1m,7);
+            AddItem(settingMap["H"], "在制修检", SectionKeys.Cut, 0.25m,8);
+            AddItem(settingMap["H"], "20冷轧", SectionKeys.OilPipeCut, 0.75m,9);
+            AddItem(settingMap["H"], "30冷轧", SectionKeys.OilPipeCut, 0.75m,10);
+            AddItem(settingMap["H"], "50冷轧", SectionKeys.OilPipeCut, 0.5m,11);
+            AddItem(settingMap["H"], "60冷轧", SectionKeys.OilPipeCut, 0.5m,12);
+            AddItem(settingMap["H"], "三辊冷轧", SectionKeys.OilPipeCut, 0.75m,13);
 
             // I 去油
-            AddItem(settingMap["I"], "20冷轧", "去油", 1m, 1);
-            AddItem(settingMap["I"], "30冷轧", "去油", 1m, 2);
-            AddItem(settingMap["I"], "50冷轧", "去油", 0.5m, 3);
-            AddItem(settingMap["I"], "60冷轧", "去油", 0.5m, 4);
-            AddItem(settingMap["I"], "三辊冷轧", "去油", 1m, 5);
+            AddItem(settingMap["I"], "20冷轧", SectionKeys.Degrease, 1m, 1);
+            AddItem(settingMap["I"], "30冷轧", SectionKeys.Degrease, 1m,2);
+            AddItem(settingMap["I"], "50冷轧", SectionKeys.Degrease, 0.5m,3);
+            AddItem(settingMap["I"], "60冷轧", SectionKeys.Degrease, 0.5m,4);
+            AddItem(settingMap["I"], "三辊冷轧", SectionKeys.Degrease, 1m,5);
 
             // J 酸洗
-            AddItem(settingMap["J"], "20冷轧", "酸洗", 1m, 1);
-            AddItem(settingMap["J"], "30冷轧", "酸洗", 1m, 2);
-            AddItem(settingMap["J"], "50冷轧", "酸洗", 0.5m, 3);
-            AddItem(settingMap["J"], "60冷轧", "酸洗", 0.5m, 4);
-            AddItem(settingMap["J"], "荒管处理", "酸洗", 0.25m, 5);
-            AddItem(settingMap["J"], "冷拔", "酸洗", 1m, 6);
-            AddItem(settingMap["J"], "三辊冷轧", "酸洗", 1m, 7);
-            AddItem(settingMap["J"], "在制修检", "酸洗", 0.25m, 8);
+            AddItem(settingMap["J"], "20冷轧", SectionKeys.Pickle, 1m, 1);
+            AddItem(settingMap["J"], "30冷轧", SectionKeys.Pickle, 1m,2);
+            AddItem(settingMap["J"], "50冷轧", SectionKeys.Pickle, 0.5m,3);
+            AddItem(settingMap["J"], "60冷轧", SectionKeys.Pickle, 0.5m,4);
+            AddItem(settingMap["J"], "荒管处理", SectionKeys.Pickle, 0.25m,5);
+            AddItem(settingMap["J"], "冷拔", SectionKeys.Pickle, 1m,6);
+            AddItem(settingMap["J"], "三辊冷轧", SectionKeys.Pickle, 1m,7);
+            AddItem(settingMap["J"], "在制修检", SectionKeys.Pickle, 0.25m,8);
 
             // K 大轧
-            AddItem(settingMap["K"], "50冷轧", "冷轧拔", 1m, 1);
-            AddItem(settingMap["K"], "60冷轧", "冷轧拔", 1m, 2);
+            AddItem(settingMap["K"], "50冷轧", SectionKeys.ColdRollDraw, 1m, 1);
+            AddItem(settingMap["K"], "60冷轧", SectionKeys.ColdRollDraw, 1m,2);
 
             // L 小轧
-            AddItem(settingMap["L"], "20冷轧", "冷轧拔", 1m, 1);
-            AddItem(settingMap["L"], "30冷轧", "冷轧拔", 1m, 2);
-            AddItem(settingMap["L"], "三辊冷轧", "冷轧拔", 1m, 3);
+            AddItem(settingMap["L"], "20冷轧", SectionKeys.ColdRollDraw, 1m, 1);
+            AddItem(settingMap["L"], "30冷轧", SectionKeys.ColdRollDraw, 1m,2);
+            AddItem(settingMap["L"], "三辊冷轧", SectionKeys.ColdRollDraw, 1m,3);
 
             // M 冷拔
-            AddItem(settingMap["M"], "冷拔", "冷轧拔", 1m, 1);
+            AddItem(settingMap["M"], "冷拔", SectionKeys.ColdRollDraw, 1m, 1);
 
             // N 成品待检：所有工序组中工段=检验的属成品工序量（FinalProcessTotal）汇总
-            AddItem(settingMap["N"], "全部", "检验", 1m, 1);
+            AddItem(settingMap["N"], "全部", SectionKeys.Inspection, 1m, 1);
 
             await context.SectionFlowCategoryItems.AddRangeAsync(items);
             await context.SaveChangesAsync();
@@ -593,26 +593,26 @@ public static class DbInitializer
             var workstations = new List<Workstation>
             {
                 // 冷轧拔工段
-                new() { Code = "CR01", Name = "1号冷轧机",  EquipmentName = "LG60冷轧机",   SectionName = "冷轧拔", IsActive = true },
-                new() { Code = "CR02", Name = "2号冷轧机",  EquipmentName = "LG30冷轧机",   SectionName = "冷轧拔", IsActive = true },
-                new() { Code = "CR03", Name = "3号冷轧机",  EquipmentName = "LG20冷轧机",   SectionName = "冷轧拔", IsActive = true },
+                new() { Code = "CR01", Name = "1号冷轧机",  EquipmentName = "LG60冷轧机",   SectionName = SectionKeys.ColdRollDraw, IsActive = true },
+                new() { Code = "CR02", Name = "2号冷轧机",  EquipmentName = "LG30冷轧机",   SectionName = SectionKeys.ColdRollDraw, IsActive = true },
+                new() { Code = "CR03", Name = "3号冷轧机",  EquipmentName = "LG20冷轧机",   SectionName = SectionKeys.ColdRollDraw, IsActive = true },
                 // 外抛光工段
-                new() { Code = "PL01", Name = "1号抛光机",  EquipmentName = "外抛光机",     SectionName = "外抛光", IsActive = true },
-                new() { Code = "PL02", Name = "2号抛光机",  EquipmentName = "外抛光机",     SectionName = "外抛光", IsActive = true },
+                new() { Code = "PL01", Name = "1号抛光机",  EquipmentName = "外抛光机",     SectionName = SectionKeys.OuterPolish, IsActive = true },
+                new() { Code = "PL02", Name = "2号抛光机",  EquipmentName = "外抛光机",     SectionName = SectionKeys.OuterPolish, IsActive = true },
                 // 酸洗工段
-                new() { Code = "PK01", Name = "酸洗槽1",    EquipmentName = "酸洗槽",       SectionName = "酸洗",   IsActive = true },
+                new() { Code = "PK01", Name = "酸洗槽1",    EquipmentName = "酸洗槽",       SectionName = SectionKeys.Pickle,  IsActive = true },
                 // 内修磨工段
-                new() { Code = "IG01", Name = "内磨机1",    EquipmentName = "内修磨机",     SectionName = "内修磨", IsActive = true },
+                new() { Code = "IG01", Name = "内磨机1",    EquipmentName = "内修磨机",     SectionName = SectionKeys.InnerGrinding, IsActive = true },
                 // 固溶工段
-                new() { Code = "SL01", Name = "固溶炉1",    EquipmentName = "固溶热处理炉", SectionName = "固溶",   IsActive = true },
+                new() { Code = "SL01", Name = "固溶炉1",    EquipmentName = "固溶热处理炉", SectionName = SectionKeys.Solution,  IsActive = true },
                 // 断切工段
-                new() { Code = "CT01", Name = "切管机1",    EquipmentName = "自动切管机",   SectionName = "断切",   IsActive = true },
+                new() { Code = "CT01", Name = "切管机1",    EquipmentName = "自动切管机",   SectionName = SectionKeys.Cut,  IsActive = true },
                 // 矫直工段
-                new() { Code = "ST01", Name = "矫直机1",    EquipmentName = "矫直机",       SectionName = "矫直",   IsActive = true },
+                new() { Code = "ST01", Name = "矫直机1",    EquipmentName = "矫直机",       SectionName = SectionKeys.Straighten,  IsActive = true },
                 // 检验工段
-                new() { Code = "IN01", Name = "检验台1",    EquipmentName = "检验设备",     SectionName = "检验",   IsActive = true },
+                new() { Code = "IN01", Name = "检验台1",    EquipmentName = "检验设备",     SectionName = SectionKeys.Inspection,  IsActive = true },
                 // 仓储工段
-                new() { Code = "WH01", Name = "入库1",      EquipmentName = null,           SectionName = "入库",   IsActive = true },
+                new() { Code = "WH01", Name = "入库1",      EquipmentName = null,           SectionName = SectionKeys.Warehouse,  IsActive = true },
             };
 
             context.Workstations.AddRange(workstations);

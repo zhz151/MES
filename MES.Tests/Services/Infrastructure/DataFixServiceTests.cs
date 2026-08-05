@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.DataFix;
@@ -148,7 +149,7 @@ public class DataFixServiceTests : TestBase
             ProcessGroupId = pg2.Id,
             ProcessName = pg1.ProcessName,
             ManufacturingSpec = pg1.ManufacturingSpec,
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 0,
             CreatedBy = "tester",
         };
@@ -179,7 +180,7 @@ public class DataFixServiceTests : TestBase
             ProcessGroupId = pg.Id,
             ProcessName = pg.ProcessName,
             ManufacturingSpec = pg.ManufacturingSpec ?? "",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 0,
             CreatedBy = "tester",
         };
@@ -206,7 +207,7 @@ public class DataFixServiceTests : TestBase
             ProcessGroupId = pg.Id,
             ProcessName = pg.ProcessName,
             ManufacturingSpec = pg.ManufacturingSpec,
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 0,
             OutsourceVendor = "测试委外厂",
             SendOutDate = DateTime.Today,
@@ -235,7 +236,7 @@ public class DataFixServiceTests : TestBase
             ProcessGroupId = pg.Id,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 1,
             OutsourceVendor = "测试委外厂",
             SendOutDate = DateTime.Today,
@@ -278,7 +279,7 @@ public class DataFixServiceTests : TestBase
             ProcessGroupId = pg.Id,
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 1,
             OutsourceVendor = "测试委外厂",
             SendOutDate = DateTime.Today,
@@ -407,7 +408,7 @@ public class DataFixServiceTests : TestBase
             ProcessGroupId = pg.Id,
             ProcessName = pg.ProcessName,
             ManufacturingSpec = pg.ManufacturingSpec,
-            SectionName = "冷轧拔",
+            SectionName = SectionKeys.ColdRollDraw,
             SequenceNumber = 0,
             CreatedBy = "tester",
         };

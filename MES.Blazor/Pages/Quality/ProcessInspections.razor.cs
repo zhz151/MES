@@ -661,7 +661,7 @@ public partial class ProcessInspections
                 builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec));
                 break;
             case "SectionName":
-                builder.AddContent(0, item.SectionName);
+                builder.AddContent(0, SectionDisplayHelper.GetSectionNameText(item.SectionName));
                 break;
             case "SequenceNumber":
                 builder.AddContent(0, item.SequenceNumber);

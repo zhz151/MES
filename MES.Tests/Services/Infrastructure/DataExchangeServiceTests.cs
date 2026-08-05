@@ -6,11 +6,14 @@ using Microsoft.Extensions.Logging;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
+using MES.Core.Constants;
+using MES.Core.Interfaces.Configuration;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Services.DataExchange;
 using MES.Tests.Tests;
 using MES.Data.Entities.Batch;
+using MES.Data.Entities.Configuration;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.StandardRegister;
@@ -32,7 +35,14 @@ public class DataExchangeServiceTests : TestBase
         var exportLoggerMock = new Mock<ILogger<DataExportService>>();
         var importLoggerMock = new Mock<ILogger<DataImportService>>();
         var fixServiceMock = new Mock<IDataFixService>();
-        var exportService = new DataExportService(ctx, exportLoggerMock.Object);
+        var sectionNameDisplayMock = new Mock<ISectionNameDisplayService>();
+        sectionNameDisplayMock.Setup(x => x.ToDisplayAsync(It.IsAny<string?>()))
+            .ReturnsAsync((string? v) => SectionKeys.ToChinese(v));
+        sectionNameDisplayMock.Setup(x => x.ToKeyAsync(It.IsAny<string?>()))
+            .ReturnsAsync((string? v) => SectionKeys.ToKey(v));
+        sectionNameDisplayMock.Setup(x => x.GetSectionNameMapAsync())
+            .ReturnsAsync(SectionKeys.KeyToChinese);
+        var exportService = new DataExportService(ctx, exportLoggerMock.Object, sectionNameDisplayMock.Object);
         var importService = new DataImportService(ctx, importLoggerMock.Object);
         return new DataExchangeService(importService, exportService, fixServiceMock.Object, loggerMock.Object);
     }
@@ -705,6 +715,87 @@ public class DataExchangeServiceTests : TestBase
 
         // 数据库中没有新记录
         ctx.Set<SalesOrder>().Count().Should().Be(0);
+    }
+
+    // ========== 工段 SectionName 中文↔Key 往返 ==========
+
+    [Fact]
+    public async Task ExportAsync_工位_工段存储Key导出为中文()
+    {
+        var ctx = CreateDbContext();
+        ctx.Workstations.Add(new Workstation
+        {
+            Code = "W001",
+            Name = "1号抛光",
+            EquipmentName = "抛光机",
+            SectionName = SectionKeys.OuterPolish, // 存储为英文 Key
+            ReportType = "ProductionRecord",
+            IsActive = true,
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var bytes = await svc.ExportAsync("Workstation");
+
+        using var package = new ExcelPackage(new MemoryStream(bytes));
+        var sheet = package.Workbook.Worksheets[0];
+        // 表头：ID/工位编码/工位名称/设备名称/工段/报工模板类型/是否启用 → 工段第 5 列（ID 为系统列前置）
+        sheet.Cells[1, 5].Value.Should().Be("工段");
+        sheet.Cells[2, 5].Value.Should().Be("外抛光", "SectionName 存储 Key，导出应转显示中文");
+        sheet.Cells[2, 2].Value.Should().Be("W001");
+    }
+
+    [Fact]
+    public async Task ImportAsync_工位_工段中文落库为Key()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("配置-工位管理", new() { "工位编码", "工位名称", "设备名称", "工段", "报工模板类型", "是否启用" },
+            new() { new() { "W001", "1号抛光", "抛光机", "外抛光", "ProductionRecord", "是" } });
+
+        var result = await svc.ImportAsync("Workstation", bytes, "test");
+
+        result.SuccessCount.Should().Be(1);
+        result.Errors.Should().BeEmpty();
+        var saved = await ctx.Workstations.FirstAsync(w => w.Code == "W001");
+        saved.SectionName.Should().Be(SectionKeys.OuterPolish, "Excel 中文工段导入应落库为英文 Key");
+        saved.Name.Should().Be("1号抛光");
+        saved.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ImportAsync_工位_工段填Key值也兼容()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        // Excel 中直接填英文 Key（SectionKeys.ToKey 幂等，原样通过）
+        var bytes = CreateTestExcel("配置-工位管理", new() { "工位编码", "工段", "报工模板类型", "是否启用" },
+            new() { new() { "W002", SectionKeys.Cut, "ProductionRecord", "是" } });
+
+        var result = await svc.ImportAsync("Workstation", bytes, "test");
+
+        result.SuccessCount.Should().Be(1);
+        var saved = await ctx.Workstations.FirstAsync(w => w.Code == "W002");
+        saved.SectionName.Should().Be(SectionKeys.Cut);
+    }
+
+    [Fact]
+    public async Task ImportAsync_工位_工段别名也归一()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        // Excel 中填别名"切管"，应归一为 OilPipeCut
+        var bytes = CreateTestExcel("配置-工位管理", new() { "工位编码", "工段", "报工模板类型", "是否启用" },
+            new() { new() { "W003", "切管", "ProductionRecord", "是" } });
+
+        var result = await svc.ImportAsync("Workstation", bytes, "test");
+
+        result.SuccessCount.Should().Be(1);
+        var saved = await ctx.Workstations.FirstAsync(w => w.Code == "W003");
+        saved.SectionName.Should().Be(SectionKeys.OilPipeCut);
     }
 }
 

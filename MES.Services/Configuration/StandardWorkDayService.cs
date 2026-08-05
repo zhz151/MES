@@ -181,7 +181,8 @@ public class StandardWorkDayService : IStandardWorkDayService
     }
 
     /// <summary>
-    /// 获取标准天数映射表：key=SectionName, value=StandardDays
+    /// 获取标准天数映射表：key=SectionKey（英文稳定标识），value=StandardDays。
+    /// 消费方（工量/周期计算）应经 SectionKeys.ToKey 归一查询，兼容中文与 Key。
     /// 匹配规则：先找 PlantGradePrefix 精确匹配，未找到则取通用的 null 值
     /// </summary>
     public async Task<Dictionary<string, double>> GetStandardDaysMapAsync(string? plantGrade)
@@ -190,9 +191,11 @@ public class StandardWorkDayService : IStandardWorkDayService
             .AsNoTracking()
             .ToListAsync();
 
-        // 按 SectionName 分组，优先取精确匹配 PlantGradePrefix
-        var result = new Dictionary<string, double>();
-        foreach (var group in all.GroupBy(w => w.SectionName))
+        // 按 SectionKey（英文 Key）分组，优先取精确匹配 PlantGradePrefix
+        var result = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var group in all
+            .Where(w => !string.IsNullOrEmpty(w.SectionKey))
+            .GroupBy(w => w.SectionKey!, StringComparer.OrdinalIgnoreCase))
         {
             // 找匹配牌号前缀的条目
             var matched = group.FirstOrDefault(w =>

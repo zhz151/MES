@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.Batch;
+using MES.Core.Constants;
 using MES.Core.Models;
 using MES.Core.DTOs.Batch;
 using MES.Core.Interfaces.Batch;
@@ -64,7 +65,7 @@ public class PicklingControllerTests : ControllerTestBase
     public async Task Create_ReturnsOk()
     {
         // Arrange
-        var request = new CreatePicklingInRecordRequest { BatchNo = "BATCH001", ProcessName = "冷拔", ManufacturingSpec = "219*8", SectionName = "酸洗", InDate = DateTime.Today };
+        var request = new CreatePicklingInRecordRequest { BatchNo = "BATCH001", ProcessName = "冷拔", ManufacturingSpec = "219*8", SectionName = SectionKeys.Pickle, InDate = DateTime.Today };
         var dto = new PicklingInRecordDto { Id = 1, BatchNo = "BATCH001" };
         _serviceMock.Setup(x => x.CreateAsync(request)).ReturnsAsync(dto);
 
@@ -96,7 +97,7 @@ public class PicklingControllerTests : ControllerTestBase
         // Arrange
         var requests = new List<CreatePicklingInRecordRequest>
         {
-            new() { BatchNo = "BATCH001", ProcessName = "冷拔", ManufacturingSpec = "219*8", SectionName = "酸洗", InDate = DateTime.Today }
+            new() { BatchNo = "BATCH001", ProcessName = "冷拔", ManufacturingSpec = "219*8", SectionName = SectionKeys.Pickle, InDate = DateTime.Today }
         };
         var dtos = new List<PicklingInRecordDto> { new() { Id = 1, BatchNo = "BATCH001" } };
         _serviceMock.Setup(x => x.BatchCreateAsync(requests)).ReturnsAsync(dtos);

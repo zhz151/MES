@@ -85,7 +85,7 @@
                                     <MudTd>@context.Specification</MudTd>
                                     <MudTd>@((int)context.CurrentValidWeight)</MudTd>
                                     <MudTd>@context.CurrentExecDate?.ToString("yyyy-MM-dd")</MudTd>
-                                    <MudTd>@context.CurrentSectionName</MudTd>
+                                    <MudTd>@SectionDisplayHelper.GetSectionNameText(context.CurrentSectionName)</MudTd>
                                     <MudTd>@context.ProcessGroupName</MudTd>
                                     <MudTd>
                                         <MudIconButton Icon="@Icons.Material.Filled.AddCircle"

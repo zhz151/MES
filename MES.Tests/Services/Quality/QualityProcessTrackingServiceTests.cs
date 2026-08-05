@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Data;
 using MES.Data.Entities.Batch;
@@ -264,8 +265,8 @@ public class QualityProcessTrackingServiceTests : TestBase
         batch.TheoreticalUnitWeight = 30.0m;
         SeedMrCheck(ctx, batch, nameof(InspectionType.FormalInspection));
         // 断切成品记录：切后支数 40+60=100
-        SeedCutRecord(ctx, batch, "断切", 100, 40);
-        SeedCutRecord(ctx, batch, "断切", 100, 60);
+        SeedCutRecord(ctx, batch, SectionKeys.Cut, 100, 40);
+        SeedCutRecord(ctx, batch, SectionKeys.Cut, 100, 60);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
