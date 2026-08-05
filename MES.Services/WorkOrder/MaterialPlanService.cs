@@ -133,27 +133,39 @@ public class MaterialPlanService : IMaterialPlanService
     /// 提取工序组的所有非空工段
     /// </summary>
     internal static List<(string SectionName, int Sequence)> ExtractSections(
-        int? coldRollDraw, int? oilPipeCut, int? degrease, int? solution,
-        int? straighten, int? cut, int? thicknessMeasure, int? pickle,
-        int? outerPolish, int? innerGrinding, int? outerSpotGrinding,
-        int? inspection, int? weldingHead, int? lubrication, int? warehouse)
+        int? coldRollDraw, int? oilPipeCut, int? degrease, int? emulsionWash, int? ultrasonicWash, int? clothPolish,
+        int? brightAnnealing, int? solution, int? straighten, int? cut, int? thicknessMeasure, int? pickle,
+        int? outerPolish, int? innerPolish, int? innerGrinding, int? outerSpotGrinding, int? sandBlasting,
+        int? shotBlasting, int? inspection, int? weldingHead, int? welding, int? lubrication, int? packing,
+        int? warehouse, int? extra1, int? extra2)
     {
         var sections = new List<(string, int)>();
         if (coldRollDraw.HasValue) sections.Add((SectionDefs.ColdRollDraw, coldRollDraw.Value));
         if (oilPipeCut.HasValue) sections.Add((SectionDefs.OilPipeCut, oilPipeCut.Value));
         if (degrease.HasValue) sections.Add((SectionDefs.Degrease, degrease.Value));
+        if (emulsionWash.HasValue) sections.Add((SectionDefs.EmulsionWash, emulsionWash.Value));
+        if (ultrasonicWash.HasValue) sections.Add((SectionDefs.UltrasonicWash, ultrasonicWash.Value));
+        if (clothPolish.HasValue) sections.Add((SectionDefs.ClothPolish, clothPolish.Value));
+        if (brightAnnealing.HasValue) sections.Add((SectionDefs.BrightAnnealing, brightAnnealing.Value));
         if (solution.HasValue) sections.Add((SectionDefs.Solution, solution.Value));
         if (straighten.HasValue) sections.Add((SectionDefs.Straighten, straighten.Value));
         if (cut.HasValue) sections.Add((SectionDefs.Cut, cut.Value));
         if (thicknessMeasure.HasValue) sections.Add((SectionDefs.ThicknessMeasure, thicknessMeasure.Value));
         if (pickle.HasValue) sections.Add((SectionDefs.Pickle, pickle.Value));
         if (outerPolish.HasValue) sections.Add((SectionDefs.OuterPolish, outerPolish.Value));
+        if (innerPolish.HasValue) sections.Add((SectionDefs.InnerPolish, innerPolish.Value));
         if (innerGrinding.HasValue) sections.Add((SectionDefs.InnerGrinding, innerGrinding.Value));
         if (outerSpotGrinding.HasValue) sections.Add((SectionDefs.OuterSpotGrinding, outerSpotGrinding.Value));
+        if (sandBlasting.HasValue) sections.Add((SectionDefs.SandBlasting, sandBlasting.Value));
+        if (shotBlasting.HasValue) sections.Add((SectionDefs.ShotBlasting, shotBlasting.Value));
         if (inspection.HasValue) sections.Add((SectionDefs.Inspection, inspection.Value));
         if (weldingHead.HasValue) sections.Add((SectionDefs.WeldingHead, weldingHead.Value));
+        if (welding.HasValue) sections.Add((SectionDefs.Welding, welding.Value));
         if (lubrication.HasValue) sections.Add((SectionDefs.Lubrication, lubrication.Value));
+        if (packing.HasValue) sections.Add((SectionDefs.Packing, packing.Value));
         if (warehouse.HasValue) sections.Add((SectionDefs.Warehouse, warehouse.Value));
+        if (extra1.HasValue) sections.Add((SectionDefs.Extra1, extra1.Value));
+        if (extra2.HasValue) sections.Add((SectionDefs.Extra2, extra2.Value));
         return sections;
     }
 
@@ -242,14 +254,18 @@ public class MaterialPlanService : IMaterialPlanService
                             ColdRollDraw = pg.ColdRollDraw,
                             OilPipeCut = pg.OilPipeCut,
                             Degrease = pg.Degrease,
+                            UltrasonicWash = pg.UltrasonicWash,
+                            ClothPolish = pg.ClothPolish,
                             Solution = pg.Solution,
                             Straighten = pg.Straighten,
                             Cut = pg.Cut,
                             ThicknessMeasure = pg.ThicknessMeasure,
                             Pickle = pg.Pickle,
                             OuterPolish = pg.OuterPolish,
+                            InnerPolish = pg.InnerPolish,
                             InnerGrinding = pg.InnerGrinding,
                             OuterSpotGrinding = pg.OuterSpotGrinding,
+                            SandBlasting = pg.SandBlasting,
                             Inspection = pg.Inspection,
                             WeldingHead = pg.WeldingHead,
                             Lubrication = pg.Lubrication,
@@ -267,10 +283,13 @@ public class MaterialPlanService : IMaterialPlanService
                 foreach (var pg in semiGroups)
                 {
                     semiSections.AddRange(ExtractSections(
-                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.EmulsionWash,
+                        pg.UltrasonicWash, pg.ClothPolish, pg.BrightAnnealing, pg.Solution,
                         pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                        pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                        pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+                        pg.OuterPolish, pg.InnerPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                        pg.SandBlasting, pg.ShotBlasting, pg.Inspection, pg.WeldingHead,
+                        pg.Welding, pg.Lubrication, pg.Packing, pg.Warehouse,
+                        pg.Extra1, pg.Extra2));
                 }
                 var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
                 var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
@@ -389,14 +408,18 @@ public class MaterialPlanService : IMaterialPlanService
                             ColdRollDraw = pg.ColdRollDraw,
                             OilPipeCut = pg.OilPipeCut,
                             Degrease = pg.Degrease,
+                            UltrasonicWash = pg.UltrasonicWash,
+                            ClothPolish = pg.ClothPolish,
                             Solution = pg.Solution,
                             Straighten = pg.Straighten,
                             Cut = pg.Cut,
                             ThicknessMeasure = pg.ThicknessMeasure,
                             Pickle = pg.Pickle,
                             OuterPolish = pg.OuterPolish,
+                            InnerPolish = pg.InnerPolish,
                             InnerGrinding = pg.InnerGrinding,
                             OuterSpotGrinding = pg.OuterSpotGrinding,
+                            SandBlasting = pg.SandBlasting,
                             Inspection = pg.Inspection,
                             WeldingHead = pg.WeldingHead,
                             Lubrication = pg.Lubrication,
@@ -415,10 +438,13 @@ public class MaterialPlanService : IMaterialPlanService
                 foreach (var pg in semiGroups)
                 {
                     semiSections.AddRange(ExtractSections(
-                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.EmulsionWash,
+                        pg.UltrasonicWash, pg.ClothPolish, pg.BrightAnnealing, pg.Solution,
                         pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                        pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                        pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+                        pg.OuterPolish, pg.InnerPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                        pg.SandBlasting, pg.ShotBlasting, pg.Inspection, pg.WeldingHead,
+                        pg.Welding, pg.Lubrication, pg.Packing, pg.Warehouse,
+                        pg.Extra1, pg.Extra2));
                 }
                 var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
                 var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
@@ -1437,14 +1463,18 @@ public class MaterialPlanService : IMaterialPlanService
                             ColdRollDraw = pg.ColdRollDraw,
                             OilPipeCut = pg.OilPipeCut,
                             Degrease = pg.Degrease,
+                            UltrasonicWash = pg.UltrasonicWash,
+                            ClothPolish = pg.ClothPolish,
                             Solution = pg.Solution,
                             Straighten = pg.Straighten,
                             Cut = pg.Cut,
                             ThicknessMeasure = pg.ThicknessMeasure,
                             Pickle = pg.Pickle,
                             OuterPolish = pg.OuterPolish,
+                            InnerPolish = pg.InnerPolish,
                             InnerGrinding = pg.InnerGrinding,
                             OuterSpotGrinding = pg.OuterSpotGrinding,
+                            SandBlasting = pg.SandBlasting,
                             Inspection = pg.Inspection,
                             WeldingHead = pg.WeldingHead,
                             Lubrication = pg.Lubrication,
@@ -1462,10 +1492,13 @@ public class MaterialPlanService : IMaterialPlanService
                 foreach (var pg in pierceGroups)
                 {
                     pierceSections.AddRange(ExtractSections(
-                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.EmulsionWash,
+                        pg.UltrasonicWash, pg.ClothPolish, pg.BrightAnnealing, pg.Solution,
                         pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                        pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                        pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+                        pg.OuterPolish, pg.InnerPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                        pg.SandBlasting, pg.ShotBlasting, pg.Inspection, pg.WeldingHead,
+                        pg.Welding, pg.Lubrication, pg.Packing, pg.Warehouse,
+                        pg.Extra1, pg.Extra2));
                 }
                 var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
                 var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
@@ -1570,14 +1603,18 @@ public class MaterialPlanService : IMaterialPlanService
                             ColdRollDraw = pg.ColdRollDraw,
                             OilPipeCut = pg.OilPipeCut,
                             Degrease = pg.Degrease,
+                            UltrasonicWash = pg.UltrasonicWash,
+                            ClothPolish = pg.ClothPolish,
                             Solution = pg.Solution,
                             Straighten = pg.Straighten,
                             Cut = pg.Cut,
                             ThicknessMeasure = pg.ThicknessMeasure,
                             Pickle = pg.Pickle,
                             OuterPolish = pg.OuterPolish,
+                            InnerPolish = pg.InnerPolish,
                             InnerGrinding = pg.InnerGrinding,
                             OuterSpotGrinding = pg.OuterSpotGrinding,
+                            SandBlasting = pg.SandBlasting,
                             Inspection = pg.Inspection,
                             WeldingHead = pg.WeldingHead,
                             Lubrication = pg.Lubrication,
@@ -1596,10 +1633,13 @@ public class MaterialPlanService : IMaterialPlanService
                 foreach (var pg in pierceGroups)
                 {
                     pierceSections.AddRange(ExtractSections(
-                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                        pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.EmulsionWash,
+                        pg.UltrasonicWash, pg.ClothPolish, pg.BrightAnnealing, pg.Solution,
                         pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                        pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                        pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+                        pg.OuterPolish, pg.InnerPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                        pg.SandBlasting, pg.ShotBlasting, pg.Inspection, pg.WeldingHead,
+                        pg.Welding, pg.Lubrication, pg.Packing, pg.Warehouse,
+                        pg.Extra1, pg.Extra2));
                 }
                 var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
                 var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
@@ -3125,10 +3165,13 @@ public class MaterialPlanService : IMaterialPlanService
         foreach (var pg in batch.ProcessGroups)
         {
             sections.AddRange(ExtractSections(
-                pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.EmulsionWash,
+                pg.UltrasonicWash, pg.ClothPolish, pg.BrightAnnealing, pg.Solution,
                 pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse));
+                pg.OuterPolish, pg.InnerPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                pg.SandBlasting, pg.ShotBlasting, pg.Inspection, pg.WeldingHead,
+                pg.Welding, pg.Lubrication, pg.Packing, pg.Warehouse,
+                pg.Extra1, pg.Extra2));
         }
 
         // 计算工艺周期

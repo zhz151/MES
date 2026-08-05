@@ -683,18 +683,29 @@ public class BatchService : IBatchService
                         ColdRollDraw = pg.ColdRollDraw,
                         OilPipeCut = pg.OilPipeCut,
                         Degrease = pg.Degrease,
+                        EmulsionWash = pg.EmulsionWash,
+                        UltrasonicWash = pg.UltrasonicWash,
+                        ClothPolish = pg.ClothPolish,
+                        BrightAnnealing = pg.BrightAnnealing,
                         Solution = pg.Solution,
                         Straighten = pg.Straighten,
                         Cut = pg.Cut,
                         ThicknessMeasure = pg.ThicknessMeasure,
                         Pickle = pg.Pickle,
                         OuterPolish = pg.OuterPolish,
+                        InnerPolish = pg.InnerPolish,
                         InnerGrinding = pg.InnerGrinding,
                         OuterSpotGrinding = pg.OuterSpotGrinding,
+                        SandBlasting = pg.SandBlasting,
+                        ShotBlasting = pg.ShotBlasting,
                         Inspection = pg.Inspection,
                         WeldingHead = pg.WeldingHead,
+                        Welding = pg.Welding,
                         Lubrication = pg.Lubrication,
-                        Warehouse = pg.Warehouse
+                        Packing = pg.Packing,
+                        Warehouse = pg.Warehouse,
+                        Extra1 = pg.Extra1,
+                        Extra2 = pg.Extra2
                     };
                     _context.ProcessGroups.Add(pgEntity);
                 }
@@ -1455,18 +1466,29 @@ public class BatchService : IBatchService
                 existingReferenced.ColdRollDraw = pgReq.ColdRollDraw;
                 existingReferenced.OilPipeCut = pgReq.OilPipeCut;
                 existingReferenced.Degrease = pgReq.Degrease;
+                existingReferenced.EmulsionWash = pgReq.EmulsionWash;
+                existingReferenced.UltrasonicWash = pgReq.UltrasonicWash;
+                existingReferenced.ClothPolish = pgReq.ClothPolish;
+                existingReferenced.BrightAnnealing = pgReq.BrightAnnealing;
                 existingReferenced.Solution = pgReq.Solution;
                 existingReferenced.Straighten = pgReq.Straighten;
                 existingReferenced.Cut = pgReq.Cut;
                 existingReferenced.ThicknessMeasure = pgReq.ThicknessMeasure;
                 existingReferenced.Pickle = pgReq.Pickle;
                 existingReferenced.OuterPolish = pgReq.OuterPolish;
+                existingReferenced.InnerPolish = pgReq.InnerPolish;
                 existingReferenced.InnerGrinding = pgReq.InnerGrinding;
                 existingReferenced.OuterSpotGrinding = pgReq.OuterSpotGrinding;
+                existingReferenced.SandBlasting = pgReq.SandBlasting;
+                existingReferenced.ShotBlasting = pgReq.ShotBlasting;
                 existingReferenced.Inspection = pgReq.Inspection;
                 existingReferenced.WeldingHead = pgReq.WeldingHead;
+                existingReferenced.Welding = pgReq.Welding;
                 existingReferenced.Lubrication = pgReq.Lubrication;
+                existingReferenced.Packing = pgReq.Packing;
                 existingReferenced.Warehouse = pgReq.Warehouse;
+                existingReferenced.Extra1 = pgReq.Extra1;
+                existingReferenced.Extra2 = pgReq.Extra2;
                 continue;
             }
 
@@ -1484,18 +1506,29 @@ public class BatchService : IBatchService
                 ColdRollDraw = pgReq.ColdRollDraw,
                 OilPipeCut = pgReq.OilPipeCut,
                 Degrease = pgReq.Degrease,
+                EmulsionWash = pgReq.EmulsionWash,
+                UltrasonicWash = pgReq.UltrasonicWash,
+                ClothPolish = pgReq.ClothPolish,
+                BrightAnnealing = pgReq.BrightAnnealing,
                 Solution = pgReq.Solution,
                 Straighten = pgReq.Straighten,
                 Cut = pgReq.Cut,
                 ThicknessMeasure = pgReq.ThicknessMeasure,
                 Pickle = pgReq.Pickle,
                 OuterPolish = pgReq.OuterPolish,
+                InnerPolish = pgReq.InnerPolish,
                 InnerGrinding = pgReq.InnerGrinding,
                 OuterSpotGrinding = pgReq.OuterSpotGrinding,
+                SandBlasting = pgReq.SandBlasting,
+                ShotBlasting = pgReq.ShotBlasting,
                 Inspection = pgReq.Inspection,
                 WeldingHead = pgReq.WeldingHead,
+                Welding = pgReq.Welding,
                 Lubrication = pgReq.Lubrication,
-                Warehouse = pgReq.Warehouse
+                Packing = pgReq.Packing,
+                Warehouse = pgReq.Warehouse,
+                Extra1 = pgReq.Extra1,
+                Extra2 = pgReq.Extra2
             };
             _context.ProcessGroups.Add(pg);
         }
@@ -1622,18 +1655,29 @@ public class BatchService : IBatchService
             ColdRollDraw = request.ColdRollDraw,
             OilPipeCut = request.OilPipeCut,
             Degrease = request.Degrease,
+            EmulsionWash = request.EmulsionWash,
+            UltrasonicWash = request.UltrasonicWash,
+            ClothPolish = request.ClothPolish,
+            BrightAnnealing = request.BrightAnnealing,
             Solution = request.Solution,
             Straighten = request.Straighten,
             Cut = request.Cut,
             ThicknessMeasure = request.ThicknessMeasure,
             Pickle = request.Pickle,
             OuterPolish = request.OuterPolish,
+            InnerPolish = request.InnerPolish,
             InnerGrinding = request.InnerGrinding,
             OuterSpotGrinding = request.OuterSpotGrinding,
+            SandBlasting = request.SandBlasting,
+            ShotBlasting = request.ShotBlasting,
             Inspection = request.Inspection,
             WeldingHead = request.WeldingHead,
+            Welding = request.Welding,
             Lubrication = request.Lubrication,
-            Warehouse = request.Warehouse
+            Packing = request.Packing,
+            Warehouse = request.Warehouse,
+            Extra1 = request.Extra1,
+            Extra2 = request.Extra2
         };
 
         _context.ProcessGroups.Add(entity);
@@ -1770,18 +1814,29 @@ public class BatchService : IBatchService
                 ColdRollDraw = pg.ColdRollDraw,
                 OilPipeCut = pg.OilPipeCut,
                 Degrease = pg.Degrease,
+                EmulsionWash = pg.EmulsionWash,
+                UltrasonicWash = pg.UltrasonicWash,
+                ClothPolish = pg.ClothPolish,
+                BrightAnnealing = pg.BrightAnnealing,
                 Solution = pg.Solution,
                 Straighten = pg.Straighten,
                 Cut = pg.Cut,
                 ThicknessMeasure = pg.ThicknessMeasure,
                 Pickle = pg.Pickle,
                 OuterPolish = pg.OuterPolish,
+                InnerPolish = pg.InnerPolish,
                 InnerGrinding = pg.InnerGrinding,
                 OuterSpotGrinding = pg.OuterSpotGrinding,
+                SandBlasting = pg.SandBlasting,
+                ShotBlasting = pg.ShotBlasting,
                 Inspection = pg.Inspection,
                 WeldingHead = pg.WeldingHead,
+                Welding = pg.Welding,
                 Lubrication = pg.Lubrication,
-                Warehouse = pg.Warehouse
+                Packing = pg.Packing,
+                Warehouse = pg.Warehouse,
+                Extra1 = pg.Extra1,
+                Extra2 = pg.Extra2
             })
             .ToListAsync();
 
@@ -1815,18 +1870,29 @@ public class BatchService : IBatchService
                 ColdRollDraw = pg.ColdRollDraw,
                 OilPipeCut = pg.OilPipeCut,
                 Degrease = pg.Degrease,
+                EmulsionWash = pg.EmulsionWash,
+                UltrasonicWash = pg.UltrasonicWash,
+                ClothPolish = pg.ClothPolish,
+                BrightAnnealing = pg.BrightAnnealing,
                 Solution = pg.Solution,
                 Straighten = pg.Straighten,
                 Cut = pg.Cut,
                 ThicknessMeasure = pg.ThicknessMeasure,
                 Pickle = pg.Pickle,
                 OuterPolish = pg.OuterPolish,
+                InnerPolish = pg.InnerPolish,
                 InnerGrinding = pg.InnerGrinding,
                 OuterSpotGrinding = pg.OuterSpotGrinding,
+                SandBlasting = pg.SandBlasting,
+                ShotBlasting = pg.ShotBlasting,
                 Inspection = pg.Inspection,
                 WeldingHead = pg.WeldingHead,
+                Welding = pg.Welding,
                 Lubrication = pg.Lubrication,
-                Warehouse = pg.Warehouse
+                Packing = pg.Packing,
+                Warehouse = pg.Warehouse,
+                Extra1 = pg.Extra1,
+                Extra2 = pg.Extra2
             })
             .ToListAsync();
 
@@ -2561,18 +2627,29 @@ public class BatchService : IBatchService
             ColdRollDraw = entity.ColdRollDraw,
             OilPipeCut = entity.OilPipeCut,
             Degrease = entity.Degrease,
+            EmulsionWash = entity.EmulsionWash,
+            UltrasonicWash = entity.UltrasonicWash,
+            ClothPolish = entity.ClothPolish,
+            BrightAnnealing = entity.BrightAnnealing,
             Solution = entity.Solution,
             Straighten = entity.Straighten,
             Cut = entity.Cut,
             ThicknessMeasure = entity.ThicknessMeasure,
             Pickle = entity.Pickle,
             OuterPolish = entity.OuterPolish,
+            InnerPolish = entity.InnerPolish,
             InnerGrinding = entity.InnerGrinding,
             OuterSpotGrinding = entity.OuterSpotGrinding,
+            SandBlasting = entity.SandBlasting,
+            ShotBlasting = entity.ShotBlasting,
             Inspection = entity.Inspection,
             WeldingHead = entity.WeldingHead,
+            Welding = entity.Welding,
             Lubrication = entity.Lubrication,
+            Packing = entity.Packing,
             Warehouse = entity.Warehouse,
+            Extra1 = entity.Extra1,
+            Extra2 = entity.Extra2,
             CreatedTime = entity.CreatedTime,
             CreatedBy = entity.CreatedBy
         };
@@ -2590,10 +2667,13 @@ public class BatchService : IBatchService
             var pg = processGroups[i];
             var values = new List<int?>
             {
-                pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
+                pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.EmulsionWash,
+                pg.UltrasonicWash, pg.ClothPolish, pg.BrightAnnealing, pg.Solution,
                 pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse
+                pg.OuterPolish, pg.InnerPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                pg.SandBlasting, pg.ShotBlasting, pg.Inspection, pg.WeldingHead,
+                pg.Welding, pg.Lubrication, pg.Packing, pg.Warehouse,
+                pg.Extra1, pg.Extra2
             };
             var nonNullValues = values.Where(v => v.HasValue).Select(v => v!.Value).ToList();
 

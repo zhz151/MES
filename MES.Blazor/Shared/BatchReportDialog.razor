@@ -282,18 +282,29 @@
         if (pg.ColdRollDraw.HasValue) list.Add(("冷轧拔", pg.ColdRollDraw.Value));
         if (pg.OilPipeCut.HasValue) list.Add(("油管断", pg.OilPipeCut.Value));
         if (pg.Degrease.HasValue) list.Add(("去油", pg.Degrease.Value));
+        if (pg.EmulsionWash.HasValue) list.Add(("乳液浸洗", pg.EmulsionWash.Value));
+        if (pg.UltrasonicWash.HasValue) list.Add(("超声浸洗", pg.UltrasonicWash.Value));
+        if (pg.ClothPolish.HasValue) list.Add(("打布", pg.ClothPolish.Value));
+        if (pg.BrightAnnealing.HasValue) list.Add(("光亮退火", pg.BrightAnnealing.Value));
         if (pg.Solution.HasValue) list.Add(("固溶", pg.Solution.Value));
         if (pg.Straighten.HasValue) list.Add(("矫直", pg.Straighten.Value));
         if (pg.Cut.HasValue) list.Add(("断切", pg.Cut.Value));
         if (pg.ThicknessMeasure.HasValue) list.Add(("测壁厚", pg.ThicknessMeasure.Value));
         if (pg.Pickle.HasValue) list.Add(("酸洗", pg.Pickle.Value));
         if (pg.OuterPolish.HasValue) list.Add(("外抛光", pg.OuterPolish.Value));
+        if (pg.InnerPolish.HasValue) list.Add(("内抛", pg.InnerPolish.Value));
         if (pg.InnerGrinding.HasValue) list.Add(("内修磨", pg.InnerGrinding.Value));
         if (pg.OuterSpotGrinding.HasValue) list.Add(("外点磨", pg.OuterSpotGrinding.Value));
+        if (pg.SandBlasting.HasValue) list.Add(("喷砂", pg.SandBlasting.Value));
+        if (pg.ShotBlasting.HasValue) list.Add(("喷丸", pg.ShotBlasting.Value));
         if (pg.Inspection.HasValue) list.Add(("检验", pg.Inspection.Value));
-        if (pg.WeldingHead.HasValue) list.Add(("打焊头", pg.WeldingHead.Value));
+        if (pg.WeldingHead.HasValue) list.Add(("焊头", pg.WeldingHead.Value));
+        if (pg.Welding.HasValue) list.Add(("打头", pg.Welding.Value));
         if (pg.Lubrication.HasValue) list.Add(("润滑", pg.Lubrication.Value));
+        if (pg.Packing.HasValue) list.Add(("包装", pg.Packing.Value));
         if (pg.Warehouse.HasValue) list.Add(("入库", pg.Warehouse.Value));
+        if (pg.Extra1.HasValue) list.Add(("备用1", pg.Extra1.Value));
+        if (pg.Extra2.HasValue) list.Add(("备用2", pg.Extra2.Value));
         return list.OrderBy(x => x.Order).ToList();
     }
 

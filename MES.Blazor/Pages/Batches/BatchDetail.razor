@@ -525,18 +525,29 @@
                             <MudTh>冷轧拔</MudTh>
                             <MudTh>油管断</MudTh>
                             <MudTh>去油</MudTh>
+                            <MudTh>乳液浸洗</MudTh>
+                            <MudTh>超声浸洗</MudTh>
+                            <MudTh>打布</MudTh>
+                            <MudTh>光亮退火</MudTh>
                             <MudTh>固溶</MudTh>
                             <MudTh>矫直</MudTh>
                             <MudTh>断切</MudTh>
                             <MudTh>测壁厚</MudTh>
                             <MudTh>酸洗</MudTh>
                             <MudTh>外抛光</MudTh>
+                            <MudTh>内抛</MudTh>
                             <MudTh>内修磨</MudTh>
                             <MudTh>外点磨</MudTh>
+                            <MudTh>喷砂</MudTh>
+                            <MudTh>喷丸</MudTh>
                             <MudTh>检验</MudTh>
-                            <MudTh>打焊头</MudTh>
+                            <MudTh>焊头</MudTh>
+                            <MudTh>打头</MudTh>
                             <MudTh>润滑</MudTh>
+                            <MudTh>包装</MudTh>
                             <MudTh>入库</MudTh>
+                            <MudTh>备用1</MudTh>
+                            <MudTh>备用2</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd><MudText Typo="Typo.body2">@context.SequenceNumber</MudText></MudTd>
@@ -550,18 +561,29 @@
                             <MudTd><MudText Typo="Typo.body2">@(context.ColdRollDraw?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.OilPipeCut?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.Degrease?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.EmulsionWash?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.UltrasonicWash?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.ClothPolish?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.BrightAnnealing?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.Solution?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.Straighten?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.Cut?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.ThicknessMeasure?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.Pickle?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.OuterPolish?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.InnerPolish?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.InnerGrinding?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.OuterSpotGrinding?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.SandBlasting?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.ShotBlasting?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.Inspection?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.WeldingHead?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Welding?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.Lubrication?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Packing?.ToString() ?? "-")</MudText></MudTd>
                             <MudTd><MudText Typo="Typo.body2">@(context.Warehouse?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Extra1?.ToString() ?? "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@(context.Extra2?.ToString() ?? "-")</MudText></MudTd>
                         </RowTemplate>
                     </MudTable>
                 </div>

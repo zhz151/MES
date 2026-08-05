@@ -2110,18 +2110,29 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         return pg.ColdRollDraw.HasValue
             || pg.OilPipeCut.HasValue
             || pg.Degrease.HasValue
+            || pg.EmulsionWash.HasValue
+            || pg.UltrasonicWash.HasValue
+            || pg.ClothPolish.HasValue
+            || pg.BrightAnnealing.HasValue
             || pg.Solution.HasValue
             || pg.Straighten.HasValue
             || pg.Cut.HasValue
             || pg.ThicknessMeasure.HasValue
             || pg.Pickle.HasValue
             || pg.OuterPolish.HasValue
+            || pg.InnerPolish.HasValue
             || pg.InnerGrinding.HasValue
             || pg.OuterSpotGrinding.HasValue
+            || pg.SandBlasting.HasValue
+            || pg.ShotBlasting.HasValue
             || pg.Inspection.HasValue
             || pg.WeldingHead.HasValue
+            || pg.Welding.HasValue
             || pg.Lubrication.HasValue
-            || pg.Warehouse.HasValue;
+            || pg.Packing.HasValue
+            || pg.Warehouse.HasValue
+            || pg.Extra1.HasValue
+            || pg.Extra2.HasValue;
     }
 
     private static void ComputeMainNoInputAggregation(
@@ -2984,18 +2995,29 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         SectionDefs.ColdRollDraw => pg.ColdRollDraw,
         SectionDefs.OilPipeCut => pg.OilPipeCut,
         SectionDefs.Degrease => pg.Degrease,
+        SectionDefs.EmulsionWash => pg.EmulsionWash,
+        SectionDefs.UltrasonicWash => pg.UltrasonicWash,
+        SectionDefs.ClothPolish => pg.ClothPolish,
+        SectionDefs.BrightAnnealing => pg.BrightAnnealing,
         SectionDefs.Solution => pg.Solution,
         SectionDefs.Straighten => pg.Straighten,
         SectionDefs.Cut => pg.Cut,
         SectionDefs.ThicknessMeasure => pg.ThicknessMeasure,
         SectionDefs.Pickle => pg.Pickle,
         SectionDefs.OuterPolish => pg.OuterPolish,
+        SectionDefs.InnerPolish => pg.InnerPolish,
         SectionDefs.InnerGrinding => pg.InnerGrinding,
         SectionDefs.OuterSpotGrinding => pg.OuterSpotGrinding,
+        SectionDefs.SandBlasting => pg.SandBlasting,
+        SectionDefs.ShotBlasting => pg.ShotBlasting,
         SectionDefs.Inspection => pg.Inspection,
         SectionDefs.WeldingHead => pg.WeldingHead,
+        SectionDefs.Welding => pg.Welding,
         SectionDefs.Lubrication => pg.Lubrication,
+        SectionDefs.Packing => pg.Packing,
         SectionDefs.Warehouse => pg.Warehouse,
+        SectionDefs.Extra1 => pg.Extra1,
+        SectionDefs.Extra2 => pg.Extra2,
         _ => null
     };
 

@@ -75,6 +75,26 @@ public class ProcessGroup : BaseEntity
     public int? Degrease { get; set; }
 
     /// <summary>
+    /// 乳液浸洗
+    /// </summary>
+    public int? EmulsionWash { get; set; }
+
+    /// <summary>
+    /// 超声浸洗
+    /// </summary>
+    public int? UltrasonicWash { get; set; }
+
+    /// <summary>
+    /// 打布
+    /// </summary>
+    public int? ClothPolish { get; set; }
+
+    /// <summary>
+    /// 光亮退火
+    /// </summary>
+    public int? BrightAnnealing { get; set; }
+
+    /// <summary>
     /// 固溶
     /// </summary>
     public int? Solution { get; set; }
@@ -105,6 +125,11 @@ public class ProcessGroup : BaseEntity
     public int? OuterPolish { get; set; }
 
     /// <summary>
+    /// 内抛
+    /// </summary>
+    public int? InnerPolish { get; set; }
+
+    /// <summary>
     /// 内修磨
     /// </summary>
     public int? InnerGrinding { get; set; }
@@ -115,14 +140,29 @@ public class ProcessGroup : BaseEntity
     public int? OuterSpotGrinding { get; set; }
 
     /// <summary>
+    /// 喷砂
+    /// </summary>
+    public int? SandBlasting { get; set; }
+
+    /// <summary>
+    /// 喷丸
+    /// </summary>
+    public int? ShotBlasting { get; set; }
+
+    /// <summary>
     /// 检验
     /// </summary>
     public int? Inspection { get; set; }
 
     /// <summary>
-    /// 打焊头
+    /// 焊头
     /// </summary>
     public int? WeldingHead { get; set; }
+
+    /// <summary>
+    /// 打头
+    /// </summary>
+    public int? Welding { get; set; }
 
     /// <summary>
     /// 润滑
@@ -130,9 +170,24 @@ public class ProcessGroup : BaseEntity
     public int? Lubrication { get; set; }
 
     /// <summary>
+    /// 包装
+    /// </summary>
+    public int? Packing { get; set; }
+
+    /// <summary>
     /// 入库
     /// </summary>
     public int? Warehouse { get; set; }
+
+    /// <summary>
+    /// 备用1（预留工段槽位）
+    /// </summary>
+    public int? Extra1 { get; set; }
+
+    /// <summary>
+    /// 备用2（预留工段槽位）
+    /// </summary>
+    public int? Extra2 { get; set; }
 
     // ========== 导航属性 ==========
 

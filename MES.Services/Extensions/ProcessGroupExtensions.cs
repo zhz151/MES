@@ -26,18 +26,29 @@ public static class ProcessGroupExtensions
         SectionDefs.ColdRollDraw => pg.ColdRollDraw,
         SectionDefs.OilPipeCut => pg.OilPipeCut,
         SectionDefs.Degrease => pg.Degrease,
+        SectionDefs.EmulsionWash => pg.EmulsionWash,
+        SectionDefs.UltrasonicWash => pg.UltrasonicWash,
+        SectionDefs.ClothPolish => pg.ClothPolish,
+        SectionDefs.BrightAnnealing => pg.BrightAnnealing,
         SectionDefs.Solution => pg.Solution,
         SectionDefs.Straighten => pg.Straighten,
         SectionDefs.Cut => pg.Cut,
         SectionDefs.ThicknessMeasure => pg.ThicknessMeasure,
         SectionDefs.Pickle => pg.Pickle,
         SectionDefs.OuterPolish => pg.OuterPolish,
+        SectionDefs.InnerPolish => pg.InnerPolish,
         SectionDefs.InnerGrinding => pg.InnerGrinding,
         SectionDefs.OuterSpotGrinding => pg.OuterSpotGrinding,
+        SectionDefs.SandBlasting => pg.SandBlasting,
+        SectionDefs.ShotBlasting => pg.ShotBlasting,
         SectionDefs.Inspection => pg.Inspection,
         SectionDefs.WeldingHead => pg.WeldingHead,
+        SectionDefs.Welding => pg.Welding,
         SectionDefs.Lubrication => pg.Lubrication,
+        SectionDefs.Packing => pg.Packing,
         SectionDefs.Warehouse => pg.Warehouse,
+        SectionDefs.Extra1 => pg.Extra1,
+        SectionDefs.Extra2 => pg.Extra2,
         // 别名匹配
         _ when SectionDefs.Aliases.TryGetValue(sectionName!, out var standard) =>
             pg.GetSectionSequence(standard),
@@ -49,7 +60,7 @@ public static class ProcessGroupExtensions
     /// </summary>
     public static List<(string SectionName, int SequenceNumber)> GetNonEmptySections(this ProcessGroup pg)
     {
-        var result = new List<(string SectionName, int SequenceNumber)>(15);
+        var result = new List<(string SectionName, int SequenceNumber)>(26);
 
         void AddIfHasValue(int? value, string name)
         {
@@ -60,18 +71,29 @@ public static class ProcessGroupExtensions
         AddIfHasValue(pg.ColdRollDraw, SectionDefs.ColdRollDraw);
         AddIfHasValue(pg.OilPipeCut, SectionDefs.OilPipeCut);
         AddIfHasValue(pg.Degrease, SectionDefs.Degrease);
+        AddIfHasValue(pg.EmulsionWash, SectionDefs.EmulsionWash);
+        AddIfHasValue(pg.UltrasonicWash, SectionDefs.UltrasonicWash);
+        AddIfHasValue(pg.ClothPolish, SectionDefs.ClothPolish);
+        AddIfHasValue(pg.BrightAnnealing, SectionDefs.BrightAnnealing);
         AddIfHasValue(pg.Solution, SectionDefs.Solution);
         AddIfHasValue(pg.Straighten, SectionDefs.Straighten);
         AddIfHasValue(pg.Cut, SectionDefs.Cut);
         AddIfHasValue(pg.ThicknessMeasure, SectionDefs.ThicknessMeasure);
         AddIfHasValue(pg.Pickle, SectionDefs.Pickle);
         AddIfHasValue(pg.OuterPolish, SectionDefs.OuterPolish);
+        AddIfHasValue(pg.InnerPolish, SectionDefs.InnerPolish);
         AddIfHasValue(pg.InnerGrinding, SectionDefs.InnerGrinding);
         AddIfHasValue(pg.OuterSpotGrinding, SectionDefs.OuterSpotGrinding);
+        AddIfHasValue(pg.SandBlasting, SectionDefs.SandBlasting);
+        AddIfHasValue(pg.ShotBlasting, SectionDefs.ShotBlasting);
         AddIfHasValue(pg.Inspection, SectionDefs.Inspection);
         AddIfHasValue(pg.WeldingHead, SectionDefs.WeldingHead);
+        AddIfHasValue(pg.Welding, SectionDefs.Welding);
         AddIfHasValue(pg.Lubrication, SectionDefs.Lubrication);
+        AddIfHasValue(pg.Packing, SectionDefs.Packing);
         AddIfHasValue(pg.Warehouse, SectionDefs.Warehouse);
+        AddIfHasValue(pg.Extra1, SectionDefs.Extra1);
+        AddIfHasValue(pg.Extra2, SectionDefs.Extra2);
 
         return result.OrderBy(s => s.SequenceNumber).ToList();
     }

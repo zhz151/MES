@@ -132,10 +132,11 @@ public class ProductionOverviewService : IProductionOverviewService
                 pg.SequenceNumber,
                 pg.ProcessName,
                 pg.ManufacturingSpec,
-                pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.Solution,
-                pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
-                pg.OuterPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
-                pg.Inspection, pg.WeldingHead, pg.Lubrication, pg.Warehouse))
+                pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.EmulsionWash, pg.UltrasonicWash, pg.ClothPolish,
+                pg.BrightAnnealing, pg.Solution, pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+                pg.OuterPolish, pg.InnerPolish, pg.InnerGrinding, pg.OuterSpotGrinding, pg.SandBlasting,
+                pg.ShotBlasting, pg.Inspection, pg.WeldingHead, pg.Welding, pg.Lubrication, pg.Packing,
+                pg.Warehouse, pg.Extra1, pg.Extra2))
             .ToListAsync();
 
         var groupsByBatch = processGroups.GroupBy(pg => pg.ProductionBatchId)
@@ -390,10 +391,11 @@ public class ProductionOverviewService : IProductionOverviewService
         int SequenceNumber,
         string ProcessName,
         string? ManufacturingSpec,
-        int? ColdRollDraw, int? OilPipeCut, int? Degrease, int? Solution,
-        int? Straighten, int? Cut, int? ThicknessMeasure, int? Pickle,
-        int? OuterPolish, int? InnerGrinding, int? OuterSpotGrinding,
-        int? Inspection, int? WeldingHead, int? Lubrication, int? Warehouse)
+        int? ColdRollDraw, int? OilPipeCut, int? Degrease, int? EmulsionWash, int? UltrasonicWash, int? ClothPolish,
+        int? BrightAnnealing, int? Solution, int? Straighten, int? Cut, int? ThicknessMeasure, int? Pickle,
+        int? OuterPolish, int? InnerPolish, int? InnerGrinding, int? OuterSpotGrinding, int? SandBlasting,
+        int? ShotBlasting, int? Inspection, int? WeldingHead, int? Welding, int? Lubrication, int? Packing,
+        int? Warehouse, int? Extra1, int? Extra2)
     {
         /// <summary>获取指定工段名称在此工序组中的执行序号，null 表示此工序组不含该工段</summary>
         public int? GetSectionSequence(string sectionName) => sectionName switch
@@ -401,18 +403,29 @@ public class ProductionOverviewService : IProductionOverviewService
             SectionDefs.ColdRollDraw => ColdRollDraw,
             SectionDefs.OilPipeCut => OilPipeCut,
             SectionDefs.Degrease => Degrease,
+            SectionDefs.EmulsionWash => EmulsionWash,
+            SectionDefs.UltrasonicWash => UltrasonicWash,
+            SectionDefs.ClothPolish => ClothPolish,
+            SectionDefs.BrightAnnealing => BrightAnnealing,
             SectionDefs.Solution => Solution,
             SectionDefs.Straighten => Straighten,
             SectionDefs.Cut => Cut,
             SectionDefs.ThicknessMeasure => ThicknessMeasure,
             SectionDefs.Pickle => Pickle,
             SectionDefs.OuterPolish => OuterPolish,
+            SectionDefs.InnerPolish => InnerPolish,
             SectionDefs.InnerGrinding => InnerGrinding,
             SectionDefs.OuterSpotGrinding => OuterSpotGrinding,
+            SectionDefs.SandBlasting => SandBlasting,
+            SectionDefs.ShotBlasting => ShotBlasting,
             SectionDefs.Inspection => Inspection,
             SectionDefs.WeldingHead => WeldingHead,
+            SectionDefs.Welding => Welding,
             SectionDefs.Lubrication => Lubrication,
+            SectionDefs.Packing => Packing,
             SectionDefs.Warehouse => Warehouse,
+            SectionDefs.Extra1 => Extra1,
+            SectionDefs.Extra2 => Extra2,
             _ => null
         };
     }

@@ -151,10 +151,12 @@ public static class ProcessCardPrintHelper
                 // 列宽比：冷轧拔→入库（状态字段）为 1，其余描述字段为 3
                 var narrowKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    "ColdRollDraw", "OilPipeCut", "Degrease", "Solution",
+                    "ColdRollDraw", "OilPipeCut", "Degrease", "EmulsionWash",
+                    "UltrasonicWash", "ClothPolish", "BrightAnnealing", "Solution",
                     "Straighten", "Cut", "ThicknessMeasure", "Pickle",
-                    "OuterPolish", "InnerGrinding", "OuterSpotGrinding",
-                    "Inspection", "WeldingHead", "Lubrication", "Warehouse"
+                    "OuterPolish", "InnerPolish", "InnerGrinding", "OuterSpotGrinding",
+                    "SandBlasting", "ShotBlasting", "Inspection", "WeldingHead",
+                    "Welding", "Lubrication", "Packing", "Warehouse", "Extra1", "Extra2"
                 };
                 var ratios = pgColumns.Select(c =>
                 {
@@ -458,18 +460,29 @@ public static class ProcessCardPrintHelper
             "ColdRollDraw" => g.ColdRollDraw?.ToString() ?? "-",
             "OilPipeCut" => g.OilPipeCut?.ToString() ?? "-",
             "Degrease" => g.Degrease?.ToString() ?? "-",
+            "EmulsionWash" => g.EmulsionWash?.ToString() ?? "-",
+            "UltrasonicWash" => g.UltrasonicWash?.ToString() ?? "-",
+            "ClothPolish" => g.ClothPolish?.ToString() ?? "-",
+            "BrightAnnealing" => g.BrightAnnealing?.ToString() ?? "-",
             "Solution" => g.Solution?.ToString() ?? "-",
             "Straighten" => g.Straighten?.ToString() ?? "-",
             "Cut" => g.Cut?.ToString() ?? "-",
             "ThicknessMeasure" => g.ThicknessMeasure?.ToString() ?? "-",
             "Pickle" => g.Pickle?.ToString() ?? "-",
             "OuterPolish" => g.OuterPolish?.ToString() ?? "-",
+            "InnerPolish" => g.InnerPolish?.ToString() ?? "-",
             "InnerGrinding" => g.InnerGrinding?.ToString() ?? "-",
             "OuterSpotGrinding" => g.OuterSpotGrinding?.ToString() ?? "-",
+            "SandBlasting" => g.SandBlasting?.ToString() ?? "-",
+            "ShotBlasting" => g.ShotBlasting?.ToString() ?? "-",
             "Inspection" => g.Inspection?.ToString() ?? "-",
             "WeldingHead" => g.WeldingHead?.ToString() ?? "-",
+            "Welding" => g.Welding?.ToString() ?? "-",
             "Lubrication" => g.Lubrication?.ToString() ?? "-",
+            "Packing" => g.Packing?.ToString() ?? "-",
             "Warehouse" => g.Warehouse?.ToString() ?? "-",
+            "Extra1" => g.Extra1?.ToString() ?? "-",
+            "Extra2" => g.Extra2?.ToString() ?? "-",
             _ => "-"
         };
     }

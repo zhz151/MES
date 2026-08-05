@@ -113,22 +113,33 @@ public partial class AppDbContext
             entity.Property(e => e.BatchNo).HasMaxLength(50);
             entity.Property(e => e.Remark).HasMaxLength(500);
 
-            // 15个工段字段（int?，无默认值）
+            // 26个工段字段（int?，无默认值）
             entity.Property(e => e.ColdRollDraw);
             entity.Property(e => e.OilPipeCut);
             entity.Property(e => e.Degrease);
+            entity.Property(e => e.EmulsionWash);
+            entity.Property(e => e.UltrasonicWash);
+            entity.Property(e => e.ClothPolish);
+            entity.Property(e => e.BrightAnnealing);
             entity.Property(e => e.Solution);
             entity.Property(e => e.Straighten);
             entity.Property(e => e.Cut);
             entity.Property(e => e.ThicknessMeasure);
             entity.Property(e => e.Pickle);
             entity.Property(e => e.OuterPolish);
+            entity.Property(e => e.InnerPolish);
             entity.Property(e => e.InnerGrinding);
             entity.Property(e => e.OuterSpotGrinding);
+            entity.Property(e => e.SandBlasting);
+            entity.Property(e => e.ShotBlasting);
             entity.Property(e => e.Inspection);
             entity.Property(e => e.WeldingHead);
+            entity.Property(e => e.Welding);
             entity.Property(e => e.Lubrication);
+            entity.Property(e => e.Packing);
             entity.Property(e => e.Warehouse);
+            entity.Property(e => e.Extra1);
+            entity.Property(e => e.Extra2);
 
             // 关系与索引
             entity.HasOne(e => e.ProductionBatch)

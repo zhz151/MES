@@ -591,9 +591,13 @@ public class ProductionRecordService : IProductionRecordService
 
         var simpleDuplicateSections = new HashSet<string>
         {
-            SectionDefs.OilPipeCut, SectionDefs.Degrease, SectionDefs.Solution, SectionDefs.Straighten,
-            SectionDefs.ThicknessMeasure, SectionDefs.Pickle, SectionDefs.OuterPolish,
-            SectionDefs.InnerGrinding, SectionDefs.OuterSpotGrinding, SectionDefs.WeldingHead, SectionDefs.Lubrication
+            SectionDefs.OilPipeCut, SectionDefs.Degrease, SectionDefs.EmulsionWash,
+            SectionDefs.UltrasonicWash, SectionDefs.ClothPolish, SectionDefs.BrightAnnealing,
+            SectionDefs.Solution, SectionDefs.Straighten, SectionDefs.ThicknessMeasure,
+            SectionDefs.Pickle, SectionDefs.OuterPolish, SectionDefs.InnerPolish,
+            SectionDefs.InnerGrinding, SectionDefs.OuterSpotGrinding, SectionDefs.SandBlasting,
+            SectionDefs.ShotBlasting, SectionDefs.WeldingHead, SectionDefs.Welding,
+            SectionDefs.Lubrication, SectionDefs.Packing, SectionDefs.Extra1, SectionDefs.Extra2
         };
 
         // 预取：各批次所属「订单号+主号」的定尺长度集合（成品切割长度校验用，避免循环内 N+1 查询）
