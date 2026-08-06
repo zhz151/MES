@@ -25,7 +25,7 @@ public class ProcessInspectionDto
     public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
-    public string? InspectionItem { get; set; }
+    public InspectionItem? InspectionItem { get; set; }
     public int? QualifiedQuantity { get; set; }
     public decimal? QualifiedWeight { get; set; }
 

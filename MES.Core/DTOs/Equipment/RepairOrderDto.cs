@@ -116,8 +116,8 @@ public class RepairOrderPrintAllRequest
     public string? SortBy { get; set; }
     public bool IsDescending { get; set; }
     public int? EquipmentId { get; set; }
-    public string? RepairStatus { get; set; }
-    public string? Priority { get; set; }
+    public RepairOrderStatus? RepairStatus { get; set; }
+    public RepairPriority? Priority { get; set; }
     public DateTime? ReportTimeFrom { get; set; }
     public DateTime? ReportTimeTo { get; set; }
     public List<PrintColumnDef> Columns { get; set; } = new();

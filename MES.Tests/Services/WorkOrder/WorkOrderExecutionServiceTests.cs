@@ -1377,9 +1377,9 @@ public class WorkOrderExecutionServiceTests : TestBase
         foreach (var kvp in result)
         {
             if (kvp.Key == "ProductionFlowProperty")
-                kvp.Value.Should().BeEquivalentTo(new[] { "暂停", "正常", "待料", "疑问", "略" });
+                kvp.Value.Should().BeEquivalentTo(new[] { ProductionFlowKeys.Paused, ProductionFlowKeys.Normal, ProductionFlowKeys.Waiting, ProductionFlowKeys.Doubt, ProductionFlowKeys.Skip });
             else if (kvp.Key == "ProductionAttentionProcess")
-                kvp.Value.Should().BeEquivalentTo(new[] { "收尾-成检" });
+                kvp.Value.Should().BeEmpty();
             else
                 kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
         }

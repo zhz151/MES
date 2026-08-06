@@ -21,11 +21,11 @@ public class EquipmentService
             var encodedSortBy = Uri.EscapeDataString(query.SortBy ?? ApiEndpoints.DefaultSortBy);
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
-            if (!string.IsNullOrEmpty(query.LifecycleStatus)) url += $"&lifecycleStatus={Uri.EscapeDataString(query.LifecycleStatus)}";
-            if (!string.IsNullOrEmpty(query.UsageType)) url += $"&usageType={Uri.EscapeDataString(query.UsageType)}";
-            if (!string.IsNullOrEmpty(query.RunningStatus)) url += $"&runningStatus={Uri.EscapeDataString(query.RunningStatus)}";
-            if (!string.IsNullOrEmpty(query.InspectionStatus)) url += $"&inspectionStatus={Uri.EscapeDataString(query.InspectionStatus)}";
-            if (!string.IsNullOrEmpty(query.MaintStatus)) url += $"&maintStatus={Uri.EscapeDataString(query.MaintStatus)}";
+            if (query.LifecycleStatus.HasValue) url += $"&lifecycleStatus={Uri.EscapeDataString(query.LifecycleStatus.Value.ToString())}";
+            if (query.UsageType.HasValue) url += $"&usageType={Uri.EscapeDataString(query.UsageType.Value.ToString())}";
+            if (query.RunningStatus.HasValue) url += $"&runningStatus={Uri.EscapeDataString(query.RunningStatus.Value.ToString())}";
+            if (query.InspectionStatus.HasValue) url += $"&inspectionStatus={Uri.EscapeDataString(query.InspectionStatus.Value.ToString())}";
+            if (query.MaintStatus.HasValue) url += $"&maintStatus={Uri.EscapeDataString(query.MaintStatus.Value.ToString())}";
             if (!string.IsNullOrEmpty(query.Location)) url += $"&location={Uri.EscapeDataString(query.Location)}";
             if (!string.IsNullOrEmpty(query.RelatedSection)) url += $"&relatedSection={Uri.EscapeDataString(query.RelatedSection)}";
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";

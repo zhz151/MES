@@ -285,10 +285,9 @@
         new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
-            EnumOptions = new() { new("None", "无"), new("InProgress", "在产"), new("InFinalInspection", "成检"), new("Completed", "完成"), new("Suspended", "暂停") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<BatchStatus>() },
         new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
-            EnumOptions = new() { new("RoughTube", "荒管生产"), new("InProcess", "在制生产"), new("Inventory", "库存"),
-                new("OutsourcedPurchased", "外购"), new("Rework", "返整"), new("Subcontract", "委外生产"), new("ExternalProcessing", "对外加工") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<ProductionType>() },
         new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
             EnumOptions = new() { new("OrderFinished", "订单成品"), new("Finished", "备料成品"),
                 new("Surplus", "余库料"), new("SpecialDeliveryStatus", "订成-非交付态") } },
@@ -715,7 +714,12 @@
             _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
             {
                 Value = v,
-                Display = kvp.Key is "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" ? SectionDisplayHelper.GetSectionNameText(v) : v,
+                Display = kvp.Key switch
+                {
+                    "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v),
+                    "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(v),
+                    _ => v
+                },
                 Count = 0
             }).ToList();
         }
@@ -779,12 +783,12 @@
         "SalesOrderNo" => item.SalesOrderNo,
         "ProductionMainNo" => item.ProductionMainNo,
         "ProductionSubNo" => item.ProductionSubNo,
-        "ProductionType" => item.ProductionType,
+        "ProductionType" => item.ProductionType?.ToString(),
         "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
         "ManufacturingStatus" => item.ManufacturingStatusDisplay,
         "Status" => DisplayHelper.GetBatchStatusText(item.Status),
         "CurrentExecDate" => item.CurrentExecDate?.ToString("yyyy-MM-dd"),
-        "CurrentGroupName" => item.CurrentGroupName,
+        "CurrentGroupName" => ProcessDisplayHelper.GetProcessNameText(item.CurrentGroupName),
         "CurrentSectionName" => SectionDisplayHelper.GetSectionNameText(item.CurrentSectionName),
         "CurrentEquipmentName" => item.CurrentEquipmentName,
         "CurrentOutsource" => item.CurrentOutsource,
@@ -834,8 +838,8 @@
         "SalesOrderNo" => item.SalesOrderNo,
         "ProductionMainNo" => item.ProductionMainNo,
         "ProductionSubNo" => item.ProductionSubNo ?? "",
-        "ProductionType" => DisplayHelper.GetProductionTypeText(item.ProductionType),
-        "CurrentGroupName" => item.CurrentGroupName ?? "",
+        "ProductionType" => DisplayHelper.GetProductionTypeText(item.ProductionType?.ToString()),
+        "CurrentGroupName" => ProcessDisplayHelper.GetProcessNameText(item.CurrentGroupName),
         "CurrentSectionName" => SectionDisplayHelper.GetSectionNameText(item.CurrentSectionName ?? ""),
         "CurrentEquipmentName" => item.CurrentEquipmentName ?? "",
         "CurrentOutsource" => item.CurrentOutsource ?? "",

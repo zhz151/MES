@@ -324,18 +324,18 @@
                     (InboundSource.Purchase.ToString(), DisplayHelper.GetInboundSourceText(InboundSource.Purchase)),
                     (InboundSource.InspectionInbound.ToString(), DisplayHelper.GetInboundSourceText(InboundSource.InspectionInbound)),
                 }
-            : Enum.GetValues<InboundSource>()
-                .Select(v => (v.ToString(), DisplayHelper.GetInboundSourceText(v)))
+            : DisplayHelper.GetEnumOptions<InboundSource>()
+                .Select(o => (o.Value, o.Display))
                 .ToList();
 
     private readonly List<(string Value, string Text)> _lengthStatusOptions =
-        Enum.GetValues<LengthStatus>()
-            .Select(v => (v.ToString(), DisplayHelper.GetLengthStatusText(v)))
+        DisplayHelper.GetEnumOptions<LengthStatus>()
+            .Select(o => (o.Value, o.Display))
             .ToList();
 
     private readonly List<(string Value, string Text)> _manufacturingStatusOptions =
-        Enum.GetValues<DeliveryState>()
-            .Select(v => (v.ToString(), DisplayHelper.GetDeliveryStateText(v)))
+        DisplayHelper.GetEnumOptions<DeliveryState>()
+            .Select(o => (o.Value, o.Display))
             .ToList();
 
     private List<(string Value, string Text)> _materialTypeOptions
@@ -345,7 +345,7 @@
             var allowed = !string.IsNullOrEmpty(_warehouseCode)
                 ? MES.Core.Constants.InventoryMaterialTypes.GetAllowedTypes(_warehouseCode)
                 : null;
-            IEnumerable<MaterialType> types = allowed ?? (IEnumerable<MaterialType>)Enum.GetValues<MaterialType>();
+            IEnumerable<MaterialType> types = allowed ?? DisplayHelper.GetEnumOptions<MaterialType>().Select(o => Enum.Parse<MaterialType>(o.Value));
             return types.Select(v => (v.ToString(), DisplayHelper.GetMaterialTypeText(v))).ToList();
         }
     }
@@ -943,7 +943,7 @@
                 break;
             case "LiabilityType":
                 if (!string.IsNullOrEmpty(row.LiabilityType))
-                    builder.AddContent(0, row.LiabilityType);
+                    builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, row.LiabilityType) ?? row.LiabilityType);
                 break;
             case "OriginalSupplier":
                 if (!string.IsNullOrEmpty(row.OriginalSupplier))
@@ -1399,7 +1399,7 @@
                 PlantGrade = first.PlantGrade,
                 Specification = first.Specification,
                 HeatNo = first.HeatNo,
-                LengthStatus = first.LengthStatus,
+                LengthStatus = !string.IsNullOrEmpty(first.LengthStatus) ? EnumHelper.Parse<LengthStatus>(first.LengthStatus) : null,
                 MinLength = first.MinLength,
                 MaxLength = first.MaxLength,
                 UnitWeight = first.UnitWeight,
@@ -1424,7 +1424,7 @@
                 {
                     InitialQuantity = r.InitialQuantity,
                     InitialWeight = r.InitialWeight,
-                    LengthStatus = r.LengthStatus,
+                    LengthStatus = !string.IsNullOrEmpty(r.LengthStatus) ? EnumHelper.Parse<LengthStatus>(r.LengthStatus) : null,
                     MinLength = r.MinLength,
                     MaxLength = r.MaxLength,
                     UnitWeight = r.UnitWeight,
@@ -1588,7 +1588,7 @@
 
             // 填充当前行字段
             var filled = new List<string>();
-            if (!string.IsNullOrEmpty(data.MaterialCategory))
+            if (data.MaterialCategory.HasValue)
             {
                 if (_warehouseCode == "DEFECT")
                 {
@@ -1596,7 +1596,7 @@
                 }
                 else
                 {
-                    row.MaterialType = data.MaterialCategory; filled.Add("物料分类");
+                    row.MaterialType = data.MaterialCategory.Value.ToString(); filled.Add("物料分类");
                 }
             }
             if (!string.IsNullOrEmpty(data.PlantGrade)) { row.PlantGrade = data.PlantGrade; filled.Add("厂内钢种"); }
@@ -1686,7 +1686,7 @@
 
             // 填充当前行字段（MaterialType/ManufacturingStatus 存储原始值，RenderCell 负责中文显示）
             var filled = new List<string>();
-            if (!string.IsNullOrEmpty(data.MaterialCategory))
+            if (data.MaterialCategory.HasValue)
             {
                 if (_warehouseCode == "DEFECT")
                 {
@@ -1694,7 +1694,7 @@
                 }
                 else
                 {
-                    row.MaterialType = data.MaterialCategory; filled.Add("物料分类");
+                    row.MaterialType = data.MaterialCategory.Value.ToString(); filled.Add("物料分类");
                 }
             }
             if (!string.IsNullOrEmpty(data.PlantGrade)) { row.PlantGrade = data.PlantGrade; filled.Add("厂内钢种"); }
@@ -1702,7 +1702,7 @@
             if (!string.IsNullOrEmpty(data.SalesOrderNo)) { row.SalesOrderNo = data.SalesOrderNo; filled.Add("订单号"); }
             if (!string.IsNullOrEmpty(data.OrderItemIds)) { row.OrderItemIds = data.OrderItemIds; filled.Add("项次"); }
             if (!string.IsNullOrEmpty(data.HeatNo)) { row.HeatNo = data.HeatNo; filled.Add("炉号"); }
-            if (!string.IsNullOrEmpty(data.ManufacturingStatus)) { row.ManufacturingStatus = data.ManufacturingStatus; filled.Add("制造状态"); }
+            if (data.ManufacturingStatus.HasValue) { row.ManufacturingStatus = data.ManufacturingStatus.Value.ToString(); filled.Add("制造状态"); }
             if (!string.IsNullOrEmpty(data.SupplierName)) { row.SourceName = data.SupplierName; filled.Add("来料单位"); }
             if (!string.IsNullOrEmpty(data.ExpectedWorkOrderNo))
             {

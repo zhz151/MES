@@ -86,24 +86,38 @@ public class SupplierService : ISupplierService
         var items = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(s => new SupplierProfileDto
+            .Select(s => new
             {
-                Id = s.Id,
-                SupplierCode = s.SupplierCode,
-                SupplierName = s.SupplierName,
-                MaterialCategory = s.MaterialCategory,
-                ContactPerson = s.ContactPerson,
-                ContactPhone = s.ContactPhone,
-                Address = s.Address,
-                IsActive = s.IsActive,
-                Remark = s.Remark,
-                CreatedTime = s.CreatedTime
+                s.Id,
+                s.SupplierCode,
+                s.SupplierName,
+                s.MaterialCategory,
+                s.ContactPerson,
+                s.ContactPhone,
+                s.Address,
+                s.IsActive,
+                s.Remark,
+                s.CreatedTime
             })
             .ToListAsync();
 
+        var dtos = items.Select(s => new SupplierProfileDto
+        {
+            Id = s.Id,
+            SupplierCode = s.SupplierCode,
+            SupplierName = s.SupplierName,
+            MaterialCategory = EnumHelper.TryParse<MaterialType>(s.MaterialCategory),
+            ContactPerson = s.ContactPerson,
+            ContactPhone = s.ContactPhone,
+            Address = s.Address,
+            IsActive = s.IsActive,
+            Remark = s.Remark,
+            CreatedTime = s.CreatedTime
+        }).ToList();
+
         return new PagedResult<SupplierProfileDto>
         {
-            Items = items,
+            Items = dtos,
             TotalCount = totalCount,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
@@ -112,23 +126,37 @@ public class SupplierService : ISupplierService
 
     public async Task<List<SupplierProfileDto>> GetAllListAsync()
     {
-        return await _context.SupplierProfiles
+        var items = await _context.SupplierProfiles
             .AsNoTracking()
             .OrderBy(s => s.SupplierCode)
-            .Select(s => new SupplierProfileDto
+            .Select(s => new
             {
-                Id = s.Id,
-                SupplierCode = s.SupplierCode,
-                SupplierName = s.SupplierName,
-                MaterialCategory = s.MaterialCategory,
-                ContactPerson = s.ContactPerson,
-                ContactPhone = s.ContactPhone,
-                Address = s.Address,
-                IsActive = s.IsActive,
-                Remark = s.Remark,
-                CreatedTime = s.CreatedTime
+                s.Id,
+                s.SupplierCode,
+                s.SupplierName,
+                s.MaterialCategory,
+                s.ContactPerson,
+                s.ContactPhone,
+                s.Address,
+                s.IsActive,
+                s.Remark,
+                s.CreatedTime
             })
             .ToListAsync();
+
+        return items.Select(s => new SupplierProfileDto
+        {
+            Id = s.Id,
+            SupplierCode = s.SupplierCode,
+            SupplierName = s.SupplierName,
+            MaterialCategory = EnumHelper.TryParse<MaterialType>(s.MaterialCategory),
+            ContactPerson = s.ContactPerson,
+            ContactPhone = s.ContactPhone,
+            Address = s.Address,
+            IsActive = s.IsActive,
+            Remark = s.Remark,
+            CreatedTime = s.CreatedTime
+        }).ToList();
     }
 
     public async Task<SupplierProfileDto> GetByIdAsync(int id)
@@ -142,12 +170,38 @@ public class SupplierService : ISupplierService
 
     public async Task<List<SupplierProfileDto>> GetActiveAsync()
     {
-        return await _context.SupplierProfiles
+        var items = await _context.SupplierProfiles
             .AsNoTracking()
             .Where(s => s.IsActive)
             .OrderBy(s => s.SupplierName)
-            .Select(s => ToDto(s))
+            .Select(s => new
+            {
+                s.Id,
+                s.SupplierCode,
+                s.SupplierName,
+                s.MaterialCategory,
+                s.ContactPerson,
+                s.ContactPhone,
+                s.Address,
+                s.IsActive,
+                s.Remark,
+                s.CreatedTime
+            })
             .ToListAsync();
+
+        return items.Select(s => new SupplierProfileDto
+        {
+            Id = s.Id,
+            SupplierCode = s.SupplierCode,
+            SupplierName = s.SupplierName,
+            MaterialCategory = EnumHelper.TryParse<MaterialType>(s.MaterialCategory),
+            ContactPerson = s.ContactPerson,
+            ContactPhone = s.ContactPhone,
+            Address = s.Address,
+            IsActive = s.IsActive,
+            Remark = s.Remark,
+            CreatedTime = s.CreatedTime
+        }).ToList();
     }
 
     public async Task<SupplierProfileDto> CreateAsync(CreateSupplierRequest request)
@@ -159,7 +213,7 @@ public class SupplierService : ISupplierService
         {
             SupplierCode = supplierCode,
             SupplierName = request.SupplierName,
-            MaterialCategory = request.MaterialCategory,
+            MaterialCategory = request.MaterialCategory?.ToString(),
             ContactPerson = request.ContactPerson,
             ContactPhone = request.ContactPhone,
             Address = request.Address,
@@ -196,7 +250,7 @@ public class SupplierService : ISupplierService
             {
                 SupplierCode = code,
                 SupplierName = r.SupplierName,
-                MaterialCategory = r.MaterialCategory,
+                MaterialCategory = r.MaterialCategory?.ToString(),
                 ContactPerson = r.ContactPerson,
                 ContactPhone = r.ContactPhone,
                 Address = r.Address,
@@ -217,7 +271,7 @@ public class SupplierService : ISupplierService
         if (entity == null) throw new BusinessException("供应商不存在");
 
         if (request.SupplierName != null) entity.SupplierName = request.SupplierName;
-        if (request.MaterialCategory != null) entity.MaterialCategory = request.MaterialCategory;
+        if (request.MaterialCategory != null) entity.MaterialCategory = request.MaterialCategory.Value.ToString();
         if (request.ContactPerson != null) entity.ContactPerson = request.ContactPerson;
         if (request.ContactPhone != null) entity.ContactPhone = request.ContactPhone;
         if (request.Address != null) entity.Address = request.Address;
@@ -300,10 +354,7 @@ public class SupplierService : ISupplierService
     {
         ["SupplierCode"] = dto.SupplierCode,
         ["SupplierName"] = dto.SupplierName,
-        ["MaterialCategory"] = string.Join(", ",
-            (dto.MaterialCategory ?? "")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(v => EnumHelper.GetDisplayName<MaterialType>(v))),
+        ["MaterialCategory"] = dto.MaterialCategory.HasValue ? EnumHelper.GetDisplayName(dto.MaterialCategory.Value) : "",
         ["ContactPerson"] = (object?)dto.ContactPerson ?? "",
         ["ContactPhone"] = (object?)dto.ContactPhone ?? "",
         ["Address"] = (object?)dto.Address ?? "",
@@ -316,7 +367,7 @@ public class SupplierService : ISupplierService
         Id = entity.Id,
         SupplierCode = entity.SupplierCode,
         SupplierName = entity.SupplierName,
-        MaterialCategory = entity.MaterialCategory,
+        MaterialCategory = EnumHelper.TryParse<MaterialType>(entity.MaterialCategory),
         ContactPerson = entity.ContactPerson,
         ContactPhone = entity.ContactPhone,
         Address = entity.Address,

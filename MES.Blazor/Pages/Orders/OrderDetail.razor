@@ -1177,11 +1177,11 @@
 
                     builder.AddAttribute(7, "ChildContent", (RenderFragment)(cb =>
                     {
-                        foreach (var val in Enum.GetValues<SettlementMethod>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<SettlementMethod>())
                         {
                             cb.OpenComponent<MudSelectItem<SettlementMethod>>(0);
-                            cb.AddAttribute(1, "Value", val);
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetSettlementMethodText(val))));
+                            cb.AddAttribute(1, "Value", Enum.Parse<SettlementMethod>(opt.Value));
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));
@@ -1200,11 +1200,11 @@
                     builder.AddAttribute(5, "Size", Size.Small);
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        foreach (var val in Enum.GetValues<PipeManufacturingType>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<PipeManufacturingType>())
                         {
                             cb.OpenComponent<MudSelectItem<PipeManufacturingType>>(0);
-                            cb.AddAttribute(1, "Value", val);
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(val))));
+                            cb.AddAttribute(1, "Value", Enum.Parse<PipeManufacturingType>(opt.Value));
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));
@@ -1246,11 +1246,11 @@
                     builder.AddAttribute(5, "Size", Size.Small);
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        foreach (var val in Enum.GetValues<DeliveryState>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<DeliveryState>())
                         {
                             cb.OpenComponent<MudSelectItem<DeliveryState>>(0);
-                            cb.AddAttribute(1, "Value", val);
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetDeliveryStateText(val))));
+                            cb.AddAttribute(1, "Value", Enum.Parse<DeliveryState>(opt.Value));
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));
@@ -1388,11 +1388,11 @@
                     builder.AddAttribute(5, "Size", Size.Small);
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        foreach (var val in Enum.GetValues<LengthStatus>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<LengthStatus>())
                         {
                             cb.OpenComponent<MudSelectItem<LengthStatus>>(0);
-                            cb.AddAttribute(1, "Value", val);
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLengthStatusText(val))));
+                            cb.AddAttribute(1, "Value", Enum.Parse<LengthStatus>(opt.Value));
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));

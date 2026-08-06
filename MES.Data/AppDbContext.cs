@@ -131,6 +131,9 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     // ========== Configuration 上下文 ==========
     public DbSet<StandardWorkDay> StandardWorkDays { get; set; } = null!;
     public DbSet<StandardWorkDayDeliveryState> StandardWorkDayDeliveryStates { get; set; } = null!;
+    public DbSet<ProcessDefinition> ProcessDefinitions { get; set; } = null!;
+    public DbSet<EnumDisplayDefinition> EnumDisplayDefinitions { get; set; } = null!;
+    public DbSet<DictValueDefinition> DictValueDefinitions { get; set; } = null!;
     public DbSet<ConfigParameter> ConfigParameters { get; set; } = null!;
     public DbSet<DailyOutputEstimate> DailyOutputEstimates { get; set; } = null!;
     public DbSet<DailyProductionCapacity> DailyProductionCapacities { get; set; } = null!;
@@ -244,6 +247,9 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         // ========== Configuration 上下文 ==========
         ConfigureStandardWorkDay(builder);
         ConfigureStandardWorkDayDeliveryState(builder);
+        ConfigureProcessDefinition(builder);
+        ConfigureEnumDisplayDefinition(builder);
+        ConfigureDictValueDefinition(builder);
         ConfigureConfigParameter(builder);
         ConfigureDailyOutputEstimate(builder);
         ConfigureDailyProductionCapacity(builder);

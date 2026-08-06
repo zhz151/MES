@@ -6,6 +6,7 @@ using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
@@ -76,7 +77,8 @@ public partial class FinalInspections
         "Quantity", "Weight", "QualifiedQuantity", "QualifiedWeight",
         "QualifiedConcessionQuantity", "DefectReworkQuantity",
         "DefectWarehouseQuantity", "DefectScrapQuantity",
-        "DefectReworkWeight", "DefectWarehouseWeight", "DefectScrapWeight"
+        "DefectReworkWeight", "DefectWarehouseWeight", "DefectScrapWeight",
+        "ProductionCutQuantity", "ProductionWeight"
     };
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
@@ -84,30 +86,19 @@ public partial class FinalInspections
         // G1: 检验执行
         new() { Key = "InspectionItem",        Label = "检验项目",   SortKey = "inspectionitem", FilterType = "enum", Width = "120",
                GroupKey = 1, GroupName = "G1 检验执行",
-               EnumOptions = new List<EnumOption>
-               {
-                   new("PMIInspection", "PMI检验"),
-                   new("VisualInspection", "表检"),
-                   new("Dimension", "尺寸"),
-                   new("Endoscopy", "内窥"),
-                   new("HydrostaticPressure", "水压"),
-                   new("UnderwaterPneumatic", "水下气压"),
-                   new("EddyCurrent", "涡流"),
-                   new("Ultrasonic", "超声波"),
-                   new("PortColoring", "端口着色"),
-               } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionItem>() },
         new() { Key = "InspectionDate",        Label = "检验日期",   SortKey = "inspectiondate", FilterType = "date", Width = "120",
             GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "EquipmentName",          Label = "设备名称",   SortKey = "equipmentname", FilterType = "string", Width = "120",
             GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "Shift",                  Label = "班次",       SortKey = "shift", FilterType = "enum", Width = "120",
             GroupKey = 1, GroupName = "G1 检验执行",
-            EnumOptions = new() { new("DayShift","白班"), new("MiddleShift","中班"), new("NightShift","夜班") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
         new() { Key = "Operator",               Label = "操作员",     SortKey = "operator", FilterType = "string", Width = "120",
             GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "InspectionType",         Label = "成检类型",   SortKey = "inspectiontype", FilterType = "enum", Width = "100",
             GroupKey = 1, GroupName = "G1 检验执行",
-            EnumOptions = new() { new("PreInspection","预成检"), new("FormalInspection","正式成检") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionType>() },
         new() { Key = "IsDeliveryStatus",      Label = "是否交付态", SortKey = "isdeliverystatus", FilterType = "enum", Width = "100",
             GroupKey = 1, GroupName = "G1 检验执行",
             EnumOptions = new() { new("是","是"), new("否","否") } },
@@ -121,16 +112,16 @@ public partial class FinalInspections
             GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "ProductionType",         Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次",
-            EnumOptions = Enum.GetValues<ProductionType>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetProductionTypeText(e))).ToList() },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<ProductionType>() },
         new() { Key = "ManufacturingItem",     Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次",
-            EnumOptions = Enum.GetValues<MaterialType>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetMaterialTypeText(e))).ToList() },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialType>() },
         new() { Key = "ManufacturingStatus",   Label = "制造状态",   SortKey = "manufacturingstatus", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次",
-            EnumOptions = Enum.GetValues<DeliveryState>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetDeliveryStateText(e))).ToList() },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
         new() { Key = "DeliveryState",          Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次",
-            EnumOptions = Enum.GetValues<DeliveryState>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetDeliveryStateText(e))).ToList() },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
         new() { Key = "WorkOrderNo",            Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "SalesOrderNo",           Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Width = "120",
@@ -151,7 +142,7 @@ public partial class FinalInspections
             GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "LengthStatus",           Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次",
-            EnumOptions = Enum.GetValues<LengthStatus>().Select(e => new EnumOption(e.ToString(), DisplayHelper.GetLengthStatusText(e))).ToList() },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
         new() { Key = "ProductionCutQuantity",  Label = "生产支数",   SortKey = "productioncutquantity", FilterType = "number", Width = "80",
             GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "ProductionWeight",       Label = "生产重量(kg)", SortKey = "productionweight", FilterType = "number", Width = "80",
@@ -238,7 +229,7 @@ public partial class FinalInspections
             GroupKey = 8, GroupName = "G8 辅助信息" },
         new() { Key = "DataSource",             Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80",
             GroupKey = 8, GroupName = "G8 辅助信息",
-            EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
+            EnumOptions = DisplayHelper.GetDataSourceOptions() },
         new() { Key = "UpdatedTime",            Label = "更新日期",   SortKey = "updatedtime", Width = "120",
             GroupKey = 8, GroupName = "G8 辅助信息" },
     };
@@ -612,7 +603,7 @@ public partial class FinalInspections
         _editCache[item.Id] = new EditCache
         {
             InspectionDate = item.InspectionDate.ToString("yyyy-MM-dd"),
-            InspectionType = item.InspectionType,
+            InspectionType = item.InspectionType?.ToString(),
             EquipmentName = item.EquipmentName,
             Shift = item.Shift,
             Operator = item.Operator,
@@ -678,7 +669,7 @@ public partial class FinalInspections
             var request = new UpdateFinalInspectionRequest
             {
                 InspectionDate = inspectionDate,
-                InspectionType = cache.InspectionType,
+                InspectionType = EnumHelper.TryParse<InspectionType>(cache.InspectionType),
                 EquipmentName = cache.EquipmentName,
                 Shift = cache.Shift,
                 Operator = cache.Operator,
@@ -800,13 +791,13 @@ public partial class FinalInspections
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
         "Salesman" => item.Salesman,
-        "DeliveryState" => item.DeliveryState,
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
         "ManufacturingStatus" => item.ManufacturingStatusDisplay,
         "EndCustomer" => item.EndCustomer,
         "ProductionCutQuantity" => item.ProductionCutQuantity?.ToString(),
         "ProductionWeight" => item.ProductionWeight?.ToString("G29"),
         "IsDeliveryStatus" => item.IsDeliveryStatusDisplay,
-        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
+        "LengthStatus" => item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : "-",
         "FixedLength" => item.FixedLength,
         "NonFixedLengthRange" => item.NonFixedLengthRange,
         "EquipmentName" => item.EquipmentName,
@@ -1204,7 +1195,7 @@ public partial class FinalInspections
                 builder.AddContent(0, item.PlantGrade);
                 break;
             case "ProductionType":
-                builder.AddContent(0, DisplayHelper.GetProductionTypeText(item.ProductionType));
+                builder.AddContent(0, item.ProductionType.HasValue ? DisplayHelper.GetProductionTypeText(item.ProductionType.Value) : "-");
                 break;
             case "Specification":
                 builder.AddContent(0, item.Specification);
@@ -1213,7 +1204,7 @@ public partial class FinalInspections
                 builder.AddContent(0, item.Salesman);
                 break;
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : "-");
                 break;
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));
@@ -1285,12 +1276,12 @@ public partial class FinalInspections
                     builder.AddAttribute(3, "Class", "compact-input");
                     builder.AddAttribute(4, "ChildContent", (RenderFragment)(b =>
                     {
-                        foreach (ShiftType? val in Enum.GetValues<ShiftType>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                         {
                             b.OpenComponent<MudSelectItem<ShiftType?>>(0);
-                            b.AddAttribute(1, "Value", val);
+                            b.AddAttribute(1, "Value", (ShiftType?)Enum.Parse<ShiftType>(opt.Value));
                             b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
-                                b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                                b2.AddContent(0, opt.Display)));
                             b.CloseComponent();
                         }
                     }));
@@ -1353,7 +1344,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.Quantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.Quantity));
                 }
                 break;
             case "Weight":
@@ -1368,7 +1359,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.Weight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.Weight));
                 }
                 break;
             case "QualifiedQuantity":
@@ -1383,7 +1374,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.QualifiedQuantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.QualifiedQuantity));
                 }
                 break;
             case "QualifiedWeight":
@@ -1398,7 +1389,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.QualifiedWeight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.QualifiedWeight));
                 }
                 break;
             case "QualifiedConcessionQuantity":
@@ -1413,7 +1404,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.QualifiedConcessionQuantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.QualifiedConcessionQuantity));
                 }
                 break;
             case "ConcessionRemark":
@@ -1442,7 +1433,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectReworkQuantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectReworkQuantity));
                 }
                 break;
             case "DefectWarehouseQuantity":
@@ -1457,7 +1448,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectWarehouseQuantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectWarehouseQuantity));
                 }
                 break;
             case "DefectScrapQuantity":
@@ -1472,7 +1463,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectScrapQuantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectScrapQuantity));
                 }
                 break;
             case "DefectReworkWeight":
@@ -1487,7 +1478,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectReworkWeight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectReworkWeight));
                 }
                 break;
             case "DefectWarehouseWeight":
@@ -1502,7 +1493,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectWarehouseWeight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectWarehouseWeight));
                 }
                 break;
             case "DefectScrapWeight":
@@ -1517,7 +1508,7 @@ public partial class FinalInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectScrapWeight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectScrapWeight));
                 }
                 break;
             case "DefectDescription":

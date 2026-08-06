@@ -27,7 +27,7 @@ public class ScanResolveResultDto
     public string? TagNo { get; set; }
 
     /// <summary>生产类型</summary>
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
 
     /// <summary>工序组ID</summary>
     public int ProcessGroupId { get; set; }

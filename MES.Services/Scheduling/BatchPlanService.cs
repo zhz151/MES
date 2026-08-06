@@ -55,20 +55,33 @@ namespace MES.Services.Scheduling;
 public class BatchPlanService : IBatchPlanService
 {
     private readonly AppDbContext _context;
+    private readonly IProcessDefinitionService _processDefService;
 
-    public BatchPlanService(AppDbContext context)
+    public BatchPlanService(AppDbContext context, IProcessDefinitionService processDefService)
     {
         _context = context;
+        _processDefService = processDefService;
     }
 
-    // 冷轧类 Tab：工序在此列表中 → 需同时匹配工序名和SectionKeys.ColdRollDraw工段
+    // 冷轧类 Tab：工序 Key 在此列表中 → 需同时匹配工序名和SectionKeys.ColdRollDraw工段
     private static readonly HashSet<string> _coldRollTabs = new()
     {
-        "60冷轧", "50冷轧", "30冷轧", "20冷轧", "三辊冷轧", "冷拔"
+        ProcessKeys.ColdRoll60, ProcessKeys.ColdRoll50, ProcessKeys.ColdRoll30, ProcessKeys.ColdRoll20,
+        ProcessKeys.ThreeRollColdRoll, ProcessKeys.ColdDraw
     };
+
+    /// <summary>调度工段 Tab 归一：中文 Tab 名 → 稳定 Key（工序优先，工段次之）；检验类特殊 Tab 名（过程检验/成品检验/荒管检/在制检）保持中文。</summary>
+    private static string? NormalizeSectionTab(string? sectionTab)
+    {
+        if (string.IsNullOrEmpty(sectionTab)) return sectionTab;
+        return ProcessKeys.ToKey(sectionTab) ?? SectionKeys.ToKey(sectionTab) ?? sectionTab;
+    }
 
     public async Task<PagedResult<BatchPlanDto>> GetPagedAsync(QueryParams query)
     {
+        // 预加载冷轧/冷拔类 Key 集合（配置表驱动，替代硬编码 IsColdRollOrDraw）
+        var crKeys = await _processDefService.GetColdRollOrDrawKeysAsync();
+
         var batchQuery = _context.ProductionBatches.AsNoTracking()
             .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress);
 
@@ -86,6 +99,8 @@ public class BatchPlanService : IBatchPlanService
                 query.Filters.Remove(sf);
             }
         }
+        // 中文 Tab 名归一为 Key（工序/工段），检验类特殊 Tab 名保持中文
+        sectionTab = NormalizeSectionTab(sectionTab);
 
         var joined = from b in batchQuery
                      join s in summaryQuery on b.WorkOrderNo equals s.WorkOrderNo into sj
@@ -174,14 +189,14 @@ public class BatchPlanService : IBatchPlanService
                     if (sectionTab == "荒管检")
                     {
                         joined = joined.Where(x =>
-                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.RoughTubeProcessing) ||
-                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.RoughTubeProcessing));
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessKeys.RoughTubeProcessing) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessKeys.RoughTubeProcessing));
                     }
                     else if (sectionTab == "在制检")
                     {
                         joined = joined.Where(x =>
-                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.InProcessRepair) ||
-                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.InProcessRepair));
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessKeys.InProcessRepair) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessKeys.InProcessRepair));
                     }
                 }
             }
@@ -241,9 +256,9 @@ public class BatchPlanService : IBatchPlanService
                         : x.s.ScheduleStage == 3 ? 2
                         : x.s.ScheduleStage == 4 ? 3
                         : x.s.ScheduleStage)
-                    : (x.b.WorkOrderNo == "非工单" ? 4 : -1)),
+                    : (x.b.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder ? 4 : -1)),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
-            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : (x.b.WorkOrderNo == "非工单" ? "略" : "疑问")),
+            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : (x.b.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder ? ProductionFlowKeys.Skip : ProductionFlowKeys.Doubt)),
 
             // G6（直接从 WorkOrderExecutionSummary 实体读取，无需额外 JOIN）
             IsUrging = x.s != null && x.s.IsUrging,
@@ -281,8 +296,8 @@ public class BatchPlanService : IBatchPlanService
         var totalWeight = aggData.Sum(x => x.CurrentValidWeight ?? 0m);
 
         var keyBatches = aggData.Where(x =>
-            (x.UrgencyLevel == "A+急" || x.UrgencyLevel == "A急") &&
-            x.ProductionFlowProperty == "正常" &&
+            (x.UrgencyLevel == UrgencyLevelKeys.APlusUrgent || x.UrgencyLevel == UrgencyLevelKeys.AUrgent) &&
+            x.ProductionFlowProperty == ProductionFlowKeys.Normal &&
             !string.IsNullOrEmpty(x.MainNoAttentionProcess)
         ).ToList();
         var keyBatchCount = keyBatches.Count;
@@ -338,7 +353,7 @@ public class BatchPlanService : IBatchPlanService
                 item.ExecutionSequence = currentPgForSeq?.GetSectionSequence(item.CurrentSectionName);
 
                 // 本层 — 是否冷轧
-                if (!string.IsNullOrEmpty(pendingProcess) && ProcessNames.IsColdRollOrDraw(pendingProcess))
+                if (!string.IsNullOrEmpty(pendingProcess) && crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess))
                 {
                     item.CurrentCR_ProcessType = pendingProcess;
                     item.CurrentCR_RollingSpec = pendingPg.ManufacturingSpec;
@@ -359,7 +374,7 @@ public class BatchPlanService : IBatchPlanService
                 if (pendingIdx + 1 < pgs.Count)
                 {
                     var nextPg = pgs[pendingIdx + 1];
-                    if (ProcessNames.IsColdRollOrDraw(nextPg.ProcessName))
+                    if (crKeys.Contains(ProcessKeys.ToKey(nextPg.ProcessName) ?? nextPg.ProcessName))
                     {
                         item.NextCR_ProcessType = nextPg.ProcessName;
                         item.NextCR_RollingSpec = nextPg.ManufacturingSpec;
@@ -372,7 +387,7 @@ public class BatchPlanService : IBatchPlanService
                 if (pendingIdx + 2 < pgs.Count)
                 {
                     var nextNextPg = pgs[pendingIdx + 2];
-                    if (ProcessNames.IsColdRollOrDraw(nextNextPg.ProcessName))
+                    if (crKeys.Contains(ProcessKeys.ToKey(nextNextPg.ProcessName) ?? nextNextPg.ProcessName))
                     {
                         item.NextNextCR_ProcessType = nextNextPg.ProcessName;
                         item.NextNextCR_RollingSpec = nextNextPg.ManufacturingSpec;
@@ -421,22 +436,22 @@ public class BatchPlanService : IBatchPlanService
                     if (pgLookup.TryGetValue(item.BatchId, out var pgs2) && pgs2.Count > 0)
                     {
                         ProcessGroup? targetPg = null;
-                        if (item.MainNoAttentionProcess == "收尾-成检")
+                        if (string.IsNullOrEmpty(item.MainNoAttentionProcess))
                         {
                             targetPg = pgs2.MaxBy(pg => pg.SequenceNumber);
                         }
-                        else if (item.MainNoAttentionProcess is "荒管处理" or "在制修检")
+                        else if (item.MainNoAttentionProcess is ProcessKeys.RoughTubeProcessing or ProcessKeys.InProcessRepair)
                         {
                             targetPg = pgs2.FirstOrDefault(pg => pg.ProcessName == item.MainNoAttentionProcess);
                         }
-                        else if (ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess))
+                        else if (crKeys.Contains(ProcessKeys.ToKey(item.MainNoAttentionProcess) ?? item.MainNoAttentionProcess))
                         {
                             targetPg = pgs2.FirstOrDefault(pg => pg.ProcessName == item.MainNoAttentionProcess);
                         }
 
                         if (targetPg != null)
                         {
-                            item.AttentionProcessSectionSequence = ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess)
+                            item.AttentionProcessSectionSequence = crKeys.Contains(ProcessKeys.ToKey(item.MainNoAttentionProcess) ?? item.MainNoAttentionProcess)
                                 ? targetPg.ColdRollDraw
                                 : targetPg.Inspection;
                         }
@@ -445,12 +460,12 @@ public class BatchPlanService : IBatchPlanService
 
                 // ====== 重点生产批次（新逻辑） ======
                 if (!string.IsNullOrEmpty(item.MainNoAttentionProcess)
-                    && item.UrgencyLevel is "A+急" or "A急"
-                    && item.ProductionFlowProperty == "正常"
+                    && item.UrgencyLevel is UrgencyLevelKeys.APlusUrgent or UrgencyLevelKeys.AUrgent
+                    && item.ProductionFlowProperty == ProductionFlowKeys.Normal
                     && item.AttentionProcessSectionSequence.HasValue
                     && item.ExecutionSequence.HasValue)
                 {
-                    if (ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess))
+                    if (crKeys.Contains(ProcessKeys.ToKey(item.MainNoAttentionProcess) ?? item.MainNoAttentionProcess))
                         item.IsKeyBatch = item.ExecutionSequence < item.AttentionProcessSectionSequence + 1;
                     else
                         item.IsKeyBatch = item.ExecutionSequence < item.AttentionProcessSectionSequence;
@@ -476,6 +491,10 @@ public class BatchPlanService : IBatchPlanService
 
     public async Task<List<BatchPlanDto>> GetAllAsync(string? sectionTab)
     {
+        // 中文 Tab 名归一为 Key（工序/工段），检验类特殊 Tab 名保持中文
+        sectionTab = NormalizeSectionTab(sectionTab);
+
+        var crKeys = await _processDefService.GetColdRollOrDrawKeysAsync();
         var batchQuery = _context.ProductionBatches.AsNoTracking()
             .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress);
 
@@ -553,14 +572,14 @@ public class BatchPlanService : IBatchPlanService
                     if (sectionTab == "荒管检")
                     {
                         joined = joined.Where(x =>
-                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.RoughTubeProcessing) ||
-                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.RoughTubeProcessing));
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessKeys.RoughTubeProcessing) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessKeys.RoughTubeProcessing));
                     }
                     else if (sectionTab == "在制检")
                     {
                         joined = joined.Where(x =>
-                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.InProcessRepair) ||
-                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.InProcessRepair));
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessKeys.InProcessRepair) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessKeys.InProcessRepair));
                     }
                 }
             }
@@ -610,9 +629,9 @@ public class BatchPlanService : IBatchPlanService
                         : x.s.ScheduleStage == 3 ? 2
                         : x.s.ScheduleStage == 4 ? 3
                         : x.s.ScheduleStage)
-                    : (x.b.WorkOrderNo == "非工单" ? 4 : -1)),
+                    : (x.b.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder ? 4 : -1)),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
-            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : (x.b.WorkOrderNo == "非工单" ? "略" : "疑问")),
+            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : (x.b.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder ? ProductionFlowKeys.Skip : ProductionFlowKeys.Doubt)),
             IsUrging = x.s != null && x.s.IsUrging,
             IsBatchDelivery = x.s != null && x.s.IsBatchDelivery,
             IsPaused = x.s != null && x.s.IsPaused,
@@ -673,7 +692,7 @@ public class BatchPlanService : IBatchPlanService
                 var maxSeq = pgs.Max(pg => pg.SequenceNumber);
 
                 // 冷轧排程（本层）：仅当执行工段=冷轧拔时才填充
-                if (!string.IsNullOrEmpty(pendingProcess) && ProcessNames.IsColdRollOrDraw(pendingProcess)
+                if (!string.IsNullOrEmpty(pendingProcess) && crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess)
                     && pendingSectionName == SectionKeys.ColdRollDraw)
                 {
                     item.CurrentCR_ProcessType = pendingProcess;
@@ -693,7 +712,7 @@ public class BatchPlanService : IBatchPlanService
                 if (pendingIdx + 1 < pgs.Count)
                 {
                     var nextPg = pgs[pendingIdx + 1];
-                    if (ProcessNames.IsColdRollOrDraw(nextPg.ProcessName))
+                    if (crKeys.Contains(ProcessKeys.ToKey(nextPg.ProcessName) ?? nextPg.ProcessName))
                     {
                         item.NextCR_ProcessType = nextPg.ProcessName;
                         item.NextCR_RollingSpec = nextPg.ManufacturingSpec;
@@ -705,7 +724,7 @@ public class BatchPlanService : IBatchPlanService
                 if (pendingIdx + 2 < pgs.Count)
                 {
                     var nextNextPg = pgs[pendingIdx + 2];
-                    if (ProcessNames.IsColdRollOrDraw(nextNextPg.ProcessName))
+                    if (crKeys.Contains(ProcessKeys.ToKey(nextNextPg.ProcessName) ?? nextNextPg.ProcessName))
                     {
                         item.NextNextCR_ProcessType = nextNextPg.ProcessName;
                         item.NextNextCR_RollingSpec = nextNextPg.ManufacturingSpec;
@@ -753,22 +772,22 @@ public class BatchPlanService : IBatchPlanService
                 if (!string.IsNullOrEmpty(item.MainNoAttentionProcess) && pgLookup.TryGetValue(item.BatchId, out var pgs2) && pgs2.Count > 0)
                 {
                     ProcessGroup? targetPg = null;
-                    if (item.MainNoAttentionProcess == "收尾-成检")
+                    if (string.IsNullOrEmpty(item.MainNoAttentionProcess))
                     {
                         targetPg = pgs2.MaxBy(pg => pg.SequenceNumber);
                     }
-                    else if (item.MainNoAttentionProcess is "荒管处理" or "在制修检")
+                    else if (item.MainNoAttentionProcess is ProcessKeys.RoughTubeProcessing or ProcessKeys.InProcessRepair)
                     {
                         targetPg = pgs2.FirstOrDefault(pg => pg.ProcessName == item.MainNoAttentionProcess);
                     }
-                    else if (ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess))
+                    else if (crKeys.Contains(ProcessKeys.ToKey(item.MainNoAttentionProcess) ?? item.MainNoAttentionProcess))
                     {
                         targetPg = pgs2.FirstOrDefault(pg => pg.ProcessName == item.MainNoAttentionProcess);
                     }
 
                     if (targetPg != null)
                     {
-                        item.AttentionProcessSectionSequence = ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess)
+                        item.AttentionProcessSectionSequence = crKeys.Contains(ProcessKeys.ToKey(item.MainNoAttentionProcess) ?? item.MainNoAttentionProcess)
                             ? targetPg.ColdRollDraw
                             : targetPg.Inspection;
                     }
@@ -776,12 +795,12 @@ public class BatchPlanService : IBatchPlanService
 
                 // ====== 重点生产批次（必须位于 TargetSequence 之前，因为 _trigger 依赖 IsKeyBatch） ======
                 if (!string.IsNullOrEmpty(item.MainNoAttentionProcess)
-                    && item.UrgencyLevel is "A+急" or "A急"
-                    && item.ProductionFlowProperty == "正常"
+                    && item.UrgencyLevel is UrgencyLevelKeys.APlusUrgent or UrgencyLevelKeys.AUrgent
+                    && item.ProductionFlowProperty == ProductionFlowKeys.Normal
                     && item.AttentionProcessSectionSequence.HasValue
                     && item.ExecutionSequence.HasValue)
                 {
-                    if (ProcessNames.IsColdRollOrDraw(item.MainNoAttentionProcess))
+                    if (crKeys.Contains(ProcessKeys.ToKey(item.MainNoAttentionProcess) ?? item.MainNoAttentionProcess))
                         item.IsKeyBatch = item.ExecutionSequence < item.AttentionProcessSectionSequence + 1;
                     else
                         item.IsKeyBatch = item.ExecutionSequence < item.AttentionProcessSectionSequence;
@@ -829,22 +848,22 @@ public class BatchPlanService : IBatchPlanService
                 FlowBatchCount = g.Count(),
                 TotalFlowWeight = g.Sum(x => x.CurrentValidWeight ?? 0m),
 
-                ProdKeyWeight = g.Where(x => x.FlowTarget == "完工冷轧" && x.IsFlowLevel1A)
+                ProdKeyWeight = g.Where(x => x.FlowTarget == FlowTargetKeys.CompletionColdRoll && x.IsFlowLevel1A)
                                 .Sum(x => x.CurrentValidWeight ?? 0m),
-                ProdLevel1BWeight = g.Where(x => x.FlowTarget == "完工冷轧" && x.IsFlowLevel1B)
+                ProdLevel1BWeight = g.Where(x => x.FlowTarget == FlowTargetKeys.CompletionColdRoll && x.IsFlowLevel1B)
                                     .Sum(x => x.CurrentValidWeight ?? 0m),
-                ProdNonKeyWeight = g.Where(x => x.FlowTarget == "完工冷轧" && !x.IsKeyBatch)
+                ProdNonKeyWeight = g.Where(x => x.FlowTarget == FlowTargetKeys.CompletionColdRoll && !x.IsKeyBatch)
                                    .Sum(x => x.CurrentValidWeight ?? 0m),
-                ProdTotalWeight = g.Where(x => x.FlowTarget == "完工冷轧")
+                ProdTotalWeight = g.Where(x => x.FlowTarget == FlowTargetKeys.CompletionColdRoll)
                                   .Sum(x => x.CurrentValidWeight ?? 0m),
 
-                WaitKeyWeight = g.Where(x => x.FlowTarget == "冷轧" && x.IsFlowLevel1A)
+                WaitKeyWeight = g.Where(x => x.FlowTarget == FlowTargetKeys.ColdRoll && x.IsFlowLevel1A)
                                 .Sum(x => x.CurrentValidWeight ?? 0m),
-                WaitLevel1BWeight = g.Where(x => x.FlowTarget == "冷轧" && x.IsFlowLevel1B)
+                WaitLevel1BWeight = g.Where(x => x.FlowTarget == FlowTargetKeys.ColdRoll && x.IsFlowLevel1B)
                                     .Sum(x => x.CurrentValidWeight ?? 0m),
-                WaitNonKeyWeight = g.Where(x => x.FlowTarget == "冷轧" && !x.IsKeyBatch)
+                WaitNonKeyWeight = g.Where(x => x.FlowTarget == FlowTargetKeys.ColdRoll && !x.IsKeyBatch)
                                    .Sum(x => x.CurrentValidWeight ?? 0m),
-                WaitTotalWeight = g.Where(x => x.FlowTarget == "冷轧")
+                WaitTotalWeight = g.Where(x => x.FlowTarget == FlowTargetKeys.ColdRoll)
                                   .Sum(x => x.CurrentValidWeight ?? 0m),
             })
             .OrderBy(r => r.ProcessType)
@@ -914,7 +933,7 @@ public class BatchPlanService : IBatchPlanService
                             : s.ScheduleStage)
                         : (int?)null,
                     MainNoAttentionProcess = s != null ? s.MainNoAttentionProcess : null,
-                    ProductionFlowProperty = s != null ? s.ProductionFlowProperty : (b.WorkOrderNo == "非工单" ? "略" : "疑问"),
+                    ProductionFlowProperty = s != null ? s.ProductionFlowProperty : (b.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder ? ProductionFlowKeys.Skip : ProductionFlowKeys.Doubt),
                 };
 
         var all = await q.ToListAsync();
@@ -934,7 +953,7 @@ public class BatchPlanService : IBatchPlanService
             ["NextProcess"] = all.Where(x => x.NextProcess != null).Select(x => x.NextProcess!).Distinct().OrderBy(x => x).ToList(),
             ["NextSectionName"] = all.Where(x => x.NextSectionName != null).Select(x => x.NextSectionName!).Distinct().OrderBy(x => x).ToList(),
             ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
-            ["ScheduleStage"] = all.Select(x => x.WorkOrderNo == "非工单" ? "4" : (x.ScheduleStage.HasValue ? x.ScheduleStage!.Value.ToString() : null))
+            ["ScheduleStage"] = all.Select(x => x.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder ? "4" : (x.ScheduleStage.HasValue ? x.ScheduleStage!.Value.ToString() : null))
                 .Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
             ["MainNoAttentionProcess"] = all.Where(x => x.MainNoAttentionProcess != null).Select(x => x.MainNoAttentionProcess!).Distinct().OrderBy(x => x).ToList(),
             ["ProductionFlowProperty"] = all.Where(x => x.ProductionFlowProperty != null).Select(x => x.ProductionFlowProperty!).Distinct().OrderBy(x => x).ToList(),

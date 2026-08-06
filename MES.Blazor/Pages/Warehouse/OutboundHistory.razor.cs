@@ -97,7 +97,7 @@ public partial class OutboundHistory
         new() { Key = "BatchNo",          Label = "仓库批次", SortKey = "batchno", FilterType = "string", Width = "120" },
         new() { Key = "OutboundDate",     Label = "出库日期", SortKey = "outbounddate",     IsRequired = true, Width = "120" },
         new() { Key = "OutboundType",     Label = "出库类型", SortKey = "outboundtype",     IsRequired = true, FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("SalesOut", "销售出库"), new("SubcontractOut", "委外出库"), new("ReturnOut", "退货出库"), new("ProductionPick", "生产领用"), new("InspectionPick", "检验领用"), new("TransferOut", "移库出库"), new("OtherOut", "其他出库") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<OutboundType>() },
         new() { Key = "SourceOrderNo",    Label = "委外穿孔号", SortKey = "sourceorderno", FilterType = "string", Width = "120" },
         new() { Key = "TargetCompany",    Label = "目标单位", SortKey = "targetcompany", FilterType = "string", Width = "120" },
         new() { Key = "OutboundQuantity", Label = "出库支数", SortKey = "outboundquantity", IsRequired = true, Width = "80" },
@@ -728,7 +728,7 @@ public partial class OutboundHistory
 
             var request = new UpdateOutboundRecordRequest
             {
-                OutboundType = outboundType.ToString(),
+                OutboundType = outboundType,
                 OutboundDate = parsedDate,
                 TargetCompany = string.IsNullOrEmpty(item.TargetCompany) ? null : item.TargetCompany,
                 OutboundQuantity = item.OutboundQuantity,

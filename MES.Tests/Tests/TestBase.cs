@@ -2,12 +2,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Core.Constants;
 using MES.Core.Enums;
+using MES.Core.Interfaces.Configuration;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.WorkOrder;
+using Moq;
 
 namespace MES.Tests.Tests;
 
@@ -154,4 +157,32 @@ public abstract class TestBase
         await ctx.SaveChangesAsync();
         return sr;
     }
+
+    /// <summary>
+    /// 创建 IProcessDefinitionService 统一 Mock：冷轧 Key 集合（预置 9 工序中 5 冷轧 + 冷拔）与 Key↔中文映射。
+    /// </summary>
+    protected static IProcessDefinitionService CreateProcessDefinitionServiceMock()
+    {
+        var mock = new Mock<IProcessDefinitionService>();
+        var coldRollKeys = new HashSet<string>(
+            new[]
+            {
+                ProcessKeys.ColdRoll60, ProcessKeys.ColdRoll50, ProcessKeys.ColdRoll30,
+                ProcessKeys.ColdRoll20, ProcessKeys.ThreeRollColdRoll
+            },
+            StringComparer.Ordinal);
+        var coldRollOrDrawKeys = new HashSet<string>(coldRollKeys, StringComparer.Ordinal)
+        {
+            ProcessKeys.ColdDraw
+        };
+        mock.Setup(x => x.GetColdRollKeysAsync()).ReturnsAsync(coldRollKeys);
+        mock.Setup(x => x.GetColdRollOrDrawKeysAsync()).ReturnsAsync(coldRollOrDrawKeys);
+        mock.Setup(x => x.GetProcessNameMapAsync()).ReturnsAsync(ProcessKeys.KeyToChinese);
+        mock.Setup(x => x.ToDisplayAsync(It.IsAny<string?>()))
+            .ReturnsAsync((string? v) => ProcessKeys.ToChinese(v));
+        mock.Setup(x => x.ToKeyAsync(It.IsAny<string?>()))
+            .ReturnsAsync((string? v) => ProcessKeys.ToKey(v));
+        return mock.Object;
+    }
+
 }

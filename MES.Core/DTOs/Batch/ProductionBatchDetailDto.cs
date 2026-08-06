@@ -14,7 +14,7 @@ public class ProductionBatchDetailDto
     public BatchStatus Status { get; set; }
     public string StatusDisplay => EnumHelper.GetDisplayName(Status);
     public string? TagNo { get; set; }
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
     public MaterialType ManufacturingItem { get; set; }
     public string ManufacturingItemDisplay => EnumHelper.GetDisplayName(ManufacturingItem);
     public int ProductionRatio { get; set; }
@@ -86,7 +86,7 @@ public class ProductionBatchDetailDto
     public string? SourceHeatNo { get; set; }
     public string? SourcePlantGrade { get; set; }
     public string? SourceSpecification { get; set; }
-    public string? SourceLengthStatus { get; set; }
+    public LengthStatus? SourceLengthStatus { get; set; }
     public decimal? SourceUnitWeight { get; set; }
     public int? InputQuantity { get; set; }
     public decimal? InputWeight { get; set; }

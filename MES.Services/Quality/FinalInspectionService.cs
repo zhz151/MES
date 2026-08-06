@@ -15,6 +15,7 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
+using MES.Core.Constants;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
 using MES.Core.Interfaces.Batch;
@@ -122,7 +123,7 @@ public class FinalInspectionService : IFinalInspectionService
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
     {
-        if (string.IsNullOrWhiteSpace(workOrderNo) || workOrderNo == "非工单") return;
+        if (string.IsNullOrWhiteSpace(workOrderNo) || workOrderNo == WorkOrderNoSentinel.NotWorkOrder) return;
         try
         {
             await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { workOrderNo });
@@ -228,11 +229,11 @@ public class FinalInspectionService : IFinalInspectionService
             FurnaceNo = pb?.SourceHeatNo,
             PlantGrade = pb?.PlantGrade,
             Specification = pb?.Specification,
-            ProductionType = pb?.ProductionType,
+            ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(pb?.ProductionType),
             Salesman = pb?.Salesman,
-            LengthStatus = pb?.LengthStatus,
-            DeliveryState = pb?.DeliveryState,
-            ManufacturingStatus = pb?.ManufacturingStatus,
+            LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(pb?.LengthStatus),
+            DeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(pb?.DeliveryState),
+            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(pb?.ManufacturingStatus),
             EndCustomer = pb?.EndCustomer,
             ProductionCutQuantity = pb != null && pb.CutRequirement
                 ? pb.CutQuantity
@@ -253,7 +254,7 @@ public class FinalInspectionService : IFinalInspectionService
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
             DefectDescription = entity.DefectDescription,
-            InspectionType = entity.InspectionType,
+            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(entity.InspectionType),
             DefectReworkWeight = entity.DefectReworkWeight,
             DefectWarehouseWeight = entity.DefectWarehouseWeight,
             DefectScrapWeight = entity.DefectScrapWeight,
@@ -387,7 +388,7 @@ public class FinalInspectionService : IFinalInspectionService
                         queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.DeliveryState));
                         break;
                     case "ManufacturingStatus":
-                        queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.ManufacturingStatus));
+                        queryable = queryable.Where(r => r.ProductionBatch.ManufacturingStatus != null && filter.Values.Contains(r.ProductionBatch.ManufacturingStatus));
                         break;
                     case "IsDeliveryStatus":
                         queryable = queryable.Where(r => filter.Values.Contains(r.ProductionBatch.ManufacturingStatus == r.ProductionBatch.DeliveryState ? "是" : "否"));
@@ -427,7 +428,7 @@ public class FinalInspectionService : IFinalInspectionService
                 Id = r.Id,
                 InspectionItem = r.InspectionItem,
                 InspectionDate = r.InspectionDate,
-                InspectionType = r.InspectionType,
+                InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(r.InspectionType),
                 BatchNo = r.BatchNo,
                 ProductionBatchId = r.ProductionBatchId,
                 ManufacturingItem = ParseMaterialType(pb?.ManufacturingItem),
@@ -439,11 +440,11 @@ public class FinalInspectionService : IFinalInspectionService
                 FurnaceNo = pb?.SourceHeatNo,
                 PlantGrade = pb?.PlantGrade,
                 Specification = pb?.Specification,
-                ProductionType = pb?.ProductionType,
+                ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(pb?.ProductionType),
                 Salesman = pb?.Salesman,
-                LengthStatus = pb?.LengthStatus,
-                DeliveryState = pb?.DeliveryState,
-                ManufacturingStatus = pb?.ManufacturingStatus,
+                LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(pb?.LengthStatus),
+                DeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(pb?.DeliveryState),
+                ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(pb?.ManufacturingStatus),
                 EndCustomer = pb?.EndCustomer,
                 ProductionCutQuantity = pb != null && pb.CutRequirement
                     ? pb.CutQuantity
@@ -559,18 +560,18 @@ public class FinalInspectionService : IFinalInspectionService
 
     public async Task<List<FinalInspectionDto>> GetAllListAsync()
     {
-        return await _context.FinalInspections
+        var raw = await _context.FinalInspections
             .AsNoTracking()
             .OrderByDescending(r => r.Id)
-            .Select(r => new FinalInspectionDto
+            .Select(r => new
             {
-                Id = r.Id,
-                InspectionItem = r.InspectionItem,
-                InspectionDate = r.InspectionDate,
-                InspectionType = r.InspectionType,
-                BatchNo = r.BatchNo,
-                ProductionBatchId = r.ProductionBatchId,
-                ManufacturingItem = EnumHelper.TryParse<MaterialType>(r.ProductionBatch.ManufacturingItem),
+                r.Id,
+                r.InspectionItem,
+                r.InspectionDate,
+                r.InspectionType,
+                r.BatchNo,
+                r.ProductionBatchId,
+                ManufacturingItem = r.ProductionBatch.ManufacturingItem,
                 TagNo = r.ProductionBatch.TagNo,
                 WorkOrderNo = r.ProductionBatch.WorkOrderNo,
                 SalesOrderNo = r.ProductionBatch.SalesOrderNo,
@@ -588,48 +589,114 @@ public class FinalInspectionService : IFinalInspectionService
                     ? r.ProductionBatch.CutQuantity
                     : r.ProductionBatch.TheoreticalOutputQty,
                 ProductionWeight = r.ProductionBatch.TheoreticalOutputWeight,
-                FixedLength = r.FixedLength,
-                NonFixedLengthRange = r.NonFixedLengthRange,
-                EquipmentName = r.EquipmentName,
-                Shift = r.Shift,
-                Operator = r.Operator,
-                Quantity = r.Quantity,
-                Weight = r.Weight,
-                QualifiedQuantity = r.QualifiedQuantity,
-                QualifiedWeight = r.QualifiedWeight,
-                QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
-                ConcessionRemark = r.ConcessionRemark,
-                DefectReworkQuantity = r.DefectReworkQuantity,
-                DefectWarehouseQuantity = r.DefectWarehouseQuantity,
-                DefectScrapQuantity = r.DefectScrapQuantity,
-                DefectDescription = r.DefectDescription,
-                DefectReworkWeight = r.DefectReworkWeight,
-                DefectWarehouseWeight = r.DefectWarehouseWeight,
-                DefectScrapWeight = r.DefectScrapWeight,
-                OuterDiameterRange = r.OuterDiameterRange,
-                WallThicknessRange = r.WallThicknessRange,
-                LengthAllowanceRange = r.LengthAllowanceRange,
-                Pressure = r.Pressure,
-                HoldTime = r.HoldTime,
-                QualificationLevel = r.QualificationLevel,
-                InspectionStandard = r.InspectionStandard,
-                InspectionGrade = r.InspectionGrade,
-                InstrumentModel = r.InstrumentModel,
-                NdtMethod = r.NdtMethod,
-                StandardSampleSize = r.StandardSampleSize,
-                StandardSampleDefect = r.StandardSampleDefect,
-                ProbeType = r.ProbeType,
-                Couplant = r.Couplant,
-                CalibrationFrequency = r.CalibrationFrequency,
-                DetectionFrequency = r.DetectionFrequency,
-                DetectionSensitivity = r.DetectionSensitivity,
-                DetectionPhase = r.DetectionPhase,
-                DetectionSpeed = r.DetectionSpeed,
-                Remark = r.Remark,
-                CreatedTime = r.CreatedTime,
-                UpdatedTime = r.UpdatedTime
+                r.FixedLength,
+                r.NonFixedLengthRange,
+                r.EquipmentName,
+                r.Shift,
+                r.Operator,
+                r.Quantity,
+                r.Weight,
+                r.QualifiedQuantity,
+                r.QualifiedWeight,
+                r.QualifiedConcessionQuantity,
+                r.ConcessionRemark,
+                r.DefectReworkQuantity,
+                r.DefectWarehouseQuantity,
+                r.DefectScrapQuantity,
+                r.DefectDescription,
+                r.DefectReworkWeight,
+                r.DefectWarehouseWeight,
+                r.DefectScrapWeight,
+                r.OuterDiameterRange,
+                r.WallThicknessRange,
+                r.LengthAllowanceRange,
+                r.Pressure,
+                r.HoldTime,
+                r.QualificationLevel,
+                r.InspectionStandard,
+                r.InspectionGrade,
+                r.InstrumentModel,
+                r.NdtMethod,
+                r.StandardSampleSize,
+                r.StandardSampleDefect,
+                r.ProbeType,
+                r.Couplant,
+                r.CalibrationFrequency,
+                r.DetectionFrequency,
+                r.DetectionSensitivity,
+                r.DetectionPhase,
+                r.DetectionSpeed,
+                r.Remark,
+                r.CreatedTime,
+                r.UpdatedTime
             })
             .ToListAsync();
+
+        return raw.Select(r => new FinalInspectionDto
+        {
+            Id = r.Id,
+            InspectionItem = r.InspectionItem,
+            InspectionDate = r.InspectionDate,
+            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(r.InspectionType),
+            BatchNo = r.BatchNo,
+            ProductionBatchId = r.ProductionBatchId,
+            ManufacturingItem = EnumHelper.TryParse<MaterialType>(r.ManufacturingItem),
+            TagNo = r.TagNo,
+            WorkOrderNo = r.WorkOrderNo,
+            SalesOrderNo = r.SalesOrderNo,
+            SourceUnit = r.SourceUnit,
+            FurnaceNo = r.FurnaceNo,
+            PlantGrade = r.PlantGrade,
+            Specification = r.Specification,
+            ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(r.ProductionType),
+            Salesman = r.Salesman,
+            LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(r.LengthStatus),
+            DeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(r.DeliveryState),
+            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(r.ManufacturingStatus),
+            EndCustomer = r.EndCustomer,
+            ProductionCutQuantity = r.ProductionCutQuantity,
+            ProductionWeight = r.ProductionWeight,
+            FixedLength = r.FixedLength,
+            NonFixedLengthRange = r.NonFixedLengthRange,
+            EquipmentName = r.EquipmentName,
+            Shift = r.Shift,
+            Operator = r.Operator,
+            Quantity = r.Quantity,
+            Weight = r.Weight,
+            QualifiedQuantity = r.QualifiedQuantity,
+            QualifiedWeight = r.QualifiedWeight,
+            QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
+            ConcessionRemark = r.ConcessionRemark,
+            DefectReworkQuantity = r.DefectReworkQuantity,
+            DefectWarehouseQuantity = r.DefectWarehouseQuantity,
+            DefectScrapQuantity = r.DefectScrapQuantity,
+            DefectDescription = r.DefectDescription,
+            DefectReworkWeight = r.DefectReworkWeight,
+            DefectWarehouseWeight = r.DefectWarehouseWeight,
+            DefectScrapWeight = r.DefectScrapWeight,
+            OuterDiameterRange = r.OuterDiameterRange,
+            WallThicknessRange = r.WallThicknessRange,
+            LengthAllowanceRange = r.LengthAllowanceRange,
+            Pressure = r.Pressure,
+            HoldTime = r.HoldTime,
+            QualificationLevel = r.QualificationLevel,
+            InspectionStandard = r.InspectionStandard,
+            InspectionGrade = r.InspectionGrade,
+            InstrumentModel = r.InstrumentModel,
+            NdtMethod = r.NdtMethod,
+            StandardSampleSize = r.StandardSampleSize,
+            StandardSampleDefect = r.StandardSampleDefect,
+            ProbeType = r.ProbeType,
+            Couplant = r.Couplant,
+            CalibrationFrequency = r.CalibrationFrequency,
+            DetectionFrequency = r.DetectionFrequency,
+            DetectionSensitivity = r.DetectionSensitivity,
+            DetectionPhase = r.DetectionPhase,
+            DetectionSpeed = r.DetectionSpeed,
+            Remark = r.Remark,
+            CreatedTime = r.CreatedTime,
+            UpdatedTime = r.UpdatedTime
+        }).ToList();
     }
 
     public async Task<FinalInspectionDto> CreateAsync(CreateFinalInspectionRequest request)
@@ -674,18 +741,18 @@ public class FinalInspectionService : IFinalInspectionService
                 throw new BusinessException($"批次 {request.BatchNo} 无成检到料，不能提交成品检验");
 
             // 前端可指定（下拉选择），否则自动判定（优先正式成检，其次预成检）
-            if (!string.IsNullOrWhiteSpace(request.InspectionType))
+            if (request.InspectionType.HasValue)
             {
-                if (!Enum.TryParse<InspectionType>(request.InspectionType, true, out _))
+                if (!Enum.IsDefined(typeof(MES.Core.Enums.InspectionType), request.InspectionType.Value))
                     throw new BusinessException($"无效的成检类型: {request.InspectionType}");
                 // 指定的成检类型必须在到料类型集合内，防止创建即制造不符（与健康通知口径一致）
                 var mrCheckTypes = mrChecks
                     .Where(t => !string.IsNullOrWhiteSpace(t))
                     .Select(t => t!.ToUpperInvariant())
                     .ToHashSet();
-                if (!mrCheckTypes.Contains(request.InspectionType.ToUpperInvariant()))
+                if (!mrCheckTypes.Contains(request.InspectionType.Value.ToString().ToUpperInvariant()))
                     throw new BusinessException($"批次 {request.BatchNo} 成检到料不含「{request.InspectionType}」类型，不能指定");
-                inspectionType = request.InspectionType;
+                inspectionType = request.InspectionType.Value.ToString();
             }
             else
             {
@@ -739,18 +806,18 @@ public class FinalInspectionService : IFinalInspectionService
             EquipmentName = request.EquipmentName,
             Shift = request.Shift,
             Operator = request.Operator,
-            Quantity = request.Quantity,
-            Weight = request.Weight ?? (unitWeight.HasValue && request.Quantity.HasValue ? (int?)(unitWeight.Value * request.Quantity.Value) : null),
-            QualifiedQuantity = request.QualifiedQuantity,
-            QualifiedWeight = request.QualifiedWeight ?? (unitWeight.HasValue && request.QualifiedQuantity.HasValue ? (int?)(unitWeight.Value * request.QualifiedQuantity.Value) : null),
-            QualifiedConcessionQuantity = request.QualifiedConcessionQuantity,
+            Quantity = request.Quantity ?? 0,
+            Weight = request.Weight ?? (unitWeight.HasValue && request.Quantity.HasValue ? (int?)(unitWeight.Value * request.Quantity.Value) : 0),
+            QualifiedQuantity = request.QualifiedQuantity ?? 0,
+            QualifiedWeight = request.QualifiedWeight ?? (unitWeight.HasValue && request.QualifiedQuantity.HasValue ? (int?)(unitWeight.Value * request.QualifiedQuantity.Value) : 0),
+            QualifiedConcessionQuantity = request.QualifiedConcessionQuantity ?? 0,
             ConcessionRemark = request.ConcessionRemark,
-            DefectReworkQuantity = request.DefectReworkQuantity,
-            DefectWarehouseQuantity = request.DefectWarehouseQuantity,
-            DefectScrapQuantity = request.DefectScrapQuantity,
-            DefectReworkWeight = request.DefectReworkWeight ?? (unitWeight.HasValue && request.DefectReworkQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectReworkQuantity.Value) : null),
-            DefectWarehouseWeight = request.DefectWarehouseWeight ?? (unitWeight.HasValue && request.DefectWarehouseQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectWarehouseQuantity.Value) : null),
-            DefectScrapWeight = request.DefectScrapWeight ?? (unitWeight.HasValue && request.DefectScrapQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectScrapQuantity.Value) : null),
+            DefectReworkQuantity = request.DefectReworkQuantity ?? 0,
+            DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? 0,
+            DefectScrapQuantity = request.DefectScrapQuantity ?? 0,
+            DefectReworkWeight = request.DefectReworkWeight ?? (unitWeight.HasValue && request.DefectReworkQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectReworkQuantity.Value) : 0),
+            DefectWarehouseWeight = request.DefectWarehouseWeight ?? (unitWeight.HasValue && request.DefectWarehouseQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectWarehouseQuantity.Value) : 0),
+            DefectScrapWeight = request.DefectScrapWeight ?? (unitWeight.HasValue && request.DefectScrapQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectScrapQuantity.Value) : 0),
             DefectDescription = request.DefectDescription,
             OuterDiameterRange = request.OuterDiameterRange,
             WallThicknessRange = request.WallThicknessRange,
@@ -798,11 +865,11 @@ public class FinalInspectionService : IFinalInspectionService
             FurnaceNo = entity.ProductionBatch?.SourceHeatNo,
             PlantGrade = entity.ProductionBatch?.PlantGrade,
             Specification = entity.ProductionBatch?.Specification,
-            ProductionType = entity.ProductionBatch?.ProductionType,
+            ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(entity.ProductionBatch?.ProductionType),
             Salesman = entity.ProductionBatch?.Salesman,
-            LengthStatus = entity.ProductionBatch?.LengthStatus,
-            DeliveryState = entity.ProductionBatch?.DeliveryState,
-            ManufacturingStatus = entity.ProductionBatch?.ManufacturingStatus,
+            LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(entity.ProductionBatch?.LengthStatus),
+            DeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(entity.ProductionBatch?.DeliveryState),
+            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(entity.ProductionBatch?.ManufacturingStatus),
             FixedLength = entity.FixedLength,
             NonFixedLengthRange = entity.NonFixedLengthRange,
             EquipmentName = entity.EquipmentName,
@@ -818,7 +885,7 @@ public class FinalInspectionService : IFinalInspectionService
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
             DefectDescription = entity.DefectDescription,
-            InspectionType = entity.InspectionType,
+            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(entity.InspectionType),
             DefectReworkWeight = entity.DefectReworkWeight,
             DefectWarehouseWeight = entity.DefectWarehouseWeight,
             DefectScrapWeight = entity.DefectScrapWeight,
@@ -886,14 +953,14 @@ public class FinalInspectionService : IFinalInspectionService
             throw new BusinessException("批次长度状态非'定尺'，定尺长度必须为空");
 
         // 成品检验定尺长度归属校验（按「订单号+主号」维度，用生效值校验；仅正式成检要求，预成检无需）
-        var fixedLengthError = await ValidateFixedLengthAsync(batchInfo?.SalesOrderNo, batchInfo?.ProductionMainNo, fixedLengthValue, request.InspectionType ?? entity.InspectionType);
+        var fixedLengthError = await ValidateFixedLengthAsync(batchInfo?.SalesOrderNo, batchInfo?.ProductionMainNo, fixedLengthValue, request.InspectionType?.ToString() ?? entity.InspectionType);
         if (fixedLengthError != null)
             throw new BusinessException(fixedLengthError);
 
         // 成检类型：传了则校验枚举 + 与成检到料一致性；不传保留原值（与创建口径一致，防止编辑制造不符）
-        if (!string.IsNullOrWhiteSpace(request.InspectionType))
+        if (request.InspectionType.HasValue)
         {
-            if (!Enum.TryParse<InspectionType>(request.InspectionType, true, out _))
+            if (!Enum.IsDefined(typeof(MES.Core.Enums.InspectionType), request.InspectionType.Value))
                 throw new BusinessException($"无效的成检类型: {request.InspectionType}");
             var mrCheckTypes = await _context.MaterialReceiveChecks
                 .AsNoTracking()
@@ -906,12 +973,12 @@ public class FinalInspectionService : IFinalInspectionService
                 .ToHashSet();
             if (availableTypes.Count == 0)
                 throw new BusinessException("该批次无成检到料，不能修改成检类型");
-            if (!availableTypes.Contains(request.InspectionType.ToUpperInvariant()))
+            if (!availableTypes.Contains(request.InspectionType.Value.ToString().ToUpperInvariant()))
                 throw new BusinessException($"该批次成检到料不含「{request.InspectionType}」类型，不能修改");
         }
 
         entity.InspectionDate = request.InspectionDate;
-        entity.InspectionType = request.InspectionType ?? entity.InspectionType;
+        entity.InspectionType = request.InspectionType?.ToString() ?? entity.InspectionType;
         entity.FixedLength = request.FixedLength ?? entity.FixedLength;
         entity.NonFixedLengthRange = request.NonFixedLengthRange ?? entity.NonFixedLengthRange;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
@@ -973,11 +1040,11 @@ public class FinalInspectionService : IFinalInspectionService
             FurnaceNo = entity.ProductionBatch?.SourceHeatNo,
             PlantGrade = entity.ProductionBatch?.PlantGrade,
             Specification = entity.ProductionBatch?.Specification,
-            ProductionType = entity.ProductionBatch?.ProductionType,
+            ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(entity.ProductionBatch?.ProductionType),
             Salesman = entity.ProductionBatch?.Salesman,
-            LengthStatus = entity.ProductionBatch?.LengthStatus,
-            DeliveryState = entity.ProductionBatch?.DeliveryState,
-            ManufacturingStatus = entity.ProductionBatch?.ManufacturingStatus,
+            LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(entity.ProductionBatch?.LengthStatus),
+            DeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(entity.ProductionBatch?.DeliveryState),
+            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(entity.ProductionBatch?.ManufacturingStatus),
             FixedLength = entity.FixedLength,
             NonFixedLengthRange = entity.NonFixedLengthRange,
             EquipmentName = entity.EquipmentName,
@@ -993,7 +1060,7 @@ public class FinalInspectionService : IFinalInspectionService
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
             DefectDescription = entity.DefectDescription,
-            InspectionType = entity.InspectionType,
+            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(entity.InspectionType),
             DefectReworkWeight = entity.DefectReworkWeight,
             DefectWarehouseWeight = entity.DefectWarehouseWeight,
             DefectScrapWeight = entity.DefectScrapWeight,
@@ -1151,15 +1218,15 @@ public class FinalInspectionService : IFinalInspectionService
             var fixedLengthErr = ValidateFixedLength(
                 batch.SalesOrderNo, batch.ProductionMainNo, request.FixedLength,
                 fixedLengthSets.GetValueOrDefault($"{batch.SalesOrderNo.Trim()}|{batch.ProductionMainNo.Trim()}", new HashSet<decimal>()),
-                !string.IsNullOrWhiteSpace(request.InspectionType)
-                    ? request.InspectionType
+                request.InspectionType.HasValue
+                    ? request.InspectionType.Value.ToString()
                     : inspTypeByBatchId.GetValueOrDefault(batchId, nameof(InspectionType.FormalInspection)));
             if (fixedLengthErr != null)
                 errors.Add($"第{i + 1}行：{fixedLengthErr}");
 
             // 7) 成检类型校验：允许不传（自动判定），传了必须是合法枚举值
-            if (!string.IsNullOrWhiteSpace(request.InspectionType)
-                && !Enum.TryParse<InspectionType>(request.InspectionType, true, out _))
+            if (request.InspectionType.HasValue
+                && !Enum.IsDefined(typeof(MES.Core.Enums.InspectionType), request.InspectionType.Value))
                 errors.Add($"第{i + 1}行：无效的成检类型: {request.InspectionType}");
 
             // 8) 必须存在成检到料，无到料则不允许提交成品检验
@@ -1178,27 +1245,27 @@ public class FinalInspectionService : IFinalInspectionService
                 InspectionDate = r.InspectionDate,
                 BatchNo = r.BatchNo,
                 ProductionBatchId = batch.Id,
-                InspectionType = !string.IsNullOrWhiteSpace(r.InspectionType)
-                    ? r.InspectionType
+                InspectionType = r.InspectionType.HasValue
+                    ? r.InspectionType.Value.ToString()
                     : inspTypeByBatchId.GetValueOrDefault(batch.Id, nameof(InspectionType.FormalInspection)),
                 FixedLength = r.FixedLength,
                 NonFixedLengthRange = r.NonFixedLengthRange,
                 EquipmentName = r.EquipmentName,
                 Shift = r.Shift,
                 Operator = r.Operator,
-                Quantity = r.Quantity,
-                Weight = r.Weight,
-                QualifiedQuantity = r.QualifiedQuantity,
-                QualifiedWeight = r.QualifiedWeight,
-                QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
+                Quantity = r.Quantity ?? 0,
+                Weight = r.Weight ?? 0,
+                QualifiedQuantity = r.QualifiedQuantity ?? 0,
+                QualifiedWeight = r.QualifiedWeight ?? 0,
+                QualifiedConcessionQuantity = r.QualifiedConcessionQuantity ?? 0,
                 ConcessionRemark = r.ConcessionRemark,
-                DefectReworkQuantity = r.DefectReworkQuantity,
-                DefectWarehouseQuantity = r.DefectWarehouseQuantity,
-                DefectScrapQuantity = r.DefectScrapQuantity,
+                DefectReworkQuantity = r.DefectReworkQuantity ?? 0,
+                DefectWarehouseQuantity = r.DefectWarehouseQuantity ?? 0,
+                DefectScrapQuantity = r.DefectScrapQuantity ?? 0,
                 DefectDescription = r.DefectDescription,
-                DefectReworkWeight = r.DefectReworkWeight,
-                DefectWarehouseWeight = r.DefectWarehouseWeight,
-                DefectScrapWeight = r.DefectScrapWeight,
+                DefectReworkWeight = r.DefectReworkWeight ?? 0,
+                DefectWarehouseWeight = r.DefectWarehouseWeight ?? 0,
+                DefectScrapWeight = r.DefectScrapWeight ?? 0,
                 OuterDiameterRange = r.OuterDiameterRange,
                 WallThicknessRange = r.WallThicknessRange,
                 LengthAllowanceRange = r.LengthAllowanceRange,
@@ -1233,7 +1300,7 @@ public class FinalInspectionService : IFinalInspectionService
         var batchIdToWorkOrder = batchLookup.ToDictionary(b => b.Value.Id, b => b.Value.WorkOrderNo);
         var workOrderNos = entities
             .Select(e => batchIdToWorkOrder.GetValueOrDefault(e.ProductionBatchId))
-            .Where(w => !string.IsNullOrWhiteSpace(w) && w != "非工单")
+            .Where(w => !string.IsNullOrWhiteSpace(w) && w != WorkOrderNoSentinel.NotWorkOrder)
             .Select(w => w!)
             .Distinct()
             .ToList();
@@ -1257,11 +1324,11 @@ public class FinalInspectionService : IFinalInspectionService
             FurnaceNo = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.SourceHeatNo : null,
             PlantGrade = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.PlantGrade : null,
             Specification = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.Specification : null,
-            ProductionType = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.ProductionType : null,
+            ProductionType = batchLookup.TryGetValue(e.BatchNo, out bl) ? EnumHelper.TryParse<MES.Core.Enums.ProductionType>(bl.ProductionType) : null,
             Salesman = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.Salesman : null,
-            LengthStatus = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.LengthStatus : null,
-            DeliveryState = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.DeliveryState : null,
-            ManufacturingStatus = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.ManufacturingStatus : null,
+            LengthStatus = batchLookup.TryGetValue(e.BatchNo, out bl) ? EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(bl.LengthStatus) : null,
+            DeliveryState = batchLookup.TryGetValue(e.BatchNo, out bl) ? EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(bl.DeliveryState) : null,
+            ManufacturingStatus = batchLookup.TryGetValue(e.BatchNo, out bl) ? EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(bl.ManufacturingStatus) : null,
             EndCustomer = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.EndCustomer : null,
             ProductionCutQuantity = batchLookup.TryGetValue(e.BatchNo, out bl) ? (bl.CutRequirement ? bl.CutQuantity : bl.TheoreticalOutputQty) : null,
             ProductionWeight = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.TheoreticalOutputWeight : null,
@@ -1280,7 +1347,7 @@ public class FinalInspectionService : IFinalInspectionService
             DefectWarehouseQuantity = e.DefectWarehouseQuantity,
             DefectScrapQuantity = e.DefectScrapQuantity,
             DefectDescription = e.DefectDescription,
-            InspectionType = e.InspectionType,
+            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(e.InspectionType),
             DefectReworkWeight = e.DefectReworkWeight,
             DefectWarehouseWeight = e.DefectWarehouseWeight,
             DefectScrapWeight = e.DefectScrapWeight,
@@ -1420,52 +1487,74 @@ public class FinalInspectionService : IFinalInspectionService
         if (string.IsNullOrWhiteSpace(batchNo))
             return null;
 
-        var batch = await _context.ProductionBatches
+        var raw = await _context.ProductionBatches
             .AsNoTracking()
             .Where(b => b.BatchNo == batchNo)
-            .Select(b => new BatchLookupResultDto
+            .Select(b => new
             {
                 ProductionBatchId = b.Id,
-                ManufacturingItem = b.ManufacturingItem,
-                TagNo = b.TagNo,
-                WorkOrderNo = b.WorkOrderNo,
-                SalesOrderNo = b.SalesOrderNo,
+                b.ManufacturingItem,
+                b.TagNo,
+                b.WorkOrderNo,
+                b.SalesOrderNo,
                 SourceUnit = b.SourceName,
                 FurnaceNo = b.SourceHeatNo,
-                PlantGrade = b.PlantGrade,
-                Specification = b.Specification,
-                ProductionType = b.ProductionType,
-                Salesman = b.Salesman,
-                DeliveryState = b.DeliveryState,
-                ManufacturingStatus = b.ManufacturingStatus,
-                EndCustomer = b.EndCustomer,
+                b.PlantGrade,
+                b.Specification,
+                b.ProductionType,
+                b.Salesman,
+                b.DeliveryState,
+                b.ManufacturingStatus,
+                b.EndCustomer,
                 ProductionCutQuantity = b.CutRequirement
                     ? b.CutQuantity
                     : b.TheoreticalOutputQty,
                 ProductionWeight = b.TheoreticalOutputWeight,
-                LengthStatus = b.LengthStatus,
-                FixedLength = b.LengthStatus == LengthStatus.Fixed.ToString() && b.MinLength.HasValue
-                    ? b.MinLength.Value.ToString("G29")
-                    : null,
+                b.LengthStatus,
+                b.MinLength,
                 // 单支重（与 CreateAsync 自动填充逻辑一致）：定尺=产品单支量（1位小数），非定尺=理论单支重
                 UnitWeight = b.ProductUnitWeight ?? b.TheoreticalUnitWeight
             })
             .FirstOrDefaultAsync();
 
-        if (batch != null)
+        if (raw == null) return null;
+
+        var batch = new BatchLookupResultDto
         {
-            // 成检类型：优先正式成检，其次预成检；无到料则不带出（提交时由「无成检到料」校验拦截）
-            var mrCheckTypes = await _context.MaterialReceiveChecks
-                .AsNoTracking()
-                .Where(m => m.ProductionBatchId == batch.ProductionBatchId)
-                .Select(m => m.InspectionType)
-                .ToListAsync();
-            batch.InspectionType = mrCheckTypes.Contains(nameof(InspectionType.FormalInspection))
-                ? nameof(InspectionType.FormalInspection)
-                : mrCheckTypes.Contains(nameof(InspectionType.PreInspection))
-                    ? nameof(InspectionType.PreInspection)
-                    : null;
-        }
+            ProductionBatchId = raw.ProductionBatchId,
+            ManufacturingItem = raw.ManufacturingItem,
+            TagNo = raw.TagNo,
+            WorkOrderNo = raw.WorkOrderNo,
+            SalesOrderNo = raw.SalesOrderNo,
+            SourceUnit = raw.SourceUnit,
+            FurnaceNo = raw.FurnaceNo,
+            PlantGrade = raw.PlantGrade,
+            Specification = raw.Specification,
+            ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(raw.ProductionType),
+            Salesman = raw.Salesman,
+            DeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(raw.DeliveryState),
+            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(raw.ManufacturingStatus),
+            EndCustomer = raw.EndCustomer,
+            ProductionCutQuantity = raw.ProductionCutQuantity,
+            ProductionWeight = raw.ProductionWeight,
+            LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(raw.LengthStatus),
+            FixedLength = raw.LengthStatus == LengthStatus.Fixed.ToString() && raw.MinLength.HasValue
+                ? raw.MinLength.Value.ToString("G29")
+                : null,
+            UnitWeight = raw.UnitWeight
+        };
+
+        // 成检类型：优先正式成检，其次预成检；无到料则不带出（提交时由「无成检到料」校验拦截）
+        var mrCheckTypes = await _context.MaterialReceiveChecks
+            .AsNoTracking()
+            .Where(m => m.ProductionBatchId == batch.ProductionBatchId)
+            .Select(m => m.InspectionType)
+            .ToListAsync();
+        batch.InspectionType = mrCheckTypes.Contains(nameof(InspectionType.FormalInspection))
+            ? MES.Core.Enums.InspectionType.FormalInspection
+            : mrCheckTypes.Contains(nameof(InspectionType.PreInspection))
+                ? MES.Core.Enums.InspectionType.PreInspection
+                : (MES.Core.Enums.InspectionType?)null;
 
         return batch;
     }

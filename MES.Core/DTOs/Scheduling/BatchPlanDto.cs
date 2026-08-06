@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 
@@ -103,8 +104,8 @@ public class BatchPlanDto
     {
         get
         {
-            // 生产关注工序=收尾-成检 → 始终流转
-            if (MainNoAttentionProcess == "收尾-成检")
+            // 生产关注工序为空（无关注工序，即收尾阶段）→ 始终流转
+            if (string.IsNullOrEmpty(MainNoAttentionProcess))
                 return FlowTrigger.AttentionProcess;
 
             var isUrgent = UrgencyLevel == "A+急" || UrgencyLevel == "A急";
@@ -143,7 +144,7 @@ public class BatchPlanDto
 
     /// <summary>
     /// 流转标注（UrgencyLevel 已由 Service COALESCE）：
-    /// 生产关注工序=收尾-成检 → true
+    /// 生产关注工序为空 → true
     /// 在轧要求=All → true；在轧要求=Urgent → true 仅当 IsKeyBatch
     /// 在轧要求=Partial1 → true 仅当 A+急/A急 且 (生产执行 或 原料锁定+催单/分批交货)（已合并到 Urgent）
     /// 在轧要求=Partial2 → true 仅当 A+急/A急
@@ -194,9 +195,9 @@ public class BatchPlanDto
     /// <summary>流转目标</summary>
     public string? FlowTarget => _trigger switch
     {
-        FlowTrigger.AttentionProcess => "成检",
-        FlowTrigger.CompletionType => "完工冷轧",
-        FlowTrigger.RollType => "冷轧",
+        FlowTrigger.AttentionProcess => FlowTargetKeys.Inspection,
+        FlowTrigger.CompletionType => FlowTargetKeys.CompletionColdRoll,
+        FlowTrigger.RollType => FlowTargetKeys.ColdRoll,
         _ => null,
     };
 
@@ -359,7 +360,7 @@ public class BatchPlanDto
 
             if (ExecutionSequence.Value >= PlanTargetSequence.Value)
             {
-                if (FlowTarget == "冷轧" && string.IsNullOrEmpty(PendingEquipment))
+                if (FlowTarget == FlowTargetKeys.ColdRoll && string.IsNullOrEmpty(PendingEquipment))
                     return "半达标";
                 return "达标";
             }

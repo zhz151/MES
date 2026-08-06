@@ -8,6 +8,7 @@
 @inject SectionOutsourceService SectionOutsourceService
 @inject BatchService BatchService
 @inject StandardWorkDayService StandardWorkDayService
+@inject ProcessDefinitionService ProcessDefinitionService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -185,6 +186,7 @@
 
 @code {
     private List<EditRow> _rows = new();
+    private List<ProcessInfoDto> _processOptions = new();
     private bool _isSubmitting;
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
@@ -340,6 +342,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadSectionOptionsAsync();
+        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("section-outsource-create", null);
         if (saved.Count > 0)
@@ -523,10 +526,11 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await ApplyAutoFillAsync(r); }));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var pn in ProcessNames.All)
+                    foreach (var opt in _processOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", pn);
+                        b.AddAttribute(1, "Value", opt.ProcessKey);
+                        b.AddAttribute(2, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
                         b.CloseComponent();
                     }
                 }));

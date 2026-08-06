@@ -83,11 +83,11 @@ public class RepairOrderService : IRepairOrderService
         if (query.EquipmentId.HasValue)
             baseQuery = baseQuery.Where(x => x.Order.EquipmentId == query.EquipmentId.Value);
 
-        if (!string.IsNullOrEmpty(query.RepairStatus))
-            baseQuery = baseQuery.Where(x => x.Order.RepairStatus == query.RepairStatus);
+        if (query.RepairStatus.HasValue)
+            baseQuery = baseQuery.Where(x => x.Order.RepairStatus == query.RepairStatus.Value.ToString());
 
-        if (!string.IsNullOrEmpty(query.Priority))
-            baseQuery = baseQuery.Where(x => x.Order.Priority == query.Priority);
+        if (query.Priority.HasValue)
+            baseQuery = baseQuery.Where(x => x.Order.Priority == query.Priority.Value.ToString());
 
         if (query.ReportTimeFrom.HasValue)
             baseQuery = baseQuery.Where(x => x.Order.ReportTime >= query.ReportTimeFrom.Value);

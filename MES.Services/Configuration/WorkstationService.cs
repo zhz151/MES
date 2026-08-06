@@ -13,6 +13,7 @@ using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Constants;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
@@ -143,6 +144,10 @@ public class WorkstationService : IWorkstationService
 
     public async Task<bool> SaveAsync(WorkstationDto dto)
     {
+        // 工段必须是标准工段英文 Key（对齐 SectionKeys），防止手输/历史中文等非法值污染存储
+        if (!SectionKeys.IsKey(dto.SectionName))
+            throw new BusinessException($"工段必须是标准工段，当前值「{dto.SectionName}」不合法，请从工段下拉选择");
+
         if (dto.Id > 0)
         {
             // 更新

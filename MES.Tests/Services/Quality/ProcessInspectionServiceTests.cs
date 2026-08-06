@@ -70,7 +70,8 @@ public class ProcessInspectionServiceTests : TestBase
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ProcessInspectionService>.Instance,
             mockProductionRecordService.Object,
             configMock.Object,
-            new MemoryCache(new MemoryCacheOptions()));
+            new MemoryCache(new MemoryCacheOptions()),
+            CreateProcessDefinitionServiceMock());
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
@@ -259,7 +260,7 @@ public class ProcessInspectionServiceTests : TestBase
             ProcessGroupId = pg.Id,
             ProcessName = "60冷轧",
             SectionName = SectionKeys.ColdRollDraw,
-            ProductStatus = "成品"
+            ProductStatus = ProductStatuses.Finished
         });
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);

@@ -39,15 +39,7 @@ public class FixedLengthWorkOrderListDto
     public int ScheduleStage { get; set; }
 
     /// <summary>关注状态文本</summary>
-    public string ScheduleStageText => ScheduleStage switch
-    {
-        0 => "主号暂停",
-        1 => "主号完成",
-        2 => "原料锁定",
-        3 => "生产执行",
-        4 => "成品检验",
-        _ => ScheduleStage.ToString()
-    };
+    public string ScheduleStageText => IntStatusDisplayHelper.GetScheduleStageText(ScheduleStage);
 
     /// <summary>工单计划性（A+急/A急/B顺/C缓/D缓）</summary>
     public string? UrgencyLevel { get; set; }

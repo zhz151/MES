@@ -17,6 +17,7 @@ using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
+using MES.Core.Constants;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -57,15 +58,20 @@ public class SectionOutsourceService : ISectionOutsourceService
     private readonly IConfigParameterService _configService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private readonly IMemoryCache _cache;
+    private readonly ISectionNameDisplayService _sectionNameDisplay;
+    private readonly IProcessDefinitionService _processDefService;
 
     public SectionOutsourceService(AppDbContext context, ILogger<SectionOutsourceService> logger,
-        IProductionRecordService productionRecordService, IConfigParameterService configService, IMemoryCache cache)
+        IProductionRecordService productionRecordService, IConfigParameterService configService, IMemoryCache cache,
+        ISectionNameDisplayService sectionNameDisplay, IProcessDefinitionService processDefService)
     {
         _context = context;
         _logger = logger;
         _productionRecordService = productionRecordService;
         _configService = configService;
         _cache = cache;
+        _sectionNameDisplay = sectionNameDisplay;
+        _processDefService = processDefService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -392,8 +398,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             SequenceNumber = sequenceNumber,
             OutsourceVendor = request.OutsourceVendor,
             SendOutDate = request.SendOutDate,
-            SendQuantity = request.SendQuantity,
-            SendWeight = request.SendWeight,
+            SendQuantity = request.SendQuantity ?? 0,
+            SendWeight = request.SendWeight ?? 0,
             Status = SectionOutsourceStatus.PendingRecovery,
             TagNo = request.TagNo ?? batch.TagNo,
             PlantGrade = request.PlantGrade ?? batch.PlantGrade,
@@ -574,8 +580,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SequenceNumber = sequenceNumber,
                 OutsourceVendor = request.OutsourceVendor,
                 SendOutDate = request.SendOutDate,
-                SendQuantity = request.SendQuantity,
-                SendWeight = request.SendWeight,
+                SendQuantity = request.SendQuantity ?? 0,
+                SendWeight = request.SendWeight ?? 0,
                 Status = SectionOutsourceStatus.PendingRecovery,
                 TagNo = request.TagNo ?? batch.TagNo,
                 PlantGrade = request.PlantGrade ?? batch.PlantGrade,
@@ -632,7 +638,7 @@ public class SectionOutsourceService : ISectionOutsourceService
 
         _logger.LogInformation("更新工段委外 (Id={Id})", id);
 
-        return ToDto(entity, entity.ProductionBatch.BatchNo);
+        return ToDto(entity, entity.ProductionBatch?.BatchNo ?? "");
     }
 
     public async Task DeleteAsync(int id)
@@ -1083,15 +1089,17 @@ public class SectionOutsourceService : ISectionOutsourceService
         if (items.Count == 0)
             throw new BusinessException("未找到选中的委外数据");
 
+        var sectionNameMap = await _sectionNameDisplay.GetSectionNameMapAsync();
+        var processNameMap = await _processDefService.GetProcessNameMapAsync();
         var data = items.Select(s => new Dictionary<string, object>
         {
             ["BatchNo"] = s.ProductionBatch.BatchNo,
             ["WorkOrderNo"] = s.ProductionBatch.WorkOrderNo ?? "",
             ["SalesOrderNo"] = s.ProductionBatch.SalesOrderNo ?? "",
             ["ProductionMainNo"] = s.ProductionBatch.ProductionMainNo ?? "",
-            ["ProcessName"] = s.ProcessName,
+            ["ProcessName"] = ProcessDisplayText(s.ProcessName, processNameMap),
             ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
-            ["SectionName"] = s.SectionName,
+            ["SectionName"] = SectionDisplayText(s.SectionName, sectionNameMap),
             ["SequenceNumber"] = s.SequenceNumber,
             ["OutsourceVendor"] = s.OutsourceVendor,
             ["SendOutDate"] = s.SendOutDate.ToString("yyyy-MM-dd"),
@@ -1103,7 +1111,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["OutsourceSpec"] = s.OutsourceSpec ?? "",
             ["ExpectedReturnDate"] = s.ExpectedReturnDate?.ToString("yyyy-MM-dd") ?? "",
             ["IsUrgent"] = s.IsUrgent ? "是" : "否",
-            ["ProductStatus"] = s.ProductStatus ?? "在制",
+            ["ProductStatus"] = DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, s.ProductStatus) ?? "在制",
             ["TotalRecoveredQuantity"] = s.OutsourceRecoveries.Sum(r => r.RecoveryQuantity) ?? 0,
             ["TotalRecoveredWeight"] = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight) ?? 0,
             ["TotalUnprocessedQuantity"] = s.OutsourceRecoveries.Sum(r => r.UnprocessedQuantity) ?? 0,
@@ -1138,6 +1146,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             ActualRecoveryDateTo = actualRecoveryDateTo
         };
         var paged = await GetPagedAsync(query);
+        var sectionNameMap = await _sectionNameDisplay.GetSectionNameMapAsync();
+        var processNameMap = await _processDefService.GetProcessNameMapAsync();
 
         var data = paged.Items.Select(s => new Dictionary<string, object>
         {
@@ -1145,9 +1155,9 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["WorkOrderNo"] = s.WorkOrderNo ?? "",
             ["SalesOrderNo"] = s.SalesOrderNo ?? "",
             ["ProductionMainNo"] = s.ProductionMainNo ?? "",
-            ["ProcessName"] = s.ProcessName,
+            ["ProcessName"] = ProcessDisplayText(s.ProcessName, processNameMap),
             ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
-            ["SectionName"] = s.SectionName,
+            ["SectionName"] = SectionDisplayText(s.SectionName, sectionNameMap),
             ["SequenceNumber"] = s.SequenceNumber,
             ["OutsourceVendor"] = s.OutsourceVendor,
             ["SendOutDate"] = s.SendOutDate.ToString("yyyy-MM-dd"),
@@ -1159,7 +1169,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["OutsourceSpec"] = s.OutsourceSpec ?? "",
             ["ExpectedReturnDate"] = s.ExpectedReturnDate?.ToString("yyyy-MM-dd") ?? "",
             ["IsUrgent"] = s.IsUrgent ? "是" : "否",
-            ["ProductStatus"] = s.ProductStatus ?? "在制",
+            ["ProductStatus"] = DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, s.ProductStatus) ?? "在制",
             ["TotalRecoveredQuantity"] = s.TotalRecoveredQuantity ?? 0,
             ["TotalRecoveredWeight"] = s.TotalRecoveredWeight ?? 0,
             ["TotalUnprocessedQuantity"] = s.TotalUnprocessedQuantity ?? 0,
@@ -1185,13 +1195,15 @@ public class SectionOutsourceService : ISectionOutsourceService
         if (items.Count == 0)
             throw new BusinessException("未找到选中的回收数据");
 
+        var sectionNameMap = await _sectionNameDisplay.GetSectionNameMapAsync();
+        var processNameMap = await _processDefService.GetProcessNameMapAsync();
         var data = items.Select(r => new Dictionary<string, object>
         {
             ["RecoveryDate"] = r.RecoveryDate.ToString("yyyy-MM-dd"),
             ["BatchNo"] = r.SectionOutsource.ProductionBatch.BatchNo,
             ["OutsourceVendor"] = r.SectionOutsource.OutsourceVendor,
-            ["ProcessName"] = r.SectionOutsource.ProcessName,
-            ["SectionName"] = r.SectionOutsource.SectionName,
+            ["ProcessName"] = ProcessDisplayText(r.SectionOutsource.ProcessName, processNameMap),
+            ["SectionName"] = SectionDisplayText(r.SectionOutsource.SectionName, sectionNameMap),
             ["ManufacturingSpec"] = r.SectionOutsource.ManufacturingSpec ?? "",
             ["OutsourceSpec"] = r.SectionOutsource.OutsourceSpec ?? "",
             ["SendQuantity"] = r.SectionOutsource.SendQuantity ?? 0,
@@ -1225,14 +1237,16 @@ public class SectionOutsourceService : ISectionOutsourceService
             RecoveryDateTo = recoveryDateTo
         };
         var paged = await GetRecoveriesPagedAsync(query);
+        var sectionNameMap = await _sectionNameDisplay.GetSectionNameMapAsync();
+        var processNameMap = await _processDefService.GetProcessNameMapAsync();
 
         var data = paged.Items.Select(r => new Dictionary<string, object>
         {
             ["RecoveryDate"] = r.RecoveryDate.ToString("yyyy-MM-dd"),
             ["BatchNo"] = r.BatchNo ?? "",
             ["OutsourceVendor"] = r.OutsourceVendor ?? "",
-            ["ProcessName"] = r.ProcessName ?? "",
-            ["SectionName"] = r.SectionName ?? "",
+            ["ProcessName"] = ProcessDisplayText(r.ProcessName, processNameMap),
+            ["SectionName"] = SectionDisplayText(r.SectionName, sectionNameMap),
             ["ManufacturingSpec"] = r.ManufacturingSpec ?? "",
             ["OutsourceSpec"] = r.OutsourceSpec ?? "",
             ["SendQuantity"] = r.SendQuantity ?? 0,
@@ -1249,6 +1263,22 @@ public class SectionOutsourceService : ISectionOutsourceService
         }).ToList();
 
         return TablePrintHelper.GeneratePdf("委外回收列表", data, columns);
+    }
+
+    /// <summary>工段 Key/中文 → 打印显示中文（配置表优先，SectionKeys 兜底）</summary>
+    private static string SectionDisplayText(string? keyOrName, IReadOnlyDictionary<string, string>? sectionNameMap)
+    {
+        if (!string.IsNullOrEmpty(keyOrName) && sectionNameMap != null && sectionNameMap.TryGetValue(keyOrName, out var cn))
+            return cn;
+        return SectionKeys.ToChinese(keyOrName) ?? "";
+    }
+
+    /// <summary>工序 Key/中文 → 打印显示中文（配置表优先，ProcessKeys 兜底）</summary>
+    private static string ProcessDisplayText(string? keyOrName, IReadOnlyDictionary<string, string>? processNameMap)
+    {
+        if (!string.IsNullOrEmpty(keyOrName) && processNameMap != null && processNameMap.TryGetValue(keyOrName, out var cn))
+            return cn;
+        return ProcessKeys.ToChinese(keyOrName) ?? "";
     }
 
     // IMemoryCache 由构造函数注入，用于 GetFilterContexts 缓存

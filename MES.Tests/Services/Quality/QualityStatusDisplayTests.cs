@@ -16,9 +16,9 @@ public class QualityStatusDisplayTests
     {
         var dto = new MaterialReceiveCheckDto
         {
-            InspectionType = "FormalInspection",
-            ManufacturingStatus = "SolutionAnnealedAndPickled",
-            RawDeliveryState = "SolutionAnnealedAndPickled"
+            InspectionType = MES.Core.Enums.InspectionType.FormalInspection,
+            ManufacturingStatus = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled,
+            RawDeliveryState = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled
         };
 
         dto.IsFormalInspection.Should().BeTrue();
@@ -31,9 +31,9 @@ public class QualityStatusDisplayTests
     {
         var dto = new MaterialReceiveCheckDto
         {
-            InspectionType = "PreInspection",
-            ManufacturingStatus = "SolutionAnnealedAndPickled",
-            RawDeliveryState = "SolutionAnnealedAndPickled"
+            InspectionType = MES.Core.Enums.InspectionType.PreInspection,
+            ManufacturingStatus = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled,
+            RawDeliveryState = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled
         };
 
         dto.IsFormalInspection.Should().BeFalse();
@@ -47,7 +47,7 @@ public class QualityStatusDisplayTests
         var dto = new MaterialReceiveCheckDto
         {
             InspectionType = null,
-            ManufacturingStatus = "SolutionAnnealedAndPickled"
+            ManufacturingStatus = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled
         };
 
         dto.IsFormalInspection.Should().BeFalse();
@@ -60,7 +60,7 @@ public class QualityStatusDisplayTests
     {
         var dto = new MaterialReceiveCheckDto
         {
-            InspectionType = "FormalInspection",
+            InspectionType = MES.Core.Enums.InspectionType.FormalInspection,
             ManufacturingStatus = null
         };
 
@@ -78,9 +78,9 @@ public class QualityStatusDisplayTests
     {
         var dto = new FinalInspectionDto
         {
-            InspectionType = "FormalInspection",
-            ManufacturingStatus = "SolutionAnnealedAndPickled",
-            DeliveryState = "SolutionAnnealedAndPickled"
+            InspectionType = MES.Core.Enums.InspectionType.FormalInspection,
+            ManufacturingStatus = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled,
+            DeliveryState = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled
         };
 
         dto.IsFormalInspection.Should().BeTrue();
@@ -93,9 +93,9 @@ public class QualityStatusDisplayTests
     {
         var dto = new FinalInspectionDto
         {
-            InspectionType = "PreInspection",
-            ManufacturingStatus = "SolutionAnnealedAndPickled",
-            DeliveryState = "SolutionAnnealedAndPickled"
+            InspectionType = MES.Core.Enums.InspectionType.PreInspection,
+            ManufacturingStatus = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled,
+            DeliveryState = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled
         };
 
         dto.IsFormalInspection.Should().BeFalse();
@@ -108,7 +108,7 @@ public class QualityStatusDisplayTests
     {
         var dto = new FinalInspectionDto
         {
-            InspectionType = "FormalInspection",
+            InspectionType = MES.Core.Enums.InspectionType.FormalInspection,
             ManufacturingStatus = null,
             DeliveryState = null
         };
@@ -127,8 +127,8 @@ public class QualityStatusDisplayTests
     {
         var dto = new QualityProcessTrackingDto
         {
-            InspectionType = "FormalInspection",
-            ManufacturingStatus = "SolutionAnnealedAndPickled",
+            InspectionType = MES.Core.Enums.InspectionType.FormalInspection,
+            ManufacturingStatus = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled,
             IsDeliveryStatus = "是"
         };
 
@@ -142,8 +142,8 @@ public class QualityStatusDisplayTests
     {
         var dto = new QualityProcessTrackingDto
         {
-            InspectionType = "PreInspection",
-            ManufacturingStatus = "SolutionAnnealedAndPickled",
+            InspectionType = MES.Core.Enums.InspectionType.PreInspection,
+            ManufacturingStatus = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled,
             IsDeliveryStatus = "是"
         };
 
@@ -158,7 +158,7 @@ public class QualityStatusDisplayTests
         var dto = new QualityProcessTrackingDto
         {
             InspectionType = null,
-            ManufacturingStatus = "SolutionAnnealedAndPickled",
+            ManufacturingStatus = MES.Core.Enums.DeliveryState.SolutionAnnealedAndPickled,
             IsDeliveryStatus = "是"
         };
 

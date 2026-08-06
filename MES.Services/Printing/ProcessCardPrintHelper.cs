@@ -44,7 +44,7 @@ namespace MES.Services.Printing;
 /// </summary>
 public static class ProcessCardPrintHelper
 {
-    public static byte[] GeneratePdf(string title, List<ProductionBatch> batches, List<ProcessCardColumnDef> columns, string? companyName = null, IReadOnlyDictionary<string, string>? sectionNameMap = null)
+    public static byte[] GeneratePdf(string title, List<ProductionBatch> batches, List<ProcessCardColumnDef> columns, string? companyName = null, IReadOnlyDictionary<string, string>? sectionNameMap = null, IReadOnlyDictionary<string, string>? processNameMap = null)
     {
         var visibleCols = columns.Where(c => c.Visible).ToList();
 
@@ -62,7 +62,7 @@ public static class ProcessCardPrintHelper
 
                     var displayTitle = string.IsNullOrEmpty(companyName) ? title : $"{companyName} - {title}";
                     page.Header().Element(h => ComposeHeader(h, displayTitle, batch));
-                    page.Content().Element(c => ComposeContent(c, batch, groups, visibleCols, sectionNameMap));
+                    page.Content().Element(c => ComposeContent(c, batch, groups, visibleCols, sectionNameMap, processNameMap));
                 });
             }
         }).GeneratePdf();
@@ -97,14 +97,14 @@ public static class ProcessCardPrintHelper
 
     // ========== 内容 ==========
 
-    private static void ComposeContent(IContainer container, ProductionBatch batch, List<ProcessGroup> groups, List<ProcessCardColumnDef> visibleCols, IReadOnlyDictionary<string, string>? sectionNameMap = null)
+    private static void ComposeContent(IContainer container, ProductionBatch batch, List<ProcessGroup> groups, List<ProcessCardColumnDef> visibleCols, IReadOnlyDictionary<string, string>? sectionNameMap = null, IReadOnlyDictionary<string, string>? processNameMap = null)
     {
         container.Column(col =>
         {
             bool anyBlockRendered = false;
 
             // Block 1: 批次基本信息（多列2行）
-            var batchInfoFields = GetBatchInfoFields(batch, visibleCols, sectionNameMap);
+            var batchInfoFields = GetBatchInfoFields(batch, visibleCols, sectionNameMap, processNameMap);
             if (batchInfoFields.Count > 0)
             {
                 col.Item().Element(c => ComposeBlockTable(c, "批次基本信息", batchInfoFields, rows: 2, rowCols: new[] { 9, 11 },
@@ -164,7 +164,7 @@ public static class ProcessCardPrintHelper
                     if (c.Key.Equals("Remark", StringComparison.OrdinalIgnoreCase)) return 4;
                     return narrowKeys.Contains(c.Key) ? 1 : 3;
                 }).ToArray();
-                col.Item().Element(c => ComposeProcessGroupTable(c, groups, pgColumns, ratios));
+                col.Item().Element(c => ComposeProcessGroupTable(c, groups, pgColumns, ratios, processNameMap));
             }
 
         });
@@ -255,7 +255,7 @@ public static class ProcessCardPrintHelper
     }
 
     /// <summary>工序组动态列表格</summary>
-    private static void ComposeProcessGroupTable(IContainer container, List<ProcessGroup> groups, List<(string Key, string Label)> columns, int[]? columnRatios = null)
+    private static void ComposeProcessGroupTable(IContainer container, List<ProcessGroup> groups, List<(string Key, string Label)> columns, int[]? columnRatios = null, IReadOnlyDictionary<string, string>? processNameMap = null)
     {
         if (groups.Count == 0 || columns.Count == 0) return;
 
@@ -289,7 +289,7 @@ public static class ProcessCardPrintHelper
                 table.Cell().Element(CellStyle).Text(seq.ToString()).FontSize(9).AlignCenter();
                 foreach (var (key, _) in columns)
                 {
-                    var value = GetProcessGroupFieldValue(g, key);
+                    var value = GetProcessGroupFieldValue(g, key, processNameMap);
                     table.Cell().Element(CellStyle).Text(value).FontSize(9).AlignCenter();
                 }
             }
@@ -321,11 +321,6 @@ public static class ProcessCardPrintHelper
             .AlignMiddle();
     }
 
-    private static IContainer EmptyBorderCell(IContainer container)
-    {
-        return container.Border(0.3f).BorderColor(Colors.Grey.Lighten2);
-    }
-
     private static IContainer CellStyle(IContainer container)
     {
         return container.Border(0.3f).BorderColor(Colors.Grey.Lighten2)
@@ -343,7 +338,7 @@ public static class ProcessCardPrintHelper
 
     // ========== 字段值提取 ==========
 
-    private static List<(string Label, string Value)> GetBatchInfoFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols, IReadOnlyDictionary<string, string>? sectionNameMap = null)
+    private static List<(string Label, string Value)> GetBatchInfoFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols, IReadOnlyDictionary<string, string>? sectionNameMap = null, IReadOnlyDictionary<string, string>? processNameMap = null)
     {
         var map = new Dictionary<string, (string Label, Func<string> Value)>
         {
@@ -357,14 +352,14 @@ public static class ProcessCardPrintHelper
             ["CurrentExecDate"] = ("截止执行日", () => b.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "-"),
             ["ManufacturingItem"] = ("制造物品", () => EnumHelper.GetDisplayName<MaterialType>(b.ManufacturingItem)),
             ["ManufacturingStatus"] = ("制造状态", () => string.IsNullOrEmpty(b.ManufacturingStatus) ? "-" : (Enum.TryParse<DeliveryState>(b.ManufacturingStatus, out var ms) ? EnumHelper.GetDisplayName(ms) : b.ManufacturingStatus)),
-            ["CurrentGroupName"] = ("当前工序", () => b.CurrentGroupName ?? "-"),
+            ["CurrentGroupName"] = ("当前工序", () => ProcessDisplayText(b.CurrentGroupName, processNameMap) ?? "-"),
             ["CurrentSectionName"] = ("当前工段", () => SectionDisplayText(b.CurrentSectionName, sectionNameMap) ?? "-"),
             ["CurrentEquipmentName"] = ("当前设备", () => b.CurrentEquipmentName ?? "-"),
             ["CurrentOutsource"] = ("当前委外", () => b.CurrentOutsource ?? "-"),
             ["CurrentSpec"] = ("当前规格", () => b.CurrentSpec ?? "-"),
             ["NextSectionName"] = ("下一工段", () => SectionDisplayText(b.NextSectionName, sectionNameMap) ?? "-"),
             ["CorrespondingSpec"] = ("对应规格", () => b.CorrespondingSpec ?? "-"),
-            ["NextProcess"] = ("下一工序", () => b.NextProcess ?? "-"),
+            ["NextProcess"] = ("下一工序", () => ProcessDisplayText(b.NextProcess, processNameMap) ?? "-"),
             ["CreatedBy"] = ("创建人", () => b.CreatedBy ?? "-"),
             ["CreatedTime"] = ("创建时间", () => b.CreatedTime.ToString("yyyy-MM-dd HH:mm")),
         };
@@ -447,11 +442,11 @@ public static class ProcessCardPrintHelper
             .ToList();
     }
 
-    private static string GetProcessGroupFieldValue(ProcessGroup g, string key)
+    private static string GetProcessGroupFieldValue(ProcessGroup g, string key, IReadOnlyDictionary<string, string>? processNameMap = null)
     {
         return key switch
         {
-            "ProcessName" => g.ProcessName,
+            "ProcessName" => ProcessDisplayText(g.ProcessName, processNameMap),
             "ManufacturingSpec" => g.ManufacturingSpec ?? "-",
             "OuterDiameterTolerance" => g.OuterDiameterTolerance ?? "-",
             "WallThicknessTolerance" => g.WallThicknessTolerance ?? "-",
@@ -512,6 +507,16 @@ public static class ProcessCardPrintHelper
         if (!string.IsNullOrEmpty(keyOrName) && sectionNameMap != null && sectionNameMap.TryGetValue(keyOrName, out var cn))
             return cn;
         return SectionKeys.ToChinese(keyOrName);
+    }
+
+    /// <summary>
+    /// 工序 Key → 中文：配置表 map 优先，兜底 ProcessKeys 规范中文（未知值原样返回）。
+    /// </summary>
+    private static string ProcessDisplayText(string? keyOrName, IReadOnlyDictionary<string, string>? processNameMap)
+    {
+        if (!string.IsNullOrEmpty(keyOrName) && processNameMap != null && processNameMap.TryGetValue(keyOrName, out var cn))
+            return cn;
+        return ProcessKeys.ToChinese(keyOrName) ?? "";
     }
 
 }

@@ -1,11 +1,15 @@
 @* 文件路径: MES.Blazor/Shared/MainLayout.razor *@
 @using MES.Blazor.Services
 @using MES.Blazor.Helpers
+@using MES.Core.Helpers
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthProvider
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject IJSRuntime JSRuntime
 @inject StandardWorkDayService StandardWorkDayService
+@inject ProcessDefinitionService ProcessDefinitionService
+@inject EnumDisplayDefinitionService EnumDisplayDefinitionService
+@inject DictValueDefinitionService DictValueDefinitionService
 @implements IDisposable
 
 <MudThemeProvider />
@@ -172,6 +176,9 @@
                     <MudNavLink Href="/daily-output-estimates">生产-规格日产预估</MudNavLink>
                     <MudNavLink Href="/standard-work-days">生产-工段工量天数</MudNavLink>
                     <MudNavLink Href="/standard-work-day-delivery-states">生产-交态附加天数</MudNavLink>
+                    <MudNavLink Href="/process-definitions">生产-工序组定义</MudNavLink>
+                    <MudNavLink Href="/enum-display-definitions">参数-枚举显示配置</MudNavLink>
+                    <MudNavLink Href="/dict-value-definitions">参数-字典显示配置</MudNavLink>
                     <MudNavLink Href="/config-parameters">默认配置-系统参数</MudNavLink>
                     <MudNavLink Href="/workstations">扫码-工位管理</MudNavLink>
                     <MudNavLink Href="/employees">扫码-员工管理</MudNavLink>
@@ -198,12 +205,50 @@
     protected override async Task OnInitializedAsync()
     {
         AuthProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
-        await AuthProvider.GetAuthenticationStateAsync();
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+
+        // 未登录不预加载显示映射：避免未认证 API 调用触发 AuthHttpClient
+        // 401 → 刷新失败 → NavigateTo("/login", true) 强制重载 → 无限循环
+        if (authState.User.Identity?.IsAuthenticated != true)
+            return;
 
         // 预加载工段显示映射（Key→中文），供全站 SectionDisplayHelper 显示使用
         var sectionNameMap = await StandardWorkDayService.GetSectionNameMapAsync();
         if (sectionNameMap != null)
             SectionDisplayHelper.OverrideMap = sectionNameMap;
+
+        // 预加载工序组显示映射（Key→中文），供全站 ProcessDisplayHelper 显示使用
+        var processNameMap = await ProcessDefinitionService.GetProcessNameMapAsync();
+        if (processNameMap != null)
+            ProcessDisplayHelper.OverrideMap = processNameMap;
+
+        // 预加载枚举显示配置（EnumKey→Value→DisplayName），注入 EnumHelper 覆盖
+        // （配置表优先，兜底 EnumHelper 静态字典），全站 DisplayHelper/DataExchange/打印自动生效
+        var enumDisplayMap = await EnumDisplayDefinitionService.GetDisplayMapAsync();
+        if (enumDisplayMap != null)
+        {
+            foreach (var kvp in enumDisplayMap)
+                EnumHelper.ApplyEnumOverrides(kvp.Key, kvp.Value);
+        }
+
+        // 预加载枚举排序配置（EnumKey→有序选项），注入 EnumHelper.ApplyEnumOrder，
+        // 列筛选/表单下拉按 DisplayOrder 排序
+        var enumOptionsMap = await EnumDisplayDefinitionService.GetOptionsMapAsync();
+        if (enumOptionsMap != null)
+        {
+            foreach (var kvp in enumOptionsMap)
+            {
+                var order = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var opt in kvp.Value)
+                    order[opt.Value] = opt.DisplayOrder;
+                EnumHelper.ApplyEnumOrder(kvp.Key, order);
+            }
+        }
+
+        // 预加载字典显示映射（DictKey→Value→DisplayName），供 DictValueDisplayHelper 显示使用
+        var dictDisplayMap = await DictValueDefinitionService.GetDisplayMapAsync();
+        if (dictDisplayMap != null)
+            DictValueDisplayHelper.OverrideMap = dictDisplayMap;
     }
 
     private void OnAuthenticationStateChanged(Task<AuthenticationState> task)

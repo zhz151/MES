@@ -8,8 +8,8 @@ public class SupplierProfileDto
     public int Id { get; set; }
     public string SupplierCode { get; set; } = null!;
     public string SupplierName { get; set; } = null!;
-    public string? MaterialCategory { get; set; }
-    public string? MaterialCategoryDisplay => MaterialCategory != null ? EnumHelper.GetDisplayName<MaterialType>(MaterialCategory) : null;
+    public MaterialType? MaterialCategory { get; set; }
+    public string? MaterialCategoryDisplay => MaterialCategory.HasValue ? EnumHelper.GetDisplayName(MaterialCategory.Value) : null;
     public string? ContactPerson { get; set; }
     public string? ContactPhone { get; set; }
     public string? Address { get; set; }
@@ -21,7 +21,7 @@ public class SupplierProfileDto
 public class CreateSupplierRequest
 {
     public string SupplierName { get; set; } = null!;
-    public string? MaterialCategory { get; set; }
+    public MaterialType? MaterialCategory { get; set; }
     public string? ContactPerson { get; set; }
     public string? ContactPhone { get; set; }
     public string? Address { get; set; }
@@ -32,7 +32,7 @@ public class CreateSupplierRequest
 public class UpdateSupplierRequest
 {
     public string? SupplierName { get; set; }
-    public string? MaterialCategory { get; set; }
+    public MaterialType? MaterialCategory { get; set; }
     public string? ContactPerson { get; set; }
     public string? ContactPhone { get; set; }
     public string? Address { get; set; }

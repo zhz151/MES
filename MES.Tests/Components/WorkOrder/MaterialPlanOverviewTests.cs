@@ -231,7 +231,7 @@ public class MaterialPlanOverviewTests : IDisposable
     [Theory]
     [InlineData(0, "未计划")]
     [InlineData(1, "部分")]
-    [InlineData(3, "全部满足")]
+    [InlineData(3, "满足")]
     public void OrderStatusText_ShowsCorrectLabel(int status, string expected)
     {
         ConfigureResponse(r =>

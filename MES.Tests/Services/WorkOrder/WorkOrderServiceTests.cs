@@ -90,7 +90,7 @@ public class WorkOrderServiceTests : TestBase
         // 变更为已确认
         await orderSvc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
-            Status = SalesOrderStatus.Confirmed.ToString(),
+            Status = SalesOrderStatus.Confirmed,
             RowVersion = new byte[8]
         });
 

@@ -1,5 +1,6 @@
 // 文件路径: MES.Core/DTOs/UpdateSalesOrderRequest.cs
 using System.ComponentModel.DataAnnotations;
+using MES.Core.Enums;
 
 namespace MES.Core.DTOs.Order;
 
@@ -31,7 +32,7 @@ public class UpdateSalesOrderRequest
     /// <summary>
     /// 订单状态
     /// </summary>
-    public string? Status { get; set; }
+    public SalesOrderStatus? Status { get; set; }
 
     /// <summary>
     /// 乐观并发控制版本号

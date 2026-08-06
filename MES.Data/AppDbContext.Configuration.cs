@@ -14,7 +14,6 @@ public partial class AppDbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
             entity.Property(e => e.SectionKey).HasMaxLength(50);
-            entity.Property(e => e.EnglishName).HasMaxLength(100);
             entity.Property(e => e.DisplayOrder).IsRequired();
             entity.Property(e => e.IsEnabled).IsRequired();
             entity.Property(e => e.PlantGradePrefix).HasMaxLength(50);
@@ -23,6 +22,24 @@ public partial class AppDbContext
             entity.HasIndex(e => new { e.SectionName, e.PlantGradePrefix })
                 .IsUnique()
                 .HasDatabaseName("UK_SWD_SectionName_PlantGradePrefix");
+        });
+    }
+    private static void ConfigureProcessDefinition(ModelBuilder builder)
+    {
+        builder.Entity<ProcessDefinition>(entity =>
+        {
+            entity.ToTable("ProcessDefinitions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProcessKey).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ProcessName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DisplayOrder).IsRequired();
+            entity.Property(e => e.IsEnabled).IsRequired();
+            entity.Property(e => e.IsColdRoll).IsRequired();
+            entity.Property(e => e.IsColdDraw).IsRequired();
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            entity.HasIndex(e => e.ProcessKey)
+                .IsUnique()
+                .HasDatabaseName("UK_PD_ProcessKey");
         });
     }
     private static void ConfigureStandardWorkDayDeliveryState(ModelBuilder builder)
@@ -38,6 +55,39 @@ public partial class AppDbContext
             entity.HasIndex(e => new { e.DeliveryState, e.PlantGradePrefix })
                 .IsUnique()
                 .HasDatabaseName("UK_SWDDS_DeliveryState_PlantGradePrefix");
+        });
+    }
+    private static void ConfigureEnumDisplayDefinition(ModelBuilder builder)
+    {
+        builder.Entity<EnumDisplayDefinition>(entity =>
+        {
+            entity.ToTable("EnumDisplayDefinitions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.EnumKey).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Value).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DisplayOrder).IsRequired();
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            entity.HasIndex(e => new { e.EnumKey, e.Value })
+                .IsUnique()
+                .HasDatabaseName("UK_EDD_EnumKey_Value");
+        });
+    }
+    private static void ConfigureDictValueDefinition(ModelBuilder builder)
+    {
+        builder.Entity<DictValueDefinition>(entity =>
+        {
+            entity.ToTable("DictValueDefinitions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.DictKey).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Value).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DisplayOrder).IsRequired();
+            entity.Property(e => e.IsEnabled).IsRequired();
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            entity.HasIndex(e => new { e.DictKey, e.Value })
+                .IsUnique()
+                .HasDatabaseName("UK_DVD_DictKey_Value");
         });
     }
     private static void ConfigureConfigParameter(ModelBuilder builder)

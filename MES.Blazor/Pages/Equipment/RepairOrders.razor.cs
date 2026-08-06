@@ -88,9 +88,9 @@ public partial class RepairOrders
         new() { Key = "FaultDescription", Label = "故障描述",   SortKey = "faultdescription", FilterType = "string", IsRequired = true },
         new() { Key = "FaultType",      Label = "故障类型",   SortKey = "faulttype", FilterType = "string" },
         new() { Key = "Priority",       Label = "优先级",     SortKey = "priority", FilterType = "enum",
-            EnumOptions = new() { new("Normal", "普通"), new("Urgent", "紧急"), new("Emergency", "特急") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<RepairPriority>() },
         new() { Key = "RepairStatus",   Label = "维修状态", SortKey = "repairstatus", FilterType = "enum",
-            EnumOptions = new() { new("Pending", "待维修"), new("InProgress", "维修中"), new("Completed", "完成") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<RepairOrderStatus>() },
         new() { Key = "ReportPerson",   Label = "报修人",     SortKey = "reportperson", FilterType = "string", IsRequired = true },
         new() { Key = "ReportTime",     Label = "报修时间",   SortKey = "reporttime", FilterType = "date", IsRequired = true },
         new() { Key = "RepairPerson",   Label = "维修人",     SortKey = "repairperson", FilterType = "string" },
@@ -445,11 +445,11 @@ public partial class RepairOrders
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<RepairPriority>(this, v => cache.Priority = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    foreach (var val in Enum.GetValues<RepairPriority>())
+                    foreach (var opt in DisplayHelper.GetEnumOptions<RepairPriority>())
                     {
                         cb.OpenComponent<MudSelectItem<RepairPriority>>(0);
-                        cb.AddAttribute(1, "Value", val);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetRepairPriorityText(val))));
+                        cb.AddAttribute(1, "Value", Enum.Parse<RepairPriority>(opt.Value));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                         cb.CloseComponent();
                     }
                 }));

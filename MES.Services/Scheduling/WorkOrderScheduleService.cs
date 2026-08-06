@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs.Auth;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -139,7 +140,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                 };
 
         // 筛选条件：排除"略"（已无关注的工单），即仅显示有关注价值的工单
-        q = q.Where(x => x.ProductionFlowProperty != null && x.ProductionFlowProperty != "略");
+        q = q.Where(x => x.ProductionFlowProperty != null && x.ProductionFlowProperty != ProductionFlowKeys.Skip);
 
         // 关键词搜索
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -266,7 +267,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     PlanProductionFlowProperty = p != null ? p.ProductionFlowProperty : null,
                 };
 
-        q = q.Where(x => x.ProductionFlowProperty != null && x.ProductionFlowProperty != "略");
+        q = q.Where(x => x.ProductionFlowProperty != null && x.ProductionFlowProperty != ProductionFlowKeys.Skip);
 
         var items = await q.OrderByDescending(x => x.DaysDiffFromDelivery).ToListAsync();
 
@@ -295,7 +296,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                 e.ProductionAttentionProcess,
                 e.ProductionFlowProperty,
             })
-            .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != "略")
+            .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != ProductionFlowKeys.Skip)
             .ToListAsync();
 
         return new Dictionary<string, List<string>>
@@ -359,7 +360,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
     public async Task<bool> PlanScheduleAllAsync(QueryParams query)
     {
         var q = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
-            .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != "略");
+            .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != ProductionFlowKeys.Skip);
 
         // 关键词搜索（同 GetPagedAsync）
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -437,7 +438,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
     public async Task<bool> PlanScheduleKeepAttentionAsync(QueryParams query)
     {
         var q = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
-            .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != "略");
+            .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != ProductionFlowKeys.Skip);
 
         if (!string.IsNullOrEmpty(query.Keyword))
         {

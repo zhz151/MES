@@ -61,26 +61,26 @@ public class FinalInspectionDto
     public string? NonFixedLengthRange { get; set; }
 
     /// <summary>生产类型</summary>
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
 
     /// <summary>业务员</summary>
     public string? Salesman { get; set; }
 
     /// <summary>长度状态</summary>
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
 
     /// <summary>交货状态</summary>
-    public string? DeliveryState { get; set; }
+    public DeliveryState? DeliveryState { get; set; }
 
     /// <summary>制造状态（来自关联生产批次）</summary>
-    public string? ManufacturingStatus { get; set; }
+    public DeliveryState? ManufacturingStatus { get; set; }
 
     /// <summary>
     /// 制造状态显示（仅正式成检有效；非正式成检/空统一显示 "-"）
     /// </summary>
     public string? ManufacturingStatusDisplay => !IsFormalInspection
         ? "-"
-        : !string.IsNullOrEmpty(ManufacturingStatus) && EnumHelper.TryParse<DeliveryState>(ManufacturingStatus) is { } ms ? EnumHelper.GetDisplayName(ms) : "-";
+        : ManufacturingStatus.HasValue ? EnumHelper.GetDisplayName(ManufacturingStatus.Value) : "-";
 
     /// <summary>最终用户（来自关联生产批次）</summary>
     public string? EndCustomer { get; set; }
@@ -96,15 +96,15 @@ public class FinalInspectionDto
     /// 仅正式成检时「制造状态/是否交付态」才有效，否则统一显示 "-"
     /// </summary>
     public bool IsFormalInspection =>
-        string.Equals(InspectionType, nameof(MES.Core.Enums.InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase);
+        InspectionType == MES.Core.Enums.InspectionType.FormalInspection;
 
     /// <summary>
     /// 是否交付态显示（制造状态==交货状态为"是"；仅正式成检有效，非正式成检显示 "-"）
     /// </summary>
     public string? IsDeliveryStatusDisplay => !IsFormalInspection
         ? "-"
-        : !string.IsNullOrEmpty(ManufacturingStatus) && !string.IsNullOrEmpty(DeliveryState)
-          && string.Equals(ManufacturingStatus, DeliveryState, StringComparison.OrdinalIgnoreCase) ? "是" : "否";
+        : ManufacturingStatus.HasValue && DeliveryState.HasValue
+          && ManufacturingStatus.Value == DeliveryState.Value ? "是" : "否";
 
     /// <summary>设备名称</summary>
     public string? EquipmentName { get; set; }
@@ -120,8 +120,8 @@ public class FinalInspectionDto
     public int? Quantity { get; set; }
 
     /// <summary>成检类型</summary>
-    public string? InspectionType { get; set; }
-    public string? InspectionTypeDisplay => !string.IsNullOrEmpty(InspectionType) && EnumHelper.TryParse<InspectionType>(InspectionType) is { } it ? EnumHelper.GetDisplayName(it) : null;
+    public InspectionType? InspectionType { get; set; }
+    public string? InspectionTypeDisplay => InspectionType.HasValue ? EnumHelper.GetDisplayName(InspectionType.Value) : null;
 
     /// <summary>理论检验重量</summary>
     public int? Weight { get; set; }
@@ -260,19 +260,19 @@ public class BatchLookupResultDto
     public string? NonFixedLengthRange { get; set; }
 
     /// <summary>生产类型</summary>
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
 
     /// <summary>业务员</summary>
     public string? Salesman { get; set; }
 
     /// <summary>长度状态</summary>
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
 
     /// <summary>交货状态</summary>
-    public string? DeliveryState { get; set; }
+    public DeliveryState? DeliveryState { get; set; }
 
     /// <summary>制造状态</summary>
-    public string? ManufacturingStatus { get; set; }
+    public DeliveryState? ManufacturingStatus { get; set; }
 
     /// <summary>最终用户</summary>
     public string? EndCustomer { get; set; }
@@ -284,7 +284,7 @@ public class BatchLookupResultDto
     public decimal? ProductionWeight { get; set; }
 
     /// <summary>成检类型（继承自到料检验，无则默认正式成检）</summary>
-    public string? InspectionType { get; set; }
+    public InspectionType? InspectionType { get; set; }
 
     /// <summary>单支重（定尺=总重/总支，非定尺=理论单支重；用于前端重量自动回填）</summary>
     public decimal? UnitWeight { get; set; }
@@ -312,8 +312,7 @@ public class CreateFinalInspectionRequest
     /// 成检类型（PreInspection=预成检，FormalInspection=正式成检）
     /// 不传时服务端按「优先正式成检」自动判定；传了则以传入值为准
     /// </summary>
-    [MaxLength(20)]
-    public string? InspectionType { get; set; }
+    public InspectionType? InspectionType { get; set; }
 
     public MaterialType? ManufacturingItem { get; set; }
     [MaxLength(50)]
@@ -334,12 +333,10 @@ public class CreateFinalInspectionRequest
     public string? FixedLength { get; set; }
     [MaxLength(100)]
     public string? NonFixedLengthRange { get; set; }
-    [MaxLength(50)]
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
     [MaxLength(50)]
     public string? Salesman { get; set; }
-    [MaxLength(20)]
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
     public ShiftType? Shift { get; set; }
@@ -422,8 +419,7 @@ public class UpdateFinalInspectionRequest
     /// 成检类型（PreInspection=预成检，FormalInspection=正式成检）
     /// 传了则校验（必须在批次成检到料类型集合内）并更新；不传保留原值
     /// </summary>
-    [MaxLength(20)]
-    public string? InspectionType { get; set; }
+    public InspectionType? InspectionType { get; set; }
 
     [MaxLength(50)]
     public string? FixedLength { get; set; }

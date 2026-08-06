@@ -50,9 +50,9 @@
                         <MudTd>
                             <MudSelect T="MaterialType" @bind-Value="row.MaterialCategory"
                                        Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                @foreach (var cat in materialCategories)
+                                @foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>())
                                 {
-                                    <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialTypeText(cat)</MudSelectItem>
+                                    <MudSelectItem Value="@(Enum.Parse<MaterialType>(opt.Value))">@opt.Display</MudSelectItem>
                                 }
                             </MudSelect>
                         </MudTd>
@@ -102,7 +102,6 @@
 @code {
     private List<MaterialRow> rows = new();
     private bool isSubmitting;
-    private List<MaterialType> materialCategories = new();
     private bool _isArrowNavSetup;
 
     private class MaterialRow
@@ -117,7 +116,6 @@
 
     protected override Task OnInitializedAsync()
     {
-        materialCategories = Enum.GetValues<MaterialType>().ToList();
         AddRow();
         return Task.CompletedTask;
     }

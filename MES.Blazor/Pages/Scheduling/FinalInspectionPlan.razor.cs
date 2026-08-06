@@ -5,6 +5,8 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Core.Enums;
+using MES.Core.Constants;
+using MES.Core.Helpers;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
@@ -59,6 +61,9 @@ public partial class FinalInspectionPlan
         "DefectWarehouseQuantity",
         "DefectScrapQuantity"
     };
+    private int _lastSummedPage = -1;
+    private int _lastSummedCount = -1;
+    private int _lastSummedPageSize = -1;
 
     // 选中行
     private HashSet<FinalInspectionPlanDto> _selectedItems = new();
@@ -106,8 +111,8 @@ public partial class FinalInspectionPlan
         // G3: 排程信息
         var g3 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",         Label = "计划状态",   SortKey = "ScheduleStage",         FilterType = "enum", Width = "110", EnumOptions = new() { new("-1","存错-无此工单"), new("0","主号暂停"), new("1","主号完成"), new("2","原料锁定"), new("3","生产执行"), new("4","成品检验") }, DisplayConverter = v => v is int s ? s switch { -1 => "存错-无此工单", 0 => "主号暂停", 1 => "主号完成", 2 => "原料锁定", 3 => "生产执行", 4 => "成品检验", _ => "未知" } : null, GroupKey = 3, GroupName = "排程信息" },
-            new() { Key = "UrgencyLevel",          Label = "紧急程度",   SortKey = "UrgencyLevel",          FilterType = "enum", Width = "90",  EnumOptions = new() { new("A+急","A+急"), new("A急","A急"), new("B顺","B顺"), new("C缓","C缓"), new("D缓","D缓") }, GroupKey = 3, GroupName = "排程信息" },
+            new() { Key = "ScheduleStage",         Label = "计划状态",   SortKey = "ScheduleStage",         FilterType = "enum", Width = "110", EnumOptions = new List<EnumOption> { new("-1","存错-无此工单") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList(), DisplayConverter = v => v is int s ? s switch { -1 => "存错-无此工单", _ => IntStatusDisplayHelper.GetScheduleStageText(s) } : null, GroupKey = 3, GroupName = "排程信息" },
+            new() { Key = "UrgencyLevel",          Label = "紧急程度",   SortKey = "UrgencyLevel",          FilterType = "enum", Width = "90",  EnumOptions = _urgencyOptions.Select(o => new EnumOption(o.Value, o.Text)).ToList(), GroupKey = 3, GroupName = "排程信息" },
         };
 
         // G4: 成检状态
@@ -160,6 +165,13 @@ public partial class FinalInspectionPlan
         _pageSums.Clear();
         if (_filteredItems.Count == 0) return;
 
+        // 按当前页显示行汇总（Items 模式，取 MudTable 当前页切片）
+        var page = table?.CurrentPage ?? 0;
+        var rowsPerPage = table?.RowsPerPage ?? _pageSize;
+        if (rowsPerPage <= 0) rowsPerPage = _pageSize;
+        var pageItems = _filteredItems.Skip(page * rowsPerPage).Take(rowsPerPage).ToList();
+        if (pageItems.Count == 0) return;
+
         var props = typeof(FinalInspectionPlanDto)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
             .ToDictionary(p => p.Name, p => p);
@@ -173,12 +185,12 @@ public partial class FinalInspectionPlan
             {
                 if (type == typeof(decimal?))
                 {
-                    var sum = _filteredItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    var sum = pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
                     _pageSums[col.Key] = ((int)sum).ToString();
                 }
                 else if (type == typeof(int?))
                 {
-                    var sum = _filteredItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    var sum = pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
                     _pageSums[col.Key] = sum.ToString();
                 }
             }
@@ -193,10 +205,24 @@ public partial class FinalInspectionPlan
         return "-";
     }
 
+    // ========== 字典下拉选项（配置表动态加载，失败兜底静态 KeyToChinese）==========
+    // 列定义 GetPlanColumnDefs 为 static，故选项字段也须 static
+    private static List<(string Value, string Text)> _urgencyOptions =
+        UrgencyLevelKeys.KeyToChinese.Select(kv => (kv.Key, kv.Value)).ToList();
+
+    private async Task LoadDictOptionsAsync()
+    {
+        var urgency = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.UrgencyLevelKey);
+        if (urgency.Success && urgency.Data is { Count: > 0 })
+            _urgencyOptions = urgency.Data.Select(t => (t.Value, t.DisplayName)).ToList();
+    }
+
     // ========== 生命周期 ==========
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadDictOptionsAsync();
+
         _allColumns = GetAllColumnDefs();
 
         var savedState = await PageState.LoadAsync("final-inspection-plan");
@@ -258,6 +284,22 @@ public partial class FinalInspectionPlan
     {
         // 分组标题栏：测量实际列宽 + 同步滚动
         await JS.InvokeVoidAsync("initGroupHeaders", "#final-inspection-plan-table");
+
+        // 分页导航/页大小切换后重算当前页汇总（pager 操作只改 CurrentPage/RowsPerPage，不触发 ApplyFiltersAndSort）
+        if (table != null && _filteredItems.Count > 0)
+        {
+            var page = table.CurrentPage;
+            var count = _filteredItems.Count;
+            var rowsPerPage = table.RowsPerPage;
+            if (page != _lastSummedPage || count != _lastSummedCount || rowsPerPage != _lastSummedPageSize)
+            {
+                _lastSummedPage = page;
+                _lastSummedCount = count;
+                _lastSummedPageSize = rowsPerPage;
+                ComputePageSums();
+                StateHasChanged();
+            }
+        }
     }
 
     private async Task LoadDataAsync()
@@ -316,7 +358,7 @@ public partial class FinalInspectionPlan
         "WorkOrderNo" => item.WorkOrderNo,
         "Salesman" => item.Salesman,
         "Specification" => item.Specification,
-        "LengthStatus" => item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : null,
+        "LengthStatus" => item.LengthStatus.HasValue ? item.LengthStatus.Value.ToString() : null,
         "ScheduleStage" => item.ScheduleStage.ToString(),
         "UrgencyLevel" => item.UrgencyLevel,
         "KanbanStage" => item.KanbanStage,
@@ -342,10 +384,10 @@ public partial class FinalInspectionPlan
 
         _tabCount = filtered.Count;
         _tabTotalWeight = filtered.Sum(x => x.CurrentValidWeight ?? 0);
-        _urgentAPlusCount = filtered.Count(x => x.UrgencyLevel == "A+急");
-        _urgentAPlusWeight = filtered.Where(x => x.UrgencyLevel == "A+急").Sum(x => x.CurrentValidWeight ?? 0);
-        _urgentACount = filtered.Count(x => x.UrgencyLevel == "A急");
-        _urgentAWeight = filtered.Where(x => x.UrgencyLevel == "A急").Sum(x => x.CurrentValidWeight ?? 0);
+        _urgentAPlusCount = filtered.Count(x => x.UrgencyLevel == UrgencyLevelKeys.APlusUrgent);
+        _urgentAPlusWeight = filtered.Where(x => x.UrgencyLevel == UrgencyLevelKeys.APlusUrgent).Sum(x => x.CurrentValidWeight ?? 0);
+        _urgentACount = filtered.Count(x => x.UrgencyLevel == UrgencyLevelKeys.AUrgent);
+        _urgentAWeight = filtered.Where(x => x.UrgencyLevel == UrgencyLevelKeys.AUrgent).Sum(x => x.CurrentValidWeight ?? 0);
     }
 
     // ========== ExcelFilter 事件 ==========
@@ -654,12 +696,7 @@ public partial class FinalInspectionPlan
                 var stageText = item.ScheduleStage switch
                 {
                     -1 => "存错-无此工单",
-                    0 => "主号暂停",
-                    1 => "主号完成",
-                    2 => "原料锁定",
-                    3 => "生产执行",
-                    4 => "成品检验",
-                    _ => "未知"
+                    _ => IntStatusDisplayHelper.GetScheduleStageText(item.ScheduleStage)
                 };
                 builder.CloseElement(); // close span
                 builder.OpenComponent<MudChip>(0);
@@ -671,11 +708,11 @@ public partial class FinalInspectionPlan
             case "UrgencyLevel":
                 var urgencyColor = item.UrgencyLevel switch
                 {
-                    "A+急" => Color.Error,
-                    "A急" => Color.Warning,
-                    "B顺" => Color.Info,
-                    "C缓" => Color.Default,
-                    "D缓" => Color.Default,
+                    UrgencyLevelKeys.APlusUrgent => Color.Error,
+                    UrgencyLevelKeys.AUrgent => Color.Warning,
+                    UrgencyLevelKeys.BOrder => Color.Info,
+                    UrgencyLevelKeys.CSlow => Color.Default,
+                    UrgencyLevelKeys.DSlow => Color.Default,
                     _ => Color.Default
                 };
                 if (item.UrgencyLevel != null)
@@ -684,7 +721,7 @@ public partial class FinalInspectionPlan
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
                     builder.AddAttribute(2, "Color", urgencyColor);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.UrgencyLevel)));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,item.UrgencyLevel))));
                     builder.CloseComponent();
                     return; // skip closing span below
                 }
@@ -831,7 +868,7 @@ public partial class FinalInspectionPlan
         "MinLength" => item.MinLength,
         "MaxLength" => item.MaxLength,
         "ScheduleStage" => item.ScheduleStage,
-        "UrgencyLevel" => item.UrgencyLevel ?? "",
+        "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "",
         "DeliveryDate" => item.DeliveryDate,
         "KanbanStage" => item.KanbanStage,
         "ReceiveDate" => item.ReceiveDate,

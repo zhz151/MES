@@ -1098,16 +1098,16 @@ public class MaterialPlanService : IMaterialPlanService
             {
                 Id = b.Id,
                 BatchNo = b.BatchNo,
-                MaterialType = b.MaterialType,
+                MaterialType = EnumHelper.TryParse<MaterialType>(b.MaterialType),
                 PlantGrade = b.PlantGrade,
                 Specification = b.Specification,
-                LengthStatus = b.LengthStatus,
+                LengthStatus = EnumHelper.TryParse<LengthStatus>(b.LengthStatus),
                 MinLength = b.MinLength,
                 MaxLength = b.MaxLength,
                 RemainingQuantity = b.RemainingQuantity,
                 RemainingWeight = b.RemainingWeight,
                 UnitWeight = b.UnitWeight,
-                ManufacturingStatus = b.ManufacturingStatus,
+                ManufacturingStatus = EnumHelper.TryParse<DeliveryState>(b.ManufacturingStatus),
                 LocationArea = b.LocationArea,
                 LocationRack = b.LocationRack,
             })
@@ -1210,9 +1210,9 @@ public class MaterialPlanService : IMaterialPlanService
             ReworkType.EmptyDrawing or ReworkType.FewerPass => query.Where(b =>
                 InventoryMaterialTypes.EmptyDrawingReworkUsable.Contains(b.MaterialType)
                 || (b.MaterialType == InventoryMaterialTypes.SemiFinished && !b.IsLinkedToWorkOrder)
-                || (b.MaterialType == InventoryMaterialTypes.DefectSemi && b.LiabilityType == "厂部")
-                || (b.MaterialType == InventoryMaterialTypes.DefectFinished && b.LiabilityType == "厂部")
-                || (b.MaterialType == InventoryMaterialTypes.DefectWIP && b.LiabilityType == "厂部")),
+                || (b.MaterialType == InventoryMaterialTypes.DefectSemi && b.LiabilityType == LiabilityTypeKeys.FactoryDepartment)
+                || (b.MaterialType == InventoryMaterialTypes.DefectFinished && b.LiabilityType == LiabilityTypeKeys.FactoryDepartment)
+                || (b.MaterialType == InventoryMaterialTypes.DefectWIP && b.LiabilityType == LiabilityTypeKeys.FactoryDepartment)),
             ReworkType.ManualSelect => query.Where(b =>
                 !InventoryMaterialTypes.ManualSelectReworkExcluded.Contains(b.MaterialType)),
             _ => query.Where(b => false) // 未知类型返回空
@@ -1277,16 +1277,16 @@ public class MaterialPlanService : IMaterialPlanService
             {
                 Id = b.Id,
                 BatchNo = b.BatchNo,
-                MaterialType = b.MaterialType,
+                MaterialType = EnumHelper.TryParse<MaterialType>(b.MaterialType),
                 PlantGrade = b.PlantGrade,
                 Specification = b.Specification,
-                LengthStatus = b.LengthStatus,
+                LengthStatus = EnumHelper.TryParse<LengthStatus>(b.LengthStatus),
                 MinLength = b.MinLength,
                 MaxLength = b.MaxLength,
                 RemainingQuantity = b.RemainingQuantity,
                 RemainingWeight = b.RemainingWeight,
                 UnitWeight = b.UnitWeight,
-                ManufacturingStatus = b.ManufacturingStatus,
+                ManufacturingStatus = EnumHelper.TryParse<DeliveryState>(b.ManufacturingStatus),
                 LocationArea = b.LocationArea,
                 LocationRack = b.LocationRack,
             })
@@ -1735,7 +1735,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (batch == null)
             throw new BusinessException("生产批次不存在");
 
-        if (batch.WorkOrderNo != "非工单")
+        if (batch.WorkOrderNo != WorkOrderNoSentinel.NotWorkOrder)
             throw new BusinessException("只能选择非工单批次进行在产改制");
 
         if (batch.Status != BatchStatus.None && batch.Status != BatchStatus.InProgress)
@@ -1908,7 +1908,7 @@ public class MaterialPlanService : IMaterialPlanService
         var query = _context.ProductionBatches
             .AsNoTracking()
             .Include(b => b.ProcessGroups)
-            .Where(b => b.WorkOrderNo == "非工单")
+            .Where(b => b.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder)
             .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress || b.Status == BatchStatus.InFinalInspection)
             .Where(b => eligibleGrades.Contains(b.PlantGrade))
             .Where(b => b.CurrentValidWeight.HasValue && b.CurrentValidWeight > 0);
@@ -1993,10 +1993,10 @@ public class MaterialPlanService : IMaterialPlanService
                         CurrentValidQty = b.CurrentValidQty * GetCurrentProcessGroupMultiple(b),
                         CurrentValidWeight = b.CurrentValidWeight,
                         SourceBatchNo = b.SourceBatchNo,
-                        SourceMaterialType = b.SourceMaterialType,
+                        SourceMaterialType = EnumHelper.TryParse<MaterialType>(b.SourceMaterialType),
                         SourceHeatNo = b.SourceHeatNo,
                         SourceSpecification = b.SourceSpecification,
-                        ProductionType = b.ProductionType,
+                        ProductionType = EnumHelper.TryParse<ProductionType>(b.ProductionType),
                         ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var mi) ? mi : default,
                         CurrentGroupName = b.CurrentGroupName,
                         CurrentSectionName = b.CurrentSectionName,
@@ -2026,10 +2026,10 @@ public class MaterialPlanService : IMaterialPlanService
                 CurrentValidQty = b.CurrentValidQty * GetCurrentProcessGroupMultiple(b),
                 CurrentValidWeight = b.CurrentValidWeight,
                 SourceBatchNo = b.SourceBatchNo,
-                SourceMaterialType = b.SourceMaterialType,
+                SourceMaterialType = EnumHelper.TryParse<MaterialType>(b.SourceMaterialType),
                 SourceHeatNo = b.SourceHeatNo,
                 SourceSpecification = b.SourceSpecification,
-                ProductionType = b.ProductionType,
+                ProductionType = EnumHelper.TryParse<ProductionType>(b.ProductionType),
                 ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var mi) ? mi : default,
                 CurrentGroupName = b.CurrentGroupName,
                 CurrentSectionName = b.CurrentSectionName,
@@ -2049,7 +2049,7 @@ public class MaterialPlanService : IMaterialPlanService
 
     /// <summary>
     /// 获取在产改制计划通知（供批次上下文使用）
-    /// 通知规则：批次 WorkOrderNo == "非工单" 时显示，被正式工单认领后自动消失
+    /// 通知规则：批次 WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder 时显示，被正式工单认领后自动消失
     /// 不限制 PlanStatus，避免维护隐患
     /// </summary>
     public async Task<List<PendingPlanBatchDto>> GetPendingInProcessReworkPlansAsync()
@@ -2060,7 +2060,7 @@ public class MaterialPlanService : IMaterialPlanService
                 p => p.ProductionBatchId,
                 b => b.Id,
                 (p, b) => new { p, b })
-            .Where(j => j.b.WorkOrderNo == "非工单" && j.p.PlanStatus == InventoryPlanStatus.Planned)
+            .Where(j => j.b.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder && j.p.PlanStatus == InventoryPlanStatus.Planned)
             .Join(_context.WorkOrders.AsNoTracking(),
                 j => j.p.WorkOrderId,
                 wo => wo.Id,
@@ -2194,8 +2194,8 @@ public class MaterialPlanService : IMaterialPlanService
                 var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
                 var effectiveGroupCount = await _context.ProcessGroups
                     .Where(pg => pg.ProductionBatchId == batch.Id)
-                    .CountAsync(pg => pg.ProcessName != ProcessNames.InProcessRepair
-                        && pg.ProcessName != ProcessNames.AdditionalFinalInspection);
+                    .CountAsync(pg => pg.ProcessName != ProcessKeys.InProcessRepair
+                        && pg.ProcessName != ProcessKeys.AdditionalFinalInspection);
 
                 var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
                 if (discount < 0) discount = 0;
@@ -2460,9 +2460,9 @@ public class MaterialPlanService : IMaterialPlanService
                 WorkOrderNo = batch.WorkOrderNo,
                 PlantGrade = batch.PlantGrade,
                 Specification = batch.Specification,
-                LengthStatus = batch.LengthStatus,
+                LengthStatus = EnumHelper.TryParse<LengthStatus>(batch.LengthStatus),
                 MaxLength = batch.MaxLength,
-                Status = batch.Status.ToString(),
+                Status = batch.Status,
                 ProductionRatio = batch.ProductionRatio,
                 CurrentValidQty = batch.CurrentValidQty,
                 CurrentValidWeight = batch.CurrentValidWeight,
@@ -3569,7 +3569,7 @@ internal static class MaterialPlanMappingExtensions
             PlanDate = entity.PlanDate,
             InventoryBatchNo = entity.InventoryBatchNo,
             BatchNo = entity.BatchNo,
-            MaterialType = entity.MaterialType,
+            MaterialType = EnumHelper.TryParse<MaterialType>(entity.MaterialType),
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
             LocationArea = entity.LocationArea,
@@ -3580,22 +3580,10 @@ internal static class MaterialPlanMappingExtensions
             UsedWeight = entity.UsedWeight,
             RequiredDate = entity.RequiredDate,
             PlanStatus = entity.PlanStatus,
-            PlanStatusText = entity.PlanStatus switch
-            {
-                InventoryPlanStatus.Planned => "已计划",
-                InventoryPlanStatus.Confirmed => "已确认",
-                InventoryPlanStatus.Cancelled => "已取消",
-                _ => "未知"
-            },
+            PlanStatusText = EnumHelper.GetDisplayName(entity.PlanStatus),
             Remark = entity.Remark,
             ReworkType = entity.ReworkType,
-            ReworkTypeText = entity.ReworkType switch
-            {
-                ReworkType.EmptyDrawing => "空拉改制",
-                ReworkType.FewerPass => "少道次改制",
-                ReworkType.ManualSelect => "人工选择改制",
-                _ => null
-            },
+            ReworkTypeText = entity.ReworkType.HasValue ? EnumHelper.GetDisplayName(entity.ReworkType.Value) : null,
             StandardCycle = entity.StandardCycle,
             CreatedTime = entity.CreatedTime,
             CreatedBy = entity.CreatedBy
@@ -3621,22 +3609,10 @@ internal static class MaterialPlanMappingExtensions
             UsedWeight = entity.UsedWeight,
             RequiredDate = entity.RequiredDate,
             PlanStatus = entity.PlanStatus,
-            PlanStatusText = entity.PlanStatus switch
-            {
-                InventoryPlanStatus.Planned => "已计划",
-                InventoryPlanStatus.Confirmed => "已确认",
-                InventoryPlanStatus.Cancelled => "已取消",
-                _ => "未知"
-            },
+            PlanStatusText = EnumHelper.GetDisplayName(entity.PlanStatus),
             Remark = entity.Remark,
             ReworkType = entity.ReworkType,
-            ReworkTypeText = entity.ReworkType switch
-            {
-                ReworkType.EmptyDrawing => "空拉改制",
-                ReworkType.FewerPass => "少道次改制",
-                ReworkType.ManualSelect => "人工选择改制",
-                _ => entity.ReworkType.ToString()
-            },
+            ReworkTypeText = EnumHelper.GetDisplayName(entity.ReworkType),
             StandardCycle = entity.StandardCycle,
             CreatedTime = entity.CreatedTime,
             CreatedBy = entity.CreatedBy
@@ -3659,13 +3635,7 @@ internal static class MaterialPlanMappingExtensions
             StandardCycle = entity.StandardCycle,
             RequiredDate = entity.RequiredDate,
             PlanStatus = entity.PlanStatus,
-            PlanStatusText = entity.PlanStatus switch
-            {
-                InventoryPlanStatus.Planned => "已计划",
-                InventoryPlanStatus.Confirmed => "已确认",
-                InventoryPlanStatus.Cancelled => "已取消",
-                _ => "未知"
-            },
+            PlanStatusText = EnumHelper.GetDisplayName(entity.PlanStatus),
             Remark = entity.Remark,
             CreatedTime = entity.CreatedTime,
             CreatedBy = entity.CreatedBy

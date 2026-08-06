@@ -37,6 +37,9 @@ public partial class SectionProductionStatus
     {
         "InProduction", "PendingProduction", "Total", "FinalProcessTotal"
     };
+    private int _lastSummedPage = -1;
+    private int _lastSummedCount = -1;
+    private int _lastSummedPageSize = -1;
 
     // 非空/空筛选常量
     private const string FilterNotNull = "__NOT_NULL__";
@@ -174,7 +177,12 @@ public partial class SectionProductionStatus
                     .Select(val => new ExcelFilterOption
                     {
                         Value = val!,
-                        Display = col.Key == "SectionName" ? SectionDisplayHelper.GetSectionNameText(val!) : val!,
+                        Display = col.Key switch
+                        {
+                            "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(val!),
+                            "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(val!),
+                            _ => val!
+                        },
                         Count = _allItems.Count(x => string.Equals(GetStringValue(x, col.Key), val, StringComparison.OrdinalIgnoreCase))
                     })
                     .ToList();
@@ -202,7 +210,7 @@ public partial class SectionProductionStatus
             var kw = _searchKeyword.Trim();
             query = query.Where(x =>
                 x.ProcessGroupName.Contains(kw, StringComparison.OrdinalIgnoreCase) ||
-                x.SectionName.Contains(kw, StringComparison.OrdinalIgnoreCase));
+                (x.SectionName != null && (SectionDisplayHelper.GetSectionNameText(x.SectionName).Contains(kw, StringComparison.OrdinalIgnoreCase) || x.SectionName.Contains(kw, StringComparison.OrdinalIgnoreCase))));
         }
 
         // 列筛选
@@ -377,7 +385,7 @@ public partial class SectionProductionStatus
         switch (col.Key)
         {
             case "ProcessGroupName":
-                builder.AddContent(0, item.ProcessGroupName);
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.ProcessGroupName));
                 break;
             case "SectionName":
                 builder.AddContent(0, SectionDisplayHelper.GetSectionNameText(item.SectionName));
@@ -404,10 +412,17 @@ public partial class SectionProductionStatus
         _pageSums.Clear();
         if (_filteredItems.Count == 0) return;
 
-        _pageSums["InProduction"] = ((int)_filteredItems.Sum(x => x.InProduction ?? 0m)).ToString();
-        _pageSums["PendingProduction"] = ((int)_filteredItems.Sum(x => x.PendingProduction ?? 0m)).ToString();
-        _pageSums["Total"] = ((int)_filteredItems.Sum(x => x.Total ?? 0m)).ToString();
-        _pageSums["FinalProcessTotal"] = ((int)_filteredItems.Sum(x => x.FinalProcessTotal ?? 0m)).ToString();
+        // 按当前页显示行汇总（Items 模式，取 MudTable 当前页切片）
+        var page = table?.CurrentPage ?? 0;
+        var rowsPerPage = table?.RowsPerPage ?? _pageSize;
+        if (rowsPerPage <= 0) rowsPerPage = _pageSize;
+        var pageItems = _filteredItems.Skip(page * rowsPerPage).Take(rowsPerPage).ToList();
+        if (pageItems.Count == 0) return;
+
+        _pageSums["InProduction"] = ((int)pageItems.Sum(x => x.InProduction ?? 0m)).ToString();
+        _pageSums["PendingProduction"] = ((int)pageItems.Sum(x => x.PendingProduction ?? 0m)).ToString();
+        _pageSums["Total"] = ((int)pageItems.Sum(x => x.Total ?? 0m)).ToString();
+        _pageSums["FinalProcessTotal"] = ((int)pageItems.Sum(x => x.FinalProcessTotal ?? 0m)).ToString();
     }
 
     private string RenderFooterCell(ColumnDef col)
@@ -415,6 +430,26 @@ public partial class SectionProductionStatus
         if (_pageSums.TryGetValue(col.Key, out var sum))
             return sum;
         return "-";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // 分页导航/页大小切换后重算当前页汇总（pager 操作只改 CurrentPage/RowsPerPage，不触发 ApplyFiltersAndSort）
+        if (table != null && !_isLoading && _filteredItems.Count > 0)
+        {
+            var page = table.CurrentPage;
+            var count = _filteredItems.Count;
+            var rowsPerPage = table.RowsPerPage;
+            if (page != _lastSummedPage || count != _lastSummedCount || rowsPerPage != _lastSummedPageSize)
+            {
+                _lastSummedPage = page;
+                _lastSummedCount = count;
+                _lastSummedPageSize = rowsPerPage;
+                ComputePageSums();
+                StateHasChanged();
+            }
+        }
+        await Task.CompletedTask;
     }
 
     // ========== 打印 ==========
@@ -458,8 +493,8 @@ public partial class SectionProductionStatus
 
     private static object GetRawPropertyValue(SectionProductionStatusDto item, string key) => key switch
     {
-        "ProcessGroupName" => item.ProcessGroupName,
-        "SectionName" => item.SectionName,
+        "ProcessGroupName" => ProcessDisplayHelper.GetProcessNameText(item.ProcessGroupName),
+        "SectionName" => SectionDisplayHelper.GetSectionNameText(item.SectionName),
         "InProduction" => item.InProduction.HasValue ? ((int)item.InProduction.Value).ToString() : "-",
         "PendingProduction" => item.PendingProduction.HasValue ? ((int)item.PendingProduction.Value).ToString() : "-",
         "Total" => item.Total.HasValue ? ((int)item.Total.Value).ToString() : "-",

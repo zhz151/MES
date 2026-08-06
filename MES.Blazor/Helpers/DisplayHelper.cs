@@ -1,3 +1,4 @@
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 using MES.Blazor.Services;
@@ -40,6 +41,16 @@ public static class DisplayHelper
     public static string FormatNullableInt(int? value) => value?.ToString() ?? "";
 
     /// <summary>
+    /// 格式化可空 int 值：null 或 0 显示空（业务量字段 0 与未填等价，如合格量/缺陷量/加工量）
+    /// </summary>
+    public static string FormatNullableIntZeroAsEmpty(int? value) => value is > 0 ? value.Value.ToString() : "";
+
+    /// <summary>
+    /// 格式化可空 decimal 值：null 或 0 显示空
+    /// </summary>
+    public static string FormatNullableDecimalZeroAsEmpty(decimal? value) => value is > 0 ? value.Value.ToString("G29") : "";
+
+    /// <summary>
     /// 列表页整型化：将可空 decimal 强制显示为整数（§10.7 支数/米数/重量/批次数）
     /// </summary>
     public static string FormatDecimalAsInt(decimal value) => ((int)value).ToString();
@@ -48,6 +59,11 @@ public static class DisplayHelper
     /// 列表页整型化：将可空 decimal? 强制显示为整数
     /// </summary>
     public static string FormatNullableDecimalAsInt(decimal? value) => value.HasValue ? ((int)value.Value).ToString() : "";
+
+    /// <summary>
+    /// 列表页整型化：将可空 decimal? 强制显示为整数，null 或 0 显示空
+    /// </summary>
+    public static string FormatNullableDecimalAsIntZeroAsEmpty(decimal? value) => value is > 0 ? ((int)value.Value).ToString() : "";
 
     /// <summary>
     /// 格式化可空日期值
@@ -281,61 +297,22 @@ public static class DisplayHelper
     /// <summary>
     /// 获取有效流转状态中文文本（int 字段）
     /// </summary>
-    public static string GetFlowStatusText(int status)
-    {
-        return status switch
-        {
-            0 => "未投料",
-            1 => "部分",
-            2 => "满足",
-            _ => "未知"
-        };
-    }
+    public static string GetFlowStatusText(int status) => IntStatusDisplayHelper.GetInputStatusText(status);
 
     /// <summary>
     /// 获取有效主号状态中文文本（int 字段）
     /// </summary>
-    public static string GetMainNoFlowStatusText(int status)
-    {
-        return status switch
-        {
-            0 => "未计划",
-            1 => "部分",
-            2 => "满足",
-            _ => "未知"
-        };
-    }
+    public static string GetMainNoFlowStatusText(int status) => IntStatusDisplayHelper.GetMainNoFlowStatusText(status);
 
     /// <summary>
     /// 获取排程关注阶段中文文本（int 字段，关注状态 5 档：0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验）
     /// </summary>
-    public static string GetScheduleStageText(int stage)
-    {
-        return stage switch
-        {
-            0 => "主号暂停",
-            1 => "主号完成",
-            2 => "原料锁定",
-            3 => "生产执行",
-            4 => "成品检验",
-            _ => "未知"
-        };
-    }
+    public static string GetScheduleStageText(int stage) => IntStatusDisplayHelper.GetScheduleStageText(stage);
 
     /// <summary>
     /// 获取排程计划覆盖档位中文文本（WorkOrderPlan.ScheduleStage，4 档：0=工单完成 1=原料锁定 2=生产执行 3=成品检验）
     /// </summary>
-    public static string GetPlanScheduleStageText(int stage)
-    {
-        return stage switch
-        {
-            0 => "工单完成",
-            1 => "原料锁定",
-            2 => "生产执行",
-            3 => "成品检验",
-            _ => "未知"
-        };
-    }
+    public static string GetPlanScheduleStageText(int stage) => IntStatusDisplayHelper.GetPlanScheduleStageText(stage);
 
     /// <summary>冷轧完工要求中文显示（数据库字符串字段）</summary>
     public static string GetCompletionTypeText(string? ct) => ct switch
@@ -355,6 +332,82 @@ public static class DisplayHelper
         "Partial2" => "急单",
         "Partial3" => "含B顺",
         _ => "",
+    };
+
+    // ========== 状态筛选选项与颜色 ==========
+
+    /// <summary>原始投料/有效流转/主号投料状态筛选选项（int 字段）</summary>
+    public static List<EnumOption> GetFlowStatusOptions()
+        => IntStatusDisplayHelper.GetInputStatusOptions()
+                                 .Select(o => new EnumOption(o.Value, o.DisplayName))
+                                 .ToList();
+
+    /// <summary>有效主号状态筛选选项（int 字段，0=未计划）</summary>
+    public static List<EnumOption> GetMainNoFlowStatusOptions()
+        => IntStatusDisplayHelper.GetMainNoFlowStatusOptions()
+                                 .Select(o => new EnumOption(o.Value, o.DisplayName))
+                                 .ToList();
+
+    /// <summary>排程关注状态筛选选项（summary 5 档）</summary>
+    public static List<EnumOption> GetScheduleStageOptions()
+        => IntStatusDisplayHelper.GetScheduleStageOptions()
+                                 .Select(o => new EnumOption(o.Value, o.DisplayName))
+                                 .ToList();
+
+    /// <summary>计划覆盖档位筛选选项（4 档）</summary>
+    public static List<EnumOption> GetPlanScheduleStageOptions()
+        => IntStatusDisplayHelper.GetPlanScheduleStageOptions()
+                                 .Select(o => new EnumOption(o.Value, o.DisplayName))
+                                 .ToList();
+
+    /// <summary>入库状态筛选选项（3 档：工单/订单级）</summary>
+    public static List<EnumOption> GetWarehousingStatusOptions()
+        => IntStatusDisplayHelper.GetWarehousingStatusOptions()
+                                 .Select(o => new EnumOption(o.Value, o.DisplayName))
+                                 .ToList();
+
+    /// <summary>主号入库状态筛选选项（4 档）</summary>
+    public static List<EnumOption> GetMainNoWarehousingStatusOptions()
+        => IntStatusDisplayHelper.GetMainNoWarehousingStatusOptions()
+                                 .Select(o => new EnumOption(o.Value, o.DisplayName))
+                                 .ToList();
+
+    /// <summary>用料计划状态筛选选项（int 字段，MaterialPlanStatus 5 档：0=未计划 1=部分 2=理论满足 3=满足 4=超量）</summary>
+    public static List<EnumOption> GetMaterialPlanStatusOptions()
+        => IntStatusDisplayHelper.GetMaterialPlanStatusOptions()
+                                 .Select(o => new EnumOption(o.Value, o.DisplayName))
+                                 .ToList();
+
+    /// <summary>排程关注状态颜色（summary 5 档）</summary>
+    public static Color GetScheduleStageColor(int stage) => stage switch
+    {
+        0 => Color.Error,       // 主号暂停
+        1 => Color.Success,     // 主号完成（闭环）
+        2 => Color.Warning,     // 原料锁定（待料）
+        3 => Color.Info,        // 生产执行
+        4 => Color.Primary,     // 成品检验
+        _ => Color.Default
+    };
+
+    /// <summary>投料状态颜色（int 字段）</summary>
+    public static Color GetInputStatusColor(int status) => status switch
+    {
+        0 => Color.Default,
+        1 => Color.Warning,
+        2 => Color.Success,
+        _ => Color.Default
+    };
+
+    /// <summary>冷轧完工要求筛选选项</summary>
+    public static List<EnumOption> GetCompletionTypeOptions() => new()
+    {
+        new("None", "无计划"), new("All", "全量"), new("Urgent", "特急单"), new("Partial2", "急单"), new("Partial3", "含B顺")
+    };
+
+    /// <summary>冷轧排程类型筛选选项</summary>
+    public static List<EnumOption> GetRollTypeOptions() => new()
+    {
+        new("None", "无计划"), new("All", "全量"), new("Urgent", "特急单"), new("Partial2", "急单"), new("Partial3", "含B顺")
     };
 
     // ========== 公差格式化 ==========
@@ -625,27 +678,38 @@ public static class DisplayHelper
         };
     }
 
-    // ========== 筛选选项辅助（从 EnumHelper 生成） ==========
+    // ========== 枚举选项辅助（从 EnumHelper 生成，按 DisplayOrder 排序） ==========
 
     /// <summary>
-    /// 从 EnumHelper 生成列筛选下拉选项列表，确保筛选文本与显示文本一致
+    /// 从 EnumHelper 生成列筛选下拉选项列表，确保筛选文本与显示文本一致；
+    /// 顺序按配置表 DisplayOrder（未配置则静态注册顺序）
     /// </summary>
     public static List<EnumOption> GetEnumFilterOptions<T>() where T : struct, Enum
-        => Enum.GetValues<T>()
-               .Select(v => new EnumOption(v.ToString(), EnumHelper.GetDisplayName(v)))
-               .ToList();
+        => EnumHelper.GetDisplayOptions<T>()
+                     .Select(o => new EnumOption(o.Value, o.DisplayName))
+                     .ToList();
+
+    /// <summary>
+    /// 表单下拉选项（Value=枚举值名、Display=中文），按 DisplayOrder 排序。
+    /// 页面循环：@foreach (var opt in DisplayHelper.GetEnumOptions&lt;MyEnum&gt;())
+    /// </summary>
+    public static List<EnumOption> GetEnumOptions<T>() where T : struct, Enum
+        => EnumHelper.GetDisplayOptions<T>()
+                     .Select(o => new EnumOption(o.Value, o.DisplayName))
+                     .ToList();
 
     // ========== string 类型枚举映射（非 C# enum，string 存储） ==========
 
     /// <summary>
-    /// 数据来源类型中文显示：SCAN→扫码, MANUAL→手动
+    /// 数据来源类型中文显示：SCAN→扫码, MANUAL→手动（委托 Core 统一出口）
     /// </summary>
-    public static string GetDataSourceText(string? dataSource) => dataSource switch
-    {
-        "SCAN" => "扫码",
-        "MANUAL" => "手动",
-        _ => dataSource ?? ""
-    };
+    public static string GetDataSourceText(string? dataSource) => StringEnumDisplayHelper.GetDataSourceText(dataSource);
+
+    /// <summary>
+    /// 数据来源列筛选下拉选项（SCAN→扫码, MANUAL→手动），统一出口
+    /// </summary>
+    public static List<EnumOption> GetDataSourceOptions()
+        => new() { new("SCAN", "扫码"), new("MANUAL", "手动") };
 
     /// <summary>
     /// 报工模板类型中文显示（字符串版本）
@@ -671,4 +735,19 @@ public static class DisplayHelper
     /// 班次中文显示（可空枚举版本）
     /// </summary>
     public static string GetShiftTypeText(ShiftType? shift) => shift.HasValue ? EnumHelper.GetDisplayName(shift.Value) : "";
+
+    /// <summary>
+    /// 产类中文显示（数据库字符串字段，存稳定英文 Key）：RoughTube→荒管, InProgress→在制, Finished→成品。
+    /// 空值/未知默认显示"在制"（与存量 `?? "在制"` 口径一致）。
+    /// </summary>
+    public static string GetProductStatusText(string? productStatus)
+        => DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, productStatus) ?? "在制";
+
+    /// <summary>产类颜色映射（字符串字段存稳定英文 Key）</summary>
+    public static Color GetProductStatusColor(string? productStatus) => productStatus switch
+    {
+        ProductStatuses.RoughTube => Color.Primary,
+        ProductStatuses.Finished => Color.Success,
+        _ => Color.Default
+    };
 }

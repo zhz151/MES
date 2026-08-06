@@ -50,16 +50,19 @@ public class ProductionOverviewService : IProductionOverviewService
     private readonly AppDbContext _context;
     private readonly IConfigParameterService _configService;
     private readonly IDailyProductionCapacityService _dailyCapacityService;
+    private readonly IProcessDefinitionService _processDefService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public ProductionOverviewService(
         AppDbContext context,
         IConfigParameterService configService,
-        IDailyProductionCapacityService dailyCapacityService)
+        IDailyProductionCapacityService dailyCapacityService,
+        IProcessDefinitionService processDefService)
     {
         _context = context;
         _configService = configService;
         _dailyCapacityService = dailyCapacityService;
+        _processDefService = processDefService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -74,6 +77,9 @@ public class ProductionOverviewService : IProductionOverviewService
 
     public async Task<ProductionOverviewDto> GetOverviewAsync()
     {
+        // 预加载冷轧类 Key 集合（配置表驱动，替代硬编码 IsColdRoll）
+        var coldRollKeys = await _processDefService.GetColdRollKeysAsync();
+
         var now = DateTime.Today;
         var bucket1 = (int)await GetConfigAsync("DateBucket", "Bucket1", 15m);
         var bucket2 = (int)await GetConfigAsync("DateBucket", "Bucket2", 30m);
@@ -216,11 +222,11 @@ public class ProductionOverviewService : IProductionOverviewService
         // ========== 行 3-7: 各生产工段 ==========
         var capacities = await _dailyCapacityService.GetAllAsync();
         var capacityMap = capacities.ToDictionary(c => c.ProcessName, c => c.DailyCapacity);
-        var dailyPolish = capacityMap.GetValueOrDefault("荒管抛光", 12m);
-        var dailyMill50_60 = capacityMap.GetValueOrDefault("50,60轧机", 11m);
-        var dailyMill20_30 = capacityMap.GetValueOrDefault("20,30轧机", 9m);
-        var dailyThreeRoll = capacityMap.GetValueOrDefault("三辊轧机", 0.5m);
-        var dailyDrawBench = capacityMap.GetValueOrDefault("拉机", 3m);
+        var dailyPolish = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.Polish, 12m);
+        var dailyMill50_60 = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.Mill50_60, 11m);
+        var dailyMill20_30 = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.Mill20_30, 9m);
+        var dailyThreeRoll = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.ThreeRollMill, 0.5m);
+        var dailyDrawBench = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.DrawBench, 3m);
         var sections = new[]
         {
             (Seq: 3, Section: "荒管抛光", DailyCapacity: dailyPolish),
@@ -247,7 +253,7 @@ public class ProductionOverviewService : IProductionOverviewService
                 {
                     var pg = pgs[i];
 
-                    if (!ClassifySection(pg, sectionName)) continue;
+                    if (!ClassifySection(pg, sectionName, coldRollKeys)) continue;
 
                     // 判断是否尚未到达此工段
                     // 荒管抛光使用工段级比较（不依赖 CurrentSectionCompleted）
@@ -459,24 +465,25 @@ public class ProductionOverviewService : IProductionOverviewService
     /// 荒管抛光：工序名称为"荒管处理"且带有抛光工段（OuterPolish 有值）
     /// 冷轧已细分为 60冷轧/50冷轧/30冷轧/20冷轧/三辊冷轧，无需解析 OD
     /// </summary>
-    private static bool ClassifySection(ProcessGroupInfo pg, string sectionName)
+    private static bool ClassifySection(ProcessGroupInfo pg, string sectionName, HashSet<string> coldRollKeys)
     {
         // 荒管抛光
         if (sectionName == "荒管抛光")
-            return pg.ProcessName == ProcessNames.RoughTubeProcessing && pg.OuterPolish.HasValue;
+            return pg.ProcessName == ProcessKeys.RoughTubeProcessing && pg.OuterPolish.HasValue;
 
         // 拉机
         if (sectionName == "拉机")
-            return pg.ProcessName == ProcessNames.ColdDraw && pg.ColdRollDraw.HasValue;
+            return pg.ProcessName == ProcessKeys.ColdDraw && pg.ColdRollDraw.HasValue;
 
-        // 以下仅适用于冷轧
-        if (!ProcessNames.IsColdRoll(pg.ProcessName)) return false;
+        // 以下仅适用于冷轧（配置表 IsColdRoll 判定）
+        var key = ProcessKeys.ToKey(pg.ProcessName) ?? pg.ProcessName;
+        if (!coldRollKeys.Contains(key)) return false;
 
         return sectionName switch
         {
-            "50,60轧机" => pg.ProcessName is ProcessNames.ColdRoll50 or ProcessNames.ColdRoll60,
-            "20,30轧机" => pg.ProcessName is ProcessNames.ColdRoll20 or ProcessNames.ColdRoll30,
-            "三辊轧机" => pg.ProcessName == ProcessNames.ThreeRollColdRoll,
+            "50,60轧机" => key is ProcessKeys.ColdRoll50 or ProcessKeys.ColdRoll60,
+            "20,30轧机" => key is ProcessKeys.ColdRoll20 or ProcessKeys.ColdRoll30,
+            "三辊轧机" => key == ProcessKeys.ThreeRollColdRoll,
             _ => false
         };
     }

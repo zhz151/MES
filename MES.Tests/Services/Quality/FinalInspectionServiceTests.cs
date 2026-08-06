@@ -339,12 +339,12 @@ public class FinalInspectionServiceTests : TestBase
             Quantity = 20,
             QualifiedQuantity = 20,
             FixedLength = "6000mm", // 不在集合，但预成检跳过归属校验
-            InspectionType = nameof(InspectionType.PreInspection)
+            InspectionType = MES.Core.Enums.InspectionType.PreInspection
         });
 
         result.Should().NotBeNull();
         result.FixedLength.Should().Be("6000mm");
-        result.InspectionType.Should().Be(nameof(InspectionType.PreInspection));
+        result.InspectionType.Should().Be(MES.Core.Enums.InspectionType.PreInspection);
     }
 
     [Fact]
@@ -447,7 +447,7 @@ public class FinalInspectionServiceTests : TestBase
             BatchNo = "BATCH001",
             Quantity = 20,
             QualifiedQuantity = 20,
-            InspectionType = nameof(InspectionType.PreInspection)
+            InspectionType = MES.Core.Enums.InspectionType.PreInspection
         });
 
         await act.Should().ThrowAsync<BusinessException>()
@@ -469,10 +469,10 @@ public class FinalInspectionServiceTests : TestBase
             BatchNo = "BATCH001",
             Quantity = 20,
             QualifiedQuantity = 20,
-            InspectionType = nameof(InspectionType.FormalInspection)
+            InspectionType = MES.Core.Enums.InspectionType.FormalInspection
         });
 
-        result.InspectionType.Should().Be(nameof(InspectionType.FormalInspection));
+        result.InspectionType.Should().Be(MES.Core.Enums.InspectionType.FormalInspection);
     }
 
     // ========== UpdateAsync ==========
@@ -545,12 +545,12 @@ public class FinalInspectionServiceTests : TestBase
             Quantity = 10,
             QualifiedQuantity = 10,
             FixedLength = "6000mm", // 不在集合，但预成检跳过归属校验
-            InspectionType = nameof(InspectionType.PreInspection)
+            InspectionType = MES.Core.Enums.InspectionType.PreInspection
         });
 
         result.Should().NotBeNull();
         result.FixedLength.Should().Be("6000mm");
-        result.InspectionType.Should().Be(nameof(InspectionType.PreInspection));
+        result.InspectionType.Should().Be(MES.Core.Enums.InspectionType.PreInspection);
     }
 
     [Fact]
@@ -568,10 +568,10 @@ public class FinalInspectionServiceTests : TestBase
             InspectionDate = DateTime.Today,
             Quantity = 10,
             QualifiedQuantity = 10,
-            InspectionType = nameof(InspectionType.FormalInspection)
+            InspectionType = MES.Core.Enums.InspectionType.FormalInspection
         });
 
-        result.InspectionType.Should().Be(nameof(InspectionType.FormalInspection));
+        result.InspectionType.Should().Be(MES.Core.Enums.InspectionType.FormalInspection);
     }
 
     [Fact]
@@ -589,7 +589,7 @@ public class FinalInspectionServiceTests : TestBase
             InspectionDate = DateTime.Today,
             Quantity = 10,
             QualifiedQuantity = 10,
-            InspectionType = nameof(InspectionType.PreInspection)
+            InspectionType = MES.Core.Enums.InspectionType.PreInspection
         });
 
         await act.Should().ThrowAsync<BusinessException>()
@@ -623,7 +623,7 @@ public class FinalInspectionServiceTests : TestBase
             QualifiedQuantity = 10
         });
 
-        result.InspectionType.Should().Be(nameof(InspectionType.FormalInspection));
+        result.InspectionType.Should().Be(MES.Core.Enums.InspectionType.FormalInspection);
     }
 
     // ========== BatchCreateAsync ==========
@@ -698,12 +698,12 @@ public class FinalInspectionServiceTests : TestBase
 
         var result = await svc.BatchCreateAsync(new List<CreateFinalInspectionRequest>
         {
-            new() { InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today, BatchNo = "BATCH001", Quantity = 10, QualifiedQuantity = 10, FixedLength = "6000mm", InspectionType = nameof(InspectionType.PreInspection) }
+            new() { InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today, BatchNo = "BATCH001", Quantity = 10, QualifiedQuantity = 10, FixedLength = "6000mm", InspectionType = MES.Core.Enums.InspectionType.PreInspection }
         });
 
         result.Should().HaveCount(1);
         result[0].FixedLength.Should().Be("6000mm");
-        result[0].InspectionType.Should().Be(nameof(InspectionType.PreInspection));
+        result[0].InspectionType.Should().Be(MES.Core.Enums.InspectionType.PreInspection);
     }
 
     [Fact]
@@ -737,7 +737,7 @@ public class FinalInspectionServiceTests : TestBase
         result.Should().NotBeNull();
         result!.ProductionBatchId.Should().Be(batch.Id);
         result.ManufacturingItem.Should().Be("OrderFinished");
-        result.InspectionType.Should().Be(nameof(InspectionType.FormalInspection));
+        result.InspectionType.Should().Be(MES.Core.Enums.InspectionType.FormalInspection);
     }
 
     [Fact]

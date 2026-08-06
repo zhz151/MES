@@ -102,11 +102,11 @@ public partial class PicklingOutRecords
         // G2: 完工信息
         new() { Key = "CompleteDate",      Label = "完工日期",     SortKey = "completedate",        FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "完工信息" },
         new() { Key = "Shift",             Label = "班次",         SortKey = "shift",               FilterType = "enum",   Width = "80",  GroupKey = 2, GroupName = "完工信息",
-            EnumOptions = new() { new("DayShift", "白班"), new("MiddleShift", "中班"), new("NightShift", "夜班") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
         new() { Key = "Operator",          Label = "操作人",       SortKey = "operator",            FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "完工信息" },
         new() { Key = "Remark",            Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 2, GroupName = "完工信息" },
         new() { Key = "DataSource",        Label = "数据来源",     SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 2, GroupName = "完工信息",
-            EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
+            EnumOptions = DisplayHelper.GetDataSourceOptions() },
         new() { Key = "UpdatedTime",       Label = "更新时间",     SortKey = "updatedtime",                                 Width = "120", GroupKey = 2, GroupName = "完工信息" },
     };
 
@@ -327,7 +327,12 @@ public partial class PicklingOutRecords
             _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
             {
                 Value = v,
-                Display = kvp.Key is "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" ? SectionDisplayHelper.GetSectionNameText(v) : v,
+                Display = kvp.Key switch
+                {
+                    "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v),
+                    "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(v),
+                    _ => v
+                },
                 Count = 0
             }).ToList();
         }
@@ -523,7 +528,7 @@ public partial class PicklingOutRecords
                 builder.AddContent(0, item.BatchNo ?? "");
                 break;
             case "ProcessName":
-                builder.AddContent(0, item.ProcessName ?? "");
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.ProcessName));
                 break;
             case "SectionName":
                 builder.AddContent(0, SectionDisplayHelper.GetSectionNameText(item.SectionName ?? ""));
@@ -572,12 +577,12 @@ public partial class PicklingOutRecords
                     builder.AddAttribute(3, "Class", "compact-input");
                     builder.AddAttribute(4, "ChildContent", (RenderFragment)(b =>
                     {
-                        foreach (var val in Enum.GetValues<ShiftType>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                         {
                             b.OpenComponent<MudSelectItem<ShiftType>>(0);
-                            b.AddAttribute(1, "Value", val);
+                            b.AddAttribute(1, "Value", Enum.Parse<ShiftType>(opt.Value));
                             b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
-                                b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                                b2.AddContent(0, opt.Display)));
                             b.CloseComponent();
                         }
                     }));

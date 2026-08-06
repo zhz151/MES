@@ -92,9 +92,9 @@
                             <MudSelect T="DeliveryState?" @bind-Value="_editDto!.DeliveryStatus"
                                        Label="交货状态"
                                        Variant="Variant.Outlined">
-                                @foreach (var state in Enum.GetValues<DeliveryState>())
+                                @foreach (var opt in DisplayHelper.GetEnumOptions<DeliveryState>())
                                 {
-                                    <MudSelectItem Value="@((DeliveryState?)state)">@DisplayHelper.GetDeliveryStateText(state)</MudSelectItem>
+                                    <MudSelectItem Value="@((DeliveryState?)Enum.Parse<DeliveryState>(opt.Value))">@opt.Display</MudSelectItem>
                                 }
                             </MudSelect>
                         }

@@ -97,19 +97,19 @@ public partial class Equipments
         new() { Key = "Location",          Label = "所在区域",   SortKey = "location", FilterType = "string", Width = "120" },
         new() { Key = "RelatedSection",    Label = "关联工段",   SortKey = "relatedsection", FilterType = "string", Width = "120" },
         new() { Key = "LifecycleStatus",   Label = "生命周期",   SortKey = "lifecyclestatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Active", "在用"), new("Standby", "备用"), new("Scrapped", "报废") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<LifecycleStatus>() },
         new() { Key = "UsageType",         Label = "作用类型",   SortKey = "usagetype", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Primary", "主生产"), new("Secondary", "辅生产"), new("Other", "其它") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<UsageType>() },
         new() { Key = "RunningStatus",     Label = "运行状态", SortKey = "runningstatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Normal", "正常"), new("Pending", "待维修"), new("InProgress", "维修中") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<RunningStatus>() },
         new() { Key = "InspectionStatus",  Label = "点检状况", SortKey = "inspectionstatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Pending", "待执行"), new("Normal", "正常"), new("Overdue", "逾期"), new("NotApplicable", "不适用") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<EquipmentTaskStatus>() },
         new() { Key = "NeedInspection",    Label = "需点检",     SortKey = "needinspection", FilterType = "boolean", Width = "60" },
         new() { Key = "InspectionPerson",  Label = "点检负责人", SortKey = "inspectionperson", FilterType = "string", Width = "120" },
         new() { Key = "InspectionCycleDays",Label = "点检周期",  SortKey = "inspectioncycledays", Width = "80" },
         new() { Key = "CurrentInspectionStartDate",Label = "本次点检日起始", SortKey = "currentinspectionstartdate", FilterType = "date", Width = "120" },
         new() { Key = "MaintStatus",       Label = "保养状况", SortKey = "maintstatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Pending", "待执行"), new("Normal", "正常"), new("Overdue", "逾期"), new("NotApplicable", "不适用") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<EquipmentTaskStatus>() },
         new() { Key = "NeedMaintenance",   Label = "需保养",     SortKey = "needmaintenance", FilterType = "boolean", Width = "60" },
         new() { Key = "MaintPerson",       Label = "保养负责人", SortKey = "maintperson", FilterType = "string", Width = "120" },
         new() { Key = "MaintCycleDays",    Label = "保养周期",   SortKey = "maintcycledays", Width = "80" },
@@ -837,11 +837,11 @@ public partial class Equipments
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<LifecycleStatus>(this, v => cache.LifecycleStatus = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    foreach (var val in Enum.GetValues<LifecycleStatus>())
+                    foreach (var opt in DisplayHelper.GetEnumOptions<LifecycleStatus>())
                     {
                         cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
-                        cb.AddAttribute(1, "Value", val);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLifecycleStatusText(val))));
+                        cb.AddAttribute(1, "Value", Enum.Parse<LifecycleStatus>(opt.Value));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                         cb.CloseComponent();
                     }
                 }));
@@ -856,11 +856,11 @@ public partial class Equipments
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<UsageType>(this, v => cache.UsageType = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    foreach (var val in Enum.GetValues<UsageType>())
+                    foreach (var opt in DisplayHelper.GetEnumOptions<UsageType>())
                     {
                         cb.OpenComponent<MudSelectItem<UsageType>>(0);
-                        cb.AddAttribute(1, "Value", val);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetUsageTypeText(val))));
+                        cb.AddAttribute(1, "Value", Enum.Parse<UsageType>(opt.Value));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                         cb.CloseComponent();
                     }
                 }));

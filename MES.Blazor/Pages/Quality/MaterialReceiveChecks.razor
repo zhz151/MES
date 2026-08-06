@@ -131,7 +131,7 @@
                                     <MudTd>@((int)context.CurrentValidWeight)</MudTd>
                                     <MudTd>@context.CurrentExecDate?.ToString("yyyy-MM-dd")</MudTd>
                                     <MudTd>@SectionDisplayHelper.GetSectionNameText(context.CurrentSectionName)</MudTd>
-                                    <MudTd>@context.ProcessGroupName</MudTd>
+                                    <MudTd>@ProcessDisplayHelper.GetProcessNameText(context.ProcessGroupName)</MudTd>
                                 </RowTemplate>
                             </MudTable>
                         </div>

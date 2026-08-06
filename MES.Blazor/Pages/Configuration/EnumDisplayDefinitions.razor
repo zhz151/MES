@@ -1,0 +1,197 @@
+@page "/enum-display-definitions"
+@using MES.Blazor.Services
+@using MES.Core.Models
+@using MES.Blazor.Helpers
+@using MES.Core.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@using MES.Core.DTOs.Configuration
+@using System.Text.Json
+@inject EnumDisplayDefinitionService EnumDisplayDefinitionService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
+@inject PageStateService PageState
+@attribute [Authorize(Roles = Roles.Policies.AdminOnly)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.FormatListNumbered" Class="mr-2" Color="Color.Primary" />
+                    参数-枚举显示配置
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.Restore"
+                           OnClick="RestoreDefaults"
+                           Disabled="@(string.IsNullOrEmpty(_selectedEnumKey) || _isRestoring)">
+                    恢复默认
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
+                管理各 C# 枚举值的中文显示名与显示顺序：改中文名后全站显示/打印/列表筛选/Excel 导入导出即按新名；
+                显示顺序影响下拉与列筛选选项排序。枚举值名（英文 Value）为程序识别契约，不可修改；刷新页面后生效。
+            </MudAlert>
+
+            <!-- 枚举筛选 -->
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string"
+                               Label="按枚举筛选"
+                               Value="_selectedEnumKey"
+                               ValueChanged="@OnEnumKeyChanged"
+                               Dense="true"
+                               Variant="Variant.Outlined"
+                               Clearable="true"
+                               ClearIcon="@Icons.Material.Filled.ClearAll">
+                        @foreach (var key in _enumKeys)
+                        {
+                            <MudSelectItem T="string" Value="@key">@GetEnumKeyText(key)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <div id="enum-display-definitions-list-table">
+            <MudTable @ref="table"
+                      T="EnumDisplayDefinitionDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4 auto-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @_totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                            </div>
+                        </MudTh>
+                    }
+                    <MudTh Style="width: 90px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @{
+                        var rowEditing = _editingIds.Contains(item.Id);
+                        var rowCache = rowEditing && _editCache.TryGetValue(item.Id, out var rc) ? rc : null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>
+                        @if (col.Key == "EnumKey")
+                        {
+                            @GetEnumKeyText(item.EnumKey)
+                        }
+                        else if (col.Key == "Value")
+                        {
+                            @item.Value
+                        }
+                        else if (col.Key == "DisplayName")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.DisplayName"
+                                              ValueChanged="@(v => rowCache.DisplayName = v)"
+                                              Class="compact-input"
+                                              Required="true"
+                                              Label="中文显示（可改名）" />
+                            }
+                            else
+                            {
+                                @item.DisplayName
+                            }
+                        }
+                        else if (col.Key == "DisplayOrder")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudNumericField T="int"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 HideSpinButtons="true"
+                                                 Value="@rowCache.DisplayOrder"
+                                                 ValueChanged="@(v => rowCache.DisplayOrder = v)"
+                                                 Class="compact-input"
+                                                 Min="1"
+                                                 Max="999" />
+                            }
+                            else
+                            {
+                                @item.DisplayOrder
+                            }
+                        }
+                        else if (col.Key == "Remark")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.Remark"
+                                              ValueChanged="@(v => rowCache.Remark = v)"
+                                              Class="compact-input" />
+                            }
+                            else
+                            {
+                                @item.Remark
+                            }
+                        }
+                        else
+                        {
+                            @("")
+                        }
+                        </MudTd>
+                    }
+                    <MudTd Style="white-space: nowrap; width: 90px;">
+                        @if (rowEditing)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small" OnClick="() => CancelEdit(item)" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

@@ -86,7 +86,7 @@
                                     <MudTd>@((int)context.CurrentValidWeight)</MudTd>
                                     <MudTd>@context.CurrentExecDate?.ToString("yyyy-MM-dd")</MudTd>
                                     <MudTd>@SectionDisplayHelper.GetSectionNameText(context.CurrentSectionName)</MudTd>
-                                    <MudTd>@context.ProcessGroupName</MudTd>
+                                    <MudTd>@ProcessDisplayHelper.GetProcessNameText(context.ProcessGroupName)</MudTd>
                                     <MudTd>
                                         <MudIconButton Icon="@Icons.Material.Filled.AddCircle"
                                                        Color="Color.Primary" Size="Size.Small"
@@ -456,7 +456,7 @@
                     builder.AddAttribute(1, "Typo", Typo.body2);
                     builder.AddAttribute(2, "Class", "px-2 py-1");
                     builder.AddAttribute(3, "ChildContent", (RenderFragment)(b =>
-                        b.AddContent(0, r.ProcessName)));
+                        b.AddContent(0, ProcessDisplayHelper.GetProcessNameText(r.ProcessName))));
                     builder.CloseComponent();
                 }
                 else
@@ -480,12 +480,12 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<ShiftType>(this, v => r.Shift = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var val in Enum.GetValues<ShiftType>())
+                    foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                     {
                         b.OpenComponent<MudSelectItem<ShiftType>>(0);
-                        b.AddAttribute(1, "Value", val);
+                        b.AddAttribute(1, "Value", Enum.Parse<ShiftType>(opt.Value));
                         b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
-                            b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                            b2.AddContent(0, opt.Display)));
                         b.CloseComponent();
                     }
                 }));

@@ -465,14 +465,13 @@
                     builder.AddAttribute(5, "Size", Size.Small);
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        cb.OpenComponent<MudSelectItem<RequirementType>>(0);
-                        cb.AddAttribute(1, "Value", RequirementType.Normal);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "常规")));
-                        cb.CloseComponent();
-                        cb.OpenComponent<MudSelectItem<RequirementType>>(0);
-                        cb.AddAttribute(1, "Value", RequirementType.Special);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, "特殊")));
-                        cb.CloseComponent();
+                        foreach (var opt in DisplayHelper.GetEnumOptions<RequirementType>())
+                        {
+                            cb.OpenComponent<MudSelectItem<RequirementType>>(0);
+                            cb.AddAttribute(1, "Value", Enum.Parse<RequirementType>(opt.Value));
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.CloseComponent();
+                        }
                     }));
                     builder.CloseComponent();
                 }

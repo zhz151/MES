@@ -172,7 +172,7 @@
         var requests = rows.Select(r => new CreateSupplierRequest
         {
             SupplierName = r.SupplierName,
-            MaterialCategory = r.MaterialCategory,
+            MaterialCategory = EnumHelper.TryParse<MaterialType>(r.MaterialCategory),
             ContactPerson = r.ContactPerson,
             ContactPhone = r.ContactPhone,
             Address = r.Address,

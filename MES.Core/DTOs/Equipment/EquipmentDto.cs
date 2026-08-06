@@ -140,11 +140,11 @@ public class EquipmentPrintAllRequest
     public string? Keyword { get; set; }
     public string? SortBy { get; set; }
     public bool IsDescending { get; set; }
-    public string? LifecycleStatus { get; set; }
-    public string? UsageType { get; set; }
-    public string? RunningStatus { get; set; }
-    public string? InspectionStatus { get; set; }
-    public string? MaintStatus { get; set; }
+    public LifecycleStatus? LifecycleStatus { get; set; }
+    public UsageType? UsageType { get; set; }
+    public RunningStatus? RunningStatus { get; set; }
+    public EquipmentTaskStatus? InspectionStatus { get; set; }
+    public EquipmentTaskStatus? MaintStatus { get; set; }
     public string? Location { get; set; }
     public string? RelatedSection { get; set; }
     public List<PrintColumnDef> Columns { get; set; } = new();

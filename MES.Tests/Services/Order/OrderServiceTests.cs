@@ -126,7 +126,7 @@ public class OrderServiceTests : TestBase
 
         var updated = await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
-            Status = SalesOrderStatus.Confirmed.ToString(),
+            Status = SalesOrderStatus.Confirmed,
             RowVersion = new byte[8]
         });
 
@@ -145,13 +145,13 @@ public class OrderServiceTests : TestBase
         var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
-            Status = SalesOrderStatus.Confirmed.ToString(),
+            Status = SalesOrderStatus.Confirmed,
             RowVersion = new byte[8]
         });
 
         var act = () => svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
-            Status = SalesOrderStatus.Pending.ToString(),
+            Status = SalesOrderStatus.Pending,
             RowVersion = new byte[8]
         });
 
@@ -294,7 +294,7 @@ public class OrderServiceTests : TestBase
         var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
         await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
-            Status = SalesOrderStatus.Confirmed.ToString(),
+            Status = SalesOrderStatus.Confirmed,
             RowVersion = new byte[8]
         });
         // UpdateAsync 内部通过 RefreshByOrderIdAsync 已自动创建 OrderListSummary，无需手动添加

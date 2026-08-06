@@ -60,11 +60,11 @@ public class AvailableMainWorkOrderBatchDto
     /// <summary>成品规格</summary>
     public string Specification { get; set; } = null!;
     /// <summary>长度状态</summary>
-    public string LengthStatus { get; set; } = null!;
+    public LengthStatus? LengthStatus { get; set; }
     /// <summary>最大长度(mm)</summary>
     public decimal? MaxLength { get; set; }
     /// <summary>批次状态</summary>
-    public string Status { get; set; } = null!;
+    public BatchStatus? Status { get; set; }
     /// <summary>投成倍数（制成倍数）</summary>
     public int ProductionRatio { get; set; }
     /// <summary>有效原料支数</summary>

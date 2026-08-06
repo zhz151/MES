@@ -44,12 +44,7 @@ public static class MaterialCheckPrintHelper
                 ["Shift"] = EnumHelper.GetDisplayName<ShiftType>(m.Shift?.ToString()),
                 ["Checker"] = m.Checker ?? "",
                 ["LengthStatus"] = m.LengthStatus.HasValue ? EnumHelper.GetDisplayName(typeof(LengthStatus), m.LengthStatus.Value) : "",
-                ["DataSource"] = m.DataSource switch
-                {
-                    "SCAN" => "扫码",
-                    "MANUAL" => "手动",
-                    _ => m.DataSource ?? ""
-                },
+                ["DataSource"] = StringEnumDisplayHelper.GetDataSourceText(m.DataSource),
                 ["Salesman"] = m.Salesman ?? "",
                 ["DeliveryState"] = m.DeliveryState.HasValue ? EnumHelper.GetDisplayName(typeof(DeliveryState), m.DeliveryState.Value) : "",
                 ["IsForceCompleted"] = m.IsForceCompleted ? "是" : "否",

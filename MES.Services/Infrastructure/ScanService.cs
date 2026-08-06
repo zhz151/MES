@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
+using MES.Core.Helpers;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -122,7 +122,7 @@ public class ScanService : IScanService
             PlantGrade = batch.PlantGrade,
             Specification = batch.Specification,
             TagNo = batch.TagNo,
-            ProductionType = batch.ProductionType,
+            ProductionType = EnumHelper.TryParse<ProductionType>(batch.ProductionType),
             ProcessGroups = groupOptions
         };
     }
@@ -236,7 +236,7 @@ public class ScanService : IScanService
             PlantGrade = batch.PlantGrade,
             Specification = batch.Specification,
             TagNo = batch.TagNo,
-            ProductionType = batch.ProductionType,
+            ProductionType = EnumHelper.TryParse<ProductionType>(batch.ProductionType),
             ProcessGroupId = group.Id,
             ProcessName = group.ProcessName,
             ManufacturingSpec = group.ManufacturingSpec,
@@ -267,13 +267,4 @@ public class ScanService : IScanService
             _ => null
         };
     }
-
-    private static string GetStatusText(BatchStatus status) => status switch
-    {
-        BatchStatus.None => "未产",
-        BatchStatus.InProgress => "在产",
-        BatchStatus.Completed => "完成",
-        BatchStatus.Suspended => "挂起",
-        _ => status.ToString()
-    };
 }

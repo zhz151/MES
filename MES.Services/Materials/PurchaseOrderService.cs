@@ -838,7 +838,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 {
                     WorkOrderNo = workOrderNo,
                     MaterialName = workOrderNo,
-                    MaterialCategory = x.CategoryName,
+                    MaterialCategory = EnumHelper.TryParse<MaterialType>(x.CategoryName),
                     PlanWeight = x.PlanWeight,
                     PurchaseWeight = purchaseW,
                     SubcontractWeight = subcontractW,
@@ -915,7 +915,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 {
                     WorkOrderNo = workOrderNo,
                     MaterialName = workOrderNo,
-                    MaterialCategory = "RoundBar",
+                    MaterialCategory = EnumHelper.TryParse<MaterialType>("RoundBar"),
                     PlanWeight = x.PlanWeight,
                     PurchaseWeight = 0,
                     SubcontractWeight = subW,
@@ -999,7 +999,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             return new PlanDetailDto
             {
                 WorkOrderNo = workOrderNo,
-                MaterialCategory = materialCategory,
+                MaterialCategory = EnumHelper.TryParse<MaterialType>(materialCategory),
                 PlantGrade = semiPlan.PlantGrade,
                 Specification = semiPlan.RawMaterialSpec,
                 UnitWeight = semiPlan.RequiredUnitWeight,
@@ -1023,7 +1023,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             return new PlanDetailDto
             {
                 WorkOrderNo = workOrderNo,
-                MaterialCategory = materialCategory,
+                MaterialCategory = EnumHelper.TryParse<MaterialType>(materialCategory),
                 PlantGrade = finishedPlan.PlantGrade,
                 Specification = finishedPlan.Specification,
                 Quantity = finishedPlan.RequiredPiece,
@@ -1044,7 +1044,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         return new PlanDetailDto
         {
             WorkOrderNo = workOrderNo,
-            MaterialCategory = "RoughTube", // 圆棒穿孔实际消耗的是荒管
+            MaterialCategory = EnumHelper.TryParse<MaterialType>("RoughTube"), // 圆棒穿孔实际消耗的是荒管
             PlantGrade = piercingPlan.PlantGrade,
             Specification = piercingPlan.PiercingSpec,
             UnitWeight = piercingPlan.RequiredUnitWeight,

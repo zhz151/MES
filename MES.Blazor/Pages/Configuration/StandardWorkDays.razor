@@ -134,22 +134,6 @@
                                 @item.SectionKey
                             }
                         }
-                        else if (col.Key == "EnglishName")
-                        {
-                            if (rowEditing && rowCache != null)
-                            {
-                                <MudTextField T="string"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Value="@rowCache.EnglishName"
-                                              ValueChanged="@(v => rowCache.EnglishName = v)"
-                                              Class="compact-input" />
-                            }
-                            else
-                            {
-                                @item.EnglishName
-                            }
-                        }
                         else if (col.Key == "DisplayOrder")
                         {
                             if (rowEditing && rowCache != null)

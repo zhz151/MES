@@ -114,9 +114,9 @@
                         <MudSelect T="MaterialType" Label="物料类型 *" @bind-Value="_formData.PipeCategory"
                                    Variant="Variant.Outlined" Immediate="true"
                                    Required="true" RequiredError="物料类型不能为空">
-                            @foreach (var val in Enum.GetValues<MaterialType>())
+                            @foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>())
                             {
-                                <MudSelectItem Value="@(val)">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>
+                                <MudSelectItem Value="@(Enum.Parse<MaterialType>(opt.Value))">@opt.Display</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -160,9 +160,9 @@
                         <MudSelect T="DisposalMethod?" Label="处置方式" @bind-Value="_formData.DisposalMethod"
                                    Variant="Variant.Outlined">
                             <MudSelectItem Value="@((DisposalMethod?)null)">请选择</MudSelectItem>
-                            @foreach (var val in Enum.GetValues<DisposalMethod>())
+                            @foreach (var opt in DisplayHelper.GetEnumOptions<DisposalMethod>())
                             {
-                                <MudSelectItem Value="@((DisposalMethod?)val)">@DisplayHelper.GetDisposalMethodText(val)</MudSelectItem>
+                                <MudSelectItem Value="@((DisposalMethod?)Enum.Parse<DisposalMethod>(opt.Value))">@opt.Display</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -189,9 +189,9 @@
                         <MudSelect T="SeverityLevel?" Label="事故严重程度" @bind-Value="_formData.Severity"
                                    Variant="Variant.Outlined">
                             <MudSelectItem Value="@((SeverityLevel?)null)">请选择</MudSelectItem>
-                            @foreach (var val in Enum.GetValues<SeverityLevel>())
+                            @foreach (var opt in DisplayHelper.GetEnumOptions<SeverityLevel>())
                             {
-                                <MudSelectItem Value="@((SeverityLevel?)val)">@DisplayHelper.GetSeverityLevelText(val)</MudSelectItem>
+                                <MudSelectItem Value="@((SeverityLevel?)Enum.Parse<SeverityLevel>(opt.Value))">@opt.Display</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -219,9 +219,9 @@
                         <MudSelect T="ResponsibilityCategory?" Label="责任类别" @bind-Value="_formData.ResponsibilityCategory"
                                    Variant="Variant.Outlined">
                             <MudSelectItem Value="@((ResponsibilityCategory?)null)">请选择</MudSelectItem>
-                            @foreach (var val in Enum.GetValues<ResponsibilityCategory>())
+                            @foreach (var opt in DisplayHelper.GetEnumOptions<ResponsibilityCategory>())
                             {
-                                <MudSelectItem Value="@((ResponsibilityCategory?)val)">@DisplayHelper.GetResponsibilityCategoryText(val)</MudSelectItem>
+                                <MudSelectItem Value="@((ResponsibilityCategory?)Enum.Parse<ResponsibilityCategory>(opt.Value))">@opt.Display</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -272,9 +272,9 @@
                         <MudSelect T="VerifyResult?" Label="验证结论" @bind-Value="_formData.VerifyResult"
                                    Variant="Variant.Outlined">
                             <MudSelectItem Value="@((VerifyResult?)null)">请选择</MudSelectItem>
-                            @foreach (var val in Enum.GetValues<VerifyResult>())
+                            @foreach (var opt in DisplayHelper.GetEnumOptions<VerifyResult>())
                             {
-                                <MudSelectItem Value="@((VerifyResult?)val)">@DisplayHelper.GetVerifyResultText(val)</MudSelectItem>
+                                <MudSelectItem Value="@((VerifyResult?)Enum.Parse<VerifyResult>(opt.Value))">@opt.Display</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>

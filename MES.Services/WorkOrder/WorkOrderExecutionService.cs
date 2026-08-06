@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -16,6 +15,7 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -791,13 +791,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 : 4;
         }
 
-        // ProductionAttentionProcess 兜底调整：仅 ScheduleStage==3（生产执行）时显示"收尾-成检"，其余保持 null
-        foreach (var summary in summaries)
-        {
-            if (summary.ProductionAttentionProcess == null && summary.ScheduleStage == 3)
-                summary.ProductionAttentionProcess = "收尾-成检";
-        }
-
         // MainNoAttentionProcess: 同(订单号+主号)下，取剩余工量最大值所在工单的生产关注工序
         var mainNoAttentionMap = summaries
             .Where(s => s.MaxBatchRemainingWorkDays.HasValue && s.ProductionAttentionProcess != null)
@@ -825,13 +818,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var flags = mainNoUrgencyFlags[new { summary.SalesOrderNo, summary.ProductionMainNo }];
 
             if (summary.IsPaused)
-                summary.ProductionFlowProperty = "暂停";
+                summary.ProductionFlowProperty = ProductionFlowKeys.Paused;
             else if (summary.ScheduleStage == 3 || (summary.ScheduleStage == 2 && (flags.MainNoUrging || flags.MainNoBatchDelivery)))
-                summary.ProductionFlowProperty = "正常";
+                summary.ProductionFlowProperty = ProductionFlowKeys.Normal;
             else if (summary.ScheduleStage == 2)
-                summary.ProductionFlowProperty = "待料";
+                summary.ProductionFlowProperty = ProductionFlowKeys.Waiting;
             else if (summary.ScheduleStage == 1 || summary.ScheduleStage == 4)
-                summary.ProductionFlowProperty = summary.FlowIncompleteBatchCount == 0 ? "略" : "疑问";
+                summary.ProductionFlowProperty = summary.FlowIncompleteBatchCount == 0 ? ProductionFlowKeys.Skip : ProductionFlowKeys.Doubt;
             else
                 summary.ProductionFlowProperty = null;
         }
@@ -936,15 +929,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var deliveryDays = DateOnly.FromDateTime(summary.DeliveryDate).DayNumber;
             var diff = totalDays + todayDays - deliveryDays;
 
-            summary.UrgencyLevel = diff > urgencyAPlus ? "A+急"
-                : diff > urgencyA ? "A急"
-                : diff > urgencyB ? "B顺"
-                : diff > urgencyC ? "C缓"
-                : "D缓";
+            summary.UrgencyLevel = diff > urgencyAPlus ? UrgencyLevelKeys.APlusUrgent
+                : diff > urgencyA ? UrgencyLevelKeys.AUrgent
+                : diff > urgencyB ? UrgencyLevelKeys.BOrder
+                : diff > urgencyC ? UrgencyLevelKeys.CSlow
+                : UrgencyLevelKeys.DSlow;
 
             // 暂停工单 → UrgencyLevel 覆盖为"E停"
             if (pausedIds.Contains(summary.WorkOrderId))
-                summary.UrgencyLevel = "E停";
+                summary.UrgencyLevel = UrgencyLevelKeys.EPaused;
 
             // 预计完成日 & 交期相差天数
             summary.EstimatedProcessCompletionDate = DateTime.Today.AddDays(totalDays);
@@ -967,15 +960,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 // B 执行返整：附返整满足（缺口可由返整量补齐，处于返整执行）
                 // A 质量补料：附返整不满足（连返整量算上仍不足，真缺料需补料）
-                summary.RawMaterialLockRemark = summary.ReworkMainNoStatus == 2 ? "B执行返整" : "A质量补料";
+                summary.RawMaterialLockRemark = summary.ReworkMainNoStatus == 2 ? RawMaterialLockRemarkKeys.ExecuteRework : RawMaterialLockRemarkKeys.QualityReplenish;
                 continue;
             }
 
             // 投料不满足 → 按主号计划状态分 C 执行计划 / D 完善计划
             var planStatus = (MaterialPlanStatus)summary.MainNoMaterialPlanStatus;
             summary.RawMaterialLockRemark = planStatus is MaterialPlanStatus.Satisfied or MaterialPlanStatus.Excess
-                ? "C执行计划"
-                : "D完善计划";
+                ? RawMaterialLockRemarkKeys.ExecutePlan
+                : RawMaterialLockRemarkKeys.ImprovePlan;
         }
 
         // 批量 Upsert
@@ -1449,12 +1442,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 : hasProducingBatch ? 3
                 : 4;
         }
-        foreach (var summary in summaries)
-        {
-            if (summary.ProductionAttentionProcess == null && summary.ScheduleStage == 3)
-                summary.ProductionAttentionProcess = "收尾-成检";
-        }
-
         // MainNoAttentionProcess: 同(订单号+主号)下，取剩余工量最大值所在工单的生产关注工序
         var mainNoAttentionMap = summaries
             .Where(s => s.MaxBatchRemainingWorkDays.HasValue && s.ProductionAttentionProcess != null)
@@ -1482,10 +1469,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         foreach (var summary in summaries)
         {
             var flags = mainNoUrgencyFlags[new { summary.SalesOrderNo, summary.ProductionMainNo }];
-            summary.ProductionFlowProperty = summary.IsPaused ? "暂停"
-                : (summary.ScheduleStage == 3 || (summary.ScheduleStage == 2 && (flags.MainNoUrging || flags.MainNoBatchDelivery))) ? "正常"
-                : summary.ScheduleStage == 2 ? "待料"
-                : (summary.ScheduleStage == 1 || summary.ScheduleStage == 4) ? (summary.FlowIncompleteBatchCount == 0 ? "略" : "疑问")
+            summary.ProductionFlowProperty = summary.IsPaused ? ProductionFlowKeys.Paused
+                : (summary.ScheduleStage == 3 || (summary.ScheduleStage == 2 && (flags.MainNoUrging || flags.MainNoBatchDelivery))) ? ProductionFlowKeys.Normal
+                : summary.ScheduleStage == 2 ? ProductionFlowKeys.Waiting
+                : (summary.ScheduleStage == 1 || summary.ScheduleStage == 4) ? (summary.FlowIncompleteBatchCount == 0 ? ProductionFlowKeys.Skip : ProductionFlowKeys.Doubt)
                 : null;
         }
 
@@ -1571,15 +1558,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 // B 执行返整：附返整满足（缺口可由返整量补齐，处于返整执行）
                 // A 质量补料：附返整不满足（连返整量算上仍不足，真缺料需补料）
-                summary.RawMaterialLockRemark = summary.ReworkMainNoStatus == 2 ? "B执行返整" : "A质量补料";
+                summary.RawMaterialLockRemark = summary.ReworkMainNoStatus == 2 ? RawMaterialLockRemarkKeys.ExecuteRework : RawMaterialLockRemarkKeys.QualityReplenish;
                 continue;
             }
 
             // 投料不满足 → 按主号计划状态分 C 执行计划 / D 完善计划
             var planStatus = (MaterialPlanStatus)summary.MainNoMaterialPlanStatus;
             summary.RawMaterialLockRemark = planStatus is MaterialPlanStatus.Satisfied or MaterialPlanStatus.Excess
-                ? "C执行计划"
-                : "D完善计划";
+                ? RawMaterialLockRemarkKeys.ExecutePlan
+                : RawMaterialLockRemarkKeys.ImprovePlan;
         }
 
         // 6. 仅 upsert 目标工单
@@ -1865,14 +1852,14 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         // 8个固定节点定义：(工序组名称, 工段名称)
         var nodeDefs = new (string ProcessName, string SectionName)[]
         {
-            ("荒管处理", SectionKeys.OuterPolish),
-            ("在制修检", SectionKeys.Inspection),
-            ("60冷轧", SectionKeys.ColdRollDraw),
-            ("50冷轧", SectionKeys.ColdRollDraw),
-            ("30冷轧", SectionKeys.ColdRollDraw),
-            ("20冷轧", SectionKeys.ColdRollDraw),
-            ("三辊冷轧", SectionKeys.ColdRollDraw),
-            ("冷拔", SectionKeys.ColdRollDraw),
+            (ProcessKeys.RoughTubeProcessing, SectionKeys.OuterPolish),
+            (ProcessKeys.InProcessRepair, SectionKeys.Inspection),
+            (ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw),
+            (ProcessKeys.ColdRoll50, SectionKeys.ColdRollDraw),
+            (ProcessKeys.ColdRoll30, SectionKeys.ColdRollDraw),
+            (ProcessKeys.ColdRoll20, SectionKeys.ColdRollDraw),
+            (ProcessKeys.ThreeRollColdRoll, SectionKeys.ColdRollDraw),
+            (ProcessKeys.ColdDraw, SectionKeys.ColdRollDraw),
         };
 
         // 使用所有非完成/成检批次（含正常 + 返整）
@@ -1934,7 +1921,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 {
                     // === 1. 工段级到达检查：荒管处理·外抛光、在制修检·检验 ===
                     // 批次已到达此工序组但尚未到达指定工段时，仍需计入待量
-                    if (pn is "荒管处理" or "在制修检")
+                    if (pn is ProcessKeys.RoughTubeProcessing or ProcessKeys.InProcessRepair)
                     {
                         var targetPg = batch.ProcessGroups
                             .FirstOrDefault(pg => pg.ProcessName.Equals(pn, StringComparison.OrdinalIgnoreCase));
@@ -1978,18 +1965,18 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         }
 
         // 将 pendingValues 赋值到 summary 字段
-        summary.PendingSectionRoughTube = pendingValues["荒管处理"] > 0 ? pendingValues["荒管处理"] : null;
-        summary.PendingSectionWarehouseFix = pendingValues["在制修检"] > 0 ? pendingValues["在制修检"] : null;
-        summary.PendingSection60Roll = pendingValues["60冷轧"] > 0 ? pendingValues["60冷轧"] : null;
-        summary.PendingSection50Roll = pendingValues["50冷轧"] > 0 ? pendingValues["50冷轧"] : null;
-        summary.PendingSection30Roll = pendingValues["30冷轧"] > 0 ? pendingValues["30冷轧"] : null;
-        summary.PendingSection20Roll = pendingValues["20冷轧"] > 0 ? pendingValues["20冷轧"] : null;
-        summary.PendingSectionThreeRoll = pendingValues["三辊冷轧"] > 0 ? pendingValues["三辊冷轧"] : null;
-        summary.PendingSectionDrawBench = pendingValues["冷拔"] > 0 ? pendingValues["冷拔"] : null;
+        summary.PendingSectionRoughTube = pendingValues[ProcessKeys.RoughTubeProcessing] > 0 ? pendingValues[ProcessKeys.RoughTubeProcessing] : null;
+        summary.PendingSectionWarehouseFix = pendingValues[ProcessKeys.InProcessRepair] > 0 ? pendingValues[ProcessKeys.InProcessRepair] : null;
+        summary.PendingSection60Roll = pendingValues[ProcessKeys.ColdRoll60] > 0 ? pendingValues[ProcessKeys.ColdRoll60] : null;
+        summary.PendingSection50Roll = pendingValues[ProcessKeys.ColdRoll50] > 0 ? pendingValues[ProcessKeys.ColdRoll50] : null;
+        summary.PendingSection30Roll = pendingValues[ProcessKeys.ColdRoll30] > 0 ? pendingValues[ProcessKeys.ColdRoll30] : null;
+        summary.PendingSection20Roll = pendingValues[ProcessKeys.ColdRoll20] > 0 ? pendingValues[ProcessKeys.ColdRoll20] : null;
+        summary.PendingSectionThreeRoll = pendingValues[ProcessKeys.ThreeRollColdRoll] > 0 ? pendingValues[ProcessKeys.ThreeRollColdRoll] : null;
+        summary.PendingSectionDrawBench = pendingValues[ProcessKeys.ColdDraw] > 0 ? pendingValues[ProcessKeys.ColdDraw] : null;
 
         // DeformedProcessCompleted: 后6项（全部冷轧/冷拔）之和=0 → true
-        var rollingSum = pendingValues["60冷轧"] + pendingValues["50冷轧"] + pendingValues["30冷轧"]
-            + pendingValues["20冷轧"] + pendingValues["三辊冷轧"] + pendingValues["冷拔"];
+        var rollingSum = pendingValues[ProcessKeys.ColdRoll60] + pendingValues[ProcessKeys.ColdRoll50] + pendingValues[ProcessKeys.ColdRoll30]
+            + pendingValues[ProcessKeys.ColdRoll20] + pendingValues[ProcessKeys.ThreeRollColdRoll] + pendingValues[ProcessKeys.ColdDraw];
         summary.DeformedProcessCompleted = rollingSum == 0m;
 
         // ProductionAttentionProcess: 前8项中值>0 且 SequenceNumber 最小的工序名称
@@ -2104,7 +2091,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     private static bool HasAnySection(ProcessGroup pg)
     {
         // "在制修检"和"附加成检"不计入有效工序组，不参与理论重量扣除
-        if (pg.ProcessName == ProcessNames.InProcessRepair || pg.ProcessName == ProcessNames.AdditionalFinalInspection)
+        if (pg.ProcessName == ProcessKeys.InProcessRepair || pg.ProcessName == ProcessKeys.AdditionalFinalInspection)
             return false;
 
         return pg.ColdRollDraw.HasValue
@@ -2546,7 +2533,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         // ========== Stage 1: 原料锁定 ==========
         // 待投料 = (TotalWeight - PendingOutsourceFinishWeight) × RawMaterialRatio - InputWeight
-        // 参考 RawMaterialLockPlanAndExecution.RecalculateSummary()
         var rawMaterialRatio = await GetConfigAsync("ProcessingDiscount", "RawMaterialRatio", 1.1m);
         var stage1Data = await _context.Set<WorkOrderExecutionSummary>()
             .AsNoTracking()
@@ -2733,13 +2719,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
                 ["UrgencyLevel"] = all.Where(x => x.UrgencyLevel != null).Select(x => x.UrgencyLevel!).Distinct().OrderBy(x => x).ToList(),
                 ["RawMaterialLockRemark"] = all.Where(x => x.RawMaterialLockRemark != null).Select(x => x.RawMaterialLockRemark!).Distinct().OrderBy(x => x).ToList(),
-                ["ProductionFlowProperty"] = new List<string> { "暂停", "正常", "待料", "疑问", "略" },
+                ["ProductionFlowProperty"] = new List<string> { ProductionFlowKeys.Paused, ProductionFlowKeys.Normal, ProductionFlowKeys.Waiting, ProductionFlowKeys.Doubt, ProductionFlowKeys.Skip },
                 ["ProductionAttentionProcess"] = all
                     .Where(x => x.ProductionAttentionProcess != null)
                     .Select(x => x.ProductionAttentionProcess!)
                     .Distinct()
                     .OrderBy(x => x)
-                    .Union(new[] { "收尾-成检" })
                     .ToList(),
                 ["AdjustmentRemark"] = all.Where(x => x.AdjustmentRemark != null).Select(x => x.AdjustmentRemark!).Distinct().OrderBy(x => x).ToList(),
             };
@@ -3208,7 +3193,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         return WorkOrderExecutionPrintHelper.GeneratePdf("工单执行状况", resolvedItems, columns);
     }
 
-    private static object ResolvePrintValue(WorkOrderExecutionSummaryDto item, string key) => key switch
+    private static object ResolvePrintValue(WorkOrderExecutionSummaryDto item, string key) => (key switch
     {
         // 枚举→中文
         "SettlementMethod" => GetSettlementMethodText(item.SettlementMethod.ToString()),
@@ -3268,7 +3253,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         "MainNoInputRatio" => item.MainNoInputOutputRatio.ToString("F1") + "%",
         // 通用字符串/数值
         _ => GetRawPrintValue(item, key)
-    };
+    }) ?? "";
 
     private static object GetRawPrintValue(WorkOrderExecutionSummaryDto item, string key) => (key switch
     {
@@ -3354,9 +3339,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         "WarehousingTotalWeight" => item.WarehousingTotalWeight,
         "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
         "CapacityWorkDays" => item.CapacityWorkDays,
-        "UrgencyLevel" => item.UrgencyLevel ?? "",
+        "UrgencyLevel" => UrgencyLevelKeys.ToChinese(item.UrgencyLevel) ?? "",
         "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
-        "RawMaterialLockRemark" => item.RawMaterialLockRemark ?? "",
+        "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "",
         "AdjustmentRemark" => item.AdjustmentRemark ?? "",
         "PendingSectionRoughTube" => item.PendingSectionRoughTube,
         "PendingSectionWarehouseFix" => item.PendingSectionWarehouseFix,
@@ -3366,52 +3351,22 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         "PendingSection20Roll" => item.PendingSection20Roll,
         "PendingSectionThreeRoll" => item.PendingSectionThreeRoll,
         "PendingSectionDrawBench" => item.PendingSectionDrawBench,
-        "ProductionAttentionProcess" => item.ProductionAttentionProcess ?? "",
-        "ProductionFlowProperty" => item.ProductionFlowProperty ?? "",
+        "ProductionAttentionProcess" => ProcessKeys.ToChinese(item.ProductionAttentionProcess) ?? "",
+        "ProductionFlowProperty" => ProductionFlowKeys.ToChinese(item.ProductionFlowProperty) ?? "",
         "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays,
-        "MainNoAttentionProcess" => item.MainNoAttentionProcess ?? "",
+        "MainNoAttentionProcess" => ProcessKeys.ToChinese(item.MainNoAttentionProcess) ?? "",
         // 主号流转比（ColumnDef Key 与 DTO 属性名不一致：Key=MainNoFlowRatio, DTO=MainNoFlowOutputRatio）
         "MainNoFlowRatio" => item.MainNoFlowOutputRatio,
         _ => ""
     })!;
 
-    private static string GetPipeManufacturingTypeText(string? pipeManufacturingType) => pipeManufacturingType switch
-    {
-        "SeamlessPipe" => "无缝管",
-        "WeldedPipe" => "焊管",
-        _ => pipeManufacturingType ?? ""
-    };
+    private static string GetPipeManufacturingTypeText(string? pipeManufacturingType) => EnumHelper.GetDisplayName<PipeManufacturingType>(pipeManufacturingType);
 
-    private static string GetDeliveryStateText(string? deliveryState) => deliveryState switch
-    {
-        "SolutionAnnealedAndPickled" => "固溶酸洗",
-        "SolutionAnnealedAndPickledUTube" => "固溶酸洗-U型管",
-        "SolutionAnnealedAndPickledExternalPolished" => "固溶酸洗-外抛光",
-        "SolutionAnnealedAndPickledInternalPolished" => "固溶酸洗-内抛光",
-        "SolutionAnnealedAndPickledBothPolished" => "固溶酸洗-内外抛光",
-        "SolutionAnnealedAndPickledCoiled" => "固溶酸洗-盘管",
-        "Bright" => "光亮",
-        "BrightUTube" => "光亮-U型管",
-        "BrightCoiled" => "光亮-盘管",
-        "Hard" => "硬态",
-        _ => deliveryState ?? ""
-    };
+    private static string GetDeliveryStateText(string? deliveryState) => EnumHelper.GetDisplayName<DeliveryState>(deliveryState);
 
-    private static string GetSettlementMethodText(string? method) => method switch
-    {
-        "Theoretical" => "理算",
-        "Weighing" => "过磅",
-        "WeighingNegative" => "过磅-负",
-        _ => method ?? ""
-    };
+    private static string GetSettlementMethodText(string? method) => EnumHelper.GetDisplayName<SettlementMethod>(method);
 
-    private static string GetLengthStatusText(string? lengthStatus) => lengthStatus switch
-    {
-        "Fixed" => "定尺",
-        "Range" => "范围尺",
-        "NonFixed" => "非定尺",
-        _ => lengthStatus ?? ""
-    };
+    private static string GetLengthStatusText(string? lengthStatus) => EnumHelper.GetDisplayName<LengthStatus>(lengthStatus);
 
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)

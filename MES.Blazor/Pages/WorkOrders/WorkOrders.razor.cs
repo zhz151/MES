@@ -85,22 +85,22 @@ public partial class WorkOrders : IAsyncDisposable
         new() { Key = "DeliveryDate",      Label = "交货日期", SortKey = "DeliveryDate", FilterType = "date", Width = "120" },
         new() { Key = "DelayPenalty",      Label = "延期罚款", SortKey = "DelayPenalty",      FilterType = "boolean", Width = "60", BoolTrueLabel = "是", BoolFalseLabel = "否" },
         new() { Key = "SettlementMethod",  Label = "结算方式", SortKey = "SettlementMethod",  FilterType = "enum", Width = "120",
-               EnumOptions = new List<EnumOption> { new("Weighing", "过磅"), new("WeighingNegative", "过磅-负"), new("Theoretical", "理算") } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
         new() { Key = "PlantGrade",        Label = "工厂牌号", SortKey = "PlantGrade",        FilterType = "string", Width = "120" },
         new() { Key = "MaterialName",      Label = "钢管制造", SortKey = "MaterialName",      FilterType = "enum", Width = "120",
-               EnumOptions = new List<EnumOption> { new("SeamlessPipe", "无缝管"), new("WeldedPipe", "焊管") } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>() },
         new() { Key = "Specification",     Label = "规格",     SortKey = "Specification",     FilterType = "string", Width = "120" },
         new() { Key = "LengthStatus",      Label = "长度状态", SortKey = "LengthStatus",      FilterType = "enum", Width = "120",
-               EnumOptions = new List<EnumOption> { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
         new() { Key = "MinLength",         Label = "最小长度", SortKey = "MinLength", Width = "80" },
         new() { Key = "MaxLength",         Label = "最大长度", SortKey = "MaxLength", Width = "80" },
         new() { Key = "TotalQuantity",     Label = "总支数",   SortKey = "TotalQuantity", Width = "80" },
         new() { Key = "TotalWeight",       Label = "总重量",   SortKey = "TotalWeight", Width = "80" },
         new() { Key = "DeliveryState",     Label = "交货状态", SortKey = "DeliveryState",    FilterType = "enum", Width = "120",
-               EnumOptions = new List<EnumOption> { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"), new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
         new() { Key = "TotalItemCount",    Label = "含项次数", SortKey = "TotalItemCount", Width = "80" },
         new() { Key = "Status",            Label = "状态",     SortKey = "Status",            FilterType = "enum", Width = "120",
-               EnumOptions = new List<EnumOption> { new("1", "已确定"), new("2", "待修正") } },
+               EnumOptions = new List<EnumOption> { new("Confirmed", "已确定"), new("Pending", "待修正") } },
     };
 
     // ========== 分页汇总 ==========
@@ -146,7 +146,7 @@ public partial class WorkOrders : IAsyncDisposable
     private string RenderFooterCell(ColumnDef col)
     {
         if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
-        return "";
+        return "-";
     }
 
     // ========== 服务端数据加载 ==========

@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using MES.Core.DTOs.Configuration;
 using MES.Core.Enums;
 
 namespace MES.Core.Helpers;
@@ -5,11 +7,22 @@ namespace MES.Core.Helpers;
 /// <summary>
 /// 枚举值 ↔ 中文显示名双向映射工具
 /// 用于 Excel 导入导出时的枚举转换
+/// 支持配置表覆盖：ApplyEnumOverrides 注入后，显示名/反向解析以配置表优先，静态字典兜底
+/// （EnumKey 约定为枚举类型名 typeof(T).Name，如 "BatchStatus"）。
 /// </summary>
 public static class EnumHelper
 {
     private static readonly Dictionary<Type, Dictionary<string, string>> _enumToDisplay;
     private static readonly Dictionary<Type, Dictionary<string, string>> _displayToEnum;
+
+    /// <summary>配置表覆盖：EnumKey(枚举类型名) → Value → DisplayName（ConcurrentDictionary 保证读写并发安全）</summary>
+    private static readonly ConcurrentDictionary<string, Dictionary<string, string>> _displayOverrides = new(StringComparer.Ordinal);
+
+    /// <summary>配置表覆盖反向：EnumKey → DisplayName → Value（导入反向解析用）</summary>
+    private static readonly ConcurrentDictionary<string, Dictionary<string, string>> _displayOverrideReverse = new(StringComparer.Ordinal);
+
+    /// <summary>配置表排序覆盖：EnumKey → Value → DisplayOrder（下拉/筛选选项按此排序）</summary>
+    private static readonly ConcurrentDictionary<string, Dictionary<string, int>> _displayOrders = new(StringComparer.Ordinal);
 
     static EnumHelper()
     {
@@ -261,6 +274,11 @@ public static class EnumHelper
         var name = Enum.GetName(typeof(T), value);
         if (name == null) return value.ToString();
 
+        // 配置表覆盖优先
+        if (_displayOverrides.TryGetValue(typeof(T).Name, out var overrides)
+            && overrides.TryGetValue(name, out var overrideDisplay))
+            return overrideDisplay;
+
         return _enumToDisplay.TryGetValue(typeof(T), out var dict) && dict.TryGetValue(name, out var display)
             ? display
             : name;
@@ -273,6 +291,11 @@ public static class EnumHelper
     {
         var name = Enum.GetName(enumType, value);
         if (name == null) return value.ToString() ?? "";
+
+        // 配置表覆盖优先
+        if (_displayOverrides.TryGetValue(enumType.Name, out var overrides)
+            && overrides.TryGetValue(name, out var overrideDisplay))
+            return overrideDisplay;
 
         return _enumToDisplay.TryGetValue(enumType, out var dict) && dict.TryGetValue(name, out var display)
             ? display
@@ -300,6 +323,11 @@ public static class EnumHelper
         if (string.IsNullOrWhiteSpace(text))
             throw new ArgumentException("值不能为空", nameof(text));
 
+        // 配置表覆盖反向优先（改名后的新中文可反查）
+        if (_displayOverrideReverse.TryGetValue(enumType.Name, out var reverse)
+            && reverse.TryGetValue(text.Trim(), out var overrideName))
+            return Enum.Parse(enumType, overrideName);
+
         if (_displayToEnum.TryGetValue(enumType, out var dict) && dict.TryGetValue(text.Trim(), out var enumName))
             return Enum.Parse(enumType, enumName);
 
@@ -320,6 +348,11 @@ public static class EnumHelper
     {
         if (string.IsNullOrWhiteSpace(text))
             throw new ArgumentException("值不能为空", nameof(text));
+
+        // 0. 配置表覆盖反向优先（改名后的新中文可反查）
+        if (_displayOverrideReverse.TryGetValue(typeof(T).Name, out var reverse)
+            && reverse.TryGetValue(text.Trim(), out var overrideName))
+            return Enum.Parse<T>(overrideName);
 
         // 1. 尝试通过显示名/枚举名查找
         if (_displayToEnum.TryGetValue(typeof(T), out var dict) && dict.TryGetValue(text.Trim(), out var enumName))
@@ -346,4 +379,90 @@ public static class EnumHelper
         try { return Parse<T>(text); }
         catch { return null; }
     }
+
+    /// <summary>
+    /// 注入某枚举的配置表覆盖（Value → DisplayName）。整体替换该 EnumKey 的覆盖字典。
+    /// 前端 Blazor WASM 启动时与后端 API 启动时调用，显示名/反向解析以配置表优先。
+    /// </summary>
+    public static void ApplyEnumOverrides(string enumKey, IReadOnlyDictionary<string, string> valueToDisplay)
+    {
+        var display = new Dictionary<string, string>(valueToDisplay, StringComparer.Ordinal);
+        var reverse = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var kvp in valueToDisplay)
+        {
+            if (!string.IsNullOrEmpty(kvp.Value))
+                reverse[kvp.Value] = kvp.Key;
+        }
+        _displayOverrides[enumKey] = display;
+        _displayOverrideReverse[enumKey] = reverse;
+    }
+
+    /// <summary>
+    /// 清除全部枚举的配置表覆盖（回退静态字典）。配置表被清空/重建时调用。
+    /// </summary>
+    public static void ClearEnumOverrides()
+    {
+        _displayOverrides.Clear();
+        _displayOverrideReverse.Clear();
+        _displayOrders.Clear();
+    }
+
+    /// <summary>
+    /// 注入某枚举的配置表排序覆盖（Value → DisplayOrder）。与 ApplyEnumOverrides 配合使用。
+    /// 前端 MainLayout 启动时从 options-map 注入；未注入的枚举按静态注册顺序。
+    /// </summary>
+    public static void ApplyEnumOrder(string enumKey, IReadOnlyDictionary<string, int> valueToOrder)
+    {
+        _displayOrders[enumKey] = new Dictionary<string, int>(valueToOrder, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// 获取枚举的显示选项列表，按配置表 DisplayOrder 升序排序；
+    /// 未注入排序的枚举按静态注册顺序返回。
+    /// 用于列筛选下拉 / 表单下拉（与 DisplayHelper 配合）。
+    /// </summary>
+    public static List<EnumDisplayOptionDto> GetDisplayOptions<T>() where T : struct, Enum
+    {
+        var type = typeof(T);
+        var typeName = type.Name;
+        var hasOrder = _displayOrders.TryGetValue(typeName, out var orders);
+
+        // 按静态注册顺序遍历（未配置排序时的默认顺序，Dictionary 保持插入序）
+        var registered = _enumToDisplay.TryGetValue(type, out var displayDict)
+            ? displayDict.Keys.ToList()
+            : Enum.GetNames(type).ToList();
+
+        // 静态注册序作为未配置值的稳定 tiebreak（避免配置部分值后未配置项被字母序打乱）
+        var pending = new List<(string Value, string Display, int Order, int Index)>(registered.Count);
+        for (var i = 0; i < registered.Count; i++)
+        {
+            var name = registered[i];
+            var display = GetDisplayName(type, name);
+            var order = hasOrder && orders!.TryGetValue(name, out var o) ? o : int.MaxValue;
+            pending.Add((name, display, order, i));
+        }
+
+        return hasOrder
+            ? pending.OrderBy(o => o.Order).ThenBy(o => o.Index)
+                    .Select(o => new EnumDisplayOptionDto { Value = o.Value, DisplayName = o.Display, DisplayOrder = o.Order })
+                    .ToList()
+            : pending.Select(o => new EnumDisplayOptionDto { Value = o.Value, DisplayName = o.Display, DisplayOrder = o.Order }).ToList();
+    }
+
+    /// <summary>
+    /// 导出全部已注册枚举的静态映射：枚举类型名 → (Value → DisplayName)。
+    /// 用于种子数据生成（恢复默认）。
+    /// </summary>
+    public static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> GetAllMappings()
+    {
+        var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
+        foreach (var kvp in _enumToDisplay)
+        {
+            result[kvp.Key.Name] = new Dictionary<string, string>(kvp.Value, StringComparer.Ordinal);
+        }
+        return result;
+    }
+
+    /// <summary>指定枚举是否已注册静态映射</summary>
+    public static bool IsRegistered(Type enumType) => _enumToDisplay.ContainsKey(enumType);
 }

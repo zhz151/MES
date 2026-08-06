@@ -15,6 +15,8 @@ using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
 using MES.Core.Enums;
+using MES.Core.Constants;
+using MES.Core.Helpers;
 
 namespace MES.Blazor.Pages.Warehouse;
 
@@ -87,11 +89,7 @@ public partial class WarehouseInventory
         new() { Key = "MaterialType",        Label = "物料类型", SortKey = "MaterialType", FilterType = "string", Width = "120" },
         new() { Key = "SourceName",          Label = "来料单位", SortKey = "SourceName", FilterType = "string", Width = "120" },
         new() { Key = "ManufacturingStatus",    Label = "制造状态", SortKey = "ManufacturingStatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
-                new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
-                new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
-                new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"),
-                new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
         new() { Key = "LocationArea",        Label = "区域", SortKey = "LocationArea", FilterType = "string", Width = "120" },
         new() { Key = "LocationRack",        Label = "框架", SortKey = "LocationRack", FilterType = "string", Width = "120" },
         new() { Key = "HeatNo",              Label = "炉号",     SortKey = "HeatNo", FilterType = "string", Width = "120" },
@@ -295,7 +293,7 @@ public partial class WarehouseInventory
                 builder.AddContent(0, item.Specification);
                 break;
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus?.ToString()));
                 break;
             case "MinLength":
                 if (item.MinLength.HasValue)
@@ -356,7 +354,8 @@ public partial class WarehouseInventory
                 builder.AddContent(0, item.DefectReason);
                 break;
             case "LiabilityType":
-                builder.AddContent(0, item.LiabilityType);
+                if (!string.IsNullOrEmpty(item.LiabilityType))
+                    builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, item.LiabilityType) ?? item.LiabilityType);
                 break;
             case "OriginalSupplier":
                 builder.AddContent(0, item.OriginalSupplier);
@@ -593,6 +592,13 @@ public partial class WarehouseInventory
         {
             foreach (var opt in materialOptionsDisplay)
                 opt.Display = DisplayHelper.GetMaterialTypeText(opt.Value);
+        }
+
+        // LiabilityType 列显示中文（配置表优先，兜底 LiabilityTypeKeys）
+        if (_filterContextOptions.TryGetValue("LiabilityType", out var liabOptions))
+        {
+            foreach (var opt in liabOptions)
+                opt.Display = DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, opt.Value) ?? opt.Value;
         }
 
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）

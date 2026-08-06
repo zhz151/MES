@@ -23,11 +23,22 @@ public static class ProcessNames
         AdditionalFinalInspection
     ];
 
-    /// <summary>是否为冷轧系列（含三辊冷轧）</summary>
-    public static bool IsColdRoll(string? processName) =>
-        processName is ColdRoll60 or ColdRoll50 or ColdRoll30 or ColdRoll20 or ThreeRollColdRoll;
+    // ========== ProcessKey 属性名 → 中文名映射 ==========
+    /// <summary>key=ProcessKey 属性名, value=工序中文名</summary>
+    public static readonly Dictionary<string, string> PropertyToName = new()
+    {
+        ["RoughTubeProcessing"] = RoughTubeProcessing,
+        ["InProcessRepair"] = InProcessRepair,
+        ["ColdRoll60"] = ColdRoll60,
+        ["ColdRoll50"] = ColdRoll50,
+        ["ColdRoll30"] = ColdRoll30,
+        ["ColdRoll20"] = ColdRoll20,
+        ["ThreeRollColdRoll"] = ThreeRollColdRoll,
+        ["ColdDraw"] = ColdDraw,
+        ["AdditionalFinalInspection"] = AdditionalFinalInspection,
+    };
 
-    /// <summary>是否为冷轧或冷拔（需要重量跟踪的工序）</summary>
-    public static bool IsColdRollOrDraw(string? processName) =>
-        IsColdRoll(processName) || processName == ColdDraw;
+    // ========== 别名映射（数据导入/修复时匹配变体名称） ==========
+    /// <summary>key=别名, value=标准工序名。当前存量均为规范中文无变体，预留结构供导入兼容。</summary>
+    public static readonly Dictionary<string, string> Aliases = new();
 }

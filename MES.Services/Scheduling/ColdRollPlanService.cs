@@ -49,14 +49,17 @@ namespace MES.Services.Scheduling;
 public class ColdRollPlanService : IColdRollPlanService
 {
     private readonly AppDbContext _context;
+    private readonly IProcessDefinitionService _processDefService;
 
-    public ColdRollPlanService(AppDbContext context)
+    public ColdRollPlanService(AppDbContext context, IProcessDefinitionService processDefService)
     {
         _context = context;
+        _processDefService = processDefService;
     }
 
     public async Task<List<ColdRollPlanRowDto>> GetPlanAsync(string? sectionFilter)
     {
+        var crKeys = await _processDefService.GetColdRollOrDrawKeysAsync();
         // 1. 加载所有在产/待产批次（投影仅加载需要的字段，减少数据传输）
         var batchProjections = await _context.ProductionBatches
             .AsNoTracking()
@@ -132,7 +135,7 @@ public class ColdRollPlanService : IColdRollPlanService
             if (sortedPgs.Count == 0) continue;
 
             // 所有冷轧类工序组
-            var coldRollPgs = sortedPgs.Where(pg => ProcessNames.IsColdRollOrDraw(pg.ProcessName)).ToList();
+            var coldRollPgs = sortedPgs.Where(pg => crKeys.Contains(ProcessKeys.ToKey(pg.ProcessName) ?? pg.ProcessName)).ToList();
             if (coldRollPgs.Count == 0) continue;
 
             // 确定批次当前所处的工序组序号
@@ -162,8 +165,9 @@ public class ColdRollPlanService : IColdRollPlanService
             // ===== 每个冷轧工序组都生成一行 =====
             foreach (var crPg in coldRollPgs)
             {
-                // 工段筛选
-                if (!string.IsNullOrEmpty(sectionFilter) && crPg.ProcessName != sectionFilter)
+                // 工段筛选（中文 Tab 名归一为 Key 后与工序组 ProcessName(Key) 匹配）
+                if (!string.IsNullOrEmpty(sectionFilter)
+                    && crPg.ProcessName != (ProcessKeys.ToKey(sectionFilter) ?? sectionFilter))
                     continue;
 
                 int targetGlobalSeq = crPg.GetSectionSequence(SectionKeys.ColdRollDraw) ?? 0;
@@ -209,10 +213,10 @@ public class ColdRollPlanService : IColdRollPlanService
 
                 bool isKeyBatch = false;
                 bool isGeneralKeyBatch = false; // 总的特急（不区分冷轧/非冷轧）
-                if ((urgency == "A+急" || urgency == "A急")
-                    && productionFlowProperty == "正常")
+                if (UrgencyLevelKeys.IsUrgent(urgency)
+                    && productionFlowProperty == ProductionFlowKeys.Normal)
                 {
-                    if (ProcessNames.IsColdRollOrDraw(attentionProcess))
+                    if (crKeys.Contains(ProcessKeys.ToKey(attentionProcess) ?? attentionProcess ?? ""))
                     {
                         var attentionPg = sortedPgs.FirstOrDefault(pg => pg.ProcessName == attentionProcess);
                         var attentionSectionSeq = attentionPg?.GetSectionSequence(SectionKeys.ColdRollDraw);
@@ -224,7 +228,7 @@ public class ColdRollPlanService : IColdRollPlanService
                     }
                     else
                     {
-                        // 非冷轧类(荒管处理/在制修检/收尾-成检)：满足 Urgent+正常 即视为总的特急
+                        // 非冷轧类(荒管处理/在制修检)：满足 Urgent+正常 即视为总的特急
                         isGeneralKeyBatch = true;
                     }
                 }
@@ -238,8 +242,8 @@ public class ColdRollPlanService : IColdRollPlanService
                     IsFinished = isFinished,
                     IsKeyBatch = isKeyBatch,
                     IsGeneralKeyBatch = isGeneralKeyBatch,
-                    IsUrgent = urgency == "A+急" || urgency == "A急",
-                    IsAttentionColdRoll = ProcessNames.IsColdRollOrDraw(attentionProcess),
+                    IsUrgent = UrgencyLevelKeys.IsUrgent(urgency),
+                    IsAttentionColdRoll = crKeys.Contains(ProcessKeys.ToKey(attentionProcess) ?? attentionProcess ?? ""),
                     PositionDiff = positionDiff,
                     Weight = batch.CurrentValidWeight ?? 0m,
                     MachineNo = isProducing ? (batch.CurrentEquipmentName ?? batch.CurrentOutsource) : null,
@@ -366,7 +370,7 @@ public class ColdRollPlanService : IColdRollPlanService
     /// <summary>
     /// 待轧紧急批次三层拆分累加：
     /// 特急管 = 总的特急 ∩ 冷轧类关注工序（IsGeneralKeyBatch + IsAttentionColdRoll）
-    /// 后特急 = 总的特急 ∩ 非冷轧类关注工序（荒管处理/在制修检/收尾-成检）
+    /// 后特急 = 总的特急 ∩ 非冷轧类关注工序（荒管处理/在制修检）
     /// 其它急管 = 紧急(A+急/A急) - 总的特急
     /// </summary>
     private static void AccumulateWaitUrgent(ColdRollPlanRowDto row, BatchAllocation item)

@@ -78,22 +78,22 @@ public class EquipmentService : IEquipmentService
                 e.UsageType.Contains(kw));
         }
 
-        if (!string.IsNullOrEmpty(query.LifecycleStatus))
-            q = q.Where(e => e.LifecycleStatus == query.LifecycleStatus);
-        if (!string.IsNullOrEmpty(query.UsageType))
-            q = q.Where(e => e.UsageType == query.UsageType);
+        if (query.LifecycleStatus.HasValue)
+            q = q.Where(e => e.LifecycleStatus == query.LifecycleStatus.Value.ToString());
+        if (query.UsageType.HasValue)
+            q = q.Where(e => e.UsageType == query.UsageType.Value.ToString());
         if (!string.IsNullOrEmpty(query.Location))
             q = q.Where(e => e.Location == query.Location);
         if (!string.IsNullOrEmpty(query.RelatedSection))
             q = q.Where(e => e.RelatedSection == query.RelatedSection);
 
         // 物化状态字段现在直接存在 Equipment 表中，可直接在 DB 层筛选
-        if (!string.IsNullOrEmpty(query.RunningStatus))
-            q = q.Where(e => e.RunningStatus == query.RunningStatus);
-        if (!string.IsNullOrEmpty(query.InspectionStatus))
-            q = q.Where(e => e.InspectionStatus == query.InspectionStatus);
-        if (!string.IsNullOrEmpty(query.MaintStatus))
-            q = q.Where(e => e.MaintStatus == query.MaintStatus);
+        if (query.RunningStatus.HasValue)
+            q = q.Where(e => e.RunningStatus == query.RunningStatus.Value.ToString());
+        if (query.InspectionStatus.HasValue)
+            q = q.Where(e => e.InspectionStatus == query.InspectionStatus.Value.ToString());
+        if (query.MaintStatus.HasValue)
+            q = q.Where(e => e.MaintStatus == query.MaintStatus.Value.ToString());
 
         // ExcelFilter 筛选（物化状态字段 ApplyFilters 可直接找到）
         q = q.ApplyFilters(query.Filters);

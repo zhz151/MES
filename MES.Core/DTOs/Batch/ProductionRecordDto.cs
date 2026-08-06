@@ -40,7 +40,7 @@ public class ProductionRecordDto
     public bool? IsPreCut { get; set; }
 
     /// <summary>长度状态（定尺/范围尺/非定尺），断切成品时自动填充</summary>
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }
     public int? PostCutQuantity { get; set; }

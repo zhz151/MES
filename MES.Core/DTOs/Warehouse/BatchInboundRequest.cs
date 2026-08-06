@@ -30,7 +30,7 @@ public class BatchInboundRequest
     public string? Specification { get; set; }
     public string? HeatNo { get; set; }
     public string? ProductionBatchNo { get; set; }
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public decimal? UnitWeight { get; set; }
@@ -64,7 +64,7 @@ public class InboundRow
     public decimal InitialWeight { get; set; }
 
     // 原有可覆盖字段
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public decimal? UnitWeight { get; set; }

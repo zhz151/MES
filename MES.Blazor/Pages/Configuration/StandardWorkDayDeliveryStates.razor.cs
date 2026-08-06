@@ -48,9 +48,9 @@ public partial class StandardWorkDayDeliveryStates
         {
             ("", "【默认】")
         };
-        foreach (DeliveryState state in Enum.GetValues<DeliveryState>())
+        foreach (var opt in DisplayHelper.GetEnumOptions<DeliveryState>())
         {
-            options.Add((state.ToString(), DisplayHelper.GetDeliveryStateText(state)));
+            options.Add((opt.Value, opt.Display));
         }
         return options;
     }

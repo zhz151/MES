@@ -14,6 +14,7 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
+using MES.Core.Constants;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -102,6 +103,9 @@ public class DailyProductionCapacityService : IDailyProductionCapacityService
 
     public async Task<bool> SaveAsync(DailyProductionCapacityDto dto)
     {
+        if (!ProductionOverviewRowKeys.IsKey(dto.ProcessName))
+            throw new BusinessException("工序名称不合法，仅支持预置行名");
+
         if (dto.Id > 0)
         {
             var entity = await _context.DailyProductionCapacities

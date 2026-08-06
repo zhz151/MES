@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Constants;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
@@ -21,7 +22,7 @@ public class WorkOrderScheduleServiceTests : TestBase
     private void SeedSummary(AppDbContext ctx, string workOrderNo, int workOrderId,
         int scheduleStage = 2,
         string? urgencyLevel = null,
-        string? productionFlowProperty = "正常")
+        string? productionFlowProperty = ProductionFlowKeys.Normal)
     {
         ctx.Set<WorkOrderExecutionSummary>().Add(new WorkOrderExecutionSummary
         {
@@ -57,7 +58,7 @@ public class WorkOrderScheduleServiceTests : TestBase
     public async Task GetPagedAsync_仅返回ScheduleStage为2的工单()
     {
         using var ctx = CreateDbContext();
-        SeedSummary(ctx, "WO001", 1, scheduleStage: 2, productionFlowProperty: "正常");
+        SeedSummary(ctx, "WO001", 1, scheduleStage: 2, productionFlowProperty: ProductionFlowKeys.Normal);
         SeedSummary(ctx, "WO002", 2, scheduleStage: 1, productionFlowProperty: null); // 应排除
         await ctx.SaveChangesAsync();
 
@@ -183,7 +184,7 @@ public class WorkOrderScheduleServiceTests : TestBase
             TotalMeters = 600,
             TotalWeight = 2500m,
             ScheduleStage = 2,
-            ProductionFlowProperty = "正常",
+            ProductionFlowProperty = ProductionFlowKeys.Normal,
             PendingSectionRoughTube = 10.5m,
             PendingSection60Roll = 20m,
             DeformedProcessCompleted = true,
@@ -202,7 +203,7 @@ public class WorkOrderScheduleServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetPagedAsync_ProductionAttentionProcess空值和横线转为收尾成检()
+    public async Task GetPagedAsync_ProductionAttentionProcess直接返回存值()
     {
         using var ctx = CreateDbContext();
         ctx.Set<WorkOrderExecutionSummary>().Add(new WorkOrderExecutionSummary
@@ -226,15 +227,15 @@ public class WorkOrderScheduleServiceTests : TestBase
             TotalMeters = 600,
             TotalWeight = 2500m,
             ScheduleStage = 2,
-            ProductionFlowProperty = "正常",
-            ProductionAttentionProcess = "收尾-成检",
+            ProductionFlowProperty = ProductionFlowKeys.Normal,
+            ProductionAttentionProcess = "AdditionalFinalInspection",
         });
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
         var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
 
-        result.Items.Single().ProductionAttentionProcess.Should().Be("收尾-成检");
+        result.Items.Single().ProductionAttentionProcess.Should().Be("AdditionalFinalInspection");
     }
 
     [Fact]
@@ -254,15 +255,15 @@ public class WorkOrderScheduleServiceTests : TestBase
     public async Task GetFilterContextsAsync_返回正确选项()
     {
         using var ctx = CreateDbContext();
-        SeedSummary(ctx, "WO001", 1, scheduleStage: 2, urgencyLevel: "A急");
-        SeedSummary(ctx, "WO002", 2, scheduleStage: 2, urgencyLevel: "B常");
+        SeedSummary(ctx, "WO001", 1, scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
+        SeedSummary(ctx, "WO002", 2, scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.BOrder);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
         var result = await svc.GetFilterContextsAsync();
 
         result.Should().ContainKeys("WorkOrderNo", "Salesman", "UrgencyLevel");
-        result["UrgencyLevel"].Should().Contain(new[] { "A急", "B常" });
+        result["UrgencyLevel"].Should().Contain(new[] { UrgencyLevelKeys.AUrgent, UrgencyLevelKeys.BOrder });
     }
 
     [Fact]

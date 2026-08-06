@@ -51,8 +51,8 @@ namespace MES.Services.Batch;
 
 public class BatchService : IBatchService
 {
-    /// <summary>无对应工单时的工单号占位符</summary>
-    private const string NotWorkOrder = "非工单";
+    /// <summary>无对应工单时的工单号占位符（统一引用公共哨兵常量）</summary>
+    private const string NotWorkOrder = WorkOrderNoSentinel.NotWorkOrder;
 
     private readonly AppDbContext _context;
     private readonly ILogger<BatchService> _logger;
@@ -64,9 +64,10 @@ public class BatchService : IBatchService
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
     private readonly INotificationService _notificationService;
     private readonly ISectionNameDisplayService _sectionNameDisplay;
+    private readonly IProcessDefinitionService _processDefService;
     private readonly IMemoryCache _cache;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, ISectionNameDisplayService sectionNameDisplay, IMemoryCache cache)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, ISectionNameDisplayService sectionNameDisplay, IProcessDefinitionService processDefService, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
@@ -78,6 +79,7 @@ public class BatchService : IBatchService
         _qualityProcessTracking = qualityProcessTracking;
         _notificationService = notificationService;
         _sectionNameDisplay = sectionNameDisplay;
+        _processDefService = processDefService;
         _cache = cache;
     }
 
@@ -242,7 +244,7 @@ public class BatchService : IBatchService
             SalesOrderNo = b.SalesOrderNo,
             ProductionMainNo = b.ProductionMainNo,
             ProductionSubNo = b.ProductionSubNo,
-            ProductionType = b.ProductionType,
+            ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(b.ProductionType),
             ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var r221) ? r221 : default,
             Status = b.Status,
             IsForceCompleted = b.IsForceCompleted,
@@ -313,7 +315,7 @@ public class BatchService : IBatchService
             SourcePlantGrade = b.SourcePlantGrade,
             SourceUnitWeight = b.SourceUnitWeight,
             InputType = b.InputType,
-            SourceLengthStatus = b.SourceLengthStatus,
+            SourceLengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(b.SourceLengthStatus),
             SourceProductionNo = b.SourceProductionNo,
             TheoreticalOutputQty = b.TheoreticalOutputQty,
             TheoreticalOutputWeight = b.TheoreticalOutputWeight,
@@ -349,7 +351,7 @@ public class BatchService : IBatchService
             SalesOrderNo = b.SalesOrderNo,
             ProductionMainNo = b.ProductionMainNo,
             ProductionSubNo = b.ProductionSubNo,
-            ProductionType = b.ProductionType,
+            ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(b.ProductionType),
             ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var r299) ? r299 : default,
             Status = b.Status,
             IsForceCompleted = b.IsForceCompleted,
@@ -420,7 +422,7 @@ public class BatchService : IBatchService
             SourcePlantGrade = b.SourcePlantGrade,
             SourceUnitWeight = b.SourceUnitWeight,
             InputType = b.InputType,
-            SourceLengthStatus = b.SourceLengthStatus,
+            SourceLengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(b.SourceLengthStatus),
             SourceProductionNo = b.SourceProductionNo,
             TheoreticalOutputQty = b.TheoreticalOutputQty,
             TheoreticalOutputWeight = b.TheoreticalOutputWeight,
@@ -1741,7 +1743,7 @@ public class BatchService : IBatchService
             .Distinct()
             .ToListAsync();
 
-        var available = await _context.OutboundRecords
+        var available = (await _context.OutboundRecords
             .Where(o => o.OutboundType == OutboundType.ProductionPick)
             .Join(_context.InventoryBatches,
                 o => o.InventoryBatchId,
@@ -1754,29 +1756,52 @@ public class BatchService : IBatchService
                 w => w.Id,
                 (x, w) => new { x.o, x.ib, w })
             .OrderBy(x => x.ib.BatchNo)
+            .Select(x => new
+            {
+                x.ib.Id,
+                OutboundRecordId = x.o.Id,
+                x.ib.BatchNo,
+                x.ib.WarehouseId,
+                WarehouseName = x.w.Name,
+                x.ib.MaterialType,
+                x.ib.InboundSource,
+                x.ib.SourceName,
+                x.ib.InboundDate,
+                x.ib.HeatNo,
+                x.o.OutboundQuantity,
+                x.o.OutboundWeight,
+                x.o.OutboundDate,
+                OutboundRemark = x.o.Remark,
+                x.ib.WorkOrderNo,
+                x.ib.PlantGrade,
+                x.ib.Specification,
+                x.ib.LengthStatus,
+                x.ib.UnitWeight
+            })
+            .ToListAsync())
             .Select(x => new AvailableBatchDto
             {
-                Id = x.ib.Id,
-                OutboundRecordId = x.o.Id,
-                BatchNo = x.ib.BatchNo,
-                WarehouseId = x.ib.WarehouseId,
-                WarehouseName = x.w.Name,
-                MaterialType = !string.IsNullOrEmpty(x.ib.MaterialType) ? EnumHelper.TryParse<MaterialType>(x.ib.MaterialType) : null,
-                InboundSource = !string.IsNullOrEmpty(x.ib.InboundSource) ? EnumHelper.TryParse<InboundSource>(x.ib.InboundSource) : null,
-                SourceName = x.ib.SourceName,
-                InboundDate = x.ib.InboundDate,
-                HeatNo = x.ib.HeatNo,
-                OutboundQuantity = x.o.OutboundQuantity,
-                OutboundWeight = x.o.OutboundWeight,
-                OutboundDate = x.o.OutboundDate,
-                OutboundRemark = x.o.Remark,
-                WorkOrderNo = x.ib.WorkOrderNo,
-                PlantGrade = x.ib.PlantGrade,
-                Specification = x.ib.Specification,
-                LengthStatus = x.ib.LengthStatus,
-                UnitWeight = x.ib.UnitWeight
+                Id = x.Id,
+                OutboundRecordId = x.OutboundRecordId,
+                BatchNo = x.BatchNo,
+                WarehouseId = x.WarehouseId,
+                WarehouseName = x.WarehouseName,
+                MaterialType = string.IsNullOrEmpty(x.MaterialType) ? null : EnumHelper.TryParse<MaterialType>(x.MaterialType),
+                InboundSource = string.IsNullOrEmpty(x.InboundSource) ? null : EnumHelper.TryParse<InboundSource>(x.InboundSource),
+                SourceName = x.SourceName,
+                InboundDate = x.InboundDate,
+                HeatNo = x.HeatNo,
+                OutboundQuantity = x.OutboundQuantity,
+                OutboundWeight = x.OutboundWeight,
+                OutboundDate = x.OutboundDate,
+                OutboundRemark = x.OutboundRemark,
+                WorkOrderNo = x.WorkOrderNo,
+                PlantGrade = x.PlantGrade,
+                Specification = x.Specification,
+                LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(x.LengthStatus),
+                UnitWeight = x.UnitWeight
             })
-            .ToListAsync();
+            .ToList();
 
         return available;
     }
@@ -1914,6 +1939,8 @@ public class BatchService : IBatchService
             throw new BusinessException($"生产批次不存在 (Id={id})");
 
         var groups = entity.ProcessGroups.Select(ToGroupDto).ToList();
+        var sectionNameMap = await _sectionNameDisplay.GetSectionNameMapAsync();
+        var processNameMap = await _processDefService.GetProcessNameMapAsync();
 
         var columns = new List<PrintColumnDef>
         {
@@ -1951,18 +1978,34 @@ public class BatchService : IBatchService
                 ["ProductionType"] = !string.IsNullOrEmpty(entity.ProductionType) && Enum.TryParse<ProductionType>(entity.ProductionType, out var pt) ? EnumHelper.GetDisplayName(pt) : (entity.ProductionType ?? ""),
                 ["Status"] = EnumHelper.GetDisplayName(entity.Status),
                 ["CurrentExecDate"] = entity.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "",
-                ["CurrentGroupName"] = entity.CurrentGroupName ?? "",
-                ["CurrentSectionName"] = entity.CurrentSectionName ?? "",
+                ["CurrentGroupName"] = ProcessDisplayText(entity.CurrentGroupName, processNameMap),
+                ["CurrentSectionName"] = SectionDisplayText(entity.CurrentSectionName, sectionNameMap),
                 ["CurrentEquipmentName"] = entity.CurrentEquipmentName ?? "",
                 ["CurrentOutsource"] = entity.CurrentOutsource ?? "",
                 ["CurrentSpec"] = entity.CurrentSpec ?? "",
-                ["NextSectionName"] = entity.NextSectionName ?? "",
+                ["NextSectionName"] = SectionDisplayText(entity.NextSectionName, sectionNameMap),
                 ["CorrespondingSpec"] = entity.CorrespondingSpec ?? "",
-                ["NextProcess"] = entity.NextProcess ?? ""
+                ["NextProcess"] = ProcessDisplayText(entity.NextProcess, processNameMap)
             }
         };
 
         return TablePrintHelper.GeneratePdf($"生产批次 - {entity.BatchNo}", items, columns);
+    }
+
+    /// <summary>工段 Key/中文 → 打印显示中文（配置表优先，SectionKeys 兜底）</summary>
+    private static string SectionDisplayText(string? keyOrName, IReadOnlyDictionary<string, string>? sectionNameMap)
+    {
+        if (!string.IsNullOrEmpty(keyOrName) && sectionNameMap != null && sectionNameMap.TryGetValue(keyOrName, out var cn))
+            return cn;
+        return SectionKeys.ToChinese(keyOrName) ?? "";
+    }
+
+    /// <summary>工序 Key/中文 → 打印显示中文（配置表优先，ProcessKeys 兜底）</summary>
+    private static string ProcessDisplayText(string? keyOrName, IReadOnlyDictionary<string, string>? processNameMap)
+    {
+        if (!string.IsNullOrEmpty(keyOrName) && processNameMap != null && processNameMap.TryGetValue(keyOrName, out var cn))
+            return cn;
+        return ProcessKeys.ToChinese(keyOrName) ?? "";
     }
 
     public async Task<byte[]> PrintBatchAllAsync(BatchPrintAllRequest request)
@@ -2231,7 +2274,9 @@ public class BatchService : IBatchService
             throw new BusinessException("未找到批次数据");
 
         var columns = request.Columns;
-        return ProcessCardPrintHelper.GeneratePdf("工 艺 流 转 卡", entities, columns, sectionNameMap: await _sectionNameDisplay.GetSectionNameMapAsync());
+        return ProcessCardPrintHelper.GeneratePdf("工 艺 流 转 卡", entities, columns,
+            sectionNameMap: await _sectionNameDisplay.GetSectionNameMapAsync(),
+            processNameMap: await _processDefService.GetProcessNameMapAsync());
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
@@ -2502,7 +2547,7 @@ public class BatchService : IBatchService
             BatchNo = entity.BatchNo,
             Status = entity.Status,
             TagNo = entity.TagNo,
-            ProductionType = entity.ProductionType,
+            ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(entity.ProductionType),
             ManufacturingItem = !string.IsNullOrEmpty(entity.ManufacturingItem) ? EnumHelper.TryParse<MaterialType>(entity.ManufacturingItem) ?? default : default,
             ProductionRatio = entity.ProductionRatio,
             IsForceCompleted = entity.IsForceCompleted,
@@ -2563,7 +2608,7 @@ public class BatchService : IBatchService
             SourceHeatNo = entity.SourceHeatNo,
             SourcePlantGrade = entity.SourcePlantGrade,
             SourceSpecification = entity.SourceSpecification,
-            SourceLengthStatus = entity.SourceLengthStatus,
+            SourceLengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(entity.SourceLengthStatus),
             SourceUnitWeight = entity.SourceUnitWeight,
             InputQuantity = entity.InputQuantity,
             InputWeight = entity.InputWeight,
@@ -2603,7 +2648,7 @@ public class BatchService : IBatchService
                 HeatNo = pbi.InventoryBatch?.HeatNo,
                 PlantGrade = pbi.InventoryBatch?.PlantGrade,
                 Specification = pbi.InventoryBatch?.Specification,
-                MaterialType = pbi.InventoryBatch?.MaterialType,
+                MaterialType = EnumHelper.TryParse<MES.Core.Enums.MaterialType>(pbi.InventoryBatch?.MaterialType),
                 SourceName = pbi.InventoryBatch?.SourceName,
                 WarehouseName = pbi.InventoryBatch?.Warehouse?.Name ?? "",
                 InputQuantity = pbi.InputQuantity,

@@ -103,15 +103,7 @@ public class SalesOrderListDto
     /// <summary>
     /// 执行关注阶段中文显示
     /// </summary>
-    public string ScheduleStageText => ScheduleStage switch
-    {
-        0 => "主号暂停",
-        1 => "主号完成",
-        2 => "原料锁定",
-        3 => "生产执行",
-        4 => "成品检验",
-        _ => "未排产"
-    };
+    public string ScheduleStageText => IntStatusDisplayHelper.GetScheduleStageText(ScheduleStage, "未排产");
 
     /// <summary>
     /// 紧急性（A+急/A急/B顺/C缓/D缓，取最紧急）

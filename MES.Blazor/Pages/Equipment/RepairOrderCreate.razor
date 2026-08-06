@@ -434,11 +434,11 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<RepairPriority>(this, v => r.Priority = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
                 {
-                    foreach (var val in Enum.GetValues<RepairPriority>())
+                    foreach (var opt in DisplayHelper.GetEnumOptions<RepairPriority>())
                     {
                         b2.OpenComponent<MudSelectItem<RepairPriority>>(0);
-                        b2.AddAttribute(1, "Value", val);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetRepairPriorityText(val))));
+                        b2.AddAttribute(1, "Value", Enum.Parse<RepairPriority>(opt.Value));
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                         b2.CloseComponent();
                     }
                 }));

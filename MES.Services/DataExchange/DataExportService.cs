@@ -24,13 +24,16 @@ public class DataExportService : IDataExportService
     protected readonly AppDbContext _context;
     private readonly ILogger<DataExportService> _logger;
     private readonly ISectionNameDisplayService _sectionNameDisplay;
+    private readonly IProcessDefinitionService _processDefService;
 
     public DataExportService(AppDbContext context, ILogger<DataExportService> logger,
-        ISectionNameDisplayService sectionNameDisplay)
+        ISectionNameDisplayService sectionNameDisplay,
+        IProcessDefinitionService processDefService)
     {
         _context = context;
         _logger = logger;
         _sectionNameDisplay = sectionNameDisplay;
+        _processDefService = processDefService;
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
     }
 
@@ -131,6 +134,31 @@ public class DataExportService : IDataExportService
                 {
                     // SectionName 存储为英文 Key，导出显示中文
                     sheet.Cells[row, col + 1].Value = await _sectionNameDisplay.ToDisplayAsync(sectionName);
+                }
+                else if ((colDef.Property == "ProcessName" || colDef.Property == "ProcessGroupName") && value is string processName)
+                {
+                    // ProcessName/ProcessGroupName 存储为英文 Key，导出显示中文
+                    sheet.Cells[row, col + 1].Value = await _processDefService.ToDisplayAsync(processName);
+                }
+                else if ((colDef.Property == "CurrentGroupName" || colDef.Property == "NextProcess") && value is string currentProcessName)
+                {
+                    // CurrentGroupName/NextProcess 存储为英文 Key，导出显示中文
+                    sheet.Cells[row, col + 1].Value = await _processDefService.ToDisplayAsync(currentProcessName);
+                }
+                else if ((colDef.Property == "CurrentSectionName" || colDef.Property == "NextSectionName") && value is string currentSectionName)
+                {
+                    // CurrentSectionName/NextSectionName 存储为英文 Key，导出显示中文
+                    sheet.Cells[row, col + 1].Value = await _sectionNameDisplay.ToDisplayAsync(currentSectionName);
+                }
+                else if (colDef.Property == "ProductStatus" && value is string productStatus)
+                {
+                    // ProductStatus 存储为英文 Key，导出显示中文
+                    sheet.Cells[row, col + 1].Value = DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, productStatus);
+                }
+                else if (colDef.Property == "LiabilityType" && value is string liabilityType)
+                {
+                    // LiabilityType 存储为英文 Key，导出显示中文（配置表优先，兜底 LiabilityTypeKeys）
+                    sheet.Cells[row, col + 1].Value = DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, liabilityType) ?? liabilityType;
                 }
                 else
                 {

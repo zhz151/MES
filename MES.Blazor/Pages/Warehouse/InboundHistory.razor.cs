@@ -6,6 +6,7 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Blazor.Shared;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 using MES.Core.Models;
@@ -175,8 +176,30 @@ public partial class InboundHistory
         ("NonFixed", "非定尺"),
     };
 
+    // 制造状态下拉（DeliveryState 枚举中文，Value 保持英文枚举名）
+    private List<(string Value, string Text)> _deliveryStateOptions =>
+        DisplayHelper.GetEnumOptions<DeliveryState>().Select(o => (o.Value, o.Display)).ToList();
+
     private List<(string Value, string Text)> _materialTypeOptions =>
         GetMaterialTypeOptions();
+
+    // 责任类型下拉（配置表动态加载，失败兜底内置两值）
+    private List<(string Value, string Text)> _liabilityTypeOptions = new()
+    {
+        (LiabilityTypeKeys.FactoryDepartment, LiabilityTypeKeys.ToChinese(LiabilityTypeKeys.FactoryDepartment)!),
+        (LiabilityTypeKeys.OutsourcedPurchase, LiabilityTypeKeys.ToChinese(LiabilityTypeKeys.OutsourcedPurchase)!),
+    };
+
+    private async Task LoadLiabilityTypeOptionsAsync()
+    {
+        var result = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.LiabilityTypeKey);
+        if (result.Success && result.Data is { Count: > 0 })
+        {
+            _liabilityTypeOptions = result.Data
+                .Select(t => (t.Value, t.DisplayName))
+                .ToList();
+        }
+    }
 
     private List<(string Value, string Text)> GetMaterialTypeOptions()
     {
@@ -184,11 +207,11 @@ public partial class InboundHistory
         if (!string.IsNullOrEmpty(_lastResolvedWarehouseCode))
         {
             var allowed = MES.Core.Constants.InventoryMaterialTypes.GetAllowedTypes(_lastResolvedWarehouseCode);
-            types = allowed ?? (IEnumerable<MaterialType>)Enum.GetValues<MaterialType>();
+            types = allowed ?? DisplayHelper.GetEnumOptions<MaterialType>().Select(o => Enum.Parse<MaterialType>(o.Value));
         }
         else
         {
-            types = Enum.GetValues<MaterialType>();
+            types = DisplayHelper.GetEnumOptions<MaterialType>().Select(o => Enum.Parse<MaterialType>(o.Value));
         }
         return types.Select(t => (t.ToString(), DisplayHelper.GetMaterialTypeText(t))).ToList();
     }
@@ -202,7 +225,7 @@ public partial class InboundHistory
         new() { Key = "InboundDate",         Label = "入库日期", SortKey = "InboundDate",    IsRequired = true, Width = "120",
              },
         new() { Key = "InboundSource",       Label = "来源类型",     SortKey = "InboundSource", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Purchase", "外购"), new("Subcontract", "委外"), new("ReturnIn", "退货入库"), new("ProductionInbound", "生产入库"), new("InspectionInbound", "检验入库"), new("TransferIn", "移库入库"), new("Other", "其它") },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<InboundSource>(),
              },
         new() { Key = "SourceOrderNo",       Label = "来源单号", SortKey = "SourceOrderNo", FilterType = "string", Width = "180",
              },
@@ -232,16 +255,12 @@ public partial class InboundHistory
         new() { Key = "UnitWeight",          Label = "单支重",   SortKey = "UnitWeight", FilterType = null, Width = "80",
              },
         new() { Key = "LengthStatus",        Label = "长度状态", SortKey = "LengthStatus", FilterType = "enum", Width = "100",
-            EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(),
              },
         new() { Key = "HeatNo",              Label = "来料原始炉号",     SortKey = "HeatNo", FilterType = "string", Width = "120",
              },
         new() { Key = "ManufacturingStatus",    Label = "制造状态", SortKey = "ManufacturingStatus", FilterType = "enum", Width = "110",
-            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
-                new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
-                new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
-                new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"),
-                new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
         new() { Key = "LocationArea",        Label = "区域", SortKey = "LocationArea", FilterType = "string", Width = "120",
              },
         new() { Key = "LocationRack",        Label = "框架", SortKey = "LocationRack", FilterType = "string", Width = "120",
@@ -727,6 +746,15 @@ public partial class InboundHistory
             }
         }
 
+        // LiabilityType 列显示中文（配置表优先，兜底 LiabilityTypeKeys）
+        if (_filterContextOptions.TryGetValue("LiabilityType", out var liabOptions))
+        {
+            foreach (var opt in liabOptions)
+            {
+                opt.Display = DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, opt.Value) ?? opt.Value;
+            }
+        }
+
         // ManufacturingStatus 列显示中文并过滤非法值
         if (_filterContextOptions.TryGetValue("ManufacturingStatus", out var surfaceOptions))
         {
@@ -839,6 +867,8 @@ public partial class InboundHistory
         "InboundSource" => "select",
         "LengthStatus" => "select",
         "MaterialType" => "select",
+        "LiabilityType" => "select",
+        "ManufacturingStatus" => "select",
         "IsLinkedToWorkOrder" => "bool",
         "InitialQuantity" => "int",
         "InitialWeight" => "decimal",
@@ -872,6 +902,8 @@ public partial class InboundHistory
                 {
                     "LengthStatus" => _lengthStatusOptions,
                     "MaterialType" => _materialTypeOptions,
+                    "LiabilityType" => _liabilityTypeOptions,
+                    "ManufacturingStatus" => _deliveryStateOptions,
                     _ => _inboundSourceOptions
                 };
                 var selVal = GetCellStringValue(item, col.Key);
@@ -1047,12 +1079,16 @@ public partial class InboundHistory
                     builder.AddContent(0, item.SourceOrderSequence.Value.ToString());
                 break;
             case "LengthStatus":
-                if (!string.IsNullOrEmpty(item.LengthStatus))
-                    builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                if (item.LengthStatus.HasValue)
+                    builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus.Value));
                 break;
             case "ManufacturingStatus":
                 if (item.ManufacturingStatus.HasValue)
                     builder.AddContent(0, item.ManufacturingStatusDisplay);
+                break;
+            case "LiabilityType":
+                if (!string.IsNullOrEmpty(item.LiabilityType))
+                    builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, item.LiabilityType) ?? item.LiabilityType);
                 break;
             default:
                 var val = GetCellStringValue(item, col.Key);
@@ -1099,7 +1135,7 @@ public partial class InboundHistory
         "HeatNo" => item.HeatNo,
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
-        "LengthStatus" => item.LengthStatus,
+        "LengthStatus" => item.LengthStatus?.ToString(),
         "ManufacturingStatus" => item.ManufacturingStatus?.ToString(),
         "LocationArea" => item.LocationArea,
         "LocationRack" => item.LocationRack,
@@ -1129,7 +1165,7 @@ public partial class InboundHistory
             case "HeatNo": item.HeatNo = value; break;
             case "PlantGrade": item.PlantGrade = value ?? ""; break;
             case "Specification": item.Specification = value ?? ""; break;
-            case "LengthStatus": item.LengthStatus = value; break;
+            case "LengthStatus": item.LengthStatus = EnumHelper.TryParse<LengthStatus>(value); break;
             case "ManufacturingStatus": item.ManufacturingStatus = !string.IsNullOrEmpty(value) ? EnumHelper.Parse<DeliveryState>(value) : null; break;
             case "LocationArea": item.LocationArea = value; break;
             case "LocationRack": item.LocationRack = value; break;
@@ -1210,6 +1246,9 @@ public partial class InboundHistory
 
         // 加载筛选上下文
         await LoadFilterContextsAsync();
+
+        // 加载责任类型下拉选项（配置表驱动，失败兜底内置两值）
+        await LoadLiabilityTypeOptionsAsync();
 
         await CheckWorkOrderMismatches();
     }
@@ -1318,7 +1357,7 @@ public partial class InboundHistory
         if (item.InitialQuantity < 1) errors.Add("支数必须大于0");
         if (item.InitialWeight <= 0) errors.Add("重量必须大于0");
 
-        if (string.IsNullOrEmpty(item.LengthStatus))
+        if (!item.LengthStatus.HasValue)
             errors.Add("长度状态必填");
 
         if (string.IsNullOrEmpty(item.Specification))
@@ -1341,10 +1380,10 @@ public partial class InboundHistory
 
         // 长度值逻辑验证（仅 FG/WIP 适用）
         var minLenApplicable = _allColumns.FirstOrDefault(c => c.Key == "MinLength")?.IsApplicable ?? false;
-        if (!string.IsNullOrEmpty(item.LengthStatus) && minLenApplicable
+        if (item.LengthStatus.HasValue && minLenApplicable
             && (_lastResolvedWarehouseCode == "FG" || _lastResolvedWarehouseCode == "WIP"))
         {
-            if (item.LengthStatus == "Fixed")
+            if (item.LengthStatus == LengthStatus.Fixed)
             {
                 if (!item.MinLength.HasValue || !item.MaxLength.HasValue)
                     errors.Add("长度状态为「定尺」时，最小长度和最大长度必填");
@@ -1353,7 +1392,7 @@ public partial class InboundHistory
                 else if (item.MinLength.Value != item.MaxLength.Value)
                     errors.Add("长度状态为「定尺」时，最小长度和最大长度必须相等");
             }
-            else if (item.LengthStatus == "Range")
+            else if (item.LengthStatus == LengthStatus.Range)
             {
                 if (!item.MinLength.HasValue || !item.MaxLength.HasValue)
                     errors.Add("长度状态为「范围尺」时，最小长度和最大长度必填");
@@ -1389,7 +1428,7 @@ public partial class InboundHistory
             {
                 BatchNo = item.BatchNo,
                 // 入库计量(G4) + 库位管理(G5) — 两类仓库均发送
-                LengthStatus = string.IsNullOrEmpty(item.LengthStatus) ? null : item.LengthStatus,
+                LengthStatus = item.LengthStatus,
                 MinLength = item.MinLength,
                 MaxLength = item.MaxLength,
                 InitialQuantity = item.InitialQuantity,

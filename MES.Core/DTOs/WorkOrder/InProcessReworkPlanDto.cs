@@ -81,13 +81,13 @@ public class AvailableInProcessBatchDto
     /// <summary>来源库存批次号</summary>
     public string? SourceBatchNo { get; set; }
     /// <summary>原料类型</summary>
-    public string? SourceMaterialType { get; set; }
+    public MaterialType? SourceMaterialType { get; set; }
     /// <summary>炉号</summary>
     public string? SourceHeatNo { get; set; }
     /// <summary>来源规格</summary>
     public string? SourceSpecification { get; set; }
     /// <summary>生产类型</summary>
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
     /// <summary>制造物品</summary>
     public MaterialType ManufacturingItem { get; set; }
     public string ManufacturingItemDisplay => EnumHelper.GetDisplayName(ManufacturingItem);

@@ -607,16 +607,16 @@
             row.FurnaceNo = lookup.FurnaceNo;
             row.PlantGrade = lookup.PlantGrade;
             row.Specification = lookup.Specification;
-            row.ProductionType = Enum.TryParse<ProductionType>(lookup.ProductionType, true, out var pt) ? pt : null;
+            row.ProductionType = lookup.ProductionType;
             row.Salesman = lookup.Salesman;
-            row.ManufacturingStatus = lookup.ManufacturingStatus;
-            row.DeliveryState = lookup.DeliveryState;
+            row.ManufacturingStatus = lookup.ManufacturingStatus?.ToString();
+            row.DeliveryState = lookup.DeliveryState?.ToString();
             row.EndCustomer = lookup.EndCustomer;
             row.ProductionCutQuantity = lookup.ProductionCutQuantity;
             row.ProductionWeight = lookup.ProductionWeight;
-            row.LengthStatus = Enum.TryParse<LengthStatus>(lookup.LengthStatus, true, out var ls) ? ls : null;
+            row.LengthStatus = lookup.LengthStatus;
             row.FixedLength = lookup.FixedLength;
-            row.InspectionType = lookup.InspectionType;
+            row.InspectionType = lookup.InspectionType?.ToString();
             row.UnitWeight = lookup.UnitWeight;
         }
     }
@@ -673,7 +673,7 @@
                     InspectionItem = r.InspectionItem,
                     InspectionDate = date == default ? DateTime.Now : date,
                     BatchNo = r.BatchNo.Trim(),
-                    InspectionType = r.InspectionType,
+                    InspectionType = EnumHelper.TryParse<InspectionType>(r.InspectionType),
                     ManufacturingItem = r.ManufacturingItem,
                     TagNo = r.TagNo,
                     WorkOrderNo = r.WorkOrderNo,
@@ -684,9 +684,9 @@
                     Specification = r.Specification,
                     FixedLength = r.FixedLength,
                     NonFixedLengthRange = r.NonFixedLengthRange,
-                    ProductionType = r.ProductionType?.ToString(),
+                    ProductionType = r.ProductionType,
                     Salesman = r.Salesman,
-                    LengthStatus = r.LengthStatus?.ToString(),
+                    LengthStatus = r.LengthStatus,
                     EquipmentName = r.EquipmentName,
                     Shift = r.Shift,
                     Operator = r.Operator,
@@ -814,12 +814,13 @@
                 }));
                 builder.AddAttribute(10, "ChildContent", (RenderFragment)(cb =>
                 {
-                    foreach (var val in Enum.GetValues<InspectionItem>())
+                    foreach (var opt in DisplayHelper.GetEnumOptions<InspectionItem>())
                     {
-                        var valueAttrHash = (int)val * 100 + 1;
+                        var item = Enum.Parse<InspectionItem>(opt.Value);
+                        var valueAttrHash = (int)item * 100 + 1;
                         cb.OpenComponent<MudSelectItem<InspectionItem>>(valueAttrHash);
-                        cb.AddAttribute(valueAttrHash + 1, "Value", val);
-                        cb.AddAttribute(valueAttrHash + 2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetInspectionItemText(val))));
+                        cb.AddAttribute(valueAttrHash + 1, "Value", item);
+                        cb.AddAttribute(valueAttrHash + 2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                         cb.CloseComponent();
                     }
                 }));
@@ -1104,7 +1105,7 @@
         "FurnaceNo" => r.FurnaceNo,
         "PlantGrade" => r.PlantGrade,
         "Specification" => r.Specification,
-        "ManufacturingStatus" => r.ManufacturingStatus,
+        "ManufacturingStatus" => DisplayHelper.GetDeliveryStateText(r.ManufacturingStatus),
         "EndCustomer" => r.EndCustomer,
         "FixedLength" => r.FixedLength,
         "NonFixedLengthRange" => r.NonFixedLengthRange,

@@ -76,7 +76,7 @@
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">生产编号</MudText><MudText Typo="Typo.body2">@batch.BatchNo</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">挂牌号</MudText><MudText Typo="Typo.body2">@(batch.TagNo ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">生产类型</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetProductionTypeText(batch.ProductionType))</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">生产类型</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetProductionTypeText(batch.ProductionType?.ToString()))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制造物品</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetMaterialTypeText(batch.ManufacturingItem))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制造状态</MudText><MudText Typo="Typo.body2">@(batch.ManufacturingStatusDisplay ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">制成倍数</MudText><MudText Typo="Typo.body2">@(batch.ProductionRatio.ToString())</MudText></div>
@@ -110,7 +110,7 @@
             </MudText>
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">截止执行日</MudText><MudText Typo="Typo.body2">@(batch.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前工序</MudText><MudText Typo="Typo.body2">@(batch.CurrentGroupName ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前工序</MudText><MudText Typo="Typo.body2">@(ProcessDisplayHelper.GetProcessNameText(batch.CurrentGroupName ?? "-"))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前工段</MudText><MudText Typo="Typo.body2">@(SectionDisplayHelper.GetSectionNameText(batch.CurrentSectionName) ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工段完工</MudText>
                     <MudText Typo="Typo.body2">
@@ -131,7 +131,7 @@
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">当前规格</MudText><MudText Typo="Typo.body2">@(batch.CurrentSpec ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">下一工段</MudText><MudText Typo="Typo.body2">@(SectionDisplayHelper.GetSectionNameText(batch.NextSectionName) ?? "-")</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">对应规格</MudText><MudText Typo="Typo.body2">@(batch.CorrespondingSpec ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">下一工序</MudText><MudText Typo="Typo.body2">@(batch.NextProcess ?? "-")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">下一工序</MudText><MudText Typo="Typo.body2">@(ProcessDisplayHelper.GetProcessNameText(batch.NextProcess ?? "-"))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">强制完成</MudText><MudText Typo="Typo.body2">@(DisplayHelper.GetYesNoText(batch.IsForceCompleted))</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">剩余工量</MudText><MudText Typo="Typo.body2">@(batch.RemainingWorkDays == 0 ? "0" : $"{batch.RemainingWorkDays}天")</MudText></div>
                 <div class="d-flex align-center" Style="gap:6px; width:100%; flex-wrap:wrap;">
@@ -257,8 +257,8 @@
                     @if (!string.IsNullOrEmpty(_trackingVisual.CurrentSectionName))
                     {
                         <MudText Typo="Typo.body2" Class="detail-current-section">
-                            📍 当前：<span class="detail-current-name">@_trackingVisual.CurrentGroupName</span> &gt;
-                            <span class="detail-current-name">@_trackingVisual.CurrentSectionName</span>
+                            📍 当前：<span class="detail-current-name">@ProcessDisplayHelper.GetProcessNameText(_trackingVisual.CurrentGroupName)</span> &gt;
+                            <span class="detail-current-name">@SectionDisplayHelper.GetSectionNameText(_trackingVisual.CurrentSectionName)</span>
                         </MudText>
                     }
                     @if (_trackingVisual.CurrentWarehouseDetails != null && _trackingVisual.CurrentWarehouseDetails.Count > 0)
@@ -279,11 +279,11 @@
                     }
                     @if (!string.IsNullOrEmpty(_trackingVisual.NextSectionName))
                     {
-                        <MudText Typo="Typo.body2" Class="detail-next-section">⏭ 下一工段：@_trackingVisual.NextSectionName</MudText>
+                        <MudText Typo="Typo.body2" Class="detail-next-section">⏭ 下一工段：@SectionDisplayHelper.GetSectionNameText(_trackingVisual.NextSectionName)</MudText>
                     }
                     @if (!string.IsNullOrEmpty(_trackingVisual.NextProcess))
                     {
-                        <MudText Typo="Typo.body2" Class="detail-next-section">下一工序：@_trackingVisual.NextProcess</MudText>
+                        <MudText Typo="Typo.body2" Class="detail-next-section">下一工序：@ProcessDisplayHelper.GetProcessNameText(_trackingVisual.NextProcess)</MudText>
                     }
                 </div>
 
@@ -294,7 +294,7 @@
                         <div class="detail-group-card">
                             <!-- 组标题 -->
                             <div class="detail-group-header">
-                                @group.ProcessName
+                                @ProcessDisplayHelper.GetProcessNameText(group.ProcessName)
                                 <span class="detail-group-count">(@group.CompletedSections/@group.TotalSections)</span>
                             </div>
                             <!-- 工段卡片列表 -->
@@ -370,7 +370,7 @@
                     <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">炉号</MudText><MudText Typo="Typo.body2">@(batch.SourceHeatNo ?? "-")</MudText></div>
                     <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工厂牌号</MudText><MudText Typo="Typo.body2">@(batch.SourcePlantGrade ?? "-")</MudText></div>
                     <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">规格</MudText><MudText Typo="Typo.body2">@(batch.SourceSpecification ?? "-")</MudText></div>
-                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(batch.SourceLengthStatus)</MudText></div>
+                    <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">长度状态</MudText><MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(batch.SourceLengthStatus?.ToString())</MudText></div>
                     <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">单支重(kg)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.SourceUnitWeight)</MudText></div>
                     <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料支数</MudText><MudText Typo="Typo.body2">@(batch.InputQuantity?.ToString() ?? "-") 支</MudText></div>
                     <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">领料重量(kg)</MudText><MudText Typo="Typo.body2">@DisplayHelper.FormatNullableDecimal(batch.InputWeight)</MudText></div>
@@ -436,7 +436,7 @@
             <MudText Typo="Typo.caption" Class="detail-subsection font-weight-bold mb-2">基本信息</MudText>
             <div class="d-flex flex-wrap" style="gap: 0.6rem 2rem;">
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">工单号</MudText>
-                    @if (batch.WorkOrderNo == "非工单")
+                    @if (batch.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder)
                     {
                         <MudText Typo="Typo.body2">@batch.WorkOrderNo</MudText>
                     }
@@ -531,7 +531,7 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd><MudText Typo="Typo.body2">@context.SequenceNumber</MudText></MudTd>
-                            <MudTd><MudText Typo="Typo.body2" Class="font-weight-bold">@context.ProcessName</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2" Class="font-weight-bold">@ProcessDisplayHelper.GetProcessNameText(context.ProcessName)</MudText></MudTd>
                             <MudTd title="@context.ManufacturingSpec"><MudText Typo="Typo.body2">@(context.ManufacturingSpec ?? "-")</MudText></MudTd>
                             <MudTd title="@context.OuterDiameterTolerance"><MudText Typo="Typo.body2">@(context.OuterDiameterTolerance ?? "-")</MudText></MudTd>
                             <MudTd title="@context.WallThicknessTolerance"><MudText Typo="Typo.body2">@(context.WallThicknessTolerance ?? "-")</MudText></MudTd>
@@ -911,7 +911,7 @@
 
     private async Task NavigateToWorkOrder(string workOrderNo)
     {
-        if (workOrderNo == "非工单" || string.IsNullOrWhiteSpace(workOrderNo))
+        if (workOrderNo == WorkOrderNoSentinel.NotWorkOrder || string.IsNullOrWhiteSpace(workOrderNo))
             return;
 
         try

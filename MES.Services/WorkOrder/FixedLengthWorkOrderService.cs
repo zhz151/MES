@@ -18,8 +18,8 @@ namespace MES.Services.WorkOrder;
 /// </summary>
 public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
 {
-    /// <summary>产类=成品（ProductStatusHelper.Calculate 返回值）</summary>
-    private const string FinishedProductStatus = "成品";
+    /// <summary>产类=成品（ProductStatusHelper.Calculate 返回的稳定 Key）</summary>
+    private const string FinishedProductStatus = ProductStatuses.Finished;
 
     /// <summary>IN 查询每批参数上限（SQL Server 默认 2100，留余量）</summary>
     private const int BatchInChunkSize = 1000;

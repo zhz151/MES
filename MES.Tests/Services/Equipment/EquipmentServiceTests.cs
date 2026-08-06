@@ -186,7 +186,7 @@ public class EquipmentServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new EquipmentQueryParams
         {
-            LifecycleStatus = "Active"
+            LifecycleStatus = LifecycleStatus.Active
         });
 
         result.Items.Should().HaveCount(1);
@@ -206,7 +206,7 @@ public class EquipmentServiceTests : TestBase
 
         var result = await svc.GetPagedAsync(new EquipmentQueryParams
         {
-            UsageType = "Primary"
+            UsageType = UsageType.Primary
         });
 
         result.Items.Should().HaveCount(1);

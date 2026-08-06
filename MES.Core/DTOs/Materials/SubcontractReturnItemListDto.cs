@@ -21,14 +21,7 @@ public class SubcontractReturnItemListDto
     public DateTime? ReturnDeadline { get; set; }
     public int ReturnedQuantity { get; set; }
     public decimal ReturnedWeight { get; set; }
-    public string ProcessStatus { get; set; } = null!;
+    public SubcontractOrderStatus? ProcessStatus { get; set; }
 
-    public string ProcessStatusDisplay
-    {
-        get
-        {
-            var parsed = EnumHelper.TryParse<SubcontractOrderStatus>(ProcessStatus);
-            return parsed.HasValue ? EnumHelper.GetDisplayName(parsed.Value) : ProcessStatus;
-        }
-    }
+    public string? ProcessStatusDisplay => ProcessStatus.HasValue ? EnumHelper.GetDisplayName(ProcessStatus.Value) : null;
 }

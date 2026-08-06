@@ -203,7 +203,7 @@ public partial class PendingDelivery
     private string RenderFooterCell(ColumnDef col)
     {
         if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
-        return "";
+        return "-";
     }
 
     // ========== 服务端数据加载 ==========
@@ -492,6 +492,7 @@ public partial class PendingDelivery
             "remainingmeters" => item.RemainingMeters?.ToString("G29") ?? "-",
             "inbounddate" => item.InboundDate.ToString("yyyy-MM-dd"),
             "materialtype" => DisplayHelper.GetMaterialTypeText(item.MaterialType),
+            "deliverystatus" => DisplayHelper.GetDeliveryStateText(item.DeliveryStatus),
             _ => GetRawPropertyValue(item, col.Key) ?? "-"
         };
     }
@@ -600,7 +601,7 @@ public partial class PendingDelivery
                 builder.AddContent(0, DisplayHelper.GetInboundSourceText(item.InboundSource));
                 break;
             case "lengthstatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus?.ToString()));
                 break;
             case "remainingweight":
                 builder.AddContent(0, item.RemainingWeight.ToString("G29"));

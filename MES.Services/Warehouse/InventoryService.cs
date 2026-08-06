@@ -40,7 +40,7 @@ public class InventoryService : IInventoryService
         InboundDate = b.InboundDate,
         HeatNo = b.HeatNo,
         ProductionBatchNo = b.ProductionBatchNo,
-        LengthStatus = b.LengthStatus,
+        LengthStatus = EnumHelper.TryParse<LengthStatus>(b.LengthStatus),
         MinLength = b.MinLength,
         MaxLength = b.MaxLength,
         InitialQuantity = b.InitialQuantity,

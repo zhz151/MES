@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.Enums;
+using MES.Core.Constants;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.Configuration;
 using MES.Services.Helpers;
 using MES.Core.Interfaces.Warehouse;
@@ -106,7 +108,7 @@ public class InventorySyncService : IInventorySyncService
             {
                 if (!string.IsNullOrEmpty(order.SourceWorkOrderNo))
                     result.ExpectedWorkOrderNo = order.SourceWorkOrderNo;
-                result.MaterialCategory = MapMaterialTypeName(order.MaterialCategory);
+                result.MaterialCategory = EnumHelper.TryParse<MaterialType>(MapMaterialTypeName(order.MaterialCategory));
                 result.PlantGrade = order.PlantGrade;
                 result.Specification = order.Specification;
                 if (order.SupplierId > 0)
@@ -142,7 +144,7 @@ public class InventorySyncService : IInventorySyncService
                 }
                 else
                 {
-                    result.MaterialCategory = MapMaterialTypeName(item.MaterialCategory);
+                    result.MaterialCategory = EnumHelper.TryParse<MaterialType>(MapMaterialTypeName(item.MaterialCategory));
                     result.PlantGrade = item.PlantGrade;
                     result.Specification = item.ProcessSpecification;
                     if (!string.IsNullOrEmpty(item.SourceWorkOrderNo))
@@ -158,7 +160,7 @@ public class InventorySyncService : IInventorySyncService
             }
             else
             {
-                result.MaterialCategory = MapMaterialTypeName(order.OutMaterialCategory);
+                result.MaterialCategory = EnumHelper.TryParse<MaterialType>(MapMaterialTypeName(order.OutMaterialCategory));
                 result.PlantGrade = order.OutPlantGrade;
                 result.Specification = order.OutSpecification;
                 if (order.SupplierId > 0)
@@ -198,13 +200,13 @@ public class InventorySyncService : IInventorySyncService
 
         if (!string.IsNullOrEmpty(batch.WorkOrderNo))
             result.ExpectedWorkOrderNo = batch.WorkOrderNo;
-        result.MaterialCategory = MapMaterialTypeName(batch.ManufacturingItem);
+        result.MaterialCategory = EnumHelper.TryParse<MaterialType>(MapMaterialTypeName(batch.ManufacturingItem));
         result.PlantGrade = batch.PlantGrade;
         result.Specification = batch.Specification;
         result.SalesOrderNo = batch.SalesOrderNo;
         result.OrderItemIds = batch.OrderItemIds;
         result.HeatNo = batch.SourceHeatNo;
-        result.ManufacturingStatus = batch.ManufacturingStatus;
+        result.ManufacturingStatus = EnumHelper.TryParse<DeliveryState>(batch.ManufacturingStatus);
         result.SupplierName = batch.SourceName;
         return result;
     }
@@ -240,7 +242,7 @@ public class InventorySyncService : IInventorySyncService
             .AsNoTracking()
             .Where(b => b.WorkOrderNo != null
                      && b.WorkOrderNo != string.Empty
-                     && b.WorkOrderNo != "非工单");
+                     && b.WorkOrderNo != WorkOrderNoSentinel.NotWorkOrder);
 
         if (warehouseId.HasValue)
             query = query.Where(b => b.WarehouseId == warehouseId.Value);
@@ -279,7 +281,7 @@ public class InventorySyncService : IInventorySyncService
             .Where(b => b.WarehouseId == warehouseId
                      && b.WorkOrderNo != null
                      && b.WorkOrderNo != string.Empty
-                     && b.WorkOrderNo != "非工单")
+                     && b.WorkOrderNo != WorkOrderNoSentinel.NotWorkOrder)
             .Select(b => b.WorkOrderNo!)
             .Distinct()
             .ToListAsync();

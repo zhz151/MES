@@ -27,7 +27,7 @@ public class ScanBatchResolveResultDto
     public string? TagNo { get; set; }
 
     /// <summary>生产类型</summary>
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
 
     /// <summary>该批次下的所有工序组选项</summary>
     public List<ProcessGroupOption> ProcessGroups { get; set; } = new();

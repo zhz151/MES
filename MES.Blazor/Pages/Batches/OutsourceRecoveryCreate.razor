@@ -62,8 +62,8 @@
                             }
                             <MudTd><small>@item.BatchNo</small></MudTd>
                             <MudTd><small>@item.OutsourceVendor</small></MudTd>
-                            <MudTd><small>@item.ProcessName</small></MudTd>
-                            <MudTd><small>@item.SectionName</small></MudTd>
+                            <MudTd><small>@ProcessDisplayHelper.GetProcessNameText(item.ProcessName)</small></MudTd>
+                            <MudTd><small>@SectionDisplayHelper.GetSectionNameText(item.SectionName)</small></MudTd>
                             <MudTd><small>@DisplayHelper.FormatSpecification(item.ManufacturingSpec)</small></MudTd>
                             <MudTd><small>@DisplayHelper.FormatNullableInt(item.SendQuantity)</small></MudTd>
                             <MudTd><small>@DisplayHelper.FormatNullableDecimal(item.SendWeight)</small></MudTd>

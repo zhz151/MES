@@ -93,7 +93,7 @@ public partial class Certificates
     private string RenderFooterCell(ColumnDef col)
     {
         if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
-        return "";
+        return "-";
     }
 
     // ========== 服务端数据加载 ==========

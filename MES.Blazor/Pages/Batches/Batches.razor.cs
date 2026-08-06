@@ -11,6 +11,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
+using MES.Core.Constants;
 using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
 
@@ -66,7 +67,12 @@ public partial class Batches
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
         "CurrentValidQty", "CurrentValidWeight", "ProcessInspectionReworkWeight", "ProcessInspectionScrapWeight",
-        "TotalQuantity", "TotalMeters", "TotalWeight",
+        "ProcessInspectionQualifiedQty", "ProcessInspectionQualifiedWeight", "ProcessInspectionTheoreticalQty",
+        "TheoreticalOutputQty", "TheoreticalOutputWeight",
+        "CutQuantity",
+        "TotalWorkDays", "RemainingWorkDays",
+        "InputQuantity", "InputWeight",
+        "TotalQuantity", "TotalMeters", "TotalWeight", "TotalItemCount",
     };
 
     // ========== ExcelFilter 筛选 ==========
@@ -85,16 +91,12 @@ public partial class Batches
         new() { Key = "BatchNo",            Label = "生产编号", SortKey = "batchno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "TagNo",              Label = "挂牌号",   SortKey = "tagno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "ProductionType",     Label = "生产类型", SortKey = "productiontype", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
-            EnumOptions = new() { new("RoughTube", "荒管生产"), new("InProcess", "在制生产"), new("Inventory", "库存"),
-                new("OutsourcedPurchased", "外购"), new("Rework", "返整"), new("Subcontract", "委外生产"), new("ExternalProcessing", "对外加工") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<ProductionType>() },
         new() { Key = "ManufacturingItem",  Label = "制造物品", SortKey = "manufacturingitem", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
             EnumOptions = new() { new("OrderFinished", "订单成品"), new("Finished", "备料成品"),
                 new("Surplus", "余库料"), new("SpecialDeliveryStatus", "订成-非交付态") } },
         new() { Key = "ManufacturingStatus", Label = "制造状态", SortKey = "manufacturingstatus", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "批次基本信息",
-            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
-                new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
-                new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
-                new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
         new() { Key = "ProductionRatio",    Label = "制成倍数", SortKey = "productionratio", Width = "80", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "Remark",            Label = "备注",     SortKey = "remark", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
         new() { Key = "CreatedBy",          Label = "创建人",   SortKey = "createdby", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
@@ -104,7 +106,7 @@ public partial class Batches
 
         // ===== G2: 现执行状态 =====
         new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "现执行状态",
-            EnumOptions = new() { new("None", "未产"), new("InProgress", "在产"), new("InFinalInspection", "成检"), new("Completed", "完成"), new("Suspended", "暂停") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<BatchStatus>() },
         new() { Key = "IsForceCompleted",   Label = "强制完成", SortKey = "isforcecompleted", FilterType = "enum", Width = "90", GroupKey = 2, GroupName = "现执行状态",
             EnumOptions = new() { new("True", "是"), new("False", "否") } },
         new() { Key = "InspectionStage",    Label = "成检附加", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 2, GroupName = "现执行状态",
@@ -128,7 +130,7 @@ public partial class Batches
 
         // ===== G4: 成品切割跟踪 =====
         new() { Key = "CutDoubt",       Label = "成切存疑", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 4, GroupName = "成品切割跟踪",
-            EnumOptions = new() { new("QuantityMismatch", "疑问-数量"), new("MissingRecords", "疑问-缺少"), new("Normal", "正常") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<CutDoubtType>() },
         new() { Key = "CutRequirement", Label = "成切需求", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 4, GroupName = "成品切割跟踪",
             EnumOptions = new() { new("True", "是"), new("False", "否") } },
         new() { Key = "CutExecution",   Label = "成切执行", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 4, GroupName = "成品切割跟踪",
@@ -152,7 +154,7 @@ public partial class Batches
 
         // ===== G6: 原始投料信息 =====
         new() { Key = "InputType",         Label = "投料类型", SortKey = "inputtype", FilterType = "enum", Width = "100", GroupKey = 6, GroupName = "原始投料信息",
-            EnumOptions = new() { new("Warehouse", "仓库投料"), new("SplitFromNumber", "编号拆分"), new("Other", "其它") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<BatchInputType>() },
         new() { Key = "SourceBatchNo",     Label = "来源批次号", SortKey = "sourcebatchno", FilterType = "string", Width = "120", GroupKey = 6, GroupName = "原始投料信息" },
         new() { Key = "SourceProductionNo", Label = "源生产编号", SortKey = "sourceproductionno", FilterType = "string", Width = "120", GroupKey = 6, GroupName = "原始投料信息" },
         new() { Key = "SourceMaterialType",  Label = "原料类型", SortKey = "sourcematerialtype", FilterType = "enum", Width = "120", GroupKey = 6, GroupName = "原始投料信息",
@@ -168,7 +170,7 @@ public partial class Batches
 
         // ===== G7: 工单信息 =====
         new() { Key = "MaterialName",       Label = "钢管制造", SortKey = "materialname", FilterType = "enum", Width = "120", GroupKey = 7, GroupName = "工单信息",
-            EnumOptions = new() { new("SeamlessPipe", "无缝管"), new("WeldedPipe", "焊管") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>() },
         new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno", FilterType = "string", Width = "120", GroupKey = 7, GroupName = "工单信息" },
         new() { Key = "SalesOrderNo",       Label = "订单号",   SortKey = "salesorderno", FilterType = "string", Width = "120", GroupKey = 7, GroupName = "工单信息" },
         new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno", FilterType = "string", Width = "120", GroupKey = 7, GroupName = "工单信息" },
@@ -180,19 +182,16 @@ public partial class Batches
         new() { Key = "DelayPenalty",       Label = "延期罚款", SortKey = "delaypenalty", FilterType = "enum", Width = "120", GroupKey = 7, GroupName = "工单信息",
             EnumOptions = new() { new("True", "是"), new("False", "否") } },
         new() { Key = "SettlementMethod",   Label = "结算方式", SortKey = "settlementmethod", FilterType = "enum", Width = "120", GroupKey = 7, GroupName = "工单信息",
-            EnumOptions = new() { new("Theoretical", "理算"), new("Weighing", "过磅"), new("WeighingNegative", "过磅-负") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
 
         // ===== G8: 产品要求 =====
         new() { Key = "StandardCode",       Label = "产品标准", SortKey = "standardcode", FilterType = "string", Width = "120", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "DeliveryState",      Label = "交货状态", SortKey = "deliverystate", FilterType = "enum", Width = "120", GroupKey = 8, GroupName = "产品要求",
-            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
-                new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
-                new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
-                new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
         new() { Key = "PlantGrade",         Label = "工厂牌号", SortKey = "plantgrade", FilterType = "string", Width = "120", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "Specification",      Label = "规格",     SortKey = "specification", FilterType = "string", Width = "120", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "LengthStatus",       Label = "长度状态", SortKey = "lengthstatus", FilterType = "enum", Width = "120", GroupKey = 8, GroupName = "产品要求",
-            EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
         new() { Key = "MinLength",      Label = "最小长度", SortKey = "minlength", Width = "90", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "MaxLength",      Label = "最大长度", SortKey = "maxlength", Width = "90", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "OuterDiameterNegative", Label = "外径负公差", SortKey = "outerdiameternegative", Width = "90", GroupKey = 8, GroupName = "产品要求" },
@@ -205,7 +204,7 @@ public partial class Batches
         new() { Key = "ProductUnitWeight",  Label = "产品单支量", SortKey = "productunitweight", Width = "90", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "TotalItemCount",     Label = "总项次数", SortKey = "totalitemcount", Width = "80", GroupKey = 8, GroupName = "产品要求" },
         new() { Key = "TechnicalRequirements", Label = "技术要求", SortKey = "technicalrequirements", FilterType = "enum", Width = "120", GroupKey = 8, GroupName = "产品要求",
-            EnumOptions = new() { new("Normal", "普通"), new("Special", "特殊") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<RequirementType>() },
 
         // ===== G9: 质量要求 =====
         new() { Key = "SolutionParams",    Label = "固溶参数", SortKey = "solutionparams", FilterType = "string", Width = "120", GroupKey = 9, GroupName = "质量要求" },
@@ -374,7 +373,13 @@ public partial class Batches
             _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
             {
                 Value = v,
-                Display = kvp.Key is "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" ? SectionDisplayHelper.GetSectionNameText(v) : v,
+                Display = kvp.Key switch
+                {
+                    "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v),
+                    "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(v),
+                    "SourceLengthStatus" => DisplayHelper.GetLengthStatusText(v),
+                    _ => v
+                },
                 Count = 0
             }).ToList();
         }
@@ -694,7 +699,7 @@ public partial class Batches
 
     private async Task NavigateToWorkOrder(string workOrderNo)
     {
-        if (workOrderNo == "非工单" || string.IsNullOrWhiteSpace(workOrderNo))
+        if (workOrderNo == WorkOrderNoSentinel.NotWorkOrder || string.IsNullOrWhiteSpace(workOrderNo))
             return;
 
         try
@@ -770,59 +775,6 @@ public partial class Batches
 
     // ========== 单元格渲染 ==========
 
-    private string? GetCellRawValue(ProductionBatchListDto item, string key) => key switch
-    {
-        "BatchNo" => item.BatchNo,
-        "TagNo" => item.TagNo,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        "WorkOrderNo" => item.WorkOrderNo,
-        "SalesOrderNo" => item.SalesOrderNo,
-        "ProductionMainNo" => item.ProductionMainNo,
-        "ProductionSubNo" => item.ProductionSubNo,
-        "ProductionType" => item.ProductionType,
-        "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
-        "ManufacturingStatus" => item.ManufacturingStatusDisplay,
-        "Status" => DisplayHelper.GetBatchStatusText(item.Status),
-        "CurrentExecDate" => item.CurrentExecDate?.ToString("yyyy-MM-dd"),
-        "CurrentGroupName" => item.CurrentGroupName,
-        "CurrentSectionName" => SectionDisplayHelper.GetSectionNameText(item.CurrentSectionName),
-        "CurrentEquipmentName" => item.CurrentEquipmentName,
-        "CurrentOutsource" => item.CurrentOutsource,
-        "CurrentSpec" => item.CurrentSpec,
-        "NextSectionName" => SectionDisplayHelper.GetSectionNameText(item.NextSectionName),
-        "CorrespondingSpec" => item.CorrespondingSpec,
-        "ProcessInspectionQualifiedQty" => item.ProcessInspectionQualifiedQty.HasValue ? item.ProcessInspectionQualifiedQty.Value.ToString("G29") : "",
-        "ProcessInspectionQualifiedWeight" => item.ProcessInspectionQualifiedWeight.HasValue ? item.ProcessInspectionQualifiedWeight.Value.ToString("G29") : "",
-        "ProcessInspectionTheoreticalQty" => item.ProcessInspectionTheoreticalQty.HasValue ? item.ProcessInspectionTheoreticalQty.Value.ToString("G29") : "",
-        "ProcessInspectionNeedAdjust" => item.ProcessInspectionNeedAdjust switch { true => "是", false => "-", null => "-" },
-        "ProcessInspectionReworkWeight" => item.ProcessInspectionReworkWeight == 0 ? "" : item.ProcessInspectionReworkWeight.ToString("G29"),
-        "ProcessInspectionScrapWeight" => item.ProcessInspectionScrapWeight == 0 ? "" : item.ProcessInspectionScrapWeight.ToString("G29"),
-        "CurrentValidQty" => DisplayHelper.FormatNullableInt(item.CurrentValidQty),
-        "CurrentValidWeight" => $"{(int)(item.CurrentValidWeight ?? 0)}",
-        "ProductionRatio" => item.ProductionRatio.ToString(),
-        "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
-        "Salesman" => item.Salesman,
-        "EndCustomer" => item.EndCustomer,
-        "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
-        "DelayPenalty" => item.DelayPenalty.ToString(),
-        "MaterialName" => item.MaterialName,
-        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
-        "StandardCode" => item.StandardCode,
-        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
-        "PlantGrade" => item.PlantGrade,
-        "Specification" => item.Specification,
-        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
-        "TotalQuantity" => item.TotalQuantity.ToString("G29"),
-        "TotalMeters" => ((int)item.TotalMeters).ToString(),
-        "TotalWeight" => ((int)item.TotalWeight).ToString(),
-        "ProductUnitWeight" => item.ProductUnitWeight.HasValue ? item.ProductUnitWeight.Value.ToString("G29") : "",
-        "TechnicalRequirements" => item.TechnicalRequirements,
-        "RemainingWorkDays" => item.RemainingWorkDays.ToString("G29"),
-        "CreatedBy" => item.CreatedBy,
-        _ => null
-    };
-
     private static string GetColumnValue(ProductionBatchListDto item, string key) => key switch
     {
         "TagNo" => item.TagNo ?? "",
@@ -830,15 +782,15 @@ public partial class Batches
         "SalesOrderNo" => item.SalesOrderNo,
         "ProductionMainNo" => item.ProductionMainNo,
         "ProductionSubNo" => item.ProductionSubNo ?? "",
-        "ProductionType" => DisplayHelper.GetProductionTypeText(item.ProductionType),
-        "CurrentGroupName" => item.CurrentGroupName ?? "",
+        "ProductionType" => DisplayHelper.GetProductionTypeText(item.ProductionType?.ToString()),
+        "CurrentGroupName" => ProcessDisplayHelper.GetProcessNameText(item.CurrentGroupName),
         "CurrentSectionName" => SectionDisplayHelper.GetSectionNameText(item.CurrentSectionName ?? ""),
         "CurrentEquipmentName" => item.CurrentEquipmentName ?? "",
         "CurrentOutsource" => item.CurrentOutsource ?? "",
         "CurrentSpec" => item.CurrentSpec ?? "",
         "NextSectionName" => SectionDisplayHelper.GetSectionNameText(item.NextSectionName ?? ""),
         "CorrespondingSpec" => item.CorrespondingSpec ?? "",
-        "NextProcess" => item.NextProcess ?? "",
+        "NextProcess" => ProcessDisplayHelper.GetProcessNameText(item.NextProcess),
         "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
         "ManufacturingStatus" => item.ManufacturingStatusDisplay ?? "",
         "IsForceCompleted" => DisplayHelper.GetYesNoText(item.IsForceCompleted),
@@ -900,7 +852,7 @@ public partial class Batches
         "QualityRemark" => item.QualityRemark ?? "",
         "SolutionParams" => item.SolutionParams ?? "",
         "TotalItemCount" => item.TotalItemCount.ToString("G29"),
-        "SourceLengthStatus" => DisplayHelper.GetLengthStatusText(item.SourceLengthStatus),
+        "SourceLengthStatus" => DisplayHelper.GetLengthStatusText(item.SourceLengthStatus?.ToString()),
         "SourceProductionNo" => item.SourceProductionNo ?? "",
         "UpdatedBy" => item.UpdatedBy ?? "",
         "CreatedBy" => item.CreatedBy,
@@ -932,7 +884,7 @@ public partial class Batches
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
             case "WorkOrderNo":
-                if (!string.IsNullOrEmpty(item.WorkOrderNo) && item.WorkOrderNo != "非工单")
+                if (!string.IsNullOrEmpty(item.WorkOrderNo) && item.WorkOrderNo != WorkOrderNoSentinel.NotWorkOrder)
                 {
                     builder.OpenComponent<MudLink>(0);
                     builder.AddAttribute(1, "Typo", Typo.body2);

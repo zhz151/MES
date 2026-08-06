@@ -6,6 +6,9 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.Models;
+using MES.Core.Constants;
+using MES.Core.Helpers;
+using MES.Core.Enums;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.WorkOrder;
@@ -64,6 +67,26 @@ public partial class WorkOrderSchedules
         "PendingSection30Roll", "PendingSection20Roll",
         "PendingSectionThreeRoll", "PendingSectionDrawBench",
     };
+    private int _lastSummedPage = -1;
+    private int _lastSummedCount = -1;
+    private int _lastSummedPageSize = -1;
+
+    // ========== 字典下拉选项（配置表动态加载，失败兜底静态 KeyToChinese）==========
+    private List<(string Value, string Text)> _urgencyOptions =
+        UrgencyLevelKeys.KeyToChinese.Select(kv => (kv.Key, kv.Value)).ToList();
+    private List<(string Value, string Text)> _productionFlowOptions =
+        ProductionFlowKeys.KeyToChinese.Select(kv => (kv.Key, kv.Value)).ToList();
+
+    private async Task LoadDictOptionsAsync()
+    {
+        var urgency = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.UrgencyLevelKey);
+        if (urgency.Success && urgency.Data is { Count: > 0 })
+            _urgencyOptions = urgency.Data.Select(t => (t.Value, t.DisplayName)).ToList();
+
+        var flow = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.ProductionFlowKey);
+        if (flow.Success && flow.Data is { Count: > 0 })
+            _productionFlowOptions = flow.Data.Select(t => (t.Value, t.DisplayName)).ToList();
+    }
 
     // 非空/空筛选常量
     private const string FilterNotNull = "__NOT_NULL__";
@@ -87,15 +110,15 @@ public partial class WorkOrderSchedules
             new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "enum", Width = "120", EnumOptions = new() { new("Weighing","过磅"), new("WeighingNegative","过磅-负"), new("Theoretical","理算") }, Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SalesOrderNo",            Label = "订单号",          SortKey = "SalesOrderNo",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "ProductionMainNo",        Label = "主号",            SortKey = "ProductionMainNo",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "ProductionSubNo",         Label = "次号",            SortKey = "ProductionSubNo",         FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "MaterialName",            Label = "钢管制造",        SortKey = "MaterialName",            FilterType = "enum", Width = "120", EnumOptions = new() { new("SeamlessPipe","无缝管"), new("WeldedPipe","焊管") }, GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "enum", Width = "120", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态"), new("SolidSolutionStraightening","固溶矫直") }, Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MaterialName",            Label = "钢管制造",        SortKey = "MaterialName",            FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>(), GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "PlantGrade",              Label = "工厂牌号",        SortKey = "PlantGrade",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Specification",           Label = "规格",            SortKey = "Specification",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "enum", Width = "120", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") }, Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "MinLength",               Label = "最小长度",        SortKey = "MinLength",               Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "MaxLength",               Label = "最大长度",        SortKey = "MaxLength",               Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "TotalQuantity",           Label = "总支数",          SortKey = "TotalQuantity",           Width = "80", GroupKey = 1, GroupName = "基础数据" },
@@ -106,18 +129,18 @@ public partial class WorkOrderSchedules
         var g7 = new List<ColumnDef>
         {
             new() { Key = "FlowOutputRatio",        Label = "流转成品比",     SortKey = "FlowOutputRatio",        Width = "80",                             GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "FlowStatus",             Label = "有效流转状态",    SortKey = "FlowStatus",             FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未投料"), new("1","部分"), new("2","满足") }, GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FlowStatus",             Label = "有效流转状态",    SortKey = "FlowStatus",             FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetFlowStatusOptions(), GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "FlowTotalBatchCount",    Label = "总批次数",       SortKey = "FlowTotalBatchCount",    Width = "80",                              GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "FlowIncompleteBatchCount",Label = "未完成批数",    SortKey = "FlowIncompleteBatchCount",Width = "80",                              GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "MainNoFlowOutputRatio",  Label = "有效主号流转比", SortKey = "MainNoFlowOutputRatio",   Width = "80", Visible = false,       GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "MainNoFlowStatus",       Label = "有效主号状态",   SortKey = "MainNoFlowStatus",       FilterType = "enum", Width = "120", EnumOptions = new() { new("0","未计划"), new("1","部分"), new("2","满足") }, Visible = false, GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "MainNoFlowStatus",       Label = "有效主号状态",   SortKey = "MainNoFlowStatus",       FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetMainNoFlowStatusOptions(), Visible = false, GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "FlowMaxRemainingWorkDays", Label = "最大剩余工量(天)",SortKey = "FlowMaxRemainingWorkDays", Width = "80",                         GroupKey = 7, GroupName = "有效流转" },
         };
 
         // G12: 实时关注
         var g12 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = new() { new("0","主号暂停"), new("1","主号完成"), new("2","原料锁定"), new("3","生产执行"), new("4","成品检验") }, GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "CapacityWorkDays",        Label = "产能工量(天)", SortKey = "CapacityWorkDays",        Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120", GroupKey = 12, GroupName = "实时关注" },
@@ -157,7 +180,7 @@ public partial class WorkOrderSchedules
         var g15 = new List<ColumnDef>
         {
             new() { Key = "ConsistencyStatus",              Label = "实时一致性",  SortKey = "ConsistencyStatus",          FilterType = "enum", Width = "100", EnumOptions = new() { new("一致","一致"), new("进度调整","进度调整"), new("值存疑","值存疑"), new("错误","错误") }, GroupKey = 15, GroupName = "工单计划" },
-            new() { Key = "PlanScheduleStage",               Label = "工单状态",     SortKey = "PlanScheduleStage",          FilterType = "enum", Width = "100", EnumOptions = new() { new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验") }, GroupKey = 15, GroupName = "工单计划" },
+            new() { Key = "PlanScheduleStage",               Label = "工单状态",     SortKey = "PlanScheduleStage",          FilterType = "enum", Width = "100", EnumOptions = DisplayHelper.GetPlanScheduleStageOptions(), GroupKey = 15, GroupName = "工单计划" },
             new() { Key = "PlanUrgencyLevel",                Label = "紧急性",       SortKey = "PlanUrgencyLevel",           FilterType = "string", Width = "100", GroupKey = 15, GroupName = "工单计划" },
             new() { Key = "PlanProductionAttentionProcess",  Label = "生产关注",     SortKey = "PlanProductionAttentionProcess", FilterType = "string", Width = "120", GroupKey = 15, GroupName = "工单计划" },
             new() { Key = "PlanProductionFlowProperty",      Label = "流转性",       SortKey = "PlanProductionFlowProperty",  FilterType = "string", Width = "100", GroupKey = 15, GroupName = "工单计划" },
@@ -180,6 +203,13 @@ public partial class WorkOrderSchedules
         _pageSums.Clear();
         if (_filteredItems.Count == 0) return;
 
+        // 按当前页显示行汇总（Items 模式，取 MudTable 当前页切片）
+        var page = table?.CurrentPage ?? 0;
+        var rowsPerPage = table?.RowsPerPage ?? _pageSize;
+        if (rowsPerPage <= 0) rowsPerPage = _pageSize;
+        var pageItems = _filteredItems.Skip(page * rowsPerPage).Take(rowsPerPage).ToList();
+        if (pageItems.Count == 0) return;
+
         var props = typeof(WorkOrderScheduleDto)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
             .ToDictionary(p => p.Name, p => p);
@@ -193,22 +223,22 @@ public partial class WorkOrderSchedules
             {
                 if (type == typeof(int))
                 {
-                    var sum = _filteredItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    var sum = pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
                     _pageSums[col.Key] = sum.ToString();
                 }
                 else if (type == typeof(decimal))
                 {
-                    var sum = _filteredItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    var sum = pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
                     _pageSums[col.Key] = ((int)sum).ToString();
                 }
                 else if (type == typeof(int?))
                 {
-                    var sum = _filteredItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    var sum = pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
                     _pageSums[col.Key] = sum.ToString();
                 }
                 else if (type == typeof(decimal?))
                 {
-                    var sum = _filteredItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    var sum = pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
                     _pageSums[col.Key] = ((int)sum).ToString();
                 }
             }
@@ -286,7 +316,15 @@ public partial class WorkOrderSchedules
                     .Select(val => new ExcelFilterOption
                     {
                         Value = val!,
-                        Display = val!,
+                        Display = (col.Key switch
+                        {
+                            "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(val!),
+                            "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" or "PendingProcess" or "ProductionAttentionProcess" or "MainNoAttentionProcess" or "PlanProductionAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(val!),
+                            "UrgencyLevel" or "PlanUrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,val!),
+                            "ProductionFlowProperty" or "PlanProductionFlowProperty" => DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey,val!),
+                            "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(val!),
+                            _ => val!
+                        }) ?? val!,
                         Count = _allItems.Count(x => string.Equals(GetFilterValue(x, col.Key), val, StringComparison.OrdinalIgnoreCase))
                     })
                     .ToList();
@@ -670,6 +708,8 @@ public partial class WorkOrderSchedules
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadDictOptionsAsync();
+
         _allColumns = GetAllColumnDefs();
 
         // 从 ColumnPrefsService 恢复列顺序和显隐
@@ -734,6 +774,22 @@ public partial class WorkOrderSchedules
     {
         // 分组标题栏：测量实际列宽 + 同步滚动
         await JS.InvokeVoidAsync("initGroupHeaders", "#workorder-schedule-list-table");
+
+        // 分页导航/页大小切换后重算当前页汇总（pager 操作只改 CurrentPage/RowsPerPage，不触发 ApplyFiltersAndSort）
+        if (table != null && _filteredItems.Count > 0)
+        {
+            var page = table.CurrentPage;
+            var count = _filteredItems.Count;
+            var rowsPerPage = table.RowsPerPage;
+            if (page != _lastSummedPage || count != _lastSummedCount || rowsPerPage != _lastSummedPageSize)
+            {
+                _lastSummedPage = page;
+                _lastSummedCount = count;
+                _lastSummedPageSize = rowsPerPage;
+                ComputePageSums();
+                StateHasChanged();
+            }
+        }
     }
 
     // ========== 单元格渲染 ==========
@@ -802,7 +858,7 @@ public partial class WorkOrderSchedules
             case "FlowStatus":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetInputStatusColor(item.FlowStatus));
+                builder.AddAttribute(2, "Color", DisplayHelper.GetInputStatusColor(item.FlowStatus));
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetFlowStatusText(item.FlowStatus))));
                 builder.CloseComponent();
                 break;
@@ -812,7 +868,7 @@ public partial class WorkOrderSchedules
             case "MainNoFlowStatus":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetInputStatusColor(item.MainNoFlowStatus));
+                builder.AddAttribute(2, "Color", DisplayHelper.GetInputStatusColor(item.MainNoFlowStatus));
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetValidMainNoStatusText(item.MainNoFlowStatus))));
                 builder.CloseComponent();
                 break;
@@ -830,7 +886,7 @@ public partial class WorkOrderSchedules
             case "ScheduleStage":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetScheduleStageColor(item.ScheduleStage));
+                builder.AddAttribute(2, "Color", DisplayHelper.GetScheduleStageColor(item.ScheduleStage));
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ScheduleStageText)));
                 builder.CloseComponent();
                 break;
@@ -841,7 +897,7 @@ public partial class WorkOrderSchedules
                 builder.AddContent(0, item.CapacityWorkDays.HasValue ? $"{item.CapacityWorkDays}天" : "-");
                 break;
             case "UrgencyLevel":
-                builder.AddContent(0, item.UrgencyLevel ?? "-");
+                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,item.UrgencyLevel) ?? "-");
                 break;
             case "EstimatedProcessCompletionDate":
                 builder.AddContent(0, item.EstimatedProcessCompletionDate?.ToString("yyyy-MM-dd") ?? "-");
@@ -850,7 +906,7 @@ public partial class WorkOrderSchedules
                 builder.AddContent(0, item.DaysDiffFromDelivery.HasValue ? $"{item.DaysDiffFromDelivery}天" : "-");
                 break;
             case "RawMaterialLockRemark":
-                builder.AddContent(0, item.RawMaterialLockRemark ?? "-");
+                builder.AddContent(0, RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "-");
                 break;
 
             // G13
@@ -896,7 +952,7 @@ public partial class WorkOrderSchedules
                 builder.AddContent(0, item.DeformedProcessCompleted ? "是" : "否");
                 break;
             case "ProductionAttentionProcess":
-                builder.AddContent(0, item.ProductionAttentionProcess ?? "-");
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.ProductionAttentionProcess ?? "-"));
                 break;
             case "ProductionFlowProperty":
                 var flowProp = item.ProductionFlowProperty;
@@ -904,16 +960,16 @@ public partial class WorkOrderSchedules
                 {
                     var color = flowProp switch
                     {
-                        "暂停" => Color.Error,
-                        "正常" => Color.Success,
-                        "待料" => Color.Warning,
-                        "疑问" => Color.Info,
+                        ProductionFlowKeys.Paused => Color.Error,
+                        ProductionFlowKeys.Normal => Color.Success,
+                        ProductionFlowKeys.Waiting => Color.Warning,
+                        ProductionFlowKeys.Doubt => Color.Info,
                         _ => Color.Default
                     };
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
                     builder.AddAttribute(2, "Color", color);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, flowProp)));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey,flowProp))));
                     builder.CloseComponent();
                 }
                 break;
@@ -921,7 +977,7 @@ public partial class WorkOrderSchedules
                 builder.AddContent(0, item.MaxBatchRemainingWorkDays.HasValue ? $"{item.MaxBatchRemainingWorkDays}天" : "-");
                 break;
             case "MainNoAttentionProcess":
-                builder.AddContent(0, item.MainNoAttentionProcess ?? "-");
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.MainNoAttentionProcess ?? "-"));
                 break;
 
             // ========== G15: 工单计划（内联编辑） ==========
@@ -959,11 +1015,11 @@ public partial class WorkOrderSchedules
                     b2.AddAttribute(1, "Value", "");
                     b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "空值")));
                     b2.CloseComponent();
-                    foreach (var (val, label) in new[] { ("0", "工单完成"), ("1", "原料锁定"), ("2", "生产执行"), ("3", "成品检验") })
+                    foreach (var opt in DisplayHelper.GetPlanScheduleStageOptions())
                     {
                         b2.OpenComponent<MudSelectItem<string>>(0);
-                        b2.AddAttribute(1, "Value", val);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, label)));
+                        b2.AddAttribute(1, "Value", opt.Value);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                         b2.CloseComponent();
                     }
                 }));
@@ -987,15 +1043,12 @@ public partial class WorkOrderSchedules
                     b2.AddAttribute(1, "Value", "");
                     b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "空值")));
                     b2.CloseComponent();
-                    if (_filterContextOptions.TryGetValue("PlanUrgencyLevel", out var urgencyOpts))
+                    foreach (var opt in _urgencyOptions)
                     {
-                        foreach (var opt in urgencyOpts.Where(x => x.Value != FilterNull))
-                        {
-                            b2.OpenComponent<MudSelectItem<string>>(0);
-                            b2.AddAttribute(1, "Value", opt.Value);
-                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Value)));
-                            b2.CloseComponent();
-                        }
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", opt.Value);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
+                        b2.CloseComponent();
                     }
                 }));
                 builder.CloseComponent();
@@ -1024,7 +1077,7 @@ public partial class WorkOrderSchedules
                         {
                             b2.OpenComponent<MudSelectItem<string>>(0);
                             b2.AddAttribute(1, "Value", opt.Value);
-                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Value)));
+                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                             b2.CloseComponent();
                         }
                     }
@@ -1034,7 +1087,7 @@ public partial class WorkOrderSchedules
 
             case "PlanProductionFlowProperty":
                 builder.OpenElement(0, "div");
-                builder.AddAttribute(1, "style", item.PlanProductionFlowProperty == "疑问"
+                builder.AddAttribute(1, "style", item.PlanProductionFlowProperty == ProductionFlowKeys.Doubt
                     ? "background-color:#ffebee;border-radius:4px;padding:2px;"
                     : "");
                 builder.OpenComponent<MudSelect<string>>(2);
@@ -1053,11 +1106,11 @@ public partial class WorkOrderSchedules
                     b2.AddAttribute(1, "Value", "");
                     b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "空值")));
                     b2.CloseComponent();
-                    foreach (var opt in new[] { "正常", "暂停", "待料", "疑问", "略" })
+                    foreach (var opt in _productionFlowOptions)
                     {
                         b2.OpenComponent<MudSelectItem<string>>(0);
-                        b2.AddAttribute(1, "Value", opt);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt)));
+                        b2.AddAttribute(1, "Value", opt.Value);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
                         b2.CloseComponent();
                     }
                 }));
@@ -1076,24 +1129,6 @@ public partial class WorkOrderSchedules
         DisplayHelper.GetMainNoFlowStatusText(status);
 
     // ========== 颜色 ==========
-
-    private static Color GetInputStatusColor(int status) => status switch
-    {
-        0 => Color.Default,
-        1 => Color.Warning,
-        2 => Color.Success,
-        _ => Color.Default
-    };
-
-    private static Color GetScheduleStageColor(int stage) => stage switch
-    {
-        0 => Color.Error,       // 主号暂停
-        1 => Color.Success,     // 主号完成（闭环）
-        2 => Color.Warning,     // 原料锁定（待料）
-        3 => Color.Info,        // 生产执行
-        4 => Color.Primary,     // 成品检验
-        _ => Color.Default
-    };
 
     // ========== 计划安排 ==========
 
@@ -1315,10 +1350,10 @@ public partial class WorkOrderSchedules
             "MainNoFlowOutputRatio" => item.MainNoFlowOutputRatio,
             "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
             "CapacityWorkDays" => item.CapacityWorkDays,
-            "UrgencyLevel" => item.UrgencyLevel ?? "",
+            "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,item.UrgencyLevel) ?? "",
             "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
             "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
-            "RawMaterialLockRemark" => item.RawMaterialLockRemark ?? "",
+            "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "",
             "IsUrging" => item.IsUrging,
             "IsBatchDelivery" => item.IsBatchDelivery,
             "IsPaused" => item.IsPaused,
@@ -1332,13 +1367,13 @@ public partial class WorkOrderSchedules
             "PendingSectionThreeRoll" => item.PendingSectionThreeRoll,
             "PendingSectionDrawBench" => item.PendingSectionDrawBench,
             "DeformedProcessCompleted" => item.DeformedProcessCompleted,
-            "ProductionAttentionProcess" => item.ProductionAttentionProcess ?? "",
-            "ProductionFlowProperty" => item.ProductionFlowProperty ?? "",
+            "ProductionAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(item.ProductionAttentionProcess),
+            "ProductionFlowProperty" => DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey,item.ProductionFlowProperty) ?? "",
             "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays,
-            "MainNoAttentionProcess" => item.MainNoAttentionProcess ?? "",
-            "PlanUrgencyLevel" => item.PlanUrgencyLevel ?? "",
-            "PlanProductionAttentionProcess" => item.PlanProductionAttentionProcess ?? "",
-            "PlanProductionFlowProperty" => item.PlanProductionFlowProperty ?? "",
+            "MainNoAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(item.MainNoAttentionProcess),
+            "PlanUrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,item.PlanUrgencyLevel) ?? "",
+            "PlanProductionAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(item.PlanProductionAttentionProcess),
+            "PlanProductionFlowProperty" => DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey,item.PlanProductionFlowProperty) ?? "",
             _ => ""
         })!; // 编译器无法验证object返回值非null
     }

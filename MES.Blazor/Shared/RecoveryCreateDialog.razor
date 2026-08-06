@@ -40,7 +40,7 @@
                             </MudItem>
                             <MudItem xs="6" sm="3">
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">工序</MudText>
-                                <MudText Typo="Typo.body2">@_selectedOutsource.ProcessName</MudText>
+                                <MudText Typo="Typo.body2">@ProcessDisplayHelper.GetProcessNameText(_selectedOutsource.ProcessName)</MudText>
                             </MudItem>
                             <MudItem xs="6" sm="3">
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">发出重量</MudText>
@@ -163,7 +163,7 @@
 
     private static string FormatOutsource(SectionOutsourceDto? o)
     {
-        return o == null ? "" : $"{o.BatchNo} | {o.OutsourceVendor} | {o.ProcessName}";
+        return o == null ? "" : $"{o.BatchNo} | {o.OutsourceVendor} | {ProcessDisplayHelper.GetProcessNameText(o.ProcessName)}";
     }
 
     private void Cancel() => MudDialog.Cancel();

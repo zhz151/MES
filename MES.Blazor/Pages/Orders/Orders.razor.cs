@@ -5,7 +5,9 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
+using MES.Core.Constants;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
@@ -145,8 +147,8 @@ public partial class Orders
         new() { Key = "deliverystart", Label = "交期起始", SortKey = "deliverystart", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "② 合同交付" },
         new() { Key = "deliveryend",   Label = "交期截止", SortKey = "deliveryend",  FilterType = "date", Width = "120", GroupKey = 2, GroupName = "② 合同交付" },
         new() { Key = "hasdelaypenalty", Label = "延期罚款", SortKey = "hasdelaypenalty", FilterType = "boolean", Width = "60", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 2, GroupName = "② 合同交付" },
-        new() { Key = "totalcontractweight", Label = "订单总重量", SortKey = "totalcontractweight", Width = "80", GroupKey = 2, GroupName = "② 合同交付" },
-        new() { Key = "itemcount", Label = "含项次数", SortKey = "itemcount", Width = "80", GroupKey = 2, GroupName = "② 合同交付" },
+        new() { Key = "TotalContractWeight", Label = "订单总重量", SortKey = "totalcontractweight", Width = "80", GroupKey = 2, GroupName = "② 合同交付" },
+        new() { Key = "ItemCount", Label = "含项次数", SortKey = "itemcount", Width = "80", GroupKey = 2, GroupName = "② 合同交付" },
         // ========== ③ 订单确认 ==========
         new() { Key = "notech",        Label = "技术要求", SortKey = "hastechnicalrequirement", FilterType = "boolean", Width = "120", BoolTrueLabel = "已编辑", BoolFalseLabel = "未编辑", GroupKey = 3, GroupName = "③ 订单确认" },
         new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "③ 订单确认",
@@ -155,7 +157,7 @@ public partial class Orders
         new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "③ 订单确认" },
         // ========== ④ 工单执行 ==========
         new() { Key = "schedulestage",     Label = "执行关注", SortKey = "schedulestage",     FilterType = "enum", Width = "100", GroupKey = 4, GroupName = "④ 工单执行",
-               EnumOptions = new List<EnumOption> { new("", "未排产"), new("0", "主号暂停"), new("1", "主号完成"), new("2", "原料锁定"), new("3", "生产执行"), new("4", "成品检验") },
+               EnumOptions = new List<EnumOption> { new("", "未排产") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList(),
                DisplayConverter = v => v is SalesOrderListDto d ? d.ScheduleStageText : "-" },
         new() { Key = "urgencylevel",      Label = "紧急性",   SortKey = "urgencylevel",      FilterType = "string", Width = "80", GroupKey = 4, GroupName = "④ 工单执行" },
         new() { Key = "estimatedcompletiondate", Label = "预计完成", SortKey = "estimatedcompletiondate", FilterType = "date", Width = "100", GroupKey = 4, GroupName = "④ 工单执行" },
@@ -204,7 +206,7 @@ public partial class Orders
     private string RenderFooterCell(ColumnDef col)
     {
         if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
-        return "";
+        return "-";
     }
 
     // ========== 服务端数据加载 ==========
@@ -319,7 +321,11 @@ public partial class Orders
             _filterContextOptions[key] = kvp.Value.Select(v => new ExcelFilterOption
             {
                 Value = v,
-                Display = v,
+                Display = key switch
+                {
+                    "urgencylevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, v) ?? v,
+                    _ => v
+                },
                 Count = 0
             }).ToList();
         }
@@ -577,10 +583,10 @@ public partial class Orders
             case "hasdelaypenalty":
                 builder.AddContent(0, DisplayHelper.GetYesNoText(order.HasDelayPenalty));
                 break;
-            case "totalcontractweight":
+            case "TotalContractWeight":
                 builder.AddContent(0, order.TotalContractWeight.ToString("G29"));
                 break;
-            case "itemcount":
+            case "ItemCount":
                 builder.AddContent(0, order.ItemCount);
                 break;
             case "notech":
@@ -631,7 +637,7 @@ public partial class Orders
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
                 builder.AddAttribute(2, "Color", GetUrgencyColor(order.UrgencyLevel));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, order.UrgencyLevel ?? "-")));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, order.UrgencyLevel) ?? "-")));
                 builder.CloseComponent();
                 break;
             case "estimatedcompletiondate":
@@ -652,8 +658,8 @@ public partial class Orders
         "deliverystart" => item.DeliveryStart?.ToString("yyyy-MM-dd"),
         "deliveryend" => item.DeliveryEnd?.ToString("yyyy-MM-dd"),
         "hasdelaypenalty" => item.HasDelayPenalty.ToString(),
-        "totalcontractweight" => item.TotalContractWeight.ToString(),
-        "itemcount" => item.ItemCount.ToString(),
+        "TotalContractWeight" => item.TotalContractWeight.ToString(),
+        "ItemCount" => item.ItemCount.ToString(),
         "notech" => item.HasTechnicalRequirement.ToString(),
         "status" => GetStatusText(item.Status),
         "lastchangedate" => item.LastChangeDate?.ToString("yyyy-MM-dd HH:mm"),
@@ -669,6 +675,7 @@ public partial class Orders
         "notech" => item.HasTechnicalRequirement ? "已编辑" : "未编辑",
         "status" => GetStatusText(item.Status),
         "schedulestage" => item.ScheduleStageText,
+        "urgencylevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel),
         _ => GetCellRawValue(item, key)
     };
 
@@ -694,7 +701,7 @@ public partial class Orders
         {
             var updateRequest = new UpdateSalesOrderRequest
             {
-                Status = "Confirmed",
+                Status = SalesOrderStatus.Confirmed,
                 RowVersion = order.RowVersion ?? Array.Empty<byte>()
             };
 
@@ -763,10 +770,10 @@ public partial class Orders
 
     private static Color GetUrgencyColor(string? urgency) => urgency switch
     {
-        "A+急" or "A急" => Color.Error,
-        "B顺" => Color.Warning,
-        "C缓" => Color.Info,
-        "D缓" => Color.Default,
+        UrgencyLevelKeys.APlusUrgent or UrgencyLevelKeys.AUrgent => Color.Error,
+        UrgencyLevelKeys.BOrder => Color.Warning,
+        UrgencyLevelKeys.CSlow => Color.Info,
+        UrgencyLevelKeys.DSlow => Color.Default,
         _ => Color.Default
     };
 

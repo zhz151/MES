@@ -10,7 +10,6 @@ using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
 using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
-using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
@@ -64,6 +63,7 @@ public class ProductionRecordService : IProductionRecordService
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IFixedLengthWorkOrderService _fixedLengthWorkOrderService;
     private readonly ISectionNameDisplayService _sectionNameDisplay;
+    private readonly IProcessDefinitionService _processDefService;
     private readonly IMemoryCache _cache;
 
     private sealed record SectionOutsourceInfo(
@@ -87,6 +87,7 @@ public class ProductionRecordService : IProductionRecordService
         IWorkOrderExecutionService workOrderExecutionService,
         IFixedLengthWorkOrderService fixedLengthWorkOrderService,
         ISectionNameDisplayService sectionNameDisplay,
+        IProcessDefinitionService processDefService,
         IMemoryCache cache)
     {
         _context = context;
@@ -98,6 +99,7 @@ public class ProductionRecordService : IProductionRecordService
         _workOrderExecutionService = workOrderExecutionService;
         _fixedLengthWorkOrderService = fixedLengthWorkOrderService;
         _sectionNameDisplay = sectionNameDisplay;
+        _processDefService = processDefService;
         _cache = cache;
     }
 
@@ -218,11 +220,40 @@ public class ProductionRecordService : IProductionRecordService
 
         var totalCount = await queryable.CountAsync();
 
-        var items = await queryable
+        var items = (await queryable
             .OrderBy(r => r.SequenceNumber)
             .ThenBy(r => r.ExecDate)
             .Skip(query.Skip)
             .Take(query.PageSize)
+            .Select(r => new
+            {
+                r.Id,
+                r.ProductionBatchId,
+                r.ProcessGroupId,
+                r.ProcessName,
+                r.ManufacturingSpec,
+                r.SectionName,
+                r.SequenceNumber,
+                r.ExecDate,
+                r.EquipmentName,
+                r.Operator,
+                r.Shift,
+                r.Quantity,
+                r.Weight,
+                r.SolutionTemperature,
+                r.SoakTime,
+                r.ProductStatus,
+                r.IsPreCut,
+                r.LengthStatus,
+                r.CuttingMultiple,
+                r.FinishedCutLength,
+                r.PostCutQuantity,
+                r.FaceCutCount,
+                r.TagNo,
+                r.PlantGrade,
+                r.Remark
+            })
+            .ToListAsync())
             .Select(r => new ProductionRecordDto
             {
                 Id = r.Id,
@@ -242,7 +273,7 @@ public class ProductionRecordService : IProductionRecordService
                 SoakTime = r.SoakTime,
                 ProductStatus = r.ProductStatus,
                 IsPreCut = r.IsPreCut,
-                LengthStatus = r.LengthStatus,
+                LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(r.LengthStatus),
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
@@ -251,7 +282,7 @@ public class ProductionRecordService : IProductionRecordService
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark
             })
-            .ToListAsync();
+            .ToList();
 
         return new PagedResult<ProductionRecordDto>
         {
@@ -313,8 +344,8 @@ public class ProductionRecordService : IProductionRecordService
             EquipmentName = request.EquipmentName,
             Operator = request.Operator,
             Shift = request.Shift?.ToString(),
-            Quantity = request.Quantity,
-            Weight = request.Weight,
+            Quantity = request.Quantity ?? 0,
+            Weight = request.Weight ?? 0,
             SolutionTemperature = request.SolutionTemperature,
             SoakTime = request.SoakTime,
             ProductStatus = productStatus,
@@ -366,7 +397,7 @@ public class ProductionRecordService : IProductionRecordService
             SoakTime = entity.SoakTime,
             ProductStatus = entity.ProductStatus,
             IsPreCut = entity.IsPreCut,
-            LengthStatus = entity.LengthStatus,
+            LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(entity.LengthStatus),
             CuttingMultiple = entity.CuttingMultiple,
             FinishedCutLength = entity.FinishedCutLength,
             PostCutQuantity = entity.PostCutQuantity,
@@ -383,6 +414,7 @@ public class ProductionRecordService : IProductionRecordService
         if (requests.Count == 0)
             return new List<ProductionRecordDto>();
 
+        var crKeys = await _processDefService.GetColdRollOrDrawKeysAsync();
         var sequenceMaxJump = await GetConfigAsync("SequenceJump", "MaxJump", 7);
 
         // 预加载所有涉及的批次
@@ -525,7 +557,7 @@ public class ProductionRecordService : IProductionRecordService
 
             // 查工序组名称
             var pg = processGroups.FirstOrDefault(p => p.Id == pgId.Value);
-            if (pg == null || !ProcessNames.IsColdRollOrDraw(pg.ProcessName))
+            if (pg == null || !crKeys.Contains(ProcessKeys.ToKey(pg.ProcessName) ?? pg.ProcessName))
                 continue;
 
             // 该工序组中是否有冷轧拔记录（已有 + 本次提交）
@@ -746,8 +778,8 @@ public class ProductionRecordService : IProductionRecordService
                 EquipmentName = request.EquipmentName,
                 Operator = request.Operator,
                 Shift = request.Shift?.ToString(),
-                Quantity = request.Quantity,
-                Weight = request.Weight,
+                Quantity = request.Quantity ?? 0,
+                Weight = request.Weight ?? 0,
                 SolutionTemperature = request.SolutionTemperature,
                 SoakTime = request.SoakTime,
                 ProductStatus = productStatus,
@@ -793,7 +825,7 @@ public class ProductionRecordService : IProductionRecordService
             SoakTime = e.SoakTime,
             ProductStatus = e.ProductStatus,
             IsPreCut = e.IsPreCut,
-            LengthStatus = e.LengthStatus,
+            LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(e.LengthStatus),
             CuttingMultiple = e.CuttingMultiple,
             FinishedCutLength = e.FinishedCutLength,
             PostCutQuantity = e.PostCutQuantity,
@@ -880,7 +912,7 @@ public class ProductionRecordService : IProductionRecordService
             SoakTime = entity.SoakTime,
             ProductStatus = entity.ProductStatus,
             IsPreCut = entity.IsPreCut,
-            LengthStatus = entity.LengthStatus,
+            LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(entity.LengthStatus),
             CuttingMultiple = entity.CuttingMultiple,
             FinishedCutLength = entity.FinishedCutLength,
             PostCutQuantity = entity.PostCutQuantity,
@@ -953,63 +985,6 @@ public class ProductionRecordService : IProductionRecordService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
-    }
-
-    // ========== 委外回收 ==========
-
-    public async Task<List<OutsourceRecoveryDto>> GetOutsourceRecoveriesAsync(int outsourceId)
-    {
-        return await _context.OutsourceRecoveries
-            .AsNoTracking()
-            .Where(r => r.SectionOutsourceId == outsourceId)
-            .OrderBy(r => r.RecoveryDate)
-            .Select(r => new OutsourceRecoveryDto
-            {
-                Id = r.Id,
-                SectionOutsourceId = r.SectionOutsourceId,
-                RecoveryDate = r.RecoveryDate,
-                RecoveryQuantity = r.RecoveryQuantity,
-                RecoveryWeight = r.RecoveryWeight,
-                UnprocessedQuantity = r.UnprocessedQuantity,
-                UnprocessedWeight = r.UnprocessedWeight,
-                Remark = r.Remark
-            })
-            .ToListAsync();
-    }
-
-    private async Task UpdateOutsourceStatusAsync(SectionOutsource outsource)
-    {
-        var outsourceRecoveryRatio = await GetConfigAsync("WarehouseThreshold", "OutsourceRecoveryRatio", 0.99m);
-
-        var totals = await _context.OutsourceRecoveries
-            .Where(r => r.SectionOutsourceId == outsource.Id)
-            .GroupBy(r => r.SectionOutsourceId)
-            .Select(g => new
-            {
-                TotalWeight = g.Sum(r => (r.RecoveryWeight ?? 0) + (r.UnprocessedWeight ?? 0))
-            })
-            .FirstOrDefaultAsync();
-
-        var totalRecoveredWeight = totals?.TotalWeight ?? 0m;
-        var threshold = outsource.SendWeight.HasValue && outsource.SendWeight.Value > 0
-            ? outsource.SendWeight.Value * outsourceRecoveryRatio
-            : 0m;
-
-        var isCompleted = outsource.SendWeight.HasValue && totalRecoveredWeight >= threshold;
-
-        if (isCompleted && outsource.Status != SectionOutsourceStatus.Recovered)
-        {
-            outsource.Status = SectionOutsourceStatus.Recovered;
-            _context.SectionOutsources.Update(outsource);
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("委外 (Id={Id}) 回收完成，状态→已回收（重量 {TotalWeight}/{Threshold}）", outsource.Id, totalRecoveredWeight, threshold);
-        }
-        else if (!isCompleted && outsource.Status != SectionOutsourceStatus.PendingRecovery)
-        {
-            outsource.Status = SectionOutsourceStatus.PendingRecovery;
-            _context.SectionOutsources.Update(outsource);
-            await _context.SaveChangesAsync();
-        }
     }
 
     // ========== 批次跟踪字段刷新 ==========
@@ -1332,8 +1307,8 @@ public class ProductionRecordService : IProductionRecordService
         // 目标重量 = 投料重量 × (1 - 有效工序组数 × 0.025)
         // "在制修检"和"附加成检"不计入有效工序组
         var effectiveGroupCount = batch.ProcessGroups
-            .Count(pg => pg.ProcessName != ProcessNames.InProcessRepair
-                && pg.ProcessName != ProcessNames.AdditionalFinalInspection
+            .Count(pg => pg.ProcessName != ProcessKeys.InProcessRepair
+                && pg.ProcessName != ProcessKeys.AdditionalFinalInspection
                 && GetSectionsFromProcessGroup(pg).Count > 0);
         var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
         if (discount < 0) discount = 0;
@@ -1612,8 +1587,8 @@ public class ProductionRecordService : IProductionRecordService
         if (batch.CurrentValidWeight.HasValue)
         {
             var effectiveGroupCount = batch.ProcessGroups?
-                .Count(pg => pg.ProcessName != ProcessNames.InProcessRepair
-                    && pg.ProcessName != ProcessNames.AdditionalFinalInspection
+                .Count(pg => pg.ProcessName != ProcessKeys.InProcessRepair
+                    && pg.ProcessName != ProcessKeys.AdditionalFinalInspection
                     && pg.GetNonEmptySections().Count > 0) ?? 0;
             var discount = 1.0m - effectiveGroupCount * groupDiscountRate;
             if (discount < 0) discount = 0;
@@ -1690,7 +1665,7 @@ public class ProductionRecordService : IProductionRecordService
         // 预成切(IsPreCut=true)不是正式成品切割，不计入成切支数
         var isFixedLength = string.Equals(batch.LengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase);
         var finishedCutRecords = productionRecords
-            .Where(r => r.SectionName == SectionKeys.Cut && r.ProductStatus == "成品" && r.IsPreCut != true)
+            .Where(r => r.SectionName == SectionKeys.Cut && r.ProductStatus == ProductStatuses.Finished && r.IsPreCut != true)
             .ToList();
         batch.CutQuantity = finishedCutRecords.Count > 0
             ? finishedCutRecords
@@ -2381,9 +2356,45 @@ public class ProductionRecordService : IProductionRecordService
 
         queryable = ApplySorting(queryable, query.SortBy ?? "createdtime", query.IsDescending);
 
-        var items = await queryable
+        var items = (await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
+            .Select(r => new
+            {
+                r.Id,
+                r.ProductionBatchId,
+                r.ProcessGroupId,
+                r.ProcessName,
+                r.ManufacturingSpec,
+                r.SectionName,
+                r.SequenceNumber,
+                r.ExecDate,
+                r.EquipmentName,
+                r.Operator,
+                r.Shift,
+                r.Quantity,
+                r.Weight,
+                r.SolutionTemperature,
+                r.SoakTime,
+                r.ProductStatus,
+                r.IsPreCut,
+                r.LengthStatus,
+                r.CuttingMultiple,
+                r.FinishedCutLength,
+                r.PostCutQuantity,
+                r.FaceCutCount,
+                r.TagNo,
+                r.PlantGrade,
+                r.Remark,
+                r.DataSource,
+                BatchNo = r.ProductionBatch.BatchNo,
+                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = r.ProductionBatch.ProductionMainNo,
+                r.CreatedTime,
+                r.UpdatedTime
+            })
+            .ToListAsync())
             .Select(r => new ProductionRecordDto
             {
                 Id = r.Id,
@@ -2403,7 +2414,7 @@ public class ProductionRecordService : IProductionRecordService
                 SoakTime = r.SoakTime,
                 ProductStatus = r.ProductStatus,
                 IsPreCut = r.IsPreCut,
-                LengthStatus = r.LengthStatus,
+                LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(r.LengthStatus),
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
@@ -2412,14 +2423,14 @@ public class ProductionRecordService : IProductionRecordService
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
                 DataSource = r.DataSource,
-                BatchNo = r.ProductionBatch.BatchNo,
-                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
-                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
-                ProductionMainNo = r.ProductionBatch.ProductionMainNo,
+                BatchNo = r.BatchNo,
+                WorkOrderNo = r.WorkOrderNo,
+                SalesOrderNo = r.SalesOrderNo,
+                ProductionMainNo = r.ProductionMainNo,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             })
-            .ToListAsync();
+            .ToList();
 
         return new PagedResult<ProductionRecordDto>
         {
@@ -2432,61 +2443,82 @@ public class ProductionRecordService : IProductionRecordService
 
     public async Task<List<ProductionRecordDto>> GetAllProductionRecordListAsync()
     {
-        return await _context.ProductionRecords
+        var raw = await _context.ProductionRecords
             .AsNoTracking()
             .Include(r => r.ProductionBatch)
             .OrderByDescending(r => r.CreatedTime)
-            .Select(r => new ProductionRecordDto
+            .Select(r => new
             {
-                Id = r.Id,
-                ProductionBatchId = r.ProductionBatchId,
-                ProcessGroupId = r.ProcessGroupId,
-                ProcessName = r.ProcessName,
-                ManufacturingSpec = r.ManufacturingSpec,
-                SectionName = r.SectionName,
-                SequenceNumber = r.SequenceNumber,
-                ExecDate = r.ExecDate,
-                EquipmentName = r.EquipmentName,
-                Operator = r.Operator,
-                Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
-                Quantity = r.Quantity,
-                Weight = r.Weight,
-                SolutionTemperature = r.SolutionTemperature,
-                SoakTime = r.SoakTime,
-                ProductStatus = r.ProductStatus,
-                IsPreCut = r.IsPreCut,
-                LengthStatus = r.LengthStatus,
-                CuttingMultiple = r.CuttingMultiple,
-                FinishedCutLength = r.FinishedCutLength,
-                PostCutQuantity = r.PostCutQuantity,
-                FaceCutCount = r.FaceCutCount,
-                TagNo = r.TagNo,
-                PlantGrade = r.PlantGrade,
-                Remark = r.Remark,
-                DataSource = r.DataSource,
+                r.Id,
+                r.ProductionBatchId,
+                r.ProcessGroupId,
+                r.ProcessName,
+                r.ManufacturingSpec,
+                r.SectionName,
+                r.SequenceNumber,
+                r.ExecDate,
+                r.EquipmentName,
+                r.Operator,
+                r.Shift,
+                r.Quantity,
+                r.Weight,
+                r.SolutionTemperature,
+                r.SoakTime,
+                r.ProductStatus,
+                r.IsPreCut,
+                r.LengthStatus,
+                r.CuttingMultiple,
+                r.FinishedCutLength,
+                r.PostCutQuantity,
+                r.FaceCutCount,
+                r.TagNo,
+                r.PlantGrade,
+                r.Remark,
+                r.DataSource,
                 BatchNo = r.ProductionBatch.BatchNo,
                 WorkOrderNo = r.ProductionBatch.WorkOrderNo,
                 SalesOrderNo = r.ProductionBatch.SalesOrderNo,
                 ProductionMainNo = r.ProductionBatch.ProductionMainNo,
-                CreatedTime = r.CreatedTime,
-                UpdatedTime = r.UpdatedTime
+                r.CreatedTime,
+                r.UpdatedTime
             })
             .ToListAsync();
-    }
 
-    public async Task<List<DailySectionOutputDto>> GetDailySectionOutputAsync(DateTime date)
-    {
-        return await _context.ProductionRecords
-            .AsNoTracking()
-            .Where(r => r.ExecDate.Date == date.Date)
-            .GroupBy(r => r.SectionName)
-            .Select(g => new DailySectionOutputDto
-            {
-                SectionName = g.Key,
-                TotalWeight = g.Sum(r => r.Weight ?? 0m),
-                RecordCount = g.Count()
-            })
-            .ToListAsync();
+        return raw.Select(r => new ProductionRecordDto
+        {
+            Id = r.Id,
+            ProductionBatchId = r.ProductionBatchId,
+            ProcessGroupId = r.ProcessGroupId,
+            ProcessName = r.ProcessName,
+            ManufacturingSpec = r.ManufacturingSpec,
+            SectionName = r.SectionName,
+            SequenceNumber = r.SequenceNumber,
+            ExecDate = r.ExecDate,
+            EquipmentName = r.EquipmentName,
+            Operator = r.Operator,
+            Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
+            Quantity = r.Quantity,
+            Weight = r.Weight,
+            SolutionTemperature = r.SolutionTemperature,
+            SoakTime = r.SoakTime,
+            ProductStatus = r.ProductStatus,
+            IsPreCut = r.IsPreCut,
+            LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(r.LengthStatus),
+            CuttingMultiple = r.CuttingMultiple,
+            FinishedCutLength = r.FinishedCutLength,
+            PostCutQuantity = r.PostCutQuantity,
+            FaceCutCount = r.FaceCutCount,
+            TagNo = r.TagNo,
+            PlantGrade = r.PlantGrade,
+            Remark = r.Remark,
+            DataSource = r.DataSource,
+            BatchNo = r.BatchNo,
+            WorkOrderNo = r.WorkOrderNo,
+            SalesOrderNo = r.SalesOrderNo,
+            ProductionMainNo = r.ProductionMainNo,
+            CreatedTime = r.CreatedTime,
+            UpdatedTime = r.UpdatedTime
+        }).ToList();
     }
 
     private static IQueryable<ProductionRecord> ApplySorting(IQueryable<ProductionRecord> queryable, string sortBy, bool isDescending)
@@ -2783,10 +2815,45 @@ public class ProductionRecordService : IProductionRecordService
 
     public async Task<byte[]> PrintProductionRecordBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
-        var items = await _context.ProductionRecords
+        var items = (await _context.ProductionRecords
             .AsNoTracking()
             .Include(r => r.ProductionBatch)
             .Where(r => ids.Contains(r.Id))
+            .Select(r => new
+            {
+                r.Id,
+                r.ProductionBatchId,
+                r.ProcessGroupId,
+                r.ProcessName,
+                r.ManufacturingSpec,
+                r.SectionName,
+                r.SequenceNumber,
+                r.ExecDate,
+                r.EquipmentName,
+                r.Operator,
+                r.Shift,
+                r.Quantity,
+                r.Weight,
+                r.SolutionTemperature,
+                r.SoakTime,
+                r.ProductStatus,
+                r.IsPreCut,
+                r.LengthStatus,
+                r.CuttingMultiple,
+                r.FinishedCutLength,
+                r.PostCutQuantity,
+                r.FaceCutCount,
+                r.TagNo,
+                r.PlantGrade,
+                r.Remark,
+                BatchNo = r.ProductionBatch.BatchNo,
+                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = r.ProductionBatch.ProductionMainNo,
+                r.CreatedTime,
+                r.UpdatedTime
+            })
+            .ToListAsync())
             .Select(r => new ProductionRecordDto
             {
                 Id = r.Id,
@@ -2806,7 +2873,7 @@ public class ProductionRecordService : IProductionRecordService
                 SoakTime = r.SoakTime,
                 ProductStatus = r.ProductStatus,
                 IsPreCut = r.IsPreCut,
-                LengthStatus = r.LengthStatus,
+                LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(r.LengthStatus),
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
                 PostCutQuantity = r.PostCutQuantity,
@@ -2814,16 +2881,16 @@ public class ProductionRecordService : IProductionRecordService
                 TagNo = r.TagNo,
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
-                BatchNo = r.ProductionBatch.BatchNo,
-                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
-                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
-                ProductionMainNo = r.ProductionBatch.ProductionMainNo,
+                BatchNo = r.BatchNo,
+                WorkOrderNo = r.WorkOrderNo,
+                SalesOrderNo = r.SalesOrderNo,
+                ProductionMainNo = r.ProductionMainNo,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             })
-            .ToListAsync();
+            .ToList();
 
-        return ProductionRecordPrintHelper.GenerateBatchPdf(items, columns, await _sectionNameDisplay.GetSectionNameMapAsync());
+        return ProductionRecordPrintHelper.GenerateBatchPdf(items, columns, await _sectionNameDisplay.GetSectionNameMapAsync(), await _processDefService.GetProcessNameMapAsync());
     }
 
     public async Task<byte[]> PrintProductionRecordAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? execDateFrom, DateTime? execDateTo)
@@ -2839,7 +2906,7 @@ public class ProductionRecordService : IProductionRecordService
             ExecDateTo = execDateTo
         };
         var paged = await GetAllProductionRecordsAsync(query);
-        return ProductionRecordPrintHelper.GenerateBatchPdf(paged.Items, columns, await _sectionNameDisplay.GetSectionNameMapAsync());
+        return ProductionRecordPrintHelper.GenerateBatchPdf(paged.Items, columns, await _sectionNameDisplay.GetSectionNameMapAsync(), await _processDefService.GetProcessNameMapAsync());
     }
 
     /// <summary>
@@ -3008,7 +3075,7 @@ public class ProductionRecordService : IProductionRecordService
     /// 自动计算长度状态：工段为"断切"且产类为"成品"时，从批次冗余其长度状态；否则为空
     /// </summary>
     private static string? CalculateLengthStatus(string? sectionName, string? productStatus, string? batchLengthStatus)
-        => sectionName == SectionKeys.Cut && productStatus == "成品" ? batchLengthStatus : null;
+        => sectionName == SectionKeys.Cut && productStatus == ProductStatuses.Finished ? batchLengthStatus : null;
 
     /// <summary>
     /// 判断制造物品是否属于"成品"类别（OrderFinishedProduct/PreparedMaterial/SpecialDeliveryStatus）

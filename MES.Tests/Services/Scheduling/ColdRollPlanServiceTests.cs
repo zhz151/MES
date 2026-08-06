@@ -15,7 +15,7 @@ namespace MES.Tests.Services.Scheduling;
 /// </summary>
 public class ColdRollPlanServiceTests : TestBase
 {
-    private ColdRollPlanService CreateService(AppDbContext ctx) => new(ctx);
+    private ColdRollPlanService CreateService(AppDbContext ctx) => new(ctx, CreateProcessDefinitionServiceMock());
 
     private ProductionBatch CreateBatch(AppDbContext ctx, string batchNo, string workOrderNo,
         string processName, int seqNumber, bool isFinished,
@@ -111,7 +111,7 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetPlanAsync_冷轧批次聚合为正确时间桶()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
             currentGroupName: null, currentSectionName: null, weight: 2000);
         await ctx.SaveChangesAsync();
 
@@ -120,7 +120,7 @@ public class ColdRollPlanServiceTests : TestBase
 
         result.Should().HaveCount(1);
         var row = result[0];
-        row.ProcessType.Should().Be("60冷轧");
+        row.ProcessType.Should().Be(ProcessKeys.ColdRoll60);
         row.BilletSpec.Should().Be(""); // 无前序工序组
         row.RollingSpec.Should().Be("219*8");
         row.IsFinished.Should().BeTrue(); // 只有单个工序组，是最后一个
@@ -180,8 +180,8 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 批次当前正在做 60冷轧 的 冷轧拔 且未完成
-        var batch = CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false,
-            currentGroupName: "60冷轧",
+        var batch = CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
             weight: 3000);
@@ -199,15 +199,15 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetPlanAsync_工段筛选()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false, weight: 1000);
-        CreateBatch(ctx, "B002", "WO002", "50冷轧", 1, isFinished: false, weight: 2000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 1000);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll50, 1, isFinished: false, weight: 2000);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
         var result = await svc.GetPlanAsync("60冷轧");
 
         result.Should().HaveCount(1);
-        result[0].ProcessType.Should().Be("60冷轧");
+        result[0].ProcessType.Should().Be(ProcessKeys.ColdRoll60);
         result[0].WeightTotal.Should().Be(1000m);
     }
 
@@ -225,7 +225,7 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetPlanAsync_已完成批次被排除()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false, status: BatchStatus.Completed);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, status: BatchStatus.Completed);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
@@ -238,10 +238,10 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetPlanAsync_急件标记()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", "60冷轧", 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
             currentGroupName: null, currentSectionName: null, weight: 2000);
-        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: "A急",
-            productionFlowProperty: "正常", mainNoAttentionProcess: "60冷轧");
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);

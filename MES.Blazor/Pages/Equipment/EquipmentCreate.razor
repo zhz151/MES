@@ -451,11 +451,11 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<LifecycleStatus>(this, v => r.LifecycleStatus = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    foreach (var val in Enum.GetValues<LifecycleStatus>())
+                    foreach (var opt in DisplayHelper.GetEnumOptions<LifecycleStatus>())
                     {
                         cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
-                        cb.AddAttribute(1, "Value", val);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetLifecycleStatusText(val))));
+                        cb.AddAttribute(1, "Value", Enum.Parse<LifecycleStatus>(opt.Value));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                         cb.CloseComponent();
                     }
                 }));
@@ -470,11 +470,11 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<UsageType>(this, v => r.UsageType = v));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                 {
-                    foreach (var val in Enum.GetValues<UsageType>())
+                    foreach (var opt in DisplayHelper.GetEnumOptions<UsageType>())
                     {
                         cb.OpenComponent<MudSelectItem<UsageType>>(0);
-                        cb.AddAttribute(1, "Value", val);
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetUsageTypeText(val))));
+                        cb.AddAttribute(1, "Value", Enum.Parse<UsageType>(opt.Value));
+                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                         cb.CloseComponent();
                     }
                 }));

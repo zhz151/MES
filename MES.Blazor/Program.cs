@@ -134,6 +134,9 @@ builder.Services.AddScoped<DailyOutputEstimateService>();
 builder.Services.AddScoped<DailyProductionCapacityService>();
 builder.Services.AddScoped<WorkstationService>();
 builder.Services.AddScoped<EmployeeService>();
+builder.Services.AddScoped<ProcessDefinitionService>();
+builder.Services.AddScoped<EnumDisplayDefinitionService>();
+builder.Services.AddScoped<DictValueDefinitionService>();
 
 // ========== 报表 ==========
 builder.Services.AddScoped<ReportService>();

@@ -224,7 +224,7 @@ public class OutboundWriteService : IOutboundWriteService
             var oldWt = entity.OutboundWeight;
             var oldOutboundMeters = entity.OutboundMeters;
 
-            if (request.OutboundType != null) entity.OutboundType = EnumHelper.TryParse<OutboundType>(request.OutboundType) ?? default;
+            entity.OutboundType = request.OutboundType ?? entity.OutboundType;
             entity.TargetCompany = request.TargetCompany ?? entity.TargetCompany;
             if (request.OutboundQuantity.HasValue) entity.OutboundQuantity = request.OutboundQuantity.Value;
             if (request.OutboundWeight.HasValue) entity.OutboundWeight = request.OutboundWeight.Value;

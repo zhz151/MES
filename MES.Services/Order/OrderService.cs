@@ -446,10 +446,9 @@ public class OrderService : IOrderService
         if (request.EndCustomer != null)
             salesOrder.EndCustomer = request.EndCustomer;
 
-        if (!string.IsNullOrEmpty(request.Status))
+        if (request.Status.HasValue)
         {
-            if (!Enum.TryParse<SalesOrderStatus>(request.Status, true, out var newStatus))
-                throw new BusinessException($"无效的订单状态: {request.Status}");
+            var newStatus = request.Status.Value;
 
             if (!CanTransitionTo(salesOrder.Status, newStatus))
                 throw new BusinessException($"不允许从 {GetStatusText(salesOrder.Status)} 变更为 {GetStatusText(newStatus)}");
@@ -474,8 +473,8 @@ public class OrderService : IOrderService
         var updateChanges = new List<string>();
         if (!string.IsNullOrEmpty(request.OrderNumber) && request.OrderNumber != salesOrder.OrderNumber)
             updateChanges.Add($"订单号变更");
-        if (request.Status != null && Enum.TryParse<SalesOrderStatus>(request.Status, true, out var parsedStatus))
-            updateChanges.Add($"状态: {GetStatusText(parsedStatus)}");
+        if (request.Status.HasValue)
+            updateChanges.Add($"状态: {GetStatusText(request.Status.Value)}");
         if (updateChanges.Count > 0)
             await _operationLogService.AddLogAsync("Order", id, "变更", string.Join("; ", updateChanges));
 
@@ -1614,12 +1613,7 @@ public class OrderService : IOrderService
         return false;
     }
 
-    private static string GetStatusText(SalesOrderStatus status) => status switch
-    {
-        SalesOrderStatus.Pending => "待处理",
-        SalesOrderStatus.Confirmed => "已确认",
-        _ => status.ToString()
-    };
+    private static string GetStatusText(SalesOrderStatus status) => EnumHelper.GetDisplayName(status);
 
     private async Task CreateItemChangedNotificationIfNeededAsync(int salesOrderId)
     {

@@ -15,8 +15,8 @@ public class ProcurementStatusDto
     public string MaterialName { get; set; } = null!;
 
     /// <summary>物料分类（MaterialType 枚举名）</summary>
-    public string? MaterialCategory { get; set; }
-    public string? MaterialCategoryDisplay => EnumHelper.GetDisplayName<MaterialType>(MaterialCategory);
+    public MaterialType? MaterialCategory { get; set; }
+    public string? MaterialCategoryDisplay => MaterialCategory.HasValue ? EnumHelper.GetDisplayName(MaterialCategory.Value) : null;
 
     /// <summary>计划总量(kg)</summary>
     public decimal PlanWeight { get; set; }

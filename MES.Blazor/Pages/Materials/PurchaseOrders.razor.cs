@@ -39,7 +39,7 @@ public partial class PurchaseOrders : IAsyncDisposable
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "WoTotalQuantity", "WoTotalWeight", "WoTotalItemCount",
+        "Quantity", "Weight", "WoTotalQuantity", "WoTotalWeight", "WoTotalItemCount",
     };
 
     // 排序状态
@@ -95,7 +95,7 @@ public partial class PurchaseOrders : IAsyncDisposable
         {
             new() { Key = "OrderNo",             Label = "采购单号",     SortKey = "orderno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
             new() { Key = "Status",              Label = "状态",         SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "采购核心信息",
-                EnumOptions = new() { new("Open", "已下单"), new("Partial", "部分到货"), new("Completed", "已完成") } },
+                EnumOptions = DisplayHelper.GetEnumFilterOptions<PurchaseOrderStatus>() },
             new() { Key = "SupplierName",        Label = "供应商",       SortKey = "suppliername", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
             new() { Key = "OrderDate",           Label = "下单日期",     SortKey = "orderdate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
             new() { Key = "RequiredDate",        Label = "要求到货日",   SortKey = "requireddate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
@@ -123,16 +123,16 @@ public partial class PurchaseOrders : IAsyncDisposable
             new() { Key = "WoDelayPenalty",      Label = "延期罚款",     SortKey = "wodelaypenalty", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "来源销售订单等",
                 EnumOptions = new() { new("True", "是"), new("False", "否") } },
             new() { Key = "WoSettlementMethod",  Label = "结算方式",     SortKey = "wosettlementmethod", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "来源销售订单等",
-                EnumOptions = new() { new("Weighing", "过磅"), new("WeighingNegative", "过磅-负"), new("Theoretical", "理算") } },
+                EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
             new() { Key = "WoPlantGrade",        Label = "工厂牌号",     SortKey = "woplantgrade", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
             new() { Key = "WoSpecification",     Label = "成品规格",     SortKey = "wospecification", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
             new() { Key = "WoLengthStatus",      Label = "长度状态",     SortKey = "wolengthstatus", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "来源销售订单等",
-                EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") } },
+                EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
             new() { Key = "WoMaxLength",         Label = "最大长度",     SortKey = "womaxlength", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
             new() { Key = "WoTotalQuantity",     Label = "总支数",       SortKey = "wototalquantity", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
             new() { Key = "WoTotalWeight",       Label = "总重量",       SortKey = "wototalweight", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
             new() { Key = "WoDeliveryState",     Label = "交货状态",     SortKey = "wodeliverystate", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "来源销售订单等",
-                EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"), new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
+                EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
             new() { Key = "WoTotalItemCount",    Label = "含项次数",     SortKey = "wototalitemcount", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
         };
 

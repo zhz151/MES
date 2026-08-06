@@ -154,9 +154,9 @@
                             <MudTd>
                                 <MudSelect T="MaterialType" @bind-Value="row.MaterialCategory"
                                            Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                    @foreach (MaterialType cat in Enum.GetValues<MaterialType>())
+                                    @foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>())
                                     {
-                                        <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialTypeText(cat)</MudSelectItem>
+                                        <MudSelectItem Value="@(Enum.Parse<MaterialType>(opt.Value))">@opt.Display</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
@@ -304,7 +304,7 @@
     private async Task AddRowFromProcurement(ProcurementStatusDto item)
     {
         // 获取用料计划详情
-        var result = await PurchaseService.GetPlanDetailAsync(item.WorkOrderNo, item.MaterialCategory ?? "");
+        var result = await PurchaseService.GetPlanDetailAsync(item.WorkOrderNo, item.MaterialCategory?.ToString() ?? "");
         if (!result.Success || result.Data == null)
         {
             Snackbar.Add($"未找到工单 {item.WorkOrderNo} 的用料计划", Severity.Warning);
@@ -312,7 +312,7 @@
         }
 
         var plan = result.Data;
-        var planCategory = EnumHelper.TryParse<MaterialType>(plan.MaterialCategory ?? "") ?? MaterialType.RoundBar;
+        var planCategory = EnumHelper.TryParse<MaterialType>(plan.MaterialCategory?.ToString() ?? "") ?? MaterialType.RoundBar;
         var existingRow = rows.FirstOrDefault(r =>
             r.SourceWorkOrderNo == plan.WorkOrderNo &&
             r.MaterialCategory == planCategory);
@@ -341,7 +341,7 @@
     }
 
     private string FormatSupplier(SupplierProfileDto? s) =>
-        s == null ? "" : $"{s.MaterialCategoryDisplay ?? s.MaterialCategory} - {s.SupplierName}";
+        s == null ? "" : $"{s.MaterialCategoryDisplay ?? DisplayHelper.GetMaterialTypeText(s.MaterialCategory)} - {s.SupplierName}";
 
     private Task<IEnumerable<SupplierProfileDto>> FilterSuppliers(PurchaseOrderRow row, string search)
     {
@@ -349,7 +349,7 @@
         var catName = row.MaterialCategory.ToString();
         if (!string.IsNullOrWhiteSpace(catName))
             query = query.Where(s => s.MaterialCategory != null &&
-                s.MaterialCategory.Equals(catName, StringComparison.OrdinalIgnoreCase));
+                string.Equals(s.MaterialCategory?.ToString(), catName, StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(s => s.SupplierName.Contains(search, StringComparison.OrdinalIgnoreCase));
         return Task.FromResult(query.Take(30));
@@ -432,7 +432,7 @@
             var batchResult = await MaterialService.BatchMatchAsync(
                 matchItems.Select(x => new BatchMaterialMatchItem
                 {
-                    Category = DisplayHelper.GetMaterialTypeText(x.Row.MaterialCategory),
+                    Category = x.Row.MaterialCategory,
                     Grade = x.Row.PlantGrade,
                     Spec = x.Row.Specification
                 }).ToList());
@@ -470,7 +470,7 @@
         var supplierLookup = allSuppliers
             .Where(s => !string.IsNullOrWhiteSpace(s.SupplierName))
             .ToDictionary(
-                s => $"{s.SupplierName.Trim()}|{s.MaterialCategory ?? ""}",
+                s => $"{s.SupplierName.Trim()}|{s.MaterialCategory?.ToString() ?? ""}",
                 s => s.Id,
                 StringComparer.OrdinalIgnoreCase);
 
@@ -478,7 +478,7 @@
         var newSupplierEntries = rows
             .Select((r, i) => (
                 Index: i + 1,
-                Key: $"{r.SupplierName.Trim()}|{DisplayHelper.GetMaterialTypeText(r.MaterialCategory)}",
+                Key: $"{r.SupplierName.Trim()}|{r.MaterialCategory.ToString()}",
                 Display: $"{r.SupplierName.Trim()}（{DisplayHelper.GetMaterialTypeText(r.MaterialCategory)}）"))
             .Where(x => !supplierLookup.ContainsKey(x.Key))
             .GroupBy(x => x.Key)
@@ -526,7 +526,7 @@
                     var createResult = await SupplierService.CreateAsync(new CreateSupplierRequest
                     {
                         SupplierName = supplierName,
-                        MaterialCategory = catDisplay,
+                        MaterialCategory = EnumHelper.TryParse<MaterialType>(catDisplay),
                         IsActive = true
                     });
                     if (createResult.Success && createResult.Data != null)

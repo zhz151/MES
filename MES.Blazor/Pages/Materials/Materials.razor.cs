@@ -535,11 +535,11 @@ public partial class Materials
                     builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<MaterialType>(this, v => cache.MaterialCategory = v));
                     builder.AddAttribute(5, "ChildContent", (RenderFragment)(cb =>
                     {
-                        foreach (MaterialType cat in Enum.GetValues<MaterialType>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>())
                         {
                             cb.OpenComponent<MudSelectItem<MaterialType>>(0);
-                            cb.AddAttribute(1, "Value", cat);
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetMaterialTypeText(cat))));
+                            cb.AddAttribute(1, "Value", Enum.Parse<MaterialType>(opt.Value));
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));

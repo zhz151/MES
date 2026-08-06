@@ -17,7 +17,7 @@ namespace MES.Tests.Services.Scheduling;
 /// </summary>
 public class BatchPlanServiceTests : TestBase
 {
-    private BatchPlanService CreateService(AppDbContext ctx) => new(ctx);
+    private BatchPlanService CreateService(AppDbContext ctx) => new(ctx, CreateProcessDefinitionServiceMock());
 
     private ProductionBatch CreateBatch(AppDbContext ctx, string batchNo, string workOrderNo,
         BatchStatus status = BatchStatus.InProgress,
@@ -146,12 +146,12 @@ public class BatchPlanServiceTests : TestBase
         using var ctx = CreateDbContext();
         CreateBatch(ctx, "B001", "WO001");
         CreateBatch(ctx, "B002", "WO002");
-        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: "A急");
-        SeedSummary(ctx, "WO002", scheduleStage: 1, urgencyLevel: "B常");
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
+        SeedSummary(ctx, "WO002", scheduleStage: 1, urgencyLevel: UrgencyLevelKeys.BOrder);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
-        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "A急" });
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = UrgencyLevelKeys.AUrgent });
 
         // Should only find B001 (linked to WO001 with A急)
         result.TotalCount.Should().Be(1);
@@ -209,14 +209,14 @@ public class BatchPlanServiceTests : TestBase
 
         // 批次在60冷轧工序，冷轧拔工段，未完成
         var batch = CreateBatch(ctx, "B001", "WO001",
-            currentGroupName: "60冷轧",
+            currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false);
         // 需要 ProcessGroup 数据支持检查
         ctx.ProcessGroups.Add(new ProcessGroup
         {
             ProductionBatchId = batch.Id,
-            ProcessName = "60冷轧",
+            ProcessName = ProcessKeys.ColdRoll60,
             SequenceNumber = 1,
             ColdRollDraw = 1,
         });

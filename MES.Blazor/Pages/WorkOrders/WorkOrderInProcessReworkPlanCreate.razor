@@ -12,6 +12,7 @@
 @inject MaterialPlanService MaterialPlanService
 @inject MaterialPlanProcessGroupService ProcessGroupService
 @inject StandardWorkDayService StandardWorkDayService
+@inject ProcessDefinitionService ProcessDefinitionService
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
@@ -118,9 +119,9 @@
                                 <MudSelect T="string" Value="@pg.ProcessName"
                                            ValueChanged="@((string v) => { pg.ProcessName = v; ApplyProcessGroupDefaults(pg); })"
                                            Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                    @foreach (var pn in ProcessNames.All)
+                                    @foreach (var opt in _processOptions)
                                     {
-                                        <MudSelectItem Value="@pn" />
+                                        <MudSelectItem Value="@opt.ProcessKey">@opt.ProcessName</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
@@ -208,8 +209,8 @@
                                 <MudTd DataLabel="生产编号">@context.BatchNo</MudTd>
                                 <MudTd DataLabel="挂牌号">@(context.TagNo ?? "-")</MudTd>
                                 <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
-                                <MudTd DataLabel="当前工序">@(context.CurrentGroupName ?? "-")</MudTd>
-                                <MudTd DataLabel="当前工段">@(context.CurrentSectionName ?? "-")</MudTd>
+                                <MudTd DataLabel="当前工序">@(ProcessDisplayHelper.GetProcessNameText(context.CurrentGroupName ?? "-"))</MudTd>
+                                <MudTd DataLabel="当前工段">@(string.IsNullOrEmpty(context.CurrentSectionName) ? "-" : SectionDisplayHelper.GetSectionNameText(context.CurrentSectionName))</MudTd>
                                 <MudTd DataLabel="当前规格">@(context.CurrentSpec ?? "-")</MudTd>
                                 <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>
                                 <MudTd DataLabel="可用支数">@(context.CurrentValidQty?.ToString() ?? "-")</MudTd>
@@ -313,6 +314,7 @@
 
     // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
     private List<SectionInfoDto> _sectionCols = new();
+    private List<ProcessInfoDto> _processOptions = new();
 
     private async Task LoadSectionColsAsync()
     {
@@ -403,6 +405,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadSectionColsAsync();
+        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
         try
         {
             var result = await WorkOrderService.GetByIdAsync(WorkOrderId);
@@ -514,7 +517,7 @@
     {
         _pendingProcessGroups.Add(new SavePlanProcessGroupItem
         {
-            ProcessName = "荒管处理",
+            ProcessName = ProcessKeys.RoughTubeProcessing,
             ManufacturingMultiple = 1
         });
         ApplyProcessGroupDefaults(_pendingProcessGroups.Last());
@@ -556,7 +559,7 @@
 
         switch (pg.ProcessName)
         {
-            case "荒管处理":
+            case ProcessKeys.RoughTubeProcessing:
                 pg.Straighten = 1;
                 pg.Cut = 1;
                 pg.Pickle = 1;
@@ -564,18 +567,18 @@
                 pg.OuterSpotGrinding = 1;
                 pg.Inspection = 1;
                 break;
-            case "在制修检":
+            case ProcessKeys.InProcessRepair:
                 pg.Solution = 1;
                 pg.Straighten = 1;
                 pg.Cut = 1;
                 pg.Pickle = 1;
                 pg.Inspection = 1;
                 break;
-            case "60冷轧":
-            case "50冷轧":
-            case "30冷轧":
-            case "20冷轧":
-            case "三辊冷轧":
+            case ProcessKeys.ColdRoll60:
+            case ProcessKeys.ColdRoll50:
+            case ProcessKeys.ColdRoll30:
+            case ProcessKeys.ColdRoll20:
+            case ProcessKeys.ThreeRollColdRoll:
                 pg.ColdRollDraw = 1;
                 pg.OilPipeCut = 1;
                 pg.Degrease = 1;
@@ -585,7 +588,7 @@
                 pg.Pickle = 1;
                 pg.Inspection = 1;
                 break;
-            case "冷拔":
+            case ProcessKeys.ColdDraw:
                 pg.ColdRollDraw = 1;
                 pg.Solution = 1;
                 pg.Straighten = 1;

@@ -321,7 +321,7 @@
                                                 <MudIcon Icon="@(isSelected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Size="Size.Small" Color="Color.Primary" />
                                                 <div>
                                                     <MudText Typo="Typo.body2" Class="font-weight-bold">
-                                                        @g.SequenceNumber. @g.ProcessName
+                                                        @g.SequenceNumber. @ProcessDisplayHelper.GetProcessNameText(g.ProcessName)
                                                     </MudText>
                                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                         @(g.ManufacturingSpec ?? "-")
@@ -363,7 +363,7 @@
                                                 <MudIcon Icon="@(isSelected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Size="Size.Small" Color="Color.Primary" />
                                                 <div>
                                                     <MudText Typo="Typo.body2" Class="font-weight-bold">
-                                                        @g.SequenceNumber. @g.ProcessName
+                                                        @g.SequenceNumber. @ProcessDisplayHelper.GetProcessNameText(g.ProcessName)
                                                     </MudText>
                                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                         @(g.ManufacturingSpec ?? "-") | @string.Join("、", g.SectionNames)
@@ -408,7 +408,7 @@
                                                 <MudIcon Icon="@(isSelected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Size="Size.Small" Color="Color.Primary" />
                                                 <div>
                                                     <MudText Typo="Typo.body2" Class="font-weight-bold">
-                                                        @rec.ProcessName — @SectionDisplayHelper.GetSectionNameText(rec.SectionName)
+                                                        @ProcessDisplayHelper.GetProcessNameText(rec.ProcessName) — @SectionDisplayHelper.GetSectionNameText(rec.SectionName)
                                                     </MudText>
                                                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                         @(rec.ManufacturingSpec ?? "-") | 入缸：@rec.InDate.ToString("yyyy-MM-dd") | @(rec.Quantity?.ToString() ?? "-")支 | @(rec.Weight?.ToString("G29") ?? "-")kg
@@ -516,7 +516,7 @@
                                             <MudIcon Icon="@(isSelected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Size="Size.Small" Color="Color.Primary" />
                                             <div>
                                                 <MudText Typo="Typo.body2" Class="font-weight-bold">
-                                                    @rec.OutsourceVendor — @rec.ProcessName / @SectionDisplayHelper.GetSectionNameText(rec.SectionName)
+                                                    @rec.OutsourceVendor — @ProcessDisplayHelper.GetProcessNameText(rec.ProcessName) / @SectionDisplayHelper.GetSectionNameText(rec.SectionName)
                                                 </MudText>
                                                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                                                     发出：@rec.SendOutDate.ToString("yyyy-MM-dd") | @(rec.SendQuantity?.ToString() ?? "-")支 / @(rec.SendWeight?.ToString("G29") ?? "-")kg
@@ -567,7 +567,7 @@
                     <div class="d-flex flex-column">
                         <MudText Typo="Typo.h6" Class="mb-3 font-weight-bold">
                             <MudIcon Icon="@Icons.Material.Filled.EditNote" Color="Color.Primary" Class="mr-1" />
-                            @(GetReportTypeText(_workstationContext!.ReportType)) — @_resolveResult?.ProcessName
+                            @(GetReportTypeText(_workstationContext!.ReportType)) — @(ProcessDisplayHelper.GetProcessNameText(_resolveResult?.ProcessName))
                         </MudText>
 
                         @* 批次摘要 *@
@@ -576,7 +576,7 @@
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">批次：</MudText>
                                 <MudText Typo="Typo.body2">@_resolveResult?.BatchNo</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工序：</MudText>
-                                <MudText Typo="Typo.body2">@_resolveResult?.ProcessName</MudText>
+                                <MudText Typo="Typo.body2">@(ProcessDisplayHelper.GetProcessNameText(_resolveResult?.ProcessName))</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">牌号：</MudText>
                                 <MudText Typo="Typo.body2">@_resolveResult?.PlantGrade</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">规格：</MudText>
@@ -598,9 +598,9 @@
                                        Label="班次"
                                        Variant="Variant.Outlined"
                                        Style="font-size: 0.875rem; height: 44px;">
-                                @foreach (var val in Enum.GetValues<ShiftType>())
+                                @foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                                 {
-                                    <MudSelectItem Value="@(val)">@DisplayHelper.GetShiftTypeText(val)</MudSelectItem>
+                                    <MudSelectItem Value="@(Enum.Parse<ShiftType>(opt.Value))">@opt.Display</MudSelectItem>
                                 }
                             </MudSelect>
 
@@ -720,7 +720,7 @@
                     <div class="d-flex flex-column">
                         <MudText Typo="Typo.h6" Class="mb-3 font-weight-bold">
                             <MudIcon Icon="@Icons.Material.Filled.Output" Color="Color.Primary" Class="mr-1" />
-                            出缸完工 — @_selectedPicklingInRecord.ProcessName / @SectionDisplayHelper.GetSectionNameText(_selectedPicklingInRecord.SectionName)
+                            出缸完工 — @ProcessDisplayHelper.GetProcessNameText(_selectedPicklingInRecord.ProcessName) / @SectionDisplayHelper.GetSectionNameText(_selectedPicklingInRecord.SectionName)
                         </MudText>
 
                         @* 入缸记录摘要 *@
@@ -729,7 +729,7 @@
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">批次：</MudText>
                                 <MudText Typo="Typo.body2">@_selectedPicklingInRecord.BatchNo</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工序：</MudText>
-                                <MudText Typo="Typo.body2">@_selectedPicklingInRecord.ProcessName — @SectionDisplayHelper.GetSectionNameText(_selectedPicklingInRecord.SectionName)</MudText>
+                                <MudText Typo="Typo.body2">@ProcessDisplayHelper.GetProcessNameText(_selectedPicklingInRecord.ProcessName) — @SectionDisplayHelper.GetSectionNameText(_selectedPicklingInRecord.SectionName)</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">牌号：</MudText>
                                 <MudText Typo="Typo.body2">@(_selectedPicklingInRecord.PlantGrade ?? "-")</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">规格：</MudText>
@@ -785,7 +785,7 @@
                     <div class="d-flex flex-column">
                         <MudText Typo="Typo.h6" Class="mb-3 font-weight-bold">
                             <MudIcon Icon="@Icons.Material.Filled.Output" Color="Color.Primary" Class="mr-1" />
-                            工段委外 — @_resolveResult.ProcessName / @SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName)
+                            工段委外 — @ProcessDisplayHelper.GetProcessNameText(_resolveResult.ProcessName) / @SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName)
                         </MudText>
 
                         @* 批次摘要 *@
@@ -794,7 +794,7 @@
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">批次：</MudText>
                                 <MudText Typo="Typo.body2">@_resolveResult.BatchNo</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工序：</MudText>
-                                <MudText Typo="Typo.body2">@_resolveResult.ProcessName</MudText>
+                                <MudText Typo="Typo.body2">@(ProcessDisplayHelper.GetProcessNameText(_resolveResult.ProcessName))</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工段：</MudText>
                                 <MudText Typo="Typo.body2">@SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName)</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">牌号：</MudText>
@@ -897,7 +897,7 @@
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">委外单位：</MudText>
                                 <MudText Typo="Typo.body2">@_selectedOutsourceRecord.OutsourceVendor</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工序：</MudText>
-                                <MudText Typo="Typo.body2">@_selectedOutsourceRecord.ProcessName — @SectionDisplayHelper.GetSectionNameText(_selectedOutsourceRecord.SectionName)</MudText>
+                                <MudText Typo="Typo.body2">@ProcessDisplayHelper.GetProcessNameText(_selectedOutsourceRecord.ProcessName) — @SectionDisplayHelper.GetSectionNameText(_selectedOutsourceRecord.SectionName)</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">牌号：</MudText>
                                 <MudText Typo="Typo.body2">@(_selectedOutsourceRecord.PlantGrade ?? "-")</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">规格：</MudText>
@@ -986,7 +986,7 @@
                     <div class="d-flex flex-column">
                         <MudText Typo="Typo.h6" Class="mb-3 font-weight-bold">
                             <MudIcon Icon="@Icons.Material.Filled.EditNote" Color="Color.Primary" Class="mr-1" />
-                            过程检验 — @_resolveResult.ProcessName / @SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName)
+                            过程检验 — @ProcessDisplayHelper.GetProcessNameText(_resolveResult.ProcessName) / @SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName)
                         </MudText>
 
                         @* 批次摘要 *@
@@ -995,7 +995,7 @@
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">批次：</MudText>
                                 <MudText Typo="Typo.body2">@_resolveResult.BatchNo</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">工序：</MudText>
-                                <MudText Typo="Typo.body2">@_resolveResult.ProcessName</MudText>
+                                <MudText Typo="Typo.body2">@(ProcessDisplayHelper.GetProcessNameText(_resolveResult.ProcessName))</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">牌号：</MudText>
                                 <MudText Typo="Typo.body2">@_resolveResult.PlantGrade</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">规格：</MudText>
@@ -1018,9 +1018,9 @@
                                        Label="班次"
                                        Variant="Variant.Outlined"
                                        Style="font-size: 0.875rem; height: 44px;">
-                                @foreach (var val in Enum.GetValues<ShiftType>())
+                                @foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                                 {
-                                    <MudSelectItem Value="@(val)">@DisplayHelper.GetShiftTypeText(val)</MudSelectItem>
+                                    <MudSelectItem Value="@(Enum.Parse<ShiftType>(opt.Value))">@opt.Display</MudSelectItem>
                                 }
                             </MudSelect>
                         </div>
@@ -1046,9 +1046,9 @@
                                       Style="font-size: 0.875rem; height: 44px;"
                                       Class="mt-2">
                             <MudSelectItem Value="@((string)null!)">请选择</MudSelectItem>
-                            @foreach (var val in Enum.GetValues<InspectionItem>())
+                            @foreach (var opt in DisplayHelper.GetEnumOptions<InspectionItem>())
                             {
-                                <MudSelectItem Value="@val.ToString()">@DisplayHelper.GetInspectionItemText(val)</MudSelectItem>
+                                <MudSelectItem Value="@opt.Value">@opt.Display</MudSelectItem>
                             }
                         </MudSelect>
 
@@ -1167,9 +1167,9 @@
                                        Label="班次"
                                        Variant="Variant.Outlined"
                                        Style="font-size: 0.875rem; height: 44px;">
-                                @foreach (var val in Enum.GetValues<ShiftType>())
+                                @foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                                 {
-                                    <MudSelectItem Value="@(val)">@DisplayHelper.GetShiftTypeText(val)</MudSelectItem>
+                                    <MudSelectItem Value="@(Enum.Parse<ShiftType>(opt.Value))">@opt.Display</MudSelectItem>
                                 }
                             </MudSelect>
                         </div>
@@ -1254,9 +1254,9 @@
                                        Label="班次"
                                        Variant="Variant.Outlined"
                                        Style="font-size: 0.875rem; height: 44px;">
-                                @foreach (var val in Enum.GetValues<ShiftType>())
+                                @foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                                 {
-                                    <MudSelectItem Value="@(val)">@DisplayHelper.GetShiftTypeText(val)</MudSelectItem>
+                                    <MudSelectItem Value="@(Enum.Parse<ShiftType>(opt.Value))">@opt.Display</MudSelectItem>
                                 }
                             </MudSelect>
                         </div>
@@ -1960,8 +1960,8 @@
 
     private List<(string Value, string Text)> GetInspectionItems()
     {
-        return Enum.GetValues<InspectionItem>()
-            .Select(item => (item.ToString(), DisplayHelper.GetInspectionItemText(item)))
+        return DisplayHelper.GetEnumOptions<InspectionItem>()
+            .Select(o => (o.Value, o.Display))
             .ToList();
     }
 
@@ -2352,11 +2352,11 @@
 
                 // 从中文显示名反查枚举值
                 var inspectionItem = InspectionItem.PMIInspection; // 默认
-                foreach (InspectionItem item in Enum.GetValues<InspectionItem>())
+                foreach (var opt in DisplayHelper.GetEnumOptions<InspectionItem>())
                 {
-                    if (DisplayHelper.GetInspectionItemText(item) == _finalInspectionItem)
+                    if (opt.Display == _finalInspectionItem)
                     {
-                        inspectionItem = item;
+                        inspectionItem = Enum.Parse<InspectionItem>(opt.Value);
                         break;
                     }
                 }

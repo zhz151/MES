@@ -81,9 +81,9 @@
                                        ValueChanged="@((ShiftType v) => r.Shift = v)"
                                        Size="Size.Small" Variant="Variant.Outlined"
                                        Class="my-n2" Style="width:70px;">
-                                @foreach (var val in Enum.GetValues<ShiftType>())
+                                @foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                                 {
-                                    <MudSelectItem Value="@(val)">@DisplayHelper.GetShiftTypeText(val)</MudSelectItem>
+                                    <MudSelectItem Value="@(Enum.Parse<ShiftType>(opt.Value))">@opt.Display</MudSelectItem>
                                 }
                             </MudSelect>
                         </MudTd>
@@ -170,7 +170,7 @@
     [Parameter] public List<ProcessGroupDto> ProcessGroups { get; set; } = new();
 
     private static string GroupToString(ProcessGroupDto? g)
-        => g == null ? "" : $"{g.SequenceNumber}. {g.ProcessName} ({g.ManufacturingSpec ?? "-"})";
+        => g == null ? "" : $"{g.SequenceNumber}. {ProcessDisplayHelper.GetProcessNameText(g.ProcessName)} ({g.ManufacturingSpec ?? "-"})";
 
     private ProcessGroupDto? _selectedGroup;
     private bool _hasSelection;

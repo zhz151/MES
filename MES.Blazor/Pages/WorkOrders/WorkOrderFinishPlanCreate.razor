@@ -94,9 +94,9 @@
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
                                                Class="my-n2" Style="width:115px;">
-                                        @foreach (var val in new[] { FinishedProductType.Critical, FinishedProductType.Order, FinishedProductType.SpecialDeliveryStatus })
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<FinishedProductType>())
                                         {
-                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetFinishedProductTypeText(val)</MudSelectItem>
+                                            <MudSelectItem Value="@(Enum.Parse<FinishedProductType>(opt.Value))">@opt.Display</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudTd>
@@ -139,9 +139,9 @@
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
                                                Class="my-n2" Style="width:115px;">
-                                        @foreach (var val in Enum.GetValues<LengthStatus>())
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<LengthStatus>())
                                         {
-                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                            <MudSelectItem Value="@(Enum.Parse<LengthStatus>(opt.Value))">@opt.Display</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudTd>
@@ -169,9 +169,9 @@
                                                Size="Size.Small"
                                                Variant="Variant.Outlined"
                                                Class="my-n2" Style="width:115px;">
-                                        @foreach (var val in Enum.GetValues<DeliveryState>())
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<DeliveryState>())
                                         {
-                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetDeliveryStateText(val)</MudSelectItem>
+                                            <MudSelectItem Value="@(Enum.Parse<DeliveryState>(opt.Value))">@opt.Display</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudTd>

@@ -76,8 +76,8 @@ public partial class MaterialReceiveChecks
         new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "HealthIssue",       Label = "校验状态",   SortKey = null, FilterType = null, Width = "100", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "检验到料" },
-        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "检验到料", EnumOptions = new() { new("SCAN","扫码"), new("MANUAL","手动") } },
-        new() { Key = "Shift",             Label = "班次",        SortKey = "shift", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "检验到料", EnumOptions = new() { new("DayShift","白班"), new("MiddleShift","中班"), new("NightShift","夜班") } },
+        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "检验到料", EnumOptions = DisplayHelper.GetDataSourceOptions() },
+        new() { Key = "Shift",             Label = "班次",        SortKey = "shift", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "检验到料", EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
         new() { Key = "Checker",           Label = "确认人",     SortKey = "checker", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname", FilterType = "string", Width = "100", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "SequenceNumber",    Label = "执行序",     SortKey = "sequencenumber", FilterType = "string", Width = "80", GroupKey = 1, GroupName = "检验到料" },
@@ -90,16 +90,16 @@ public partial class MaterialReceiveChecks
         new() { Key = "ManufacturingItem", Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("OrderFinished","订单成品"), new("Finished","备料成品"), new("Surplus","余库料"), new("SpecialDeliveryStatus","订成-非交付态") } },
         new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "Specification",     Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "批次信息" },
-        new() { Key = "LengthStatus",      Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "100", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("Fixed","定尺"), new("Range","范围尺"), new("NonFixed","非定尺") } },
+        new() { Key = "LengthStatus",      Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "100", GroupKey = 2, GroupName = "批次信息", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
         new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "WorkOrderNo",       Label = "工单号",     SortKey = "workorderno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "SalesOrderNo",      Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "ProductionMainNo",  Label = "主号",       SortKey = "productionmainno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "FurnaceNo",         Label = "炉号",       SortKey = "furnaceno", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
         new() { Key = "SourceUnit",        Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Visible = false, Width = "120", GroupKey = 2, GroupName = "批次信息" },
-        new() { Key = "ProductionType",     Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120", Visible = false, GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("RoughTube","荒管生产"), new("InProcess","在制生产"), new("Inventory","库存"), new("OutsourcedPurchased","外购"), new("Rework","返整"), new("Subcontract","委外生产"), new("ExternalProcessing","对外加工") } },
+        new() { Key = "ProductionType",     Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120", Visible = false, GroupKey = 2, GroupName = "批次信息", EnumOptions = DisplayHelper.GetEnumFilterOptions<ProductionType>() },
         new() { Key = "Salesman",          Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "100", GroupKey = 2, GroupName = "批次信息" },
-        new() { Key = "ManufacturingStatus", Label = "制造状态",   SortKey = "manufacturingsstatus", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("SolutionAnnealedAndPickled","固溶酸洗"), new("SolutionAnnealedAndPickledUTube","固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished","固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished","固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished","固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled","固溶酸洗-盘管"), new("Bright","光亮"), new("BrightUTube","光亮-U型管"), new("BrightCoiled","光亮-盘管"), new("Hard","硬态"), new("SolidSolutionStraightening","固溶矫直") } },
+        new() { Key = "ManufacturingStatus", Label = "制造状态",   SortKey = "manufacturingsstatus", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "批次信息", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
         new() { Key = "IsDeliveryStatus",  Label = "是否交付态", SortKey = "isdeliverystatus", FilterType = "enum", Width = "90", GroupKey = 2, GroupName = "批次信息", EnumOptions = new() { new("是","是"), new("否","否") } },
     };
 
@@ -231,7 +231,12 @@ public partial class MaterialReceiveChecks
             _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
             {
                 Value = v,
-                Display = v,
+                Display = kvp.Key switch
+                {
+                    "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v),
+                    "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(v),
+                    _ => v
+                },
                 Count = 0
             }).ToList();
         }
@@ -700,12 +705,12 @@ public partial class MaterialReceiveChecks
                     builder.AddAttribute(5, "Class", "compact-input");
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
                     {
-                        foreach (var val in Enum.GetValues<ShiftType>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                         {
                             b.OpenComponent<MudSelectItem<ShiftType>>(0);
-                            b.AddAttribute(1, "Value", val);
+                            b.AddAttribute(1, "Value", Enum.Parse<ShiftType>(opt.Value));
                             b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
-                                b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                                b2.AddContent(0, opt.Display)));
                             b.CloseComponent();
                         }
                     }));
@@ -792,7 +797,7 @@ public partial class MaterialReceiveChecks
                             b.OpenComponent<MudSelectItem<int>>(0);
                             b.AddAttribute(1, "Value", pg.Id);
                             b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
-                                b2.AddContent(0, pg.ProcessName)));
+                                b2.AddContent(0, ProcessDisplayHelper.GetProcessNameText(pg.ProcessName))));
                             b.CloseComponent();
                         }
                     }));
@@ -800,7 +805,7 @@ public partial class MaterialReceiveChecks
                 }
                 else
                 {
-                    builder.AddContent(0, item.ProcessName);
+                    builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.ProcessName));
                 }
                 break;
 

@@ -168,9 +168,9 @@
                                            @bind-Value="rowCache.ReportType"
                                            Class="compact-input"
                                            Label="报工模板类型">
-                                    @foreach (var val in Enum.GetValues<ReportTemplateType>())
+                                    @foreach (var opt in DisplayHelper.GetEnumOptions<ReportTemplateType>())
                                     {
-                                        <MudSelectItem Value="@(val)">@DisplayHelper.GetReportTypeText(val)</MudSelectItem>
+                                        <MudSelectItem Value="@(Enum.Parse<ReportTemplateType>(opt.Value))">@opt.Display</MudSelectItem>
                                     }
                                 </MudSelect>
                             }

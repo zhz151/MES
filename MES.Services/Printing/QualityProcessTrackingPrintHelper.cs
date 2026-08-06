@@ -78,7 +78,7 @@ public static class QualityProcessTrackingPrintHelper
                 ["InboundWeight"] = dto.InboundWeight?.ToString("G29") ?? "",
 
                 // G6: 执行状态（预成检统一显示"略"）
-                ["QualityStatus"] = dto.InspectionType == nameof(InspectionType.PreInspection)
+                ["QualityStatus"] = dto.InspectionType == MES.Core.Enums.InspectionType.PreInspection
                     ? "略"
                     : dto.IsForceCompleted ? "异常完成" : (dto.QualityStatus ?? ""),
                 ["UpdatedTime"] = dto.UpdatedTime.ToString("yyyy-MM-dd HH:mm"),

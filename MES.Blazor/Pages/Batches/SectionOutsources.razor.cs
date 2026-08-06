@@ -10,6 +10,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Shared;
+using MES.Core.Enums;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -123,7 +124,7 @@ public partial class SectionOutsources
         new() { Key = "SendQuantity",        Label = "发出支数",     SortKey = "sendquantity", Width = "80", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "SendWeight",          Label = "发出重量",     SortKey = "sendweight", Width = "80", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "Status",              Label = "状态",         SortKey = "status",              FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "委外信息",
-            EnumOptions = new() { new("PendingRecovery", "待回收"), new("Recovered", "已回收"), new("InProgress", "在轧") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<SectionOutsourceStatus>() },
         new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
@@ -133,7 +134,7 @@ public partial class SectionOutsources
         // ----- 元信息（归属委外记录） -----
         new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "委外信息",
-            EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
+            EnumOptions = DisplayHelper.GetDataSourceOptions() },
         new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         // ===== 回收信息 =====
         new() { Key = "TotalRecoveredQuantity",     Label = "正常回收(支)",  SortKey = "totalrecoveredquantity", Width = "80", GroupKey = 2, GroupName = "回收信息" },
@@ -313,7 +314,13 @@ public partial class SectionOutsources
             _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
             {
                 Value = v,
-                Display = kvp.Key is "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" ? SectionDisplayHelper.GetSectionNameText(v) : v,
+                Display = kvp.Key switch
+                {
+                    "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v),
+                    "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(v),
+                    "ProductStatus" => DisplayHelper.GetProductStatusText(v),
+                    _ => v
+                },
                 Count = 0
             }).ToList();
         }
@@ -544,7 +551,7 @@ public partial class SectionOutsources
                 builder.AddContent(0, item.ProductionMainNo);
                 break;
             case "ProcessName":
-                builder.AddContent(0, item.ProcessName);
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.ProcessName));
                 break;
             case "ManufacturingSpec":
                 builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec ?? ""));
@@ -639,16 +646,10 @@ public partial class SectionOutsources
                 break;
 
             case "ProductStatus":
-                var psColor = item.ProductStatus switch
-                {
-                    "荒管" => Color.Primary,
-                    "成品" => Color.Success,
-                    _ => Color.Default
-                };
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", psColor);
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ProductStatus ?? "在制")));
+                builder.AddAttribute(2, "Color", DisplayHelper.GetProductStatusColor(item.ProductStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetProductStatusText(item.ProductStatus))));
                 builder.CloseComponent();
                 break;
 
@@ -801,7 +802,7 @@ public partial class SectionOutsources
     {
         var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认删除", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除 \"{item.OutsourceVendor} - {item.ProcessName}/{SectionDisplayHelper.GetSectionNameText(item.SectionName)}\" 的委外记录吗？",
+            ["ContentText"] = $"确定要删除 \"{item.OutsourceVendor} - {ProcessDisplayHelper.GetProcessNameText(item.ProcessName)}/{SectionDisplayHelper.GetSectionNameText(item.SectionName)}\" 的委外记录吗？",
             ["ConfirmText"] = "删除"
         });
 

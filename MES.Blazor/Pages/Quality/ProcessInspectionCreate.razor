@@ -11,6 +11,7 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
+@inject ProcessDefinitionService ProcessDefinitionService
 @attribute [Authorize(Roles = Roles.Policies.QualityRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
@@ -184,6 +185,7 @@
 
 @code {
     private List<EditRow> _rows = new();
+    private List<ProcessInfoDto> _processOptions = new();
     private bool _isSubmitting;
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
@@ -369,10 +371,11 @@
     // ========== 下拉选项 ==========
 
     private static readonly List<(string Value, string Text)> _shiftOptions =
-        Enum.GetValues<ShiftType>().Select(v => (v.ToString(), EnumHelper.GetDisplayName(v))).ToList();
+        DisplayHelper.GetEnumOptions<ShiftType>().Select(o => (o.Value, o.Display)).ToList();
 
     protected override async Task OnInitializedAsync()
     {
+        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("process-inspection-create", null);
         if (saved.Count > 0)
@@ -690,10 +693,11 @@
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnAutoFillByProcessNameAsync(r); }));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var pn in ProcessNames.All)
+                    foreach (var opt in _processOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", pn);
+                        b.AddAttribute(1, "Value", opt.ProcessKey);
+                        b.AddAttribute(2, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
                         b.CloseComponent();
                     }
                 }));
@@ -797,11 +801,11 @@
                     b2.AddAttribute(1, "Value", (string)null!);
                     b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "请选择")));
                     b2.CloseComponent();
-                    foreach (var val in Enum.GetValues<InspectionItem>())
+                    foreach (var opt in DisplayHelper.GetEnumOptions<InspectionItem>())
                     {
                         b2.OpenComponent<MudSelectItem<string>>(0);
-                        b2.AddAttribute(1, "Value", val.ToString());
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetInspectionItemText(val))));
+                        b2.AddAttribute(1, "Value", opt.Value);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                         b2.CloseComponent();
                     }
                 }));

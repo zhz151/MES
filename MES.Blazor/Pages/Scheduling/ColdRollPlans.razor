@@ -1,5 +1,6 @@
 @page "/cold-roll-plans"
 @using MES.Blazor.Services
+@using MES.Blazor.Helpers
 @using MES.Core.Models
 @using MES.Blazor.Components
 @using MES.Core.DTOs.Scheduling
@@ -185,11 +186,10 @@
                                 <MudSelect T="string" Value="@_edit.CompletionType"
                                            ValueChanged="@(v => OnCompletionTypeEdit(_edit, v))"
                                            Dense="true" Variant="Variant.Outlined" Class="compact-select">
-                                    <MudSelectItem Value="@("None")">无计划</MudSelectItem>
-                                    <MudSelectItem Value="@("All")">全量</MudSelectItem>
-                                    <MudSelectItem Value="@("Urgent")">特急单</MudSelectItem>
-                                    <MudSelectItem Value="@("Partial2")">急单</MudSelectItem>
-                                    <MudSelectItem Value="@("Partial3")">含B顺</MudSelectItem>
+                                    @foreach (var opt in DisplayHelper.GetCompletionTypeOptions())
+                                    {
+                                        <MudSelectItem Value="@opt.Value">@opt.Display</MudSelectItem>
+                                    }
                                 </MudSelect>
                             </MudTd>
                         }
@@ -199,11 +199,10 @@
                                 <MudSelect T="string" Value="@_edit.RollType"
                                            ValueChanged="@(v => OnRollTypeEdit(_edit, v))"
                                            Dense="true" Variant="Variant.Outlined" Class="compact-select">
-                                    <MudSelectItem Value="@("None")">无计划</MudSelectItem>
-                                    <MudSelectItem Value="@("All")">全量</MudSelectItem>
-                                    <MudSelectItem Value="@("Urgent")">特急单</MudSelectItem>
-                                    <MudSelectItem Value="@("Partial2")">急单</MudSelectItem>
-                                    <MudSelectItem Value="@("Partial3")">含B顺</MudSelectItem>
+                                    @foreach (var opt in DisplayHelper.GetRollTypeOptions())
+                                    {
+                                        <MudSelectItem Value="@opt.Value">@opt.Display</MudSelectItem>
+                                    }
                                 </MudSelect>
                             </MudTd>
                         }
@@ -231,7 +230,7 @@
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                         _prevGk3 = col.GroupKey;
                         var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
-                        <MudTd Class="@_footerClass" Style="@($"width: {col.Width}px")">
+                        <MudTd Class="@_footerClass">
                             <span class="col-footer-sum">@RenderFooterCell(col)</span>
                         </MudTd>
                     }

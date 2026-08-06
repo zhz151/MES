@@ -1,7 +1,6 @@
 using MES.Core.Models;
 
 using MES.Core.DTOs.Shared;
-using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Batch;
 namespace MES.Core.Interfaces.Batch;
 
@@ -41,12 +40,6 @@ public interface IProductionRecordService
     /// 获取批次的工段委外列�?    /// </summary>
     Task<PagedResult<SectionOutsourceDto>> GetSectionOutsourcesAsync(int batchId, QueryParams query);
 
-    // ========== 委外回收 ==========
-
-    /// <summary>
-    /// 获取委外记录的回收列�?    /// </summary>
-    Task<List<OutsourceRecoveryDto>> GetOutsourceRecoveriesAsync(int outsourceId);
-
     Task RefreshBatchTrackingFieldsAsync(int batchId);
 
     /// <summary>
@@ -84,10 +77,6 @@ public interface IProductionRecordService
     /// <summary>
     /// 获取所有内部生产记录（不含分页，用�?ProductionRecords 页面列表展示�?    /// </summary>
     Task<List<ProductionRecordDto>> GetAllProductionRecordListAsync();
-
-    /// <summary>
-    /// 获取指定日期的各工段产量汇总（�?SectionName 分组聚合重量），供看板使�?    /// </summary>
-    Task<List<DailySectionOutputDto>> GetDailySectionOutputAsync(DateTime date);
 
     /// <summary>
     /// 获取所有工段委外记录（不含分页，用�?SectionOutsources 页面列表展示�?    /// </summary>

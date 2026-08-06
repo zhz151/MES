@@ -67,7 +67,7 @@ public class BatchServiceTests : TestBase
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var materialPlanMock = new Mock<IMaterialPlanService>();
         var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new Mock<IOperationLogService>().Object, qptMock.Object, new Mock<INotificationService>().Object, new Mock<ISectionNameDisplayService>().Object, new MemoryCache(new MemoryCacheOptions()));
+        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new Mock<IOperationLogService>().Object, qptMock.Object, new Mock<INotificationService>().Object, new Mock<ISectionNameDisplayService>().Object, CreateProcessDefinitionServiceMock(), new MemoryCache(new MemoryCacheOptions()));
     }
 
     // ========== 种子数据辅助方法 ==========
@@ -120,7 +120,7 @@ public class BatchServiceTests : TestBase
         // 确认订单
         await orderSvc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
-            Status = SalesOrderStatus.Confirmed.ToString(),
+            Status = SalesOrderStatus.Confirmed,
             RowVersion = new byte[8]
         });
 
@@ -1549,7 +1549,7 @@ public class BatchServiceTests : TestBase
         // 回读验证所有枚举字段值正确存储
         var detail = await svc.GetByIdAsync(result.Id);
         detail.Should().NotBeNull();
-        detail!.ProductionType.Should().Be("RoughTube");
+        detail!.ProductionType.Should().Be(ProductionType.RoughTube);
         detail.ManufacturingItem.Should().Be(MaterialType.OrderFinished);
         detail.MaterialName.Should().Be("SeamlessPipe");
         detail.SettlementMethod.Should().Be(SettlementMethod.Theoretical);

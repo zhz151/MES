@@ -12,7 +12,9 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
+using MES.Core.Constants;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.DataExchange;
 using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
@@ -397,8 +399,8 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         "SettlementMethod" => GetSettlementMethodText(item.SettlementMethod.ToString()),
         "DelayPenalty" => item.DelayPenaltyText,
         "ScheduleStage" => item.ScheduleStageText,
-        "FlowStatus" => item.FlowStatus switch { 0 => "未投料", 1 => "部分", 2 => "满足", _ => "未知" },
-        "MainNoFlowStatus" => item.MainNoFlowStatus switch { 0 => "未计划", 1 => "部分", 2 => "满足", _ => "未知" },
+        "FlowStatus" => IntStatusDisplayHelper.GetInputStatusText(item.FlowStatus),
+        "MainNoFlowStatus" => IntStatusDisplayHelper.GetMainNoFlowStatusText(item.MainNoFlowStatus),
         "IsUrging" => item.IsUrging ? "是" : "否",
         "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
         "IsPaused" => item.IsPaused ? "是" : "否",
@@ -427,50 +429,20 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         "PlantGrade" => item.PlantGrade ?? "",
         "Specification" => item.Specification ?? "",
         "TotalQuantity" => item.TotalQuantity.ToString(),
-        "UrgencyLevel" => item.UrgencyLevel ?? "",
-        "RawMaterialLockRemark" => item.RawMaterialLockRemark ?? "",
+        "UrgencyLevel" => UrgencyLevelKeys.ToChinese(item.UrgencyLevel) ?? "",
+        "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "",
         "FlowTotalBatchCount" => item.FlowTotalBatchCount.ToString(),
         "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount.ToString(),
         _ => ""
     };
 
-    private static string GetMaterialNameText(string? materialName) => materialName switch
-    {
-        "SeamlessPipe" => "无缝管",
-        "WeldedPipe" => "焊管",
-        _ => materialName ?? ""
-    };
+    private static string GetMaterialNameText(string? materialName) => EnumHelper.GetDisplayName<PipeManufacturingType>(materialName);
 
-    private static string GetDeliveryStateText(string? deliveryState) => deliveryState switch
-    {
-        "SolutionAnnealedAndPickled" => "固溶酸洗",
-        "SolutionAnnealedAndPickledUTube" => "固溶酸洗-U型管",
-        "SolutionAnnealedAndPickledExternalPolished" => "固溶酸洗-外抛光",
-        "SolutionAnnealedAndPickledInternalPolished" => "固溶酸洗-内抛光",
-        "SolutionAnnealedAndPickledBothPolished" => "固溶酸洗-内外抛光",
-        "SolutionAnnealedAndPickledCoiled" => "固溶酸洗-盘管",
-        "Bright" => "光亮",
-        "BrightUTube" => "光亮-U型管",
-        "BrightCoiled" => "光亮-盘管",
-        "Hard" => "硬态",
-        _ => deliveryState ?? ""
-    };
+    private static string GetDeliveryStateText(string? deliveryState) => EnumHelper.GetDisplayName<DeliveryState>(deliveryState);
 
-    private static string GetSettlementMethodText(string? method) => method switch
-    {
-        "Theoretical" => "理算",
-        "Weighing" => "过磅",
-        "WeighingNegative" => "过磅-负",
-        _ => method ?? ""
-    };
+    private static string GetSettlementMethodText(string? method) => EnumHelper.GetDisplayName<SettlementMethod>(method);
 
-    private static string GetLengthStatusText(string? lengthStatus) => lengthStatus switch
-    {
-        "Fixed" => "定尺",
-        "Range" => "范围尺",
-        "NonFixed" => "非定尺",
-        _ => lengthStatus ?? ""
-    };
+    private static string GetLengthStatusText(string? lengthStatus) => EnumHelper.GetDisplayName<LengthStatus>(lengthStatus);
 
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)

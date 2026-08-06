@@ -11,15 +11,15 @@ public class QualityProcessTrackingDto
     public int Id { get; set; }
     public int ProductionBatchId { get; set; }
     public string? BatchNo { get; set; }
-    public string? InspectionType { get; set; }
-    public string? InspectionTypeDisplay => !string.IsNullOrEmpty(InspectionType) && EnumHelper.TryParse<InspectionType>(InspectionType) is { } it ? EnumHelper.GetDisplayName(it) : null;
+    public InspectionType? InspectionType { get; set; }
+    public string? InspectionTypeDisplay => InspectionType.HasValue ? EnumHelper.GetDisplayName(InspectionType.Value) : null;
 
     /// <summary>
     /// 是否正式成检（成检类型==FormalInspection；null/其他/预成检均视为非正式成检）
     /// 仅正式成检时「制造状态/是否交付态」才有效，否则统一显示 "-"
     /// </summary>
     public bool IsFormalInspection =>
-        string.Equals(InspectionType, nameof(MES.Core.Enums.InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase);
+        InspectionType == MES.Core.Enums.InspectionType.FormalInspection;
 
     /// <summary>是否交付态（存储值："是"/"否"；非正式成检统一显示 "-"）</summary>
     public string? IsDeliveryStatus { get; set; }
@@ -44,10 +44,10 @@ public class QualityProcessTrackingDto
     public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
     public string? Checker { get; set; }
     public string? Salesman { get; set; }
-    public string? ManufacturingStatus { get; set; }
+    public DeliveryState? ManufacturingStatus { get; set; }
     public string? ManufacturingStatusDisplay => !IsFormalInspection
         ? "-"
-        : !string.IsNullOrEmpty(ManufacturingStatus) && EnumHelper.TryParse<DeliveryState>(ManufacturingStatus) is { } ms ? EnumHelper.GetDisplayName(ms) : "-";
+        : ManufacturingStatus.HasValue ? EnumHelper.GetDisplayName(ManufacturingStatus.Value) : "-";
     public DeliveryState? DeliveryState { get; set; }
     public string? DeliveryStateDisplay => DeliveryState.HasValue ? EnumHelper.GetDisplayName(DeliveryState.Value) : null;
     public string? EndCustomer { get; set; }

@@ -189,12 +189,13 @@ public class MaterialService : IMaterialService
 
         // 一次查询所有物料（组合索引 UK_Material_Combo 覆盖，(MaterialCategory, PlantGrade, Specification)）
         var existingCategories = items.Select(i => i.Category).Distinct().ToList();
+        var existingCategoryNames = existingCategories.Select(c => c?.ToString()).ToList();
         var existingGrades = items.Select(i => i.Grade).Distinct().ToList();
         var existingSpecs = items.Select(i => i.Spec).Distinct().ToList();
 
         var existingMaterials = await _context.Materials
             .AsNoTracking()
-            .Where(m => existingCategories.Contains(m.MaterialCategory) &&
+            .Where(m => existingCategoryNames.Contains(m.MaterialCategory) &&
                         existingGrades.Contains(m.PlantGrade) &&
                         existingSpecs.Contains(m.Specification))
             .Select(m => new { m.MaterialCategory, m.PlantGrade, m.Specification })

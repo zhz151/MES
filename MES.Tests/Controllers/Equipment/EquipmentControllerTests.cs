@@ -301,8 +301,8 @@ public class EquipmentControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
             .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
-        await _controller.GetPaged(lifecycleStatus: "正常");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.LifecycleStatus == "正常")), Times.Once);
+        await _controller.GetPaged(lifecycleStatus: "Active");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.LifecycleStatus == MES.Core.Enums.LifecycleStatus.Active)), Times.Once);
     }
 
     [Fact]
@@ -310,8 +310,8 @@ public class EquipmentControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
             .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
-        await _controller.GetPaged(usageType: "生产");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.UsageType == "生产")), Times.Once);
+        await _controller.GetPaged(usageType: "Primary");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.UsageType == MES.Core.Enums.UsageType.Primary)), Times.Once);
     }
 
     [Fact]
@@ -319,8 +319,8 @@ public class EquipmentControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
             .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
-        await _controller.GetPaged(runningStatus: "运行");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.RunningStatus == "运行")), Times.Once);
+        await _controller.GetPaged(runningStatus: "Normal");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.RunningStatus == MES.Core.Enums.RunningStatus.Normal)), Times.Once);
     }
 
     [Fact]
@@ -328,8 +328,8 @@ public class EquipmentControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
             .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
-        await _controller.GetPaged(inspectionStatus: "已检");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.InspectionStatus == "已检")), Times.Once);
+        await _controller.GetPaged(inspectionStatus: "Normal");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.InspectionStatus == MES.Core.Enums.EquipmentTaskStatus.Normal)), Times.Once);
     }
 
     [Fact]
@@ -337,8 +337,8 @@ public class EquipmentControllerTests : ControllerTestBase
     {
         _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<EquipmentQueryParams>()))
             .ReturnsAsync(new PagedResult<EquipmentListDto> { Items = new List<EquipmentListDto>() });
-        await _controller.GetPaged(maintStatus: "正常");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.MaintStatus == "正常")), Times.Once);
+        await _controller.GetPaged(maintStatus: "Normal");
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<EquipmentQueryParams>(q => q.MaintStatus == MES.Core.Enums.EquipmentTaskStatus.Normal)), Times.Once);
     }
 
     [Fact]

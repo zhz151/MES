@@ -80,7 +80,7 @@ public partial class OutsourceRecoveries
         new() { Key = "UnprocessedWeight",   Label = "非正常回收(重)", SortKey = "unprocessedweight",                         Width = "80",  GroupKey = 1, GroupName = "回收信息" },
         new() { Key = "Remark",              Label = "回收备注",       SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "回收信息" },
         new() { Key = "DataSource",          Label = "数据来源",       SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "回收信息",
-            EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
+            EnumOptions = DisplayHelper.GetDataSourceOptions() },
         new() { Key = "UpdatedTime",         Label = "更新时间",       SortKey = "updatedtime",         FilterType = "date",   Width = "120", GroupKey = 1, GroupName = "回收信息" },
         // ===== 委外信息（导航属性冗余字段）=====
         new() { Key = "BatchNo",             Label = "生产编号",       SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
@@ -249,7 +249,12 @@ public partial class OutsourceRecoveries
             _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
             {
                 Value = v,
-                Display = kvp.Key is "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" ? SectionDisplayHelper.GetSectionNameText(v) : v,
+                Display = kvp.Key switch
+                {
+                    "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v),
+                    "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(v),
+                    _ => v
+                },
                 Count = 0
             }).ToList();
         }
@@ -474,7 +479,7 @@ public partial class OutsourceRecoveries
                 builder.AddContent(0, item.OutsourceVendor ?? "");
                 break;
             case "ProcessName":
-                builder.AddContent(0, item.ProcessName ?? "");
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.ProcessName));
                 break;
             case "SectionName":
                 builder.AddContent(0, SectionDisplayHelper.GetSectionNameText(item.SectionName ?? ""));
@@ -501,31 +506,6 @@ public partial class OutsourceRecoveries
                 builder.AddContent(0, "");
                 break;
         }
-    };
-
-    // ========== GetCellRawValue / GetCellDisplayText ==========
-
-    private string? GetCellRawValue(OutsourceRecoveryDto item, string key) => key switch
-    {
-        "RecoveryDate" => item.RecoveryDate.ToString("yyyy-MM-dd"),
-        "RecoveryQuantity" => item.RecoveryQuantity?.ToString("G29"),
-        "RecoveryWeight" => $"{(int)(item.RecoveryWeight ?? 0)}",
-        "UnprocessedQuantity" => item.UnprocessedQuantity?.ToString("G29"),
-        "UnprocessedWeight" => $"{(int)(item.UnprocessedWeight ?? 0)}",
-        "Remark" => item.Remark,
-        "DataSource" => item.DataSource,
-        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        "BatchNo" => item.BatchNo,
-        "OutsourceVendor" => item.OutsourceVendor,
-        "ProcessName" => item.ProcessName,
-        "SectionName" => item.SectionName,
-        "ManufacturingSpec" => item.ManufacturingSpec,
-        "OutsourceSpec" => item.OutsourceSpec,
-        "SendQuantity" => item.SendQuantity?.ToString("G29"),
-        "SendWeight" => $"{(int)(item.SendWeight ?? 0)}",
-        "TagNo" => item.TagNo,
-        "PlantGrade" => item.PlantGrade,
-        _ => null
     };
 
     // ========== 删除 ==========

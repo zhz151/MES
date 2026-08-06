@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor;
+using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Configuration;
 
@@ -178,12 +179,12 @@ public partial class SectionFlowCategorySettings
 
             // ProcessGroupName
             rb.OpenElement(100, "td");
-            rb.AddContent(101, item.ProcessGroupName);
+            rb.AddContent(101, ProcessDisplayHelper.GetProcessNameText(item.ProcessGroupName));
             rb.CloseElement();
 
             // SectionName
             rb.OpenElement(110, "td");
-            rb.AddContent(111, item.SectionName);
+            rb.AddContent(111, SectionDisplayHelper.GetSectionNameText(item.SectionName));
             rb.CloseElement();
 
             // Coefficient
@@ -350,7 +351,7 @@ public partial class SectionFlowCategorySettings
 
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除明细\"{item.ProcessGroupName} / {item.SectionName}\" 吗？",
+            ["ContentText"] = $"确定要删除明细\"{ProcessDisplayHelper.GetProcessNameText(item.ProcessGroupName)} / {SectionDisplayHelper.GetSectionNameText(item.SectionName)}\" 吗？",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });

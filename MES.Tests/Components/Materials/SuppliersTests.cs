@@ -52,7 +52,7 @@ public class SuppliersTests : TestBase
                     Id = 1,
                     SupplierCode = "S001",
                     SupplierName = "测试供应商",
-                    MaterialCategory = "无缝管",
+                    MaterialCategory = MES.Core.Enums.MaterialType.RoughTube,
                     ContactPerson = "联系人A",
                     ContactPhone = "13800138000",
                     IsActive = isActive

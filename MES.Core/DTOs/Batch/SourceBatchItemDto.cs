@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Batch;
 
 /// <summary>
@@ -38,7 +40,7 @@ public class SourceBatchItemDto
     /// <summary>
     /// 原料类型
     /// </summary>
-    public string? MaterialType { get; set; }
+    public MaterialType? MaterialType { get; set; }
 
     /// <summary>
     /// 来料单位

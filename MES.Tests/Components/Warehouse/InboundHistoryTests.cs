@@ -12,10 +12,11 @@ public class InboundHistoryTests : TestBase
 {
     public InboundHistoryTests()
     {
-        RegisterServices(typeof(InventoryService), typeof(WarehouseService), typeof(NotificationService));
+        RegisterServices(typeof(InventoryService), typeof(WarehouseService), typeof(NotificationService), typeof(DictValueDefinitionService));
         ConfigureEmptyResponse("/api/inventory/list");
         ConfigureEmptyResponse("/api/warehouse/all");
         ConfigureEmptyResponse("/api/notification/by-type/WorkOrderDeleted");
+        ConfigureEmptyResponse("/api/dict-value-definition/enabled-values");
     }
 
     [Fact]

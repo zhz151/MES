@@ -36,7 +36,7 @@ public class InventoryPlanDto
     /// <summary>
     /// 物料名称
     /// </summary>
-    public string MaterialType { get; set; } = null!;
+    public MaterialType? MaterialType { get; set; }
 
     /// <summary>
     /// 工厂牌号
@@ -147,7 +147,7 @@ public class CreateInventoryPlanRequest
     /// <summary>
     /// 物料名称
     /// </summary>
-    public string MaterialType { get; set; } = null!;
+    public MaterialType? MaterialType { get; set; }
 
     /// <summary>
     /// 放置区域
@@ -214,7 +214,7 @@ public class AvailableInventoryBatchDto
     /// <summary>
     /// 物料名称
     /// </summary>
-    public string MaterialType { get; set; } = null!;
+    public MaterialType? MaterialType { get; set; }
 
     /// <summary>
     /// 工厂牌号
@@ -229,7 +229,7 @@ public class AvailableInventoryBatchDto
     /// <summary>
     /// 长度状态
     /// </summary>
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
 
     /// <summary>
     /// 最小长度(mm)
@@ -259,7 +259,7 @@ public class AvailableInventoryBatchDto
     /// <summary>
     /// 制造状态
     /// </summary>
-    public string? ManufacturingStatus { get; set; }
+    public DeliveryState? ManufacturingStatus { get; set; }
 
     /// <summary>
     /// 放置区域

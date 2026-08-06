@@ -37,7 +37,7 @@ public class PicklingServiceTests : TestBase
     private PicklingService CreateService(AppDbContext ctx)
     {
         var prMock = new Mock<Core.Interfaces.Batch.IProductionRecordService>();
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<PicklingService>.Instance, new MemoryCache(new MemoryCacheOptions()), prMock.Object);
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<PicklingService>.Instance, new MemoryCache(new MemoryCacheOptions()), prMock.Object, Mock.Of<Core.Interfaces.Configuration.ISectionNameDisplayService>(), CreateProcessDefinitionServiceMock());
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")

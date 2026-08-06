@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Warehouse;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace MES.Core.DTOs.Warehouse;
 /// </summary>
 public class UpdateOutboundRecordRequest
 {
-    public string? OutboundType { get; set; }
+    public OutboundType? OutboundType { get; set; }
     public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
     public int? OutboundQuantity { get; set; }

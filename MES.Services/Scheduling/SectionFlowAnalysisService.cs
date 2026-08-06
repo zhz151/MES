@@ -51,19 +51,23 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
     private readonly AppDbContext _context;
     private readonly ISectionProductionStatusService _statusService;
     private readonly ISectionFlowCategoryService _categoryService;
+    private readonly IProcessDefinitionService _processDefService;
 
     public SectionFlowAnalysisService(
         AppDbContext context,
         ISectionProductionStatusService statusService,
-        ISectionFlowCategoryService categoryService)
+        ISectionFlowCategoryService categoryService,
+        IProcessDefinitionService processDefService)
     {
         _context = context;
         _statusService = statusService;
         _categoryService = categoryService;
+        _processDefService = processDefService;
     }
 
     public async Task<List<SectionFlowAnalysisDto>> GetAnalysisAsync()
     {
+        var crKeys = await _processDefService.GetColdRollOrDrawKeysAsync();
         // 1. 获取生产工段待产量数据
         var statusData = await _statusService.GetStatusAsync();
         var statusLookup = new Dictionary<(string ProcessGroupName, string SectionName), SectionProductionStatusDto>();
@@ -224,19 +228,17 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
             var uLevel = b.UrgencyLevel ?? "";
             var isKeyBatch =
                 (b.ScheduleStage == 3 &&
-                 (uLevel == "A+急" || uLevel == "A急") &&
-                 (pendingProcess == "荒管处理" ||
+                 UrgencyLevelKeys.IsUrgent(uLevel) &&
+                 (pendingProcess == ProcessKeys.RoughTubeProcessing ||
                   (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                      && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSection == SectionKeys.ColdRollDraw)) ||
-                  pendingProcess == "收尾-成检"))
+                      && (!crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess) || pendingSection == SectionKeys.ColdRollDraw))))
                 ||
                 (b.ScheduleStage == 2 &&
                  (b.IsUrging || b.IsBatchDelivery) &&
-                 (uLevel == "A+急" || uLevel == "A急") &&
-                 (pendingProcess == "荒管处理" ||
+                 UrgencyLevelKeys.IsUrgent(uLevel) &&
+                 (pendingProcess == ProcessKeys.RoughTubeProcessing ||
                   (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                      && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSection == SectionKeys.ColdRollDraw)) ||
-                  pendingProcess == "收尾-成检"));
+                      && (!crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess) || pendingSection == SectionKeys.ColdRollDraw))));
 
             if (!isKeyBatch) continue;
 
@@ -247,7 +249,7 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
 
             // 对于 D（荒管检）：直接匹配固定维度
             if (dSettingId.HasValue
-                && string.Equals(pendingProcess, "荒管处理", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(pendingProcess, ProcessKeys.RoughTubeProcessing, StringComparison.OrdinalIgnoreCase)
                 && isInspection)
             {
                 var stats = keyBatchStats[dSettingId.Value];
@@ -294,7 +296,7 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
             {
                 inspectionStats.totalCount++;
                 inspectionStats.totalWeight += weightTons;
-                if (string.Equals(pendingProcess, "荒管处理", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(pendingProcess, ProcessKeys.RoughTubeProcessing, StringComparison.OrdinalIgnoreCase))
                 {
                     inspectionStats.dCount++;
                     inspectionStats.dWeight += weightTons;

@@ -35,6 +35,7 @@ using MES.Services.Report;
 using MES.Services.Scheduling;
 using QuestPDF.Infrastructure;
 using MES.Shared.Settings;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -174,6 +175,9 @@ builder.Services.AddScoped<ISubStandardQuickViewService, SubStandardQuickViewSer
 builder.Services.AddScoped<IStandardInspectionRequirementService, StandardInspectionRequirementService>();
 builder.Services.AddScoped<IStandardWorkDayService, StandardWorkDayService>();
 builder.Services.AddScoped<ISectionNameDisplayService, SectionNameDisplayService>();
+builder.Services.AddScoped<IProcessDefinitionService, ProcessDefinitionService>();
+builder.Services.AddScoped<IEnumDisplayDefinitionService, EnumDisplayDefinitionService>();
+builder.Services.AddScoped<IDictValueDefinitionService, DictValueDefinitionService>();
 builder.Services.AddScoped<IStandardWorkDayDeliveryStateService, StandardWorkDayDeliveryStateService>();
 builder.Services.AddScoped<IConfigParameterService, ConfigParameterService>();
 builder.Services.AddScoped<IDailyOutputEstimateService, DailyOutputEstimateService>();
@@ -297,6 +301,18 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await DatabaseMigrator.ApplyMigrationsAsync(db);
     await DbInitializer.InitializeAsync(scope.ServiceProvider);
+
+    // 枚举显示配置注入 EnumHelper（配置表优先，兜底静态字典），
+    // 服务端打印/DataExchange 导入导出/反向解析走配置表新中文
+    var enumDisplayService = scope.ServiceProvider.GetRequiredService<IEnumDisplayDefinitionService>();
+    var enumDisplayMap = await enumDisplayService.GetDisplayMapAsync();
+    foreach (var kvp in enumDisplayMap)
+        EnumHelper.ApplyEnumOverrides(kvp.Key, kvp.Value);
+
+    // 字典显示配置注入 DictValueDisplayHelper（配置表优先，兜底 Keys 常量类），服务端打印/DataExchange 走新中文
+    var dictDisplayService = scope.ServiceProvider.GetRequiredService<IDictValueDefinitionService>();
+    var dictDisplayMap = await dictDisplayService.GetDisplayMapAsync();
+    DictValueDisplayHelper.OverrideMap = dictDisplayMap;
 
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("读模型刷新已移除，使用实时查询模式");

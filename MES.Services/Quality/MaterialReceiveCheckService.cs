@@ -107,7 +107,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
     {
-        if (string.IsNullOrWhiteSpace(workOrderNo) || workOrderNo == "非工单") return;
+        if (string.IsNullOrWhiteSpace(workOrderNo) || workOrderNo == WorkOrderNoSentinel.NotWorkOrder) return;
         try
         {
             await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { workOrderNo });
@@ -168,9 +168,9 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             DeliveryState = isLastProcessGroup
                 ? EnumHelper.TryParse<DeliveryState>(batch?.DeliveryState)
                 : null,
-            ManufacturingStatus = batch?.ManufacturingStatus,
-            RawDeliveryState = batch?.DeliveryState,
-            InspectionType = m.InspectionType,
+            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(batch?.ManufacturingStatus),
+            RawDeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(batch?.DeliveryState),
+            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(m.InspectionType),
             CreatedTime = m.CreatedTime,
             UpdatedTime = m.UpdatedTime
         };
@@ -240,7 +240,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 .Where(pg => pg.ProductionBatchId == request.ProductionBatchId
                           && pg.ManufacturingSpec == batch.Specification
                           && pg.Inspection.HasValue)
-                .OrderBy(pg => pg.ProcessName == ProcessNames.AdditionalFinalInspection ? 1 : 0)
+                .OrderBy(pg => pg.ProcessName == ProcessKeys.AdditionalFinalInspection ? 1 : 0)
                 .ThenBy(pg => pg.SequenceNumber)
                 .FirstOrDefaultAsync()
                 ?? throw new BusinessException("批次未配置匹配成品规格的工序组，无法创建成检到料");
@@ -334,7 +334,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             var matchedPg = allGroups
                 .Where(pg => pg.ProductionBatchId == batch.Id
                           && pg.ManufacturingSpec == batchSpec)
-                .OrderBy(pg => pg.ProcessName == ProcessNames.AdditionalFinalInspection ? 1 : 0)
+                .OrderBy(pg => pg.ProcessName == ProcessKeys.AdditionalFinalInspection ? 1 : 0)
                 .ThenBy(pg => pg.SequenceNumber)
                 .FirstOrDefault()
                 ?? throw new BusinessException($"批次「{batch.BatchNo}」未配置匹配成品规格的工序组，无法创建成检到料");
@@ -389,7 +389,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             await TryRefreshQualityProcessTrackingAsync(entity.Id);
 
         // 去重刷新工单执行状况
-        foreach (var woNo in modifiedBatches.Where(b => !string.IsNullOrWhiteSpace(b.WorkOrderNo) && b.WorkOrderNo != "非工单")
+        foreach (var woNo in modifiedBatches.Where(b => !string.IsNullOrWhiteSpace(b.WorkOrderNo) && b.WorkOrderNo != WorkOrderNoSentinel.NotWorkOrder)
                                  .Select(b => b.WorkOrderNo)
                                  .Distinct(StringComparer.OrdinalIgnoreCase))
             await TryRefreshExecutionSummaryAsync(woNo);
@@ -606,7 +606,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             ProcessGroupId = m.ProcessGroupId,
             ProcessName = m.ProcessName,
             SequenceNumber = m.SequenceNumber,
-            InspectionType = m.InspectionType,
+            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(m.InspectionType),
             ManufacturingItem = ParseMaterialType(m.ManufacturingItem),
             TagNo = m.TagNo,
             WorkOrderNo = m.WorkOrderNo,
@@ -620,8 +620,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             LengthStatus = EnumHelper.TryParse<LengthStatus>(m.LengthStatus),
             Salesman = m.Salesman,
             DeliveryState = EnumHelper.TryParse<DeliveryState>(m.DeliveryState),
-            RawDeliveryState = m.DeliveryState,
-            ManufacturingStatus = m.ManufacturingStatus,
+            RawDeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(m.DeliveryState),
+            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(m.ManufacturingStatus),
             CreatedTime = m.CreatedTime,
             UpdatedTime = m.UpdatedTime
         }).ToList();
@@ -657,7 +657,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 var realType = item.IsLastProcessGroup
                     ? nameof(InspectionType.FormalInspection)
                     : nameof(InspectionType.PreInspection);
-                if (!string.Equals(item.InspectionType, realType, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(item.InspectionType?.ToString(), realType, StringComparison.OrdinalIgnoreCase))
                     item.HealthIssue = "成检类型过期";
             }
         }
@@ -754,10 +754,10 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                         queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch.DeliveryState));
                         break;
                     case "ManufacturingStatus":
-                        queryable = queryable.Where(m => filter.Values.Contains(m.ProductionBatch.ManufacturingStatus));
+                        queryable = queryable.Where(m => m.ProductionBatch.ManufacturingStatus != null && filter.Values.Contains(m.ProductionBatch.ManufacturingStatus));
                         break;
                     case "InspectionType":
-                        queryable = queryable.Where(m => filter.Values.Contains(m.InspectionType));
+                        queryable = queryable.Where(m => m.InspectionType != null && filter.Values.Contains(m.InspectionType));
                         break;
                     case "IsDeliveryStatus":
                     {
@@ -875,7 +875,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             ProcessGroupId = rc.ProcessGroupId,
             ProcessName = rc.ProcessName,
             SequenceNumber = rc.SequenceNumber,
-            InspectionType = rc.InspectionType,
+            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(rc.InspectionType),
             ManufacturingItem = ParseMaterialType(rc.ManufacturingItem),
             TagNo = rc.TagNo,
             WorkOrderNo = rc.WorkOrderNo,
@@ -888,8 +888,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             LengthStatus = EnumHelper.TryParse<LengthStatus>(rc.LengthStatus),
             Salesman = rc.Salesman,
             DeliveryState = EnumHelper.TryParse<DeliveryState>(rc.DeliveryState),
-            RawDeliveryState = rc.DeliveryState,
-            ManufacturingStatus = rc.ManufacturingStatus,
+            RawDeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(rc.DeliveryState),
+            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(rc.ManufacturingStatus),
             ReceiveDate = rc.ReceiveDate,
             Shift = rc.Shift,
             Checker = rc.Checker,
@@ -1110,7 +1110,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             ProcessGroupId = m.ProcessGroupId,
             ProcessName = m.ProcessName,
             SequenceNumber = m.SequenceNumber,
-            InspectionType = m.InspectionType,
+            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(m.InspectionType),
             ManufacturingItem = ParseMaterialType(m.ManufacturingItem),
             TagNo = m.TagNo,
             WorkOrderNo = m.WorkOrderNo,
@@ -1124,8 +1124,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             LengthStatus = EnumHelper.TryParse<LengthStatus>(m.LengthStatus),
             Salesman = m.Salesman,
             DeliveryState = EnumHelper.TryParse<DeliveryState>(m.DeliveryState),
-            RawDeliveryState = m.DeliveryState,
-            ManufacturingStatus = m.ManufacturingStatus,
+            RawDeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(m.DeliveryState),
+            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(m.ManufacturingStatus),
             CreatedTime = m.CreatedTime,
             UpdatedTime = m.UpdatedTime
         }).ToList();

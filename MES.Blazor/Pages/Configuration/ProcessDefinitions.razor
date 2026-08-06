@@ -1,0 +1,246 @@
+@page "/process-definitions"
+@using MES.Blazor.Services
+@using MES.Core.Constants
+@using MES.Core.Models
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@using MES.Core.DTOs.Configuration
+@using System.Text.Json
+@inject ProcessDefinitionService ProcessDefinitionService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
+@inject PageStateService PageState
+@attribute [Authorize(Roles = Roles.Policies.AdminOnly)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Factory" Class="mr-2" Color="Color.Primary" />
+                    生产-工序组定义
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="AddNew">
+                    新建
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
+                工序组是生产记录/排程/流转分析的识别维度。新增普通工序只需在此加一行（稳定 Key 随名称自动映射）；
+                冷轧/冷拔类判定请勾选对应标记。已启用工序会自动出现在各工序下拉中。
+            </MudAlert>
+
+            <!-- 搜索栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="模糊搜索 - 工序名称/Key/英文名/备注"
+                                  Value="_searchKeyword"
+                                  ValueChanged="@OnSearchChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Clearable="true"
+                                  ClearButton="true"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <div id="process-definitions-list-table">
+            <MudTable @ref="table"
+                      T="ProcessDefinitionDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4 auto-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @_totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                            </div>
+                        </MudTh>
+                    }
+                    <MudTh Style="width: 90px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @{
+                        var rowEditing = _editingIds.Contains(item.Id);
+                        var rowCache = rowEditing && _editCache.TryGetValue(item.Id, out var rc) ? rc : null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>
+                        @if (col.Key == "ProcessName")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.ProcessName"
+                                              ValueChanged="@(v => rowCache.ProcessName = v)"
+                                              Class="compact-input"
+                                              Required="true"
+                                              Label="工序名称（可改名，Key 随名称自动映射）" />
+                            }
+                            else
+                            {
+                                @ProcessDisplayHelper.GetProcessNameText(item.ProcessName)
+                            }
+                        }
+                        else if (col.Key == "ProcessKey")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.ProcessKey"
+                                              ValueChanged="@(v => rowCache.ProcessKey = v)"
+                                              Class="compact-input"
+                                              Disabled="@(!IsNewItem(item.Id))"
+                                              Title="@(IsNewItem(item.Id) ? "新增工序可自定义（字母开头，仅字母/数字/下划线）；预置工序名留空自动映射" : "程序识别工序用，随名称自动映射，不可改")"
+                                              Label="@(IsNewItem(item.Id) ? "稳定 Key（新工序自定义）" : "稳定 Key（自动映射）")" />
+                            }
+                            else
+                            {
+                                @item.ProcessKey
+                            }
+                        }
+                        else if (col.Key == "DisplayOrder")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudNumericField T="int"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 HideSpinButtons="true"
+                                                 Value="@rowCache.DisplayOrder"
+                                                 ValueChanged="@(v => rowCache.DisplayOrder = v)"
+                                                 Class="compact-input"
+                                                 Min="1"
+                                                 Max="999" />
+                            }
+                            else
+                            {
+                                @item.DisplayOrder
+                            }
+                        }
+                        else if (col.Key == "IsEnabled")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSwitch T="bool" Dense="true"
+                                           Value="@rowCache.IsEnabled"
+                                           ValueChanged="@(async v => { rowCache.IsEnabled = v; })"
+                                           Color="Color.Primary" />
+                            }
+                            else
+                            {
+                                @(item.IsEnabled ? "启用" : "隐藏")
+                            }
+                        }
+                        else if (col.Key == "IsColdRoll")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSwitch T="bool" Dense="true"
+                                           Value="@rowCache.IsColdRoll"
+                                           ValueChanged="@(async v => { rowCache.IsColdRoll = v; })"
+                                           Color="Color.Secondary" />
+                            }
+                            else
+                            {
+                                @(item.IsColdRoll ? "是" : "")
+                            }
+                        }
+                        else if (col.Key == "IsColdDraw")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSwitch T="bool" Dense="true"
+                                           Value="@rowCache.IsColdDraw"
+                                           ValueChanged="@(async v => { rowCache.IsColdDraw = v; })"
+                                           Color="Color.Secondary" />
+                            }
+                            else
+                            {
+                                @(item.IsColdDraw ? "是" : "")
+                            }
+                        }
+                        else if (col.Key == "Remark")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.Remark"
+                                              ValueChanged="@(v => rowCache.Remark = v)"
+                                              Class="compact-input" />
+                            }
+                            else
+                            {
+                                @item.Remark
+                            }
+                        }
+                        else
+                        {
+                            @("")
+                        }
+                        </MudTd>
+                    }
+                    <MudTd Style="white-space: nowrap; width: 90px;">
+                        @if (rowEditing)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small" OnClick="() => CancelEdit(item)" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

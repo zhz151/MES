@@ -83,13 +83,5 @@ public class OrderDemandAdjustmentDto
 
     // ========== 显示文本 ==========
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
-    public string ScheduleStageText => ScheduleStage switch
-    {
-        0 => "主号暂停",
-        1 => "主号完成",
-        2 => "原料锁定",
-        3 => "生产执行",
-        4 => "成品检验",
-        _ => "未知"
-    };
+    public string ScheduleStageText => IntStatusDisplayHelper.GetScheduleStageText(ScheduleStage);
 }

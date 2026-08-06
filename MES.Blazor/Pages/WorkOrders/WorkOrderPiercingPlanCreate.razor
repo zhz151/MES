@@ -15,6 +15,7 @@
 @inject IJSRuntime JS
 @inject MaterialPlanProcessGroupService ProcessGroupService
 @inject StandardWorkDayService StandardWorkDayService
+@inject ProcessDefinitionService ProcessDefinitionService
 @attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
@@ -270,9 +271,9 @@
                                 <MudSelect T="string" Value="@pg.ProcessName"
                                            ValueChanged="@((string v) => { pg.ProcessName = v; ApplyProcessGroupDefaults(pg); })"
                                            Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                    @foreach (var pn in ProcessNames.All)
+                                    @foreach (var opt in _processOptions)
                                     {
-                                        <MudSelectItem Value="@pn" />
+                                        <MudSelectItem Value="@opt.ProcessKey">@opt.ProcessName</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
@@ -346,6 +347,7 @@
 
     // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
     private List<SectionInfoDto> _sectionCols = new();
+    private List<ProcessInfoDto> _processOptions = new();
 
     private async Task LoadSectionColsAsync()
     {
@@ -463,6 +465,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadSectionColsAsync();
+        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
         await LoadWorkOrder();
     }
 
@@ -619,16 +622,16 @@
                 if (string.IsNullOrWhiteSpace(pg.ManufacturingSpec))
                     errors.Add($"工序组第{rowNum}行：制造规格不能为空");
 
-                if (pg.ProcessName.Contains("冷轧") || pg.ProcessName == "冷拔")
+                if (ProcessKeys.IsColdRollOrColdDraw(pg.ProcessName))
                 {
                     if (pg.ColdRollDraw == null)
-                        errors.Add($"工序组第{rowNum}行：工序\"{pg.ProcessName}\"的冷轧拔不能为空");
+                        errors.Add($"工序组第{rowNum}行：工序\"{ProcessDisplayHelper.GetProcessNameText(pg.ProcessName)}\"的冷轧拔不能为空");
                 }
 
-                if (pg.ProcessName == "荒管处理" || pg.ProcessName == "在制修检")
+                if (pg.ProcessName == ProcessKeys.RoughTubeProcessing || pg.ProcessName == ProcessKeys.InProcessRepair)
                 {
                     if (pg.ColdRollDraw != null)
-                        errors.Add($"工序组第{rowNum}行：工序\"{pg.ProcessName}\"的冷轧拔必须为空");
+                        errors.Add($"工序组第{rowNum}行：工序\"{ProcessDisplayHelper.GetProcessNameText(pg.ProcessName)}\"的冷轧拔必须为空");
                 }
             }
         }
@@ -698,7 +701,7 @@
     {
         pgItems.Add(new SavePlanProcessGroupItem
         {
-            ProcessName = "荒管处理",
+            ProcessName = ProcessKeys.RoughTubeProcessing,
             ManufacturingMultiple = 1
         });
         ApplyProcessGroupDefaults(pgItems.Last());
@@ -735,7 +738,7 @@
 
         switch (pg.ProcessName)
         {
-            case "荒管处理":
+            case ProcessKeys.RoughTubeProcessing:
                 pg.Straighten = 1;
                 pg.Cut = 1;
                 pg.Pickle = 1;
@@ -743,7 +746,7 @@
                 pg.OuterSpotGrinding = 1;
                 pg.Inspection = 1;
                 break;
-            case "冷拔":
+            case ProcessKeys.ColdDraw:
                 pg.ColdRollDraw = 1;
                 pg.Solution = 1;
                 pg.Straighten = 1;
@@ -751,11 +754,11 @@
                 pg.Pickle = 1;
                 pg.Inspection = 1;
                 break;
-            case "60冷轧":
-            case "50冷轧":
-            case "30冷轧":
-            case "20冷轧":
-            case "三辊冷轧":
+            case ProcessKeys.ColdRoll60:
+            case ProcessKeys.ColdRoll50:
+            case ProcessKeys.ColdRoll30:
+            case ProcessKeys.ColdRoll20:
+            case ProcessKeys.ThreeRollColdRoll:
                 pg.ColdRollDraw = 1;
                 pg.OilPipeCut = 1;
                 pg.Degrease = 1;
@@ -765,7 +768,7 @@
                 pg.Pickle = 1;
                 pg.Inspection = 1;
                 break;
-            case "在制修检":
+            case ProcessKeys.InProcessRepair:
                 pg.Solution = 1;
                 pg.Straighten = 1;
                 pg.Cut = 1;

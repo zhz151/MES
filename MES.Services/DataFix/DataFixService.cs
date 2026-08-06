@@ -350,35 +350,6 @@ public class DataFixService : IDataFixService
         return fixedCount;
     }
 
-    private static string GetDeliveryStateChinese(DeliveryState state)
-    {
-        return state switch
-        {
-            DeliveryState.SolutionAnnealedAndPickled => "固溶酸洗",
-            DeliveryState.SolutionAnnealedAndPickledUTube => "固溶酸洗-U型管",
-            DeliveryState.SolutionAnnealedAndPickledExternalPolished => "固溶酸洗-外抛光",
-            DeliveryState.SolutionAnnealedAndPickledInternalPolished => "固溶酸洗-内抛光",
-            DeliveryState.SolutionAnnealedAndPickledBothPolished => "固溶酸洗-内外抛光",
-            DeliveryState.SolutionAnnealedAndPickledCoiled => "固溶酸洗-盘管",
-            DeliveryState.Bright => "光亮",
-            DeliveryState.BrightUTube => "光亮-U型管",
-            DeliveryState.BrightCoiled => "光亮-盘管",
-            DeliveryState.Hard => "硬态",
-            _ => state.ToString()
-        };
-    }
-
-    private static string GetRawMaterialTypeChinese(MaterialType type)
-    {
-        return type switch
-        {
-            MaterialType.RoughTube => "荒管",
-            MaterialType.SemiFinished => "半成品",
-            MaterialType.RoundBar => "圆棒",
-            _ => type.ToString()
-        };
-    }
-
     // ==================== 工具方法 ====================
 
     // ==================== 8. 刷新工单汇总读模型（用料计划字段） ====================

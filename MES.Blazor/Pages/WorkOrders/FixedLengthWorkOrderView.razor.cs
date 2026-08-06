@@ -5,6 +5,9 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
+using MES.Core.Constants;
+using MES.Core.Helpers;
+using MES.Core.Enums;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
@@ -64,20 +67,7 @@ public partial class FixedLengthWorkOrderView
 
     private static List<ColumnDef> GetAllColumnDefs()
     {
-        var deliveryStateOptions = new List<EnumOption>
-        {
-            new("SolutionAnnealedAndPickled", "固溶酸洗"),
-            new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"),
-            new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"),
-            new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"),
-            new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"),
-            new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"),
-            new("Bright", "光亮"),
-            new("BrightUTube", "光亮-U型管"),
-            new("BrightCoiled", "光亮-盘管"),
-            new("Hard", "硬态"),
-            new("SolidSolutionStraightening", "固溶矫直")
-        };
+        var deliveryStateOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>();
 
         // G1: 基础数据
         var g1 = new List<ColumnDef>
@@ -100,7 +90,7 @@ public partial class FixedLengthWorkOrderView
         // G2: 计划状态
         var g2 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",      Label = "关注状态",     SortKey = "ScheduleStage",     FilterType = "enum", Width = "120", EnumOptions = new() { new("0","主号暂停"), new("1","主号完成"), new("2","原料锁定"), new("3","生产执行"), new("4","成品检验") }, GroupKey = 2, GroupName = "计划状态" },
+            new() { Key = "ScheduleStage",      Label = "关注状态",     SortKey = "ScheduleStage",     FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 2, GroupName = "计划状态" },
             new() { Key = "UrgencyLevel",       Label = "工单计划性",   SortKey = "UrgencyLevel",      FilterType = "string", Width = "120", GroupKey = 2, GroupName = "计划状态" },
         };
 
@@ -259,7 +249,11 @@ public partial class FixedLengthWorkOrderView
                     .Select(val => new ExcelFilterOption
                     {
                         Value = val!,
-                        Display = val!,
+                        Display = col.Key switch
+                        {
+                            "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, val) ?? val!,
+                            _ => val!
+                        },
                         Count = _allItems.Count(x => string.Equals(GetFilterValue(x, col.Key), val, StringComparison.OrdinalIgnoreCase))
                     })
                     .ToList();
@@ -392,7 +386,7 @@ public partial class FixedLengthWorkOrderView
 
         // 筛选/排序/搜索后回到第一页，避免停留在旧页码产生空页
         if (table != null)
-            table.CurrentPage = 0;
+            table.NavigateTo(0);
 
         ComputePageSums();
     }
@@ -705,12 +699,12 @@ public partial class FixedLengthWorkOrderView
             case "ScheduleStage":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetScheduleStageColor(item.ScheduleStage));
+                builder.AddAttribute(2, "Color", DisplayHelper.GetScheduleStageColor(item.ScheduleStage));
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ScheduleStageText)));
                 builder.CloseComponent();
                 break;
             case "UrgencyLevel":
-                builder.AddContent(0, item.UrgencyLevel ?? "-");
+                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "-");
                 break;
 
             // G3 成品切割
@@ -831,16 +825,6 @@ public partial class FixedLengthWorkOrderView
 
     /// <summary>盈缺支数显示（正数 +N，负数 -N，零显示 0）</summary>
     private static string FormatSurplus(int value) => value > 0 ? $"+{value}" : value.ToString();
-
-    private static Color GetScheduleStageColor(int stage) => stage switch
-    {
-        0 => Color.Error,       // 主号暂停
-        1 => Color.Success,     // 主号完成（闭环）
-        2 => Color.Warning,     // 原料锁定（待料）
-        3 => Color.Info,        // 生产执行
-        4 => Color.Primary,     // 成品检验
-        _ => Color.Default
-    };
 
     private static Color GetSurplusStatusColor(string status) => status switch
     {
@@ -975,7 +959,7 @@ public partial class FixedLengthWorkOrderView
         "PlantGrade" => item.PlantGrade ?? "",
         "Specification" => item.Specification ?? "",
         // G2 计划状态
-        "UrgencyLevel" => item.UrgencyLevel ?? "",
+        "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "",
         // G3 成品切割
         "CutDeadline" => item.CutDeadline,
         "CutQuantity" => item.CutQuantity,

@@ -99,7 +99,7 @@
     private bool _submitting;
 
     private static readonly List<(string Value, string Text)> _shiftOptions =
-        Enum.GetValues<ShiftType>().Select(v => (v.ToString(), EnumHelper.GetDisplayName(v))).ToList();
+        DisplayHelper.GetEnumOptions<ShiftType>().Select(o => (o.Value, o.Display)).ToList();
 
     private void Cancel() => MudDialog.Cancel();
 

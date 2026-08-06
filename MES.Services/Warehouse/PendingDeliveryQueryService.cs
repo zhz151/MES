@@ -43,7 +43,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
 
         // 筛选：交货状态
         if (!string.IsNullOrEmpty(deliveryStatus))
-            dtos = dtos.Where(d => d.DeliveryStatus == deliveryStatus).ToList();
+            dtos = dtos.Where(d => d.DeliveryStatus?.ToString() == deliveryStatus).ToList();
 
         return dtos;
     }
@@ -73,7 +73,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                     (d.HeatNo ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.PlantGrade ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.Specification ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
-                    (d.LengthStatus ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
+                    (d.LengthStatus?.ToString() ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.SalesOrderNo ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.OrderItemIds ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.WorkOrderNo ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
@@ -81,7 +81,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                     (d.Salesman ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.EndCustomer ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.ProductStandard ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
-                    (d.DeliveryStatus ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
+                    (d.DeliveryStatus?.ToString() ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.StandardGrade ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     d.MaterialType.ToString().Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.InboundSource.ToString() ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
@@ -184,13 +184,13 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         AddDistinct("SalesOrderNo", dtos.Select(d => d.SalesOrderNo));
         AddDistinct("CustomerName", dtos.Select(d => d.CustomerName));
         AddDistinct("ProductStandard", dtos.Select(d => d.ProductStandard));
-        AddDistinct("DeliveryStatus", dtos.Select(d => d.DeliveryStatus));
+        AddDistinct("DeliveryStatus", dtos.Select(d => d.DeliveryStatus?.ToString()));
         AddDistinct("MaterialType", dtos.Select(d => d.MaterialType.ToString()));
         AddDistinct("InboundSource", dtos.Select(d => d.InboundSource.ToString()));
         AddDistinct("SourceName", dtos.Select(d => d.SourceName));
         AddDistinct("OrderItemIds", dtos.Select(d => d.OrderItemIds));
         AddDistinct("WorkOrderNo", dtos.Select(d => d.WorkOrderNo));
-        AddDistinct("LengthStatus", dtos.Select(d => d.LengthStatus));
+        AddDistinct("LengthStatus", dtos.Select(d => d.LengthStatus?.ToString()));
         AddDistinct("Salesman", dtos.Select(d => d.Salesman));
         AddDistinct("EndCustomer", dtos.Select(d => d.EndCustomer));
         AddDistinct("StandardGrade", dtos.Select(d => d.StandardGrade));
@@ -474,7 +474,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                 HeatNo = heatNo,
                 PlantGrade = batch.PlantGrade,
                 Specification = batch.Specification,
-                LengthStatus = batch.LengthStatus,
+                LengthStatus = EnumHelper.TryParse<LengthStatus>(batch.LengthStatus),
                 MinLength = batch.MinLength,
                 MaxLength = batch.MaxLength,
                 RemainingQuantity = batch.RemainingQuantity,
@@ -489,7 +489,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                 Salesman = salesman,
                 EndCustomer = endCustomer,
                 ProductStandard = itemStandardNo,
-                DeliveryStatus = itemDeliveryStatus,
+                DeliveryStatus = EnumHelper.TryParse<DeliveryState>(itemDeliveryStatus),
                 StandardGrade = itemStandardGrade,
             });
         }

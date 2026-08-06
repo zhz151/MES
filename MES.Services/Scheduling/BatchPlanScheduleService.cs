@@ -50,10 +50,12 @@ namespace MES.Services.Scheduling;
 public class BatchPlanScheduleService : IBatchPlanScheduleService
 {
     private readonly AppDbContext _context;
+    private readonly IProcessDefinitionService _processDefService;
 
-    public BatchPlanScheduleService(AppDbContext context)
+    public BatchPlanScheduleService(AppDbContext context, IProcessDefinitionService processDefService)
     {
         _context = context;
+        _processDefService = processDefService;
     }
 
     public async Task<List<BatchPlanScheduleDto>> GetAllAsync()
@@ -106,8 +108,19 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
         return true;
     }
 
+    /// <summary>调度工段 Tab 归一：中文 Tab 名 → 稳定 Key（工序优先，工段次之）；检验类特殊 Tab 名（过程检验/成品检验/荒管检/在制检）保持中文。</summary>
+    private static string? NormalizeSectionTab(string? sectionTab)
+    {
+        if (string.IsNullOrEmpty(sectionTab)) return sectionTab;
+        return ProcessKeys.ToKey(sectionTab) ?? SectionKeys.ToKey(sectionTab) ?? sectionTab;
+    }
+
     public async Task<bool> PlanAllAsync(string? sectionTab)
     {
+        // 中文 Tab 名归一为 Key（工序/工段），检验类特殊 Tab 名保持中文
+        sectionTab = NormalizeSectionTab(sectionTab);
+
+        var crKeys = await _processDefService.GetColdRollOrDrawKeysAsync();
         // 1. 查询活跃批次
         var batchQuery = _context.ProductionBatches.AsNoTracking()
             .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress);
@@ -123,7 +136,11 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                      select new { b, s, plan };
 
         // 2. 工段筛选（同 GetAllAsync）
-        var coldRollTabs = new HashSet<string> { "60冷轧", "50冷轧", "30冷轧", "20冷轧", "三辊冷轧", "冷拔" };
+        var coldRollTabs = new HashSet<string>
+        {
+            ProcessKeys.ColdRoll60, ProcessKeys.ColdRoll50, ProcessKeys.ColdRoll30, ProcessKeys.ColdRoll20,
+            ProcessKeys.ThreeRollColdRoll, ProcessKeys.ColdDraw
+        };
         if (!string.IsNullOrEmpty(sectionTab))
         {
             if (coldRollTabs.Contains(sectionTab))
@@ -183,14 +200,14 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                     if (sectionTab == "荒管检")
                     {
                         joined = joined.Where(x =>
-                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.RoughTubeProcessing) ||
-                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.RoughTubeProcessing));
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessKeys.RoughTubeProcessing) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessKeys.RoughTubeProcessing));
                     }
                     else if (sectionTab == "在制检")
                     {
                         joined = joined.Where(x =>
-                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessNames.InProcessRepair) ||
-                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessNames.InProcessRepair));
+                            (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessKeys.InProcessRepair) ||
+                            (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessKeys.InProcessRepair));
                     }
                 }
             }
@@ -297,7 +314,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             string? crCompletionType = null, crRollType = null, crSchedMachineNo = null;
 
             // 冷轧排程（本层）：仅当执行工段=冷轧拔时才填充（与 GetAllAsync 保持一致）
-            if (!string.IsNullOrEmpty(pendingProcess) && ProcessNames.IsColdRollOrDraw(pendingProcess)
+            if (!string.IsNullOrEmpty(pendingProcess) && crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess)
                 && !string.IsNullOrEmpty(pendingSectionName) && pendingSectionName == SectionKeys.ColdRollDraw)
             {
                 currentCR_ProcessType = pendingProcess;
@@ -318,7 +335,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             if (pendingIdx + 1 < pgs.Count)
             {
                 var nextPg = pgs[pendingIdx + 1];
-                if (ProcessNames.IsColdRollOrDraw(nextPg.ProcessName))
+                if (crKeys.Contains(ProcessKeys.ToKey(nextPg.ProcessName) ?? nextPg.ProcessName))
                 {
                     nextCR_ProcessType = nextPg.ProcessName;
                     nextCR_RollingSpec = nextPg.ManufacturingSpec;
@@ -330,7 +347,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             if (pendingIdx + 2 < pgs.Count)
             {
                 var nextNextPg = pgs[pendingIdx + 2];
-                if (ProcessNames.IsColdRollOrDraw(nextNextPg.ProcessName))
+                if (crKeys.Contains(ProcessKeys.ToKey(nextNextPg.ProcessName) ?? nextNextPg.ProcessName))
                 {
                     nextNextCR_ProcessType = nextNextPg.ProcessName;
                     nextNextCR_RollingSpec = nextNextPg.ManufacturingSpec;
@@ -365,36 +382,27 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             string? flowTarget = null;
             string? flowCRType = null;
             string? flowExecSpec = null;
-            var isUrgent = b.UrgencyLevel == "A+急" || b.UrgencyLevel == "A急";
+            var isUrgent = UrgencyLevelKeys.IsUrgent(b.UrgencyLevel);
             var isKeyBatch = (b.ScheduleStage == 2 && isUrgent &&
-                              (pendingProcess == "荒管处理" ||
+                              (pendingProcess == ProcessKeys.RoughTubeProcessing ||
                                (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                                   && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSectionName == SectionKeys.ColdRollDraw)) ||
-                               pendingProcess == "收尾-成检")) ||
+                                   && (!crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess) || pendingSectionName == SectionKeys.ColdRollDraw)))) ||
                              (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery) && isUrgent &&
-                              (pendingProcess == "荒管处理" ||
+                              (pendingProcess == ProcessKeys.RoughTubeProcessing ||
                                (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                                   && (!ProcessNames.IsColdRollOrDraw(pendingProcess) || pendingSectionName == SectionKeys.ColdRollDraw)) ||
-                               pendingProcess == "收尾-成检"));
+                                   && (!crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess) || pendingSectionName == SectionKeys.ColdRollDraw))));
 
-            if (b.MainNoAttentionProcess == "收尾-成检")
-            {
-                isFlow = true;
-                flowTarget = "成检";
-                flowCRType = "-";
-                flowExecSpec = b.CurrentSectionCompleted == false ? b.CurrentSpec : b.CorrespondingSpec;
-            }
-            else if (!string.IsNullOrEmpty(crCompletionType) && crCompletionType != "None")
+            if (!string.IsNullOrEmpty(crCompletionType) && crCompletionType != "None")
             {
                 var isPartial1 = isUrgent && (b.ScheduleStage == 2 || (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery)));
-                var isPartial3 = isUrgent || b.UrgencyLevel == "B顺";
+                var isPartial3 = isUrgent || b.UrgencyLevel == UrgencyLevelKeys.BOrder;
                 if (crCompletionType == "All" ||
                     (crCompletionType == "Urgent" && (isKeyBatch || isPartial1)) ||
                     (crCompletionType == "Partial2" && isUrgent) ||
                     (crCompletionType == "Partial3" && isPartial3))
                 {
                     isFlow = true;
-                    flowTarget = "完工冷轧";
+                    flowTarget = FlowTargetKeys.CompletionColdRoll;
                     flowCRType = pendingProcess;
                     flowExecSpec = currentCR_RollingSpec;
                 }
@@ -403,14 +411,14 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             if (!isFlow && !string.IsNullOrEmpty(crRollType) && crRollType != "None")
             {
                 var isPartial1 = isUrgent && (b.ScheduleStage == 2 || (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery)));
-                var isPartial3 = isUrgent || b.UrgencyLevel == "B顺";
+                var isPartial3 = isUrgent || b.UrgencyLevel == UrgencyLevelKeys.BOrder;
                 if (crRollType == "All" ||
                     (crRollType == "Urgent" && (isKeyBatch || isPartial1)) ||
                     (crRollType == "Partial2" && isUrgent) ||
                     (crRollType == "Partial3" && isPartial3))
                 {
                     isFlow = true;
-                    flowTarget = "冷轧";
+                    flowTarget = FlowTargetKeys.ColdRoll;
                     // Determine roll type process type
                     if (!string.IsNullOrEmpty(currentCR_ProcessType) && string.IsNullOrEmpty(pendingEquipment))
                     { flowCRType = currentCR_ProcessType; flowExecSpec = currentCR_RollingSpec; }
@@ -427,7 +435,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                     flowLevel = 1;
                 else if (isUrgent)
                     flowLevel = 2;
-                else if (b.UrgencyLevel == "B顺")
+                else if (b.UrgencyLevel == UrgencyLevelKeys.BOrder)
                     flowLevel = 3;
                 else
                     flowLevel = 4;
@@ -440,11 +448,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
 
             // 外径跨度计算（与 G7 同一逻辑）
             string? outerDiameterSpan = null;
-            if (b.MainNoAttentionProcess == "收尾-成检")
-            {
-                outerDiameterSpan = null;
-            }
-            else if (!string.IsNullOrEmpty(crCompletionType) && crCompletionType != "None")
+            if (!string.IsNullOrEmpty(crCompletionType) && crCompletionType != "None")
             {
                 outerDiameterSpan = GetShortDisplay(currentCR_BilletSpec, currentCR_RollingSpec);
             }

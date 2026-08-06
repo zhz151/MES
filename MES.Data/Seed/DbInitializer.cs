@@ -17,11 +17,23 @@ using MES.Shared.Constants;
 using Microsoft.Extensions.DependencyInjection;
 using MES.Core.Enums;
 using MES.Core.Constants;
+using MES.Core.Helpers;
 
 namespace MES.Data.Seed;
 
 public static class DbInitializer
 {
+    /// <summary>DictValueDefinition 种子字典：除专门配置表（工段/工序）外的 6 个（责任类别已并入字典表）</summary>
+    private static readonly string[] DictValueSeedKeys =
+    [
+        DictValueDefaults.UrgencyLevelKey,
+        DictValueDefaults.ProductStatus,
+        DictValueDefaults.ProductionFlowKey,
+        DictValueDefaults.FlowTargetKey,
+        DictValueDefaults.ProductionOverviewRowKey,
+        DictValueDefaults.LiabilityTypeKey,
+    ];
+
     public static async Task InitializeAsync(IServiceProvider serviceProvider)
     {
         using var scope = serviceProvider.CreateScope();
@@ -295,6 +307,78 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
+        // ========== 8c. Initialize Process Definitions（工序组配置表）——幂等 ==========
+        if (!context.ProcessDefinitions.Any())
+        {
+            var processDefs = new List<ProcessDefinition>
+            {
+                new() { ProcessKey = ProcessKeys.RoughTubeProcessing,           ProcessName = ProcessNames.RoughTubeProcessing,           DisplayOrder = 1, IsEnabled = true, IsColdRoll = false, IsColdDraw = false, Remark = null },
+                new() { ProcessKey = ProcessKeys.InProcessRepair,               ProcessName = ProcessNames.InProcessRepair,               DisplayOrder = 2, IsEnabled = true, IsColdRoll = false, IsColdDraw = false, Remark = null },
+                new() { ProcessKey = ProcessKeys.ColdRoll60,                    ProcessName = ProcessNames.ColdRoll60,                    DisplayOrder = 3, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, Remark = null },
+                new() { ProcessKey = ProcessKeys.ColdRoll50,                    ProcessName = ProcessNames.ColdRoll50,                    DisplayOrder = 4, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, Remark = null },
+                new() { ProcessKey = ProcessKeys.ColdRoll30,                    ProcessName = ProcessNames.ColdRoll30,                    DisplayOrder = 5, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, Remark = null },
+                new() { ProcessKey = ProcessKeys.ColdRoll20,                    ProcessName = ProcessNames.ColdRoll20,                    DisplayOrder = 6, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, Remark = null },
+                new() { ProcessKey = ProcessKeys.ThreeRollColdRoll,             ProcessName = ProcessNames.ThreeRollColdRoll,             DisplayOrder = 7, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, Remark = null },
+                new() { ProcessKey = ProcessKeys.ColdDraw,                      ProcessName = ProcessNames.ColdDraw,                      DisplayOrder = 8, IsEnabled = true, IsColdRoll = false, IsColdDraw = true,  Remark = null },
+                new() { ProcessKey = ProcessKeys.AdditionalFinalInspection,     ProcessName = ProcessNames.AdditionalFinalInspection,     DisplayOrder = 9, IsEnabled = true, IsColdRoll = false, IsColdDraw = false, Remark = "成品检验附加工序" },
+            };
+
+            await context.ProcessDefinitions.AddRangeAsync(processDefs);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 8e. Initialize Enum Display Definitions（枚举显示配置，41 枚举）——幂等 ==========
+        if (!context.EnumDisplayDefinitions.Any())
+        {
+            var enumRows = new List<EnumDisplayDefinition>();
+            foreach (var kvp in EnumHelper.GetAllMappings())
+            {
+                var order = 0;
+                foreach (var v in kvp.Value)
+                {
+                    enumRows.Add(new EnumDisplayDefinition
+                    {
+                        EnumKey = kvp.Key,
+                        Value = v.Key,
+                        DisplayName = v.Value,
+                        DisplayOrder = ++order,
+                        Remark = null
+                    });
+                }
+            }
+
+            await context.EnumDisplayDefinitions.AddRangeAsync(enumRows);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 8f. Initialize Dict Value Definitions（字典显示配置）——幂等 ==========
+        // 仅含无专门配置表的 6 个字典（紧急度/产类/流转/关注目标/汇总行/责任类别）；
+        // 工段/工序由各自专门配置表管理（StandardWorkDays/ProcessDefinitions），不在此重复 seed，避免双入口。
+        if (!context.DictValueDefinitions.Any())
+        {
+            var dictRows = new List<DictValueDefinition>();
+            foreach (var dictKey in DictValueSeedKeys)
+            {
+                if (!DictValueDefaults.All.TryGetValue(dictKey, out var map)) continue;
+                var order = 0;
+                foreach (var v in map)
+                {
+                    dictRows.Add(new DictValueDefinition
+                    {
+                        DictKey = dictKey,
+                        Value = v.Key,
+                        DisplayName = v.Value,
+                        DisplayOrder = ++order,
+                        IsEnabled = true,
+                        Remark = null
+                    });
+                }
+            }
+
+            await context.DictValueDefinitions.AddRangeAsync(dictRows);
+            await context.SaveChangesAsync();
+        }
+
         // ========== 9. Initialize Standard Work Day Delivery States ==========
         if (!context.StandardWorkDayDeliveryStates.Any())
         {
@@ -473,82 +557,82 @@ public static class DbInitializer
             }
 
             // A 外抛光
-            AddItem(settingMap["A"], "荒管处理", SectionKeys.OuterPolish, 1m, 1);
+            AddItem(settingMap["A"], ProcessKeys.RoughTubeProcessing, SectionKeys.OuterPolish, 1m, 1);
 
             // B 内修磨
-            AddItem(settingMap["B"], "荒管处理", SectionKeys.InnerGrinding, 1m, 1);
+            AddItem(settingMap["B"], ProcessKeys.RoughTubeProcessing, SectionKeys.InnerGrinding, 1m, 1);
 
             // C 外点磨
-            AddItem(settingMap["C"], "荒管处理", SectionKeys.OuterSpotGrinding, 1m, 1);
+            AddItem(settingMap["C"], ProcessKeys.RoughTubeProcessing, SectionKeys.OuterSpotGrinding, 1m, 1);
 
             // D 荒管检
-            AddItem(settingMap["D"], "荒管处理", SectionKeys.Inspection, 1m, 1);
+            AddItem(settingMap["D"], ProcessKeys.RoughTubeProcessing, SectionKeys.Inspection, 1m, 1);
 
             // E 在制检：全部工序组工段=检验的汇总量，后处理减去 D+N
             AddItem(settingMap["E"], "全部", SectionKeys.Inspection, 1m, 1);
 
             // F 固溶
-            AddItem(settingMap["F"], "20冷轧", SectionKeys.Solution, 1m, 1);
-            AddItem(settingMap["F"], "30冷轧", SectionKeys.Solution, 1m,2);
-            AddItem(settingMap["F"], "50冷轧", SectionKeys.Solution, 1m,3);
-            AddItem(settingMap["F"], "60冷轧", SectionKeys.Solution, 1m,4);
-            AddItem(settingMap["F"], "冷拔", SectionKeys.Solution, 1m,5);
-            AddItem(settingMap["F"], "三辊冷轧", SectionKeys.Solution, 1m,6);
-            AddItem(settingMap["F"], "在制修检", SectionKeys.Solution, 1m,7);
+            AddItem(settingMap["F"], ProcessKeys.ColdRoll20, SectionKeys.Solution, 1m, 1);
+            AddItem(settingMap["F"], ProcessKeys.ColdRoll30, SectionKeys.Solution, 1m,2);
+            AddItem(settingMap["F"], ProcessKeys.ColdRoll50, SectionKeys.Solution, 1m,3);
+            AddItem(settingMap["F"], ProcessKeys.ColdRoll60, SectionKeys.Solution, 1m,4);
+            AddItem(settingMap["F"], ProcessKeys.ColdDraw, SectionKeys.Solution, 1m,5);
+            AddItem(settingMap["F"], ProcessKeys.ThreeRollColdRoll, SectionKeys.Solution, 1m,6);
+            AddItem(settingMap["F"], ProcessKeys.InProcessRepair, SectionKeys.Solution, 1m,7);
 
             // G 矫直
-            AddItem(settingMap["G"], "20冷轧", SectionKeys.Straighten, 1m, 1);
-            AddItem(settingMap["G"], "30冷轧", SectionKeys.Straighten, 1m,2);
-            AddItem(settingMap["G"], "50冷轧", SectionKeys.Straighten, 0.5m,3);
-            AddItem(settingMap["G"], "60冷轧", SectionKeys.Straighten, 0.5m,4);
-            AddItem(settingMap["G"], "荒管处理", SectionKeys.Straighten, 0.25m,5);
-            AddItem(settingMap["G"], "冷拔", SectionKeys.Straighten, 1m,6);
-            AddItem(settingMap["G"], "三辊冷轧", SectionKeys.Straighten, 1m,7);
-            AddItem(settingMap["G"], "在制修检", SectionKeys.Straighten, 1m,8);
+            AddItem(settingMap["G"], ProcessKeys.ColdRoll20, SectionKeys.Straighten, 1m, 1);
+            AddItem(settingMap["G"], ProcessKeys.ColdRoll30, SectionKeys.Straighten, 1m,2);
+            AddItem(settingMap["G"], ProcessKeys.ColdRoll50, SectionKeys.Straighten, 0.5m,3);
+            AddItem(settingMap["G"], ProcessKeys.ColdRoll60, SectionKeys.Straighten, 0.5m,4);
+            AddItem(settingMap["G"], ProcessKeys.RoughTubeProcessing, SectionKeys.Straighten, 0.25m,5);
+            AddItem(settingMap["G"], ProcessKeys.ColdDraw, SectionKeys.Straighten, 1m,6);
+            AddItem(settingMap["G"], ProcessKeys.ThreeRollColdRoll, SectionKeys.Straighten, 1m,7);
+            AddItem(settingMap["G"], ProcessKeys.InProcessRepair, SectionKeys.Straighten, 1m,8);
 
             // H 切割
-            AddItem(settingMap["H"], "20冷轧", SectionKeys.Cut, 1m, 1);
-            AddItem(settingMap["H"], "30冷轧", SectionKeys.Cut, 1m,2);
-            AddItem(settingMap["H"], "50冷轧", SectionKeys.Cut, 0.5m,3);
-            AddItem(settingMap["H"], "60冷轧", SectionKeys.Cut, 0.5m,4);
-            AddItem(settingMap["H"], "荒管处理", SectionKeys.Cut, 0.25m,5);
-            AddItem(settingMap["H"], "冷拔", SectionKeys.Cut, 1m,6);
-            AddItem(settingMap["H"], "三辊冷轧", SectionKeys.Cut, 1m,7);
-            AddItem(settingMap["H"], "在制修检", SectionKeys.Cut, 0.25m,8);
-            AddItem(settingMap["H"], "20冷轧", SectionKeys.OilPipeCut, 0.75m,9);
-            AddItem(settingMap["H"], "30冷轧", SectionKeys.OilPipeCut, 0.75m,10);
-            AddItem(settingMap["H"], "50冷轧", SectionKeys.OilPipeCut, 0.5m,11);
-            AddItem(settingMap["H"], "60冷轧", SectionKeys.OilPipeCut, 0.5m,12);
-            AddItem(settingMap["H"], "三辊冷轧", SectionKeys.OilPipeCut, 0.75m,13);
+            AddItem(settingMap["H"], ProcessKeys.ColdRoll20, SectionKeys.Cut, 1m, 1);
+            AddItem(settingMap["H"], ProcessKeys.ColdRoll30, SectionKeys.Cut, 1m,2);
+            AddItem(settingMap["H"], ProcessKeys.ColdRoll50, SectionKeys.Cut, 0.5m,3);
+            AddItem(settingMap["H"], ProcessKeys.ColdRoll60, SectionKeys.Cut, 0.5m,4);
+            AddItem(settingMap["H"], ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, 0.25m,5);
+            AddItem(settingMap["H"], ProcessKeys.ColdDraw, SectionKeys.Cut, 1m,6);
+            AddItem(settingMap["H"], ProcessKeys.ThreeRollColdRoll, SectionKeys.Cut, 1m,7);
+            AddItem(settingMap["H"], ProcessKeys.InProcessRepair, SectionKeys.Cut, 0.25m,8);
+            AddItem(settingMap["H"], ProcessKeys.ColdRoll20, SectionKeys.OilPipeCut, 0.75m,9);
+            AddItem(settingMap["H"], ProcessKeys.ColdRoll30, SectionKeys.OilPipeCut, 0.75m,10);
+            AddItem(settingMap["H"], ProcessKeys.ColdRoll50, SectionKeys.OilPipeCut, 0.5m,11);
+            AddItem(settingMap["H"], ProcessKeys.ColdRoll60, SectionKeys.OilPipeCut, 0.5m,12);
+            AddItem(settingMap["H"], ProcessKeys.ThreeRollColdRoll, SectionKeys.OilPipeCut, 0.75m,13);
 
             // I 去油
-            AddItem(settingMap["I"], "20冷轧", SectionKeys.Degrease, 1m, 1);
-            AddItem(settingMap["I"], "30冷轧", SectionKeys.Degrease, 1m,2);
-            AddItem(settingMap["I"], "50冷轧", SectionKeys.Degrease, 0.5m,3);
-            AddItem(settingMap["I"], "60冷轧", SectionKeys.Degrease, 0.5m,4);
-            AddItem(settingMap["I"], "三辊冷轧", SectionKeys.Degrease, 1m,5);
+            AddItem(settingMap["I"], ProcessKeys.ColdRoll20, SectionKeys.Degrease, 1m, 1);
+            AddItem(settingMap["I"], ProcessKeys.ColdRoll30, SectionKeys.Degrease, 1m,2);
+            AddItem(settingMap["I"], ProcessKeys.ColdRoll50, SectionKeys.Degrease, 0.5m,3);
+            AddItem(settingMap["I"], ProcessKeys.ColdRoll60, SectionKeys.Degrease, 0.5m,4);
+            AddItem(settingMap["I"], ProcessKeys.ThreeRollColdRoll, SectionKeys.Degrease, 1m,5);
 
             // J 酸洗
-            AddItem(settingMap["J"], "20冷轧", SectionKeys.Pickle, 1m, 1);
-            AddItem(settingMap["J"], "30冷轧", SectionKeys.Pickle, 1m,2);
-            AddItem(settingMap["J"], "50冷轧", SectionKeys.Pickle, 0.5m,3);
-            AddItem(settingMap["J"], "60冷轧", SectionKeys.Pickle, 0.5m,4);
-            AddItem(settingMap["J"], "荒管处理", SectionKeys.Pickle, 0.25m,5);
-            AddItem(settingMap["J"], "冷拔", SectionKeys.Pickle, 1m,6);
-            AddItem(settingMap["J"], "三辊冷轧", SectionKeys.Pickle, 1m,7);
-            AddItem(settingMap["J"], "在制修检", SectionKeys.Pickle, 0.25m,8);
+            AddItem(settingMap["J"], ProcessKeys.ColdRoll20, SectionKeys.Pickle, 1m, 1);
+            AddItem(settingMap["J"], ProcessKeys.ColdRoll30, SectionKeys.Pickle, 1m,2);
+            AddItem(settingMap["J"], ProcessKeys.ColdRoll50, SectionKeys.Pickle, 0.5m,3);
+            AddItem(settingMap["J"], ProcessKeys.ColdRoll60, SectionKeys.Pickle, 0.5m,4);
+            AddItem(settingMap["J"], ProcessKeys.RoughTubeProcessing, SectionKeys.Pickle, 0.25m,5);
+            AddItem(settingMap["J"], ProcessKeys.ColdDraw, SectionKeys.Pickle, 1m,6);
+            AddItem(settingMap["J"], ProcessKeys.ThreeRollColdRoll, SectionKeys.Pickle, 1m,7);
+            AddItem(settingMap["J"], ProcessKeys.InProcessRepair, SectionKeys.Pickle, 0.25m,8);
 
             // K 大轧
-            AddItem(settingMap["K"], "50冷轧", SectionKeys.ColdRollDraw, 1m, 1);
-            AddItem(settingMap["K"], "60冷轧", SectionKeys.ColdRollDraw, 1m,2);
+            AddItem(settingMap["K"], ProcessKeys.ColdRoll50, SectionKeys.ColdRollDraw, 1m, 1);
+            AddItem(settingMap["K"], ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, 1m,2);
 
             // L 小轧
-            AddItem(settingMap["L"], "20冷轧", SectionKeys.ColdRollDraw, 1m, 1);
-            AddItem(settingMap["L"], "30冷轧", SectionKeys.ColdRollDraw, 1m,2);
-            AddItem(settingMap["L"], "三辊冷轧", SectionKeys.ColdRollDraw, 1m,3);
+            AddItem(settingMap["L"], ProcessKeys.ColdRoll20, SectionKeys.ColdRollDraw, 1m, 1);
+            AddItem(settingMap["L"], ProcessKeys.ColdRoll30, SectionKeys.ColdRollDraw, 1m,2);
+            AddItem(settingMap["L"], ProcessKeys.ThreeRollColdRoll, SectionKeys.ColdRollDraw, 1m,3);
 
             // M 冷拔
-            AddItem(settingMap["M"], "冷拔", SectionKeys.ColdRollDraw, 1m, 1);
+            AddItem(settingMap["M"], ProcessKeys.ColdDraw, SectionKeys.ColdRollDraw, 1m, 1);
 
             // N 成品待检：所有工序组中工段=检验的属成品工序量（FinalProcessTotal）汇总
             AddItem(settingMap["N"], "全部", SectionKeys.Inspection, 1m, 1);
@@ -562,11 +646,11 @@ public static class DbInitializer
         {
             var capacities = new List<DailyProductionCapacity>
             {
-                new() { ProcessName = "荒管抛光", DailyCapacity = 15m, Remark = "荒管抛光日产能(吨)" },
-                new() { ProcessName = "50,60轧机", DailyCapacity = 11m, Remark = "50,60轧机日产能(吨)" },
-                new() { ProcessName = "20,30轧机", DailyCapacity = 9m, Remark = "20,30轧机日产能(吨)" },
-                new() { ProcessName = "三辊轧机", DailyCapacity = 0.5m, Remark = "三辊轧机日产能(吨)" },
-                new() { ProcessName = "拉机", DailyCapacity = 3m, Remark = "拉机日产能(吨)" },
+                new() { ProcessName = ProductionOverviewRowKeys.Polish, DailyCapacity = 15m, Remark = "荒管抛光日产能(吨)" },
+                new() { ProcessName = ProductionOverviewRowKeys.Mill50_60, DailyCapacity = 11m, Remark = "50,60轧机日产能(吨)" },
+                new() { ProcessName = ProductionOverviewRowKeys.Mill20_30, DailyCapacity = 9m, Remark = "20,30轧机日产能(吨)" },
+                new() { ProcessName = ProductionOverviewRowKeys.ThreeRollMill, DailyCapacity = 0.5m, Remark = "三辊轧机日产能(吨)" },
+                new() { ProcessName = ProductionOverviewRowKeys.DrawBench, DailyCapacity = 3m, Remark = "拉机日产能(吨)" },
             };
             context.DailyProductionCapacities.AddRange(capacities);
             await context.SaveChangesAsync();

@@ -145,7 +145,7 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text(plan.BatchTagNo ?? "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.Specification).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.LengthStatus).FontSize(8).AlignCenter();
+                table.Cell().Element(CellStyle).Text(Enum.TryParse<LengthStatus>(plan.LengthStatus, out var ls) ? EnumHelper.GetDisplayName(ls) : (plan.LengthStatus ?? "-")).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.InputMultiple.ToString()).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.UsedQuantity?.ToString() is string q ? $"{q} 支" : "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);

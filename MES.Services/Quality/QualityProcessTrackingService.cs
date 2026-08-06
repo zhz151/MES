@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Auth;
+using MES.Core.Helpers;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -184,7 +185,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             Id = e.Id,
             ProductionBatchId = e.ProductionBatchId,
             BatchNo = e.BatchNo,
-            InspectionType = e.InspectionType,
+            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(e.InspectionType),
             IsDeliveryStatus = e.IsDeliveryStatus,
             ManufacturingItem = ParseMaterialType(e.ManufacturingItemStr),
             TagNo = e.TagNo,
@@ -200,7 +201,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             ProductionWeight = e.ProductionWeight,
             IsForceCompleted = e.IsForceCompleted,
             Salesman = e.Salesman,
-            ManufacturingStatus = e.ManufacturingStatus,
+            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(e.ManufacturingStatus),
             DeliveryState = e.DeliveryStateStr != null ? Enum.Parse<DeliveryState>(e.DeliveryStateStr) : null,
             EndCustomer = e.EndCustomer,
             ReceiveDate = e.ReceiveDate,
@@ -421,7 +422,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                 .AsNoTracking()
                 .Where(pr => chunk.Contains(pr.ProductionBatchId)
                           && pr.SectionName == SectionKeys.Cut
-                          && pr.ProductStatus == "成品"
+                          && pr.ProductStatus == ProductStatuses.Finished
                           && pr.IsPreCut != true) // 预成切不计入成品切割支数
                 .ToListAsync();
             foreach (var r in cutRows)
@@ -660,7 +661,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
 
         // G4
         entity.InboundQuantity = inventoryBatches.Sum(ib => ib.InitialQuantity);
-        entity.InboundWeight = inventoryBatches.Sum(ib => (decimal?)ib.InitialWeight);
+        entity.InboundWeight = inventoryBatches.Sum(ib => ib.InitialWeight);
         entity.InboundDate = inventoryBatches.Max(ib => (DateTime?)ib.InboundDate);
 
         // G5

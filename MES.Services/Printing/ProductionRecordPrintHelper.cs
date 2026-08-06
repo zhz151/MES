@@ -28,7 +28,7 @@ public static class ProductionRecordPrintHelper
         return GenerateBatchPdf(new List<ProductionRecordDto> { record }, new List<PrintColumnDef>());
     }
 
-    public static byte[] GenerateBatchPdf(List<ProductionRecordDto> records, List<PrintColumnDef> columns, IReadOnlyDictionary<string, string>? sectionNameMap = null)
+    public static byte[] GenerateBatchPdf(List<ProductionRecordDto> records, List<PrintColumnDef> columns, IReadOnlyDictionary<string, string>? sectionNameMap = null, IReadOnlyDictionary<string, string>? processNameMap = null)
     {
         // 如果未指定列，使用默认列
         if (columns == null || columns.Count == 0)
@@ -59,7 +59,7 @@ public static class ProductionRecordPrintHelper
                 ["WorkOrderNo"] = r.WorkOrderNo ?? "",
                 ["SalesOrderNo"] = r.SalesOrderNo ?? "",
                 ["ProductionMainNo"] = r.ProductionMainNo ?? "",
-                ["ProcessName"] = r.ProcessName,
+                ["ProcessName"] = ProcessDisplayText(r.ProcessName, processNameMap),
                 ["ManufacturingSpec"] = r.ManufacturingSpec ?? "",
                 ["SectionName"] = SectionDisplayText(r.SectionName, sectionNameMap),
                 ["SequenceNumber"] = r.SequenceNumber.ToString(),
@@ -77,14 +77,9 @@ public static class ProductionRecordPrintHelper
                 ["SoakTime"] = r.SoakTime?.ToString() ?? "",
                 ["TagNo"] = r.TagNo ?? "",
                 ["PlantGrade"] = r.PlantGrade ?? "",
-                ["DataSource"] = r.DataSource switch
-                {
-                    "SCAN" => "扫码",
-                    "MANUAL" => "手动",
-                    _ => ""
-                },
-                ["ProductStatus"] = r.ProductStatus ?? "在制",
-                ["LengthStatus"] = EnumHelper.GetDisplayName<LengthStatus>(r.LengthStatus),
+                ["DataSource"] = StringEnumDisplayHelper.GetDataSourceText(r.DataSource),
+                ["ProductStatus"] = DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, r.ProductStatus) ?? "在制",
+                ["LengthStatus"] = r.LengthStatus.HasValue ? EnumHelper.GetDisplayName(r.LengthStatus.Value) : "",
                 ["Remark"] = r.Remark ?? "",
                 ["CreatedTime"] = r.CreatedTime.ToString("yyyy-MM-dd HH:mm"),
                 ["UpdatedTime"] = r.UpdatedTime.ToString("yyyy-MM-dd HH:mm")
@@ -103,5 +98,15 @@ public static class ProductionRecordPrintHelper
         if (!string.IsNullOrEmpty(keyOrName) && sectionNameMap != null && sectionNameMap.TryGetValue(keyOrName, out var cn))
             return cn;
         return SectionKeys.ToChinese(keyOrName) ?? "";
+    }
+
+    /// <summary>
+    /// 工序 Key → 中文：配置表 map 优先，兜底 ProcessKeys 规范中文（未知值原样返回）。
+    /// </summary>
+    private static string ProcessDisplayText(string? keyOrName, IReadOnlyDictionary<string, string>? processNameMap)
+    {
+        if (!string.IsNullOrEmpty(keyOrName) && processNameMap != null && processNameMap.TryGetValue(keyOrName, out var cn))
+            return cn;
+        return ProcessKeys.ToChinese(keyOrName) ?? "";
     }
 }

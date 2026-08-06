@@ -22,12 +22,7 @@ public static class FinalInspectionPrintHelper
     {
         ["InspectionItem"] = v => v is InspectionItem item ? EnumHelper.GetDisplayName(item) : (v?.ToString() ?? ""),
         ["ProductionType"] = v => v is string s && !string.IsNullOrEmpty(s) && Enum.TryParse<ProductionType>(s, true, out var pt) ? EnumHelper.GetDisplayName(pt) : (v?.ToString() ?? ""),
-        ["DataSource"] = v => v?.ToString() switch
-        {
-            "SCAN" => "扫码",
-            "MANUAL" => "手动",
-            _ => v?.ToString() ?? ""
-        },
+        ["DataSource"] = v => StringEnumDisplayHelper.GetDataSourceText(v?.ToString()),
         ["LengthStatus"] = v => v is string s && !string.IsNullOrEmpty(s) && Enum.TryParse<LengthStatus>(s, true, out var ls) ? EnumHelper.GetDisplayName(ls) : (v?.ToString() ?? ""),
         ["DeliveryState"] = v => v is string s && !string.IsNullOrEmpty(s) && Enum.TryParse<DeliveryState>(s, true, out var ds) ? EnumHelper.GetDisplayName(ds) : (v?.ToString() ?? "")
     };

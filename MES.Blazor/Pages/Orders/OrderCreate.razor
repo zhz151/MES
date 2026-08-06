@@ -179,9 +179,9 @@
                                 <!-- 结算方式 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="SettlementMethod" @bind-Value="item.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        @foreach (var val in Enum.GetValues<SettlementMethod>())
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<SettlementMethod>())
                                         {
-                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetSettlementMethodText(val)</MudSelectItem>
+                                            <MudSelectItem Value="@(Enum.Parse<SettlementMethod>(opt.Value))">@opt.Display</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudTd>
@@ -189,9 +189,9 @@
                                 <!-- 钢管制造 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="PipeManufacturingType" @bind-Value="item.PipeManufacturingType" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        @foreach (var val in Enum.GetValues<PipeManufacturingType>())
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<PipeManufacturingType>())
                                         {
-                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetPipeManufacturingTypeText(val)</MudSelectItem>
+                                            <MudSelectItem Value="@(Enum.Parse<PipeManufacturingType>(opt.Value))">@opt.Display</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudTd>
@@ -209,9 +209,9 @@
                                 <!-- 交货状态 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="DeliveryState" @bind-Value="item.DeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        @foreach (var val in Enum.GetValues<DeliveryState>())
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<DeliveryState>())
                                         {
-                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetDeliveryStateText(val)</MudSelectItem>
+                                            <MudSelectItem Value="@(Enum.Parse<DeliveryState>(opt.Value))">@opt.Display</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudTd>
@@ -289,9 +289,9 @@
                                 <!-- 长度状态 - 下拉选择 -->
                                 <MudTd>
                                     <MudSelect T="LengthStatus" @bind-Value="item.LengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        @foreach (var val in Enum.GetValues<LengthStatus>())
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<LengthStatus>())
                                         {
-                                            <MudSelectItem Value="@(val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                            <MudSelectItem Value="@(Enum.Parse<LengthStatus>(opt.Value))">@opt.Display</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudTd>

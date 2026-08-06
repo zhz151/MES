@@ -14,6 +14,7 @@
 @inject ColumnPrefsService ColumnPrefs
 @inject IDialogService DialogService
 @inject StandardWorkDayService StandardWorkDayService
+@inject ProcessDefinitionService ProcessDefinitionService
 @attribute [Authorize(Roles = Roles.Policies.BatchWrite)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4" id="batch-create-table">
@@ -83,9 +84,9 @@
                                 <td>
                                     <MudSelect T="MaterialType?" @bind-Value="_noSourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
                                         <MudSelectItem Value="@((MaterialType?)null)">请选择</MudSelectItem>
-                                        @foreach (var val in Enum.GetValues<MaterialType>())
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>())
                                         {
-                                            <MudSelectItem Value="@((MaterialType?)val)">@DisplayHelper.GetMaterialTypeText(val)</MudSelectItem>
+                                            <MudSelectItem Value="@((MaterialType?)Enum.Parse<MaterialType>(opt.Value))">@opt.Display</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </td>
@@ -104,9 +105,9 @@
                                 <td>
                                     <MudSelect T="LengthStatus?" @bind-Value="_noSourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
                                         <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
-                                        @foreach (var val in Enum.GetValues<LengthStatus>())
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<LengthStatus>())
                                         {
-                                            <MudSelectItem Value="@((LengthStatus?)val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                            <MudSelectItem Value="@((LengthStatus?)Enum.Parse<LengthStatus>(opt.Value))">@opt.Display</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </td>
@@ -121,10 +122,9 @@
                                 </td>
                                 <td>
                                     <MudSelect T="BatchInputType" @bind-Value="_noSourceInputType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
-                                        @foreach (var val in Enum.GetValues<BatchInputType>())
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<BatchInputType>())
                                         {
-                                            if (val == BatchInputType.Warehouse) continue;
-                                            <MudSelectItem Value="@val">@DisplayHelper.GetInputTypeText(val)</MudSelectItem>
+                                            <MudSelectItem Value="@(Enum.Parse<BatchInputType>(opt.Value))">@opt.Display</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </td>
@@ -266,7 +266,7 @@
                                     <MudTd>@batch.HeatNo</MudTd>
                                     <MudTd>@batch.PlantGrade</MudTd>
                                     <MudTd>@batch.Specification</MudTd>
-                                    <MudTd>@DisplayHelper.GetLengthStatusText(batch.LengthStatus)</MudTd>
+                                    <MudTd>@DisplayHelper.GetLengthStatusText(batch.LengthStatus?.ToString())</MudTd>
                                     <MudTd Class="text-right">@batch.UnitWeight?.ToString("G29")</MudTd>
                                     <MudTd>@batch.WorkOrderNo</MudTd>
                                     <MudTd>@batch.OutboundDate?.ToString("yyyy-MM-dd")</MudTd>
@@ -429,9 +429,9 @@
                                     <td>
                                         <MudSelect T="PipeManufacturingType?" @bind-Value="formMaterialName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
                                             <MudSelectItem Value="@((PipeManufacturingType?)null)">请选择</MudSelectItem>
-                                            @foreach (var val in Enum.GetValues<PipeManufacturingType>())
+                                            @foreach (var opt in DisplayHelper.GetEnumOptions<PipeManufacturingType>())
                                             {
-                                                <MudSelectItem Value="@((PipeManufacturingType?)val)">@DisplayHelper.GetPipeManufacturingTypeText(val)</MudSelectItem>
+                                                <MudSelectItem Value="@((PipeManufacturingType?)Enum.Parse<PipeManufacturingType>(opt.Value))">@opt.Display</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
@@ -441,9 +441,9 @@
                                     <td>
                                         <MudSelect T="SettlementMethod?" @bind-Value="formSettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
                                             <MudSelectItem Value="@((SettlementMethod?)null)">请选择</MudSelectItem>
-                                            @foreach (var val in Enum.GetValues<SettlementMethod>())
+                                            @foreach (var opt in DisplayHelper.GetEnumOptions<SettlementMethod>())
                                             {
-                                                <MudSelectItem Value="@((SettlementMethod?)val)">@DisplayHelper.GetSettlementMethodText(val)</MudSelectItem>
+                                                <MudSelectItem Value="@((SettlementMethod?)Enum.Parse<SettlementMethod>(opt.Value))">@opt.Display</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
@@ -454,9 +454,9 @@
                                     <td>
                                         <MudSelect T="DeliveryState?" @bind-Value="formDeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
                                             <MudSelectItem Value="@((DeliveryState?)null)">请选择</MudSelectItem>
-                                            @foreach (var val in Enum.GetValues<DeliveryState>())
+                                            @foreach (var opt in DisplayHelper.GetEnumOptions<DeliveryState>())
                                             {
-                                                <MudSelectItem Value="@((DeliveryState?)val)">@DisplayHelper.GetDeliveryStateText(val)</MudSelectItem>
+                                                <MudSelectItem Value="@((DeliveryState?)Enum.Parse<DeliveryState>(opt.Value))">@opt.Display</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
@@ -469,9 +469,9 @@
                                     <td>
                                         <MudSelect T="LengthStatus?" @bind-Value="formLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
                                             <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
-                                            @foreach (var val in Enum.GetValues<LengthStatus>())
+                                            @foreach (var opt in DisplayHelper.GetEnumOptions<LengthStatus>())
                                             {
-                                                <MudSelectItem Value="@((LengthStatus?)val)">@DisplayHelper.GetLengthStatusText(val)</MudSelectItem>
+                                                <MudSelectItem Value="@((LengthStatus?)Enum.Parse<LengthStatus>(opt.Value))">@opt.Display</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
@@ -492,9 +492,9 @@
                                     <td>
                                         <MudSelect T="RequirementType?" @bind-Value="formTechnicalRequirements" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
                                             <MudSelectItem Value="@((RequirementType?)null)">请选择</MudSelectItem>
-                                            @foreach (var val in Enum.GetValues<RequirementType>())
+                                            @foreach (var opt in DisplayHelper.GetEnumOptions<RequirementType>())
                                             {
-                                                <MudSelectItem Value="@((RequirementType?)val)">@DisplayHelper.GetTechnicalRequirementsText(val)</MudSelectItem>
+                                                <MudSelectItem Value="@((RequirementType?)Enum.Parse<RequirementType>(opt.Value))">@opt.Display</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
@@ -541,9 +541,9 @@
                             <td><MudTextField T="string" @bind-Value="request.TagNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
                             <td>
                                 <MudSelect T="ProductionType" @bind-Value="formProductionType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
-                                    @foreach (var val in Enum.GetValues<ProductionType>())
+                                    @foreach (var opt in DisplayHelper.GetEnumOptions<ProductionType>())
                                     {
-                                        <MudSelectItem Value="@val">@DisplayHelper.GetProductionTypeText(val)</MudSelectItem>
+                                        <MudSelectItem Value="@(Enum.Parse<ProductionType>(opt.Value))">@opt.Display</MudSelectItem>
                                     }
                                 </MudSelect>
                             </td>
@@ -558,9 +558,9 @@
                             <td>
                                 <MudSelect T="DeliveryState?" @bind-Value="formManufacturingStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
                                     <MudSelectItem Value="@((DeliveryState?)null)">请选择</MudSelectItem>
-                                    @foreach (var val in Enum.GetValues<DeliveryState>())
+                                    @foreach (var opt in DisplayHelper.GetEnumOptions<DeliveryState>())
                                     {
-                                        <MudSelectItem Value="@((DeliveryState?)val)">@DisplayHelper.GetDeliveryStateText(val)</MudSelectItem>
+                                        <MudSelectItem Value="@((DeliveryState?)Enum.Parse<DeliveryState>(opt.Value))">@opt.Display</MudSelectItem>
                                     }
                                 </MudSelect>
                             </td>
@@ -652,9 +652,9 @@
                             {
                                 <MudTd>
                                     <MudSelect T="string" @bind-Value="pg.ProcessName" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        @foreach (var pn in ProcessNames.All)
+                                        @foreach (var opt in _processOptions)
                                         {
-                                            <MudSelectItem Value="@pn">@pn</MudSelectItem>
+                                            <MudSelectItem Value="@opt.ProcessKey">@opt.ProcessName</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudTd>
@@ -728,7 +728,7 @@
                     (b.OutboundRemark?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (b.PlantGrade?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (b.Specification?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (b.LengthStatus?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (b.LengthStatus?.ToString()?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (b.UnitWeight?.ToString("G29")?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false))
                 .ToList();
 
@@ -834,7 +834,7 @@
             HeatNo = batch.HeatNo,
             PlantGrade = batch.PlantGrade,
             Specification = batch.Specification,
-            LengthStatus = string.IsNullOrWhiteSpace(batch.LengthStatus) ? nameof(LengthStatus.NonFixed) : batch.LengthStatus,
+            LengthStatus = batch.LengthStatus?.ToString() ?? nameof(LengthStatus.NonFixed),
             UnitWeight = batch.UnitWeight,
             WarehouseName = batch.WarehouseName,
             WorkOrderNo = batch.WorkOrderNo,
@@ -977,7 +977,7 @@
     {
         get
         {
-            if (request.WorkOrderNo == "非工单")
+            if (request.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder)
                 return new List<MaterialType> { MaterialType.Finished, MaterialType.Surplus };
             return new List<MaterialType> { MaterialType.OrderFinished, MaterialType.SpecialDeliveryStatus };
         }
@@ -989,7 +989,7 @@
         var valid = ValidManufacturingItems;
         if (!valid.Contains(request.ManufacturingItem ?? default))
         {
-            request.ManufacturingItem = request.WorkOrderNo == "非工单"
+            request.ManufacturingItem = request.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder
                 ? MaterialType.Finished
                 : MaterialType.OrderFinished;
         }
@@ -1111,7 +1111,7 @@
         request.SourceHeatNo = batch.HeatNo;
         request.SourcePlantGrade = batch.PlantGrade;
         request.SourceSpecification = batch.Specification;
-        request.SourceLengthStatus = string.IsNullOrEmpty(batch.LengthStatus) ? null : Enum.Parse<LengthStatus>(batch.LengthStatus);
+        request.SourceLengthStatus = batch.LengthStatus;
         request.SourceUnitWeight = batch.UnitWeight;
         request.InputQuantity = batch.OutboundQuantity;
         request.InputWeight = batch.OutboundWeight;
@@ -1138,7 +1138,7 @@
         if (string.IsNullOrWhiteSpace(request.WorkOrderNo))
         {
             // 工单号为空：默认"非工单"，工厂牌号从仓库继承，物料名称默认"SeamlessPipe"
-            request.WorkOrderNo = "非工单";
+            request.WorkOrderNo = WorkOrderNoSentinel.NotWorkOrder;
             request.PlantGrade = request.SourcePlantGrade;
             request.MaterialName = PipeManufacturingType.SeamlessPipe;
 
@@ -1173,7 +1173,7 @@
             return;
         }
 
-        if (request.WorkOrderNo == "非工单")
+        if (request.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder)
         {
             // 无对应工单的库存生产：清空工单字段
             request.PlantGrade = request.SourcePlantGrade;
@@ -1405,6 +1405,9 @@
     // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
     private List<SectionInfoDto> _sectionCols = new();
 
+    // 工序下拉选项（配置表驱动，失败降级为预置 9 工序；Value=Key，Text=中文）
+    private List<ProcessInfoDto> _processOptions = new();
+
     private async Task LoadSectionColsAsync()
     {
         var r = await StandardWorkDayService.GetEnabledSectionsAsync();
@@ -1494,6 +1497,7 @@
     private async Task InitProcessGroupColumnsAsync()
     {
         await LoadSectionColsAsync();
+        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
 
         pgCols = new List<ColumnDef>
         {
@@ -1561,7 +1565,7 @@
     {
         if (request.ProcessGroups == null)
             request.ProcessGroups = new List<CreateProcessGroupRequest>();
-        request.ProcessGroups.Add(new CreateProcessGroupRequest { ProcessName = "荒管处理" });
+        request.ProcessGroups.Add(new CreateProcessGroupRequest { ProcessName = ProcessKeys.RoughTubeProcessing });
     }
 
     private Task DeleteProcessGroupRow(CreateProcessGroupRequest pg)
@@ -1686,7 +1690,7 @@
         if (request.LengthStatus == null)
             errors.Add("长度状态不能为空");
         // 非工单不校验总重量/总支数
-        if (request.WorkOrderNo != "非工单")
+        if (request.WorkOrderNo != WorkOrderNoSentinel.NotWorkOrder)
         {
             if (request.TotalWeight == null || request.TotalWeight <= 0)
                 errors.Add("总重量必须大于0");
@@ -1726,7 +1730,7 @@
         }
 
         // ========== 有工单路径额外验证 ==========
-        if (request.WorkOrderNo != "非工单")
+        if (request.WorkOrderNo != WorkOrderNoSentinel.NotWorkOrder)
         {
             if (_selectedSources.Count > 0)
             {
@@ -1758,7 +1762,7 @@
             ValidateProcessGroupValues(request.ProcessGroups, errors);
 
             // 最大工序序号的制造规格必须等于工单成品规格
-            if (request.WorkOrderNo != "非工单")
+            if (request.WorkOrderNo != WorkOrderNoSentinel.NotWorkOrder)
             {
                 var lastPg = request.ProcessGroups.LastOrDefault();
                 if (lastPg != null && !string.IsNullOrWhiteSpace(lastPg.ManufacturingSpec)
@@ -1816,7 +1820,7 @@
         }
 
         // ========== 理论单支重验证（警告，可继续保存） ==========
-        if (request.WorkOrderNo != "非工单"
+        if (request.WorkOrderNo != WorkOrderNoSentinel.NotWorkOrder
             && request.LengthStatus == LengthStatus.Fixed)
         {
             var effectiveWeight = request.CurrentValidWeight ?? request.InputWeight ?? 0;
@@ -1995,8 +1999,8 @@
         if (!weight.HasValue || weight.Value <= 0) return null;
 
         var effectiveGroupCount = (request.ProcessGroups ?? new())
-            .Count(pg => pg.ProcessName != ProcessNames.InProcessRepair
-                && pg.ProcessName != ProcessNames.AdditionalFinalInspection
+            .Count(pg => pg.ProcessName != ProcessKeys.InProcessRepair
+                && pg.ProcessName != ProcessKeys.AdditionalFinalInspection
                 && HasNonEmptyCreateSection(pg));
 
         var discount = Math.Max(0, 1.0m - effectiveGroupCount * 0.025m);

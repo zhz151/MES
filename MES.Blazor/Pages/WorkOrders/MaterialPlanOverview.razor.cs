@@ -89,29 +89,29 @@ public partial class MaterialPlanOverview
         new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "DelayPenalty", FilterType = "enum", Width = "120",
             EnumOptions = new() { new("True", "是"), new("False", "否") } },
         new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "SettlementMethod", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Weighing", "过磅"), new("WeighingNegative", "过磅-负"), new("Theoretical", "理算") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
         new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "PlantGrade", FilterType = "string", Width = "120" },
         new() { Key = "Specification",      Label = "规格",       SortKey = "Specification", FilterType = "string", Width = "120" },
         new() { Key = "MaterialName",       Label = "钢管制造",   SortKey = "MaterialName", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("SeamlessPipe", "无缝管"), new("WeldedPipe", "焊管") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>() },
         new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "LengthStatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("Fixed", "定尺"), new("Range", "范围尺"), new("NonFixed", "非定尺") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
         new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "MaxLength", Width = "80" },
         new() { Key = "MinLength",          Label = "最小长度",   SortKey = "MinLength", Width = "80" },
         new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "TotalQuantity", Width = "80" },
         new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "TotalWeight", Width = "80" },
         new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "DeliveryState", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("SolutionAnnealedAndPickled", "固溶酸洗"), new("SolutionAnnealedAndPickledUTube", "固溶酸洗-U型管"), new("SolutionAnnealedAndPickledExternalPolished", "固溶酸洗-外抛光"), new("SolutionAnnealedAndPickledInternalPolished", "固溶酸洗-内抛光"), new("SolutionAnnealedAndPickledBothPolished", "固溶酸洗-内外抛光"), new("SolutionAnnealedAndPickledCoiled", "固溶酸洗-盘管"), new("Bright", "光亮"), new("BrightUTube", "光亮-U型管"), new("BrightCoiled", "光亮-盘管"), new("Hard", "硬态"), new("SolidSolutionStraightening", "固溶矫直") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
         new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "TotalItemCount", Width = "80" },
         new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate", FilterType = "date", Width = "120" },
         new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("2", "理论满足"), new("3", "满足"), new("4", "超量") } },
+            EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions() },
         new() { Key = "MaterialPlanRate",        Label = "工单满足率",     SortKey = "MaterialPlanRate", Width = "80" },
         new() { Key = "PlanProportion",          Label = "用料占比",       SortKey = "MaterialPlanProportion", Width = "120" },
         new() { Key = "MainNoMaterialPlanStatus",Label = "关联主号用料",   SortKey = "MainNoMaterialPlanStatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("3", "满足"), new("4", "超量") } },
+            EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions() },
         new() { Key = "OrderMaterialPlanStatus", Label = "关联订单用料",   SortKey = "OrderMaterialPlanStatus", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("0", "未计划"), new("1", "部分"), new("3", "全部满足") } },
+            EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions() },
         new() { Key = "MaxStandardCycle",       Label = "最大工艺周期",   SortKey = "MaxStandardCycle", Width = "80" },
         new() { Key = "MainNoMaxStandardCycle",Label = "主号最大工艺周期",SortKey = "MainNoMaxStandardCycle", Width = "80" },
         new() { Key = "CapacityWorkDays",    Label = "产能工量",       SortKey = "CapacityWorkDays", Width = "80" },
@@ -163,7 +163,7 @@ public partial class MaterialPlanOverview
     private string RenderFooterCell(ColumnDef col)
     {
         if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
-        return "";
+        return "-";
     }
 
     // ========== 服务端数据加载 ==========
@@ -522,25 +522,6 @@ public partial class MaterialPlanOverview
 
     private string GetStatusText(MaterialPlanStatus status) => DisplayHelper.GetMaterialPlanStatusText(status);
 
-    private Color GetOrderStatusColor(MaterialPlanStatus status)
-    {
-        return status switch
-        {
-            MaterialPlanStatus.NotPlanned => Color.Default,
-            MaterialPlanStatus.Partial => Color.Warning,
-            MaterialPlanStatus.Satisfied => Color.Success,
-            _ => Color.Default
-        };
-    }
-
-    private string GetOrderStatusText(MaterialPlanStatus status) => status switch
-    {
-        MaterialPlanStatus.NotPlanned => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.NotPlanned),
-        MaterialPlanStatus.Partial => DisplayHelper.GetMaterialPlanStatusText(MaterialPlanStatus.Partial),
-        MaterialPlanStatus.Satisfied => "全部满足",
-        _ => "未知"
-    };
-
     // ========== 单元格原始值/显示值 ==========
 
     private string? GetCellRawValue(WorkOrderListDto item, string key) => key switch
@@ -569,7 +550,7 @@ public partial class MaterialPlanOverview
         "MaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText(item.MaterialPlanStatus),
         "MaterialPlanRate" => $"{item.MaterialPlanRate:F1}%",
         "MainNoMaterialPlanStatus" => GetStatusText(item.MainNoMaterialPlanStatus),
-        "OrderMaterialPlanStatus" => GetOrderStatusText(item.OrderMaterialPlanStatus),
+        "OrderMaterialPlanStatus" => GetStatusText(item.OrderMaterialPlanStatus),
         "MaterialPlanCoveredCount" => item.MaterialPlanCoveredCount.ToString(),
         "LatestRequiredDate" => item.LatestRequiredDate?.ToString("yyyy-MM-dd"),
         "MainNoMaxStandardCycle" => item.MainNoMaxStandardCycle.ToString(),
@@ -587,7 +568,7 @@ public partial class MaterialPlanOverview
         "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
         "MaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText(item.MaterialPlanStatus),
         "MainNoMaterialPlanStatus" => GetStatusText(item.MainNoMaterialPlanStatus),
-        "OrderMaterialPlanStatus" => GetOrderStatusText(item.OrderMaterialPlanStatus),
+        "OrderMaterialPlanStatus" => GetStatusText(item.OrderMaterialPlanStatus),
         _ => GetCellRawValue(item, key) ?? ""
     };
 
@@ -707,8 +688,8 @@ public partial class MaterialPlanOverview
             case "OrderMaterialPlanStatus":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetOrderStatusColor(wo.OrderMaterialPlanStatus));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetOrderStatusText(wo.OrderMaterialPlanStatus))));
+                builder.AddAttribute(2, "Color", GetStatusColor(wo.OrderMaterialPlanStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.OrderMaterialPlanStatus))));
                 builder.CloseComponent();
                 break;
             case "MaxStandardCycle":

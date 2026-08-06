@@ -118,7 +118,7 @@ public partial class CertificateCreate
             (o.OrderNo ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
             (o.CustomerName ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
             (o.ProductStandard ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
-            (o.DeliveryStatus ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase)
+            (o.DeliveryStatus?.ToString() ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase)
         ).ToList();
     }
 
@@ -133,7 +133,7 @@ public partial class CertificateCreate
         _certOrderNo = _selectedHeader.OrderNo;
         _certCustomerName = _selectedHeader.CustomerName;
         _certProductStandard = _selectedHeader.ProductStandard;
-        _certDeliveryStatus = _selectedHeader.DeliveryStatus;
+        _certDeliveryStatus = _selectedHeader.DeliveryStatus?.ToString();
 
         // 通过 StandardRegister 自动填充产品名称
         _certProductName = await ResolveProductNameAsync(_certProductStandard);
@@ -232,7 +232,7 @@ public partial class CertificateCreate
                     (d.SalesOrderNo ?? "") == _certOrderNo &&
                     (d.CustomerName ?? "") == (_certCustomerName ?? "") &&
                     (d.ProductStandard ?? "") == (_certProductStandard ?? "") &&
-                    (d.DeliveryStatus ?? "") == (_certDeliveryStatus ?? "")
+                    (d.DeliveryStatus?.ToString() ?? "") == (_certDeliveryStatus ?? "")
                 ).ToList();
 
                 _allFilteredItems = all;

@@ -403,7 +403,7 @@ public partial class Suppliers
         _editCache[item.Id] = new EditCache
         {
             SupplierName = item.SupplierName,
-            MaterialCategory = item.MaterialCategory ?? "",
+            MaterialCategory = item.MaterialCategory?.ToString() ?? "",
             ContactPerson = item.ContactPerson ?? "",
             ContactPhone = item.ContactPhone ?? "",
             Address = item.Address ?? "",
@@ -430,7 +430,7 @@ public partial class Suppliers
             var request = new UpdateSupplierRequest
             {
                 SupplierName = cache.SupplierName,
-                MaterialCategory = cache.MaterialCategory,
+                MaterialCategory = EnumHelper.TryParse<MaterialType>(cache.MaterialCategory),
                 ContactPerson = cache.ContactPerson,
                 ContactPhone = cache.ContactPhone,
                 Address = cache.Address,
@@ -442,7 +442,7 @@ public partial class Suppliers
             if (result.Success)
             {
                 item.SupplierName = cache.SupplierName;
-                item.MaterialCategory = cache.MaterialCategory;
+                item.MaterialCategory = EnumHelper.TryParse<MaterialType>(cache.MaterialCategory);
                 item.ContactPerson = cache.ContactPerson;
                 item.ContactPhone = cache.ContactPhone;
                 item.Address = cache.Address;
@@ -543,11 +543,11 @@ public partial class Suppliers
                     builder.AddAttribute(5, "Class", "compact-input");
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
                     {
-                        foreach (MaterialType cat in Enum.GetValues<MaterialType>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>())
                         {
                             b2.OpenComponent<MudSelectItem<MaterialType>>(0);
-                            b2.AddAttribute(1, "Value", cat);
-                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetMaterialTypeText(cat))));
+                            b2.AddAttribute(1, "Value", Enum.Parse<MaterialType>(opt.Value));
+                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                             b2.CloseComponent();
                         }
                     }));

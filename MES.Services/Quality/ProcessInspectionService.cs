@@ -60,19 +60,22 @@ public class ProcessInspectionService : IProcessInspectionService
     private readonly IConfigParameterService _configService;
     private readonly IMemoryCache _cache;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
+    private readonly IProcessDefinitionService _processDefService;
 
     public ProcessInspectionService(
         AppDbContext context,
         ILogger<ProcessInspectionService> logger,
         IProductionRecordService productionRecordService,
         IConfigParameterService configService,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IProcessDefinitionService processDefService)
     {
         _context = context;
         _logger = logger;
         _productionRecordService = productionRecordService;
         _configService = configService;
         _cache = cache;
+        _processDefService = processDefService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -162,9 +165,50 @@ public class ProcessInspectionService : IProcessInspectionService
 
         queryable = ApplySorting(queryable, query.SortBy ?? "createdtime", query.IsDescending);
 
-        var items = await queryable
+        var items = (await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
+            .Select(r => new
+            {
+                r.Id,
+                r.ProductionBatchId,
+                r.ProcessGroupId,
+                r.ProcessName,
+                r.ManufacturingSpec,
+                r.SectionName,
+                r.SequenceNumber,
+                r.InspectionDate,
+                r.EquipmentName,
+                r.Inspector,
+                r.Shift,
+                r.Quantity,
+                r.Weight,
+                r.InspectionItem,
+                r.QualifiedQuantity,
+                r.QualifiedWeight,
+                r.QualifiedConcessionQuantity,
+                r.ConcessionRemark,
+                r.DefectReworkQuantity,
+                r.DefectWarehouseQuantity,
+                r.DefectScrapQuantity,
+                r.TheoreticalReworkWeight,
+                r.TheoreticalWarehouseWeight,
+                r.TheoreticalScrapWeight,
+                r.DefectDescription,
+                r.SourceUnit,
+                r.TagNo,
+                r.PlantGrade,
+                r.Remark,
+                r.BatchNo,
+                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
+                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
+                ProductionMainNo = r.ProductionBatch.ProductionMainNo,
+                r.DataSource,
+                r.ProductStatus,
+                r.CreatedTime,
+                r.UpdatedTime
+            })
+            .ToListAsync())
             .Select(r => new ProcessInspectionDto
             {
                 Id = r.Id,
@@ -180,7 +224,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 Shift = EnumHelper.TryParse<ShiftType>(r.Shift),
                 Quantity = r.Quantity,
                 Weight = r.Weight,
-                InspectionItem = r.InspectionItem,
+                InspectionItem = EnumHelper.TryParse<MES.Core.Enums.InspectionItem>(r.InspectionItem),
                 QualifiedQuantity = r.QualifiedQuantity,
                 QualifiedWeight = r.QualifiedWeight,
                 QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
@@ -197,15 +241,15 @@ public class ProcessInspectionService : IProcessInspectionService
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
                 BatchNo = r.BatchNo!,
-                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
-                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
-                ProductionMainNo = r.ProductionBatch.ProductionMainNo,
+                WorkOrderNo = r.WorkOrderNo,
+                SalesOrderNo = r.SalesOrderNo,
+                ProductionMainNo = r.ProductionMainNo,
                 DataSource = r.DataSource,
                 ProductStatus = r.ProductStatus,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             })
-            .ToListAsync();
+            .ToList();
 
         return new PagedResult<ProcessInspectionDto>
         {
@@ -218,48 +262,87 @@ public class ProcessInspectionService : IProcessInspectionService
 
     public async Task<List<ProcessInspectionDto>> GetAllListAsync()
     {
-        return await _context.ProcessInspections
+        var raw = await _context.ProcessInspections
             .AsNoTracking()
             .OrderByDescending(pi => pi.Id)
-            .Select(pi => new ProcessInspectionDto
+            .Select(pi => new
             {
-                Id = pi.Id,
-                InspectionDate = pi.InspectionDate,
-                ProductionBatchId = pi.ProductionBatchId,
-                BatchNo = pi.BatchNo!,
+                pi.Id,
+                pi.InspectionDate,
+                pi.ProductionBatchId,
+                pi.BatchNo,
                 WorkOrderNo = pi.ProductionBatch.WorkOrderNo,
                 SalesOrderNo = pi.ProductionBatch.SalesOrderNo,
                 ProductionMainNo = pi.ProductionBatch.ProductionMainNo,
-                ProcessName = pi.ProcessName,
-                ManufacturingSpec = pi.ManufacturingSpec,
-                SectionName = pi.SectionName,
-                SequenceNumber = pi.SequenceNumber,
-                EquipmentName = pi.EquipmentName,
-                Inspector = pi.Inspector,
-                Shift = EnumHelper.TryParse<ShiftType>(pi.Shift),
-                Quantity = pi.Quantity,
-                Weight = pi.Weight,
-                InspectionItem = pi.InspectionItem,
-                QualifiedQuantity = pi.QualifiedQuantity,
-                QualifiedWeight = pi.QualifiedWeight,
-                QualifiedConcessionQuantity = pi.QualifiedConcessionQuantity,
-                ConcessionRemark = pi.ConcessionRemark,
-                DefectReworkQuantity = pi.DefectReworkQuantity,
-                DefectWarehouseQuantity = pi.DefectWarehouseQuantity,
-                DefectScrapQuantity = pi.DefectScrapQuantity,
-                TheoreticalReworkWeight = pi.TheoreticalReworkWeight,
-                TheoreticalWarehouseWeight = pi.TheoreticalWarehouseWeight,
-                TheoreticalScrapWeight = pi.TheoreticalScrapWeight,
-                DefectDescription = pi.DefectDescription,
-                SourceUnit = pi.SourceUnit,
-                TagNo = pi.TagNo,
-                PlantGrade = pi.PlantGrade,
-                Remark = pi.Remark,
-                CreatedTime = pi.CreatedTime,
-                UpdatedTime = pi.UpdatedTime,
-                ProductStatus = pi.ProductStatus
+                pi.ProcessName,
+                pi.ManufacturingSpec,
+                pi.SectionName,
+                pi.SequenceNumber,
+                pi.EquipmentName,
+                pi.Inspector,
+                pi.Shift,
+                pi.Quantity,
+                pi.Weight,
+                pi.InspectionItem,
+                pi.QualifiedQuantity,
+                pi.QualifiedWeight,
+                pi.QualifiedConcessionQuantity,
+                pi.ConcessionRemark,
+                pi.DefectReworkQuantity,
+                pi.DefectWarehouseQuantity,
+                pi.DefectScrapQuantity,
+                pi.TheoreticalReworkWeight,
+                pi.TheoreticalWarehouseWeight,
+                pi.TheoreticalScrapWeight,
+                pi.DefectDescription,
+                pi.SourceUnit,
+                pi.TagNo,
+                pi.PlantGrade,
+                pi.Remark,
+                pi.CreatedTime,
+                pi.UpdatedTime,
+                pi.ProductStatus
             })
             .ToListAsync();
+
+        return raw.Select(pi => new ProcessInspectionDto
+        {
+            Id = pi.Id,
+            InspectionDate = pi.InspectionDate,
+            ProductionBatchId = pi.ProductionBatchId,
+            BatchNo = pi.BatchNo!,
+            WorkOrderNo = pi.WorkOrderNo,
+            SalesOrderNo = pi.SalesOrderNo,
+            ProductionMainNo = pi.ProductionMainNo,
+            ProcessName = pi.ProcessName,
+            ManufacturingSpec = pi.ManufacturingSpec,
+            SectionName = pi.SectionName,
+            SequenceNumber = pi.SequenceNumber,
+            EquipmentName = pi.EquipmentName,
+            Inspector = pi.Inspector,
+            Shift = EnumHelper.TryParse<ShiftType>(pi.Shift),
+            Quantity = pi.Quantity,
+            Weight = pi.Weight,
+            InspectionItem = EnumHelper.TryParse<MES.Core.Enums.InspectionItem>(pi.InspectionItem),
+            QualifiedQuantity = pi.QualifiedQuantity,
+            QualifiedWeight = pi.QualifiedWeight,
+            QualifiedConcessionQuantity = pi.QualifiedConcessionQuantity,
+            ConcessionRemark = pi.ConcessionRemark,
+            DefectReworkQuantity = pi.DefectReworkQuantity,
+            DefectWarehouseQuantity = pi.DefectWarehouseQuantity,
+            DefectScrapQuantity = pi.DefectScrapQuantity,
+            TheoreticalReworkWeight = pi.TheoreticalReworkWeight,
+            TheoreticalWarehouseWeight = pi.TheoreticalWarehouseWeight,
+            TheoreticalScrapWeight = pi.TheoreticalScrapWeight,
+            DefectDescription = pi.DefectDescription,
+            SourceUnit = pi.SourceUnit,
+            TagNo = pi.TagNo,
+            PlantGrade = pi.PlantGrade,
+            Remark = pi.Remark,
+            CreatedTime = pi.CreatedTime,
+            UpdatedTime = pi.UpdatedTime,
+            ProductStatus = pi.ProductStatus
+        }).ToList();
     }
 
 
@@ -321,6 +404,7 @@ public class ProcessInspectionService : IProcessInspectionService
         if (requests.Count == 0)
             return new List<ProcessInspectionDto>();
 
+        var crKeys = await _processDefService.GetColdRollOrDrawKeysAsync();
         // 预加载所有涉及的批次
         var batchNos = requests.Select(r => r.BatchNo).Distinct().ToList();
         var batchLookup = await _context.ProductionBatches
@@ -442,7 +526,7 @@ public class ProcessInspectionService : IProcessInspectionService
             if (pgId > 0)
             {
                 var pg = processGroups.FirstOrDefault(p => p.Id == pgId.Value);
-                if (pg != null && ProcessNames.IsColdRollOrDraw(pg.ProcessName))
+                if (pg != null && crKeys.Contains(ProcessKeys.ToKey(pg.ProcessName) ?? pg.ProcessName))
                 {
                     var hasColdRollDraw = coldRollDrawExists.Contains((batchId, pgId.Value))
                         || pendingColdRollDraw.Contains((batchId, pgId.Value));
@@ -490,16 +574,16 @@ public class ProcessInspectionService : IProcessInspectionService
                 EquipmentName = request.EquipmentName,
                 Inspector = request.Inspector,
                 Shift = request.Shift?.ToString(),
-                Quantity = request.Quantity,
-                Weight = request.Weight,
+                Quantity = request.Quantity ?? 0,
+                Weight = request.Weight ?? 0,
                 InspectionItem = request.InspectionItem?.ToString(),
-                QualifiedQuantity = request.QualifiedQuantity,
-                QualifiedWeight = request.QualifiedWeight,
-                QualifiedConcessionQuantity = request.QualifiedConcessionQuantity,
+                QualifiedQuantity = request.QualifiedQuantity ?? 0,
+                QualifiedWeight = request.QualifiedWeight ?? 0,
+                QualifiedConcessionQuantity = request.QualifiedConcessionQuantity ?? 0,
                 ConcessionRemark = request.ConcessionRemark,
-                DefectReworkQuantity = request.DefectReworkQuantity,
-                DefectWarehouseQuantity = request.DefectWarehouseQuantity,
-                DefectScrapQuantity = request.DefectScrapQuantity,
+                DefectReworkQuantity = request.DefectReworkQuantity ?? 0,
+                DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? 0,
+                DefectScrapQuantity = request.DefectScrapQuantity ?? 0,
                 TheoreticalReworkWeight = ComputeTheoreticalWeight(request.Weight, request.Quantity, request.DefectReworkQuantity),
                 TheoreticalWarehouseWeight = ComputeTheoreticalWeight(request.Weight, request.Quantity, request.DefectWarehouseQuantity),
                 TheoreticalScrapWeight = ComputeTheoreticalWeight(request.Weight, request.Quantity, request.DefectScrapQuantity),
@@ -544,7 +628,7 @@ public class ProcessInspectionService : IProcessInspectionService
             Shift = EnumHelper.TryParse<ShiftType>(e.Shift),
             Quantity = e.Quantity,
             Weight = e.Weight,
-            InspectionItem = e.InspectionItem,
+            InspectionItem = EnumHelper.TryParse<MES.Core.Enums.InspectionItem>(e.InspectionItem),
             QualifiedQuantity = e.QualifiedQuantity,
             QualifiedWeight = e.QualifiedWeight,
             QualifiedConcessionQuantity = e.QualifiedConcessionQuantity,
@@ -561,9 +645,9 @@ public class ProcessInspectionService : IProcessInspectionService
             PlantGrade = e.PlantGrade,
             Remark = e.Remark,
             BatchNo = e.BatchNo,
-            WorkOrderNo = batchLookup.TryGetValue(e.BatchNo, out var createdBatch) ? createdBatch.WorkOrderNo : null,
-            SalesOrderNo = batchLookup.TryGetValue(e.BatchNo, out var cb2) ? cb2.SalesOrderNo : null,
-            ProductionMainNo = batchLookup.TryGetValue(e.BatchNo, out var cb3) ? cb3.ProductionMainNo : null,
+            WorkOrderNo = batchLookup.TryGetValue(e.BatchNo!, out var createdBatch) ? createdBatch.WorkOrderNo : null,
+            SalesOrderNo = batchLookup.TryGetValue(e.BatchNo!, out var cb2) ? cb2.SalesOrderNo : null,
+            ProductionMainNo = batchLookup.TryGetValue(e.BatchNo!, out var cb3) ? cb3.ProductionMainNo : null,
             DataSource = e.DataSource,
             ProductStatus = e.ProductStatus,
             CreatedTime = e.CreatedTime,
@@ -611,9 +695,9 @@ public class ProcessInspectionService : IProcessInspectionService
         entity.QualifiedWeight = request.QualifiedWeight ?? entity.QualifiedWeight;
         entity.QualifiedConcessionQuantity = request.QualifiedConcessionQuantity ?? entity.QualifiedConcessionQuantity;
         entity.ConcessionRemark = request.ConcessionRemark ?? entity.ConcessionRemark;
-        entity.DefectReworkQuantity = request.DefectReworkQuantity ?? 0;
-        entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? 0;
-        entity.DefectScrapQuantity = request.DefectScrapQuantity ?? 0;
+        entity.DefectReworkQuantity = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
+        entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
+        entity.DefectScrapQuantity = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
 
         // 自动计算理论重量
         var effectiveQty = request.Quantity ?? entity.Quantity;
@@ -658,7 +742,7 @@ public class ProcessInspectionService : IProcessInspectionService
             Shift = EnumHelper.TryParse<ShiftType>(entity.Shift),
             Quantity = entity.Quantity,
             Weight = entity.Weight,
-            InspectionItem = entity.InspectionItem,
+            InspectionItem = EnumHelper.TryParse<MES.Core.Enums.InspectionItem>(entity.InspectionItem),
             QualifiedQuantity = entity.QualifiedQuantity,
             QualifiedWeight = entity.QualifiedWeight,
             QualifiedConcessionQuantity = entity.QualifiedConcessionQuantity,
@@ -701,7 +785,7 @@ public class ProcessInspectionService : IProcessInspectionService
         var query = new QueryParams { PageIndex = 1, PageSize = int.MaxValue };
         var result = await GetAllAsync(query);
         var selected = result.Items.Where(i => ids.Contains(i.Id)).ToList();
-        return ProcessInspectionPrintHelper.GenerateBatchPdf(selected, columns);
+        return ProcessInspectionPrintHelper.GenerateBatchPdf(selected, columns, await _processDefService.GetProcessNameMapAsync());
     }
 
     public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null)
@@ -717,7 +801,7 @@ public class ProcessInspectionService : IProcessInspectionService
             InspectionDateTo = inspectionDateTo
         };
         var result = await GetAllAsync(query);
-        return ProcessInspectionPrintHelper.GenerateBatchPdf(result.Items, columns);
+        return ProcessInspectionPrintHelper.GenerateBatchPdf(result.Items, columns, await _processDefService.GetProcessNameMapAsync());
     }
 
     private static int? ComputeTheoreticalWeight(decimal? weight, int? quantity, int? defectQuantity)

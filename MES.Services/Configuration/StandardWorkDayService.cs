@@ -61,7 +61,6 @@ public class StandardWorkDayService : IStandardWorkDayService
                 queryable = queryable.Where(w =>
                     w.SectionName.Contains(keyword) ||
                     (w.SectionKey != null && w.SectionKey.Contains(keyword)) ||
-                    (w.EnglishName != null && w.EnglishName.Contains(keyword)) ||
                     (w.PlantGradePrefix != null && w.PlantGradePrefix.Contains(keyword)) ||
                     (w.Remark != null && w.Remark.Contains(keyword)));
             }
@@ -85,7 +84,6 @@ public class StandardWorkDayService : IStandardWorkDayService
                 Id = w.Id,
                 SectionName = w.SectionName,
                 SectionKey = w.SectionKey,
-                EnglishName = w.EnglishName,
                 DisplayOrder = w.DisplayOrder,
                 IsEnabled = w.IsEnabled,
                 PlantGradePrefix = w.PlantGradePrefix,
@@ -117,7 +115,6 @@ public class StandardWorkDayService : IStandardWorkDayService
             Id = entity.Id,
             SectionName = entity.SectionName,
             SectionKey = entity.SectionKey,
-            EnglishName = entity.EnglishName,
             DisplayOrder = entity.DisplayOrder,
             IsEnabled = entity.IsEnabled,
             PlantGradePrefix = entity.PlantGradePrefix,
@@ -139,7 +136,6 @@ public class StandardWorkDayService : IStandardWorkDayService
 
             entity.SectionName = dto.SectionName;
             entity.SectionKey = dto.SectionKey;
-            entity.EnglishName = dto.EnglishName;
             entity.DisplayOrder = dto.DisplayOrder;
             entity.IsEnabled = dto.IsEnabled;
             entity.PlantGradePrefix = dto.PlantGradePrefix;
@@ -153,7 +149,6 @@ public class StandardWorkDayService : IStandardWorkDayService
             {
                 SectionName = dto.SectionName,
                 SectionKey = dto.SectionKey,
-                EnglishName = dto.EnglishName,
                 DisplayOrder = dto.DisplayOrder,
                 IsEnabled = dto.IsEnabled,
                 PlantGradePrefix = dto.PlantGradePrefix,

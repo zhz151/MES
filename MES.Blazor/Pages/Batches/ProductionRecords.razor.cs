@@ -61,6 +61,7 @@ public partial class ProductionRecords
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
         "Quantity", "Weight", "PostCutQuantity",
+        "FinishedCutLength", "FaceCutCount", "SoakTime",
     };
 
     // ========== ExcelFilter 筛选 ==========
@@ -110,7 +111,7 @@ public partial class ProductionRecords
         new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade",        FilterType = "string", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
         new() { Key = "Remark",            Label = "备注",       SortKey = "remark",            FilterType = "string", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
         new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource",        FilterType = "enum", Width = "80", GroupKey = 4, GroupName = "追溯信息",
-            EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
+            EnumOptions = DisplayHelper.GetDataSourceOptions() },
         new() { Key = "UpdatedTime",       Label = "更新日期",   SortKey = "updatedtime", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
     };
 
@@ -272,7 +273,15 @@ public partial class ProductionRecords
             _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
             {
                 Value = v,
-                Display = kvp.Key is "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" ? SectionDisplayHelper.GetSectionNameText(v) : v,
+                Display = kvp.Key switch
+                {
+                    "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v),
+                    "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(v),
+                    "ProductStatus" => DisplayHelper.GetProductStatusText(v),
+                    "LengthStatus" => DisplayHelper.GetLengthStatusText(v),
+                    "Shift" => DisplayHelper.GetShiftTypeText(v),
+                    _ => v
+                },
                 Count = 0
             }).ToList();
         }
@@ -597,7 +606,7 @@ public partial class ProductionRecords
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除工序 \"{item.ProcessName}\" 的生产记录吗？\n\n删除后数据将不可恢复！",
+            ["ContentText"] = $"确定要删除工序 \"{ProcessDisplayHelper.GetProcessNameText(item.ProcessName)}\" 的生产记录吗？\n\n删除后数据将不可恢复！",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });
@@ -661,7 +670,7 @@ public partial class ProductionRecords
                 builder.AddContent(0, item.ProductionMainNo);
                 break;
             case "ProcessName":
-                builder.AddContent(0, item.ProcessName);
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.ProcessName));
                 break;
             case "ManufacturingSpec":
                 builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec ?? ""));
@@ -724,12 +733,12 @@ public partial class ProductionRecords
                     builder.AddAttribute(3, "Class", "compact-input");
                     builder.AddAttribute(4, "ChildContent", (RenderFragment)(b =>
                     {
-                        foreach (var val in Enum.GetValues<ShiftType>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                         {
                             b.OpenComponent<MudSelectItem<ShiftType>>(0);
-                            b.AddAttribute(1, "Value", val);
+                            b.AddAttribute(1, "Value", Enum.Parse<ShiftType>(opt.Value));
                             b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
-                                b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                                b2.AddContent(0, opt.Display)));
                             b.CloseComponent();
                         }
                     }));
@@ -752,7 +761,7 @@ public partial class ProductionRecords
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.Quantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.Quantity));
                 }
                 break;
             case "Weight":
@@ -768,7 +777,7 @@ public partial class ProductionRecords
                 }
                 else
                 {
-                    builder.AddContent(0, $"{(int)(item.Weight ?? 0)}");
+                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsIntZeroAsEmpty(item.Weight));
                 }
                 break;
             case "SolutionTemperature":
@@ -819,17 +828,10 @@ public partial class ProductionRecords
                 break;
             case "ProductStatus":
                 {
-                    var color = item.ProductStatus switch
-                    {
-                        "成品" => Color.Success,
-                        "荒管" => Color.Primary,
-                        _ => Color.Default
-                    };
-                    var text = item.ProductStatus ?? "在制";
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
-                    builder.AddAttribute(2, "Color", color);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, text)));
+                    builder.AddAttribute(2, "Color", DisplayHelper.GetProductStatusColor(item.ProductStatus));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetProductStatusText(item.ProductStatus))));
                     builder.CloseComponent();
                 }
                 break;
@@ -862,7 +864,7 @@ public partial class ProductionRecords
                 }
                 break;
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus?.ToString()));
                 break;
             case "CuttingMultiple":
                 if (isEditing && cache != null)

@@ -27,6 +27,13 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
 
+    // ========== 分页汇总 ==========
+    private Dictionary<string, string> _pageSums = new();
+    private static readonly HashSet<string> _summableColumnKeys = new()
+    {
+        "RequiredQuantity", "RequiredWeight", "ReturnedQuantity", "ReturnedWeight",
+    };
+
     // ========== 选中行 ==========
     private bool _allSelected;
     private bool allSelected
@@ -76,13 +83,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
             new() { Key = "ReturnedQuantity",    Label = "回收支数",       SortKey = "returnedquantity",                       Width = "80" },
             new() { Key = "ReturnedWeight",      Label = "回收重量(kg)",   SortKey = "returnedweight",                         Width = "100" },
             new() { Key = "ProcessStatus",       Label = "执行状态",       SortKey = "processstatus",      FilterType = "enum",  Width = "100",
-                EnumOptions = new()
-                {
-                    new("Sent", EnumHelper.GetDisplayName(SubcontractOrderStatus.Sent)),
-                    new("PartialReturned", EnumHelper.GetDisplayName(SubcontractOrderStatus.PartialReturned)),
-                    new("Completed", EnumHelper.GetDisplayName(SubcontractOrderStatus.Completed)),
-                }
-            },
+                EnumOptions = DisplayHelper.GetEnumFilterOptions<SubcontractOrderStatus>() },
         };
     }
 
@@ -226,12 +227,66 @@ public partial class SubcontractReturnItems : IAsyncDisposable
             _totalCount = 0;
         }
 
+        ComputePageSums();
         await SaveState();
         return new TableData<SubcontractReturnItemListDto>
         {
             Items = _pageItems,
             TotalItems = _totalCount
         };
+    }
+
+    // ========== 分页汇总计算 ==========
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+
+        var props = typeof(SubcontractReturnItemListDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+
+        foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
+        {
+            if (!props.TryGetValue(col.Key, out var prop)) continue;
+
+            var type = prop.PropertyType;
+            try
+            {
+                if (type == typeof(int))
+                {
+                    var sum = _pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal))
+                {
+                    var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    _pageSums[col.Key] = sum.ToString("G29");
+                }
+                else if (type == typeof(int?))
+                {
+                    var sum = _pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(decimal?))
+                {
+                    var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    _pageSums[col.Key] = sum.ToString("G29");
+                }
+            }
+            catch
+            {
+                // ignore individual column sum errors
+            }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum))
+            return sum;
+        return "-";
     }
 
     private List<FilterDescriptor>? SerializeFilters()
@@ -385,7 +440,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
                 builder.AddContent(0, item.ReturnedWeight.ToString("G29"));
                 break;
             case "ProcessStatus":
-                var ps = EnumHelper.TryParse<SubcontractOrderStatus>(item.ProcessStatus);
+                var ps = item.ProcessStatus;
                 var psColor = ps.HasValue ? DisplayHelper.GetSubcontractOrderStatusColor(ps.Value) : Color.Default;
                 builder.OpenComponent(0, typeof(MudChip));
                 builder.AddAttribute(1, "Size", Size.Small);

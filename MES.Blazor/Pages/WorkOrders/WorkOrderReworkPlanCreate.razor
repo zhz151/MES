@@ -11,6 +11,7 @@
 @inject MaterialPlanService MaterialPlanService
 @inject MaterialPlanProcessGroupService ProcessGroupService
 @inject StandardWorkDayService StandardWorkDayService
+@inject ProcessDefinitionService ProcessDefinitionService
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
@@ -98,9 +99,9 @@
                                 <MudSelect T="string" Value="@pg.ProcessName"
                                            ValueChanged="@((string v) => { pg.ProcessName = v; ApplyProcessGroupDefaults(pg); })"
                                            Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                    @foreach (var pn in ProcessNames.All)
+                                    @foreach (var opt in _processOptions)
                                     {
-                                        <MudSelectItem Value="@pn" />
+                                        <MudSelectItem Value="@opt.ProcessKey">@opt.ProcessName</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudTd>
@@ -250,13 +251,13 @@
                                 <MudTd DataLabel="物料类型">@DisplayHelper.GetMaterialTypeText(context.MaterialType)</MudTd>
                                 <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
                                 <MudTd DataLabel="名义规格">@context.Specification</MudTd>
-                                <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>
+                                <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus?.ToString())</MudTd>
                                 <MudTd DataLabel="最小长度">@DisplayHelper.FormatNullableDecimal(context.MinLength)</MudTd>
                                 <MudTd DataLabel="最大长度">@DisplayHelper.FormatNullableDecimal(context.MaxLength)</MudTd>
                                 <MudTd DataLabel="剩余支数">@context.RemainingQuantity</MudTd>
                                 <MudTd DataLabel="剩余重量">@context.RemainingWeight.ToString("G29")</MudTd>
                                 <MudTd DataLabel="理论单支重">@DisplayHelper.FormatNullableDecimal(context.UnitWeight)</MudTd>
-                                <MudTd DataLabel="制造状态">@context.ManufacturingStatus</MudTd>
+                                <MudTd DataLabel="制造状态">@DisplayHelper.GetDeliveryStateText(context.ManufacturingStatus)</MudTd>
                                 <MudTd DataLabel="放置框架">@GetLocation(context)</MudTd>
                                 <MudTd DataLabel="投料制成倍" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))
@@ -422,6 +423,7 @@
 
     // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
     private List<SectionInfoDto> _sectionCols = new();
+    private List<ProcessInfoDto> _processOptions = new();
 
     private async Task LoadSectionColsAsync()
     {
@@ -514,6 +516,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadSectionColsAsync();
+        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
         try
         {
             var result = await WorkOrderService.GetByIdAsync(WorkOrderId);
@@ -642,7 +645,7 @@
     {
         _pendingProcessGroups.Add(new SavePlanProcessGroupItem
         {
-            ProcessName = "荒管处理",
+            ProcessName = ProcessKeys.RoughTubeProcessing,
             ManufacturingMultiple = 1
         });
         ApplyProcessGroupDefaults(_pendingProcessGroups.Last());
@@ -684,7 +687,7 @@
 
         switch (pg.ProcessName)
         {
-            case "荒管处理":
+            case ProcessKeys.RoughTubeProcessing:
                 pg.Straighten = 1;
                 pg.Cut = 1;
                 pg.Pickle = 1;
@@ -692,18 +695,18 @@
                 pg.OuterSpotGrinding = 1;
                 pg.Inspection = 1;
                 break;
-            case "在制修检":
+            case ProcessKeys.InProcessRepair:
                 pg.Solution = 1;
                 pg.Straighten = 1;
                 pg.Cut = 1;
                 pg.Pickle = 1;
                 pg.Inspection = 1;
                 break;
-            case "60冷轧":
-            case "50冷轧":
-            case "30冷轧":
-            case "20冷轧":
-            case "三辊冷轧":
+            case ProcessKeys.ColdRoll60:
+            case ProcessKeys.ColdRoll50:
+            case ProcessKeys.ColdRoll30:
+            case ProcessKeys.ColdRoll20:
+            case ProcessKeys.ThreeRollColdRoll:
                 pg.ColdRollDraw = 1;
                 pg.OilPipeCut = 1;
                 pg.Degrease = 1;
@@ -713,7 +716,7 @@
                 pg.Pickle = 1;
                 pg.Inspection = 1;
                 break;
-            case "冷拔":
+            case ProcessKeys.ColdDraw:
                 pg.ColdRollDraw = 1;
                 pg.Solution = 1;
                 pg.Straighten = 1;

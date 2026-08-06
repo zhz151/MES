@@ -98,6 +98,14 @@
                         <MudTd>@RenderCell(item, col)</MudTd>
                     }
                 </RowTemplate>
+                <FooterContent>
+                    <MudTd Class="col-footer-cell" Style="width:40px;padding:0 4px;"> </MudTd>
+                    <MudTd Class="col-footer-cell" Style="width:40px;padding:0 4px;"> </MudTd>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                    }
+                </FooterContent>
             </MudTable>
             </div>
         </MudCardContent>

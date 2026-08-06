@@ -36,7 +36,7 @@
             <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">总米数</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.FormatDecimal(WorkOrder.TotalMeters) m</MudText></div>
             <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">总重量</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.FormatDecimal(WorkOrder.TotalWeight) kg</MudText></div>
             <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">理论单支重</MudText><MudText Typo="Typo.body2" Class="mb-0">@(WorkOrder.UnitWeight?.ToString("G29") ?? "-") kg</MudText></div>
-            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">技术要求</MudText><MudText Typo="Typo.body2" Class="mb-0">@(WorkOrder.TechnicalRequirements == "Special" ? "特殊" : "常规")</MudText></div>
+            <div><MudText Typo="Typo.body2" Class="font-weight-bold mb-0" Style="color:#37474F;">技术要求</MudText><MudText Typo="Typo.body2" Class="mb-0">@DisplayHelper.GetTechnicalRequirementsText(WorkOrder.TechnicalRequirements)</MudText></div>
         </div>
 
         <MudDivider Class="my-3" />

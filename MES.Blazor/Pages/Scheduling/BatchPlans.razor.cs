@@ -5,6 +5,8 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Core.Enums;
+using MES.Core.Constants;
+using MES.Core.Helpers;
 using MES.Blazor.Services;
 using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
@@ -133,6 +135,20 @@ public partial class BatchPlans
     {
         "CurrentValidWeight", "MinLength", "MaxLength",
     };
+    private int _lastSummedPage = -1;
+    private int _lastSummedCount = -1;
+    private int _lastSummedPageSize = -1;
+
+    // ========== 字典下拉选项（配置表动态加载，失败兜底静态 KeyToChinese）==========
+    private List<(string Value, string Text)> _flowTargetOptions =
+        FlowTargetKeys.KeyToChinese.Select(kv => (kv.Key, kv.Value)).ToList();
+
+    private async Task LoadDictOptionsAsync()
+    {
+        var flowTarget = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.FlowTargetKey);
+        if (flowTarget.Success && flowTarget.Data is { Count: > 0 })
+            _flowTargetOptions = flowTarget.Data.Select(t => (t.Value, t.DisplayName)).ToList();
+    }
 
     /// <summary>
     /// 获取可在列显隐选择器中切换的列（排除永久隐藏字段）
@@ -191,8 +207,8 @@ public partial class BatchPlans
             new() { Key = "NextNextCR_BilletSpec",  Label = "下下层来料规格", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)", Visible = false },
             new() { Key = "NextNextCR_RollingSpec", Label = "下下层在轧规格", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)", Visible = false },
             new() { Key = "NextNextCR_IsFinished",  Label = "下下层末道",    FilterType = "boolean", Width = "80",  GroupKey = 9, GroupName = "冷轧排程(下下层)", Visible = false },
-            new() { Key = "CR_CompletionType",      Label = "在轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 7, GroupName = "冷轧排程(本层匹配)", EnumOptions = new() { new("All","全量"), new("Urgent","特急单"), new("Partial2","急单"), new("Partial3","含B顺") }, DisplayConverter = v => DisplayHelper.GetCompletionTypeText(v as string) },
-            new() { Key = "CR_RollType",            Label = "待轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)", EnumOptions = new() { new("All","全量"), new("Urgent","特急单"), new("Partial2","急单"), new("Partial3","含B顺") }, DisplayConverter = v => DisplayHelper.GetRollTypeText(v as string) },
+            new() { Key = "CR_CompletionType",      Label = "在轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 7, GroupName = "冷轧排程(本层匹配)", EnumOptions = DisplayHelper.GetCompletionTypeOptions(), DisplayConverter = v => DisplayHelper.GetCompletionTypeText(v as string) },
+            new() { Key = "CR_RollType",            Label = "待轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)", EnumOptions = DisplayHelper.GetRollTypeOptions(), DisplayConverter = v => DisplayHelper.GetRollTypeText(v as string) },
             new() { Key = "CR_SchedMachineNo",      Label = "待轧设备号",   FilterType = "string", Width = "100", GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
         };
 
@@ -200,7 +216,7 @@ public partial class BatchPlans
         var g4 = new List<ColumnDef>
         {
             new() { Key = "UrgencyLevel",               Label = "工单紧急性",    SortKey = "UrgencyLevel",               FilterType = "string", Width = "110", GroupKey = 4, GroupName = "批次关注" },
-            new() { Key = "ScheduleStage",               Label = "计划状态",     SortKey = "ScheduleStage",               FilterType = "enum", Width = "110", EnumOptions = new() { new("-1","存错-无此工单"), new("0","工单完成"), new("1","原料锁定"), new("2","生产执行"), new("3","成品检验"), new("4","非工单批次") }, GroupKey = 4, GroupName = "批次关注", DisplayConverter = v => v is int s ? s switch { -1 => "存错-无此工单", 0 => "工单完成", 1 => "原料锁定", 2 => "生产执行", 3 => "成品检验", 4 => "非工单批次", _ => null } : null },
+            new() { Key = "ScheduleStage",               Label = "计划状态",     SortKey = "ScheduleStage",               FilterType = "enum", Width = "110", EnumOptions = new List<EnumOption> { new("-1","存错-无此工单"), new("4","非工单批次") }.Concat(DisplayHelper.GetPlanScheduleStageOptions()).ToList(), GroupKey = 4, GroupName = "批次关注", DisplayConverter = v => v is int s ? s switch { -1 => "存错-无此工单", 4 => "非工单批次", _ => IntStatusDisplayHelper.GetPlanScheduleStageText(s) } : null },
             new() { Key = "MainNoAttentionProcess",             Label = "主号关注工序",   SortKey = "MainNoAttentionProcess",          FilterType = "string", Width = "130", GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "AttentionProcessSectionSequence",    Label = "相应工段序",   SortKey = "AttentionProcessSectionSequence", Width = "100", GroupKey = 4, GroupName = "批次关注" },
             new() { Key = "ProductionFlowProperty",             Label = "生产流转性",    SortKey = "ProductionFlowProperty",           FilterType = "string", Width = "100", GroupKey = 4, GroupName = "批次关注" },
@@ -272,6 +288,13 @@ public partial class BatchPlans
         _pageSums.Clear();
         if (_filteredItems.Count == 0) return;
 
+        // 按当前页显示行汇总（Items 模式，取 MudTable 当前页切片）
+        var page = table?.CurrentPage ?? 0;
+        var rowsPerPage = table?.RowsPerPage ?? _pageSize;
+        if (rowsPerPage <= 0) rowsPerPage = _pageSize;
+        var pageItems = _filteredItems.Skip(page * rowsPerPage).Take(rowsPerPage).ToList();
+        if (pageItems.Count == 0) return;
+
         var props = typeof(BatchPlanDto)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
             .ToDictionary(p => p.Name, p => p);
@@ -285,22 +308,22 @@ public partial class BatchPlans
             {
                 if (type == typeof(int))
                 {
-                    var sum = _filteredItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
+                    var sum = pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
                     _pageSums[col.Key] = sum.ToString();
                 }
                 else if (type == typeof(decimal))
                 {
-                    var sum = _filteredItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
+                    var sum = pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
                     _pageSums[col.Key] = ((int)sum).ToString();
                 }
                 else if (type == typeof(int?))
                 {
-                    var sum = _filteredItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    var sum = pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
                     _pageSums[col.Key] = sum.ToString();
                 }
                 else if (type == typeof(decimal?))
                 {
-                    var sum = _filteredItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
+                    var sum = pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
                     _pageSums[col.Key] = ((int)sum).ToString();
                 }
             }
@@ -387,7 +410,20 @@ public partial class BatchPlans
                     .Where(v => v != null)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(v => v)
-                    .Select(v => new ExcelFilterOption { Value = v!, Display = col.Key is "CurrentSectionName" or "PendingSectionName" ? SectionDisplayHelper.GetSectionNameText(v!) : v!, Count = 0 })
+                    .Select(v => new ExcelFilterOption
+                    {
+                        Value = v!,
+                        Display = (col.Key switch
+                        {
+                            "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v!),
+                            "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" or "PendingProcess" or "MainNoAttentionProcess" or "PlanProductionAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(v!),
+                            "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,v!),
+                            "ProductionFlowProperty" or "PlanProductionFlowProperty" => DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey,v!),
+                            "FlowTarget" or "PlanFlowTarget" => DictValueDisplayHelper.GetText(DictValueDefaults.FlowTargetKey,v!),
+                            _ => v!
+                        }) ?? v!,
+                        Count = 0
+                    })
                     .ToList();
                 _filterContextOptions[col.Key] = distinct;
             }
@@ -401,9 +437,9 @@ public partial class BatchPlans
         "PlantGrade" => item.PlantGrade,
         "WorkOrderNo" => item.WorkOrderNo,
         "Salesman" => item.Salesman,
-        "DeliveryState" => item.DeliveryState.HasValue ? DisplayHelper.GetDeliveryStateText(item.DeliveryState.Value) : null,
+        "DeliveryState" => item.DeliveryState.HasValue ? item.DeliveryState.Value.ToString() : null,
         "Specification" => item.Specification,
-        "LengthStatus" => item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : null,
+        "LengthStatus" => item.LengthStatus.HasValue ? item.LengthStatus.Value.ToString() : null,
         "CurrentSectionName" => item.CurrentSectionName,
         "PendingProcess" => item.PendingProcess,
         "PendingSectionName" => item.PendingSectionName,
@@ -651,6 +687,8 @@ public partial class BatchPlans
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadDictOptionsAsync();
+
         _allColumns = GetAllColumnDefs();
 
         // 从 ColumnPrefsService 恢复列顺序和显隐
@@ -753,6 +791,22 @@ public partial class BatchPlans
             await JS.InvokeVoidAsync("initGroupHeaders", "#batch-plan-list-table");
         }
         catch { }
+
+        // 分页导航/页大小切换后重算当前页汇总（pager 操作只改 CurrentPage/RowsPerPage，不触发 ApplyFiltersAndSort）
+        if (table != null && _filteredItems.Count > 0)
+        {
+            var page = table.CurrentPage;
+            var count = _filteredItems.Count;
+            var rowsPerPage = table.RowsPerPage;
+            if (page != _lastSummedPage || count != _lastSummedCount || rowsPerPage != _lastSummedPageSize)
+            {
+                _lastSummedPage = page;
+                _lastSummedCount = count;
+                _lastSummedPageSize = rowsPerPage;
+                ComputePageSums();
+                StateHasChanged();
+            }
+        }
     }
 
     // ========== Tab 汇总辅助方法 ==========
@@ -786,7 +840,7 @@ public partial class BatchPlans
                 (x.Salesman != null && x.Salesman.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.Specification != null && x.Specification.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.PendingProcess != null && x.PendingProcess.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.PendingSectionName != null && x.PendingSectionName.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PendingSectionName != null && (SectionDisplayHelper.GetSectionNameText(x.PendingSectionName).Contains(kw, StringComparison.OrdinalIgnoreCase) || x.PendingSectionName.Contains(kw, StringComparison.OrdinalIgnoreCase))) ||
                 (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.ProductionFlowProperty != null && x.ProductionFlowProperty.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.MainNoAttentionProcess != null && x.MainNoAttentionProcess.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
@@ -802,7 +856,7 @@ public partial class BatchPlans
                 (x.CR_SchedMachineNo != null && x.CR_SchedMachineNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.DeliveryState != null && DisplayHelper.GetDeliveryStateText(x.DeliveryState.Value).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.LengthStatus != null && DisplayHelper.GetLengthStatusText(x.LengthStatus.Value).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.CurrentSectionName != null && x.CurrentSectionName.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.CurrentSectionName != null && (SectionDisplayHelper.GetSectionNameText(x.CurrentSectionName).Contains(kw, StringComparison.OrdinalIgnoreCase) || x.CurrentSectionName.Contains(kw, StringComparison.OrdinalIgnoreCase))) ||
                 (x.PendingSpec != null && x.PendingSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.PendingEquipment != null && x.PendingEquipment.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.OuterDiameterSpan != null && x.OuterDiameterSpan.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
@@ -975,13 +1029,13 @@ public partial class BatchPlans
                 builder.AddContent(0, item.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "-");
                 break;
             case "CurrentSectionName":
-                builder.AddContent(0, item.CurrentSectionName ?? "-");
+                builder.AddContent(0, string.IsNullOrEmpty(item.CurrentSectionName) ? "-" : SectionDisplayHelper.GetSectionNameText(item.CurrentSectionName));
                 break;
             case "PendingProcess":
-                builder.AddContent(0, item.PendingProcess ?? "-");
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.PendingProcess ?? "-"));
                 break;
             case "PendingSectionName":
-                builder.AddContent(0, item.PendingSectionName ?? "-");
+                builder.AddContent(0, string.IsNullOrEmpty(item.PendingSectionName) ? "-" : SectionDisplayHelper.GetSectionNameText(item.PendingSectionName));
                 break;
             case "PendingSpec":
                 builder.AddContent(0, item.PendingSpec ?? "-");
@@ -997,12 +1051,12 @@ public partial class BatchPlans
             case "UrgencyLevel":
                 var urgencyColor = item.UrgencyLevel switch
                 {
-                    "A+急" => Color.Error,
-                    "A急" => Color.Warning,
-                    "B顺" => Color.Info,
-                    "C缓" => Color.Default,
-                    "D缓" => Color.Default,
-                    "E停" => Color.Default,
+                    UrgencyLevelKeys.APlusUrgent => Color.Error,
+                    UrgencyLevelKeys.AUrgent => Color.Warning,
+                    UrgencyLevelKeys.BOrder => Color.Info,
+                    UrgencyLevelKeys.CSlow => Color.Default,
+                    UrgencyLevelKeys.DSlow => Color.Default,
+                    UrgencyLevelKeys.EPaused => Color.Default,
                     _ => Color.Default
                 };
                 if (item.UrgencyLevel != null)
@@ -1010,7 +1064,7 @@ public partial class BatchPlans
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
                     builder.AddAttribute(2, "Color", urgencyColor);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.UrgencyLevel)));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,item.UrgencyLevel))));
                     builder.CloseComponent();
                 }
                 else
@@ -1032,12 +1086,8 @@ public partial class BatchPlans
                 var stageText = item.ScheduleStage switch
                 {
                     -1 => "存错-无此工单",
-                    0 => "工单完成",
-                    1 => "原料锁定",
-                    2 => "生产执行",
-                    3 => "成品检验",
                     4 => "非工单批次",
-                    _ => "未知"
+                    _ => IntStatusDisplayHelper.GetPlanScheduleStageText(item.ScheduleStage)
                 };
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
@@ -1046,7 +1096,7 @@ public partial class BatchPlans
                 builder.CloseComponent();
                 break;
             case "MainNoAttentionProcess":
-                builder.AddContent(0, item.MainNoAttentionProcess ?? "-");
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.MainNoAttentionProcess ?? "-"));
                 break;
             case "IsKeyBatch":
                 if (item.IsKeyBatch)
@@ -1131,10 +1181,10 @@ public partial class BatchPlans
                 builder.CloseComponent();
                 break;
             case "FlowTarget":
-                builder.AddContent(0, item.FlowTarget ?? "-");
+                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.FlowTargetKey,item.FlowTarget) ?? "-");
                 break;
             case "FlowCRType":
-                builder.AddContent(0, item.FlowCRType ?? "-");
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.FlowCRType ?? "-"));
                 break;
             case "OuterDiameterSpan":
                 builder.AddContent(0, item.OuterDiameterSpan ?? "-");
@@ -1148,7 +1198,7 @@ public partial class BatchPlans
 
             // G5: 冷轧排程
             case "CurrentCR_ProcessType":
-                builder.AddContent(0, item.CurrentCR_ProcessType ?? "-");
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.CurrentCR_ProcessType ?? "-"));
                 break;
             case "CurrentCR_BilletSpec":
                 builder.AddContent(0, item.CurrentCR_BilletSpec ?? "-");
@@ -1160,7 +1210,7 @@ public partial class BatchPlans
                 builder.AddContent(0, item.CurrentCR_IsFinished ? "是" : "否");
                 break;
             case "NextCR_ProcessType":
-                builder.AddContent(0, item.NextCR_ProcessType ?? "-");
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.NextCR_ProcessType ?? "-"));
                 break;
             case "NextCR_BilletSpec":
                 builder.AddContent(0, item.NextCR_BilletSpec ?? "-");
@@ -1172,7 +1222,7 @@ public partial class BatchPlans
                 builder.AddContent(0, item.NextCR_IsFinished ? "是" : "否");
                 break;
             case "NextNextCR_ProcessType":
-                builder.AddContent(0, item.NextNextCR_ProcessType ?? "-");
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.NextNextCR_ProcessType ?? "-"));
                 break;
             case "NextNextCR_BilletSpec":
                 builder.AddContent(0, item.NextNextCR_BilletSpec ?? "-");
@@ -1197,7 +1247,7 @@ public partial class BatchPlans
 
             // G4: 生产流转性
             case "ProductionFlowProperty":
-                builder.AddContent(0, item.ProductionFlowProperty ?? "-");
+                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey,item.ProductionFlowProperty) ?? "-");
                 break;
             case "AttentionProcessSectionSequence":
                 builder.AddContent(0, item.AttentionProcessSectionSequence?.ToString() ?? "-");
@@ -1332,7 +1382,7 @@ public partial class BatchPlans
                 }
                 break;
             case "PlanFlowTarget":
-                builder.OpenComponent<MudTextField<string>>(0);
+                builder.OpenComponent<MudSelect<string>>(0);
                 builder.AddAttribute(1, "Value", item.PlanFlowTarget ?? "");
                 builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, async v =>
                 {
@@ -1343,6 +1393,20 @@ public partial class BatchPlans
                 builder.AddAttribute(4, "Variant", Variant.Outlined);
                 builder.AddAttribute(5, "Size", Size.Small);
                 builder.AddAttribute(6, "Class", "compact-select");
+                builder.AddAttribute(7, "ChildContent", (RenderFragment)(b2 =>
+                {
+                    b2.OpenComponent<MudSelectItem<string>>(0);
+                    b2.AddAttribute(1, "Value", "");
+                    b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "空值")));
+                    b2.CloseComponent();
+                    foreach (var opt in _flowTargetOptions)
+                    {
+                        b2.OpenComponent<MudSelectItem<string>>(0);
+                        b2.AddAttribute(1, "Value", opt.Value);
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
+                        b2.CloseComponent();
+                    }
+                }));
                 builder.CloseComponent();
                 break;
             case "PlanFlowCRType":
@@ -1606,14 +1670,14 @@ public partial class BatchPlans
             "MinLength" => item.MinLength,
             "MaxLength" => item.MaxLength,
             "CurrentExecDate" => item.CurrentExecDate,
-            "CurrentSectionName" => item.CurrentSectionName ?? "",
-            "PendingProcess" => item.PendingProcess ?? "",
-            "PendingSectionName" => item.PendingSectionName ?? "",
+            "CurrentSectionName" => SectionDisplayHelper.GetSectionNameText(item.CurrentSectionName),
+            "PendingProcess" => ProcessDisplayHelper.GetProcessNameText(item.PendingProcess),
+            "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(item.PendingSectionName),
             "PendingSpec" => item.PendingSpec ?? "",
             "PendingEquipment" => item.PendingEquipment ?? "",
             "ExecutionSequence" => item.ExecutionSequence,
-            "UrgencyLevel" => item.UrgencyLevel ?? "",
-            "MainNoAttentionProcess" => item.MainNoAttentionProcess ?? "",
+            "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,item.UrgencyLevel) ?? "",
+            "MainNoAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(item.MainNoAttentionProcess),
             "AttentionProcessSectionSequence" => item.AttentionProcessSectionSequence,
             "IsKeyBatch" => item.IsKeyBatch,
             "IsUrging" => item.IsUrging,
@@ -1622,40 +1686,40 @@ public partial class BatchPlans
             "AdjustmentRemark" => item.AdjustmentRemark ?? "",
             "IsFlow" => item.IsFlow,
             "FlowLevel" => item.FlowLevel,
-            "FlowTarget" => item.FlowTarget ?? "",
-            "FlowCRType" => item.FlowCRType ?? "",
+            "FlowTarget" => DictValueDisplayHelper.GetText(DictValueDefaults.FlowTargetKey,item.FlowTarget) ?? "",
+            "FlowCRType" => ProcessDisplayHelper.GetProcessNameText(item.FlowCRType),
             "OuterDiameterSpan" => item.OuterDiameterSpan ?? "",
             "FlowExecSpec" => item.FlowExecSpec ?? "",
             "TargetSequence" => item.TargetSequence,
             "OriginalDiff" => item.OriginalDiff,
             "CurrentDiff" => item.CurrentDiff,
             "IsExecuted" => item.IsExecuted,
-            "CurrentCR_ProcessType" => item.CurrentCR_ProcessType ?? "",
+            "CurrentCR_ProcessType" => ProcessDisplayHelper.GetProcessNameText(item.CurrentCR_ProcessType),
             "CurrentCR_BilletSpec" => item.CurrentCR_BilletSpec ?? "",
             "CurrentCR_RollingSpec" => item.CurrentCR_RollingSpec ?? "",
             "CurrentCR_IsFinished" => item.CurrentCR_IsFinished,
-            "NextCR_ProcessType" => item.NextCR_ProcessType ?? "",
+            "NextCR_ProcessType" => ProcessDisplayHelper.GetProcessNameText(item.NextCR_ProcessType),
             "NextCR_BilletSpec" => item.NextCR_BilletSpec ?? "",
             "NextCR_RollingSpec" => item.NextCR_RollingSpec ?? "",
             "NextCR_IsFinished" => item.NextCR_IsFinished,
-            "NextNextCR_ProcessType" => item.NextNextCR_ProcessType ?? "",
+            "NextNextCR_ProcessType" => ProcessDisplayHelper.GetProcessNameText(item.NextNextCR_ProcessType),
             "NextNextCR_BilletSpec" => item.NextNextCR_BilletSpec ?? "",
             "NextNextCR_RollingSpec" => item.NextNextCR_RollingSpec ?? "",
             "NextNextCR_IsFinished" => item.NextNextCR_IsFinished,
-            "CR_CompletionType" => item.CR_CompletionType ?? "",
-            "CR_RollType" => item.CR_RollType ?? "",
+            "CR_CompletionType" => DisplayHelper.GetCompletionTypeText(item.CR_CompletionType),
+            "CR_RollType" => DisplayHelper.GetRollTypeText(item.CR_RollType),
             "CR_SchedMachineNo" => item.CR_SchedMachineNo ?? "",
             "PlanIsFlow" => item.PlanIsFlow,
             "PlanFlowLevel" => item.PlanFlowLevel,
-            "PlanFlowTarget" => item.PlanFlowTarget ?? "",
-            "PlanFlowCRType" => item.PlanFlowCRType ?? "",
+            "PlanFlowTarget" => DictValueDisplayHelper.GetText(DictValueDefaults.FlowTargetKey,item.PlanFlowTarget) ?? "",
+            "PlanFlowCRType" => ProcessDisplayHelper.GetProcessNameText(item.PlanFlowCRType),
             "PlanOuterDiameterSpan" => item.PlanOuterDiameterSpan ?? "",
             "PlanFlowExecSpec" => item.PlanFlowExecSpec ?? "",
             "PlanExecutionSequence" => item.PlanExecutionSequence,
             "PlanTargetSequence" => item.PlanTargetSequence,
             "IsGrabOrder" => item.IsGrabOrder,
             "PlanRemark" => item.PlanRemark ?? "",
-            "ProductionFlowProperty" => item.ProductionFlowProperty ?? "",
+            "ProductionFlowProperty" => DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey,item.ProductionFlowProperty) ?? "",
             "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays,
             _ => ""
         })!;

@@ -28,7 +28,7 @@ public class PendingDeliveryItemDto
     /// <summary>名义规格</summary>
     public string Specification { get; set; } = null!;
     /// <summary>长度状态</summary>
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
     /// <summary>最小长度(mm)</summary>
     public decimal? MinLength { get; set; }
     /// <summary>最大长度(mm)</summary>
@@ -60,7 +60,7 @@ public class PendingDeliveryItemDto
     /// <summary>产品标准</summary>
     public string? ProductStandard { get; set; }
     /// <summary>交货状态</summary>
-    public string? DeliveryStatus { get; set; }
+    public DeliveryState? DeliveryStatus { get; set; }
     /// <summary>标准牌号</summary>
     public string? StandardGrade { get; set; }
 }

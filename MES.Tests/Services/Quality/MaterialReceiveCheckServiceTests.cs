@@ -138,7 +138,7 @@ public class MaterialReceiveCheckServiceTests : TestBase
             BatchNo = "BATCH001",
             ReceiveDate = DateTime.Today
         });
-        created.InspectionType.Should().Be(nameof(InspectionType.FormalInspection));
+        created.InspectionType.Should().Be(MES.Core.Enums.InspectionType.FormalInspection);
 
         // 工艺卡变更：① 新增更深检验工序组(Inspection=2)，原工序组不再是最后检验节点
         ctx.Set<ProcessGroup>().Add(new ProcessGroup
@@ -161,7 +161,7 @@ public class MaterialReceiveCheckServiceTests : TestBase
             ReceiveDate = DateTime.Today
         });
 
-        result.InspectionType.Should().Be(nameof(InspectionType.PreInspection));
+        result.InspectionType.Should().Be(MES.Core.Enums.InspectionType.PreInspection);
         result.ProcessName.Should().Be("外观检验"); // 工序冗余字段已从工序组刷新
         result.SequenceNumber.Should().Be(1); // 执行序=检验深度 Inspection=1，而非工序组执行顺序
     }
@@ -179,7 +179,7 @@ public class MaterialReceiveCheckServiceTests : TestBase
             BatchNo = "BATCH001",
             ReceiveDate = DateTime.Today
         });
-        created.InspectionType.Should().Be(nameof(InspectionType.FormalInspection));
+        created.InspectionType.Should().Be(MES.Core.Enums.InspectionType.FormalInspection);
 
         // 新增更深检验工序组(Inspection=2)「终检」（执行顺序 SequenceNumber=5 与检验深度 Inspection=2 刻意不同，
         // 用于验证「执行序」取的是检验深度 Inspection 而非工序组执行顺序），原工序组降级为非最后节点
@@ -216,7 +216,7 @@ public class MaterialReceiveCheckServiceTests : TestBase
         result.ProcessGroupId.Should().Be(finalPg.Id);
         result.ProcessName.Should().Be("终检");
         result.SequenceNumber.Should().Be(finalPg.Inspection!.Value); // 执行序=检验深度 Inspection，而非工序组执行顺序
-        result.InspectionType.Should().Be(nameof(InspectionType.FormalInspection)); // 终检为最深检验节点
+        result.InspectionType.Should().Be(MES.Core.Enums.InspectionType.FormalInspection); // 终检为最深检验节点
 
         // 重选到非检验工序组 → 拒绝
         var nonInspPg = await ctx.Set<ProcessGroup>().FirstAsync(pg => pg.BatchNo == batch.BatchNo && pg.ProcessName == "冷拔");

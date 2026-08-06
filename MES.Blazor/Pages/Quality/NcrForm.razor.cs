@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MES.Blazor.Helpers;
 using MES.Blazor.Services;
+using MES.Core.Constants;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Shared.Constants;
 using MES.Core.DTOs.Quality;
 
@@ -106,12 +108,7 @@ public partial class NcrForm
             }
 
             // 反馈部门 = 来源 + 检验项目（中文化）
-            var sourceText = sourceType switch
-            {
-                "ProcessInspection" => "过程检验",
-                "FinalInspection" => "成品检验",
-                _ => ""
-            };
+            var sourceText = EnumHelper.GetDisplayName<ReportTemplateType>(sourceType);
             var itemText = GetInspectionItemDisplay(inspectionItem, sourceType);
             _formData.ReportDepartment = string.IsNullOrEmpty(itemText) ? sourceText : $"{sourceText}-{itemText}";
 
@@ -124,7 +121,7 @@ public partial class NcrForm
             // 钢管类别
             if (sourceType == "ProcessInspection")
             {
-                _formData.PipeCategory = processName?.Contains("荒管处理") == true
+                _formData.PipeCategory = string.Equals(processName, ProcessKeys.RoughTubeProcessing, StringComparison.OrdinalIgnoreCase)
                     ? MaterialType.RoughTube
                     : MaterialType.WorkInProgress;
             }
@@ -179,7 +176,7 @@ public partial class NcrForm
             // 钢管类别
             if (item.SourceType == "ProcessInspection")
             {
-                _formData.PipeCategory = item.ProcessName?.Contains("荒管处理") == true
+                _formData.PipeCategory = string.Equals(item.ProcessName, ProcessKeys.RoughTubeProcessing, StringComparison.OrdinalIgnoreCase)
                     ? MaterialType.RoughTube
                     : MaterialType.WorkInProgress;
             }
@@ -206,18 +203,9 @@ public partial class NcrForm
 
     private static MaterialType MapMaterialNameToPipeCategory(string? materialName)
     {
-        if (string.IsNullOrEmpty(materialName)) return MaterialType.RoughTube;
-
-        // 根据物料名称映射钢管类别
-        if (materialName.Contains("荒管")) return MaterialType.RoughTube;
-        if (materialName.Contains("在制")) return MaterialType.WorkInProgress;
-        if (materialName.Contains("备料")) return MaterialType.Finished;
-        if (materialName.Contains("余库")) return MaterialType.Surplus;
-        if (materialName.Contains("临界")) return MaterialType.CriticalFinished;
-        if (materialName.Contains("成品")) return MaterialType.OrderFinished;
-        if (materialName.Contains("特定") || materialName.Contains("特殊")) return MaterialType.SpecialDeliveryStatus;
-
-        return MaterialType.RoughTube;
+        // ManufacturingItem 存储 MaterialType 枚举英文名，直接解析
+        if (string.IsNullOrEmpty(materialName)) return MaterialType.WorkInProgress;
+        return Enum.TryParse<MaterialType>(materialName, true, out var mt) ? mt : MaterialType.WorkInProgress;
     }
 
     private async Task LoadExistingAsync()
@@ -427,12 +415,7 @@ public partial class NcrForm
 
     private string GetStatusText(NcrStatus status) => DisplayHelper.GetNcrStatusText(status);
 
-    private static string GetSourceTypeText(string sourceType) => sourceType switch
-    {
-        "ProcessInspection" => "过程检验",
-        "FinalInspection" => "成品检验",
-        _ => sourceType
-    };
+    private static string GetSourceTypeText(string sourceType) => EnumHelper.GetDisplayName<ReportTemplateType>(sourceType);
 
     private static string GetDisposalMethodText(DisposalMethod method) => DisplayHelper.GetDisposalMethodText(method);
 

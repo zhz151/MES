@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
 using MES.Shared.Constants;
+using MES.Core.Helpers;
 using MES.Core.DTOs.Equipment;
 using MES.Core.Interfaces.Equipment;
 
@@ -47,11 +48,11 @@ public class EquipmentController : ControllerBase
             Keyword = keyword,
             SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
             IsDescending = isDescending,
-            LifecycleStatus = lifecycleStatus,
-            UsageType = usageType,
-            RunningStatus = runningStatus,
-            InspectionStatus = inspectionStatus,
-            MaintStatus = maintStatus,
+            LifecycleStatus = EnumHelper.TryParse<MES.Core.Enums.LifecycleStatus>(lifecycleStatus),
+            UsageType = EnumHelper.TryParse<MES.Core.Enums.UsageType>(usageType),
+            RunningStatus = EnumHelper.TryParse<MES.Core.Enums.RunningStatus>(runningStatus),
+            InspectionStatus = EnumHelper.TryParse<MES.Core.Enums.EquipmentTaskStatus>(inspectionStatus),
+            MaintStatus = EnumHelper.TryParse<MES.Core.Enums.EquipmentTaskStatus>(maintStatus),
             Location = location,
             RelatedSection = relatedSection
         };

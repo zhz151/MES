@@ -214,7 +214,7 @@
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                         _prevGk3 = col.GroupKey;
                         var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
-                        <MudTd Class="@_footerClass" Style="@($"width: {col.Width}px")">
+                        <MudTd Class="@_footerClass">
                             <span class="col-footer-sum">@RenderFooterCell(col)</span>
                         </MudTd>
                     }

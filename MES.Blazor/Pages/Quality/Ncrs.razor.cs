@@ -5,6 +5,7 @@ using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
@@ -119,10 +120,7 @@ public partial class Ncrs
         // G2: 不合格品处置
         new() { Key = "DisposalMethod",       Label = "处置方式",    SortKey = "disposalmethod",     FilterType = "enum",  Width = "100",
                GroupKey = 2, GroupName = "G2 不合格品处置",
-               EnumOptions = new List<EnumOption>
-               {
-                   new("Rework", "返整"), new("WarehouseEntry", "入库"), new("Scrap", "报废"),
-               } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<DisposalMethod>() },
         new() { Key = "DisposalIsCompleted",  Label = "处置完结",    SortKey = "disposaliscompleted", FilterType = "boolean", Width = "70",
                GroupKey = 2, GroupName = "G2 不合格品处置",
                BoolTrueLabel = "是", BoolFalseLabel = "否" },
@@ -134,7 +132,7 @@ public partial class Ncrs
         // G3: 原因分析
         new() { Key = "Severity",             Label = "严重程度",    SortKey = "severity",           FilterType = "enum",   Width = "80",
                GroupKey = 3, GroupName = "G3 原因分析",
-               EnumOptions = new List<EnumOption> { new("Critical", "严重"), new("General", "一般") } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<SeverityLevel>() },
         new() { Key = "RootCauseAnalysis",    Label = "原因分析",    SortKey = "rootcauseanalysis",   FilterType = "string", Width = "150",
                GroupKey = 3, GroupName = "G3 原因分析" },
         new() { Key = "AnalysisConfirmer",    Label = "分析确认人",  SortKey = "analysisconfirmer",   FilterType = "string", Width = "100",
@@ -145,12 +143,7 @@ public partial class Ncrs
         // G4: 责任人及处理
         new() { Key = "ResponsibilityCategory", Label = "责任类别",  SortKey = "responsibilitycategory", FilterType = "enum", Width = "110",
                GroupKey = 4, GroupName = "G4 责任人及处理",
-               EnumOptions = new List<EnumOption>
-               {
-                   new("ProductionInternal", "生产-厂内"), new("ProductionOutsource", "生产-外协"),
-                   new("MaterialTubeBlank", "原料-荒管"), new("MaterialPurchased", "原料-外购成品"),
-                   new("MaterialSurplus", "原料-余库料"),
-               } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<ResponsibilityCategory>() },
         new() { Key = "ResponsibleDept",      Label = "责任部门",    SortKey = "responsibledept",     FilterType = "string", Width = "120",
                GroupKey = 4, GroupName = "G4 责任人及处理" },
         new() { Key = "ResponsiblePerson",    Label = "责任人",      SortKey = "responsibleperson",   FilterType = "string", Width = "80",
@@ -178,10 +171,7 @@ public partial class Ncrs
                GroupKey = 5, GroupName = "G5 纠正预防措施" },
         new() { Key = "VerifyResult",         Label = "验证结论",    SortKey = "verifyresult",        FilterType = "enum",   Width = "100",
                GroupKey = 5, GroupName = "G5 纠正预防措施",
-               EnumOptions = new List<EnumOption>
-               {
-                   new("Passed", "通过"), new("NeedsRectification", "需整改"), new("NotApplicable", "不适用"),
-               } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<VerifyResult>() },
         new() { Key = "ActionResult",         Label = "结果判定",    SortKey = "actionresult",        FilterType = "string", Width = "120",
                GroupKey = 5, GroupName = "G5 纠正预防措施" },
 
@@ -648,17 +638,13 @@ public partial class Ncrs
             $"&defectDescription={Uri.EscapeDataString(item.DefectDescription ?? "")}");
     }
 
-    private static string GetSourceTypeText(string sourceType) => sourceType switch
-    {
-        "ProcessInspection" => "过程检验",
-        "FinalInspection" => "成品检验",
-        _ => sourceType
-    };
+    private static string GetSourceTypeText(string sourceType) => EnumHelper.GetDisplayName<ReportTemplateType>(sourceType);
 
     private static string GetInspectionItemDisplay(string? item, string? sourceType)
     {
+        _ = sourceType;
         if (string.IsNullOrEmpty(item)) return "";
-        if (sourceType == "FinalInspection" && Enum.TryParse<InspectionItem>(item, out var enumItem))
+        if (Enum.TryParse<InspectionItem>(item, true, out var enumItem))
             return DisplayHelper.GetInspectionItemText(enumItem);
         return item;
     }

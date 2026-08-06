@@ -8,7 +8,6 @@ public class StandardWorkDayDto
     public int Id { get; set; }
     public string SectionName { get; set; } = string.Empty;
     public string? SectionKey { get; set; }
-    public string? EnglishName { get; set; }
     public int DisplayOrder { get; set; }
     public bool IsEnabled { get; set; } = true;
     public string? PlantGradePrefix { get; set; }

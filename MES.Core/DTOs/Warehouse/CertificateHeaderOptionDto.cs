@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Warehouse;
 
 /// <summary>
@@ -15,5 +17,5 @@ public class CertificateHeaderOptionDto
     public string? ProductStandard { get; set; }
 
     /// <summary>交货状态</summary>
-    public string? DeliveryStatus { get; set; }
+    public DeliveryState? DeliveryStatus { get; set; }
 }

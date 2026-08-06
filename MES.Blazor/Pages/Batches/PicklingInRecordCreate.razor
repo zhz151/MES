@@ -13,6 +13,7 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
+@inject ProcessDefinitionService ProcessDefinitionService
 @attribute [Authorize(Roles = Roles.Policies.BatchWrite)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
@@ -186,6 +187,7 @@
 
 @code {
     private List<EditRow> _rows = new();
+    private List<ProcessInfoDto> _processOptions = new();
     private bool _isSubmitting;
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
@@ -280,7 +282,7 @@
     private static readonly string[] _sectionOptions = { SectionKeys.Degrease, SectionKeys.Pickle };
 
     private static readonly List<(string Value, string Text)> _shiftOptions =
-        Enum.GetValues<ShiftType>().Select(v => (v.ToString(), EnumHelper.GetDisplayName(v))).ToList();
+        DisplayHelper.GetEnumOptions<ShiftType>().Select(o => (o.Value, o.Display)).ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -308,6 +310,8 @@
             }
             _allColumns = reordered;
         }
+
+        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
 
         if (!_rows.Any())
             _rows.Add(new EditRow());
@@ -435,10 +439,11 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnProcessNameChangedAsync(r); }));
                 builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var pn in ProcessNames.All)
+                    foreach (var opt in _processOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", pn);
+                        b.AddAttribute(1, "Value", opt.ProcessKey);
+                        b.AddAttribute(2, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
                         b.CloseComponent();
                     }
                 }));

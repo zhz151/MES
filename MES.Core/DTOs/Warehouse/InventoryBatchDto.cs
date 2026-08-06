@@ -29,7 +29,7 @@ public class InventoryBatchDto
     // 炉号/批号/长度
     public string? HeatNo { get; set; }
     public string? ProductionBatchNo { get; set; }
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
 

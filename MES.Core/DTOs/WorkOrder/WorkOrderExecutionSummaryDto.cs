@@ -132,13 +132,7 @@ public class WorkOrderExecutionSummaryDto
     public decimal? PendingReworkOutputQty { get; set; }
     public decimal? PendingReworkOutputWeight { get; set; }
     public int ReworkMainNoStatus { get; set; }
-    public string ReworkMainNoStatusText => ReworkMainNoStatus switch
-    {
-        0 => "未投料",
-        1 => "部分",
-        2 => "满足",
-        _ => ""
-    };
+    public string ReworkMainNoStatusText => IntStatusDisplayHelper.GetInputStatusText(ReworkMainNoStatus);
     public string? ReworkInputConsistency { get; set; }
     public string? ReworkInputConsistencyText => ReworkInputConsistency;
     public DateTime? ReworkInputEndDate { get; set; }
@@ -178,57 +172,17 @@ public class WorkOrderExecutionSummaryDto
     public int OrderWarehousingStatus { get; set; }
 
     // ========== 显示用 ==========
-    public string MaterialPlanStatusText => MaterialPlanStatus switch
-    {
-        MaterialPlanStatus.NotPlanned => "未计划",
-        MaterialPlanStatus.Partial => "部分",
-        MaterialPlanStatus.TheoreticalSatisfied => "理论满足",
-        MaterialPlanStatus.Satisfied => "满足",
-        MaterialPlanStatus.Excess => "超量",
-        _ => "未知"
-    };
+    public string MaterialPlanStatusText => EnumHelper.GetDisplayName(MaterialPlanStatus);
 
-    public string MainNoMaterialPlanStatusText => MainNoMaterialPlanStatus switch
-    {
-        MaterialPlanStatus.NotPlanned => "未计划",
-        MaterialPlanStatus.Partial => "部分",
-        MaterialPlanStatus.TheoreticalSatisfied => "理论满足",
-        MaterialPlanStatus.Satisfied => "满足",
-        MaterialPlanStatus.Excess => "超量",
-        _ => "未知"
-    };
+    public string MainNoMaterialPlanStatusText => EnumHelper.GetDisplayName(MainNoMaterialPlanStatus);
 
-    public string InputStatusText => InputStatus switch
-    {
-        0 => "未投料",
-        1 => "部分",
-        2 => "满足",
-        _ => "未知"
-    };
+    public string InputStatusText => IntStatusDisplayHelper.GetInputStatusText(InputStatus);
 
-    public string MainNoInputStatusText => MainNoInputStatus switch
-    {
-        0 => "未投料",
-        1 => "部分",
-        2 => "满足",
-        _ => "未知"
-    };
+    public string MainNoInputStatusText => IntStatusDisplayHelper.GetInputStatusText(MainNoInputStatus);
 
-    public string FlowStatusText => FlowStatus switch
-    {
-        0 => "未投料",
-        1 => "部分",
-        2 => "满足",
-        _ => "未知"
-    };
+    public string FlowStatusText => IntStatusDisplayHelper.GetInputStatusText(FlowStatus);
 
-    public string MainNoFlowStatusText => MainNoFlowStatus switch
-    {
-        0 => "未计划",
-        1 => "部分",
-        2 => "满足",
-        _ => "未知"
-    };
+    public string MainNoFlowStatusText => IntStatusDisplayHelper.GetMainNoFlowStatusText(MainNoFlowStatus);
 
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
 
@@ -244,15 +198,7 @@ public class WorkOrderExecutionSummaryDto
     public string InProcessReworkInputStatusText => PlanExecutionStatusText(InProcessReworkInputStatus);
     public string InMainInputStatusText => PlanExecutionStatusText(InMainInputStatus);
 
-    private static string PlanExecutionStatusText(int status) => status switch
-    {
-        0 => "无计划",
-        1 => "未执行",
-        2 => "部分",
-        3 => "已完成",
-        4 => "异常",
-        _ => "未知"
-    };
+    private static string PlanExecutionStatusText(int status) => IntStatusDisplayHelper.GetPlanExecutionStatusText(status);
 
     // ========== G3 汇总字段（工单号级，DTO 计算属性） ==========
     /// <summary>计划投料总重量(kg)：G4~G10 七个计划量之和</summary>
@@ -301,13 +247,7 @@ public class WorkOrderExecutionSummaryDto
         }
     }
 
-    public string PlanInputConsistencyText => PlanInputConsistency switch
-    {
-        0 => "一致",
-        1 => "疑问",
-        2 => "错误",
-        _ => "未知"
-    };
+    public string PlanInputConsistencyText => IntStatusDisplayHelper.GetPlanInputConsistencyText(PlanInputConsistency);
 
     // ========== G16: 实时关注 ==========
     public int ScheduleStage { get; set; }
@@ -319,41 +259,14 @@ public class WorkOrderExecutionSummaryDto
     public string? RawMaterialLockRemark { get; set; }
 
     // ========== G15 状态文本（入库状态） ==========
-    public string WoWarehousingStatusText => WoWarehousingStatus switch
-    {
-        0 => "无入库",
-        1 => "入库部分",
-        2 => "入库完结",
-        _ => "未知"
-    };
+    public string WoWarehousingStatusText => IntStatusDisplayHelper.GetWarehousingStatusText(WoWarehousingStatus);
 
-    public string MainNoWarehousingStatusText => MainNoWarehousingStatus switch
-    {
-        0 => "无入库",
-        1 => "入库部分",
-        2 => "入库完结",
-        3 => "入库超额",
-        _ => "未知"
-    };
+    public string MainNoWarehousingStatusText => IntStatusDisplayHelper.GetMainNoWarehousingStatusText(MainNoWarehousingStatus);
 
-    public string OrderWarehousingStatusText => OrderWarehousingStatus switch
-    {
-        0 => "无入库",
-        1 => "入库部分",
-        2 => "入库完结",
-        _ => "未知"
-    };
+    public string OrderWarehousingStatusText => IntStatusDisplayHelper.GetWarehousingStatusText(OrderWarehousingStatus);
 
     // ========== G16 关注状态文本 ==========
-    public string ScheduleStageText => ScheduleStage switch
-    {
-        0 => "主号暂停",
-        1 => "主号完成",
-        2 => "原料锁定",
-        3 => "生产执行",
-        4 => "成品检验",
-        _ => "未知"
-    };
+    public string ScheduleStageText => IntStatusDisplayHelper.GetScheduleStageText(ScheduleStage);
 
     // ========== Group 17: 在产节点待量 ==========
     public decimal? PendingSectionRoughTube { get; set; }

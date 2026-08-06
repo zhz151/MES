@@ -42,7 +42,7 @@ public class DataExchangeServiceTests : TestBase
             .ReturnsAsync((string? v) => SectionKeys.ToKey(v));
         sectionNameDisplayMock.Setup(x => x.GetSectionNameMapAsync())
             .ReturnsAsync(SectionKeys.KeyToChinese);
-        var exportService = new DataExportService(ctx, exportLoggerMock.Object, sectionNameDisplayMock.Object);
+        var exportService = new DataExportService(ctx, exportLoggerMock.Object, sectionNameDisplayMock.Object, CreateProcessDefinitionServiceMock());
         var importService = new DataImportService(ctx, importLoggerMock.Object);
         return new DataExchangeService(importService, exportService, fixServiceMock.Object, loggerMock.Object);
     }

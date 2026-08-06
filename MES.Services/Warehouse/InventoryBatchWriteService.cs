@@ -42,7 +42,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         InboundDate = b.InboundDate,
         HeatNo = b.HeatNo,
         ProductionBatchNo = b.ProductionBatchNo,
-        LengthStatus = b.LengthStatus,
+        LengthStatus = EnumHelper.TryParse<LengthStatus>(b.LengthStatus),
         MinLength = b.MinLength,
         MaxLength = b.MaxLength,
         InitialQuantity = b.InitialQuantity,
@@ -280,7 +280,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             InboundDate = request.InboundDate,
             HeatNo = request.HeatNo,
             ProductionBatchNo = request.ProductionBatchNo,
-            LengthStatus = request.LengthStatus,
+            LengthStatus = request.LengthStatus?.ToString(),
             MinLength = request.MinLength,
             MaxLength = request.MaxLength,
             InitialQuantity = request.InitialQuantity,
@@ -391,7 +391,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                         InboundDate = request.InboundDate ?? DateTime.Today,
                         HeatNo = row.HeatNo ?? request.HeatNo,
                         ProductionBatchNo = row.ProductionBatchNo ?? request.ProductionBatchNo,
-                        LengthStatus = row.LengthStatus ?? request.LengthStatus,
+                        LengthStatus = (row.LengthStatus ?? request.LengthStatus)?.ToString(),
                         MinLength = row.MinLength ?? request.MinLength,
                         MaxLength = row.MaxLength ?? request.MaxLength,
                         InitialQuantity = row.InitialQuantity,
@@ -487,7 +487,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         entity.BatchNo = request.BatchNo ?? entity.BatchNo;
         if (request.InboundDate.HasValue) entity.InboundDate = request.InboundDate.Value;
         entity.HeatNo = request.HeatNo ?? entity.HeatNo;
-        entity.LengthStatus = request.LengthStatus ?? entity.LengthStatus;
+        entity.LengthStatus = request.LengthStatus?.ToString() ?? entity.LengthStatus;
         entity.MinLength = request.MinLength ?? entity.MinLength;
         entity.MaxLength = request.MaxLength ?? entity.MaxLength;
         entity.UnitWeight = request.UnitWeight ?? entity.UnitWeight;
@@ -498,7 +498,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         entity.Remark = request.Remark ?? entity.Remark;
 
         // 长度值逻辑验证：定尺 Min==Max>0，范围尺 Max>Min>0
-        var ls = request.LengthStatus ?? entity.LengthStatus;
+        var ls = request.LengthStatus?.ToString() ?? entity.LengthStatus;
         if (!string.IsNullOrEmpty(ls))
         {
             var minLen = request.MinLength ?? entity.MinLength;

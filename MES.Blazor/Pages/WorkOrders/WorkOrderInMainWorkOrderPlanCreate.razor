@@ -136,8 +136,8 @@
                                 {
                                     <MudTd>@context.PlantGrade</MudTd>
                                     <MudTd>@context.Specification</MudTd>
-                                    <MudTd>@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>
-                                    <MudTd>@DisplayHelper.GetBatchStatusText(context.Status)</MudTd>
+                                    <MudTd>@DisplayHelper.GetLengthStatusText(context.LengthStatus?.ToString())</MudTd>
+                                    <MudTd>@DisplayHelper.GetBatchStatusText(context.Status?.ToString() ?? "")</MudTd>
                                     <MudTd>@(context.CurrentValidQty?.ToString() ?? "-")</MudTd>
                                     <MudTd>@(context.CurrentValidWeight?.ToString("F0") ?? "-")</MudTd>
                                     <MudTd>@context.ProductionRatio</MudTd>

@@ -754,8 +754,8 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             queryable = queryable.Where(i => i.ProcessStatus == status);
 
         // 全量加载到内存，后续筛选/排序/分页均在内存中完成
-        var allItems = await queryable
-            .Select(i => new SubcontractReturnItemListDto
+        var rawItems = await queryable
+            .Select(i => new
             {
                 Id = i.Id,
                 SubcontractOrderId = i.SubcontractOrderId,
@@ -773,6 +773,24 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 ProcessStatus = i.ProcessStatus
             })
             .ToListAsync();
+
+        var allItems = rawItems.Select(i => new SubcontractReturnItemListDto
+        {
+            Id = i.Id,
+            SubcontractOrderId = i.SubcontractOrderId,
+            OrderNo = i.OrderNo,
+            SupplierName = i.SupplierName,
+            SourceWorkOrderNo = i.SourceWorkOrderNo,
+            PlantGrade = i.PlantGrade,
+            ProcessSpecification = i.ProcessSpecification,
+            UnitWeight = i.UnitWeight,
+            RequiredQuantity = i.RequiredQuantity,
+            RequiredWeight = i.RequiredWeight,
+            ReturnDeadline = i.ReturnDeadline,
+            ReturnedQuantity = i.ReturnedQuantity,
+            ReturnedWeight = i.ReturnedWeight,
+            ProcessStatus = EnumHelper.TryParse<SubcontractOrderStatus>(i.ProcessStatus)
+        }).ToList();
 
         // 内存筛选 — 支持所有 DTO 属性（包括跨表字段如 OrderNo、ReturnDeadline）
         if (query.Filters?.Count > 0)
@@ -937,10 +955,8 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
 
         var resolvers = new Dictionary<string, Func<object?, string>>
         {
-            ["ProcessStatus"] = v => v is string ps
-                ? (EnumHelper.TryParse<SubcontractOrderStatus>(ps) is { } parsed
-                    ? EnumHelper.GetDisplayName(parsed)
-                    : ps)
+            ["ProcessStatus"] = v => v is SubcontractOrderStatus ps
+                ? EnumHelper.GetDisplayName(ps)
                 : "-"
         };
 
@@ -949,10 +965,10 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
 
     public async Task<byte[]> PrintReturnItemSelectedAsync(int[] ids, List<PrintColumnDef>? columns)
     {
-        var items = await _context.SubcontractReturnItems
+        var rawItems = await _context.SubcontractReturnItems
             .AsNoTracking()
             .Where(i => ids.Contains(i.Id))
-            .Select(i => new SubcontractReturnItemListDto
+            .Select(i => new
             {
                 Id = i.Id,
                 SubcontractOrderId = i.SubcontractOrderId,
@@ -971,12 +987,28 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             })
             .ToListAsync();
 
+        var items = rawItems.Select(i => new SubcontractReturnItemListDto
+        {
+            Id = i.Id,
+            SubcontractOrderId = i.SubcontractOrderId,
+            OrderNo = i.OrderNo,
+            SupplierName = i.SupplierName,
+            SourceWorkOrderNo = i.SourceWorkOrderNo,
+            PlantGrade = i.PlantGrade,
+            ProcessSpecification = i.ProcessSpecification,
+            UnitWeight = i.UnitWeight,
+            RequiredQuantity = i.RequiredQuantity,
+            RequiredWeight = i.RequiredWeight,
+            ReturnDeadline = i.ReturnDeadline,
+            ReturnedQuantity = i.ReturnedQuantity,
+            ReturnedWeight = i.ReturnedWeight,
+            ProcessStatus = EnumHelper.TryParse<SubcontractOrderStatus>(i.ProcessStatus)
+        }).ToList();
+
         var resolvers = new Dictionary<string, Func<object?, string>>
         {
-            ["ProcessStatus"] = v => v is string ps
-                ? (EnumHelper.TryParse<SubcontractOrderStatus>(ps) is { } parsed
-                    ? EnumHelper.GetDisplayName(parsed)
-                    : ps)
+            ["ProcessStatus"] = v => v is SubcontractOrderStatus ps
+                ? EnumHelper.GetDisplayName(ps)
                 : "-"
         };
 

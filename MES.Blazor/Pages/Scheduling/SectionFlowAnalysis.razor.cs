@@ -38,6 +38,9 @@ public partial class SectionFlowAnalysis
     {
         "PendingTotal",
     };
+    private int _lastSummedPage = -1;
+    private int _lastSummedCount = -1;
+    private int _lastSummedPageSize = -1;
 
     // 非空/空筛选常量
     private const string FilterNotNull = "__NOT_NULL__";
@@ -363,7 +366,14 @@ public partial class SectionFlowAnalysis
         _pageSums.Clear();
         if (_filteredItems.Count == 0) return;
 
-        _pageSums["PendingTotal"] = ((int)_filteredItems.Sum(x => x.PendingTotal ?? 0m)).ToString();
+        // 按当前页显示行汇总（Items 模式，取 MudTable 当前页切片）
+        var page = table?.CurrentPage ?? 0;
+        var rowsPerPage = table?.RowsPerPage ?? _pageSize;
+        if (rowsPerPage <= 0) rowsPerPage = _pageSize;
+        var pageItems = _filteredItems.Skip(page * rowsPerPage).Take(rowsPerPage).ToList();
+        if (pageItems.Count == 0) return;
+
+        _pageSums["PendingTotal"] = ((int)pageItems.Sum(x => x.PendingTotal ?? 0m)).ToString();
     }
 
     private string RenderFooterCell(ColumnDef col)
@@ -371,6 +381,26 @@ public partial class SectionFlowAnalysis
         if (_pageSums.TryGetValue(col.Key, out var sum))
             return sum;
         return "-";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // 分页导航/页大小切换后重算当前页汇总（pager 操作只改 CurrentPage/RowsPerPage，不触发 LoadDataAsync）
+        if (table != null && !_isLoading && _filteredItems.Count > 0)
+        {
+            var page = table.CurrentPage;
+            var count = _filteredItems.Count;
+            var rowsPerPage = table.RowsPerPage;
+            if (page != _lastSummedPage || count != _lastSummedCount || rowsPerPage != _lastSummedPageSize)
+            {
+                _lastSummedPage = page;
+                _lastSummedCount = count;
+                _lastSummedPageSize = rowsPerPage;
+                ComputePageSums();
+                StateHasChanged();
+            }
+        }
+        await Task.CompletedTask;
     }
 
     // ========== 显示辅助 ==========

@@ -6,6 +6,8 @@ using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Blazor.Shared;
 using MES.Core.Models;
+using MES.Core.Constants;
+using MES.Core.Helpers;
 using MES.Core.DTOs.Configuration;
 
 namespace MES.Blazor.Pages.Configuration;
@@ -321,7 +323,7 @@ public partial class DailyProductionCapacities
 
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除工序 \"{item.ProcessName}\" 吗？",
+            ["ContentText"] = $"确定要删除工序 \"{DictValueDisplayHelper.GetText(DictValueDefaults.ProductionOverviewRowKey,item.ProcessName)}\" 吗？",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });

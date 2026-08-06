@@ -90,7 +90,7 @@ public class ScanServiceTests : TestBase
         result.PlantGrade.Should().Be("304");
         result.Specification.Should().Be("219*8");
         result.TagNo.Should().Be("TAG001");
-        result.ProductionType.Should().Be("在制生产");
+        result.ProductionType.Should().Be(ProductionType.InProcess);
         result.ProcessGroupId.Should().Be(group.Id);
         result.ProcessName.Should().Be("60冷轧");
         result.ManufacturingSpec.Should().Be("219*8");

@@ -1,3 +1,4 @@
+using MES.Core.Enums;
 using MES.Core.Models;
 
 namespace MES.Core.DTOs.Equipment;
@@ -15,12 +16,12 @@ public class RepairOrderQueryParams : QueryParams
     /// <summary>
     /// 维修状态筛选
     /// </summary>
-    public string? RepairStatus { get; set; }
+    public RepairOrderStatus? RepairStatus { get; set; }
 
     /// <summary>
     /// 优先级筛选
     /// </summary>
-    public string? Priority { get; set; }
+    public RepairPriority? Priority { get; set; }
 
     /// <summary>
     /// 报修日期范围-开始

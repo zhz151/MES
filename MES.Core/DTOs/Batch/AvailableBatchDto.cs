@@ -31,6 +31,6 @@ public class AvailableBatchDto
     public string? WorkOrderNo { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
-    public string? LengthStatus { get; set; }
+    public LengthStatus? LengthStatus { get; set; }
     public decimal? UnitWeight { get; set; }
 }

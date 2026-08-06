@@ -1037,10 +1037,14 @@ public class DataImportService : IDataImportService
                 .Select(propName =>
                 {
                     var header = def.Columns.FirstOrDefault(c => c.Property == propName)?.Header;
-                    return header != null ? row.Values.GetValueOrDefault(header, "")?.Trim() ?? "" : "";
+                    var val = header != null ? row.Values.GetValueOrDefault(header, "")?.Trim() ?? "" : "";
+                    // 复合键中 ProcessName/SectionName 存英文 Key，Excel 中文需归一为 Key 再拼键
+                    if (propName == "ProcessName") val = ProcessKeys.ToKey(val);
+                    else if (propName == "SectionName") val = SectionKeys.ToKey(val);
+                    return val;
                 })
                 .ToArray();
-            return parts.All(p => p.Length > 0) ? string.Join("|", parts) : null;
+            return parts.All(p => p is { Length: > 0 }) ? string.Join("|", parts) : null;
         }
         return null;
     }
@@ -1210,6 +1214,36 @@ public class DataImportService : IDataImportService
                 value = SectionKeys.ToKey(sectionName);
             }
 
+            // 特殊处理：ProcessName/ProcessGroupName 存储改英文 Key（Excel 中文 → Key）
+            if ((colDef.Property == "ProcessName" || colDef.Property == "ProcessGroupName") && value is string processName)
+            {
+                value = ProcessKeys.ToKey(processName);
+            }
+
+            // 特殊处理：CurrentGroupName/NextProcess 存储改英文 Key（Excel 中文 → Key）
+            if ((colDef.Property == "CurrentGroupName" || colDef.Property == "NextProcess") && value is string currentProcessName)
+            {
+                value = ProcessKeys.ToKey(currentProcessName);
+            }
+
+            // 特殊处理：CurrentSectionName/NextSectionName 存储改英文 Key（Excel 中文 → Key）
+            if ((colDef.Property == "CurrentSectionName" || colDef.Property == "NextSectionName") && value is string currentSectionName)
+            {
+                value = SectionKeys.ToKey(currentSectionName);
+            }
+
+            // 特殊处理：ProductStatus 存储改英文 Key（Excel 中文 → Key）
+            if (colDef.Property == "ProductStatus" && value is string productStatus)
+            {
+                value = ProductStatuses.ToKey(productStatus) ?? productStatus;
+            }
+
+            // 特殊处理：LiabilityType 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
+            if (colDef.Property == "LiabilityType" && value is string liabilityType)
+            {
+                value = LiabilityTypeKeys.ToKey(liabilityType) ?? liabilityType;
+            }
+
             prop.SetValue(entity, value);
         }
 
@@ -1284,7 +1318,8 @@ public class DataImportService : IDataImportService
                 if (propertyCache.ContainsKey("SectionName"))
                 {
                     var batchNo = row.Values.GetValueOrDefault("批次号", "");
-                    var processName = row.Values.GetValueOrDefault("工序名称", "");
+                    // ProcessGroup.ProcessName 存英文 Key，Excel 中文需归一为 Key 再拼键
+                    var processName = ProcessKeys.ToKey(row.Values.GetValueOrDefault("工序名称", ""));
                     var manufacturingSpec = row.Values.GetValueOrDefault("制造规格", "");
                     var sectionName = row.Values.GetValueOrDefault("工段名称", "");
                     var resolved = false;

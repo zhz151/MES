@@ -106,7 +106,7 @@ public partial class ProcessInspections
             GroupKey = 2, GroupName = "G2 检验执行" },
         new() { Key = "Shift",                 Label = "班次",       SortKey = "shift", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 检验执行",
-            EnumOptions = new() { new("DayShift","白班"), new("MiddleShift","中班"), new("NightShift","夜班") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
         new() { Key = "InspectionItem",        Label = "检验项目",   SortKey = "inspectionitem", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 检验执行" },
 
@@ -153,7 +153,7 @@ public partial class ProcessInspections
             GroupKey = 5, GroupName = "G5 辅助信息" },
         new() { Key = "DataSource",            Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80",
             GroupKey = 5, GroupName = "G5 辅助信息",
-            EnumOptions = new() { new("SCAN", "扫码"), new("MANUAL", "手动") } },
+            EnumOptions = DisplayHelper.GetDataSourceOptions() },
         new() { Key = "UpdatedTime",           Label = "更新日期",   SortKey = "updatedtime", Width = "120",
             GroupKey = 5, GroupName = "G5 辅助信息" },
     };
@@ -261,7 +261,13 @@ public partial class ProcessInspections
             _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
             {
                 Value = v,
-                Display = kvp.Key is "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" ? SectionDisplayHelper.GetSectionNameText(v) : v,
+                Display = kvp.Key switch
+                {
+                    "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v),
+                    "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(v),
+                    "ProductStatus" => DisplayHelper.GetProductStatusText(v),
+                    _ => v
+                },
                 Count = 0
             }).ToList();
         }
@@ -498,7 +504,7 @@ public partial class ProcessInspections
             Shift = item.Shift,
             Quantity = item.Quantity,
             Weight = item.Weight,
-            InspectionItem = item.InspectionItem,
+            InspectionItem = item.InspectionItem?.ToString(),
             QualifiedQuantity = item.QualifiedQuantity,
             QualifiedWeight = item.QualifiedWeight,
             QualifiedConcessionQuantity = item.QualifiedConcessionQuantity,
@@ -591,7 +597,7 @@ public partial class ProcessInspections
     {
         var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除工序 \"{item.ProcessName}\" 的过程检验记录吗？\n\n删除后数据将不可恢复！",
+            ["ContentText"] = $"确定要删除工序 \"{ProcessDisplayHelper.GetProcessNameText(item.ProcessName)}\" 的过程检验记录吗？\n\n删除后数据将不可恢复！",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });
@@ -655,7 +661,7 @@ public partial class ProcessInspections
                 builder.AddContent(0, item.ProductionMainNo);
                 break;
             case "ProcessName":
-                builder.AddContent(0, item.ProcessName);
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.ProcessName));
                 break;
             case "ManufacturingSpec":
                 builder.AddContent(0, DisplayHelper.FormatSpecification(item.ManufacturingSpec));
@@ -718,12 +724,12 @@ public partial class ProcessInspections
                     builder.AddAttribute(3, "Class", "compact-input");
                     builder.AddAttribute(4, "ChildContent", (RenderFragment)(b =>
                     {
-                        foreach (var val in Enum.GetValues<ShiftType>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
                         {
                             b.OpenComponent<MudSelectItem<ShiftType>>(0);
-                            b.AddAttribute(1, "Value", val);
+                            b.AddAttribute(1, "Value", Enum.Parse<ShiftType>(opt.Value));
                             b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
-                                b2.AddContent(0, DisplayHelper.GetShiftTypeText(val))));
+                                b2.AddContent(0, opt.Display)));
                             b.CloseComponent();
                         }
                     }));
@@ -746,7 +752,7 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.Quantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.Quantity));
                 }
                 break;
             case "Weight":
@@ -762,7 +768,7 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsInt(item.Weight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsIntZeroAsEmpty(item.Weight));
                 }
                 break;
             case "InspectionItem":
@@ -778,11 +784,11 @@ public partial class ProcessInspections
                         b2.AddAttribute(1, "Value", (string)null!);
                         b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, "请选择")));
                         b2.CloseComponent();
-                        foreach (var val in Enum.GetValues<InspectionItem>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<InspectionItem>())
                         {
                             b2.OpenComponent<MudSelectItem<string>>(0);
-                            b2.AddAttribute(1, "Value", val.ToString());
-                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, DisplayHelper.GetInspectionItemText(val))));
+                            b2.AddAttribute(1, "Value", opt.Value);
+                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                             b2.CloseComponent();
                         }
                     }));
@@ -790,8 +796,8 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, !string.IsNullOrEmpty(item.InspectionItem)
-                        ? DisplayHelper.GetInspectionItemText(Enum.Parse<InspectionItem>(item.InspectionItem))
+                    builder.AddContent(0, item.InspectionItem.HasValue
+                        ? DisplayHelper.GetInspectionItemText(item.InspectionItem.Value)
                         : "");
                 }
                 break;
@@ -807,7 +813,7 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.QualifiedQuantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.QualifiedQuantity));
                 }
                 break;
             case "QualifiedWeight":
@@ -823,7 +829,7 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsInt(item.QualifiedWeight));
+                    builder.AddContent(0, DisplayHelper.FormatNullableDecimalAsIntZeroAsEmpty(item.QualifiedWeight));
                 }
                 break;
             case "QualifiedConcessionQuantity":
@@ -838,7 +844,7 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.QualifiedConcessionQuantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.QualifiedConcessionQuantity));
                 }
                 break;
             case "ConcessionRemark":
@@ -867,7 +873,7 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectReworkQuantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectReworkQuantity));
                 }
                 break;
             case "DefectWarehouseQuantity":
@@ -882,7 +888,7 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectWarehouseQuantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectWarehouseQuantity));
                 }
                 break;
             case "DefectScrapQuantity":
@@ -897,7 +903,7 @@ public partial class ProcessInspections
                 }
                 else
                 {
-                    builder.AddContent(0, DisplayHelper.FormatNullableInt(item.DefectScrapQuantity));
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectScrapQuantity));
                 }
                 break;
             case "TheoreticalReworkWeight":
@@ -966,16 +972,10 @@ public partial class ProcessInspections
                 }
                 break;
             case "ProductStatus":
-                var psColor = item.ProductStatus switch
-                {
-                    "荒管" => Color.Primary,
-                    "成品" => Color.Success,
-                    _ => Color.Default
-                };
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", psColor);
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ProductStatus ?? "在制")));
+                builder.AddAttribute(2, "Color", DisplayHelper.GetProductStatusColor(item.ProductStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetProductStatusText(item.ProductStatus))));
                 builder.CloseComponent();
                 break;
             case "Remark":

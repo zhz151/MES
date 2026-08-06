@@ -20,10 +20,6 @@ public class StandardWorkDay : BaseEntity
     [MaxLength(50)]
     public string? SectionKey { get; set; }
 
-    /// <summary>英文名称</summary>
-    [MaxLength(100)]
-    public string? EnglishName { get; set; }
-
     /// <summary>显示顺序（升序排列，1 排最前）</summary>
     public int DisplayOrder { get; set; }
 

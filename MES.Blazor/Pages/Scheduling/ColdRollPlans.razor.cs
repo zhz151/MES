@@ -5,6 +5,7 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Components;
 using MES.Blazor.Services;
+using MES.Core.Constants;
 using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
 using System.Text.Json;
@@ -488,7 +489,7 @@ public partial class ColdRollPlans
     private List<ColdRollScheduleSummaryDto> _displaySummaryData =>
         string.IsNullOrEmpty(_selectedSection)
             ? _scheduleSummaryData
-            : _scheduleSummaryData.Where(x => x.ProcessType == _selectedSection).ToList();
+            : _scheduleSummaryData.Where(x => x.ProcessType == (ProcessKeys.ToKey(_selectedSection) ?? _selectedSection)).ToList();
 
     private async Task ToggleScheduleSummaryAsync()
     {
@@ -797,8 +798,8 @@ public partial class ColdRollPlans
 
         var g6 = new List<ColumnDef>
         {
-            new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","特急单"), new EnumOption("Partial2","急单"), new EnumOption("Partial3","含B顺") } },
-            new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","特急单"), new EnumOption("Partial2","急单"), new EnumOption("Partial3","含B顺") } },
+            new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetCompletionTypeOptions() },
+            new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetRollTypeOptions() },
             new() { Key = "SchedMachineNo", Label = "待轧设备号", Width = "100", GroupKey = 6, GroupName = "排程设置", FilterType = "string" },
         };
 
@@ -848,8 +849,8 @@ public partial class ColdRollPlans
 
         var g6 = new List<ColumnDef>
         {
-            new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","特急单"), new EnumOption("Partial2","急单"), new EnumOption("Partial3","含B顺") } },
-            new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = new() { new EnumOption("All","全量"), new EnumOption("Urgent","特急单"), new EnumOption("Partial2","急单"), new EnumOption("Partial3","含B顺") } },
+            new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetCompletionTypeOptions() },
+            new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetRollTypeOptions() },
             new() { Key = "SchedMachineNo", Label = "待轧设备号", Width = "100", GroupKey = 6, GroupName = "排程设置", FilterType = "string" },
         };
 
@@ -912,7 +913,7 @@ public partial class ColdRollPlans
     {
         return key switch
         {
-            "ProcessType" => item.ProcessType,
+            "ProcessType" => ProcessDisplayHelper.GetProcessNameText(item.ProcessType),
             "BilletSpec" => item.BilletSpec,
             "RollingSpec" => item.RollingSpec,
             "MergeDisplay" => item.MergeDisplay,

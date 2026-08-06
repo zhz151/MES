@@ -109,7 +109,7 @@ public class QualityProcessTrackingServiceTests : TestBase
             ProcessGroupId = 1,
             ProcessName = sectionName,
             SectionName = sectionName,
-            ProductStatus = "成品",
+            ProductStatus = ProductStatuses.Finished,
             Quantity = qty,
             PostCutQuantity = postCutQty,
             IsPreCut = false

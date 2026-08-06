@@ -2,6 +2,7 @@
 @using MES.Blazor.Services
 @using MES.Core.Constants
 @using MES.Core.Models
+@using MES.Core.Helpers
 @using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
@@ -102,17 +103,21 @@
                         {
                             if (rowEditing && rowCache != null)
                             {
-                                <MudTextField T="string"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Value="@rowCache.ProcessName"
-                                              ValueChanged="@(v => rowCache.ProcessName = v)"
-                                              Class="compact-input"
-                                              Required="true" />
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Value="@rowCache.ProcessName"
+                                           ValueChanged="@(v => rowCache.ProcessName = v)"
+                                           Class="compact-input">
+                                    @foreach (var kv in ProductionOverviewRowKeys.KeyToChinese)
+                                    {
+                                        <MudSelectItem T="string" Value="@kv.Key">@kv.Value</MudSelectItem>
+                                    }
+                                </MudSelect>
                             }
                             else
                             {
-                                <span class="font-weight-bold">@item.ProcessName</span>
+                                <span class="font-weight-bold">@DictValueDisplayHelper.GetText(DictValueDefaults.ProductionOverviewRowKey,item.ProcessName)</span>
                             }
                         }
                         else if (col.Key == "DailyCapacity")

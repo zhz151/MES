@@ -37,7 +37,6 @@ public partial class StandardWorkDays
     {
         new() { Key = "SectionName",     Label = "工段名称",   SortKey = "sectionname",     FilterType = null, IsRequired = true },
         new() { Key = "SectionKey",      Label = "稳定 Key",   SortKey = "sectionkey",      FilterType = null },
-        new() { Key = "EnglishName",     Label = "英文名",     SortKey = "englishname",     FilterType = null },
         new() { Key = "DisplayOrder",    Label = "显示顺序",   SortKey = "displayorder",    FilterType = null, IsRequired = true },
         new() { Key = "IsEnabled",       Label = "启用",       SortKey = "isenabled",       FilterType = null },
         new() { Key = "PlantGradePrefix",Label = "牌号前缀",   SortKey = "plantgradeprefix",FilterType = null },
@@ -248,7 +247,6 @@ public partial class StandardWorkDays
     {
         public string SectionName { get; set; } = string.Empty;
         public string? SectionKey { get; set; }
-        public string? EnglishName { get; set; }
         public int DisplayOrder { get; set; }
         public bool IsEnabled { get; set; } = true;
         public string? PlantGradePrefix { get; set; }
@@ -266,7 +264,6 @@ public partial class StandardWorkDays
         {
             SectionName = item.SectionName,
             SectionKey = item.SectionKey,
-            EnglishName = item.EnglishName,
             DisplayOrder = item.DisplayOrder,
             IsEnabled = item.IsEnabled,
             PlantGradePrefix = item.PlantGradePrefix,
@@ -324,7 +321,6 @@ public partial class StandardWorkDays
                 Id = IsNewItem(item.Id) ? 0 : item.Id,
                 SectionName = cache.SectionName,
                 SectionKey = sectionKey,
-                EnglishName = cache.EnglishName,
                 DisplayOrder = cache.DisplayOrder,
                 IsEnabled = cache.IsEnabled,
                 PlantGradePrefix = cache.PlantGradePrefix,

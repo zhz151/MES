@@ -10,6 +10,7 @@
 @inject ProductionRecordService ProdRecordService
 @inject BatchService BatchService
 @inject StandardWorkDayService StandardWorkDayService
+@inject ProcessDefinitionService ProcessDefinitionService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -187,6 +188,7 @@
 
 @code {
     private List<EditRow> _rows = new();
+    private List<ProcessInfoDto> _processOptions = new();
     private bool _isSubmitting;
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
@@ -363,7 +365,7 @@
     private List<(string Key, string Text)> _allSectionOptions = new();
 
     private static readonly List<(string Value, string Text)> _shiftOptions =
-        Enum.GetValues<ShiftType>().Select(v => (v.ToString(), EnumHelper.GetDisplayName(v))).ToList();
+        DisplayHelper.GetEnumOptions<ShiftType>().Select(o => (o.Value, o.Display)).ToList();
 
     // 加载启用工段下拉（从参数表，排除不可记录工段；失败降级为预置 26 工段）
     private async Task LoadSectionOptionsAsync()
@@ -390,6 +392,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadSectionOptionsAsync();
+        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("production-records-create", null);
         if (saved.Count > 0)
@@ -662,14 +665,14 @@
         if (!string.IsNullOrEmpty(batch.Specification)
             && string.Equals(row.ManufacturingSpec, batch.Specification, StringComparison.OrdinalIgnoreCase)
             && IsFinishedMaterialType(batch.ManufacturingItem))
-            return "成品";
+            return ProductStatuses.Finished;
 
         // 荒管：工序名称为"荒管处理"
-        if (row.ProcessName == ProcessNames.RoughTubeProcessing)
-            return "荒管";
+        if (row.ProcessName == ProcessKeys.RoughTubeProcessing)
+            return ProductStatuses.RoughTube;
 
         // 荒管：在制修检非末道 + 批次有荒管组 + 规格匹配
-        if (row.ProcessName == ProcessNames.InProcessRepair)
+        if (row.ProcessName == ProcessKeys.InProcessRepair)
         {
             var lastProcessName = batch.ProcessGroups?
                 .OrderByDescending(p => p.SequenceNumber)
@@ -677,20 +680,20 @@
                 .FirstOrDefault();
             if (row.ProcessName != lastProcessName)
             {
-                var hasRoughTube = batch.ProcessGroups?.Any(p => p.ProcessName == ProcessNames.RoughTubeProcessing) == true;
+                var hasRoughTube = batch.ProcessGroups?.Any(p => p.ProcessName == ProcessKeys.RoughTubeProcessing) == true;
                 if (hasRoughTube)
                 {
                     var roughTubeSpec = batch.ProcessGroups?
-                        .Where(p => p.ProcessName == ProcessNames.RoughTubeProcessing)
+                        .Where(p => p.ProcessName == ProcessKeys.RoughTubeProcessing)
                         .Select(p => p.ManufacturingSpec)
                         .FirstOrDefault();
                     if (roughTubeSpec != null && row.ManufacturingSpec == roughTubeSpec)
-                        return "荒管";
+                        return ProductStatuses.RoughTube;
                 }
             }
         }
 
-        return "在制";
+        return ProductStatuses.InProgress;
     }
 
     private static bool IsFinishedMaterialType(MaterialType mt) =>
@@ -700,7 +703,7 @@
     /// <summary>长度状态计算：工段为"断切"且产类为"成品"时，依据批次填充其长度状态（中文），其余为空</summary>
     private static string? ComputeLengthStatus(EditRow row, ProductionBatchDetailDto batch)
     {
-        if (row.SectionName == SectionKeys.Cut && row.ProductStatus == "成品")
+        if (row.SectionName == SectionKeys.Cut && row.ProductStatus == ProductStatuses.Finished)
             return EnumHelper.GetDisplayName(batch.LengthStatus);
         return null;
     }
@@ -757,10 +760,11 @@
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnProcessNameChangedAsync(r); }));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var pn in ProcessNames.All)
+                    foreach (var opt in _processOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", pn);
+                        b.AddAttribute(1, "Value", opt.ProcessKey);
+                        b.AddAttribute(2, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
                         b.CloseComponent();
                     }
                 }));
@@ -971,13 +975,13 @@
                 builder.CloseComponent();
                 break;
             case "ProductStatus":
-                // 产类：由批次+工序自动计算，只读展示
+                // 产类：由批次+工序自动计算，只读展示（英文 Key → 中文显示）
                 builder.OpenComponent<MudTextField<string>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "ReadOnly", true);
-                builder.AddAttribute(5, "Value", r.ProductStatus);
+                builder.AddAttribute(5, "Value", DisplayHelper.GetProductStatusText(r.ProductStatus));
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.ProductStatus = v));
                 builder.CloseComponent();
                 break;

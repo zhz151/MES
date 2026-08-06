@@ -99,7 +99,7 @@ public class MaterialPlanServiceTests : TestBase
 
         await orderSvc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
         {
-            Status = SalesOrderStatus.Confirmed.ToString(),
+            Status = SalesOrderStatus.Confirmed,
             RowVersion = new byte[8]
         });
 

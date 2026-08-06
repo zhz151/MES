@@ -120,7 +120,7 @@
                 <tbody>
                     <tr>
                         <td><MudTextField T="string" @bind-Value="orderDateText" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Placeholder="yyyy-MM-dd" Margin="Margin.Dense" /></td>
-                        <td><MudSelect T="MaterialType" @bind-Value="outMaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Margin="Margin.Dense">@foreach (MaterialType cat in Enum.GetValues<MaterialType>()) { <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialTypeText(cat)</MudSelectItem> }</MudSelect></td>
+                        <td><MudSelect T="MaterialType" @bind-Value="outMaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Margin="Margin.Dense">@foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>()) { <MudSelectItem Value="@(Enum.Parse<MaterialType>(opt.Value))">@opt.Display</MudSelectItem> }</MudSelect></td>
                         <td><MudTextField T="string" @bind-Value="furnaceNumber" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
                         <td><MudTextField T="string" @bind-Value="outPlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
                         <td><MudTextField T="string" @bind-Value="outSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small"Margin="Margin.Dense" /></td>
@@ -203,7 +203,7 @@
                                     </div>
                                 }
                             </MudTd>
-                            <MudTd><MudSelect T="MaterialType" @bind-Value="item.MaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small">@foreach (MaterialType cat in Enum.GetValues<MaterialType>()) { <MudSelectItem Value="@(cat)">@DisplayHelper.GetMaterialTypeText(cat)</MudSelectItem> }</MudSelect></MudTd>
+                            <MudTd><MudSelect T="MaterialType" @bind-Value="item.MaterialCategory" Dense="true" Variant="Variant.Outlined" Size="Size.Small">@foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>()) { <MudSelectItem Value="@(Enum.Parse<MaterialType>(opt.Value))">@opt.Display</MudSelectItem> }</MudSelect></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.PlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.ProcessSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.UnitWeightStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
@@ -297,7 +297,7 @@
     private void ToggleProcurementStatus() => showProcurementStatus = !showProcurementStatus;
 
     private string FormatSupplier(SupplierProfileDto? s) =>
-        s == null ? "" : $"{s.MaterialCategoryDisplay ?? s.MaterialCategory} - {s.SupplierName}";
+        s == null ? "" : $"{s.MaterialCategoryDisplay ?? DisplayHelper.GetMaterialTypeText(s.MaterialCategory)} - {s.SupplierName}";
 
     private Task<IEnumerable<SupplierProfileDto>> FilterSuppliers(string search)
     {
@@ -305,7 +305,7 @@
         var category = GetActiveMaterialCategory();
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(s => s.MaterialCategory != null &&
-                s.MaterialCategory.Equals(category, StringComparison.OrdinalIgnoreCase));
+                string.Equals(s.MaterialCategory?.ToString(), category, StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(s => s.SupplierName.Contains(search, StringComparison.OrdinalIgnoreCase));
         return Task.FromResult(query.Take(30));
@@ -325,7 +325,7 @@
 
     private async Task AddFromProcurement(ProcurementStatusDto item)
     {
-        var result = await PurchaseService.GetPlanDetailAsync(item.WorkOrderNo, item.MaterialCategory ?? "");
+        var result = await PurchaseService.GetPlanDetailAsync(item.WorkOrderNo, item.MaterialCategory?.ToString() ?? "");
         if (!result.Success || result.Data == null)
         {
             Snackbar.Add($"未找到工单 {item.WorkOrderNo} 的用料计划", Severity.Warning);
@@ -333,7 +333,7 @@
         }
 
         var plan = result.Data;
-        var planCategory = EnumHelper.TryParse<MaterialType>(plan.MaterialCategory ?? "") ?? MaterialType.RoundBar;
+        var planCategory = EnumHelper.TryParse<MaterialType>(plan.MaterialCategory?.ToString() ?? "") ?? MaterialType.RoundBar;
         returnItems.Add(new ReturnItemRow
         {
             Sequence = returnItems.Count + 1,
@@ -453,7 +453,7 @@
             var existing = allSuppliers.FirstOrDefault(s =>
                 s.SupplierName.Equals(supplierName.Trim(), StringComparison.OrdinalIgnoreCase) &&
                 (s.MaterialCategory == null ||
-                 s.MaterialCategory.Equals(outCatDisplay, StringComparison.OrdinalIgnoreCase)));
+                 string.Equals(s.MaterialCategory?.ToString(), outMaterialCategory.ToString(), StringComparison.OrdinalIgnoreCase)));
             if (existing != null)
             {
                 supplierId = existing.Id;
@@ -466,7 +466,7 @@
                     var createResult = await SupplierService.CreateAsync(new CreateSupplierRequest
                     {
                         SupplierName = supplierName.Trim(),
-                        MaterialCategory = outCatDisplay,
+                        MaterialCategory = EnumHelper.TryParse<MaterialType>(outCatDisplay),
                         IsActive = true
                     });
                     if (createResult.Success && createResult.Data != null)

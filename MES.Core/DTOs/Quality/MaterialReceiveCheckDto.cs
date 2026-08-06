@@ -48,15 +48,15 @@ public class MaterialReceiveCheckDto
     public bool IsLastProcessGroup { get; set; }
 
     /// <summary>成检类型</summary>
-    public string? InspectionType { get; set; }
-    public string? InspectionTypeDisplay => !string.IsNullOrEmpty(InspectionType) && EnumHelper.TryParse<InspectionType>(InspectionType) is { } it ? EnumHelper.GetDisplayName(it) : null;
+    public InspectionType? InspectionType { get; set; }
+    public string? InspectionTypeDisplay => InspectionType.HasValue ? EnumHelper.GetDisplayName(InspectionType.Value) : null;
 
     /// <summary>
     /// 是否正式成检（成检类型==FormalInspection；null/其他/预成检均视为非正式成检）
     /// 仅正式成检时「制造状态/是否交付态」才有效，否则统一显示 "-"
     /// </summary>
     public bool IsFormalInspection =>
-        string.Equals(InspectionType, nameof(MES.Core.Enums.InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase);
+        InspectionType == MES.Core.Enums.InspectionType.FormalInspection;
 
     /// <summary>
     /// 实时校验状态（列表加载时按当前工艺卡比对；null=正常）。
@@ -67,7 +67,7 @@ public class MaterialReceiveCheckDto
     /// <summary>
     /// 批次原始交货状态（始终填充，用于交付态计算，不受"仅最后工序组有效"影响）
     /// </summary>
-    public string? RawDeliveryState { get; set; }
+    public DeliveryState? RawDeliveryState { get; set; }
 
     /// <summary>
     /// 是否交付态（批次制造状态==交货状态为"是"，否则"否"；纯计算派生，随批次当前状态）
@@ -76,8 +76,8 @@ public class MaterialReceiveCheckDto
     public string? IsDeliveryStatus =>
         !IsFormalInspection
         ? null
-        : !string.IsNullOrEmpty(ManufacturingStatus) && !string.IsNullOrEmpty(RawDeliveryState)
-          && string.Equals(ManufacturingStatus, RawDeliveryState, StringComparison.OrdinalIgnoreCase) ? "是" : "否";
+        : ManufacturingStatus.HasValue && RawDeliveryState.HasValue
+          && ManufacturingStatus.Value == RawDeliveryState.Value ? "是" : "否";
 
     // ========== 批次冗余字段 ==========
     public LengthStatus? LengthStatus { get; set; }
@@ -89,10 +89,10 @@ public class MaterialReceiveCheckDto
     public string? DeliveryStateDisplay => DeliveryState.HasValue ? EnumHelper.GetDisplayName(DeliveryState.Value) : null;
 
     /// <summary>制造状态（批次执行的实际制造状态，与交货状态同枚举）</summary>
-    public string? ManufacturingStatus { get; set; }
+    public DeliveryState? ManufacturingStatus { get; set; }
     public string? ManufacturingStatusDisplay => !IsFormalInspection
         ? "-"
-        : !string.IsNullOrEmpty(ManufacturingStatus) && EnumHelper.TryParse<DeliveryState>(ManufacturingStatus) is { } ms ? EnumHelper.GetDisplayName(ms) : "-";
+        : ManufacturingStatus.HasValue ? EnumHelper.GetDisplayName(ManufacturingStatus.Value) : "-";
 
     /// <summary>创建时间</summary>
     public DateTimeOffset CreatedTime { get; set; }

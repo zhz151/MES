@@ -69,6 +69,7 @@ public class ProductionRecordServiceTests : TestBase
             Mock.Of<IWorkOrderExecutionService>(),
             fixedLengthSvc ?? Mock.Of<IFixedLengthWorkOrderService>(),
             Mock.Of<ISectionNameDisplayService>(),
+            CreateProcessDefinitionServiceMock(),
             new MemoryCache(new MemoryCacheOptions()));
     }
 
@@ -862,7 +863,7 @@ public class ProductionRecordServiceTests : TestBase
                 SectionName = SectionKeys.Cut,
                 SequenceNumber = 5,
                 ExecDate = DateTime.Today,
-                ProductStatus = "成品",
+                ProductStatus = ProductStatuses.Finished,
                 PostCutQuantity = cutQty,
                 Quantity = processQty
             });

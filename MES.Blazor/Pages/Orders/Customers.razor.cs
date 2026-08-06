@@ -85,7 +85,7 @@ public partial class Customers
         new() { Key = "Salesman",     Label = "业务员",   SortKey = "salesman",     FilterType = "string", IsRequired = true, Width = "120" },
         new() { Key = "CustomerUnit", Label = "客户单位", SortKey = "customerunit", FilterType = "string", IsRequired = true, Width = "120" },
         new() { Key = "EndCustomer",  Label = "最终用户", SortKey = "endcustomer",  FilterType = "string", Width = "120" },
-        new() { Key = "Status",       Label = "状态",     SortKey = "status",       FilterType = "enum",     EnumOptions = new() { new("Active", "启用"), new("Inactive", "停用") }, Width = "120" },
+        new() { Key = "Status",       Label = "状态",     SortKey = "status",       FilterType = "enum",     EnumOptions = DisplayHelper.GetEnumFilterOptions<CustomerStatus>(), Width = "120" },
         new() { Key = "ContactPerson",Label = "联系人",     SortKey = "contactperson", FilterType = "string", Width = "120" },
         new() { Key = "ContactPhone", Label = "联系电话",   SortKey = "contactphone",  FilterType = "string", Width = "120" },
         new() { Key = "Address",      Label = "联系地址",   SortKey = "address",       FilterType = "string", Width = "150" },
@@ -571,11 +571,11 @@ public partial class Customers
                     builder.AddAttribute(5, "Class", "compact-input");
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
                     {
-                        foreach (var val in Enum.GetValues<CustomerStatus>())
+                        foreach (var opt in DisplayHelper.GetEnumOptions<CustomerStatus>())
                         {
                             cb.OpenComponent<MudSelectItem<string>>(0);
-                            cb.AddAttribute(1, "Value", val.ToString());
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetCustomerStatusText(val))));
+                            cb.AddAttribute(1, "Value", opt.Value);
+                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));

@@ -97,6 +97,9 @@ public static class ApiEndpoints
     public const string Users = "api/users";
 
     // ===== Configuration 配置 =====
+    public const string ProcessDefinition = "api/process-definition";
+    public const string EnumDisplayDefinition = "api/enum-display-definition";
+    public const string DictValueDefinition = "api/dict-value-definition";
     public const string StandardWorkDay = "api/standard-work-day";
     public const string StandardWorkDayDeliveryState = "api/standard-work-day-delivery-state";
     public const string ConfigParameter = "api/config-parameter";

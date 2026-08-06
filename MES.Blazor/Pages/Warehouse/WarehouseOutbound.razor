@@ -336,8 +336,8 @@
                     foreach (var opt in _outboundTypeOptions)
                     {
                         b2.OpenComponent<MudSelectItem<OutboundType>>(0);
-                        b2.AddAttribute(1, "Value", opt.Value);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
+                        b2.AddAttribute(1, "Value", Enum.Parse<OutboundType>(opt.Value));
+                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                         b2.CloseComponent();
                     }
                 }));
@@ -370,16 +370,7 @@
         }
     };
 
-    private readonly List<(OutboundType Value, string Text)> _outboundTypeOptions = new()
-    {
-        (OutboundType.SalesOut, "销售出库"),
-        (OutboundType.SubcontractOut, "委外出库"),
-        (OutboundType.ReturnOut, "退货出库"),
-        (OutboundType.ProductionPick, "生产领用"),
-        (OutboundType.InspectionPick, "检验领用"),
-        (OutboundType.TransferOut, "移库出库"),
-        (OutboundType.OtherOut, "其他出库"),
-    };
+    private static readonly List<EnumOption> _outboundTypeOptions = DisplayHelper.GetEnumOptions<OutboundType>();
 
     // ========== 状态 ==========
 

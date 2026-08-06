@@ -99,7 +99,7 @@ public partial class SubcontractOrders : IAsyncDisposable
         new() { Key = "ReturnDeadline",      Label = "收回期限",     SortKey = "ReturnDeadline",      FilterType = "date",     Width = "110" },
         new() { Key = "SupplierName",        Label = "供应商",       SortKey = "SupplierName",        FilterType = "string",   Width = "150" },
         new() { Key = "Status",              Label = "状态",         SortKey = "Status",              FilterType = "enum",     Width = "100",
-            EnumOptions = new() { new("Sent", "已发出"), new("PartialReturned", "部分收回"), new("Completed", "已完成") } },
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<SubcontractOrderStatus>() },
         new() { Key = "ActualOutboundWeight",Label = "实发量",                                                                 Width = "90"  },
         new() { Key = "Returned",            Label = "已回收",                                                                 Width = "130" },
     };

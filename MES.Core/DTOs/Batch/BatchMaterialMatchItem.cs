@@ -1,3 +1,5 @@
+using MES.Core.Enums;
+
 namespace MES.Core.DTOs.Batch;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace MES.Core.DTOs.Batch;
 /// </summary>
 public class BatchMaterialMatchItem
 {
-    public string Category { get; set; } = null!;
+    public MaterialType? Category { get; set; }
     public string Grade { get; set; } = null!;
     public string Spec { get; set; } = null!;
 }

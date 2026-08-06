@@ -17,7 +17,7 @@ public class ProductionBatchListDto
     public string SalesOrderNo { get; set; } = null!;
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
-    public string? ProductionType { get; set; }
+    public ProductionType? ProductionType { get; set; }
     public MaterialType ManufacturingItem { get; set; }
     public string ManufacturingItemDisplay => EnumHelper.GetDisplayName(ManufacturingItem);
     public BatchStatus Status { get; set; }
@@ -162,7 +162,7 @@ public class ProductionBatchListDto
     public decimal? SourceUnitWeight { get; set; }
     public BatchInputType InputType { get; set; }
     public string InputTypeDisplay => EnumHelper.GetDisplayName(InputType);
-    public string? SourceLengthStatus { get; set; }
+    public LengthStatus? SourceLengthStatus { get; set; }
     public string? SourceProductionNo { get; set; }
 
     // ========== 理论计算字段 ==========

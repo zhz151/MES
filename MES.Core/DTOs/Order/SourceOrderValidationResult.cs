@@ -8,7 +8,7 @@ public class SourceOrderValidationResult
     public List<string> Warnings { get; set; } = new();
     public string? ExpectedWorkOrderNo { get; set; }
     /// <summary>物料分类（MaterialType 枚举名，来源单号的物料分类）</summary>
-    public string? MaterialCategory { get; set; }
+    public MaterialType? MaterialCategory { get; set; }
     /// <summary>厂内钢种（来源单号的工厂牌号）</summary>
     public string? PlantGrade { get; set; }
     /// <summary>规格（来源单号的名义规格）</summary>
@@ -22,7 +22,7 @@ public class SourceOrderValidationResult
     /// <summary>炉号（生产批次查询时填充）</summary>
     public string? HeatNo { get; set; }
     /// <summary>制造状态/交货状态（生产批次查询时填充）</summary>
-    public string? ManufacturingStatus { get; set; }
+    public DeliveryState? ManufacturingStatus { get; set; }
 }
 
 public class SourceOrderValidationRequest

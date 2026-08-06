@@ -16,12 +16,12 @@ public class PlanDetailDto
     /// <summary>
     /// 物料分类（MaterialType 枚举名）
     /// </summary>
-    public string MaterialCategory { get; set; } = null!;
+    public MaterialType? MaterialCategory { get; set; }
 
     /// <summary>
     /// 物料分类中文名
     /// </summary>
-    public string MaterialCategoryDisplay => EnumHelper.GetDisplayName<MaterialType>(MaterialCategory);
+    public string? MaterialCategoryDisplay => MaterialCategory.HasValue ? EnumHelper.GetDisplayName(MaterialCategory.Value) : null;
 
     /// <summary>
     /// 工厂牌号
