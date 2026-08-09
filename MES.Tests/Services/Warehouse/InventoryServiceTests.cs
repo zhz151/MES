@@ -450,6 +450,249 @@ public class InventoryServiceTests : TestBase
         result.CutLengthMatchType.Should().BeNull(); // 备料成品 → 不核查
     }
 
+    // ========== 定尺切割长度匹配硬校验（新建自动填充第2种 + 内联编辑） ==========
+
+    [Fact]
+    public async Task BatchInboundAsync_自动填充第2种_定尺长度不在主号集合_禁止保存()
+    {
+        // 用户决策#3：新建自动填充第2种（检验入库按生产批号）+ 定尺 → 硬校验禁止保存
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedProductionBatchAsync(ctx, "PB-006", "SO-X01-01", "SO-X01", "X01");
+
+        var maps = BuildLengthMaps(("SO-X01-01", 6000m));
+        maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
+        var svc = CreateService(ctx, FixedLenMockWith(maps));
+
+        var act = () => svc.BatchInboundAsync(new BatchInboundRequest
+        {
+            WarehouseId = wh.Id,
+            InboundSource = InboundSource.InspectionInbound,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            EnforceCutLengthMatch = true,
+            Rows = new List<InboundRow>
+            {
+                new() { InitialQuantity = 10, InitialWeight = 1000m, LengthStatus = LengthStatus.Fixed, MinLength = 7000m, MaxLength = 7000m, ProductionBatchNo = "PB-006", WorkOrderNo = "SO-X01-01" }
+            }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不在主号*");
+        // 硬校验在 SaveChanges 前抛出 → 未落库
+        (await ctx.InventoryBatches.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task BatchInboundAsync_自动填充第2种_定尺长度命中主号_入库成功()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedProductionBatchAsync(ctx, "PB-007", "SO-X01-01", "SO-X01", "X01");
+
+        var maps = BuildLengthMaps(("SO-X01-01", 6000m));
+        maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
+        var svc = CreateService(ctx, FixedLenMockWith(maps));
+
+        var result = await svc.BatchInboundAsync(new BatchInboundRequest
+        {
+            WarehouseId = wh.Id,
+            InboundSource = InboundSource.InspectionInbound,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            EnforceCutLengthMatch = true,
+            Rows = new List<InboundRow>
+            {
+                new() { InitialQuantity = 10, InitialWeight = 1000m, LengthStatus = LengthStatus.Fixed, MinLength = 6000m, MaxLength = 6000m, ProductionBatchNo = "PB-007", WorkOrderNo = "SO-X01-01" }
+            }
+        });
+
+        result.SuccessCount.Should().Be(1);
+        var saved = await ctx.InventoryBatches.AsNoTracking().SingleAsync();
+        saved.CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.FullMatch));
+    }
+
+    [Fact]
+    public async Task BatchInboundAsync_非自动填充_定尺长度不匹配_不核查()
+    {
+        // 用户决策：非自动填充模式不做任何核查（EnforceCutLengthMatch=false → 仅软计算，不阻止）
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedProductionBatchAsync(ctx, "PB-008", "SO-X01-01", "SO-X01", "X01");
+
+        var maps = BuildLengthMaps(("SO-X01-01", 6000m));
+        maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
+        var svc = CreateService(ctx, FixedLenMockWith(maps));
+
+        var result = await svc.BatchInboundAsync(new BatchInboundRequest
+        {
+            WarehouseId = wh.Id,
+            InboundSource = InboundSource.InspectionInbound,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            EnforceCutLengthMatch = false,
+            Rows = new List<InboundRow>
+            {
+                new() { InitialQuantity = 10, InitialWeight = 1000m, LengthStatus = LengthStatus.Fixed, MinLength = 7000m, MaxLength = 7000m, ProductionBatchNo = "PB-008", WorkOrderNo = "SO-X01-01" }
+            }
+        });
+
+        result.SuccessCount.Should().Be(1); // 不阻止保存
+        var saved = await ctx.InventoryBatches.AsNoTracking().SingleAsync();
+        saved.CutLengthMatchType.Should().BeNull(); // 7000 不在主号定尺集，软计算为空
+    }
+
+    [Fact]
+    public async Task BatchInboundAsync_第1种采购_即使长度不匹配_不核查()
+    {
+        // 用户决策#2：第1种自动填充（采购/委外按来源单号）不核查定尺长度匹配
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedProductionBatchAsync(ctx, "PB-009", "SO-X01-01", "SO-X01", "X01");
+
+        var maps = BuildLengthMaps(("SO-X01-01", 6000m));
+        maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
+        var svc = CreateService(ctx, FixedLenMockWith(maps));
+
+        var result = await svc.BatchInboundAsync(new BatchInboundRequest
+        {
+            WarehouseId = wh.Id,
+            InboundSource = InboundSource.Purchase, // 第1种
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            EnforceCutLengthMatch = true, // 即使前端误传 true，第1种也不核查
+            Rows = new List<InboundRow>
+            {
+                new() { InitialQuantity = 10, InitialWeight = 1000m, LengthStatus = LengthStatus.Fixed, MinLength = 7000m, MaxLength = 7000m, ProductionBatchNo = "PB-009", WorkOrderNo = "SO-X01-01" }
+            }
+        });
+
+        result.SuccessCount.Should().Be(1); // 不阻止保存
+    }
+
+    [Fact]
+    public async Task UpdateInventoryBatchAsync_生产批次工单号都非空_定尺长度不在主号_禁止保存()
+    {
+        // 用户决策#1：内联编辑核查条件=生产批次+工单号都非空；长度不在主号定尺集 → 报错无法保存
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedProductionBatchAsync(ctx, "PB-010", "SO-X01-01", "SO-X01", "X01");
+
+        var maps = BuildLengthMaps(("SO-X01-01", 6000m));
+        maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
+        var svc = CreateService(ctx, FixedLenMockWith(maps));
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.InspectionInbound,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            LengthStatus = LengthStatus.Fixed,
+            MinLength = 6000m,
+            MaxLength = 6000m,
+            ProductionBatchNo = "PB-010",
+            WorkOrderNo = "SO-X01-01",
+            InboundDate = DateTime.Today
+        });
+
+        var act = () => svc.UpdateInventoryBatchAsync(batch.Id, new UpdateInventoryBatchRequest
+        {
+            MinLength = 7000m,
+            MaxLength = 7000m
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不在主号*");
+        // 硬校验在 SaveChanges 前抛出 → 长度未落库
+        var after = await ctx.InventoryBatches.AsNoTracking().SingleAsync();
+        after.MinLength.Should().Be(6000m);
+    }
+
+    [Fact]
+    public async Task UpdateInventoryBatchAsync_生产批次为空_定尺不核查并清空标识()
+    {
+        // 用户决策#1：生产批次空 → 符合工单长度=""
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedWorkOrderAsync(ctx, "SO-X01-01", "SO-X01", "X01");
+
+        var maps = BuildLengthMaps(("SO-X01-01", 6000m));
+        maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
+        var svc = CreateService(ctx, FixedLenMockWith(maps));
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            LengthStatus = LengthStatus.Fixed,
+            MinLength = 6000m,
+            MaxLength = 6000m,
+            WorkOrderNo = "SO-X01-01", // 仅工单号，无生产批次
+            InboundDate = DateTime.Today
+        });
+        batch.CutLengthMatchType.Should().Be(CutLengthMatchType.FullMatch); // 新建软计算仍按工单号兜底
+
+        var updated = await svc.UpdateInventoryBatchAsync(batch.Id, new UpdateInventoryBatchRequest
+        {
+            MinLength = 7000m,
+            MaxLength = 7000m // 不匹配主号定尺集，但因生产批次空不核查、仅清空
+        });
+
+        updated.CutLengthMatchType.Should().BeNull(); // 内联编辑：生产批次空 → 清空
+    }
+
+    [Fact]
+    public async Task UpdateInventoryBatchAsync_工单号为空_定尺不核查并清空标识()
+    {
+        // 用户决策#1：工单号空 → 符合工单长度=""
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedProductionBatchAsync(ctx, "PB-011", "SO-X01-01", "SO-X01", "X01");
+
+        var maps = BuildLengthMaps(("SO-X01-01", 6000m));
+        maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
+        var svc = CreateService(ctx, FixedLenMockWith(maps));
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.InspectionInbound,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            LengthStatus = LengthStatus.Fixed,
+            MinLength = 6000m,
+            MaxLength = 6000m,
+            ProductionBatchNo = "PB-011", // 仅生产批次，无工单号
+            InboundDate = DateTime.Today
+        });
+        batch.CutLengthMatchType.Should().Be(CutLengthMatchType.FullMatch); // 新建软计算按生产批号
+
+        var updated = await svc.UpdateInventoryBatchAsync(batch.Id, new UpdateInventoryBatchRequest
+        {
+            MinLength = 7000m,
+            MaxLength = 7000m // 不匹配主号定尺集，但因工单号空不核查、仅清空
+        });
+
+        updated.CutLengthMatchType.Should().BeNull(); // 内联编辑：工单号空 → 清空
+    }
+
     // ========== 出库 ==========
 
     [Fact]

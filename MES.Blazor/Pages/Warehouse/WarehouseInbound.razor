@@ -1266,11 +1266,12 @@
     {
         _errorMessage = string.Empty;
 
-        // ========== 来源单号验证 ==========
+        // ========== 来源单号验证（仅自动填充模式核查；非自动填充不做任何核查） ==========
         var first = _rows[0];
         var inboundSource = first.InboundSource;
         var sourceOrderNo = first.SourceOrderNo;
-        if ((inboundSource == InboundSource.Purchase.ToString() || inboundSource == InboundSource.Subcontract.ToString())
+        if (_autoFillEnabled
+            && (inboundSource == InboundSource.Purchase.ToString() || inboundSource == InboundSource.Subcontract.ToString())
             && !string.IsNullOrEmpty(sourceOrderNo))
         {
             var validation = await InventoryService.ValidateSourceOrderAsync(sourceOrderNo, inboundSource);
@@ -1313,6 +1314,17 @@
         }
 
         var errors = new List<string>();
+
+        // 工单号为空时清空「订单信息」组字段（关联工单=否，工单号/订单号/项次全空）
+        foreach (var r in _rows)
+        {
+            if (string.IsNullOrEmpty(r.WorkOrderNo))
+            {
+                r.IsLinkedToWorkOrder = false;
+                r.SalesOrderNo = null;
+                r.OrderItemIds = null;
+            }
+        }
 
         if (_warehouseId <= 0)
             errors.Add("请选择仓库");
@@ -1419,6 +1431,8 @@
                 IsLinkedToWorkOrder = first.IsLinkedToWorkOrder ? true : null,
                 WorkOrderNo = first.WorkOrderNo,
                 SourceOrderNo = first.SourceOrderNo,
+                // 仅自动填充模式启用定尺切割长度匹配硬校验（自动填充第2种「检验入库」按生产批号时由后端核查主号定尺长度）
+                EnforceCutLengthMatch = _autoFillEnabled,
                 // 行级字段（所有可编辑字段按行发送，行值优先于公共值）
                 Rows = _rows.Select(r => new InboundRow
                 {

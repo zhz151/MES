@@ -141,6 +141,31 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         return null;
     }
 
+    /// <summary>
+    /// 定尺切割长度匹配硬校验（新建入库路径）。仅自动填充第2种「检验入库」按生产批号时由前端置 EnforceCutLengthMatch=true，
+    /// 且同时满足 FG 成品库 + 订单类成品（排除备料成品 Finished）+ 定尺 + 生产批号非空 + 工单号非空，
+    /// 此时入库长度必须命中「订单号+主号」定尺长度集合，否则抛 BusinessException 禁止入库（采购/委外与手动填写不受影响）。
+    /// </summary>
+    private static void EnforceCutLengthMatch(bool enforce, string? warehouseCode, InventoryBatch entity,
+        (string WorkOrderNo, string SalesOrderNo, string ProductionMainNo)? assoc, FixedLengthLengthMaps? lengthMaps, int rowNumber = 0)
+    {
+        if (!enforce) return;
+        if (!string.Equals(warehouseCode, "FG", StringComparison.OrdinalIgnoreCase)) return;
+        if (!string.Equals(entity.InboundSource, nameof(InboundSource.InspectionInbound), StringComparison.OrdinalIgnoreCase)) return;
+        if (!string.Equals(entity.LengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase)) return;
+        if (string.IsNullOrEmpty(entity.MaterialType) || !_orderMaterialTypes.Contains(entity.MaterialType)) return;
+        if (string.IsNullOrEmpty(entity.ProductionBatchNo) || string.IsNullOrEmpty(entity.WorkOrderNo)) return;
+        if (assoc == null || lengthMaps == null || !entity.MinLength.HasValue || entity.MinLength.Value <= 0) return;
+
+        var mainNoLengths = lengthMaps.ByMainKey.GetValueOrDefault(
+            $"{assoc.Value.SalesOrderNo.Trim()}|{assoc.Value.ProductionMainNo.Trim()}", new HashSet<decimal>());
+        if (!mainNoLengths.Contains(entity.MinLength.Value))
+        {
+            var prefix = rowNumber > 0 ? $"第{rowNumber}行：" : string.Empty;
+            throw new BusinessException($"{prefix}定尺长度 {entity.MinLength.Value:G29}mm 不在主号（{assoc.Value.SalesOrderNo}/{assoc.Value.ProductionMainNo}）的定尺长度要求内，无法入库");
+        }
+    }
+
     public InventoryBatchWriteService(
         AppDbContext context,
         IWorkOrderExecutionService workOrderExecutionService,
@@ -403,6 +428,9 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         var lengthMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
         entity.CutLengthMatchType = ComputeCutLengthMatch(warehouse.Code, entity.MaterialType, entity.LengthStatus, entity.MinLength, lengthMaps, assoc);
 
+        // 定尺切割长度匹配硬校验（仅自动填充第2种「检验入库」按生产批号时启用，长度必须命中主号定尺集合）
+        EnforceCutLengthMatch(request.EnforceCutLengthMatch, warehouse.Code, entity, assoc, lengthMaps);
+
         _context.InventoryBatches.Add(entity);
         await _context.SaveChangesAsync();
 
@@ -515,6 +543,9 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                     // 定尺切割长度匹配标识（生产批号为主 + 工单号兜底；仅成品库 FG 核查）
                     var rowAssoc = await ResolveAssociationAsync(entity, productionBatches, workOrders);
                     entity.CutLengthMatchType = ComputeCutLengthMatch(warehouse.Code, entity.MaterialType, entity.LengthStatus, entity.MinLength, lengthMaps, rowAssoc);
+
+                    // 定尺切割长度匹配硬校验（仅自动填充第2种「检验入库」按生产批号时启用，长度必须命中主号定尺集合）
+                    EnforceCutLengthMatch(request.EnforceCutLengthMatch, warehouse.Code, entity, rowAssoc, lengthMaps, rowNumber: i + 1);
 
                     _context.InventoryBatches.Add(entity);
                     createdEntities.Add(entity);
@@ -661,17 +692,37 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             entity.MaterialType = request.MaterialType.Value.ToString();
         }
 
-        await _context.SaveChangesAsync();
-
-        // 定尺切割长度匹配标识重算（长度状态/最小长度可能已变更；仅成品库 FG 核查）
-        var updAssoc = await ResolveAssociationAsync(entity);
-        var updMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+        // 定尺切割长度匹配核查（内联编辑核查条件：生产批次 + 工单号 都非空 才核查；否则标识清空）
         var updWhCode = await _context.Warehouses.AsNoTracking()
             .Where(w => w.Id == entity.WarehouseId)
             .Select(w => w.Code)
             .FirstOrDefaultAsync();
-        entity.CutLengthMatchType = ComputeCutLengthMatch(updWhCode, entity.MaterialType, entity.LengthStatus, entity.MinLength, updMaps, updAssoc);
+        var updAssoc = await ResolveAssociationAsync(entity);
+        var updMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+        var hasBothLinks = !string.IsNullOrEmpty(entity.ProductionBatchNo) && !string.IsNullOrEmpty(entity.WorkOrderNo);
+        if (hasBothLinks
+            && string.Equals(updWhCode, "FG", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(entity.LengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrEmpty(entity.MaterialType) && _orderMaterialTypes.Contains(entity.MaterialType)
+            && updAssoc != null && entity.MinLength.HasValue && entity.MinLength.Value > 0)
+        {
+            var mainNoLengths = updMaps.ByMainKey.GetValueOrDefault(
+                $"{updAssoc.Value.SalesOrderNo.Trim()}|{updAssoc.Value.ProductionMainNo.Trim()}", new HashSet<decimal>());
+            if (!mainNoLengths.Contains(entity.MinLength.Value))
+                throw new BusinessException($"定尺长度 {entity.MinLength.Value:G29}mm 不在主号（{updAssoc.Value.SalesOrderNo}/{updAssoc.Value.ProductionMainNo}）的定尺长度要求内，无法保存");
+        }
+
         await _context.SaveChangesAsync();
+
+        // 定尺切割长度匹配标识重算（长度状态/最小长度可能已变更；仅成品库 FG 核查；生产批次+工单号任一缺失 → 清空）
+        var matchValue = hasBothLinks
+            ? ComputeCutLengthMatch(updWhCode, entity.MaterialType, entity.LengthStatus, entity.MinLength, updMaps, updAssoc)
+            : null;
+        if (entity.CutLengthMatchType != matchValue)
+        {
+            entity.CutLengthMatchType = matchValue;
+            await _context.SaveChangesAsync();
+        }
 
         // 入库一致性通知（仅提醒）
         await CheckInboundConsistencyAndNotifyAsync(entity);

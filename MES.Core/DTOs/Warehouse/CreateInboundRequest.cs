@@ -66,4 +66,11 @@ public class CreateInboundRequest
     // 跨上下文关联
     public string? SourceOrderNo { get; set; }
     public int? SourceOrderSequence { get; set; }
+
+    /// <summary>
+    /// 是否启用定尺切割长度匹配硬校验（仅自动填充第2种「检验入库」按生产批号时由前端置 true）。
+    /// true：FG 成品库 + 检验入库 + 订单类成品 + 定尺 + 生产批号非空 + 工单号非空时，
+    /// 入库长度必须命中「订单号+主号」定尺长度集合，否则抛 BusinessException 禁止入库。
+    /// </summary>
+    public bool EnforceCutLengthMatch { get; set; }
 }
