@@ -219,7 +219,7 @@ public class InventoryServiceTests : TestBase
         var result = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = MaterialType.Finished,
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
             InboundSource = InboundSource.Purchase,
@@ -250,7 +250,7 @@ public class InventoryServiceTests : TestBase
         var result = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = MaterialType.Finished,
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
             InboundSource = InboundSource.Purchase,
@@ -340,7 +340,7 @@ public class InventoryServiceTests : TestBase
         var result = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = MaterialType.Finished,
+            MaterialType = MaterialType.OrderFinished,
             PlantGrade = "Q345B",
             Specification = "219*8",
             InboundSource = InboundSource.Purchase,
@@ -366,7 +366,7 @@ public class InventoryServiceTests : TestBase
 
         // 已有入库批次（CutLengthMatchType 留空待回填）
         ctx.InventoryBatches.AddRange(
-            new InventoryBatch { BatchNo = "CK100", WarehouseId = wh.Id, MaterialType = MaterialType.Finished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, LengthStatus = "Fixed", MinLength = 6000m, MaxLength = 6000m, ProductionBatchNo = "PB-003" },
+            new InventoryBatch { BatchNo = "CK100", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, LengthStatus = "Fixed", MinLength = 6000m, MaxLength = 6000m, ProductionBatchNo = "PB-003" },
             new InventoryBatch { BatchNo = "CK101", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, LengthStatus = "Fixed", MinLength = 6000m, MaxLength = 6000m, WorkOrderNo = "SO-Y01-01" },
             new InventoryBatch { BatchNo = "CK102", WarehouseId = wh.Id, MaterialType = MaterialType.Surplus.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, LengthStatus = "Fixed", MinLength = 6000m, MaxLength = 6000m, ProductionBatchNo = "PB-003" }
         );
@@ -401,7 +401,7 @@ public class InventoryServiceTests : TestBase
         var result = await svc.InboundAsync(new CreateInboundRequest
         {
             WarehouseId = wh.Id,
-            MaterialType = MaterialType.Finished, // 即使是成品物料
+            MaterialType = MaterialType.OrderFinished, // 订单类成品（本来可核查）
             PlantGrade = "Q345B",
             Specification = "219*8",
             InboundSource = InboundSource.Purchase,
@@ -416,6 +416,38 @@ public class InventoryServiceTests : TestBase
         });
 
         result.CutLengthMatchType.Should().BeNull(); // 非成品库 → 不核查
+    }
+
+    [Fact]
+    public async Task InboundAsync_备料成品_即使关联可解析_不核查()
+    {
+        // 用户强调：备料成品(Finished)无工单号关联，即使定尺 + 生产批号可解析也不参与核查
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx); // FG 成品库
+        await SeedProductionBatchAsync(ctx, "PB-005", "SO-X01-01", "SO-X01", "X01");
+
+        var maps = BuildLengthMaps(("SO-X01-01", 6000m));
+        maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
+        var svc = CreateService(ctx, FixedLenMockWith(maps));
+
+        var result = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.Finished, // 备料成品
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            LengthStatus = LengthStatus.Fixed,
+            MinLength = 6000m,
+            MaxLength = 6000m,
+            ProductionBatchNo = "PB-005", // 且生产批号可解析（关联可解析）
+            InboundDate = DateTime.Today
+        });
+
+        result.CutLengthMatchType.Should().BeNull(); // 备料成品 → 不核查
     }
 
     // ========== 出库 ==========

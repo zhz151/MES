@@ -78,11 +78,11 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
     // ========== 定尺切割长度匹配标识 ==========
 
     /// <summary>
-    /// 成品入库物料类型集合（FG 成品，等价成品判定）
+    /// 订单类成品物料集合（含工单号，可核查定尺切割长度匹配）。
+    /// 注意：备料成品 Finished 无工单号关联，即使定尺也不参与核查，故排除。
     /// </summary>
-    private static readonly HashSet<string> _fgMaterialTypes = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> _orderMaterialTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        InventoryMaterialTypes.Finished,
         InventoryMaterialTypes.OrderFinished,
         InventoryMaterialTypes.CriticalFinished,
         InventoryMaterialTypes.SpecialDeliveryStatus
@@ -90,15 +90,15 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
     /// <summary>
     /// 定尺切割长度匹配标识计算（纯判定，ToList 后内存比较）。
-    /// 适用条件：成品库(FG) + FG 成品物料 + 定尺 + 关联可解析 + 长度映射存在；命中本工单号定尺集合 → 完全匹配；命中订单+主号集合 → 主号匹配；否则 null。
-    /// 其他库房（次品库等）即使有生产批号关联的入库也不核查（库房维度为准，与前端列显隐一致）。
+    /// 适用条件：成品库(FG) + 订单类成品物料 + 定尺 + 关联可解析 + 长度映射存在；命中本工单号定尺集合 → 完全匹配；命中订单+主号集合 → 主号匹配；否则 null。
+    /// 其他库房（次品库等）即使有生产批号关联的入库也不核查（库房维度为准，与前端列显隐一致）；备料成品 Finished 无工单亦不核查。
     /// </summary>
     private static string? ComputeCutLengthMatch(string? warehouseCode, string? materialType, string? lengthStatus, decimal? minLength,
         FixedLengthLengthMaps? maps, (string WorkOrderNo, string SalesOrderNo, string ProductionMainNo)? assoc)
     {
         if (!string.Equals(warehouseCode, "FG", StringComparison.OrdinalIgnoreCase)) return null;
         if (string.IsNullOrEmpty(materialType)) return null;
-        if (!_fgMaterialTypes.Contains(materialType)) return null;
+        if (!_orderMaterialTypes.Contains(materialType)) return null;
         if (!string.Equals(lengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase)) return null;
         if (assoc == null || maps == null) return null;
 
