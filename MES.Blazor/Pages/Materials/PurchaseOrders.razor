@@ -60,12 +60,14 @@
             {
                 var noneCount = procurementItems.Count(x => x.StatusText == "未采购");
                 var partialCount = procurementItems.Count(x => x.StatusText == "部分采购");
+                var overCount = procurementItems.Count(x => x.StatusText == "超额采购");
                 <MudPaper Class="pa-3 mb-3" Elevation="0" Style="border: 1px solid #e0e0e0; border-radius: 8px;">
                     <div Class="d-flex align-center" style="cursor: pointer;" @onclick="ToggleProcurementStatus">
                         <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Info" Class="mr-2" />
                         <MudText Typo="Typo.body1" Class="font-weight-bold flex-grow-1">工单采购计划执行状态</MudText>
                         <MudChip Size="Size.Small" Color="Color.Error" Class="mr-1">未采购 @noneCount</MudChip>
                         <MudChip Size="Size.Small" Color="Color.Warning" Class="mr-1">部分采购 @partialCount</MudChip>
+                        <MudChip Size="Size.Small" Color="Color.Error" Class="mr-1">超额采购 @overCount</MudChip>
                         <MudIcon Icon="@(showProcurementStatus ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Color="Color.Default" />
                     </div>
                     @if (showProcurementStatus)
@@ -89,7 +91,7 @@
                                     <MudTd Class="text-right">@(((int)context.SubcontractWeight).ToString())</MudTd>
                                     <MudTd Class="text-right">@(((int)context.TotalWeight).ToString())</MudTd>
                                     <MudTd>
-                                        <MudChip Size="Size.Small" Color="@(context.StatusText == "未采购" ? Color.Error : Color.Warning)">
+                                        <MudChip Size="Size.Small" Color="@(context.StatusText is "未采购" or "超额采购" ? Color.Error : Color.Warning)">
                                             @context.StatusText
                                         </MudChip>
                                     </MudTd>

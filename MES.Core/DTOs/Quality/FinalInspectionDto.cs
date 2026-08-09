@@ -60,6 +60,10 @@ public class FinalInspectionDto
     /// <summary>非定尺长度范围（批次长度状态&lt;&gt;定尺时填写）</summary>
     public string? NonFixedLengthRange { get; set; }
 
+    /// <summary>定尺切割长度匹配标识（完全匹配/主号匹配；null=不适用，仅正式成检计算）</summary>
+    public CutLengthMatchType? CutLengthMatchType { get; set; }
+    public string? CutLengthMatchTypeDisplay => CutLengthMatchHelper.GetText(CutLengthMatchType);
+
     /// <summary>生产类型</summary>
     public ProductionType? ProductionType { get; set; }
 

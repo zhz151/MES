@@ -1033,6 +1033,10 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("CutLengthMatchType")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<decimal?>("CuttingMultiple")
                         .HasColumnType("decimal(5,2)");
 
@@ -1598,6 +1602,10 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DefaultSections")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("int");
@@ -3999,6 +4007,10 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CutLengthMatchType")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("DataSource")
                         .HasColumnType("nvarchar(max)");
@@ -7280,9 +7292,6 @@ namespace MES.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("ManufacturingMultiple")
-                        .HasColumnType("int");
-
                     b.Property<string>("ManufacturingSpec")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -7827,9 +7836,6 @@ namespace MES.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("ManufacturingMultiple")
-                        .HasColumnType("int");
-
                     b.Property<string>("ManufacturingSpec")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -8074,9 +8080,6 @@ namespace MES.Data.Migrations
                     b.Property<string>("ManufacturingLength")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("ManufacturingMultiple")
-                        .HasColumnType("int");
 
                     b.Property<string>("ManufacturingSpec")
                         .HasMaxLength(100)
@@ -8328,9 +8331,6 @@ namespace MES.Data.Migrations
                     b.Property<string>("ManufacturingLength")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("ManufacturingMultiple")
-                        .HasColumnType("int");
 
                     b.Property<string>("ManufacturingSpec")
                         .HasMaxLength(100)
@@ -8662,6 +8662,9 @@ namespace MES.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<DateTime?>("CutoffArrivalDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("DaysDiffFromDelivery")
                         .HasColumnType("int");
 
@@ -8680,6 +8683,9 @@ namespace MES.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("EndCustomer")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("EstimatedProcessCompletionDate")
                         .HasColumnType("date");
@@ -8845,6 +8851,9 @@ namespace MES.Data.Migrations
                     b.Property<string>("MainNoAttentionProcess")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("MainNoCutoffArrivalDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<decimal>("MainNoFlowOutputRatio")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(8,2)")
@@ -8874,6 +8883,9 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
+
+                    b.Property<int>("MainNoPlanExecutionStatus")
+                        .HasColumnType("int");
 
                     b.Property<int>("MainNoWarehousingStatus")
                         .ValueGeneratedOnAdd()

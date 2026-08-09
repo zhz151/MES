@@ -11,27 +11,29 @@ public static class IntStatusDisplayHelper
 {
     // ========== 3 档：未投料/部分/满足（InputStatus/MainNoInputStatus/FlowStatus/ReworkMainNoStatus） ==========
 
-    /// <summary>投料/流转状态 3 档文本（0=未投料 1=部分 2=满足）</summary>
+    /// <summary>投料/流转状态 4 档文本（0=未投料 1=部分 2=满足 3=超量）</summary>
     public static string GetInputStatusText(int status) => status switch
     {
         0 => "未投料",
         1 => "部分",
         2 => "满足",
+        3 => "超量",
         _ => "未知"
     };
 
-    /// <summary>主号流转状态 3 档文本（0=未计划 1=部分 2=满足）</summary>
+    /// <summary>主号流转状态 4 档文本（0=未计划 1=部分 2=满足 3=超量）</summary>
     public static string GetMainNoFlowStatusText(int status) => status switch
     {
         0 => "未计划",
         1 => "部分",
         2 => "满足",
+        3 => "超量",
         _ => "未知"
     };
 
-    // ========== 关注状态 5 档 ==========
+    // ========== 主号关注 5 档 ==========
 
-    /// <summary>关注状态 5 档文本（0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验）。null/未知 → fallback</summary>
+    /// <summary>主号关注 5 档文本（0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验）。null/未知 → fallback</summary>
     public static string GetScheduleStageText(int? stage, string? fallback = "未知") => stage switch
     {
         0 => "主号暂停",
@@ -54,12 +56,13 @@ public static class IntStatusDisplayHelper
 
     // ========== 入库状态 ==========
 
-    /// <summary>入库状态 3 档文本（0=无入库 1=入库部分 2=入库完结；WoWarehousingStatus/OrderWarehousingStatus）</summary>
+    /// <summary>入库状态 4 档文本（0=无入库 1=入库部分 2=入库完结 3=入库超额；WoWarehousingStatus 4 档 / OrderWarehousingStatus 值域仅 0~2）</summary>
     public static string GetWarehousingStatusText(int status) => status switch
     {
         0 => "无入库",
         1 => "入库部分",
         2 => "入库完结",
+        3 => "入库超额",
         _ => "未知"
     };
 
@@ -86,34 +89,50 @@ public static class IntStatusDisplayHelper
         _ => "未知"
     };
 
-    /// <summary>计划实投一致性 3 档文本（0=一致 1=疑问 2=错误）</summary>
+    // ========== 主号计划执行状态 4 档（三数字判定：无计划/未执行/执行中/计划落实） ==========
+
+    /// <summary>主号计划执行状态 4 档文本（0=无计划 1=未执行 2=执行中 3=计划落实）</summary>
+    public static string GetMainNoPlanExecutionStatusText(int status) => status switch
+    {
+        0 => "无计划",
+        1 => "未执行",
+        2 => "执行中",
+        3 => "计划落实",
+        _ => "未知"
+    };
+
+    /// <summary>到料实投一致性 5 档文本（0=一致 1=待投 2=疑问-到料未投 3=疑问-到料超投 4=错误-无到料已投）</summary>
     public static string GetPlanInputConsistencyText(int status) => status switch
     {
         0 => "一致",
-        1 => "疑问",
-        2 => "错误",
+        1 => "待投",
+        2 => "疑问-到料未投",
+        3 => "疑问-到料超投",
+        4 => "错误-无到料已投",
         _ => "未知"
     };
 
     // ========== 筛选选项（Value=档位数字，Display=中文，供列表筛选下拉） ==========
 
-    /// <summary>投料/流转状态筛选选项</summary>
+    /// <summary>投料/流转状态筛选选项（4 档含超量）</summary>
     public static List<EnumDisplayOptionDto> GetInputStatusOptions() => new()
     {
         new EnumDisplayOptionDto { Value = "0", DisplayName = "未投料" },
         new EnumDisplayOptionDto { Value = "1", DisplayName = "部分" },
-        new EnumDisplayOptionDto { Value = "2", DisplayName = "满足" }
+        new EnumDisplayOptionDto { Value = "2", DisplayName = "满足" },
+        new EnumDisplayOptionDto { Value = "3", DisplayName = "超量" }
     };
 
-    /// <summary>主号流转状态筛选选项（0=未计划）</summary>
+    /// <summary>主号流转状态筛选选项（4 档含超量，0=未计划）</summary>
     public static List<EnumDisplayOptionDto> GetMainNoFlowStatusOptions() => new()
     {
         new EnumDisplayOptionDto { Value = "0", DisplayName = "未计划" },
         new EnumDisplayOptionDto { Value = "1", DisplayName = "部分" },
-        new EnumDisplayOptionDto { Value = "2", DisplayName = "满足" }
+        new EnumDisplayOptionDto { Value = "2", DisplayName = "满足" },
+        new EnumDisplayOptionDto { Value = "3", DisplayName = "超量" }
     };
 
-    /// <summary>关注状态筛选选项（summary 5 档）</summary>
+    /// <summary>主号关注筛选选项（summary 5 档）</summary>
     public static List<EnumDisplayOptionDto> GetScheduleStageOptions() => new()
     {
         new EnumDisplayOptionDto { Value = "0", DisplayName = "主号暂停" },
@@ -132,12 +151,13 @@ public static class IntStatusDisplayHelper
         new EnumDisplayOptionDto { Value = "3", DisplayName = "成品检验" }
     };
 
-    /// <summary>入库状态筛选选项（3 档）</summary>
+    /// <summary>入库状态筛选选项（4 档；WoWarehousingStatus 用，OrderWarehousingStatus 值域仅 0~2）</summary>
     public static List<EnumDisplayOptionDto> GetWarehousingStatusOptions() => new()
     {
         new EnumDisplayOptionDto { Value = "0", DisplayName = "无入库" },
         new EnumDisplayOptionDto { Value = "1", DisplayName = "入库部分" },
-        new EnumDisplayOptionDto { Value = "2", DisplayName = "入库完结" }
+        new EnumDisplayOptionDto { Value = "2", DisplayName = "入库完结" },
+        new EnumDisplayOptionDto { Value = "3", DisplayName = "入库超额" }
     };
 
     /// <summary>主号入库状态筛选选项（4 档）</summary>
@@ -174,12 +194,23 @@ public static class IntStatusDisplayHelper
         new EnumDisplayOptionDto { Value = "4", DisplayName = "异常" }
     };
 
-    /// <summary>计划实投一致性筛选选项（3 档）</summary>
+    /// <summary>到料实投一致性筛选选项（5 档：0=一致 1=待投 2=疑问-到料未投 3=疑问-到料超投 4=错误-无到料已投）</summary>
     public static List<EnumDisplayOptionDto> GetPlanInputConsistencyOptions() => new()
     {
         new EnumDisplayOptionDto { Value = "0", DisplayName = "一致" },
-        new EnumDisplayOptionDto { Value = "1", DisplayName = "疑问" },
-        new EnumDisplayOptionDto { Value = "2", DisplayName = "错误" }
+        new EnumDisplayOptionDto { Value = "1", DisplayName = "待投" },
+        new EnumDisplayOptionDto { Value = "2", DisplayName = "疑问-到料未投" },
+        new EnumDisplayOptionDto { Value = "3", DisplayName = "疑问-到料超投" },
+        new EnumDisplayOptionDto { Value = "4", DisplayName = "错误-无到料已投" }
+    };
+
+    /// <summary>主号计划执行状态筛选选项（4 档：0=无计划 1=未执行 2=执行中 3=计划落实）</summary>
+    public static List<EnumDisplayOptionDto> GetMainNoPlanExecutionStatusOptions() => new()
+    {
+        new EnumDisplayOptionDto { Value = "0", DisplayName = "无计划" },
+        new EnumDisplayOptionDto { Value = "1", DisplayName = "未执行" },
+        new EnumDisplayOptionDto { Value = "2", DisplayName = "执行中" },
+        new EnumDisplayOptionDto { Value = "3", DisplayName = "计划落实" }
     };
 
 }

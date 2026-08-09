@@ -157,6 +157,17 @@ public class ProductionRecordController : ControllerBase
     }
 
     /// <summary>
+    /// 回填全部生产记录的定尺切割长度匹配标识（CutLengthMatchType）
+    /// </summary>
+    [HttpPost("refresh-all-cut-length-match")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> RefreshAllCutLengthMatch()
+    {
+        var count = await _service.RefreshAllCutLengthMatchAsync();
+        return Ok(ApiResponse.Ok($"已回填 {count} 条生产记录的定尺切割长度匹配标识"));
+    }
+
+    /// <summary>
     /// 删除生产记录中所有"去油"和"酸洗"的旧数据（已被 PicklingInRecord 替代）
     /// </summary>
     [HttpDelete("cleanup-degrease-pickle")]

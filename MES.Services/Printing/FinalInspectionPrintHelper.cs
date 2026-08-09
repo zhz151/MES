@@ -24,6 +24,7 @@ public static class FinalInspectionPrintHelper
         ["ProductionType"] = v => v is string s && !string.IsNullOrEmpty(s) && Enum.TryParse<ProductionType>(s, true, out var pt) ? EnumHelper.GetDisplayName(pt) : (v?.ToString() ?? ""),
         ["DataSource"] = v => StringEnumDisplayHelper.GetDataSourceText(v?.ToString()),
         ["LengthStatus"] = v => v is string s && !string.IsNullOrEmpty(s) && Enum.TryParse<LengthStatus>(s, true, out var ls) ? EnumHelper.GetDisplayName(ls) : (v?.ToString() ?? ""),
+        ["CutLengthMatchType"] = v => v is CutLengthMatchType ct ? CutLengthMatchHelper.GetText(ct) : "",
         ["DeliveryState"] = v => v is string s && !string.IsNullOrEmpty(s) && Enum.TryParse<DeliveryState>(s, true, out var ds) ? EnumHelper.GetDisplayName(ds) : (v?.ToString() ?? "")
     };
 

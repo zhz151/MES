@@ -18,22 +18,34 @@ public class IntStatusDisplayHelperTests
     // ========== Text 中文映射 ==========
 
     [Fact]
-    public void GetInputStatusText_3档映射()
+    public void GetInputStatusText_4档映射()
     {
         IntStatusDisplayHelper.GetInputStatusText(0).Should().Be("未投料");
         IntStatusDisplayHelper.GetInputStatusText(1).Should().Be("部分");
         IntStatusDisplayHelper.GetInputStatusText(2).Should().Be("满足");
+        IntStatusDisplayHelper.GetInputStatusText(3).Should().Be("超量");
         IntStatusDisplayHelper.GetInputStatusText(-1).Should().Be("未知");
         IntStatusDisplayHelper.GetInputStatusText(99).Should().Be("未知");
     }
 
     [Fact]
-    public void GetMainNoFlowStatusText_3档映射()
+    public void GetMainNoFlowStatusText_4档映射()
     {
         IntStatusDisplayHelper.GetMainNoFlowStatusText(0).Should().Be("未计划");
         IntStatusDisplayHelper.GetMainNoFlowStatusText(1).Should().Be("部分");
         IntStatusDisplayHelper.GetMainNoFlowStatusText(2).Should().Be("满足");
+        IntStatusDisplayHelper.GetMainNoFlowStatusText(3).Should().Be("超量");
         IntStatusDisplayHelper.GetMainNoFlowStatusText(5).Should().Be("未知");
+    }
+
+    [Fact]
+    public void GetMainNoPlanExecutionStatusText_4档映射()
+    {
+        IntStatusDisplayHelper.GetMainNoPlanExecutionStatusText(0).Should().Be("无计划");
+        IntStatusDisplayHelper.GetMainNoPlanExecutionStatusText(1).Should().Be("未执行");
+        IntStatusDisplayHelper.GetMainNoPlanExecutionStatusText(2).Should().Be("执行中");
+        IntStatusDisplayHelper.GetMainNoPlanExecutionStatusText(3).Should().Be("计划落实");
+        IntStatusDisplayHelper.GetMainNoPlanExecutionStatusText(9).Should().Be("未知");
     }
 
     [Fact]
@@ -63,12 +75,13 @@ public class IntStatusDisplayHelperTests
     }
 
     [Fact]
-    public void GetWarehousingStatusText_3档映射()
+    public void GetWarehousingStatusText_4档映射()
     {
         IntStatusDisplayHelper.GetWarehousingStatusText(0).Should().Be("无入库");
         IntStatusDisplayHelper.GetWarehousingStatusText(1).Should().Be("入库部分");
         IntStatusDisplayHelper.GetWarehousingStatusText(2).Should().Be("入库完结");
-        IntStatusDisplayHelper.GetWarehousingStatusText(3).Should().Be("未知");
+        IntStatusDisplayHelper.GetWarehousingStatusText(3).Should().Be("入库超额");
+        IntStatusDisplayHelper.GetWarehousingStatusText(4).Should().Be("未知");
     }
 
     [Fact]
@@ -93,12 +106,14 @@ public class IntStatusDisplayHelperTests
     }
 
     [Fact]
-    public void GetPlanInputConsistencyText_3档映射()
+    public void GetPlanInputConsistencyText_5档映射()
     {
         IntStatusDisplayHelper.GetPlanInputConsistencyText(0).Should().Be("一致");
-        IntStatusDisplayHelper.GetPlanInputConsistencyText(1).Should().Be("疑问");
-        IntStatusDisplayHelper.GetPlanInputConsistencyText(2).Should().Be("错误");
-        IntStatusDisplayHelper.GetPlanInputConsistencyText(3).Should().Be("未知");
+        IntStatusDisplayHelper.GetPlanInputConsistencyText(1).Should().Be("待投");
+        IntStatusDisplayHelper.GetPlanInputConsistencyText(2).Should().Be("疑问-到料未投");
+        IntStatusDisplayHelper.GetPlanInputConsistencyText(3).Should().Be("疑问-到料超投");
+        IntStatusDisplayHelper.GetPlanInputConsistencyText(4).Should().Be("错误-无到料已投");
+        IntStatusDisplayHelper.GetPlanInputConsistencyText(9).Should().Be("未知");
     }
 
     // ========== Options 与 Text 一致性 ==========
@@ -107,7 +122,7 @@ public class IntStatusDisplayHelperTests
     public void GetInputStatusOptions_与Text一致()
     {
         var options = IntStatusDisplayHelper.GetInputStatusOptions();
-        options.Should().HaveCount(3);
+        options.Should().HaveCount(4);
         for (int i = 0; i < options.Count; i++)
         {
             options[i].Value.Should().Be(i.ToString());
@@ -119,11 +134,23 @@ public class IntStatusDisplayHelperTests
     public void GetMainNoFlowStatusOptions_与Text一致()
     {
         var options = IntStatusDisplayHelper.GetMainNoFlowStatusOptions();
-        options.Should().HaveCount(3);
+        options.Should().HaveCount(4);
         for (int i = 0; i < options.Count; i++)
         {
             options[i].Value.Should().Be(i.ToString());
             options[i].DisplayName.Should().Be(IntStatusDisplayHelper.GetMainNoFlowStatusText(i));
+        }
+    }
+
+    [Fact]
+    public void GetMainNoPlanExecutionStatusOptions_与Text一致()
+    {
+        var options = IntStatusDisplayHelper.GetMainNoPlanExecutionStatusOptions();
+        options.Should().HaveCount(4);
+        for (int i = 0; i < options.Count; i++)
+        {
+            options[i].Value.Should().Be(i.ToString());
+            options[i].DisplayName.Should().Be(IntStatusDisplayHelper.GetMainNoPlanExecutionStatusText(i));
         }
     }
 
@@ -155,7 +182,7 @@ public class IntStatusDisplayHelperTests
     public void GetWarehousingStatusOptions_与Text一致()
     {
         var options = IntStatusDisplayHelper.GetWarehousingStatusOptions();
-        options.Should().HaveCount(3);
+        options.Should().HaveCount(4);
         for (int i = 0; i < options.Count; i++)
         {
             options[i].Value.Should().Be(i.ToString());
@@ -203,7 +230,7 @@ public class IntStatusDisplayHelperTests
     public void GetPlanInputConsistencyOptions_与Text一致()
     {
         var options = IntStatusDisplayHelper.GetPlanInputConsistencyOptions();
-        options.Should().HaveCount(3);
+        options.Should().HaveCount(5);
         for (int i = 0; i < options.Count; i++)
         {
             options[i].Value.Should().Be(i.ToString());

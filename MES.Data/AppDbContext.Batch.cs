@@ -209,6 +209,7 @@ public partial class AppDbContext
             entity.Property(e => e.LengthStatus).HasMaxLength(20);
             entity.Property(e => e.CuttingMultiple).HasColumnType("decimal(5,2)");
             entity.Property(e => e.FinishedCutLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.CutLengthMatchType).HasMaxLength(20);
             entity.Property(e => e.PostCutQuantity);
             entity.Property(e => e.TagNo).HasMaxLength(50);
             entity.Property(e => e.PlantGrade).HasMaxLength(50);

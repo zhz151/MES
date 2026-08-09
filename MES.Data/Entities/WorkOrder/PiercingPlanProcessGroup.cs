@@ -23,7 +23,6 @@ public class PiercingPlanProcessGroup : BaseEntity
     public string? WallThicknessTolerance { get; set; }
     public string? ManufacturingLength { get; set; }
     public string? CuttingTreatment { get; set; }
-    public int ManufacturingMultiple { get; set; }
     public string? Remark { get; set; }
 
     // ========== 工段 ==========

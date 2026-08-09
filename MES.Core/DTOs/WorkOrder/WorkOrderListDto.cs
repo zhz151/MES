@@ -120,6 +120,22 @@ public class WorkOrderListDto
     public int TotalItemCount { get; set; }
 
     /// <summary>
+    /// 主号-关注（int 5 档：0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验）
+    /// 来自 WorkOrderExecutionSummary（主号级），无执行摘要时为空
+    /// </summary>
+    public int? ScheduleStage { get; set; }
+
+    /// <summary>
+    /// 主号-原锁备注（仅 ScheduleStage=2 原料锁定时有值；四类英文 Key，中文显示走 RawMaterialLockRemarkKeys）
+    /// </summary>
+    public string? RawMaterialLockRemark { get; set; }
+
+    /// <summary>
+    /// 主号-计划性（紧急性英文 Key：APlusUrgent/AUrgent/BOrder/CSlow/DSlow/EPaused）
+    /// </summary>
+    public string? UrgencyLevel { get; set; }
+
+    /// <summary>
     /// 工单状态
     /// </summary>
     public WorkOrderStatus Status { get; set; }

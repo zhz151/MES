@@ -155,12 +155,12 @@ public partial class Orders
                EnumOptions = new List<EnumOption> { new("Pending", "待处理"), new("Confirmed", "已确认") },
                DisplayConverter = v => v is SalesOrderStatus s ? DisplayHelper.GetSalesOrderStatusText(s) : "-" },
         new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "③ 订单确认" },
-        // ========== ④ 工单执行 ==========
-        new() { Key = "schedulestage",     Label = "执行关注", SortKey = "schedulestage",     FilterType = "enum", Width = "100", GroupKey = 4, GroupName = "④ 工单执行",
+        // ========== ④ 订单执行 ==========
+        new() { Key = "schedulestage",     Label = "执行关注", SortKey = "schedulestage",     FilterType = "enum", Width = "100", GroupKey = 4, GroupName = "④ 订单执行",
                EnumOptions = new List<EnumOption> { new("", "未排产") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList(),
                DisplayConverter = v => v is SalesOrderListDto d ? d.ScheduleStageText : "-" },
-        new() { Key = "urgencylevel",      Label = "紧急性",   SortKey = "urgencylevel",      FilterType = "string", Width = "80", GroupKey = 4, GroupName = "④ 工单执行" },
-        new() { Key = "estimatedcompletiondate", Label = "预计完成", SortKey = "estimatedcompletiondate", FilterType = "date", Width = "100", GroupKey = 4, GroupName = "④ 工单执行" },
+        new() { Key = "urgencylevel",      Label = "紧急性",   SortKey = "urgencylevel",      FilterType = "string", Width = "80", GroupKey = 4, GroupName = "④ 订单执行" },
+        new() { Key = "estimatedcompletiondate", Label = "预计完成", SortKey = "estimatedcompletiondate", FilterType = "date", Width = "100", GroupKey = 4, GroupName = "④ 订单执行" },
     };
 
     // ========== 分页汇总 ==========
@@ -629,19 +629,31 @@ public partial class Orders
             case "schedulestage":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetScheduleStageColor(order.ScheduleStage));
+                builder.AddAttribute(2, "Color", order.ScheduleStage.HasValue ? DisplayHelper.GetScheduleStageColor(order.ScheduleStage.Value) : Color.Default);
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, order.ScheduleStageText)));
                 builder.CloseComponent();
                 break;
             case "urgencylevel":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetUrgencyColor(order.UrgencyLevel));
+                builder.AddAttribute(2, "Color", DisplayHelper.GetUrgencyColor(order.UrgencyLevel));
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, order.UrgencyLevel) ?? "-")));
                 builder.CloseComponent();
                 break;
             case "estimatedcompletiondate":
-                builder.AddContent(0, order.EstimatedCompletionDate?.ToString("yyyy-MM-dd") ?? "-");
+                // 主号完成（档1）时该值为实际入库截止日（事实值），用绿色 Chip 与预测值区分
+                if (order.ScheduleStage == 1 && order.EstimatedCompletionDate.HasValue)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", Color.Success);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, order.EstimatedCompletionDate!.Value.ToString("yyyy-MM-dd"))));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, order.EstimatedCompletionDate?.ToString("yyyy-MM-dd") ?? "-");
+                }
                 break;
         }
     };
@@ -757,25 +769,6 @@ public partial class Orders
 
     private Color GetStatusColor(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusColor(status);
     private string GetStatusText(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusText(status);
-
-    private static Color GetScheduleStageColor(int? stage) => stage switch
-    {
-        null => Color.Default,
-        0 => Color.Success,
-        1 => Color.Error,
-        2 => Color.Warning,
-        3 => Color.Info,
-        _ => Color.Default
-    };
-
-    private static Color GetUrgencyColor(string? urgency) => urgency switch
-    {
-        UrgencyLevelKeys.APlusUrgent or UrgencyLevelKeys.AUrgent => Color.Error,
-        UrgencyLevelKeys.BOrder => Color.Warning,
-        UrgencyLevelKeys.CSlow => Color.Info,
-        UrgencyLevelKeys.DSlow => Color.Default,
-        _ => Color.Default
-    };
 
     // ========== 打印方法 ==========
 

@@ -114,6 +114,11 @@ public class InventoryPlanDto
     public int StandardCycle { get; set; }
 
     /// <summary>
+    /// 是否已生产领用出库（已出库计划不可修改/删除）
+    /// </summary>
+    public bool IsOutbound { get; set; }
+
+    /// <summary>
     /// 创建时间
     /// </summary>
     public DateTimeOffset CreatedTime { get; set; }

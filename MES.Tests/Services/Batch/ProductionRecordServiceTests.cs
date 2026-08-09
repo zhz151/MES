@@ -85,6 +85,48 @@ public class ProductionRecordServiceTests : TestBase
         return mock.Object;
     }
 
+    /// <summary>
+    /// 构造支持「定尺切割长度匹配标识」判定的 IFixedLengthWorkOrderService Mock。
+    /// 同时 mock 工单号级 / 主号级长度集合与批量映射（GetLengthMapsAsync）。
+    /// 约定批次 WorkOrderNo=WO-001、SalesOrderNo=SO-001、ProductionMainNo=M-001。
+    /// </summary>
+    private static IFixedLengthWorkOrderService CreateCutMatchSvcMock(
+        decimal[]? woLengths = null, decimal[]? mainNoLengths = null)
+    {
+        var mock = new Mock<IFixedLengthWorkOrderService>();
+        var woSet = new HashSet<decimal>(woLengths ?? Array.Empty<decimal>());
+        var mainSet = new HashSet<decimal>(mainNoLengths ?? Array.Empty<decimal>());
+        mock.Setup(s => s.GetLengthsByWorkOrderNoAsync(It.IsAny<string>()))
+            .ReturnsAsync(woSet);
+        mock.Setup(s => s.GetLengthsByMainNoAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(mainSet);
+        var maps = new FixedLengthLengthMaps
+        {
+            ByWorkOrderNo = new Dictionary<string, HashSet<decimal>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["WO-001"] = woSet
+            },
+            ByMainKey = new Dictionary<string, HashSet<decimal>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["SO-001|M-001"] = mainSet
+            }
+        };
+        mock.Setup(s => s.GetLengthMapsAsync()).ReturnsAsync(maps);
+        return mock.Object;
+    }
+
+    /// <summary>
+    /// 构造「定尺 + 成品工序组」的批次（LengthStatus=Fixed，工序组 Spec==批次 Specification → 断切成品可判标识）。
+    /// </summary>
+    private async Task<ProductionBatch> SeedCutMatchBatchAsync(AppDbContext ctx, string batchNo = "BATCH-MATCH")
+    {
+        var batch = await SeedBatchAsync(ctx, batchNo);
+        batch.LengthStatus = nameof(LengthStatus.Fixed);
+        await ctx.SaveChangesAsync();
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        return batch;
+    }
+
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
     {
         var batch = new ProductionBatch
@@ -533,6 +575,285 @@ public class ProductionRecordServiceTests : TestBase
 
         await act.Should().ThrowAsync<BusinessException>()
             .WithMessage("*预成切必须填写成品长度*");
+    }
+
+    // ========== 定尺切割长度匹配标识（符合工单长度） ==========
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_成品定尺非预成切长度属本工单号_完全匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedCutMatchBatchAsync(ctx);
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+
+        var result = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH-MATCH",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Cut,
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 4000m
+        });
+
+        result.CutLengthMatchType.Should().Be(CutLengthMatchType.FullMatch);
+        result.CutLengthMatchTypeDisplay.Should().Be("完全匹配");
+        // 持久化到实体
+        var saved = await ctx.ProductionRecords.FirstAsync(r => r.Id == result.Id);
+        saved.CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.FullMatch));
+    }
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_成品定尺非预成切仅属主号_主号匹配()
+    {
+        var ctx = CreateDbContext();
+        await SeedCutMatchBatchAsync(ctx);
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+
+        var result = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH-MATCH",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Cut,
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 6000m // 仅属订单+主号，非本工单号 → 主号匹配
+        });
+
+        result.CutLengthMatchType.Should().Be(CutLengthMatchType.MainNoMatch);
+        result.CutLengthMatchTypeDisplay.Should().Be("主号匹配");
+    }
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_预成切_标识不适用()
+    {
+        var ctx = CreateDbContext();
+        await SeedCutMatchBatchAsync(ctx);
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m }));
+
+        var result = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH-MATCH",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Cut,
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 6000m, // 不在正式定尺集合 → 预成切校验通过
+            IsPreCut = true
+        });
+
+        result.IsPreCut.Should().BeTrue();
+        result.CutLengthMatchType.Should().BeNull();
+        result.CutLengthMatchTypeDisplay.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_非定尺批次_标识不适用()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-NONFIX"); // LengthStatus=NonFixed 默认
+        await SeedProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m }));
+
+        var result = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH-NONFIX",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Cut,
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 4000m // 长度校验通过，但非定尺 → 不适用
+        });
+
+        result.LengthStatus.Should().Be(LengthStatus.NonFixed);
+        result.CutLengthMatchType.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CreateProductionRecordAsync_非成品切割_标识不适用()
+    {
+        var ctx = CreateDbContext();
+        await SeedCutMatchBatchAsync(ctx);
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+
+        var result = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH-MATCH",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "273*10", // ≠ 批次 Specification → 非成品
+            SectionName = SectionKeys.Cut,
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 4000m
+        });
+
+        result.ProductStatus.Should().NotBe(ProductStatuses.Finished);
+        result.CutLengthMatchType.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task BatchCreateProductionRecordsAsync_按工单号主号集合_计算标识()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutMatchBatchAsync(ctx);
+        // 批量创建校验要求：工序组须含「断切」工段 + 本次提交须先有「冷轧拔」记录
+        var pg = await ctx.ProcessGroups.FirstAsync(p => p.ProductionBatchId == batch.Id);
+        pg.Cut = 5;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+
+        var results = await svc.BatchCreateProductionRecordsAsync(new List<CreateProductionRecordRequest>
+        {
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.ColdRollDraw, ExecDate = DateTime.Today, Quantity = 10 },
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.Cut, ExecDate = DateTime.Today, FinishedCutLength = 4000m },
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.Cut, ExecDate = DateTime.Today, FinishedCutLength = 6000m }
+        });
+
+        results.Should().HaveCount(3);
+        results[1].CutLengthMatchType.Should().Be(CutLengthMatchType.FullMatch);
+        results[2].CutLengthMatchType.Should().Be(CutLengthMatchType.MainNoMatch);
+    }
+
+    [Fact]
+    public async Task UpdateProductionRecordAsync_修改长度_重算标识()
+    {
+        var ctx = CreateDbContext();
+        await SeedCutMatchBatchAsync(ctx);
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+
+        var created = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH-MATCH",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Cut,
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 4000m
+        });
+        created.CutLengthMatchType.Should().Be(CutLengthMatchType.FullMatch);
+
+        var result = await svc.UpdateProductionRecordAsync(created.Id, new UpdateProductionRecordRequest
+        {
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 6000m
+        });
+
+        result.CutLengthMatchType.Should().Be(CutLengthMatchType.MainNoMatch);
+    }
+
+    [Fact]
+    public async Task UpdateProductionRecordAsync_改为预成切_标识置空()
+    {
+        var ctx = CreateDbContext();
+        await SeedCutMatchBatchAsync(ctx);
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m }));
+
+        var created = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH-MATCH",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Cut,
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 4000m
+        });
+        created.CutLengthMatchType.Should().Be(CutLengthMatchType.FullMatch);
+
+        var result = await svc.UpdateProductionRecordAsync(created.Id, new UpdateProductionRecordRequest
+        {
+            ExecDate = DateTime.Today,
+            IsPreCut = true,
+            FinishedCutLength = 6000m // 不在正式定尺集合 → 预成切校验通过
+        });
+
+        result.IsPreCut.Should().BeTrue();
+        result.CutLengthMatchType.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RefreshAllCutLengthMatchAsync_回填并修正全部记录()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-REFRESH");
+        batch.LengthStatus = nameof(LengthStatus.Fixed);
+        await ctx.SaveChangesAsync();
+        var pg = await SeedProcessGroupAsync(ctx, batch.Id);
+
+        // 4000 应判定完全匹配（先置错值 MainNoMatch），6000 应判定主号匹配（待回填）
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id, ProcessGroupId = pg.Id, ProcessName = "60冷轧", ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Cut, SequenceNumber = 5, ExecDate = DateTime.Today,
+            ProductStatus = ProductStatuses.Finished, LengthStatus = nameof(LengthStatus.Fixed),
+            FinishedCutLength = 4000m, CutLengthMatchType = nameof(CutLengthMatchType.MainNoMatch)
+        });
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id, ProcessGroupId = pg.Id, ProcessName = "60冷轧", ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Cut, SequenceNumber = 6, ExecDate = DateTime.Today,
+            ProductStatus = ProductStatuses.Finished, LengthStatus = nameof(LengthStatus.Fixed),
+            FinishedCutLength = 6000m, CutLengthMatchType = null
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+        var updated = await svc.RefreshAllCutLengthMatchAsync();
+
+        updated.Should().Be(2);
+        var records = await ctx.ProductionRecords.OrderBy(r => r.FinishedCutLength).ToListAsync();
+        records[0].CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.FullMatch));
+        records[1].CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.MainNoMatch));
+    }
+
+    [Fact]
+    public async Task RecomputeCutLengthMatchByBatchAsync_批次工单号变更_重算匹配标识()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutMatchBatchAsync(ctx, "BATCH-RECOMPUTE");
+        var pg = await ctx.ProcessGroups.FirstAsync(p => p.ProductionBatchId == batch.Id);
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id, ProcessGroupId = pg.Id, ProcessName = "60冷轧", ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Cut, SequenceNumber = 5, ExecDate = DateTime.Today,
+            ProductStatus = ProductStatuses.Finished, LengthStatus = nameof(LengthStatus.Fixed),
+            FinishedCutLength = 4000m, CutLengthMatchType = nameof(CutLengthMatchType.FullMatch) // 旧值（批次工单号变更后应重算）
+        });
+        await ctx.SaveChangesAsync();
+
+        // 模拟批次编辑把工单号改为 WO-OTHER（不在定尺工单集合内 → 仅命中主号集合 → 主号匹配）
+        var batchEntity = await ctx.ProductionBatches.FirstAsync();
+        batchEntity.WorkOrderNo = "WO-OTHER";
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+        var updated = await svc.RecomputeCutLengthMatchByBatchAsync(batch.Id);
+
+        updated.Should().Be(1);
+        var saved = await ctx.ProductionRecords.SingleAsync();
+        saved.CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.MainNoMatch));
+    }
+
+    [Fact]
+    public async Task RecomputeCutLengthMatchByBatchAsync_无记录批次_返回0()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutMatchBatchAsync(ctx, "BATCH-RECOMPUTE-EMPTY");
+
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+        var updated = await svc.RecomputeCutLengthMatchByBatchAsync(batch.Id);
+
+        updated.Should().Be(0);
     }
 
     [Fact]

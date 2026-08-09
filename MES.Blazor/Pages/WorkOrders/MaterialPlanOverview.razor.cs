@@ -7,6 +7,8 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.Enums;
+using MES.Core.Constants;
+using MES.Core.Helpers;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.WorkOrder;
@@ -72,52 +74,66 @@ public partial class MaterialPlanOverview
 
     // ========== 列定义 ==========
 
+    // 列偏好持久化 key（带版本号：列定义变更后自动丢弃旧偏好，强制采用新默认显隐/顺序）
+    private const string ColumnPrefsKey = "materialPlanOverview_v3";
+
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "WorkOrderNo",        Label = "工单号",     SortKey = "WorkOrderNo", FilterType = "string", Width = "120" },
-        new() { Key = "SalesOrderNo",       Label = "订单号",     SortKey = "SalesOrderNo", FilterType = "string", Width = "120" },
-        new() { Key = "ProductionMainNo",   Label = "主号",       SortKey = "ProductionMainNo", FilterType = "string", Width = "120" },
-        new() { Key = "ProductionSubNo",    Label = "次号",       SortKey = "ProductionSubNo", FilterType = "string", Width = "120" },
-        new() { Key = "SignDate",           Label = "签订日期",   SortKey = "SignDate", FilterType = "date", Width = "120" },
-        new() { Key = "Salesman",           Label = "业务员",     SortKey = "Salesman", FilterType = "string", Width = "120" },
-        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "EndCustomer", FilterType = "string", Width = "120" },
-        new() { Key = "DeliveryDate",       Label = "交货日期",   SortKey = "DeliveryDate", FilterType = "date", Width = "120" },
-        new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "DelayPenalty", FilterType = "enum", Width = "120",
-            EnumOptions = new() { new("True", "是"), new("False", "否") } },
-        new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "SettlementMethod", FilterType = "enum", Width = "120",
-            EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
-        new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "PlantGrade", FilterType = "string", Width = "120" },
-        new() { Key = "Specification",      Label = "规格",       SortKey = "Specification", FilterType = "string", Width = "120" },
-        new() { Key = "MaterialName",       Label = "钢管制造",   SortKey = "MaterialName", FilterType = "enum", Width = "120",
+        // ========== 1 基础数据 ==========
+        new() { Key = "WorkOrderNo",        Label = "工单号",     SortKey = "WorkOrderNo", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "SalesOrderNo",       Label = "订单号",     SortKey = "SalesOrderNo", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "ProductionMainNo",   Label = "主号",       SortKey = "ProductionMainNo", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "ProductionSubNo",    Label = "次号",       SortKey = "ProductionSubNo", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false },
+        new() { Key = "Salesman",           Label = "业务员",     SortKey = "Salesman", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "EndCustomer", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "MaterialName",       Label = "钢管制造",   SortKey = "MaterialName", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false,
             EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>() },
-        new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "LengthStatus", FilterType = "enum", Width = "120",
-            EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
-        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "MaxLength", Width = "80" },
-        new() { Key = "MinLength",          Label = "最小长度",   SortKey = "MinLength", Width = "80" },
-        new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "TotalQuantity", Width = "80" },
-        new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "TotalWeight", Width = "80" },
-        new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "DeliveryState", FilterType = "enum", Width = "120",
+        new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "SettlementMethod", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false,
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
+        new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "DelayPenalty", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false,
+            EnumOptions = new() { new("True", "是"), new("False", "否") } },
+        new() { Key = "SignDate",           Label = "签订日期",   SortKey = "SignDate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false },
+        new() { Key = "DeliveryDate",       Label = "交货日期",   SortKey = "DeliveryDate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "DeliveryState", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "基础数据",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
-        new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "TotalItemCount", Width = "80" },
-        new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate", FilterType = "date", Width = "120" },
-        new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum", Width = "120",
+        new() { Key = "PlantGrade",         Label = "工厂牌号",   SortKey = "PlantGrade", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "Specification",      Label = "规格",       SortKey = "Specification", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "LengthStatus", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "基础数据",
+            EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
+        new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "TotalItemCount", Width = "80", GroupKey = 1, GroupName = "基础数据", Visible = false },
+        new() { Key = "MinLength",          Label = "最小长度",   SortKey = "MinLength", Width = "80", GroupKey = 1, GroupName = "基础数据", Visible = false },
+        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "MaxLength", Width = "80", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "TotalQuantity", Width = "80", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "TotalWeight", Width = "80", GroupKey = 1, GroupName = "基础数据" },
+
+        // ========== 2 实时关注（来源 WorkOrderExecutionSummary，主号级） ==========
+        new() { Key = "ScheduleStage",          Label = "主号-关注",      SortKey = "ScheduleStage",          FilterType = "enum", Width = "110",
+            EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 2, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+        new() { Key = "RawMaterialLockRemark",  Label = "主号-原锁备注",  SortKey = "RawMaterialLockRemark",  FilterType = "string", Width = "120",
+            GroupKey = 2, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+        new() { Key = "UrgencyLevel",           Label = "主号-计划性",    SortKey = "UrgencyLevel",           FilterType = "string", Width = "110",
+            GroupKey = 2, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+
+        // ========== 3 用料计划 ==========
+        new() { Key = "OrderMaterialPlanStatus", Label = "订单-关联用料态", SortKey = "OrderMaterialPlanStatus", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "用料计划", Visible = false,
+            EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions(), Level = ColumnLevel.Order },
+        new() { Key = "MainNoMaterialPlanStatus",Label = "主号-关联用料态", SortKey = "MainNoMaterialPlanStatus", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "用料计划",
+            EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions(), Level = ColumnLevel.MainNo },
+        new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "用料计划",
             EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions() },
-        new() { Key = "MaterialPlanRate",        Label = "工单满足率",     SortKey = "MaterialPlanRate", Width = "80" },
-        new() { Key = "PlanProportion",          Label = "用料占比",       SortKey = "MaterialPlanProportion", Width = "120" },
-        new() { Key = "MainNoMaterialPlanStatus",Label = "关联主号用料",   SortKey = "MainNoMaterialPlanStatus", FilterType = "enum", Width = "120",
-            EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions() },
-        new() { Key = "OrderMaterialPlanStatus", Label = "关联订单用料",   SortKey = "OrderMaterialPlanStatus", FilterType = "enum", Width = "120",
-            EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions() },
-        new() { Key = "MaxStandardCycle",       Label = "最大工艺周期",   SortKey = "MaxStandardCycle", Width = "80" },
-        new() { Key = "MainNoMaxStandardCycle",Label = "主号最大工艺周期",SortKey = "MainNoMaxStandardCycle", Width = "80" },
-        new() { Key = "CapacityWorkDays",    Label = "产能工量",       SortKey = "CapacityWorkDays", Width = "80" },
-        new() { Key = "TheoreticalCutoffDate",  Label = "理论截止投料日", SortKey = "TheoreticalCutoffDate", FilterType = "date", Width = "120" },
-        new() { Key = "MaterialPlanCoveredCount",Label = "料态种数",      SortKey = "MaterialPlanCoveredCount", Width = "80" },
-        new() { Key = "LatestRequiredDate",      Label = "要求到货日",    SortKey = "LatestRequiredDate", FilterType = "date", Width = "120" },
+        new() { Key = "MaterialPlanRate",        Label = "工单满足率",     SortKey = "MaterialPlanRate", Width = "80", GroupKey = 3, GroupName = "用料计划" },
+        new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "用料计划" },
+        new() { Key = "PlanProportion",          Label = "分类用料占比",   SortKey = "MaterialPlanProportion", Width = "120", GroupKey = 3, GroupName = "用料计划" },
+        new() { Key = "MaterialPlanCoveredCount",Label = "料态种数",      SortKey = "MaterialPlanCoveredCount", Width = "80", GroupKey = 3, GroupName = "用料计划", Visible = false },
+        new() { Key = "LatestRequiredDate",      Label = "要求到货日",    SortKey = "LatestRequiredDate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "用料计划", Visible = false },
+        new() { Key = "TheoreticalCutoffDate",  Label = "理论截止投料日", SortKey = "TheoreticalCutoffDate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "用料计划" },
+        new() { Key = "MaxStandardCycle",       Label = "工单最大工艺周期", SortKey = "MaxStandardCycle", Width = "80", GroupKey = 3, GroupName = "用料计划", Visible = false },
+        new() { Key = "MainNoMaxStandardCycle", Label = "主号最大工艺周期", SortKey = "MainNoMaxStandardCycle", Width = "80", GroupKey = 3, GroupName = "用料计划", Visible = false, Level = ColumnLevel.MainNo },
+        new() { Key = "CapacityWorkDays",       Label = "主号产能工量",   SortKey = "CapacityWorkDays", Width = "80", GroupKey = 3, GroupName = "用料计划", Visible = false, Level = ColumnLevel.MainNo },
     };
 
     // ========== 分页汇总 ==========
@@ -273,7 +289,12 @@ public partial class MaterialPlanOverview
                     _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
                     {
                         Value = v,
-                        Display = v,
+                        Display = kvp.Key switch
+                        {
+                            "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, v) ?? v,
+                            "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(v) ?? v,
+                            _ => v
+                        },
                         Count = 0
                     }).ToList();
                 }
@@ -387,14 +408,12 @@ public partial class MaterialPlanOverview
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("materialPlanOverview", null, _allColumns);
+        await ColumnPrefs.SaveAsync(ColumnPrefsKey, null, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
     {
         _allColumns = GetAllColumnDefs();
-        foreach (var c in _allColumns)
-            c.Visible = true;
         await SaveColumnPrefs();
         if (table != null) await table.ReloadServerData();
     }
@@ -405,7 +424,7 @@ public partial class MaterialPlanOverview
     {
         _allColumns = GetAllColumnDefs();
 
-        var saved = await ColumnPrefs.LoadAsync("materialPlanOverview", null);
+        var saved = await ColumnPrefs.LoadAsync(ColumnPrefsKey, null);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -483,6 +502,9 @@ public partial class MaterialPlanOverview
             if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#material-plan-overview-list-table"))
                 _isArrowNavSetup = false;
         }
+
+        // 分组标题栏：测量实际列宽 + 同步滚动
+        await JS.InvokeVoidAsync("initGroupHeaders", "#material-plan-overview-list-table");
     }
 
     // ========== 选中 ==========
@@ -515,12 +537,16 @@ public partial class MaterialPlanOverview
             MaterialPlanStatus.Partial => Color.Warning,
             MaterialPlanStatus.TheoreticalSatisfied => Color.Info,
             MaterialPlanStatus.Satisfied => Color.Success,
-            MaterialPlanStatus.Excess => Color.Error,
+            MaterialPlanStatus.Excess => Color.Default,
             _ => Color.Default
         };
     }
 
     private string GetStatusText(MaterialPlanStatus status) => DisplayHelper.GetMaterialPlanStatusText(status);
+
+    // "超量"采用深色底白字 Chip（其余档位默认色）
+    private static string GetStatusChipClass(MaterialPlanStatus status)
+        => status == MaterialPlanStatus.Excess ? "chip-dark" : "";
 
     // ========== 单元格原始值/显示值 ==========
 
@@ -571,6 +597,101 @@ public partial class MaterialPlanOverview
         "OrderMaterialPlanStatus" => GetStatusText(item.OrderMaterialPlanStatus),
         _ => GetCellRawValue(item, key) ?? ""
     };
+
+    // ========== 分组标题栏 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+        return result;
+    }
+
+    // ========== 分组 CSS class ==========
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            3 => "col-g3",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            3 => "col-g3-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
 
     // ========== 单元格渲染 ==========
 
@@ -642,6 +763,37 @@ public partial class MaterialPlanOverview
             case "TotalItemCount":
                 builder.AddContent(0, wo.TotalItemCount);
                 break;
+            case "ScheduleStage":
+                if (wo.ScheduleStage.HasValue)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", DisplayHelper.GetScheduleStageColor(wo.ScheduleStage.Value));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, IntStatusDisplayHelper.GetScheduleStageText(wo.ScheduleStage))));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "-");
+                }
+                break;
+            case "UrgencyLevel":
+                if (!string.IsNullOrEmpty(wo.UrgencyLevel))
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", DisplayHelper.GetUrgencyColor(wo.UrgencyLevel));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, wo.UrgencyLevel))));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "-");
+                }
+                break;
+            case "RawMaterialLockRemark":
+                builder.AddContent(0, RawMaterialLockRemarkKeys.ToChinese(wo.RawMaterialLockRemark) ?? "-");
+                break;
             case "LatestPlanDate":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
@@ -653,7 +805,8 @@ public partial class MaterialPlanOverview
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
                 builder.AddAttribute(2, "Color", GetStatusColor(wo.MaterialPlanStatus));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.MaterialPlanStatus))));
+                builder.AddAttribute(3, "Class", GetStatusChipClass(wo.MaterialPlanStatus));
+                builder.AddAttribute(4, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.MaterialPlanStatus))));
                 builder.CloseComponent();
                 break;
             case "MaterialPlanRate":
@@ -682,14 +835,16 @@ public partial class MaterialPlanOverview
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
                 builder.AddAttribute(2, "Color", GetStatusColor(wo.MainNoMaterialPlanStatus));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.MainNoMaterialPlanStatus))));
+                builder.AddAttribute(3, "Class", GetStatusChipClass(wo.MainNoMaterialPlanStatus));
+                builder.AddAttribute(4, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.MainNoMaterialPlanStatus))));
                 builder.CloseComponent();
                 break;
             case "OrderMaterialPlanStatus":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
                 builder.AddAttribute(2, "Color", GetStatusColor(wo.OrderMaterialPlanStatus));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.OrderMaterialPlanStatus))));
+                builder.AddAttribute(3, "Class", GetStatusChipClass(wo.OrderMaterialPlanStatus));
+                builder.AddAttribute(4, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(wo.OrderMaterialPlanStatus))));
                 builder.CloseComponent();
                 break;
             case "MaxStandardCycle":

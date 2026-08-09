@@ -305,7 +305,7 @@ public static class DisplayHelper
     public static string GetMainNoFlowStatusText(int status) => IntStatusDisplayHelper.GetMainNoFlowStatusText(status);
 
     /// <summary>
-    /// 获取排程关注阶段中文文本（int 字段，关注状态 5 档：0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验）
+    /// 获取排程关注阶段中文文本（int 字段，主号关注 5 档：0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验）
     /// </summary>
     public static string GetScheduleStageText(int stage) => IntStatusDisplayHelper.GetScheduleStageText(stage);
 
@@ -348,7 +348,7 @@ public static class DisplayHelper
                                  .Select(o => new EnumOption(o.Value, o.DisplayName))
                                  .ToList();
 
-    /// <summary>排程关注状态筛选选项（summary 5 档）</summary>
+    /// <summary>排程主号关注筛选选项（summary 5 档）</summary>
     public static List<EnumOption> GetScheduleStageOptions()
         => IntStatusDisplayHelper.GetScheduleStageOptions()
                                  .Select(o => new EnumOption(o.Value, o.DisplayName))
@@ -378,7 +378,25 @@ public static class DisplayHelper
                                  .Select(o => new EnumOption(o.Value, o.DisplayName))
                                  .ToList();
 
-    /// <summary>排程关注状态颜色（summary 5 档）</summary>
+    /// <summary>用料计划执行状况筛选选项（int 字段，G4~G10 七种用料 5 档：0=无计划 1=未执行 2=部分 3=已完成 4=异常）</summary>
+    public static List<EnumOption> GetPlanExecutionStatusOptions()
+        => IntStatusDisplayHelper.GetPlanExecutionStatusOptions()
+                                 .Select(o => new EnumOption(o.Value, o.DisplayName))
+                                 .ToList();
+
+    /// <summary>主号计划执行状态筛选选项（int 字段，4 档：0=无计划 1=未执行 2=执行中 3=计划落实）</summary>
+    public static List<EnumOption> GetMainNoPlanExecutionStatusOptions()
+        => IntStatusDisplayHelper.GetMainNoPlanExecutionStatusOptions()
+                                 .Select(o => new EnumOption(o.Value, o.DisplayName))
+                                 .ToList();
+
+    /// <summary>到料实投一致性筛选选项（int 字段，5 档：0=一致 1=待投 2=疑问-到料未投 3=疑问-到料超投 4=错误-无到料已投）</summary>
+    public static List<EnumOption> GetPlanInputConsistencyOptions()
+        => IntStatusDisplayHelper.GetPlanInputConsistencyOptions()
+                                 .Select(o => new EnumOption(o.Value, o.DisplayName))
+                                 .ToList();
+
+    /// <summary>排程主号关注颜色（summary 5 档）</summary>
     public static Color GetScheduleStageColor(int stage) => stage switch
     {
         0 => Color.Error,       // 主号暂停
@@ -389,12 +407,21 @@ public static class DisplayHelper
         _ => Color.Default
     };
 
-    /// <summary>投料状态颜色（int 字段）</summary>
+    /// <summary>紧急性颜色（字典 UrgencyLevelKey，全系统统一出口）</summary>
+    public static Color GetUrgencyColor(string? urgency) => urgency switch
+    {
+        UrgencyLevelKeys.APlusUrgent => Color.Error,     // A+急
+        UrgencyLevelKeys.AUrgent => Color.Warning,       // A急
+        UrgencyLevelKeys.BOrder => Color.Info,           // B顺
+        _ => Color.Default                               // C缓 / D缓 / E停 / 空
+    };
+
+    /// <summary>投料状态颜色（int 字段 4 档：0=未投料 1=部分 2=满足 3=超量，超量视为满足）</summary>
     public static Color GetInputStatusColor(int status) => status switch
     {
         0 => Color.Default,
         1 => Color.Warning,
-        2 => Color.Success,
+        2 or 3 => Color.Success,
         _ => Color.Default
     };
 
@@ -710,6 +737,29 @@ public static class DisplayHelper
     /// </summary>
     public static List<EnumOption> GetDataSourceOptions()
         => new() { new("SCAN", "扫码"), new("MANUAL", "手动") };
+
+    // ========== 定尺切割长度匹配标识（CutLengthMatchType） ==========
+
+    /// <summary>
+    /// 定尺切割长度匹配标识中文（委托 Core 统一出口）；null（不适用）→ 空串
+    /// </summary>
+    public static string GetCutLengthMatchText(CutLengthMatchType? match) => CutLengthMatchHelper.GetText(match);
+
+    /// <summary>
+    /// 定尺切割长度匹配标识 MudChip 颜色：完全匹配=绿 / 主号匹配=橙 / 不适用=默认
+    /// </summary>
+    public static Color GetCutLengthMatchColor(CutLengthMatchType? match) => match switch
+    {
+        CutLengthMatchType.FullMatch => Color.Success,
+        CutLengthMatchType.MainNoMatch => Color.Warning,
+        _ => Color.Default
+    };
+
+    /// <summary>
+    /// 定尺切割长度匹配标识列筛选下拉选项（Value=枚举名、Display=中文）
+    /// </summary>
+    public static List<EnumOption> GetCutLengthMatchOptions()
+        => new() { new(nameof(CutLengthMatchType.FullMatch), "完全匹配"), new(nameof(CutLengthMatchType.MainNoMatch), "主号匹配") };
 
     /// <summary>
     /// 报工模板类型中文显示（字符串版本）

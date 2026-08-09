@@ -27,8 +27,8 @@ public class FinalInspectionPlanDto
     public decimal? MaxLength { get; set; }            // 最大长度
 
     // ========== G12 排程信息（WorkOrderExecutionSummary） ==========
-    public int? ScheduleStage { get; set; }            // 关注状态
-    public string? UrgencyLevel { get; set; }          // 工单计划性
+    public int? ScheduleStage { get; set; }            // 主号关注
+    public string? UrgencyLevel { get; set; }          // 主号计划性
 
     // ========== G4: 各项检验的日期（来自 FinalInspection） ==========
     public DateTime? PmiDate { get; set; }                  // PMI检验

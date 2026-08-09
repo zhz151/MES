@@ -60,7 +60,17 @@ public class WorkOrderExecutionServiceTests : TestBase
         var dailyOutputMock = new Mock<IDailyOutputEstimateService>();
         dailyOutputMock.Setup(x => x.GetAllAsync())
             .ReturnsAsync(new List<DailyOutputEstimateDto>());
-        return new WorkOrderExecutionService(ctx, loggerMock.Object, configMock.Object, dailyOutputMock.Object, new MemoryCache(new MemoryCacheOptions()), Mock.Of<IServiceScopeFactory>());
+        // 配置 IServiceScopeFactory：CreateScope 返回可解析 IOrderService 的 scope（全量刷新末尾会刷新订单读模型）
+        var orderServiceMock = new Mock<IOrderService>();
+        orderServiceMock.Setup(x => x.RefreshByOrderIdAsync(It.IsAny<int>()))
+            .Returns(Task.CompletedTask);
+        var providerMock = new Mock<IServiceProvider>();
+        providerMock.Setup(x => x.GetService(typeof(IOrderService))).Returns(orderServiceMock.Object);
+        var scopeMock = new Mock<IServiceScope>();
+        scopeMock.Setup(x => x.ServiceProvider).Returns(providerMock.Object);
+        var scopeFactoryMock = new Mock<IServiceScopeFactory>();
+        scopeFactoryMock.Setup(x => x.CreateScope()).Returns(scopeMock.Object);
+        return new WorkOrderExecutionService(ctx, loggerMock.Object, configMock.Object, dailyOutputMock.Object, new MemoryCache(new MemoryCacheOptions()), scopeFactoryMock.Object);
     }
 
     // ==================== GetPagedAsync 测试 ====================
@@ -316,6 +326,271 @@ public class WorkOrderExecutionServiceTests : TestBase
         });
 
         result.Items.Select(i => i.InputOutputRatio).Should().BeInDescendingOrder();
+    }
+
+    // ==================== G3 计算列筛选（ApplyComputedFilters） ====================
+
+    private void SeedComputedSummary(AppDbContext ctx, string workOrderNo, Action<WorkOrderExecutionSummary> configure)
+    {
+        var e = new WorkOrderExecutionSummary
+        {
+            WorkOrderId = Math.Abs(workOrderNo.GetHashCode()),
+            WorkOrderNo = workOrderNo,
+            Salesman = "测试",
+            CustomerName = "测试客户",
+            SettlementMethod = "Theoretical",
+            SignDate = DateTime.Today,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            SalesOrderNo = "SO" + workOrderNo,
+            ProductionMainNo = "D01",
+            MaterialName = "无缝管",
+            DeliveryState = "SolutionAnnealedAndPickled",
+            PlantGrade = "304",
+            Specification = "219*8",
+            LengthStatus = "Fixed",
+            TotalQuantity = 100
+        };
+        configure(e);
+        ctx.Set<WorkOrderExecutionSummary>().Add(e);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_筛选计划投料总重()
+    {
+        using var ctx = CreateDbContext();
+        SeedComputedSummary(ctx, "WO001", e => { e.PiercingPlanWeight = 100m; e.SemiPlanWeight = 50m; });
+        SeedComputedSummary(ctx, "WO002", e => { e.PiercingPlanWeight = 200m; e.SemiPlanWeight = 50m; });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SortBy = "WorkOrderNo",
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "TotalPlanWeight", Operator = "in", Values = new List<string> { "150" } }
+            }
+        });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().WorkOrderNo.Should().Be("WO001"); // 100+50=150
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_筛选现可投料总重()
+    {
+        using var ctx = CreateDbContext();
+        SeedComputedSummary(ctx, "WO001", e => { e.PiercingSubOutWeight = 100m; e.SemiOrderWeight = 50m; });
+        SeedComputedSummary(ctx, "WO002", e => { e.PiercingSubOutWeight = 200m; });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SortBy = "WorkOrderNo",
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "TotalAvailableWeight", Operator = "in", Values = new List<string> { "200" } }
+            }
+        });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().WorkOrderNo.Should().Be("WO002"); // 200+0=200
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_筛选理论缺失总料重()
+    {
+        using var ctx = CreateDbContext();
+        // WO001：计划=150(穿孔100+荒管50)、可投(动作量)=100 → 缺失 50
+        SeedComputedSummary(ctx, "WO001", e => { e.PiercingPlanWeight = 100m; e.SemiPlanWeight = 50m; e.SemiOrderWeight = 100m; });
+        // WO002：计划=100、可投(动作量)=100 → 缺失 Max(0,0)=0
+        SeedComputedSummary(ctx, "WO002", e => { e.PiercingPlanWeight = 100m; e.PiercingSubOutWeight = 100m; });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SortBy = "WorkOrderNo",
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "TotalMissingWeight", Operator = "in", Values = new List<string> { "50" } }
+            }
+        });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().WorkOrderNo.Should().Be("WO001"); // Max(0, 150-100)=50
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_筛选计划实投一致性_错误档()
+    {
+        using var ctx = CreateDbContext();
+        // WO001：已投=50 > 0 且 现可=0（无任何执行动作）→ 错误-无到料已投(4)
+        SeedComputedSummary(ctx, "WO001", e => { e.InputWeight = 50m; });
+        // WO002：已投=100 = 现可(下单量) → 一致(0)
+        SeedComputedSummary(ctx, "WO002", e => { e.InputWeight = 100m; e.SemiOrderWeight = 100m; });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SortBy = "WorkOrderNo",
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "PlanInputConsistency", Operator = "in", Values = new List<string> { "4" } }
+            }
+        });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().WorkOrderNo.Should().Be("WO001");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_筛选计划实投一致性_疑问档()
+    {
+        using var ctx = CreateDbContext();
+        // WO001：现可(下单量)=100，已投=120 > 100*1.03=103 → 超投 → 疑问-到料超投(3)
+        SeedComputedSummary(ctx, "WO001", e => { e.SemiOrderWeight = 100m; e.InputWeight = 120m; });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SortBy = "WorkOrderNo",
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "PlanInputConsistency", Operator = "in", Values = new List<string> { "3" } }
+            }
+        });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().WorkOrderNo.Should().Be("WO001");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_筛选计划实投一致性_待投档按截止到料日细分()
+    {
+        using var ctx = CreateDbContext();
+        var today = DateTime.Today;
+        // WO001：已投=50 < 现可=100×0.97（滞后）且 截止到料日=今天 → 待投(1)
+        SeedComputedSummary(ctx, "WO001", e => { e.SemiOrderWeight = 100m; e.InputWeight = 50m; e.CutoffArrivalDate = today; });
+        // WO002：同样滞后但 截止到料日空 → 一致(0)（料未到位）
+        SeedComputedSummary(ctx, "WO002", e => { e.SemiOrderWeight = 100m; e.InputWeight = 50m; });
+        // WO003：同样滞后且 截止到料日<今天 → 疑问-到料未投(2)（料已到位需投未投）
+        SeedComputedSummary(ctx, "WO003", e => { e.SemiOrderWeight = 100m; e.InputWeight = 50m; e.CutoffArrivalDate = today.AddDays(-1); });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SortBy = "WorkOrderNo",
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "PlanInputConsistency", Operator = "in", Values = new List<string> { "1" } }
+            }
+        });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().WorkOrderNo.Should().Be("WO001");
+    }
+
+    [Fact]
+    public void PlanInputConsistency_DTO五态判定矩阵()
+    {
+        // 五态模型：实际已投料量(InputWeight) vs 现可投料总重(TotalAvailableWeight=动作量口径 G4~G10 执行动作量之和)
+        // 错误-无到料已投(4)：已投>0 且 现可=0（无任何执行动作却投料，计划外投料，最异常）
+        // 疑问-到料超投(3)：超投（已投 > 现可×1.03）
+        // 疑问-到料未投(2)：投料滞后且截止到料日<今天（料已到位需投未投，存在问题）
+        // 待投(1)：投料滞后且截止到料日=今天（操作时间差，正常）
+        // 一致(0)：已投≈现可（±3% 内）或双零；投料滞后且截止到料日空/晚于今天（料未到位，投料滞后正常）
+        var today = DateTime.Today;
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 50m }, 4); // 已投>0 且 现可=0 → 错误-无到料已投
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 120m, SemiOrderWeight = 100m }, 3); // 超投 120>103 → 疑问-到料超投
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 50m, SemiOrderWeight = 100m, CutoffArrivalDate = today }, 1); // 滞后 50<97 且 截止到料日=今天 → 待投
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 50m, SemiOrderWeight = 100m, CutoffArrivalDate = today.AddDays(-1) }, 2); // 滞后且截止到料日<今天 → 疑问-到料未投
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 50m, SemiOrderWeight = 100m, CutoffArrivalDate = today.AddDays(1) }, 0); // 滞后且截止到料日>今天 → 一致
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 50m, SemiOrderWeight = 100m }, 0); // 滞后且截止到料日空 → 一致（料未到位）
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 0m, SemiOrderWeight = 100m }, 0); // 下单未投且截止到料日空 → 一致（料未到位）
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 100m, SemiOrderWeight = 100m }, 0); // 已投=现可
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 103m, SemiOrderWeight = 100m }, 0); // 边界内 ±3%
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 97m, SemiOrderWeight = 100m }, 0); // 边界内 ±3%
+        AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 0m }, 0); // 双零
+    }
+
+    private static void AssertConsistency(WorkOrderExecutionSummaryDto dto, int expected)
+    {
+        dto.PlanInputConsistency.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_主号计划执行状态_排序与筛选()
+    {
+        using var ctx = CreateDbContext();
+        SeedComputedSummary(ctx, "WO001", e => { e.MainNoPlanExecutionStatus = 3; });
+        SeedComputedSummary(ctx, "WO002", e => { e.MainNoPlanExecutionStatus = 0; });
+        SeedComputedSummary(ctx, "WO003", e => { e.MainNoPlanExecutionStatus = 2; });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        // 筛选 in (3) → 仅 WO001
+        var filtered = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SortBy = "WorkOrderNo",
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "MainNoPlanExecutionStatus", Operator = "in", Values = new List<string> { "3" } }
+            }
+        });
+        filtered.TotalCount.Should().Be(1);
+        filtered.Items.Single().WorkOrderNo.Should().Be("WO001");
+
+        // 排序升序 → 0,2,3（WO002, WO003, WO001）
+        var asc = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "MainNoPlanExecutionStatus", IsDescending = false });
+        asc.Items.Select(i => i.WorkOrderNo).Should().Equal("WO002", "WO003", "WO001");
+
+        // 排序降序 → 3,2,0（WO001, WO003, WO002）
+        var desc = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "MainNoPlanExecutionStatus", IsDescending = true });
+        desc.Items.Select(i => i.WorkOrderNo).Should().Equal("WO001", "WO003", "WO002");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_G5至G11列_排序正常()
+    {
+        using var ctx = CreateDbContext();
+        SeedComputedSummary(ctx, "WO001", e => { e.PiercingPlanWeight = 100m; e.PiercingSubStatus = 0; });
+        SeedComputedSummary(ctx, "WO002", e => { e.PiercingPlanWeight = 300m; e.PiercingSubStatus = 4; });
+        SeedComputedSummary(ctx, "WO003", e => { e.PiercingPlanWeight = 200m; e.PiercingSubStatus = 1; });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        // G5 数值列排序（穿孔计划量）
+        var asc = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "PiercingPlanWeight", IsDescending = false });
+        asc.Items.Select(i => i.WorkOrderNo).Should().Equal("WO001", "WO003", "WO002");
+        var desc = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "PiercingPlanWeight", IsDescending = true });
+        desc.Items.Select(i => i.WorkOrderNo).Should().Equal("WO002", "WO003", "WO001");
+
+        // G5 状态列排序（穿孔委外状态）
+        var ascStatus = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "PiercingSubStatus", IsDescending = false });
+        ascStatus.Items.Select(i => i.WorkOrderNo).Should().Equal("WO001", "WO003", "WO002");
+        var descStatus = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "PiercingSubStatus", IsDescending = true });
+        descStatus.Items.Select(i => i.WorkOrderNo).Should().Equal("WO002", "WO003", "WO001");
     }
 
     // ==================== RefreshAllAsync 测试 ====================
@@ -1011,6 +1286,91 @@ public class WorkOrderExecutionServiceTests : TestBase
     }
 
     [Fact]
+    public async Task RefreshAllAsync_G6成品采购_订成非交付态采购单计入FinishOrderWeight()
+    {
+        using var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO-SDS", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+
+        var wo = CreateWorkOrder("WO-SDS", "SO-SDS", WorkOrderStatus.Confirmed,
+            salesman: "业务员A", mainNo: "D01");
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 订成-非交付态成品采购计划
+        ctx.Set<PurchaseFinishedPlan>().Add(new PurchaseFinishedPlan
+        {
+            WorkOrderId = wo.Id,
+            PlanDate = DateTime.Today,
+            PlantGrade = "304",
+            Specification = "219*8",
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.5m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = LengthStatus.Fixed,
+            ProductType = FinishedProductType.SpecialDeliveryStatus,
+            RequiredWeight = 2000
+        });
+
+        // 订成-非交付态采购单（应计入 G6 成品采购量，不被过滤）
+        ctx.PurchaseOrders.Add(new PurchaseOrder
+        {
+            OrderNo = $"CG-SDS-{Guid.NewGuid():N}"[..15],
+            SupplierId = 1,
+            SupplierName = "测试供应商",
+            OrderDate = DateTime.Today,
+            Status = PurchaseOrderStatus.Open,
+            MaterialCategory = "SpecialDeliveryStatus",
+            PlantGrade = "304",
+            Specification = "219*8",
+            Quantity = 10,
+            Weight = 1500m,
+            RequiredDate = DateTime.Today.AddDays(30),
+            SourceWorkOrderNo = wo.WorkOrderNo
+        });
+        await ctx.SaveChangesAsync();
+
+        // Seed WorkOrderListSummary 读模型（RefreshAllAsync 从此读取 G2 字段）
+        ctx.Set<WorkOrderListSummary>().Add(new WorkOrderListSummary
+        {
+            WorkOrderId = wo.Id,
+            WorkOrderNo = wo.WorkOrderNo,
+            SalesOrderNo = wo.SalesOrderNo,
+            ProductionMainNo = wo.ProductionMainNo,
+            SignDate = wo.SignDate,
+            Salesman = wo.Salesman ?? "",
+            DeliveryDate = wo.DeliveryDate,
+            SettlementMethod = wo.SettlementMethod.ToString(),
+            MaterialName = wo.PipeManufacturingType.ToString(),
+            DeliveryState = wo.DeliveryState.ToString(),
+            PlantGrade = wo.PlantGrade,
+            Specification = wo.Specification,
+            LengthStatus = wo.LengthStatus.ToString(),
+            TotalQuantity = wo.TotalQuantity,
+            TotalMeters = wo.TotalMeters,
+            TotalWeight = wo.TotalWeight,
+            TotalItemCount = wo.TotalItemCount,
+            TechnicalRequirements = wo.TechnicalRequirements.ToString(),
+            Status = (int)wo.Status,
+            CreatedTime = wo.CreatedTime,
+            LatestPlanDate = DateTime.Today,
+            MaterialPlanRate = 80m,
+            MaterialPlanStatus = 1,
+            RowVersion = new byte[8]
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.FinishPlanWeight.Should().Be(2000m);
+        s.FinishOrderWeight.Should().Be(1500m);
+    }
+
+    [Fact]
     public async Task RefreshAllAsync_多工单分别创建汇总()
     {
         using var ctx = CreateDbContext();
@@ -1266,6 +1626,9 @@ public class WorkOrderExecutionServiceTests : TestBase
             // MainNo 比（定尺按支数）：196/300*100 = 65.33
             s.MainNoInputOutputRatio.Should().Be(65.33m);
             s.MainNoInputStatus.Should().Be(1); // 部分
+
+            // MainNo 计划执行状态（4 档求和判定）：两工单合计计划量>0 但现可量(动作量)=0（无采购下单等执行动作）→ 未执行(1)
+            s.MainNoPlanExecutionStatus.Should().Be(1);
         }
     }
 
@@ -1789,10 +2152,10 @@ public class WorkOrderExecutionServiceTests : TestBase
         s2.PendingReworkOutputQty.Should().Be(79.02m);
         s2.PendingReworkOutputWeight.Should().Be(0m);
 
-        // 主号级聚合：有效流转 = (49 + 0.98)/100 = 49.98% → 部分(1)；附返整 = (49 + 80)/100 = 129% → 满足(2) → 必返整"是"
+        // 主号级聚合：有效流转 = (49 + 0.98)/100 = 49.98% → 部分(1)；附返整 = (49 + 80)/100 = 129% > 110%(定尺超量) → 超量(3) → 必返整"是"
         foreach (var s in summaries)
         {
-            s.ReworkMainNoStatus.Should().Be(2);
+            s.ReworkMainNoStatus.Should().Be(3);
             s.ReworkInputConsistency.Should().Be("是");
         }
     }
@@ -1945,8 +2308,38 @@ public class WorkOrderExecutionServiceTests : TestBase
         summaries.Single(s => s.ProductionMainNo == "D05").MainNoWarehousingStatus.Should().Be(2);
         summaries.Single(s => s.ProductionMainNo == "D06").MainNoWarehousingStatus.Should().Be(1);
 
-        // 工单级独立判定不受主号聚合影响：D02 超额 120≥100 → 工单完结(2)
-        summaries.Single(s => s.WorkOrderNo == "WO002").WoWarehousingStatus.Should().Be(2);
+        // 工单级独立判定不受主号聚合影响：D02 定尺入库120>100 → 工单超额(3)（与主号一致）
+        summaries.Single(s => s.WorkOrderNo == "WO002").WoWarehousingStatus.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_重量口径入库超额按需求105判定()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var warehouse = await SeedWarehouseAsync(ctx, "成品仓库");
+        var so = new SalesOrder { OrderNumber = "SO105", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+
+        // 非定尺，需求重 2000：WO010 入库2050（102.5%，在 95%~105% 区间内）→ 完结(2)；WO011 入库2120（106% > 105%）→ 超额(3)
+        ctx.WorkOrders.Add(CreateWorkOrder("WO010", "SO105", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D10", lengthStatus: LengthStatus.NonFixed, totalQty: 100, totalWeight: 2000m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO011", "SO105", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D11", lengthStatus: LengthStatus.NonFixed, totalQty: 100, totalWeight: 2000m));
+        ctx.InventoryBatches.Add(AddInbound("CK501", "WO010", "SO105", warehouse, 100, 2050m));
+        ctx.InventoryBatches.Add(AddInbound("CK502", "WO011", "SO105", warehouse, 100, 2120m));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var summaries = await ctx.Set<WorkOrderExecutionSummary>().ToListAsync();
+        summaries.Should().HaveCount(2);
+
+        // 工单级：2050 ≤ 2000×1.05=2100 → 完结；2120 > 2100 → 超额
+        summaries.Single(s => s.WorkOrderNo == "WO010").WoWarehousingStatus.Should().Be(2);
+        summaries.Single(s => s.WorkOrderNo == "WO011").WoWarehousingStatus.Should().Be(3);
+        // 主号级：同样按 105% 判定（工单与主号标准一致）
+        summaries.Single(s => s.ProductionMainNo == "D10").MainNoWarehousingStatus.Should().Be(2);
+        summaries.Single(s => s.ProductionMainNo == "D11").MainNoWarehousingStatus.Should().Be(3);
     }
 
     [Fact]
@@ -2158,5 +2551,53 @@ public class WorkOrderExecutionServiceTests : TestBase
         var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
         s.MainNoFlowStatus.Should().Be(2);
         s.ScheduleStage.Should().Be(4);    // 成品检验（主号已满足、无在产批次）
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_ScheduleStage五档_同主号混合批次主号级档3()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        // 同主号 D01 下两个工单：WO001 在产、WO002 已完成
+        ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO002", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress));
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B002", "WO002", "SO001", "D01", BatchStatus.Completed));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var summaries = await ctx.Set<WorkOrderExecutionSummary>().OrderBy(x => x.WorkOrderNo).ToListAsync();
+        summaries.Should().HaveCount(2);
+        // 主号下任一工单有活动批次 → 整主号档3（生产执行），WO002 也随之档3
+        summaries[0].ScheduleStage.Should().Be(3);
+        summaries[1].ScheduleStage.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_ScheduleStage五档_同主号全部完成主号级档4()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        // 同主号 D01 下两个工单，批次均已完成 → 整主号档4（成品检验）
+        ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO002", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m));
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.Completed));
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B002", "WO002", "SO001", "D01", BatchStatus.Completed));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var summaries = await ctx.Set<WorkOrderExecutionSummary>().OrderBy(x => x.WorkOrderNo).ToListAsync();
+        summaries.Should().HaveCount(2);
+        // 主号下全部工单无活动批次 → 整主号档4（成品检验）
+        summaries[0].ScheduleStage.Should().Be(4);
+        summaries[1].ScheduleStage.Should().Be(4);
     }
 }

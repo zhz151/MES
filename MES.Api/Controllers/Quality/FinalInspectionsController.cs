@@ -146,6 +146,17 @@ public class FinalInspectionsController : ControllerBase
     }
 
     /// <summary>
+    /// 回填全部成品检验记录的定尺切割长度匹配标识（CutLengthMatchType）
+    /// </summary>
+    [HttpPost("refresh-all-cut-length-match")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> RefreshAllCutLengthMatch()
+    {
+        var count = await _service.RefreshAllCutLengthMatchAsync();
+        return Ok(ApiResponse.Ok($"已回填 {count} 条成品检验记录的定尺切割长度匹配标识"));
+    }
+
+    /// <summary>
     /// 批量创建成品检验记录
     /// </summary>
     [HttpPost("batch")]

@@ -46,6 +46,37 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
             .ToHashSet();
     }
 
+    public async Task<HashSet<decimal>> GetLengthsByWorkOrderNoAsync(string workOrderNo)
+    {
+        if (string.IsNullOrWhiteSpace(workOrderNo))
+            return new HashSet<decimal>();
+        return (await _context.FixedLengthWorkOrders
+                .Where(f => f.WorkOrderNo == workOrderNo)
+                .Select(f => f.Length)
+                .ToListAsync())
+            .ToHashSet();
+    }
+
+    public async Task<FixedLengthLengthMaps> GetLengthMapsAsync()
+    {
+        var rows = await _context.FixedLengthWorkOrders
+            .Select(f => new { f.WorkOrderNo, f.SalesOrderNo, f.ProductionMainNo, f.Length })
+            .ToListAsync();
+        var maps = new FixedLengthLengthMaps();
+        foreach (var r in rows)
+        {
+            if (!maps.ByWorkOrderNo.TryGetValue(r.WorkOrderNo, out var wo))
+                maps.ByWorkOrderNo[r.WorkOrderNo] = wo = new HashSet<decimal>();
+            wo.Add(r.Length);
+
+            var key = NormalizeMainKey(r.SalesOrderNo, r.ProductionMainNo);
+            if (!maps.ByMainKey.TryGetValue(key, out var mk))
+                maps.ByMainKey[key] = mk = new HashSet<decimal>();
+            mk.Add(r.Length);
+        }
+        return maps;
+    }
+
     public async Task<List<FixedLengthWorkOrderListDto>> GetListAsync()
     {
         // 结果缓存：全量聚合（6 次查询 + 2 处全表拉内存）较慢，5 分钟绝对过期，

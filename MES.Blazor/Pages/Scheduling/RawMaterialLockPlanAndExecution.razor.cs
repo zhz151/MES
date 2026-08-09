@@ -128,8 +128,8 @@ public partial class RawMaterialLockPlanAndExecution
         var g2 = new List<ColumnDef>
         {
             new() { Key = "MaterialPlanStatus",      Label = "用料计划状态",    SortKey = "MaterialPlanStatus",      FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialPlanStatus>(), GroupKey = 2, GroupName = "用料计划" },
-            new() { Key = "MainNoMaterialPlanRate",  Label = "主号满足率(%)",  SortKey = "MainNoMaterialPlanRate",  Width = "80", Visible = false, GroupKey = 2, GroupName = "用料计划" },
-            new() { Key = "MainNoMaterialPlanStatus",Label = "主号用料计划状态",SortKey = "MainNoMaterialPlanStatus",FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialPlanStatus>(), Visible = false, GroupKey = 2, GroupName = "用料计划" },
+            new() { Key = "MainNoMaterialPlanRate",  Label = "主号-计划满足率(%)", SortKey = "MainNoMaterialPlanRate",  Width = "80", Visible = false, GroupKey = 2, GroupName = "用料计划", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoMaterialPlanStatus",Label = "主号-用料计划",   SortKey = "MainNoMaterialPlanStatus",FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialPlanStatus>(), Visible = false, GroupKey = 2, GroupName = "用料计划", Level = ColumnLevel.MainNo },
             new() { Key = "MaterialPlanProportion",   Label = "用料占比",       SortKey = "MaterialPlanProportion",   Width = "120",                             GroupKey = 2, GroupName = "用料计划" },
         };
 
@@ -156,8 +156,8 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "TheoreticalOutputWeight", Label = "理论产出重量",    SortKey = "TheoreticalOutputWeight", Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
             new() { Key = "InputOutputRatio",        Label = "原始成品比",     SortKey = "InputOutputRatio",        Width = "80",                             GroupKey = 3, GroupName = "投料数据" },
             new() { Key = "InputStatus",             Label = "原始投料状态",    SortKey = "InputStatus",             FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetFlowStatusOptions(), GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "MainNoInputOutputRatio",  Label = "主号成品比",     SortKey = "MainNoInputOutputRatio",  Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "MainNoInputStatus",       Label = "主号投料状态",    SortKey = "MainNoInputStatus",       FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetFlowStatusOptions(), Visible = false, GroupKey = 3, GroupName = "投料数据" },
+            new() { Key = "MainNoInputOutputRatio",  Label = "主号-投料比",     SortKey = "MainNoInputOutputRatio",  Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoInputStatus",       Label = "主号-投料状态",   SortKey = "MainNoInputStatus",       FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetFlowStatusOptions(), Visible = false, GroupKey = 3, GroupName = "投料数据", Level = ColumnLevel.MainNo },
         };
 
         // G7: 有效流转
@@ -165,8 +165,8 @@ public partial class RawMaterialLockPlanAndExecution
         {
             new() { Key = "FlowOutputRatio",        Label = "流转成品比",     SortKey = "FlowOutputRatio",        Width = "80",                             GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "FlowStatus",             Label = "有效流转状态",    SortKey = "FlowStatus",             FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetFlowStatusOptions(), GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "MainNoFlowOutputRatio",  Label = "有效主号流转比", SortKey = "MainNoFlowOutputRatio",   Width = "80", Visible = false,       GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "MainNoFlowStatus",       Label = "有效主号状态",   SortKey = "MainNoFlowStatus",       FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetMainNoFlowStatusOptions(), Visible = false, GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "MainNoFlowOutputRatio",  Label = "主号-流转比",    SortKey = "MainNoFlowOutputRatio",   Width = "80", Visible = false,       GroupKey = 7, GroupName = "有效流转", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoFlowStatus",       Label = "主号-流转状态",  SortKey = "MainNoFlowStatus",       FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetMainNoFlowStatusOptions(), Visible = false, GroupKey = 7, GroupName = "有效流转", Level = ColumnLevel.MainNo },
             new() { Key = "FlowMaxRemainingWorkDays", Label = "最大剩余工量(天)",SortKey = "FlowMaxRemainingWorkDays", Width = "80",                         GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "FlowTotalBatchCount",        Label = "流转总批次数",   SortKey = "FlowTotalBatchCount",        Width = "80", Visible = false, GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "FlowIncompleteBatchCount",   Label = "流转未完成批次数",SortKey = "FlowIncompleteBatchCount",   Width = "80", Visible = false, GroupKey = 7, GroupName = "有效流转" },
@@ -175,10 +175,10 @@ public partial class RawMaterialLockPlanAndExecution
         // G12: 实时关注
         var g12 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "ScheduleStage",           Label = "主号-关注",     SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "CapacityWorkDays",         Label = "产能工量(天)",  SortKey = "CapacityWorkDays",         Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "UrgencyLevel",            Label = "主号-计划性",  SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "EstimatedProcessCompletionDate",Label = "工艺预计完成日",SortKey = "EstimatedProcessCompletionDate", Width = "120",                  GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "DaysDiffFromDelivery",    Label = "交期相差天数",  SortKey = "DaysDiffFromDelivery",    Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
@@ -1344,7 +1344,7 @@ public partial class RawMaterialLockPlanAndExecution
         MaterialPlanStatus.Partial => Color.Warning,
         MaterialPlanStatus.TheoreticalSatisfied => Color.Info,
         MaterialPlanStatus.Satisfied => Color.Success,
-        MaterialPlanStatus.Excess => Color.Error,
+        MaterialPlanStatus.Excess => Color.Default,
         _ => Color.Default
     };
 

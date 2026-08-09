@@ -1000,6 +1000,61 @@ input[type="number"]::-webkit-outer-spin-button {
 .col-g21 .col-group-badge { color: #6A1B9A; background: #CE93D8; }
 .col-g21-cell { background: #F3E5F5 !important; }
 
+/* ============================================================
+   WorkOrderExecution 分组底色统一（仅本页生效）
+   - 实时关注（组 3，整体汇整）：粉色系（突出总览，置于明细之前）
+   - 用料计划及执行实况（组 4~12）：绿色系（4 为 5~12 的汇整，同色）
+   - 实际生产总流转（组 13~15）：琥珀色系（13 为 14~15 的汇整；14 原始投料有效流转 / 15 返整执行）
+   - 次品总量（组 16）：红色系（次品/缺陷语义，与 13~15 区分）
+   - 成品入库（组 17）：蓝色系
+   作用域限定 #workorder-execution-list-table，不影响其他页面
+   ============================================================ */
+#workorder-execution-list-table .col-g3 { background: #FCE4EC !important; }
+#workorder-execution-list-table .col-g3 .col-group-badge { color: #AD1457; background: #F48FB1; }
+#workorder-execution-list-table .col-g3-cell { background: #FCE4EC !important; }
+#workorder-execution-list-table .col-g4 { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g4 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
+#workorder-execution-list-table .col-g4-cell { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g5 { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g5 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
+#workorder-execution-list-table .col-g5-cell { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g6 { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g6 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
+#workorder-execution-list-table .col-g6-cell { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g7 { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g7 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
+#workorder-execution-list-table .col-g7-cell { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g8 { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g8 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
+#workorder-execution-list-table .col-g8-cell { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g9 { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g9 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
+#workorder-execution-list-table .col-g9-cell { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g10 { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g10 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
+#workorder-execution-list-table .col-g10-cell { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g11 { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g11 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
+#workorder-execution-list-table .col-g11-cell { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g12 { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g12 .col-group-badge { color: #1B5E20; background: #A5D6A7; }
+#workorder-execution-list-table .col-g12-cell { background: #E8F5E9 !important; }
+#workorder-execution-list-table .col-g13 { background: #FFF8E1 !important; }
+#workorder-execution-list-table .col-g13 .col-group-badge { color: #F57F17; background: #FFECB3; }
+#workorder-execution-list-table .col-g13-cell { background: #FFF8E1 !important; }
+#workorder-execution-list-table .col-g14 { background: #FFF8E1 !important; }
+#workorder-execution-list-table .col-g14 .col-group-badge { color: #F57F17; background: #FFECB3; }
+#workorder-execution-list-table .col-g14-cell { background: #FFF8E1 !important; }
+#workorder-execution-list-table .col-g15 { background: #FFF8E1 !important; }
+#workorder-execution-list-table .col-g15 .col-group-badge { color: #F57F17; background: #FFECB3; }
+#workorder-execution-list-table .col-g15-cell { background: #FFF8E1 !important; }
+#workorder-execution-list-table .col-g16 { background: #FFEBEE !important; }
+#workorder-execution-list-table .col-g16 .col-group-badge { color: #C62828; background: #EF9A9A; }
+#workorder-execution-list-table .col-g16-cell { background: #FFEBEE !important; }
+#workorder-execution-list-table .col-g17 { background: #E8EAF6 !important; }
+#workorder-execution-list-table .col-g17 .col-group-badge { color: #283593; background: #C5CAE9; }
+#workorder-execution-list-table .col-g17-cell { background: #E8EAF6 !important; }
+
 /* G15 内联编辑控件紧凑样式 */
 .compact-select {
     font-size: 0.8rem;
@@ -1100,6 +1155,13 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .mud-chip.mud-chip-size-small {
     font-size: 0.875rem !important;
+}
+
+/* 用料计划状态"超量"：深色底白字 Chip */
+.chip-dark {
+    background-color: #37474f !important;
+    color: #fff !important;
+    font-weight: 500;
 }
 
 /* 批次表格内禁止 MudNumericField 箭头 (MudTextField 替代方案) */
@@ -1352,4 +1414,16 @@ input[type="number"]::-webkit-outer-spin-button {
     color: #1565C0;
     background: #E3F2FD;
     white-space: nowrap;
+
 }
+
+/* ========== 表头语义层级标色（主号级青色 / 订单级橙色）========== */
+/* 主号级：单个表头强化——深青底 + 加粗 + 青色粗下边框（单元格不着色，避免与组色块混淆） */
+th.col-level-mainno,
+#workorder-execution-list-table th.col-level-mainno {
+    background: #B2EBF2 !important;
+    font-weight: 600 !important;
+    border-bottom: 3px solid #00ACC1 !important;
+}
+th.col-level-order,
+#workorder-execution-list-table th.col-level-order { background: #FFE0B2 !important; }

@@ -57,6 +57,17 @@ public interface IProductionRecordService
     Task<int> BackfillTheoreticalOutputAsync();
 
     /// <summary>
+    /// 回填全部生产记录的定尺切割长度匹配标识（CutLengthMatchType），返回更新条数
+    /// </summary>
+    Task<int> RefreshAllCutLengthMatchAsync();
+
+    /// <summary>
+    /// 重算某批次全部生产记录的定尺切割长度匹配标识（CutLengthMatchType），返回更新条数
+    /// 供批次编辑（LengthStatus/工单号等上游字段变更）后级联调用，保持派生列一致
+    /// </summary>
+    Task<int> RecomputeCutLengthMatchByBatchAsync(int batchId);
+
+    /// <summary>
     /// 获取批次跟踪可视化数据（前端进度图展示用�?    /// </summary>
     Task<BatchTrackingVisualDto> GetTrackingVisualAsync(int batchId);
 

@@ -72,6 +72,10 @@
 
             <!-- 数据表格 -->
             <div id="material-plan-overview-list-table">
+            @{
+                var _groupHeaders = GetGroupHeaders();
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
+            }
             <!-- 工具栏 -->
             <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
                 <div class="d-flex align-center">
@@ -114,6 +118,17 @@
                     </MudText>
                 </div>
             </div>
+            @* 分组标题栏（flex bar，JS 测量宽度后精确定位） *@
+            <div class="col-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
             <MudTable @ref="table"
                       T="WorkOrderListDto"
                       ServerData="@LoadDataFromServer"
@@ -124,12 +139,18 @@
                       RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
                 <HeaderContent>
+                    @{
+                        int? _prevGk = null;
+                    }
                     <MudTh Style="width: 40px;">
                         <MudCheckBox T="bool" Value="@_allSelected" ValueChanged="@((v) => { _allSelected = v; if (v) { selectedWorkOrderIds.Clear(); foreach (var i in _pageItems) selectedWorkOrderIds.Add(i.Id); } else { selectedWorkOrderIds.Clear(); } StateHasChanged(); })" Dense="true" />
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh Style="@($"width:{col.Width}px")">
+                        var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                        _prevGk = col.GroupKey;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart) + col.LevelCssClass;
+                        <MudTh Class="@_headerClass" Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 @if (col.SortKey != null)
                                 {
@@ -155,6 +176,9 @@
                     <MudTh Style="width:90px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="wo">
+                    @{
+                        int? _prevGk2 = null;
+                    }
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedWorkOrderIds.Contains(wo.Id)"
@@ -163,7 +187,10 @@
                     </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(wo, col)</MudTd>
+                        var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                        _prevGk2 = col.GroupKey;
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                        <MudTd Class="@_cellClass">@RenderCell(wo, col)</MudTd>
                     }
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Assignment"
@@ -174,10 +201,16 @@
                     </MudTd>
                 </RowTemplate>
                 <FooterContent>
+                    @{
+                        int? _prevGk3 = null;
+                    }
                     <MudTd Class="col-footer-cell"></MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                        var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                        _prevGk3 = col.GroupKey;
+                        var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
+                        <MudTd Class="@_footerClass"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
                     }
                     <MudTd Class="col-footer-cell"></MudTd>
                 </FooterContent>

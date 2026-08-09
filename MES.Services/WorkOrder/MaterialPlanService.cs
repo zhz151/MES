@@ -250,13 +250,14 @@ public class MaterialPlanService : IMaterialPlanService
                             WallThicknessTolerance = pg.WallThicknessTolerance,
                             ManufacturingLength = pg.ManufacturingLength,
                             CuttingTreatment = pg.CuttingTreatment,
-                            ManufacturingMultiple = pg.ManufacturingMultiple,
                             Remark = pg.Remark,
                             ColdRollDraw = pg.ColdRollDraw,
                             OilPipeCut = pg.OilPipeCut,
                             Degrease = pg.Degrease,
+                            EmulsionWash = pg.EmulsionWash,
                             UltrasonicWash = pg.UltrasonicWash,
                             ClothPolish = pg.ClothPolish,
+                            BrightAnnealing = pg.BrightAnnealing,
                             Solution = pg.Solution,
                             Straighten = pg.Straighten,
                             Cut = pg.Cut,
@@ -267,10 +268,15 @@ public class MaterialPlanService : IMaterialPlanService
                             InnerGrinding = pg.InnerGrinding,
                             OuterSpotGrinding = pg.OuterSpotGrinding,
                             SandBlasting = pg.SandBlasting,
+                            ShotBlasting = pg.ShotBlasting,
                             Inspection = pg.Inspection,
                             WeldingHead = pg.WeldingHead,
+                            Welding = pg.Welding,
                             Lubrication = pg.Lubrication,
-                            Warehouse = pg.Warehouse
+                            Packing = pg.Packing,
+                            Warehouse = pg.Warehouse,
+                            Extra1 = pg.Extra1,
+                            Extra2 = pg.Extra2
                         });
                     }
                     await _context.SaveChangesAsync();
@@ -404,13 +410,14 @@ public class MaterialPlanService : IMaterialPlanService
                             WallThicknessTolerance = pg.WallThicknessTolerance,
                             ManufacturingLength = pg.ManufacturingLength,
                             CuttingTreatment = pg.CuttingTreatment,
-                            ManufacturingMultiple = pg.ManufacturingMultiple,
                             Remark = pg.Remark,
                             ColdRollDraw = pg.ColdRollDraw,
                             OilPipeCut = pg.OilPipeCut,
                             Degrease = pg.Degrease,
+                            EmulsionWash = pg.EmulsionWash,
                             UltrasonicWash = pg.UltrasonicWash,
                             ClothPolish = pg.ClothPolish,
+                            BrightAnnealing = pg.BrightAnnealing,
                             Solution = pg.Solution,
                             Straighten = pg.Straighten,
                             Cut = pg.Cut,
@@ -421,10 +428,15 @@ public class MaterialPlanService : IMaterialPlanService
                             InnerGrinding = pg.InnerGrinding,
                             OuterSpotGrinding = pg.OuterSpotGrinding,
                             SandBlasting = pg.SandBlasting,
+                            ShotBlasting = pg.ShotBlasting,
                             Inspection = pg.Inspection,
                             WeldingHead = pg.WeldingHead,
+                            Welding = pg.Welding,
                             Lubrication = pg.Lubrication,
-                            Warehouse = pg.Warehouse
+                            Packing = pg.Packing,
+                            Warehouse = pg.Warehouse,
+                            Extra1 = pg.Extra1,
+                            Extra2 = pg.Extra2
                         });
                     }
                 }
@@ -724,7 +736,9 @@ public class MaterialPlanService : IMaterialPlanService
             .OrderByDescending(p => p.CreatedTime)
             .ToListAsync();
 
-        return plans.Select(p => p.ToDto()).ToList();
+        var dtos = plans.Select(p => p.ToDto()).ToList();
+        await MarkOutboundAsync(dtos);
+        return dtos;
     }
 
     public async Task<List<InventoryPlanDto>> GetReworkPlansAsync(int workOrderId)
@@ -734,7 +748,28 @@ public class MaterialPlanService : IMaterialPlanService
             .OrderByDescending(p => p.CreatedTime)
             .ToListAsync();
 
-        return plans.Select(p => p.ToDto()).ToList();
+        var dtos = plans.Select(p => p.ToDto()).ToList();
+        await MarkOutboundAsync(dtos);
+        return dtos;
+    }
+
+    /// <summary>
+    /// 批量标记计划是否已生产领用出库
+    /// </summary>
+    private async Task MarkOutboundAsync(List<InventoryPlanDto> dtos)
+    {
+        if (dtos.Count == 0) return;
+        var batchNos = dtos.Select(d => d.InventoryBatchNo).Distinct().ToList();
+        var outboundBatchNos = await _context.OutboundRecords
+            .Where(or => or.BatchNo != null
+                && batchNos.Contains(or.BatchNo)
+                && or.OutboundType == OutboundType.ProductionPick)
+            .Select(or => or.BatchNo!)
+            .Distinct()
+            .ToListAsync();
+        var set = outboundBatchNos.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var dto in dtos)
+            dto.IsOutbound = set.Contains(dto.InventoryBatchNo);
     }
 
     public async Task<InventoryPlanDto> CreateInventoryPlanAsync(CreateInventoryPlanRequest request)
@@ -937,11 +972,26 @@ public class MaterialPlanService : IMaterialPlanService
         return plans.Select(p => p.ToDto()).ToList();
     }
 
+    /// <summary>
+    /// 判断库存批次是否已生产领用出库（存在 OutboundType=ProductionPick 出库记录）
+    /// 已出库的库存使用/库料改制计划视为执行完成，不可修改、不可删除
+    /// </summary>
+    private Task<bool> IsInventoryPlanOutboundAsync(string inventoryBatchNo)
+    {
+        return _context.OutboundRecords.AnyAsync(or =>
+            or.BatchNo != null
+            && or.BatchNo == inventoryBatchNo
+            && or.OutboundType == OutboundType.ProductionPick);
+    }
+
     public async Task DeleteInventoryPlanAsync(int id)
     {
         var plan = await _context.InventoryPlans.FindAsync(id);
         if (plan == null)
             throw new BusinessException("库存使用计划不存在");
+
+        if (await IsInventoryPlanOutboundAsync(plan.InventoryBatchNo))
+            throw new BusinessException($"批次{plan.InventoryBatchNo}已生产领用出库，库存使用计划不可删除（如需撤销请删除出库记录）");
 
         var workOrderId = plan.WorkOrderId;
         _context.InventoryPlans.Remove(plan);
@@ -1030,9 +1080,13 @@ public class MaterialPlanService : IMaterialPlanService
         var wtMin = Math.Round((wt - workOrder.WallThicknessNegative) * wtLowerRatio, 3);
         var wtMax = Math.Round((wt + workOrder.WallThicknessPositive) * wtUpperRatio, 3);
 
-        // 获取已被其他未取消库存使用计划引用的批次号（排除当前编辑计划自身）
+        // 获取已被其他未取消且未出库计划引用的批次号（排除当前编辑计划自身）
+        // 已出库（生产领用 ProductionPick）的计划视为执行完成，不再占用批次，剩余料可被再次计划利用
         var usedBatchNosQuery = _context.InventoryPlans
-            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled);
+            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled
+                && !_context.OutboundRecords.Any(or =>
+                    or.BatchNo != null && or.BatchNo == p.InventoryBatchNo
+                    && or.OutboundType == OutboundType.ProductionPick));
 
         if (excludePlanId.HasValue)
         {
@@ -1183,9 +1237,13 @@ public class MaterialPlanService : IMaterialPlanService
             }
         }
 
-        // 已被其他未取消计划引用的批次号（排除当前编辑计划自身）
+        // 已被其他未取消且未出库计划引用的批次号（排除当前编辑计划自身）
+        // 已出库（生产领用 ProductionPick）的计划视为执行完成，不再占用批次，剩余料可被再次计划利用
         var usedBatchNosQuery = _context.InventoryPlans
-            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled);
+            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled
+                && !_context.OutboundRecords.Any(or =>
+                    or.BatchNo != null && or.BatchNo == p.InventoryBatchNo
+                    && or.OutboundType == OutboundType.ProductionPick));
 
         if (excludePlanId.HasValue)
         {
@@ -1301,7 +1359,9 @@ public class MaterialPlanService : IMaterialPlanService
         if (plan == null)
             throw new BusinessException("库存使用计划不存在");
 
-        return plan.ToDto();
+        var dto = plan.ToDto();
+        dto.IsOutbound = await IsInventoryPlanOutboundAsync(plan.InventoryBatchNo);
+        return dto;
     }
 
     public async Task<InventoryPlanDto> UpdateInventoryPlanAsync(int id, CreateInventoryPlanRequest request)
@@ -1309,6 +1369,9 @@ public class MaterialPlanService : IMaterialPlanService
         var plan = await _context.InventoryPlans.FindAsync(id);
         if (plan == null)
             throw new BusinessException("库存使用计划不存在");
+
+        if (await IsInventoryPlanOutboundAsync(plan.InventoryBatchNo))
+            throw new BusinessException($"批次{plan.InventoryBatchNo}已生产领用出库，库存使用计划不可修改");
 
         var workOrder = await _context.WorkOrders.FindAsync(plan.WorkOrderId);
         if (workOrder == null)
@@ -1459,13 +1522,14 @@ public class MaterialPlanService : IMaterialPlanService
                             WallThicknessTolerance = pg.WallThicknessTolerance,
                             ManufacturingLength = pg.ManufacturingLength,
                             CuttingTreatment = pg.CuttingTreatment,
-                            ManufacturingMultiple = pg.ManufacturingMultiple,
                             Remark = pg.Remark,
                             ColdRollDraw = pg.ColdRollDraw,
                             OilPipeCut = pg.OilPipeCut,
                             Degrease = pg.Degrease,
+                            EmulsionWash = pg.EmulsionWash,
                             UltrasonicWash = pg.UltrasonicWash,
                             ClothPolish = pg.ClothPolish,
+                            BrightAnnealing = pg.BrightAnnealing,
                             Solution = pg.Solution,
                             Straighten = pg.Straighten,
                             Cut = pg.Cut,
@@ -1476,10 +1540,15 @@ public class MaterialPlanService : IMaterialPlanService
                             InnerGrinding = pg.InnerGrinding,
                             OuterSpotGrinding = pg.OuterSpotGrinding,
                             SandBlasting = pg.SandBlasting,
+                            ShotBlasting = pg.ShotBlasting,
                             Inspection = pg.Inspection,
                             WeldingHead = pg.WeldingHead,
+                            Welding = pg.Welding,
                             Lubrication = pg.Lubrication,
-                            Warehouse = pg.Warehouse
+                            Packing = pg.Packing,
+                            Warehouse = pg.Warehouse,
+                            Extra1 = pg.Extra1,
+                            Extra2 = pg.Extra2
                         });
                     }
                     await _context.SaveChangesAsync();
@@ -1599,13 +1668,14 @@ public class MaterialPlanService : IMaterialPlanService
                             WallThicknessTolerance = pg.WallThicknessTolerance,
                             ManufacturingLength = pg.ManufacturingLength,
                             CuttingTreatment = pg.CuttingTreatment,
-                            ManufacturingMultiple = pg.ManufacturingMultiple,
                             Remark = pg.Remark,
                             ColdRollDraw = pg.ColdRollDraw,
                             OilPipeCut = pg.OilPipeCut,
                             Degrease = pg.Degrease,
+                            EmulsionWash = pg.EmulsionWash,
                             UltrasonicWash = pg.UltrasonicWash,
                             ClothPolish = pg.ClothPolish,
+                            BrightAnnealing = pg.BrightAnnealing,
                             Solution = pg.Solution,
                             Straighten = pg.Straighten,
                             Cut = pg.Cut,
@@ -1616,10 +1686,15 @@ public class MaterialPlanService : IMaterialPlanService
                             InnerGrinding = pg.InnerGrinding,
                             OuterSpotGrinding = pg.OuterSpotGrinding,
                             SandBlasting = pg.SandBlasting,
+                            ShotBlasting = pg.ShotBlasting,
                             Inspection = pg.Inspection,
                             WeldingHead = pg.WeldingHead,
+                            Welding = pg.Welding,
                             Lubrication = pg.Lubrication,
-                            Warehouse = pg.Warehouse
+                            Packing = pg.Packing,
+                            Warehouse = pg.Warehouse,
+                            Extra1 = pg.Extra1,
+                            Extra2 = pg.Extra2
                         });
                     }
                 }

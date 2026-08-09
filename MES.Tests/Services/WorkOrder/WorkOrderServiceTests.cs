@@ -115,7 +115,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = itemIds }
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = itemIds }
             }
         });
 
@@ -182,7 +182,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = "NONEXISTENT",
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = new List<int> { 1 } }
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = new List<int> { 1 } }
             }
         });
 
@@ -210,18 +210,18 @@ public class WorkOrderServiceTests : TestBase
             {
                 new()
                 {
-                    ProductionMainNo = "D01",
-                    ProductionSubNo = "C01",
+                    ProductionMainNo = "X01",
+                    ProductionSubNo = "01",
                     OrderItemIds = itemIds
                 }
             }
         });
 
         result.Should().HaveCount(1);
-        result[0].WorkOrderNo.Should().Be($"{orderNo}-D01-C01");
+        result[0].WorkOrderNo.Should().Be($"{orderNo}-X01-01");
         result[0].SalesOrderNo.Should().Be(orderNo);
-        result[0].ProductionMainNo.Should().Be("D01");
-        result[0].ProductionSubNo.Should().Be("C01");
+        result[0].ProductionMainNo.Should().Be("X01");
+        result[0].ProductionSubNo.Should().Be("01");
         result[0].Status.Should().Be(WorkOrderStatus.Confirmed);
     }
 
@@ -244,7 +244,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = itemIds }
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = itemIds }
             }
         });
 
@@ -254,7 +254,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D02", ProductionSubNo = "C02", OrderItemIds = itemIds }
+                new() { ProductionMainNo = "X02", ProductionSubNo = "02", OrderItemIds = itemIds }
             }
         });
 
@@ -264,7 +264,75 @@ public class WorkOrderServiceTests : TestBase
             .ToListAsync();
 
         workOrders.Should().HaveCount(1);
-        workOrders[0].ProductionMainNo.Should().Be("D02");
+        workOrders[0].ProductionMainNo.Should().Be("X02");
+    }
+
+    [Fact]
+    public async Task GenerateWorkOrdersAsync_次号为空_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var (orderId, orderNo) = await SeedConfirmedOrderAsync(ctx);
+        var itemIds = await ctx.OrderItems
+            .Where(oi => oi.SalesOrderId == orderId)
+            .Select(oi => oi.Sequence).ToListAsync();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
+        {
+            SalesOrderNo = orderNo,
+            WorkOrders = new List<WorkOrderItemGroup>
+            {
+                new() { ProductionMainNo = "X01", ProductionSubNo = null, OrderItemIds = itemIds }
+            }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*次号不能为空*");
+    }
+
+    [Fact]
+    public async Task GenerateWorkOrdersAsync_定尺次号格式非法_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var (orderId, orderNo) = await SeedConfirmedOrderAsync(ctx);
+        var itemIds = await ctx.OrderItems
+            .Where(oi => oi.SalesOrderId == orderId)
+            .Select(oi => oi.Sequence).ToListAsync();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
+        {
+            SalesOrderNo = orderNo,
+            WorkOrders = new List<WorkOrderItemGroup>
+            {
+                new() { ProductionMainNo = "X01", ProductionSubNo = "123", OrderItemIds = itemIds }
+            }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*两位数字*");
+    }
+
+    [Fact]
+    public async Task GenerateWorkOrdersAsync_非定尺次号非F0_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var (orderId, orderNo) = await SeedConfirmedOrderAsync(ctx);
+
+        // 将订单项次改为非定尺，次号必须为 F0
+        var items = await ctx.OrderItems.Where(oi => oi.SalesOrderId == orderId).ToListAsync();
+        foreach (var i in items) i.LengthStatus = LengthStatus.NonFixed;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var act = () => svc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
+        {
+            SalesOrderNo = orderNo,
+            WorkOrders = new List<WorkOrderItemGroup>
+            {
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
+            }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*F0*");
     }
 
     // ========== 工单状态变更 ==========
@@ -282,7 +350,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
             }
         });
 
@@ -312,7 +380,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
             }
         });
 
@@ -379,7 +447,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
             }
         });
 
@@ -402,7 +470,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
             }
         });
 
@@ -449,7 +517,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
             }
         });
 
@@ -535,7 +603,7 @@ public class WorkOrderServiceTests : TestBase
             SalesOrderNo = orderNo,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = items.Select(i => i.Sequence).ToList() }
             }
         });
 
@@ -544,7 +612,7 @@ public class WorkOrderServiceTests : TestBase
         relation.Should().NotBeNull();
         relation.OrderNumber.Should().Be(orderNo);
         relation.WorkOrders.Should().HaveCount(1);
-        relation.WorkOrders[0].ProductionMainNo.Should().Be("D01");
+        relation.WorkOrders[0].ProductionMainNo.Should().Be("X01");
         relation.WorkOrders[0].OrderItems.Should().HaveCount(1);
     }
 
@@ -730,8 +798,8 @@ public class WorkOrderServiceTests : TestBase
         {
             WorkOrderNo = $"WO-KW-{Guid.NewGuid():N}"[..15],
             SalesOrderNo = "SO-KWTEST",
-            ProductionMainNo = "D01",
-            ProductionSubNo = "C01",
+            ProductionMainNo = "X01",
+            ProductionSubNo = "01",
             Status = WorkOrderStatus.Pending,
             SignDate = DateTime.Today,
             Salesman = "测试",
@@ -776,8 +844,8 @@ public class WorkOrderServiceTests : TestBase
         {
             WorkOrderNo = $"WO-KW-{Guid.NewGuid():N}"[..15],
             SalesOrderNo = "SO-KWTEST",
-            ProductionMainNo = "D01",
-            ProductionSubNo = "C01",
+            ProductionMainNo = "X01",
+            ProductionSubNo = "01",
             Status = WorkOrderStatus.Pending,
             SignDate = DateTime.Today,
             Salesman = "测试",
@@ -821,8 +889,8 @@ public class WorkOrderServiceTests : TestBase
             {
                 WorkOrderNo = "WO001",
                 SalesOrderNo = "SO001",
-                ProductionMainNo = "D01",
-                ProductionSubNo = "C01",
+                ProductionMainNo = "X01",
+                ProductionSubNo = "01",
                 SignDate = DateTime.Today,
                 Salesman = "张三",
                 DeliveryDate = DateTime.Today.AddMonths(1),
@@ -845,7 +913,7 @@ public class WorkOrderServiceTests : TestBase
             {
                 WorkOrderNo = "WO002",
                 SalesOrderNo = "SO002",
-                ProductionMainNo = "D02",
+                ProductionMainNo = "X02",
                 ProductionSubNo = null,
                 SignDate = DateTime.Today,
                 Salesman = "李四",
@@ -874,7 +942,7 @@ public class WorkOrderServiceTests : TestBase
         result.Should().ContainKeys("WorkOrderNo", "SalesOrderNo", "ProductionMainNo", "ProductionSubNo", "SignDate", "Salesman", "PlantGrade", "Specification", "DeliveryDate");
         result["WorkOrderNo"].Should().BeEquivalentTo(new[] { "WO001", "WO002" }, options => options.WithStrictOrdering());
         result["Salesman"].Should().BeEquivalentTo(new[] { "张三", "李四" });
-        result["ProductionSubNo"].Should().HaveCount(1).And.Contain("C01");
+        result["ProductionSubNo"].Should().HaveCount(1).And.Contain("01");
     }
 
     [Fact]

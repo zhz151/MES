@@ -43,6 +43,13 @@ public class ProductionRecordDto
     public LengthStatus? LengthStatus { get; set; }
     public decimal? CuttingMultiple { get; set; }
     public decimal? FinishedCutLength { get; set; }
+
+    /// <summary>定尺切割长度匹配标识（完全匹配/主号匹配/不适用），仅成品切割+定尺+非预成切时计算</summary>
+    public CutLengthMatchType? CutLengthMatchType { get; set; }
+
+    /// <summary>定尺切割长度匹配标识中文（完全匹配/主号匹配/空=不适用）</summary>
+    public string? CutLengthMatchTypeDisplay => CutLengthMatchHelper.GetText(CutLengthMatchType);
+
     public int? PostCutQuantity { get; set; }
 
     /// <summary>平头数，仅荒管切割使用：1=一端，2=两端</summary>

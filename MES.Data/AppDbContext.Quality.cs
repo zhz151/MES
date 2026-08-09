@@ -176,6 +176,7 @@ public partial class AppDbContext
             entity.Property(e => e.OuterDiameterRange).HasMaxLength(100);
             entity.Property(e => e.WallThicknessRange).HasMaxLength(100);
             entity.Property(e => e.LengthAllowanceRange).HasMaxLength(100);
+            entity.Property(e => e.CutLengthMatchType).HasMaxLength(20);
 
             // 水压/水下气压专用
             entity.Property(e => e.Pressure).HasColumnType("decimal(18,3)");

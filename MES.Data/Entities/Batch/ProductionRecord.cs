@@ -107,6 +107,12 @@ public class ProductionRecord : BaseEntity
     public decimal? FinishedCutLength { get; set; }
 
     /// <summary>
+    /// 定尺切割长度匹配标识（存储 CutLengthMatchType 枚举名：FullMatch=完全匹配 / MainNoMatch=主号匹配 / null=不适用）
+    /// 仅「成品切割 + 定尺 + 非预成切 + 有成品长度」时计算，其余为 null
+    /// </summary>
+    public string? CutLengthMatchType { get; set; }
+
+    /// <summary>
     /// 切后支数
     /// </summary>
     public int? PostCutQuantity { get; set; }

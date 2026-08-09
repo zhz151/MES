@@ -16,6 +16,9 @@ public class WorkOrderExecutionSummary : BaseEntity
     // ========== Group 1: 工单基础数据 ==========
     public string Salesman { get; set; } = null!;
     public string CustomerName { get; set; } = null!;
+
+    /// <summary>最终客户（终端用户，从 SalesOrder.EndCustomer 快照）</summary>
+    public string? EndCustomer { get; set; }
     public DateTime SignDate { get; set; }
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
@@ -35,7 +38,7 @@ public class WorkOrderExecutionSummary : BaseEntity
     public decimal TotalMeters { get; set; }
     public decimal TotalWeight { get; set; }
 
-    // ========== Group 3: 用料计划 ==========
+    // ========== Group 3: 用料计划及执行实况（G4~G11 的汇整） ==========
     /// <summary>工单用料计划状态(0=未计划 1=部分 2=理论满足 3=满足 4=超量)</summary>
     public int MaterialPlanStatus { get; set; }
 
@@ -44,6 +47,9 @@ public class WorkOrderExecutionSummary : BaseEntity
 
     /// <summary>关联主号用料状态</summary>
     public int MainNoMaterialPlanStatus { get; set; }
+
+    /// <summary>主号计划执行状态(0=无计划 1=未执行 2=部分 3=已完成 4=异常)：同主号所有工单 G4~G10 执行状态取最差</summary>
+    public int MainNoPlanExecutionStatus { get; set; }
 
     /// <summary>工艺周期（天）：用于 G16 剩余工量计算，取值由 RefreshAllAsync 兜底处理</summary>
     public int ProcessCycle { get; set; }
@@ -56,6 +62,12 @@ public class WorkOrderExecutionSummary : BaseEntity
 
     /// <summary>理论截止投料日：交货日-(主号最大工艺周期+产能工量)，来自用料计划总览</summary>
     public DateTime? TheoreticalCutoffDate { get; set; }
+
+    /// <summary>截止到料日：仓库实际到料（G4~G6 委外/采购进库）与出库（G7/G8 生产领用）动作日期的最大值，仅与仓库到料+出库相关</summary>
+    public DateTime? CutoffArrivalDate { get; set; }
+
+    /// <summary>主号截止到料日：同主号各工单 CutoffArrivalDate 的最大值</summary>
+    public DateTime? MainNoCutoffArrivalDate { get; set; }
 
     // ========== Group 3: 圆棒穿孔计划执行 ==========
     /// <summary>计划量(kg)</summary>
@@ -186,7 +198,7 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>关联主号投料状态</summary>
     public int MainNoInputStatus { get; set; }
 
-    // ========== Group 13: 合格流转（排除作废批次） ==========
+    // ========== Group 13: 原始投料有效流转（排除作废批次） ==========
     // 前端显示为 G13：合格流转
     /// <summary>有效在产批次数（排除 Cancelled）</summary>
     public int ValidBatchCount { get; set; }
@@ -241,8 +253,8 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>返整理论成品重量</summary>
     public decimal ReworkTheoreticalOutputWeight { get; set; }
 
-    // ========== Group 21: 次品总量（过程检/成检次品聚合，仅订单成品批次） ==========
-    // 前端显示为 G21：次品总量（位于合格流转之后）
+    // ========== Group 15: 次品总量（过程检/成检次品聚合，仅订单成品批次） ==========
+    // 前端显示为 G15：次品总量（位于合格流转之后）
     /// <summary>过程检次品总重(kg) = Σ(理论返整重 + 理论入库重 + 理论报废重)</summary>
     public int? ProcessInspectionDefectWeight { get; set; }
 
@@ -270,7 +282,7 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>成检报废重(kg) = Σ 成品检验报废重</summary>
     public int? FinalInspectionScrapWeight { get; set; }
 
-    // ========== Group 12: 有效流转（Group 13 + Group 14 合并比值） ==========
+    // ========== Group 12: 实际生产总流转（G13~G15 的汇整） ==========
     // 前端显示为 G12：有效流转
     /// <summary>流转成品比(%)</summary>
     public decimal FlowOutputRatio { get; set; }
@@ -318,16 +330,16 @@ public class WorkOrderExecutionSummary : BaseEntity
 
     // ========== Group 16: 实时关注 ==========
     // 前端显示为 G16：实时关注
-    /// <summary>关注状态(0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验)</summary>
+    /// <summary>主号关注(0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验)</summary>
     public int ScheduleStage { get; set; }
 
-    /// <summary>剩余总工量（天）：根据关注状态取关联主号的工艺周期/剩余工量</summary>
+    /// <summary>剩余总工量（天）：根据主号关注取关联主号的工艺周期/剩余工量</summary>
     public int? TotalRemainingWorkDays { get; set; }
 
     /// <summary>产能工量（天）：主号汇总总量(吨) / 日产估算(吨/天)</summary>
     public int? CapacityWorkDays { get; set; }
 
-    /// <summary>工单计划性（A+急/A急/B顺/C缓/D缓）</summary>
+    /// <summary>主号计划性（A+急/A急/B顺/C缓/D缓）</summary>
     public string? UrgencyLevel { get; set; }
 
     /// <summary>工艺预计完成日：今天 + 剩余总工量</summary>

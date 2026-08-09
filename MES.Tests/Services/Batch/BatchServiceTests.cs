@@ -57,17 +57,18 @@ public class BatchServiceTests : TestBase
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    private BatchService CreateService(AppDbContext ctx)
+    private BatchService CreateService(AppDbContext ctx, Mock<IProductionRecordService>? prodRecordMock = null, Mock<IFinalInspectionService>? finalInspectionMock = null)
     {
         var loggerMock = new Mock<ILogger<BatchService>>();
-        var prodRecordMock = new Mock<IProductionRecordService>();
+        prodRecordMock ??= new Mock<IProductionRecordService>();
+        finalInspectionMock ??= new Mock<IFinalInspectionService>();
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var materialPlanMock = new Mock<IMaterialPlanService>();
         var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new Mock<IOperationLogService>().Object, qptMock.Object, new Mock<INotificationService>().Object, new Mock<ISectionNameDisplayService>().Object, CreateProcessDefinitionServiceMock(), new MemoryCache(new MemoryCacheOptions()));
+        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, finalInspectionMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new Mock<IOperationLogService>().Object, qptMock.Object, new Mock<INotificationService>().Object, new Mock<ISectionNameDisplayService>().Object, CreateProcessDefinitionServiceMock(), new MemoryCache(new MemoryCacheOptions()));
     }
 
     // ========== 种子数据辅助方法 ==========
@@ -135,7 +136,7 @@ public class BatchServiceTests : TestBase
             SalesOrderNo = order.OrderNumber,
             WorkOrders = new List<WorkOrderItemGroup>
             {
-                new() { ProductionMainNo = "D01", ProductionSubNo = "C01", OrderItemIds = itemIds }
+                new() { ProductionMainNo = "X01", ProductionSubNo = "01", OrderItemIds = itemIds }
             }
         });
 
@@ -528,6 +529,94 @@ public class BatchServiceTests : TestBase
         updated.SalesOrderNo.Should().Be("SO-MANUAL");
         updated.PlantGrade.Should().Be("304");
         updated.Specification.Should().Be("219*8");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_LengthStatus变更_级联重算生产记录与成检匹配标识()
+    {
+        var ctx = CreateDbContext();
+        var prodMock = new Mock<IProductionRecordService>();
+        var fiMock = new Mock<IFinalInspectionService>();
+        var svc = CreateService(ctx, prodMock, fiMock);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            WorkOrderNo = "非工单",
+            TagNo = "TAG-CL-MATCH",
+            ProductionType = ProductionType.RoughTube,
+            ManufacturingItem = MaterialType.OrderFinished,
+            PlantGrade = "20#",
+            Specification = "219×8",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
+            MaterialName = PipeManufacturingType.SeamlessPipe,
+            LengthStatus = LengthStatus.NonFixed,
+            TotalWeight = 1000m,
+            ProductionRatio = 1,
+            SourcePlantGrade = "20#",
+            SourceSpecification = "219×8",
+            SourceLengthStatus = LengthStatus.NonFixed,
+            InputWeight = 1200m,
+            InputQuantity = 100
+        });
+
+        var detail = await svc.GetByIdAsync(created.Id);
+
+        await svc.UpdateAsync(created.Id, new UpdateProductionBatchRequest
+        {
+            TagNo = "TAG-CL-MATCH",
+            ProductionType = ProductionType.RoughTube,
+            ManufacturingItem = MaterialType.OrderFinished,
+            LengthStatus = LengthStatus.Fixed, // 上游字段变更 → 触发级联重算
+            TotalWeight = 1000m,
+            RowVersion = detail.RowVersion
+        });
+
+        prodMock.Verify(x => x.RecomputeCutLengthMatchByBatchAsync(created.Id), Times.Once);
+        fiMock.Verify(x => x.RecomputeCutLengthMatchByBatchAsync(created.Id), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_无上游字段变更_不触发匹配标识级联()
+    {
+        var ctx = CreateDbContext();
+        var prodMock = new Mock<IProductionRecordService>();
+        var fiMock = new Mock<IFinalInspectionService>();
+        var svc = CreateService(ctx, prodMock, fiMock);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            WorkOrderNo = "非工单",
+            TagNo = "TAG-CL-NOCHANGE",
+            ProductionType = ProductionType.RoughTube,
+            ManufacturingItem = MaterialType.OrderFinished,
+            PlantGrade = "20#",
+            Specification = "219×8",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
+            MaterialName = PipeManufacturingType.SeamlessPipe,
+            LengthStatus = LengthStatus.NonFixed,
+            TotalWeight = 1000m,
+            ProductionRatio = 1,
+            SourcePlantGrade = "20#",
+            SourceSpecification = "219×8",
+            SourceLengthStatus = LengthStatus.NonFixed,
+            InputWeight = 1200m,
+            InputQuantity = 100
+        });
+
+        var detail = await svc.GetByIdAsync(created.Id);
+
+        await svc.UpdateAsync(created.Id, new UpdateProductionBatchRequest
+        {
+            TagNo = "TAG-CL-NOCHANGE-2",
+            ProductionType = ProductionType.RoughTube,
+            ManufacturingItem = MaterialType.OrderFinished,
+            RowVersion = detail.RowVersion
+        });
+
+        prodMock.Verify(x => x.RecomputeCutLengthMatchByBatchAsync(It.IsAny<int>()), Times.Never);
+        fiMock.Verify(x => x.RecomputeCutLengthMatchByBatchAsync(It.IsAny<int>()), Times.Never);
     }
 
     // ========== 更新状态 ==========

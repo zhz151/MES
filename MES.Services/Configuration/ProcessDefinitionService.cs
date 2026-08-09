@@ -60,21 +60,36 @@ public class ProcessDefinitionService : IProcessDefinitionService
         queryable = queryable.ApplySort(sortBy, query.IsDescending);
 
         var totalCount = await queryable.CountAsync();
-        var items = await queryable
+        var rows = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(w => new ProcessDefinitionDto
+            .Select(w => new
             {
-                Id = w.Id,
-                ProcessKey = w.ProcessKey,
-                ProcessName = w.ProcessName,
-                DisplayOrder = w.DisplayOrder,
-                IsEnabled = w.IsEnabled,
-                IsColdRoll = w.IsColdRoll,
-                IsColdDraw = w.IsColdDraw,
-                Remark = w.Remark
+                w.Id,
+                w.ProcessKey,
+                w.ProcessName,
+                w.DisplayOrder,
+                w.IsEnabled,
+                w.IsColdRoll,
+                w.IsColdDraw,
+                DefaultSectionsText = w.DefaultSections,
+                w.Remark
             })
             .ToListAsync();
+
+        // 默认工段为 JSON 数组字符串，EF 无法翻译解析，采用 Hybrid 模式内存补充
+        var items = rows.Select(w => new ProcessDefinitionDto
+        {
+            Id = w.Id,
+            ProcessKey = w.ProcessKey,
+            ProcessName = w.ProcessName,
+            DisplayOrder = w.DisplayOrder,
+            IsEnabled = w.IsEnabled,
+            IsColdRoll = w.IsColdRoll,
+            IsColdDraw = w.IsColdDraw,
+            DefaultSections = ParseDefaultSections(w.DefaultSectionsText),
+            Remark = w.Remark
+        }).ToList();
 
         return new PagedResult<ProcessDefinitionDto>
         {
@@ -103,6 +118,7 @@ public class ProcessDefinitionService : IProcessDefinitionService
             IsEnabled = entity.IsEnabled,
             IsColdRoll = entity.IsColdRoll,
             IsColdDraw = entity.IsColdDraw,
+            DefaultSections = ParseDefaultSections(entity.DefaultSections),
             Remark = entity.Remark
         };
     }
@@ -119,8 +135,10 @@ public class ProcessDefinitionService : IProcessDefinitionService
             throw new BusinessException($"工序 Key「{dto.ProcessKey}」格式不正确：须字母开头，仅含字母/数字/下划线");
 
         // 唯一性校验（ProcessKey 全局唯一，忽略自身）
+        // 注意：SQL Server 默认 collation 大小写不敏感，直接 == 即等价 OrdinalIgnoreCase；
+        // 不能用 string.Equals(..., StringComparison.OrdinalIgnoreCase)，EF 无法翻译该重载
         var duplicate = await _context.ProcessDefinitions
-            .AnyAsync(w => w.Id != dto.Id && string.Equals(w.ProcessKey, dto.ProcessKey, StringComparison.OrdinalIgnoreCase));
+            .AnyAsync(w => w.Id != dto.Id && w.ProcessKey == dto.ProcessKey);
         if (duplicate)
             throw new BusinessException($"工序 Key「{dto.ProcessKey}」已存在");
 
@@ -138,6 +156,7 @@ public class ProcessDefinitionService : IProcessDefinitionService
             entity.IsEnabled = dto.IsEnabled;
             entity.IsColdRoll = dto.IsColdRoll;
             entity.IsColdDraw = dto.IsColdDraw;
+            entity.DefaultSections = SerializeDefaultSections(dto.DefaultSections);
             entity.Remark = dto.Remark;
         }
         else
@@ -151,6 +170,7 @@ public class ProcessDefinitionService : IProcessDefinitionService
                 IsEnabled = dto.IsEnabled,
                 IsColdRoll = dto.IsColdRoll,
                 IsColdDraw = dto.IsColdDraw,
+                DefaultSections = SerializeDefaultSections(dto.DefaultSections),
                 Remark = dto.Remark
             };
             _context.ProcessDefinitions.Add(entity);
@@ -179,20 +199,33 @@ public class ProcessDefinitionService : IProcessDefinitionService
     /// </summary>
     public async Task<List<ProcessInfoDto>> GetEnabledProcessesAsync()
     {
-        return await _context.ProcessDefinitions
+        var rows = await _context.ProcessDefinitions
             .AsNoTracking()
             .Where(w => w.IsEnabled)
             .OrderBy(w => w.DisplayOrder)
-            .Select(w => new ProcessInfoDto
+            .Select(w => new
             {
-                ProcessKey = w.ProcessKey,
-                ProcessName = w.ProcessName,
-                DisplayOrder = w.DisplayOrder,
-                IsEnabled = w.IsEnabled,
-                IsColdRoll = w.IsColdRoll,
-                IsColdDraw = w.IsColdDraw
+                w.ProcessKey,
+                w.ProcessName,
+                w.DisplayOrder,
+                w.IsEnabled,
+                w.IsColdRoll,
+                w.IsColdDraw,
+                DefaultSectionsText = w.DefaultSections
             })
             .ToListAsync();
+
+        // 默认工段为 JSON 数组字符串，EF 无法翻译解析，采用 Hybrid 模式内存补充
+        return rows.Select(w => new ProcessInfoDto
+        {
+            ProcessKey = w.ProcessKey,
+            ProcessName = w.ProcessName,
+            DisplayOrder = w.DisplayOrder,
+            IsEnabled = w.IsEnabled,
+            IsColdRoll = w.IsColdRoll,
+            IsColdDraw = w.IsColdDraw,
+            DefaultSections = ParseDefaultSections(w.DefaultSectionsText)
+        }).ToList();
     }
 
     public async Task<IReadOnlyDictionary<string, string>> GetProcessNameMapAsync()
@@ -277,4 +310,26 @@ public class ProcessDefinitionService : IProcessDefinitionService
     /// <summary>稳定 Key 格式校验：字母开头，仅含字母/数字/下划线（程序识别契约，禁中文/空格/特殊字符）</summary>
     private static bool IsValidKey(string key)
         => System.Text.RegularExpressions.Regex.IsMatch(key, "^[A-Za-z][A-Za-z0-9_]*$");
+
+    /// <summary>默认工段 JSON 数组字符串 → List&lt;string&gt;（SectionKey）；空/非法返回 null</summary>
+    private static List<string>? ParseDefaultSections(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            var list = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
+            return list is { Count: > 0 } ? list : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>List&lt;string&gt;（SectionKey） → 默认工段 JSON 数组字符串；空列表返回 null</summary>
+    private static string? SerializeDefaultSections(List<string>? list)
+    {
+        if (list == null || list.Count == 0) return null;
+        return System.Text.Json.JsonSerializer.Serialize(list);
+    }
 }

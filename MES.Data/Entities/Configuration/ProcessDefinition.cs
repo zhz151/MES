@@ -33,6 +33,13 @@ public class ProcessDefinition : BaseEntity
     /// <summary>是否冷拔工序</summary>
     public bool IsColdDraw { get; set; }
 
+    /// <summary>
+    /// 默认工段（JSON 数组字符串，存 SectionKey 列表，如 ["Straighten","Cut","Pickle","OuterPolish","OuterSpotGrinding","Inspection"]）。
+    /// 计划页新增该工序行时自动填充的默认工段；null/空数组表示无默认工段。
+    /// </summary>
+    [MaxLength(500)]
+    public string? DefaultSections { get; set; }
+
     /// <summary>说明</summary>
     [MaxLength(200)]
     public string? Remark { get; set; }

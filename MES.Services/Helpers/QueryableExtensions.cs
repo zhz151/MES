@@ -321,7 +321,27 @@ public static class QueryableExtensions
                 .GetMethods()
                 .First(m => m.Name == "Contains" && m.GetParameters().Length == 2)
                 .MakeGenericMethod(underlyingType);
-            return Expression.Call(containsMethod, Expression.Constant(list), member);
+            // 可空整数（int?/long? 等）需转换为底层类型以匹配 Contains(T)
+            var intMember = member.Type != underlyingType ? Expression.Convert(member, underlyingType) : member;
+            return Expression.Call(containsMethod, Expression.Constant(list), intMember);
+        }
+
+        // decimal 类型（含可空 decimal?）— 按精确值匹配
+        if (underlyingType == typeof(decimal))
+        {
+            var parsedValues = values
+                .Select(v => decimal.TryParse(v, out var d) ? (decimal?)d : null)
+                .Where(v => v.HasValue)
+                .Select(v => v!.Value)
+                .ToList();
+            if (parsedValues.Count == 0)
+                return null;
+            var decimalList = Expression.Constant(parsedValues);
+            var decimalContains = typeof(List<decimal>).GetMethod("Contains", [typeof(decimal)]);
+            if (decimalContains == null)
+                return null;
+            var decimalMember = member.Type != typeof(decimal) ? Expression.Convert(member, typeof(decimal)) : member;
+            return Expression.Call(decimalList, decimalContains, decimalMember);
         }
 
         // 字符串列表

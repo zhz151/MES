@@ -268,6 +268,7 @@ public partial class TensileTests
                 item.YieldStrengthRp1 = result.Data.YieldStrengthRp1; item.Elongation = result.Data.Elongation;
                 item.Judgment = result.Data.Judgment; item.UpdatedTime = result.Data.UpdatedTime;
                 _editingIds.Remove(item.Id); _editCache.Remove(item.Id);
+                if (table != null) await table.ReloadServerData();
                 Snackbar.Add("更新成功", Severity.Success);
             }
             else Snackbar.Add(result.Message ?? "更新失败", Severity.Error);

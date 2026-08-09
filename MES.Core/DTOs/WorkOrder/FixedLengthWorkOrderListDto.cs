@@ -38,10 +38,10 @@ public class FixedLengthWorkOrderListDto
     /// <summary>计划状态（0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验）</summary>
     public int ScheduleStage { get; set; }
 
-    /// <summary>关注状态文本</summary>
+    /// <summary>主号关注文本</summary>
     public string ScheduleStageText => IntStatusDisplayHelper.GetScheduleStageText(ScheduleStage);
 
-    /// <summary>工单计划性（A+急/A急/B顺/C缓/D缓）</summary>
+    /// <summary>主号计划性（A+急/A急/B顺/C缓/D缓）</summary>
     public string? UrgencyLevel { get; set; }
 
     // ===== G3 成品切割执行 =====

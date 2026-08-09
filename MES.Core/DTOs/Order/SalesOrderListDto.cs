@@ -96,7 +96,7 @@ public class SalesOrderListDto
     // ========== 工单执行聚合字段 ==========
 
     /// <summary>
-    /// 执行关注阶段（null=未排产, 0=完成, 1=原料锁定, 2=生产执行, 3=成品检验）
+    /// 执行关注阶段（null=未排产, 0=主号暂停, 1=主号完成, 2=原料锁定, 3=生产执行, 4=成品检验）
     /// </summary>
     public int? ScheduleStage { get; set; }
 

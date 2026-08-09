@@ -151,6 +151,9 @@ public partial class FinalInspections
         // G3: 检验结果
         new() { Key = "FixedLength",            Label = "定尺长度",   SortKey = "fixedlength", FilterType = "string", Width = "120",
             GroupKey = 3, GroupName = "G3 检验结果" },
+        new() { Key = "CutLengthMatchType",     Label = "符合工单长度", SortKey = "cutlengthmatchtype", FilterType = "enum", Width = "100",
+            GroupKey = 3, GroupName = "G3 检验结果",
+            EnumOptions = DisplayHelper.GetCutLengthMatchOptions() },
         new() { Key = "NonFixedLengthRange",    Label = "非定尺长度范围", SortKey = "nonfixedlengthrange", FilterType = "string", Width = "120",
             GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "Quantity",               Label = "检验支数",   SortKey = "quantity", Width = "80",
@@ -719,6 +722,7 @@ public partial class FinalInspections
                 item.Shift = result.Data.Shift;
                 item.Operator = result.Data.Operator;
                 item.FixedLength = result.Data.FixedLength;
+                item.CutLengthMatchType = result.Data.CutLengthMatchType;
                 item.NonFixedLengthRange = result.Data.NonFixedLengthRange;
                 item.Quantity = result.Data.Quantity;
                 item.Weight = result.Data.Weight;
@@ -757,6 +761,7 @@ public partial class FinalInspections
 
                 _editingIds.Remove(item.Id);
                 _editCache.Remove(item.Id);
+                if (table != null) await table.ReloadServerData();
                 Snackbar.Add("更新成功", Severity.Success);
             }
             else
@@ -1237,6 +1242,23 @@ public partial class FinalInspections
                 {
                     // 定尺长度显示去掉 "mm" 后缀（历史/导入数据可能带单位）
                     builder.AddContent(0, FormatFixedLength(item.FixedLength));
+                }
+                break;
+            case "CutLengthMatchType":
+                {
+                    var matchText = item.CutLengthMatchTypeDisplay;
+                    if (string.IsNullOrEmpty(matchText))
+                    {
+                        builder.AddContent(0, "");
+                    }
+                    else
+                    {
+                        builder.OpenComponent<MudChip>(0);
+                        builder.AddAttribute(1, "Size", Size.Small);
+                        builder.AddAttribute(2, "Color", DisplayHelper.GetCutLengthMatchColor(item.CutLengthMatchType));
+                        builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, matchText)));
+                        builder.CloseComponent();
+                    }
                 }
                 break;
             case "NonFixedLengthRange":

@@ -55,4 +55,15 @@ public interface IFinalInspectionService
     /// 实时健康汇总（按当前筛选条件统计成检类型与成检到料不符的生产编号）
     /// </summary>
     Task<FinalInspectionHealthSummaryDto> GetFinalInspectionHealthSummaryAsync(QueryParams query);
+
+    /// <summary>
+    /// 回填全部成品检验记录的定尺切割长度匹配标识（CutLengthMatchType），返回更新条数
+    /// </summary>
+    Task<int> RefreshAllCutLengthMatchAsync();
+
+    /// <summary>
+    /// 重算某批次全部成品检验记录的定尺切割长度匹配标识（CutLengthMatchType），返回更新条数
+    /// 供批次编辑（LengthStatus/工单号等上游字段变更）后级联调用，保持派生列一致
+    /// </summary>
+    Task<int> RecomputeCutLengthMatchByBatchAsync(int batchId);
 }

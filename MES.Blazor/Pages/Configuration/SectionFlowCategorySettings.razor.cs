@@ -113,6 +113,7 @@ public partial class SectionFlowCategorySettings
 
                 _editingIds.Remove(item.Id);
                 _editCache.Remove(item.Id);
+                if (table != null) await table.ReloadServerData();
                 Snackbar.Add("保存成功", Severity.Success);
             }
             else

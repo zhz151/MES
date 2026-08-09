@@ -106,10 +106,10 @@ public partial class OrderDemandAdjustment
         // G12: 实时关注
         var g12 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",           Label = "关注状态",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "ScheduleStage",           Label = "主号-关注",     SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "CapacityWorkDays",        Label = "产能工量(天)", SortKey = "CapacityWorkDays",        Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "UrgencyLevel",            Label = "工单计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "UrgencyLevel",            Label = "主号-计划性",  SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "EstimatedProcessCompletionDate",Label = "工艺预计完成日",SortKey = "EstimatedProcessCompletionDate", Width = "120",                  GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "DaysDiffFromDelivery",    Label = "交期相差天数",  SortKey = "DaysDiffFromDelivery",    Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
             new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
@@ -120,8 +120,8 @@ public partial class OrderDemandAdjustment
         {
             new() { Key = "FlowOutputRatio",          Label = "流转成品比(%)",          SortKey = "FlowOutputRatio",          Width = "100", GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "FlowStatus",               Label = "有效流转状态",           SortKey = "FlowStatus",               FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetFlowStatusOptions(), GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "MainNoFlowOutputRatio",    Label = "有效主号流转比(%)",     SortKey = "MainNoFlowOutputRatio",    Width = "100", GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "MainNoFlowStatus",          Label = "有效主号状态",          SortKey = "MainNoFlowStatus",          FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetMainNoFlowStatusOptions(), GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "MainNoFlowOutputRatio",    Label = "主号-流转比",           SortKey = "MainNoFlowOutputRatio",    Width = "100", GroupKey = 7, GroupName = "有效流转", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoFlowStatus",          Label = "主号-流转状态",         SortKey = "MainNoFlowStatus",          FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetMainNoFlowStatusOptions(), GroupKey = 7, GroupName = "有效流转", Level = ColumnLevel.MainNo },
             new() { Key = "FlowTotalBatchCount",       Label = "总批次数",              SortKey = "FlowTotalBatchCount",       Width = "80", GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "FlowIncompleteBatchCount",  Label = "未完成批数",            SortKey = "FlowIncompleteBatchCount",  Width = "80", GroupKey = 7, GroupName = "有效流转" },
             new() { Key = "FlowMaxRemainingWorkDays",  Label = "最大剩余工量(天)",      SortKey = "FlowMaxRemainingWorkDays",  Width = "100", GroupKey = 7, GroupName = "有效流转" },

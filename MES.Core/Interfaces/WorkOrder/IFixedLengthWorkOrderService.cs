@@ -14,6 +14,16 @@ public interface IFixedLengthWorkOrderService
     Task<HashSet<decimal>> GetLengthsByMainNoAsync(string salesOrderNo, string productionMainNo);
 
     /// <summary>
+    /// 获取指定「工单号（订单+主号+次号）」的定尺长度集合（完全匹配判定用）
+    /// </summary>
+    Task<HashSet<decimal>> GetLengthsByWorkOrderNoAsync(string workOrderNo);
+
+    /// <summary>
+    /// 获取全部定尺工单长度映射（按工单号 / 按「订单号|主号」），批量匹配计算与回填一次取全表
+    /// </summary>
+    Task<FixedLengthLengthMaps> GetLengthMapsAsync();
+
+    /// <summary>
     /// 获取全部定尺工单定尺数据列表（主号级按长度实时聚合）
     /// </summary>
     Task<List<FixedLengthWorkOrderListDto>> GetListAsync();

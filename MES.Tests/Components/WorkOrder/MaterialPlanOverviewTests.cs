@@ -23,6 +23,7 @@ public class MaterialPlanOverviewTests : IDisposable
 {
     private readonly TestContext _ctx = new();
     private readonly RequestSnapshot _captured = new();
+    private readonly Mock<Blazored.LocalStorage.ILocalStorageService> _localStorage;
     private Action<PagedResult<WorkOrderListDto>>? _configureResponse;
 
     public MaterialPlanOverviewTests()
@@ -47,16 +48,18 @@ public class MaterialPlanOverviewTests : IDisposable
         _ctx.Services.AddSingleton<NavigationManager>(fakeNav);
 
         // localStorage mock
-        var localStorage = new Mock<Blazored.LocalStorage.ILocalStorageService>();
-        localStorage.Setup(x => x.GetItemAsync<string>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _localStorage = new Mock<Blazored.LocalStorage.ILocalStorageService>();
+        _localStorage.Setup(x => x.GetItemAsync<string>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string?)null);
-        _ctx.Services.AddSingleton(localStorage.Object);
+        _localStorage.Setup(x => x.GetItemAsStringAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        _ctx.Services.AddSingleton(_localStorage.Object);
 
         // ColumnPrefsService（依赖 ILocalStorageService）
-        _ctx.Services.AddSingleton(new ColumnPrefsService(localStorage.Object));
+        _ctx.Services.AddSingleton(new ColumnPrefsService(_localStorage.Object));
 
         // PageStateService（依赖 ILocalStorageService）
-        _ctx.Services.AddSingleton(new PageStateService(localStorage.Object));
+        _ctx.Services.AddSingleton(new PageStateService(_localStorage.Object));
 
         // JS 运行时 stub（MudBlazor Popover 需要真实 IJSRuntime）
         _ctx.Services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(
@@ -121,7 +124,7 @@ public class MaterialPlanOverviewTests : IDisposable
         });
 
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://localhost:7001") };
-        var authHttpClient = new AuthHttpClient(httpClient, localStorage.Object, fakeNav);
+        var authHttpClient = new AuthHttpClient(httpClient, _localStorage.Object, fakeNav);
         _ctx.Services.AddSingleton(new WorkOrderService(authHttpClient));
         _ctx.Services.AddSingleton(new MaterialPlanService(authHttpClient));
     }
@@ -234,6 +237,12 @@ public class MaterialPlanOverviewTests : IDisposable
     [InlineData(3, "满足")]
     public void OrderStatusText_ShowsCorrectLabel(int status, string expected)
     {
+        // OrderMaterialPlanStatus 默认隐藏，模拟列偏好将其显示
+        _localStorage.Setup(x => x.GetItemAsStringAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(System.Text.Json.JsonSerializer.Serialize(new[]
+            {
+                new { k = "OrderMaterialPlanStatus", v = true }
+            }));
         ConfigureResponse(r =>
         {
             r.Items = new List<WorkOrderListDto>

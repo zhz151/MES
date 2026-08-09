@@ -297,6 +297,9 @@
             if (result.Success)
             {
                 availableBatches = (result.Data ?? new()).ToList();
+                // 编辑模式锁定批次：仅保留原批次，不允许换批次或新增批次（换料源请删除重建）
+                if (IsEditMode && existingPlan != null)
+                    availableBatches = availableBatches.Where(b => b.Id == existingPlan.ProductionBatchId).ToList();
                 InitSelections();
                 if (availableBatches.Count == 0)
                 {

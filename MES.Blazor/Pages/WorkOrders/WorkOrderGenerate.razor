@@ -360,16 +360,13 @@
                $"{item.WallThicknessPositive}|{item.LengthStatus}";
     }
 
-    private static string GetMainNoPrefix(PipeManufacturingType pipeManufacturingType, LengthStatus lengthStatus)
+    private static string GetMainNoPrefix(PipeManufacturingType pipeManufacturingType)
     {
-        if (pipeManufacturingType == PipeManufacturingType.WeldedPipe)
-            return "H";
-        return lengthStatus switch
+        // 主号前缀：焊管 H / 无缝管 X，后接两位序号（如 X01）
+        return pipeManufacturingType switch
         {
-            LengthStatus.Fixed => "D",
-            LengthStatus.Range => "F",
-            LengthStatus.NonFixed => "L",
-            _ => "D"
+            PipeManufacturingType.WeldedPipe => "H",
+            _ => "X"
         };
     }
 
@@ -383,22 +380,22 @@
 
         var errors = new List<string>();
 
-        // 验证次号（先验证，后分组）
+        // 验证次号（先验证，后分组）——新规则：次号 2 位全模式非空，定尺=01~99，范围尺/非定尺=F0
         foreach (var item in orderItems)
         {
             var lengthStatus = item.LengthStatus;
             var subNo = subNoMap.GetValueOrDefault(item.Id);
-            if (lengthStatus == LengthStatus.Fixed && string.IsNullOrEmpty(subNo))
+            if (string.IsNullOrEmpty(subNo))
             {
-                errors.Add($"项次 {item.Sequence} 为定尺模式，次号不能为空（格式：C+两位数字）");
+                errors.Add($"项次 {item.Sequence} 的次号不能为空（定尺填 01~99，{DisplayHelper.GetLengthStatusText(lengthStatus)}填 F0）");
             }
-            else if (lengthStatus == LengthStatus.Fixed && !string.IsNullOrEmpty(subNo) && !System.Text.RegularExpressions.Regex.IsMatch(subNo, @"^C\d{2}$"))
+            else if (lengthStatus == LengthStatus.Fixed && !System.Text.RegularExpressions.Regex.IsMatch(subNo, @"^\d{2}$"))
             {
-                errors.Add($"项次 {item.Sequence} 的次号格式错误，应为 C+两位数字（如 C01）");
+                errors.Add($"项次 {item.Sequence} 为定尺模式，次号格式应为两位数字（如 01）");
             }
-            else if (lengthStatus != LengthStatus.Fixed && !string.IsNullOrEmpty(subNo))
+            else if (lengthStatus != LengthStatus.Fixed && subNo != "F0")
             {
-                errors.Add($"项次 {item.Sequence} 为{DisplayHelper.GetLengthStatusText(lengthStatus)}模式，不需要填写次号");
+                errors.Add($"项次 {item.Sequence} 为{DisplayHelper.GetLengthStatusText(lengthStatus)}模式，次号必须为 F0");
             }
         }
 
@@ -408,7 +405,7 @@
             return;
         }
 
-        // 验证主号前缀（可编辑项次）
+        // 验证主号（可编辑项次）——新规则：3 位，前缀 H/X + 两位序号
         foreach (var item in orderItems)
         {
             var mainNo = item.SuggestedMainNo;
@@ -418,18 +415,15 @@
             if (generateMode == WorkOrderGenerateMode.Update && !string.IsNullOrEmpty(item.OriginalMainNo))
                 continue;
 
-            var expectedPrefix = GetMainNoPrefix(item.PipeManufacturingType, item.LengthStatus);
-            if (!mainNo.StartsWith(expectedPrefix))
+            var expectedPrefix = GetMainNoPrefix(item.PipeManufacturingType);
+            var prefixDesc = expectedPrefix == "H" ? "焊管" : "无缝管";
+            if (!System.Text.RegularExpressions.Regex.IsMatch(mainNo, @"^[HX]\d{2}$"))
             {
-                var prefixDesc = expectedPrefix switch
-                {
-                    "H" => "焊管",
-                    "D" => "定尺",
-                    "F" => "范围尺",
-                    "L" => "非定尺",
-                    _ => expectedPrefix
-                };
-                errors.Add($"项次 {item.Sequence} 的主号 \"{mainNo}\" 首字母应为 \"{expectedPrefix}\"（{DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType)}/{DisplayHelper.GetLengthStatusText(item.LengthStatus)} → {prefixDesc}）");
+                errors.Add($"项次 {item.Sequence} 的主号 \"{mainNo}\" 格式错误，应为 3 位：前缀 {expectedPrefix}（{prefixDesc}）+ 两位序号（如 {expectedPrefix}01）");
+            }
+            else if (!mainNo.StartsWith(expectedPrefix))
+            {
+                errors.Add($"项次 {item.Sequence} 的主号 \"{mainNo}\" 前缀应为 \"{expectedPrefix}\"（{DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType)} → {prefixDesc}）");
             }
         }
 

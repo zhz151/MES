@@ -36,9 +36,26 @@ public static class ProcessOptionsHelper
                 DisplayOrder = i + 1,
                 IsEnabled = true,
                 IsColdRoll = ProcessKeys.IsColdRoll(key),
-                IsColdDraw = key == ProcessKeys.ColdDraw
+                IsColdDraw = key == ProcessKeys.ColdDraw,
+                DefaultSections = _defaultSectionsByKey.TryGetValue(key, out var secs) ? secs.ToList() : null
             });
         }
         return list;
     }
+
+    /// <summary>
+    /// 预置工序默认工段（SectionKey 列表，与 DbInitializer 种子一致，供配置表加载失败时兜底驱动计划页默认工段）。
+    /// AdditionalFinalInspection 无默认工段。
+    /// </summary>
+    private static readonly Dictionary<string, string[]> _defaultSectionsByKey = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [ProcessKeys.RoughTubeProcessing] = ["Straighten", "Cut", "Pickle", "OuterPolish", "OuterSpotGrinding", "Inspection"],
+        [ProcessKeys.InProcessRepair] = ["Solution", "Straighten", "Cut", "Pickle", "Inspection"],
+        [ProcessKeys.ColdRoll60] = ["ColdRollDraw", "OilPipeCut", "Degrease", "Solution", "Straighten", "Cut", "Pickle", "Inspection"],
+        [ProcessKeys.ColdRoll50] = ["ColdRollDraw", "OilPipeCut", "Degrease", "Solution", "Straighten", "Cut", "Pickle", "Inspection"],
+        [ProcessKeys.ColdRoll30] = ["ColdRollDraw", "OilPipeCut", "Degrease", "Solution", "Straighten", "Cut", "Pickle", "Inspection"],
+        [ProcessKeys.ColdRoll20] = ["ColdRollDraw", "OilPipeCut", "Degrease", "Solution", "Straighten", "Cut", "Pickle", "Inspection"],
+        [ProcessKeys.ThreeRollColdRoll] = ["ColdRollDraw", "OilPipeCut", "Degrease", "Solution", "Straighten", "Cut", "Pickle", "Inspection"],
+        [ProcessKeys.ColdDraw] = ["ColdRollDraw", "Solution", "Straighten", "Cut", "Pickle", "Inspection"],
+    };
 }

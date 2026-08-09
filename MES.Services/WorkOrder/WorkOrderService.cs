@@ -704,7 +704,7 @@ public class WorkOrderService : IWorkOrderService
         foreach (var group in groups)
         {
             var firstItem = group.First();
-            var prefix = GetMainNoPrefix(firstItem.PipeManufacturingType, firstItem.LengthStatus);
+            var prefix = GetMainNoPrefix(firstItem.PipeManufacturingType);
             var suggestedMainNo = $"{prefix}{mainNoCounter++:D2}";
 
             foreach (var item in group)
@@ -830,33 +830,33 @@ public class WorkOrderService : IWorkOrderService
         return groups.Values.ToList();
     }
 
-    private static string GetMainNoPrefix(PipeManufacturingType pipeManufacturingType, LengthStatus lengthStatus)
+    private static string GetMainNoPrefix(PipeManufacturingType pipeManufacturingType)
     {
-        if (pipeManufacturingType == PipeManufacturingType.WeldedPipe)
-            return "H";
-        else
-            return lengthStatus switch
-            {
-                LengthStatus.Fixed => "D",
-                LengthStatus.Range => "F",
-                LengthStatus.NonFixed => "L",
-                _ => "D"
-            };
+        // 主号前缀：焊管 H / 无缝管 X，后接两位序号（如 X01）
+        return pipeManufacturingType switch
+        {
+            PipeManufacturingType.WeldedPipe => "H",
+            _ => "X"
+        };
     }
 
     private static void ValidateSubNo(LengthStatus lengthStatus, string? productionSubNo)
     {
+        // 新规则：次号 2 位，全模式非空
+        if (string.IsNullOrEmpty(productionSubNo))
+            throw new BusinessException("次号不能为空");
+
         if (lengthStatus == LengthStatus.Fixed)
         {
-            if (string.IsNullOrEmpty(productionSubNo))
-                throw new BusinessException("定尺模式下次号不能为空");
-            if (!System.Text.RegularExpressions.Regex.IsMatch(productionSubNo, @"^C\d{2}$"))
-                throw new BusinessException($"次号格式必须为C+两位数字，当前值：{productionSubNo}");
+            // 定尺：01~99（两位数字）
+            if (!System.Text.RegularExpressions.Regex.IsMatch(productionSubNo, @"^\d{2}$"))
+                throw new BusinessException($"定尺模式下次号格式必须为两位数字（如 01），当前值：{productionSubNo}");
         }
         else
         {
-            if (!string.IsNullOrEmpty(productionSubNo))
-                throw new BusinessException($"{GetLengthStatusText(lengthStatus)}模式下不允许填写次号");
+            // 范围尺/非定尺：固定 F0
+            if (productionSubNo != "F0")
+                throw new BusinessException($"{GetLengthStatusText(lengthStatus)}模式下次号必须为 F0，当前值：{productionSubNo}");
         }
     }
 
@@ -1664,7 +1664,9 @@ public class WorkOrderService : IWorkOrderService
                     s.DeliveryDate,
                     s.PlantGrade,
                     s.Specification,
-                    s.LatestPlanDate
+                    s.LatestPlanDate,
+                    s.LatestRequiredDate,
+                    s.TheoreticalCutoffDate
                 })
                 .ToListAsync();
 
@@ -1680,7 +1682,17 @@ public class WorkOrderService : IWorkOrderService
                 ["DeliveryDate"] = items.Select(x => x.DeliveryDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
                 ["PlantGrade"] = items.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
                 ["Specification"] = items.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
-                ["LatestPlanDate"] = items.Select(x => x.LatestPlanDate?.ToString("yyyy-MM-dd")).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!
+                ["LatestPlanDate"] = items.Select(x => x.LatestPlanDate?.ToString("yyyy-MM-dd")).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["LatestRequiredDate"] = items.Select(x => x.LatestRequiredDate?.ToString("yyyy-MM-dd")).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["TheoreticalCutoffDate"] = items.Select(x => x.TheoreticalCutoffDate?.ToString("yyyy-MM-dd")).Where(x => x != null).Distinct().OrderBy(x => x).ToList()!,
+                ["RawMaterialLockRemark"] = _context.Set<WorkOrderExecutionSummary>()
+                    .Where(e => e.RawMaterialLockRemark != null)
+                    .Select(e => e.RawMaterialLockRemark!)
+                    .Distinct().OrderBy(x => x).ToList(),
+                ["UrgencyLevel"] = _context.Set<WorkOrderExecutionSummary>()
+                    .Where(e => e.UrgencyLevel != null)
+                    .Select(e => e.UrgencyLevel!)
+                    .Distinct().OrderBy(x => x).ToList()
             };
         }) ?? new Dictionary<string, List<string>>();
     }
@@ -1855,12 +1867,70 @@ public class WorkOrderService : IWorkOrderService
         }
 
         // ===== 应用 ExcelFilter 筛选条件 =====
-        summaryQuery = summaryQuery.ApplyFilters(query.Filters);
+        // 三字段（主号-关注/主号-原锁备注/主号-计划性）来自 WorkOrderExecutionSummary，需关联子查询筛选
+        var execSummary = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
+        var execFilters = query.Filters?
+            .Where(f => f.Field is "ScheduleStage" or "RawMaterialLockRemark" or "UrgencyLevel")
+            .ToList();
+        var remainingFilters = query.Filters?
+            .Where(f => f.Field is not ("ScheduleStage" or "RawMaterialLockRemark" or "UrgencyLevel"))
+            .ToList();
+        if (execFilters != null)
+        {
+            foreach (var f in execFilters)
+            {
+                if (f.Operator != "in" || f.Values == null || f.Values.Count == 0) continue;
+                switch (f.Field)
+                {
+                    case "ScheduleStage":
+                        var ssVals = f.Values.Where(v => int.TryParse(v, out _)).Select(int.Parse).ToList();
+                        if (ssVals.Count > 0)
+                            summaryQuery = summaryQuery.Where(s =>
+                                execSummary.Where(e => e.WorkOrderId == s.WorkOrderId && ssVals.Contains(e.ScheduleStage)).Any());
+                        break;
+                    case "RawMaterialLockRemark":
+                        summaryQuery = summaryQuery.Where(s =>
+                            execSummary.Where(e => e.WorkOrderId == s.WorkOrderId && f.Values.Contains(e.RawMaterialLockRemark ?? "")).Any());
+                        break;
+                    case "UrgencyLevel":
+                        summaryQuery = summaryQuery.Where(s =>
+                            execSummary.Where(e => e.WorkOrderId == s.WorkOrderId && f.Values.Contains(e.UrgencyLevel ?? "")).Any());
+                        break;
+                }
+            }
+        }
+        summaryQuery = summaryQuery.ApplyFilters(remainingFilters);
 
         var totalCount = await summaryQuery.CountAsync();
 
         // ===== 排序 =====
-        summaryQuery = summaryQuery.ApplySort(query.SortBy ?? "CreatedTime", query.IsDescending);
+        // 三字段排序需关联 WorkOrderExecutionSummary 子查询（ApplySort 反射实体属性，无法处理跨表字段）
+        var sortBy = query.SortBy ?? "CreatedTime";
+        if (sortBy is "ScheduleStage" or "RawMaterialLockRemark" or "UrgencyLevel")
+        {
+            switch (sortBy)
+            {
+                case "ScheduleStage":
+                    summaryQuery = query.IsDescending
+                        ? summaryQuery.OrderByDescending(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (int?)e.ScheduleStage).FirstOrDefault())
+                        : summaryQuery.OrderBy(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (int?)e.ScheduleStage).FirstOrDefault());
+                    break;
+                case "RawMaterialLockRemark":
+                    summaryQuery = query.IsDescending
+                        ? summaryQuery.OrderByDescending(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.RawMaterialLockRemark).FirstOrDefault())
+                        : summaryQuery.OrderBy(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.RawMaterialLockRemark).FirstOrDefault());
+                    break;
+                case "UrgencyLevel":
+                    summaryQuery = query.IsDescending
+                        ? summaryQuery.OrderByDescending(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.UrgencyLevel).FirstOrDefault())
+                        : summaryQuery.OrderBy(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.UrgencyLevel).FirstOrDefault());
+                    break;
+            }
+        }
+        else
+        {
+            summaryQuery = summaryQuery.ApplySort(sortBy, query.IsDescending);
+        }
 
         // ===== 分页 + 投影到 DTO =====
         var items = await summaryQuery
@@ -1917,7 +1987,10 @@ public class WorkOrderService : IWorkOrderService
                 TheoreticalCutoffDate = s.TheoreticalCutoffDate,
                 MaterialPlanCoveredCount = s.MaterialPlanCoveredCount,
                 MaterialPlanProportion = s.MaterialPlanProportion,
-                LatestRequiredDate = s.LatestRequiredDate
+                LatestRequiredDate = s.LatestRequiredDate,
+                ScheduleStage = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (int?)e.ScheduleStage).FirstOrDefault(),
+                RawMaterialLockRemark = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.RawMaterialLockRemark).FirstOrDefault(),
+                UrgencyLevel = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.UrgencyLevel).FirstOrDefault()
             })
             .ToListAsync();
         return new PagedResult<WorkOrderListDto>

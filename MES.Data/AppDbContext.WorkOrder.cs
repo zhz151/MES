@@ -222,7 +222,6 @@ public partial class AppDbContext
             entity.Property(e => e.WallThicknessTolerance).HasMaxLength(50);
             entity.Property(e => e.ManufacturingLength).HasMaxLength(100);
             entity.Property(e => e.CuttingTreatment).HasMaxLength(200);
-            entity.Property(e => e.ManufacturingMultiple).IsRequired();
             entity.Property(e => e.Remark).HasMaxLength(500);
 
             entity.Property(e => e.ColdRollDraw);
@@ -278,7 +277,6 @@ public partial class AppDbContext
             entity.Property(e => e.WallThicknessTolerance).HasMaxLength(50);
             entity.Property(e => e.ManufacturingLength).HasMaxLength(100);
             entity.Property(e => e.CuttingTreatment).HasMaxLength(200);
-            entity.Property(e => e.ManufacturingMultiple).IsRequired();
             entity.Property(e => e.Remark).HasMaxLength(500);
 
             entity.Property(e => e.ColdRollDraw);
@@ -334,7 +332,6 @@ public partial class AppDbContext
             entity.Property(e => e.WallThicknessTolerance).HasMaxLength(50);
             entity.Property(e => e.ManufacturingLength).HasMaxLength(100);
             entity.Property(e => e.CuttingTreatment).HasMaxLength(200);
-            entity.Property(e => e.ManufacturingMultiple).IsRequired();
             entity.Property(e => e.Remark).HasMaxLength(500);
 
             entity.Property(e => e.ColdRollDraw);
@@ -418,7 +415,6 @@ public partial class AppDbContext
             entity.Property(e => e.WallThicknessTolerance).HasMaxLength(50);
             entity.Property(e => e.ManufacturingLength).HasMaxLength(100);
             entity.Property(e => e.CuttingTreatment).HasMaxLength(200);
-            entity.Property(e => e.ManufacturingMultiple).IsRequired();
             entity.Property(e => e.Remark).HasMaxLength(500);
 
             entity.Property(e => e.ColdRollDraw);

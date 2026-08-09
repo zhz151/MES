@@ -38,6 +38,13 @@
                 <!-- ===== 工单信息 ===== -->
                 <WorkOrderInfoCard WorkOrder="workOrder" />
 
+                @if (IsEditMode && existingPlan?.IsOutbound == true)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                        该计划批次（@existingPlan.BatchNo）已生产领用出库，不可编辑或取消。如需调整请先删除出库记录。
+                    </MudAlert>
+                }
+
                 <!-- ===== 展示可用库存按钮 ===== -->
                 <div class="d-flex align-center mb-3">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary"
@@ -165,7 +172,9 @@
                     <div class="d-flex justify-end mt-4">
                         <MudButton Variant="Variant.Text" OnClick="GoBack" Class="mr-2">取消</MudButton>
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   OnClick="SavePlans" Disabled="selectedBatchIds.Count == 0" Loading="@isSaving">
+                                   OnClick="SavePlans"
+                                   Disabled="selectedBatchIds.Count == 0 || (IsEditMode && existingPlan?.IsOutbound == true)"
+                                   Loading="@isSaving">
                             保存
                         </MudButton>
                     </div>
@@ -274,6 +283,9 @@
             if (result.Success)
             {
                 availableBatches = result.Data ?? new();
+                // 编辑模式锁定批次：仅保留原批次，不允许换批次或新增批次（换料源请删除重建）
+                if (IsEditMode && existingPlan != null)
+                    availableBatches = availableBatches.Where(b => b.BatchNo == existingPlan.InventoryBatchNo).ToList();
                 selections.Clear();
                 inputMultiples.Clear();
                 usageModes.Clear();
@@ -373,6 +385,12 @@
 
     private async Task SavePlans()
     {
+        if (IsEditMode && existingPlan?.IsOutbound == true)
+        {
+            Snackbar.Add($"批次{existingPlan.InventoryBatchNo}已生产领用出库，不可编辑", Severity.Warning);
+            return;
+        }
+
         var selectedIds = selectedBatchIds.ToList();
         if (selectedIds.Count == 0)
         {

@@ -73,25 +73,25 @@ public partial class FixedLengthWorkOrderView
         var g1 = new List<ColumnDef>
         {
             new() { Key = "WorkOrderNo",        Label = "工单号",       SortKey = "WorkOrderNo",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "Length",             Label = "长度(mm)",     SortKey = "Length",            Width = "80",  GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "PlannedQuantity",    Label = "需求支数",     SortKey = "PlannedQuantity",   Width = "80",  GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Salesman",           Label = "业务员",       SortKey = "Salesman",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "CustomerName",       Label = "往来单位",     SortKey = "CustomerName",      FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SignDate",           Label = "订单日期",     SortKey = "SignDate",          Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DeliveryDate",       Label = "交货日期",     SortKey = "DeliveryDate",      Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SalesOrderNo",       Label = "订单号",       SortKey = "SalesOrderNo",      FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "ProductionMainNo",   Label = "主号",         SortKey = "ProductionMainNo",  FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "ProductionSubNo",    Label = "次号",         SortKey = "ProductionSubNo",   FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "ProductionSubNo",    Label = "次号",         SortKey = "ProductionSubNo",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DeliveryState",      Label = "交货状态",     SortKey = "DeliveryState",     FilterType = "enum", Width = "120", EnumOptions = deliveryStateOptions, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "PlantGrade",         Label = "工厂牌号",     SortKey = "PlantGrade",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Specification",      Label = "规格",         SortKey = "Specification",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "Length",             Label = "长度(mm)",     SortKey = "Length",            Width = "80",  GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "PlannedQuantity",    Label = "需求支数",     SortKey = "PlannedQuantity",   Width = "80",  GroupKey = 1, GroupName = "基础数据" },
         };
 
         // G2: 计划状态
         var g2 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",      Label = "关注状态",     SortKey = "ScheduleStage",     FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 2, GroupName = "计划状态" },
-            new() { Key = "UrgencyLevel",       Label = "工单计划性",   SortKey = "UrgencyLevel",      FilterType = "string", Width = "120", GroupKey = 2, GroupName = "计划状态" },
+            new() { Key = "ScheduleStage",      Label = "主号-关注",    SortKey = "ScheduleStage",     FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 2, GroupName = "计划状态", Level = ColumnLevel.MainNo },
+            new() { Key = "UrgencyLevel",       Label = "主号-计划性",  SortKey = "UrgencyLevel",      FilterType = "string", Width = "120", GroupKey = 2, GroupName = "计划状态", Level = ColumnLevel.MainNo },
         };
 
         // G3: 成品切割执行
@@ -125,18 +125,18 @@ public partial class FixedLengthWorkOrderView
         // G6: 主号数据及现况分析（主号级）
         var g6 = new List<ColumnDef>
         {
-            new() { Key = "MainNoTotalRequirement", Label = "需求计划总", SortKey = "MainNoTotalRequirement", Width = "80", Visible = false, GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "MainNoTotalInput",       Label = "理论成品总", SortKey = "MainNoTotalInput",       Width = "80", Visible = false, GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "MainNoNoCutQty",        Label = "免切理论支", SortKey = "MainNoNoCutQty",        Width = "80", Visible = false, GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "MainNoNeedCutUncutQty", Label = "待切理论支", SortKey = "MainNoNeedCutUncutQty", Width = "80", Visible = false, GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "MainNoCutTheoretical",   Label = "已切理论支", SortKey = "MainNoCutTheoretical",  Width = "80", Visible = false, GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "MainNoCutActual",        Label = "实切支数",   SortKey = "MainNoCutActual",       Width = "80", Visible = false, GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "MainNoCutRationality",   Label = "切割偏差判定", SortKey = "MainNoCutRationality", FilterType = "enum", Width = "90", EnumOptions = new() { new("正常","正常"), new("异常","异常"), new("略","略") }, GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "EstimatedLossQty",      Label = "预计损耗支",   SortKey = "EstimatedLossQty",     Width = "80", Visible = false, GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "MainNoCurrentInput",     Label = "当前理论产出", SortKey = "MainNoCurrentInput",   Width = "80", Visible = false, GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "MainNoDefect",           Label = "次品支数",   SortKey = "MainNoDefect",          Width = "80", Visible = false, GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "TotalSurplus",           Label = "盈亏支数",   SortKey = "TotalSurplus",          Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析" },
-            new() { Key = "TotalSurplusStatus",     Label = "盈亏状态",   SortKey = "TotalSurplusStatus",    FilterType = "enum", Width = "100", EnumOptions = new() { new("合理","合理"), new("缺少","缺少"), new("略","略") }, GroupKey = 6, GroupName = "主号数据及现况分析" },
+            new() { Key = "MainNoTotalRequirement", Label = "主号-需求计划总", SortKey = "MainNoTotalRequirement", Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoTotalInput",       Label = "主号-理论成品总", SortKey = "MainNoTotalInput",       Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoNoCutQty",        Label = "主号-免切理论支", SortKey = "MainNoNoCutQty",        Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoNeedCutUncutQty", Label = "主号-待切理论支", SortKey = "MainNoNeedCutUncutQty", Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoCutTheoretical",   Label = "主号-已切理论支", SortKey = "MainNoCutTheoretical",  Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoCutActual",        Label = "主号-实切支数",  SortKey = "MainNoCutActual",       Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoCutRationality",   Label = "主号-切割偏差判定", SortKey = "MainNoCutRationality", FilterType = "enum", Width = "90", EnumOptions = new() { new("正常","正常"), new("异常","异常"), new("略","略") }, GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "EstimatedLossQty",      Label = "主号-预计损耗支", SortKey = "EstimatedLossQty",     Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoCurrentInput",     Label = "主号-当前理论产出", SortKey = "MainNoCurrentInput",   Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoDefect",           Label = "主号-次品支数",  SortKey = "MainNoDefect",          Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "TotalSurplus",           Label = "主号-盈亏支数",  SortKey = "TotalSurplus",          Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "TotalSurplusStatus",     Label = "主号-盈亏状态",  SortKey = "TotalSurplusStatus",    FilterType = "enum", Width = "100", EnumOptions = new() { new("合理","合理"), new("缺少","缺少"), new("略","略") }, GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
         };
 
         var all = new List<ColumnDef>();
@@ -284,9 +284,11 @@ public partial class FixedLengthWorkOrderView
         "ProductionSubNo" => item.ProductionSubNo,
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
-        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
+        "DeliveryState" => item.DeliveryState.ToString(),
         "ScheduleStage" => item.ScheduleStage.ToString(),
         "UrgencyLevel" => item.UrgencyLevel,
+        "InboundDoubt" => item.InboundDoubt,
+        "MainNoCutRationality" => item.MainNoCutRationality,
         "TotalSurplusStatus" => item.TotalSurplusStatus,
         _ => null
     };
@@ -366,7 +368,7 @@ public partial class FixedLengthWorkOrderView
             "InboundDeadline" => sortDescending ? query.OrderByDescending(x => x.InboundDeadline) : query.OrderBy(x => x.InboundDeadline),
             "InboundQuantity" => sortDescending ? query.OrderByDescending(x => x.InboundQuantity) : query.OrderBy(x => x.InboundQuantity),
             "InboundSurplus" => sortDescending ? query.OrderByDescending(x => x.InboundSurplus) : query.OrderBy(x => x.InboundSurplus),
-            "InboundDoubt" => sortDescending ? query.OrderByDescending(x => x.InboundDoubt) : query.OrderBy(x => x.InboundDoubt),
+            "InboundDoubt" => sortDescending ? query.OrderByDescending(x => InboundDoubtRank(x.InboundDoubt)) : query.OrderBy(x => InboundDoubtRank(x.InboundDoubt)),
             "MainNoTotalRequirement" => sortDescending ? query.OrderByDescending(x => x.MainNoTotalRequirement) : query.OrderBy(x => x.MainNoTotalRequirement),
             "MainNoTotalInput" => sortDescending ? query.OrderByDescending(x => x.MainNoTotalInput) : query.OrderBy(x => x.MainNoTotalInput),
             "MainNoNoCutQty" => sortDescending ? query.OrderByDescending(x => x.MainNoNoCutQty) : query.OrderBy(x => x.MainNoNoCutQty),
@@ -377,8 +379,8 @@ public partial class FixedLengthWorkOrderView
             "MainNoCurrentInput" => sortDescending ? query.OrderByDescending(x => x.MainNoCurrentInput) : query.OrderBy(x => x.MainNoCurrentInput),
             "MainNoDefect" => sortDescending ? query.OrderByDescending(x => x.MainNoDefect) : query.OrderBy(x => x.MainNoDefect),
             "TotalSurplus" => sortDescending ? query.OrderByDescending(x => x.TotalSurplus) : query.OrderBy(x => x.TotalSurplus),
-            "TotalSurplusStatus" => sortDescending ? query.OrderByDescending(x => x.TotalSurplusStatus) : query.OrderBy(x => x.TotalSurplusStatus),
-            "MainNoCutRationality" => sortDescending ? query.OrderByDescending(x => x.MainNoCutRationality) : query.OrderBy(x => x.MainNoCutRationality),
+            "TotalSurplusStatus" => sortDescending ? query.OrderByDescending(x => SurplusStatusRank(x.TotalSurplusStatus)) : query.OrderBy(x => SurplusStatusRank(x.TotalSurplusStatus)),
+            "MainNoCutRationality" => sortDescending ? query.OrderByDescending(x => CutRationalityRank(x.MainNoCutRationality)) : query.OrderBy(x => CutRationalityRank(x.MainNoCutRationality)),
             _ => sortDescending ? query.OrderByDescending(x => x.WorkOrderNo) : query.OrderBy(x => x.WorkOrderNo)
         };
 
@@ -805,6 +807,32 @@ public partial class FixedLengthWorkOrderView
     };
 
     // ========== 显示辅助 ==========
+
+    /// <summary>中文状态列业务排序秩（避免拼音序）：切割偏差 正常→异常→略</summary>
+    private static int CutRationalityRank(string? v) => v switch
+    {
+        "正常" => 0,
+        "异常" => 1,
+        "略" => 2,
+        _ => 3
+    };
+
+    /// <summary>中文状态列业务排序秩（避免拼音序）：盈亏状态 合理→缺少→略</summary>
+    private static int SurplusStatusRank(string? v) => v switch
+    {
+        "合理" => 0,
+        "缺少" => 1,
+        "略" => 2,
+        _ => 3
+    };
+
+    /// <summary>中文状态列业务排序秩（避免拼音序）：入库存疑 正常→疑问</summary>
+    private static int InboundDoubtRank(string? v) => v switch
+    {
+        "正常" => 0,
+        "疑问" => 1,
+        _ => 2
+    };
 
     /// <summary>单元格对齐：数值类字段居中，其它字段靠左</summary>
     private static string GetAlignClass(ColumnDef col) => col.Key switch

@@ -121,6 +121,37 @@ public class FinalInspectionService : IFinalInspectionService
         => !string.IsNullOrWhiteSpace(inspectionType)
            && string.Equals(inspectionType, nameof(InspectionType.PreInspection), StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// 计算定尺切割长度匹配标识（仅「正式成检」+ 批次长度状态=定尺 + 定尺长度可解析时计算）。
+    /// 预成检/非定尺/无定尺长度一律返回 null（显示空白）。返回枚举名或 null。
+    /// </summary>
+    private static string? ComputeCutLengthMatch(
+        string? inspectionType, string? batchLengthStatus, string? fixedLength,
+        HashSet<decimal> workOrderLengths, HashSet<decimal> mainNoLengths)
+    {
+        if (!string.Equals(inspectionType, nameof(InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase)) return null;
+        if (!string.Equals(batchLengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase)) return null;
+        var parsed = ParseFixedLength(fixedLength);
+        if (parsed == null) return null;
+        return CutLengthMatchHelper.Match(workOrderLengths, mainNoLengths, parsed)?.ToString();
+    }
+
+    /// <summary>
+    /// 单条路径的匹配标识计算：先按适用条件守卫，命中才查询长度集合（避免无效查询）。
+    /// </summary>
+    private async Task<string?> ComputeCutLengthMatchAsync(
+        string? inspectionType, string? batchLengthStatus, string? fixedLength,
+        string? workOrderNo, string? salesOrderNo, string? productionMainNo)
+    {
+        if (!string.Equals(inspectionType, nameof(InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase)) return null;
+        if (!string.Equals(batchLengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase)) return null;
+        var parsed = ParseFixedLength(fixedLength);
+        if (parsed == null) return null;
+        var woLengths = await _fixedLengthWorkOrderService.GetLengthsByWorkOrderNoAsync(workOrderNo ?? "");
+        var mainLengths = await _fixedLengthWorkOrderService.GetLengthsByMainNoAsync(salesOrderNo ?? "", productionMainNo ?? "");
+        return CutLengthMatchHelper.Match(woLengths, mainLengths, parsed)?.ToString();
+    }
+
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
     {
         if (string.IsNullOrWhiteSpace(workOrderNo) || workOrderNo == WorkOrderNoSentinel.NotWorkOrder) return;
@@ -240,6 +271,7 @@ public class FinalInspectionService : IFinalInspectionService
                 : pb?.TheoreticalOutputQty,
             ProductionWeight = pb?.TheoreticalOutputWeight,
             FixedLength = entity.FixedLength,
+            CutLengthMatchType = EnumHelper.TryParse<CutLengthMatchType>(entity.CutLengthMatchType),
             NonFixedLengthRange = entity.NonFixedLengthRange,
             EquipmentName = entity.EquipmentName,
             Shift = entity.Shift,
@@ -451,6 +483,7 @@ public class FinalInspectionService : IFinalInspectionService
                     : pb?.TheoreticalOutputQty,
                 ProductionWeight = pb?.TheoreticalOutputWeight,
                 FixedLength = r.FixedLength,
+                CutLengthMatchType = EnumHelper.TryParse<CutLengthMatchType>(r.CutLengthMatchType),
                 NonFixedLengthRange = r.NonFixedLengthRange,
                 EquipmentName = r.EquipmentName,
                 Shift = r.Shift,
@@ -590,6 +623,7 @@ public class FinalInspectionService : IFinalInspectionService
                     : r.ProductionBatch.TheoreticalOutputQty,
                 ProductionWeight = r.ProductionBatch.TheoreticalOutputWeight,
                 r.FixedLength,
+                r.CutLengthMatchType,
                 r.NonFixedLengthRange,
                 r.EquipmentName,
                 r.Shift,
@@ -657,6 +691,7 @@ public class FinalInspectionService : IFinalInspectionService
             ProductionCutQuantity = r.ProductionCutQuantity,
             ProductionWeight = r.ProductionWeight,
             FixedLength = r.FixedLength,
+            CutLengthMatchType = EnumHelper.TryParse<CutLengthMatchType>(r.CutLengthMatchType),
             NonFixedLengthRange = r.NonFixedLengthRange,
             EquipmentName = r.EquipmentName,
             Shift = r.Shift,
@@ -769,6 +804,11 @@ public class FinalInspectionService : IFinalInspectionService
         if (fixedLengthError != null)
             throw new BusinessException(fixedLengthError);
 
+        // 定尺切割长度匹配标识（仅正式成检；预成检/非定尺/无定尺长度→null 显示空白）
+        var cutLengthMatchType = await ComputeCutLengthMatchAsync(
+            inspectionType, prodBatch?.LengthStatus, request.FixedLength,
+            prodBatch?.WorkOrderNo, prodBatch?.SalesOrderNo, prodBatch?.ProductionMainNo);
+
         // 支数平衡：检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数（与批量创建/更新口径一致）
         if (request.Quantity.HasValue)
         {
@@ -802,6 +842,7 @@ public class FinalInspectionService : IFinalInspectionService
             ProductionBatchId = request.ProductionBatchId,
             InspectionType = inspectionType,
             FixedLength = request.FixedLength,
+            CutLengthMatchType = cutLengthMatchType,
             NonFixedLengthRange = request.NonFixedLengthRange,
             EquipmentName = request.EquipmentName,
             Shift = request.Shift,
@@ -871,6 +912,7 @@ public class FinalInspectionService : IFinalInspectionService
             DeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(entity.ProductionBatch?.DeliveryState),
             ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(entity.ProductionBatch?.ManufacturingStatus),
             FixedLength = entity.FixedLength,
+            CutLengthMatchType = EnumHelper.TryParse<CutLengthMatchType>(entity.CutLengthMatchType),
             NonFixedLengthRange = entity.NonFixedLengthRange,
             EquipmentName = entity.EquipmentName,
             Shift = entity.Shift,
@@ -944,7 +986,7 @@ public class FinalInspectionService : IFinalInspectionService
         var batchInfo = await _context.ProductionBatches
             .AsNoTracking()
             .Where(b => b.Id == entity.ProductionBatchId)
-            .Select(b => new { b.LengthStatus, b.SalesOrderNo, b.ProductionMainNo })
+            .Select(b => new { b.LengthStatus, b.SalesOrderNo, b.ProductionMainNo, b.WorkOrderNo })
             .FirstOrDefaultAsync();
         var fixedLengthValue = request.FixedLength ?? entity.FixedLength;
         if (batchInfo?.LengthStatus == LengthStatus.Fixed.ToString() && string.IsNullOrWhiteSpace(fixedLengthValue))
@@ -956,6 +998,12 @@ public class FinalInspectionService : IFinalInspectionService
         var fixedLengthError = await ValidateFixedLengthAsync(batchInfo?.SalesOrderNo, batchInfo?.ProductionMainNo, fixedLengthValue, request.InspectionType?.ToString() ?? entity.InspectionType);
         if (fixedLengthError != null)
             throw new BusinessException(fixedLengthError);
+
+        // 定尺切割长度匹配标识（用生效值重算；仅正式成检，预成检/非定尺/无定尺长度→null 显示空白）
+        var cutLengthMatchType = await ComputeCutLengthMatchAsync(
+            request.InspectionType?.ToString() ?? entity.InspectionType,
+            batchInfo?.LengthStatus, fixedLengthValue,
+            batchInfo?.WorkOrderNo, batchInfo?.SalesOrderNo, batchInfo?.ProductionMainNo);
 
         // 成检类型：传了则校验枚举 + 与成检到料一致性；不传保留原值（与创建口径一致，防止编辑制造不符）
         if (request.InspectionType.HasValue)
@@ -980,6 +1028,7 @@ public class FinalInspectionService : IFinalInspectionService
         entity.InspectionDate = request.InspectionDate;
         entity.InspectionType = request.InspectionType?.ToString() ?? entity.InspectionType;
         entity.FixedLength = request.FixedLength ?? entity.FixedLength;
+        entity.CutLengthMatchType = cutLengthMatchType;
         entity.NonFixedLengthRange = request.NonFixedLengthRange ?? entity.NonFixedLengthRange;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
         entity.Shift = request.Shift ?? entity.Shift;
@@ -1046,6 +1095,7 @@ public class FinalInspectionService : IFinalInspectionService
             DeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(entity.ProductionBatch?.DeliveryState),
             ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(entity.ProductionBatch?.ManufacturingStatus),
             FixedLength = entity.FixedLength,
+            CutLengthMatchType = EnumHelper.TryParse<CutLengthMatchType>(entity.CutLengthMatchType),
             NonFixedLengthRange = entity.NonFixedLengthRange,
             EquipmentName = entity.EquipmentName,
             Shift = entity.Shift,
@@ -1236,6 +1286,9 @@ public class FinalInspectionService : IFinalInspectionService
         if (errors.Any())
             throw new BusinessException(string.Join("；", errors));
 
+        // 定尺切割长度匹配标识一次预取（批量计算复用）
+        var lengthMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+
         var entities = requests.Select(r =>
         {
             var batch = batchLookup[r.BatchNo];
@@ -1249,6 +1302,13 @@ public class FinalInspectionService : IFinalInspectionService
                     ? r.InspectionType.Value.ToString()
                     : inspTypeByBatchId.GetValueOrDefault(batch.Id, nameof(InspectionType.FormalInspection)),
                 FixedLength = r.FixedLength,
+                CutLengthMatchType = ComputeCutLengthMatch(
+                    r.InspectionType.HasValue
+                        ? r.InspectionType.Value.ToString()
+                        : inspTypeByBatchId.GetValueOrDefault(batch.Id, nameof(InspectionType.FormalInspection)),
+                    batch.LengthStatus, r.FixedLength,
+                    lengthMaps.ByWorkOrderNo.GetValueOrDefault(batch.WorkOrderNo ?? "", new HashSet<decimal>()),
+                    lengthMaps.ByMainKey.GetValueOrDefault($"{batch.SalesOrderNo?.Trim()}|{batch.ProductionMainNo?.Trim()}", new HashSet<decimal>())),
                 NonFixedLengthRange = r.NonFixedLengthRange,
                 EquipmentName = r.EquipmentName,
                 Shift = r.Shift,
@@ -1333,6 +1393,7 @@ public class FinalInspectionService : IFinalInspectionService
             ProductionCutQuantity = batchLookup.TryGetValue(e.BatchNo, out bl) ? (bl.CutRequirement ? bl.CutQuantity : bl.TheoreticalOutputQty) : null,
             ProductionWeight = batchLookup.TryGetValue(e.BatchNo, out bl) ? bl.TheoreticalOutputWeight : null,
             FixedLength = e.FixedLength,
+            CutLengthMatchType = EnumHelper.TryParse<CutLengthMatchType>(e.CutLengthMatchType),
             NonFixedLengthRange = e.NonFixedLengthRange,
             EquipmentName = e.EquipmentName,
             Shift = e.Shift,
@@ -1375,6 +1436,73 @@ public class FinalInspectionService : IFinalInspectionService
             CreatedTime = e.CreatedTime,
             UpdatedTime = e.UpdatedTime
         }).ToList();
+    }
+
+    /// <summary>
+    /// 回填全部成品检验记录的定尺切割长度匹配标识（CutLengthMatchType）
+    /// 仅正式成检记录计算；预成检/非定尺/无定尺长度一律置 null（显示空白）
+    /// </summary>
+    public async Task<int> RefreshAllCutLengthMatchAsync()
+    {
+        var records = await _context.FinalInspections
+            .Include(r => r.ProductionBatch)
+            .ToListAsync();
+        if (records.Count == 0) return 0;
+
+        var maps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+        var updated = 0;
+        foreach (var r in records)
+        {
+            var batch = r.ProductionBatch;
+            if (batch == null) continue;
+            var newValue = ComputeCutLengthMatch(
+                r.InspectionType, batch.LengthStatus, r.FixedLength,
+                maps.ByWorkOrderNo.GetValueOrDefault(batch.WorkOrderNo ?? "", new HashSet<decimal>()),
+                maps.ByMainKey.GetValueOrDefault($"{batch.SalesOrderNo?.Trim()}|{batch.ProductionMainNo?.Trim()}", new HashSet<decimal>()));
+            if (r.CutLengthMatchType != newValue)
+            {
+                r.CutLengthMatchType = newValue;
+                updated++;
+            }
+        }
+        await _context.SaveChangesAsync();
+        return updated;
+    }
+
+    /// <summary>
+    /// 重算某批次全部成品检验记录的定尺切割长度匹配标识（CutLengthMatchType）
+    /// 供批次编辑（LengthStatus/工单号等上游字段变更）后级联调用，与 RefreshAllCutLengthMatchAsync 口径一致
+    /// </summary>
+    public async Task<int> RecomputeCutLengthMatchByBatchAsync(int batchId)
+    {
+        var records = await _context.FinalInspections
+            .Where(r => r.ProductionBatchId == batchId)
+            .ToListAsync();
+        if (records.Count == 0) return 0;
+
+        var batch = await _context.ProductionBatches
+            .AsNoTracking()
+            .Where(b => b.Id == batchId)
+            .FirstOrDefaultAsync();
+        if (batch == null) return 0;
+
+        var maps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+        var updated = 0;
+        foreach (var r in records)
+        {
+            var newValue = ComputeCutLengthMatch(
+                r.InspectionType, batch.LengthStatus, r.FixedLength,
+                maps.ByWorkOrderNo.GetValueOrDefault(batch.WorkOrderNo ?? "", new HashSet<decimal>()),
+                maps.ByMainKey.GetValueOrDefault($"{batch.SalesOrderNo?.Trim()}|{batch.ProductionMainNo?.Trim()}", new HashSet<decimal>()));
+            if (r.CutLengthMatchType != newValue)
+            {
+                r.CutLengthMatchType = newValue;
+                updated++;
+            }
+        }
+        if (updated > 0)
+            await _context.SaveChangesAsync();
+        return updated;
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
@@ -1641,6 +1769,12 @@ public class FinalInspectionService : IFinalInspectionService
             ("productionweight", true) => queryable.OrderByDescending(r => r.ProductionBatch.TheoreticalOutputWeight),
             ("fixedlength", false) => queryable.OrderBy(r => r.FixedLength ?? ""),
             ("fixedlength", true) => queryable.OrderByDescending(r => r.FixedLength ?? ""),
+            ("cutlengthmatchtype", false) => queryable.OrderBy(r =>
+                r.CutLengthMatchType == nameof(CutLengthMatchType.FullMatch) ? 0
+                : r.CutLengthMatchType == nameof(CutLengthMatchType.MainNoMatch) ? 1 : 2),
+            ("cutlengthmatchtype", true) => queryable.OrderByDescending(r =>
+                r.CutLengthMatchType == nameof(CutLengthMatchType.FullMatch) ? 0
+                : r.CutLengthMatchType == nameof(CutLengthMatchType.MainNoMatch) ? 1 : 2),
             ("nonfixedlengthrange", false) => queryable.OrderBy(r => r.NonFixedLengthRange ?? ""),
             ("nonfixedlengthrange", true) => queryable.OrderByDescending(r => r.NonFixedLengthRange ?? ""),
             ("inspectiontype", false) => queryable.OrderBy(r => r.InspectionType ?? ""),

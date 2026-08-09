@@ -49,18 +49,29 @@ public class FinalInspectionServiceTests : TestBase
     {
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, fixedLengthSvc ?? Mock.Of<IFixedLengthWorkOrderService>(), new MemoryCache(new MemoryCacheOptions()));
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, fixedLengthSvc ?? CreateFixedLengthSvcMock(), new MemoryCache(new MemoryCacheOptions()));
     }
 
     /// <summary>
     /// 构造一个定尺长度集合可配置的 IFixedLengthWorkOrderService Mock。
     /// 默认返回空集合（等价于非定尺主号，跳过校验）。
+    /// GetLengthsByWorkOrderNoAsync/GetLengthMapsAsync 与 GetLengthsByMainNoAsync 一致，
+    /// 供「符合工单长度」匹配标识计算使用（WorkOrderNo=WO-001 / 主键=SO-001|M-001）。
     /// </summary>
     private static IFixedLengthWorkOrderService CreateFixedLengthSvcMock(params decimal[] lengths)
     {
+        var set = new HashSet<decimal>(lengths);
         var mock = new Mock<IFixedLengthWorkOrderService>();
         mock.Setup(s => s.GetLengthsByMainNoAsync(It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(new HashSet<decimal>(lengths));
+            .ReturnsAsync(new HashSet<decimal>(set));
+        mock.Setup(s => s.GetLengthsByWorkOrderNoAsync(It.IsAny<string>()))
+            .ReturnsAsync(new HashSet<decimal>(set));
+        mock.Setup(s => s.GetLengthMapsAsync())
+            .ReturnsAsync(new FixedLengthLengthMaps
+            {
+                ByWorkOrderNo = { ["WO-001"] = new HashSet<decimal>(set) },
+                ByMainKey = { ["SO-001|M-001"] = new HashSet<decimal>(set) }
+            });
         return mock.Object;
     }
 
@@ -1058,6 +1069,319 @@ public class FinalInspectionServiceTests : TestBase
         summary.NoMaterialCheckCount.Should().Be(1);
         summary.NormalCount.Should().Be(1);
         summary.IssueCount.Should().Be(2);
+    }
+
+    // ========== 定尺切割长度匹配标识（CutLengthMatchType）==========
+
+    /// <summary>
+    /// 构造 wo 集合与 main 集合不同的 Mock，用于区分「完全匹配」与「主号匹配」。
+    /// </summary>
+    private static IFixedLengthWorkOrderService CreateFixedLengthSvcMockWithDiff(
+        decimal[] woLengths, decimal[] mainLengths)
+    {
+        var mock = new Mock<IFixedLengthWorkOrderService>();
+        mock.Setup(s => s.GetLengthsByMainNoAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new HashSet<decimal>(mainLengths));
+        mock.Setup(s => s.GetLengthsByWorkOrderNoAsync(It.IsAny<string>()))
+            .ReturnsAsync(new HashSet<decimal>(woLengths));
+        mock.Setup(s => s.GetLengthMapsAsync())
+            .ReturnsAsync(new FixedLengthLengthMaps
+            {
+                ByWorkOrderNo = { ["WO-001"] = new HashSet<decimal>(woLengths) },
+                ByMainKey = { ["SO-001|M-001"] = new HashSet<decimal>(mainLengths) }
+            });
+        return mock.Object;
+    }
+
+    [Fact]
+    public async Task CreateAsync_正式成检定尺_长度命中本工单号集合_完全匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch); // 默认正式成检
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var result = await svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            FixedLength = "4000mm" // 属于本工单号定尺集合
+        });
+
+        result.CutLengthMatchType.Should().Be(CutLengthMatchType.FullMatch);
+        result.CutLengthMatchTypeDisplay.Should().Be("完全匹配");
+
+        var saved = await ctx.FinalInspections.FirstAsync();
+        saved.CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.FullMatch));
+    }
+
+    [Fact]
+    public async Task CreateAsync_正式成检定尺_仅命中同主号集合_主号匹配()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch);
+        // 6000 仅在同主号集合（跨次号），不在本工单号集合
+        var svc = CreateService(ctx, CreateFixedLengthSvcMockWithDiff(new[] { 4000m, 8000m }, new[] { 4000m, 8000m, 6000m }));
+
+        var result = await svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            FixedLength = "6000mm"
+        });
+
+        result.CutLengthMatchType.Should().Be(CutLengthMatchType.MainNoMatch);
+        result.CutLengthMatchTypeDisplay.Should().Be("主号匹配");
+    }
+
+    [Fact]
+    public async Task CreateAsync_预成检_匹配标识为空()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.PreInspection));
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var result = await svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20,
+            FixedLength = "4000mm", // 预成检不计算匹配标识
+            InspectionType = MES.Core.Enums.InspectionType.PreInspection
+        });
+
+        result.CutLengthMatchType.Should().BeNull();
+        result.CutLengthMatchTypeDisplay.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CreateAsync_非定尺批次_匹配标识为空()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "NonFixed"); // 非定尺
+        await SeedMrCheckAsync(ctx, batch);
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var result = await svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 20
+        });
+
+        result.CutLengthMatchType.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task BatchCreateAsync_正式成检定尺_计算匹配标识()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch);
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var result = await svc.BatchCreateAsync(new List<CreateFinalInspectionRequest>
+        {
+            new()
+            {
+                InspectionItem = InspectionItem.Dimension,
+                InspectionDate = DateTime.Today,
+                BatchNo = "BATCH001",
+                Quantity = 20,
+                QualifiedQuantity = 20,
+                FixedLength = "8000mm"
+            }
+        });
+
+        result[0].CutLengthMatchType.Should().Be(CutLengthMatchType.FullMatch);
+        var saved = await ctx.FinalInspections.FirstAsync();
+        saved.CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.FullMatch));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_改定尺长度_重算匹配标识()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch);
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            ProductionBatchId = batch.Id,
+            InspectionType = nameof(InspectionType.FormalInspection),
+            FixedLength = "4000mm",
+            Quantity = 10,
+            QualifiedQuantity = 10
+        });
+        await ctx.SaveChangesAsync();
+        var id = await ctx.FinalInspections.Select(f => f.Id).FirstAsync();
+
+        var svc = CreateService(ctx, CreateFixedLengthSvcMockWithDiff(new[] { 4000m, 8000m }, new[] { 4000m, 8000m, 6000m }));
+
+        // 6000 命中主号集合但非本工单号集合 → 重算为「主号匹配」
+        var result = await svc.UpdateAsync(id, new UpdateFinalInspectionRequest
+        {
+            InspectionDate = DateTime.Today,
+            Quantity = 10,
+            QualifiedQuantity = 10,
+            FixedLength = "6000mm"
+        });
+
+        result.CutLengthMatchType.Should().Be(CutLengthMatchType.MainNoMatch);
+        var saved = await ctx.FinalInspections.FirstAsync();
+        saved.CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.MainNoMatch));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_预成检_重算匹配标识置空()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.PreInspection));
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            ProductionBatchId = batch.Id,
+            InspectionType = nameof(InspectionType.PreInspection),
+            FixedLength = "4000mm",
+            CutLengthMatchType = nameof(CutLengthMatchType.FullMatch), // 模拟历史残留
+            Quantity = 10,
+            QualifiedQuantity = 10
+        });
+        await ctx.SaveChangesAsync();
+        var id = await ctx.FinalInspections.Select(f => f.Id).FirstAsync();
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+
+        var result = await svc.UpdateAsync(id, new UpdateFinalInspectionRequest
+        {
+            InspectionDate = DateTime.Today,
+            Quantity = 10,
+            QualifiedQuantity = 10,
+            FixedLength = "4000mm"
+        });
+
+        result.CutLengthMatchType.Should().BeNull();
+        var saved = await ctx.FinalInspections.FirstAsync();
+        saved.CutLengthMatchType.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RefreshAllCutLengthMatchAsync_正式成检回填_预成检保持空()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        await SeedMrCheckAsync(ctx, batch); // 正式成检到料
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            ProductionBatchId = batch.Id,
+            InspectionType = nameof(InspectionType.FormalInspection),
+            FixedLength = "4000mm",
+            Quantity = 10,
+            QualifiedQuantity = 10
+        });
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.VisualInspection,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            ProductionBatchId = batch.Id,
+            InspectionType = nameof(InspectionType.PreInspection),
+            FixedLength = "4000mm",
+            Quantity = 10,
+            QualifiedQuantity = 10
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+        var updated = await svc.RefreshAllCutLengthMatchAsync();
+
+        updated.Should().Be(1);
+        var formal = await ctx.FinalInspections.SingleAsync(f => f.InspectionType == nameof(InspectionType.FormalInspection));
+        formal.CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.FullMatch));
+        var pre = await ctx.FinalInspections.SingleAsync(f => f.InspectionType == nameof(InspectionType.PreInspection));
+        pre.CutLengthMatchType.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RecomputeCutLengthMatchByBatchAsync_批次LengthStatus改非定尺_匹配标识置空()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "Fixed");
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = batch.BatchNo,
+            ProductionBatchId = batch.Id,
+            InspectionType = nameof(InspectionType.FormalInspection),
+            FixedLength = "4000mm",
+            Quantity = 10,
+            QualifiedQuantity = 10,
+            CutLengthMatchType = nameof(CutLengthMatchType.FullMatch) // 旧值（批次编辑后应置空）
+        });
+        await ctx.SaveChangesAsync();
+
+        // 模拟批次编辑把 LengthStatus 从定尺改为非定尺
+        var batchEntity = await ctx.ProductionBatches.FirstAsync();
+        batchEntity.LengthStatus = "NonFixed";
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+        var updated = await svc.RecomputeCutLengthMatchByBatchAsync(batch.Id);
+
+        updated.Should().Be(1);
+        var saved = await ctx.FinalInspections.SingleAsync();
+        saved.CutLengthMatchType.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RecomputeCutLengthMatchByBatchAsync_批次LengthStatus改定尺_匹配标识重算()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, lengthStatus: "NonFixed");
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = batch.BatchNo,
+            ProductionBatchId = batch.Id,
+            InspectionType = nameof(InspectionType.FormalInspection),
+            FixedLength = "4000mm",
+            Quantity = 10,
+            QualifiedQuantity = 10
+        });
+        await ctx.SaveChangesAsync();
+
+        // 模拟批次编辑把 LengthStatus 从非定尺改为定尺
+        var batchEntity = await ctx.ProductionBatches.FirstAsync();
+        batchEntity.LengthStatus = "Fixed";
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, CreateFixedLengthSvcMock(4000m, 8000m));
+        var updated = await svc.RecomputeCutLengthMatchByBatchAsync(batch.Id);
+
+        updated.Should().Be(1);
+        var saved = await ctx.FinalInspections.SingleAsync();
+        saved.CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.FullMatch));
     }
 
     private async Task AddFinalInspection(AppDbContext ctx, ProductionBatch batch, string? inspectionType)

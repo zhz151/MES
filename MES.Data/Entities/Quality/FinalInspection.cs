@@ -64,6 +64,12 @@ public class FinalInspection : BaseEntity
     public string? FixedLength { get; set; }
 
     /// <summary>
+    /// 定尺切割长度匹配标识（存枚举名 FullMatch=完全匹配/MainNoMatch=主号匹配；null=不适用，仅正式成检计算）
+    /// </summary>
+    [MaxLength(20)]
+    public string? CutLengthMatchType { get; set; }
+
+    /// <summary>
     /// 非定尺长度范围（批次长度状态&lt;&gt;定尺时填写）
     /// </summary>
     [MaxLength(100)]

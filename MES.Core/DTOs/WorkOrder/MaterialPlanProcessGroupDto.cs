@@ -16,7 +16,6 @@ public class MaterialPlanProcessGroupDto
     public string? WallThicknessTolerance { get; set; }
     public string? ManufacturingLength { get; set; }
     public string? CuttingTreatment { get; set; }
-    public int ManufacturingMultiple { get; set; }
     public string? Remark { get; set; }
 
     // 26个工段

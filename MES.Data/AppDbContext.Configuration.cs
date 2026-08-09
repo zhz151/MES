@@ -36,6 +36,7 @@ public partial class AppDbContext
             entity.Property(e => e.IsEnabled).IsRequired();
             entity.Property(e => e.IsColdRoll).IsRequired();
             entity.Property(e => e.IsColdDraw).IsRequired();
+            entity.Property(e => e.DefaultSections).HasMaxLength(500);
             entity.Property(e => e.Remark).HasMaxLength(200);
             entity.HasIndex(e => e.ProcessKey)
                 .IsUnique()

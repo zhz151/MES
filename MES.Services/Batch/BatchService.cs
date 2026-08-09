@@ -57,6 +57,7 @@ public class BatchService : IBatchService
     private readonly AppDbContext _context;
     private readonly ILogger<BatchService> _logger;
     private readonly IProductionRecordService _productionRecordService;
+    private readonly IFinalInspectionService _finalInspectionService;
     private readonly IConfigParameterService _configService;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IMaterialPlanService _materialPlanService;
@@ -67,11 +68,12 @@ public class BatchService : IBatchService
     private readonly IProcessDefinitionService _processDefService;
     private readonly IMemoryCache _cache;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, ISectionNameDisplayService sectionNameDisplay, IProcessDefinitionService processDefService, IMemoryCache cache)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IFinalInspectionService finalInspectionService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, ISectionNameDisplayService sectionNameDisplay, IProcessDefinitionService processDefService, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
         _productionRecordService = productionRecordService;
+        _finalInspectionService = finalInspectionService;
         _configService = configService;
         _workOrderExecutionService = workOrderExecutionService;
         _materialPlanService = materialPlanService;
@@ -853,6 +855,10 @@ public class BatchService : IBatchService
         var oldProductionRatio = entity.ProductionRatio;
         var oldValidQty = entity.CurrentValidQty;
         var oldValidWeight = entity.CurrentValidWeight;
+        // 快照定尺匹配派生列的上游字段旧值（LengthStatus/工单/订单/主号，变更时级联重算生产记录+成检记录）
+        var oldLengthStatus = entity.LengthStatus;
+        var oldSalesOrderNo = entity.SalesOrderNo;
+        var oldProductionMainNo = entity.ProductionMainNo;
 
         // 更新可修改字段（所有可空 DTO 字段用 ?? entity.Field 防止空值覆盖）
         entity.TagNo = request.TagNo ?? entity.TagNo;
@@ -983,6 +989,14 @@ public class BatchService : IBatchService
 
                 await _context.SaveChangesAsync();
             }
+        }
+
+        // 定尺切割长度匹配标识级联：LengthStatus/工单号/订单号/主号任一变更时，重算该批次生产记录+成检记录的派生列
+        if (entity.WorkOrderNo != oldWorkOrderNo || entity.SalesOrderNo != oldSalesOrderNo
+            || entity.ProductionMainNo != oldProductionMainNo || entity.LengthStatus != oldLengthStatus)
+        {
+            await _productionRecordService.RecomputeCutLengthMatchByBatchAsync(entity.Id);
+            await _finalInspectionService.RecomputeCutLengthMatchByBatchAsync(entity.Id);
         }
 
         // 刷新批次跟踪字段（包括有效投料疑问等计算字段）
@@ -1287,6 +1301,10 @@ public class BatchService : IBatchService
         var oldProductionRatio = entity.ProductionRatio;
         var oldValidQty = entity.CurrentValidQty;
         var oldValidWeight = entity.CurrentValidWeight;
+        // 快照定尺匹配派生列的上游字段旧值（LengthStatus/工单/订单/主号，变更时级联重算生产记录+成检记录）
+        var oldLengthStatus = entity.LengthStatus;
+        var oldSalesOrderNo = entity.SalesOrderNo;
+        var oldProductionMainNo = entity.ProductionMainNo;
 
         entity.TagNo = request.TagNo ?? entity.TagNo;
         entity.QualityRemark = request.QualityRemark ?? entity.QualityRemark;
@@ -1570,6 +1588,14 @@ public class BatchService : IBatchService
 
                 await _context.SaveChangesAsync();
             }
+        }
+
+        // 定尺切割长度匹配标识级联：LengthStatus/工单号/订单号/主号任一变更时，重算该批次生产记录+成检记录的派生列
+        if (entity.WorkOrderNo != oldWorkOrderNo || entity.SalesOrderNo != oldSalesOrderNo
+            || entity.ProductionMainNo != oldProductionMainNo || entity.LengthStatus != oldLengthStatus)
+        {
+            await _productionRecordService.RecomputeCutLengthMatchByBatchAsync(entity.Id);
+            await _finalInspectionService.RecomputeCutLengthMatchByBatchAsync(entity.Id);
         }
 
         // 记录 6 个监控字段的变更日志（仅记录实际变化的字段）

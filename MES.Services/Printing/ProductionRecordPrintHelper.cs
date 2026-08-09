@@ -71,6 +71,7 @@ public static class ProductionRecordPrintHelper
                 ["Weight"] = r.Weight?.ToString("G29") ?? "",
                 ["CuttingMultiple"] = r.CuttingMultiple?.ToString("G29") ?? "",
                 ["FinishedCutLength"] = r.FinishedCutLength?.ToString("G29") ?? "",
+                ["CutLengthMatchType"] = r.CutLengthMatchTypeDisplay ?? "",
                 ["PostCutQuantity"] = r.PostCutQuantity?.ToString() ?? "",
                 ["FaceCutCount"] = r.FaceCutCount?.ToString() ?? "",
                 ["SolutionTemperature"] = r.SolutionTemperature?.ToString("G29") ?? "",

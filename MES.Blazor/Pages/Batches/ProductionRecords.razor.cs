@@ -99,6 +99,8 @@ public partial class ProductionRecords
         new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus",         FilterType = "string", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength", Width = "80", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "CutLengthMatchType", Label = "符合工单长度", SortKey = "cutlengthmatchtype", FilterType = "enum", Width = "100", GroupKey = 2, GroupName = "产出数据",
+            EnumOptions = DisplayHelper.GetCutLengthMatchOptions() },
         new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "FaceCutCount",      Label = "平头数",     SortKey = "facecutcount", Width = "60", GroupKey = 2, GroupName = "产出数据" },
 
@@ -462,6 +464,7 @@ public partial class ProductionRecords
                 item.IsPreCut = result.Data.IsPreCut;
                 item.CuttingMultiple = result.Data.CuttingMultiple;
                 item.FinishedCutLength = result.Data.FinishedCutLength;
+                item.CutLengthMatchType = result.Data.CutLengthMatchType;
                 item.PostCutQuantity = result.Data.PostCutQuantity;
                 item.TagNo = result.Data.TagNo;
                 item.PlantGrade = result.Data.PlantGrade;
@@ -470,6 +473,7 @@ public partial class ProductionRecords
 
                 _editingIds.Remove(item.Id);
                 _editCache.Remove(item.Id);
+                if (table != null) await table.ReloadServerData();
                 Snackbar.Add("更新成功", Severity.Success);
             }
             else
@@ -833,6 +837,23 @@ public partial class ProductionRecords
                     builder.AddAttribute(2, "Color", DisplayHelper.GetProductStatusColor(item.ProductStatus));
                     builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetProductStatusText(item.ProductStatus))));
                     builder.CloseComponent();
+                }
+                break;
+            case "CutLengthMatchType":
+                {
+                    var matchText = item.CutLengthMatchTypeDisplay;
+                    if (string.IsNullOrEmpty(matchText))
+                    {
+                        builder.AddContent(0, "");
+                    }
+                    else
+                    {
+                        builder.OpenComponent<MudChip>(0);
+                        builder.AddAttribute(1, "Size", Size.Small);
+                        builder.AddAttribute(2, "Color", DisplayHelper.GetCutLengthMatchColor(item.CutLengthMatchType));
+                        builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, matchText)));
+                        builder.CloseComponent();
+                    }
                 }
                 break;
             case "IsPreCut":

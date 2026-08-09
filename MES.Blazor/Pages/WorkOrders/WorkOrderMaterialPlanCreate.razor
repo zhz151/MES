@@ -15,6 +15,7 @@
 @inject StandardWorkDayService StandardWorkDayService
 @inject ProcessDefinitionService ProcessDefinitionService
 @inject WorkOrderService WorkOrderService
+@inject ColumnPrefsService ColumnPrefs
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -247,47 +248,54 @@
                               Class="auto-table compact-table" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; width:max-content;">
                         <HeaderContent>
                             <MudTh Style="width:45px;">#</MudTh>
-                            <MudTh Style="width:120px;">工序名称<span class="required-star">*</span></MudTh>
+                            @if (GetPgCol("ProcessName").Visible) { <MudTh Style="width:120px;">工序名称<span class="required-star">*</span></MudTh> }
                             @if (GetPgCol("ManufacturingSpec").Visible) { <MudTh Style="width:100px;">制造规格<span class="required-star">*</span></MudTh> }
                             @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTh Style="width:80px;">外径公差</MudTh> }
                             @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTh Style="width:80px;">壁厚公差</MudTh> }
                             @if (GetPgCol("ManufacturingLength").Visible) { <MudTh Style="width:80px;">制造长度</MudTh> }
                             @if (GetPgCol("CuttingTreatment").Visible) { <MudTh Style="width:80px;">断切处理</MudTh> }
-                            @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTh Style="width:80px;">制成倍数</MudTh> }
                             @if (GetPgCol("Remark").Visible) { <MudTh Style="width:120px;">备注</MudTh> }
                             @foreach (var sc in _sectionCols)
                             {
-                                <MudTh Style="width:60px;">@sc.SectionName</MudTh>
+                                if (GetPgCol(sc.SectionKey).Visible)
+                                {
+                                    <MudTh Style="width:60px;">@sc.SectionName</MudTh>
+                                }
                             }
                             <MudTh Style="width:60px;">操作</MudTh>
                         </HeaderContent>
                         <RowTemplate Context="pg">
                             <MudTd Style="width:45px;">@(pgItems.IndexOf(pg) + 1)</MudTd>
-                            <MudTd Style="width:120px;">
-                                <MudSelect T="string" Value="@pg.ProcessName"
-                                           ValueChanged="@((string v) => { pg.ProcessName = v; ApplyProcessGroupDefaults(pg); })"
-                                           Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                    @foreach (var opt in _processOptions)
-                                    {
-                                        <MudSelectItem Value="@opt.ProcessKey">@opt.ProcessName</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </MudTd>
+                            @if (GetPgCol("ProcessName").Visible)
+                            {
+                                <MudTd Style="width:120px;">
+                                    <MudSelect T="string" Value="@pg.ProcessName"
+                                               ValueChanged="@((string v) => { pg.ProcessName = v; ApplyProcessGroupDefaults(pg); })"
+                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                        @foreach (var opt in _processOptions)
+                                        {
+                                            <MudSelectItem Value="@opt.ProcessKey">@opt.ProcessName</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudTd>
+                            }
                             @if (GetPgCol("ManufacturingSpec").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingSpec" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
                             @if (GetPgCol("OuterDiameterTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.OuterDiameterTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
                             @if (GetPgCol("WallThicknessTolerance").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.WallThicknessTolerance" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
                             @if (GetPgCol("ManufacturingLength").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.ManufacturingLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
                             @if (GetPgCol("CuttingTreatment").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.CuttingTreatment" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
-                            @if (GetPgCol("ManufacturingMultiple").Visible) { <MudTd><MudNumericField T="int" @bind-Value="pg.ManufacturingMultiple" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" Min="1" /></MudTd> }
                             @if (GetPgCol("Remark").Visible) { <MudTd><MudTextField T="string" @bind-Value="pg.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small" /></MudTd> }
                             @foreach (var sc in _sectionCols)
                             {
-                                <MudTd>
-                                    <MudNumericField T="int?"
-                                                     Value="@GetSectionValue(pg, sc.SectionKey)"
-                                                     ValueChanged="@((int? v) => SetSectionValue(pg, sc.SectionKey, v))"
-                                                     Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" />
-                                </MudTd>
+                                if (GetPgCol(sc.SectionKey).Visible)
+                                {
+                                    <MudTd>
+                                        <MudNumericField T="int?"
+                                                         Value="@GetSectionValue(pg, sc.SectionKey)"
+                                                         ValueChanged="@((int? v) => SetSectionValue(pg, sc.SectionKey, v))"
+                                                         Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" />
+                                    </MudTd>
+                                }
                             }
                             <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="@(() => DeleteProcessGroupRow(pg))" /></MudTd>
                         </RowTemplate>
@@ -332,18 +340,55 @@
 
     // 工序组
     private List<SavePlanProcessGroupItem> pgItems = new();
-    private List<ColumnDef> pgCols = GetProcessGroupDefaultColumns();
-    private static List<ColumnDef> GetProcessGroupDefaultColumns() => new()
+    private const string PgColPrefsKey = "wo_material_plan_create_pg";
+    private List<ColumnDef> pgCols = new();
+
+    private async Task InitProcessGroupColumnsAsync()
     {
-        new() { Key = "ManufacturingSpec", Label = "制造规格", Visible = true },
-        new() { Key = "OuterDiameterTolerance", Label = "外径公差", Visible = true },
-        new() { Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true },
-        new() { Key = "ManufacturingLength", Label = "制造长度", Visible = true },
-        new() { Key = "CuttingTreatment", Label = "断切处理", Visible = true },
-        new() { Key = "ManufacturingMultiple", Label = "制成倍数", Visible = true },
-        new() { Key = "Remark", Label = "备注", Visible = true },
-    };
-    private ColumnDef GetPgCol(string key) => pgCols.First(c => c.Key == key);
+        await LoadSectionColsAsync();
+        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
+
+        pgCols = new List<ColumnDef>
+        {
+            new() { Key = "ProcessName", Label = "工序名称", Visible = true },
+            new() { Key = "ManufacturingSpec", Label = "制造规格", Visible = true },
+            new() { Key = "OuterDiameterTolerance", Label = "外径公差", Visible = true },
+            new() { Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true },
+            new() { Key = "ManufacturingLength", Label = "制造长度", Visible = true },
+            new() { Key = "CuttingTreatment", Label = "断切处理", Visible = true },
+            new() { Key = "Remark", Label = "备注", Visible = true },
+        };
+
+        // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
+        foreach (var sc in _sectionCols)
+        {
+            pgCols.Add(new ColumnDef { Key = sc.SectionKey, Label = sc.SectionName, Visible = true });
+        }
+
+        var saved = await ColumnPrefs.LoadAsync(PgColPrefsKey, null);
+        if (saved.Count > 0)
+        {
+            foreach (var savedCol in saved)
+            {
+                var match = pgCols.FirstOrDefault(c => c.Key == savedCol.Key);
+                if (match != null) match.Visible = savedCol.Visible;
+            }
+            var ordered = new List<ColumnDef>();
+            foreach (var savedCol in saved)
+            {
+                var match = pgCols.FirstOrDefault(c => c.Key == savedCol.Key);
+                if (match != null) ordered.Add(match);
+            }
+            foreach (var col in pgCols)
+            {
+                if (!ordered.Contains(col)) ordered.Add(col);
+            }
+            pgCols = ordered;
+        }
+    }
+
+    private ColumnDef GetPgCol(string key) =>
+        pgCols.FirstOrDefault(c => c.Key == key) ?? new ColumnDef { Key = key, Label = key, Visible = true };
 
     // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
     private List<SectionInfoDto> _sectionCols = new();
@@ -463,8 +508,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadSectionColsAsync();
-        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
+        await InitProcessGroupColumnsAsync();
         await LoadWorkOrder();
         if (IsEditMode)
             await LoadExistingPlan();
@@ -772,7 +816,6 @@
                     WallThicknessTolerance = p.WallThicknessTolerance,
                     ManufacturingLength = p.ManufacturingLength,
                     CuttingTreatment = p.CuttingTreatment,
-                    ManufacturingMultiple = p.ManufacturingMultiple,
                     Remark = p.Remark,
                     ColdRollDraw = p.ColdRollDraw,
                     OilPipeCut = p.OilPipeCut,
@@ -820,83 +863,24 @@
     {
         pgItems.Add(new SavePlanProcessGroupItem
         {
-            ProcessName = ProcessKeys.RoughTubeProcessing,
-            ManufacturingMultiple = 1
+            ProcessName = ProcessKeys.RoughTubeProcessing
         });
         // 默认填充当前新增行的工段值
         ApplyProcessGroupDefaults(pgItems.Last());
     }
 
-    private static void ApplyProcessGroupDefaults(SavePlanProcessGroupItem pg)
+    private void ApplyProcessGroupDefaults(SavePlanProcessGroupItem pg)
     {
         // 清空所有工段
-        pg.ColdRollDraw = null;
-        pg.OilPipeCut = null;
-        pg.Degrease = null;
-        pg.EmulsionWash = null;
-        pg.UltrasonicWash = null;
-        pg.ClothPolish = null;
-        pg.BrightAnnealing = null;
-        pg.Solution = null;
-        pg.Straighten = null;
-        pg.Cut = null;
-        pg.ThicknessMeasure = null;
-        pg.Pickle = null;
-        pg.OuterPolish = null;
-        pg.InnerPolish = null;
-        pg.InnerGrinding = null;
-        pg.OuterSpotGrinding = null;
-        pg.SandBlasting = null;
-        pg.ShotBlasting = null;
-        pg.Inspection = null;
-        pg.WeldingHead = null;
-        pg.Welding = null;
-        pg.Lubrication = null;
-        pg.Packing = null;
-        pg.Warehouse = null;
-        pg.Extra1 = null;
-        pg.Extra2 = null;
+        foreach (var key in SectionDefs.PropertyNames)
+            SetSectionValue(pg, key, null);
 
-        // 根据工序名称填充默认值
-        switch (pg.ProcessName)
+        // 配置驱动：从工序配置表（ProcessDefinitions.DefaultSections）读取默认工段，新增工序/改默认工段无需改代码
+        var opt = _processOptions.FirstOrDefault(o => string.Equals(o.ProcessKey, pg.ProcessName, StringComparison.OrdinalIgnoreCase));
+        if (opt?.DefaultSections is { Count: > 0 })
         {
-            case ProcessKeys.RoughTubeProcessing:
-                pg.Straighten = 1;
-                pg.Cut = 1;
-                pg.Pickle = 1;
-                pg.OuterPolish = 1;
-                pg.OuterSpotGrinding = 1;
-                pg.Inspection = 1;
-                break;
-            case ProcessKeys.ColdDraw:
-                pg.ColdRollDraw = 1;
-                pg.Solution = 1;
-                pg.Straighten = 1;
-                pg.Cut = 1;
-                pg.Pickle = 1;
-                pg.Inspection = 1;
-                break;
-            case ProcessKeys.ColdRoll60:
-            case ProcessKeys.ColdRoll50:
-            case ProcessKeys.ColdRoll30:
-            case ProcessKeys.ColdRoll20:
-            case ProcessKeys.ThreeRollColdRoll:
-                pg.ColdRollDraw = 1;
-                pg.OilPipeCut = 1;
-                pg.Degrease = 1;
-                pg.Solution = 1;
-                pg.Straighten = 1;
-                pg.Cut = 1;
-                pg.Pickle = 1;
-                pg.Inspection = 1;
-                break;
-            case ProcessKeys.InProcessRepair:
-                pg.Solution = 1;
-                pg.Straighten = 1;
-                pg.Cut = 1;
-                pg.Pickle = 1;
-                pg.Inspection = 1;
-                break;
+            foreach (var key in opt.DefaultSections)
+                SetSectionValue(pg, key, 1);
         }
     }
 
@@ -905,20 +889,17 @@
         pgItems.Remove(pg);
     }
 
-    private async Task OnPgColumnToggle(ColumnDef col)
-    {
-        // 列显隐仅在当前会话有效，无持久化
-        await Task.CompletedTask;
-    }
+    private async Task OnPgColumnToggle(ColumnDef col) =>
+        await ColumnPrefs.SaveAsync(PgColPrefsKey, null, pgCols);
 
-    private async Task OnPgColumnMove(ColumnDef col)
-    {
-        await Task.CompletedTask;
-    }
+    private async Task OnPgColumnMove(ColumnDef col) =>
+        await ColumnPrefs.SaveAsync(PgColPrefsKey, null, pgCols);
 
-    private void ResetPgColumns()
+    private async Task ResetPgColumns()
     {
-        pgCols = GetProcessGroupDefaultColumns();
+        foreach (var col in pgCols) col.Visible = true;
+        await ColumnPrefs.SaveAsync(PgColPrefsKey, null, pgCols);
+        Snackbar.Add("已重置工序组列显示", Severity.Normal);
     }
 
     private bool _isArrowNavSetup;

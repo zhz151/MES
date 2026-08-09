@@ -359,6 +359,7 @@ public partial class ChemicalCompositions
 
                 _editingIds.Remove(item.Id);
                 _editCache.Remove(item.Id);
+                if (table != null) await table.ReloadServerData();
                 Snackbar.Add("更新成功", Severity.Success);
             }
             else

@@ -308,23 +308,60 @@ public static class DbInitializer
         }
 
         // ========== 8c. Initialize Process Definitions（工序组配置表）——幂等 ==========
+        // 预置工序默认工段（SectionKey 列表，JSON 数组字符串），计划页新增该工序行自动填充；AdditionalFinalInspection 无默认
+        var defaultSectionsByKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ProcessKeys.RoughTubeProcessing] = "[\"Straighten\",\"Cut\",\"Pickle\",\"OuterPolish\",\"OuterSpotGrinding\",\"Inspection\"]",
+            [ProcessKeys.InProcessRepair] = "[\"Solution\",\"Straighten\",\"Cut\",\"Pickle\",\"Inspection\"]",
+            [ProcessKeys.ColdRoll60] = "[\"ColdRollDraw\",\"OilPipeCut\",\"Degrease\",\"Solution\",\"Straighten\",\"Cut\",\"Pickle\",\"Inspection\"]",
+            [ProcessKeys.ColdRoll50] = "[\"ColdRollDraw\",\"OilPipeCut\",\"Degrease\",\"Solution\",\"Straighten\",\"Cut\",\"Pickle\",\"Inspection\"]",
+            [ProcessKeys.ColdRoll30] = "[\"ColdRollDraw\",\"OilPipeCut\",\"Degrease\",\"Solution\",\"Straighten\",\"Cut\",\"Pickle\",\"Inspection\"]",
+            [ProcessKeys.ColdRoll20] = "[\"ColdRollDraw\",\"OilPipeCut\",\"Degrease\",\"Solution\",\"Straighten\",\"Cut\",\"Pickle\",\"Inspection\"]",
+            [ProcessKeys.ThreeRollColdRoll] = "[\"ColdRollDraw\",\"OilPipeCut\",\"Degrease\",\"Solution\",\"Straighten\",\"Cut\",\"Pickle\",\"Inspection\"]",
+            [ProcessKeys.ColdDraw] = "[\"ColdRollDraw\",\"Solution\",\"Straighten\",\"Cut\",\"Pickle\",\"Inspection\"]",
+        };
+        string? GetDefaultSections(string key)
+            => defaultSectionsByKey.TryGetValue(key, out var ds) ? ds : null;
+
         if (!context.ProcessDefinitions.Any())
         {
             var processDefs = new List<ProcessDefinition>
             {
-                new() { ProcessKey = ProcessKeys.RoughTubeProcessing,           ProcessName = ProcessNames.RoughTubeProcessing,           DisplayOrder = 1, IsEnabled = true, IsColdRoll = false, IsColdDraw = false, Remark = null },
-                new() { ProcessKey = ProcessKeys.InProcessRepair,               ProcessName = ProcessNames.InProcessRepair,               DisplayOrder = 2, IsEnabled = true, IsColdRoll = false, IsColdDraw = false, Remark = null },
-                new() { ProcessKey = ProcessKeys.ColdRoll60,                    ProcessName = ProcessNames.ColdRoll60,                    DisplayOrder = 3, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, Remark = null },
-                new() { ProcessKey = ProcessKeys.ColdRoll50,                    ProcessName = ProcessNames.ColdRoll50,                    DisplayOrder = 4, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, Remark = null },
-                new() { ProcessKey = ProcessKeys.ColdRoll30,                    ProcessName = ProcessNames.ColdRoll30,                    DisplayOrder = 5, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, Remark = null },
-                new() { ProcessKey = ProcessKeys.ColdRoll20,                    ProcessName = ProcessNames.ColdRoll20,                    DisplayOrder = 6, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, Remark = null },
-                new() { ProcessKey = ProcessKeys.ThreeRollColdRoll,             ProcessName = ProcessNames.ThreeRollColdRoll,             DisplayOrder = 7, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, Remark = null },
-                new() { ProcessKey = ProcessKeys.ColdDraw,                      ProcessName = ProcessNames.ColdDraw,                      DisplayOrder = 8, IsEnabled = true, IsColdRoll = false, IsColdDraw = true,  Remark = null },
-                new() { ProcessKey = ProcessKeys.AdditionalFinalInspection,     ProcessName = ProcessNames.AdditionalFinalInspection,     DisplayOrder = 9, IsEnabled = true, IsColdRoll = false, IsColdDraw = false, Remark = "成品检验附加工序" },
+                new() { ProcessKey = ProcessKeys.RoughTubeProcessing,           ProcessName = ProcessNames.RoughTubeProcessing,           DisplayOrder = 1, IsEnabled = true, IsColdRoll = false, IsColdDraw = false, DefaultSections = GetDefaultSections(ProcessKeys.RoughTubeProcessing),           Remark = null },
+                new() { ProcessKey = ProcessKeys.InProcessRepair,               ProcessName = ProcessNames.InProcessRepair,               DisplayOrder = 2, IsEnabled = true, IsColdRoll = false, IsColdDraw = false, DefaultSections = GetDefaultSections(ProcessKeys.InProcessRepair),               Remark = null },
+                new() { ProcessKey = ProcessKeys.ColdRoll60,                    ProcessName = ProcessNames.ColdRoll60,                    DisplayOrder = 3, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, DefaultSections = GetDefaultSections(ProcessKeys.ColdRoll60),                    Remark = null },
+                new() { ProcessKey = ProcessKeys.ColdRoll50,                    ProcessName = ProcessNames.ColdRoll50,                    DisplayOrder = 4, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, DefaultSections = GetDefaultSections(ProcessKeys.ColdRoll50),                    Remark = null },
+                new() { ProcessKey = ProcessKeys.ColdRoll30,                    ProcessName = ProcessNames.ColdRoll30,                    DisplayOrder = 5, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, DefaultSections = GetDefaultSections(ProcessKeys.ColdRoll30),                    Remark = null },
+                new() { ProcessKey = ProcessKeys.ColdRoll20,                    ProcessName = ProcessNames.ColdRoll20,                    DisplayOrder = 6, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, DefaultSections = GetDefaultSections(ProcessKeys.ColdRoll20),                    Remark = null },
+                new() { ProcessKey = ProcessKeys.ThreeRollColdRoll,             ProcessName = ProcessNames.ThreeRollColdRoll,             DisplayOrder = 7, IsEnabled = true, IsColdRoll = true,  IsColdDraw = false, DefaultSections = GetDefaultSections(ProcessKeys.ThreeRollColdRoll),             Remark = null },
+                new() { ProcessKey = ProcessKeys.ColdDraw,                      ProcessName = ProcessNames.ColdDraw,                      DisplayOrder = 8, IsEnabled = true, IsColdRoll = false, IsColdDraw = true,  DefaultSections = GetDefaultSections(ProcessKeys.ColdDraw),                      Remark = null },
+                new() { ProcessKey = ProcessKeys.AdditionalFinalInspection,     ProcessName = ProcessNames.AdditionalFinalInspection,     DisplayOrder = 9, IsEnabled = true, IsColdRoll = false, IsColdDraw = false, DefaultSections = GetDefaultSections(ProcessKeys.AdditionalFinalInspection),     Remark = "成品检验附加工序" },
             };
 
             await context.ProcessDefinitions.AddRangeAsync(processDefs);
             await context.SaveChangesAsync();
+        }
+        else
+        {
+            // 存量库回填：仅补 DefaultSections 为空的预置工序（幂等，不动已配置值）
+            var defsPending = await context.ProcessDefinitions
+                .Where(w => w.DefaultSections == null)
+                .ToListAsync();
+            if (defsPending.Count > 0)
+            {
+                var changed = false;
+                foreach (var def in defsPending)
+                {
+                    var ds = GetDefaultSections(def.ProcessKey);
+                    if (ds != null)
+                    {
+                        def.DefaultSections = ds;
+                        changed = true;
+                    }
+                }
+                if (changed)
+                    await context.SaveChangesAsync();
+            }
         }
 
         // ========== 8e. Initialize Enum Display Definitions（枚举显示配置，41 枚举）——幂等 ==========
@@ -413,9 +450,11 @@ public static class DbInitializer
                 // ===== WarehouseThreshold 仓库完工阈值 =====
                 new() { Category = "WarehouseThreshold", CategoryDisplay = "工单-入库完结比率", Context = "工单", ParamKey = "CompleteRatio", ParamValue = 0.95m, Remark = "入库完工比率阈值" },
                 new() { Category = "WarehouseThreshold", CategoryDisplay = "工单-入库完结偏差", Context = "工单", ParamKey = "CompleteDeviation", ParamValue = 100m, Remark = "入库完工绝对偏差(kg)" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "工单-入库超额比率", Context = "工单", ParamKey = "CompleteOverRatio", ParamValue = 1.05m, Remark = "入库超额比率阈值(重量口径入库重>需求重×此比率判定入库超额)" },
                 new() { Category = "WarehouseThreshold", CategoryDisplay = "委外-回收比率", Context = "物料", ParamKey = "SubcontractCompleteRatio", ParamValue = 0.95m, Remark = "委外完工比率阈值" },
                 new() { Category = "WarehouseThreshold", CategoryDisplay = "采购-完工比率", Context = "物料", ParamKey = "PurchaseCompleteRatio", ParamValue = 0.965m, Remark = "采购完工比率阈值" },
                 new() { Category = "WarehouseThreshold", CategoryDisplay = "采购-完工偏差", Context = "物料", ParamKey = "PurchaseCompleteDeviation", ParamValue = 200m, Remark = "采购完工绝对偏差(kg)" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "采购-超额比率", Context = "物料", ParamKey = "PurchaseOverRatio", ParamValue = 1.05m, Remark = "采购超额比率阈值(实际采购/委外量>计划量×此比率判定超额采购/超额穿孔)" },
                 new() { Category = "WarehouseThreshold", CategoryDisplay = "仓库-完工阈值", Context = "批次", ParamKey = "OutsourceRecoveryRatio", ParamValue = 0.99m, Remark = "委外回收比率阈值" },
 
                 // ===== ProductionThreshold 生产阈值 =====

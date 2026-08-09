@@ -19,7 +19,9 @@ public class QueryableExtensionsTests
         public int Id { get; set; }
         public string Name { get; set; } = "";
         public int Quantity { get; set; }
+        public int? NullableQuantity { get; set; }
         public decimal Weight { get; set; }
+        public decimal? NullableWeight { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreateDate { get; set; }
         public DateTime? NullableDate { get; set; }
@@ -31,10 +33,10 @@ public class QueryableExtensionsTests
 
     private static List<TestEntity> CreateTestData() => new()
     {
-        new() { Id = 1, Name = "Alpha", Quantity = 10, Weight = 100.5m, IsActive = true, CreateDate = new DateTime(2026, 1, 15, 8, 30, 0), NullableDate = new DateTime(2026, 1, 15), Status = TestStatus.Active, Description = "First" },
-        new() { Id = 2, Name = "Beta", Quantity = 20, Weight = 200.7m, IsActive = false, CreateDate = new DateTime(2026, 2, 20, 14, 0, 0), NullableDate = null, Status = TestStatus.Pending, Description = "Second" },
-        new() { Id = 3, Name = "Gamma", Quantity = 30, Weight = 300.9m, IsActive = true, CreateDate = new DateTime(2026, 3, 25, 9, 15, 0), NullableDate = new DateTime(2026, 3, 25), Status = TestStatus.Completed, Description = null },
-        new() { Id = 4, Name = "Delta", Quantity = 5, Weight = 50.0m, IsActive = false, CreateDate = new DateTime(2026, 4, 10, 16, 45, 0), NullableDate = new DateTime(2026, 4, 10), Status = TestStatus.Active, Description = "Fourth" },
+        new() { Id = 1, Name = "Alpha", Quantity = 10, NullableQuantity = 10, Weight = 100.5m, NullableWeight = 100.5m, IsActive = true, CreateDate = new DateTime(2026, 1, 15, 8, 30, 0), NullableDate = new DateTime(2026, 1, 15), Status = TestStatus.Active, Description = "First" },
+        new() { Id = 2, Name = "Beta", Quantity = 20, NullableQuantity = null, Weight = 200.7m, NullableWeight = null, IsActive = false, CreateDate = new DateTime(2026, 2, 20, 14, 0, 0), NullableDate = null, Status = TestStatus.Pending, Description = "Second" },
+        new() { Id = 3, Name = "Gamma", Quantity = 30, NullableQuantity = 30, Weight = 300.9m, NullableWeight = 300.9m, IsActive = true, CreateDate = new DateTime(2026, 3, 25, 9, 15, 0), NullableDate = new DateTime(2026, 3, 25), Status = TestStatus.Completed, Description = null },
+        new() { Id = 4, Name = "Delta", Quantity = 5, NullableQuantity = null, Weight = 50.0m, NullableWeight = null, IsActive = false, CreateDate = new DateTime(2026, 4, 10, 16, 45, 0), NullableDate = new DateTime(2026, 4, 10), Status = TestStatus.Active, Description = "Fourth" },
     };
 
     // ==================== ApplySort ====================
@@ -239,6 +241,54 @@ public class QueryableExtensionsTests
             new() { Field = "Quantity", Operator = "in", Values = new List<string> { "10", "30" } }
         }).ToList();
         filtered.Should().HaveCount(2); // Alpha(10), Gamma(30)
+    }
+
+    [Fact]
+    public void ApplyFilters_BuildIn_小数()
+    {
+        var data = CreateTestData().AsQueryable();
+        // decimal 列 "in" 精确匹配（2026-08-06 新增 decimal 分支）
+        var filtered = data.ApplyFilters(new List<FilterDescriptor>
+        {
+            new() { Field = "Weight", Operator = "in", Values = new List<string> { "100.5", "300.9" } }
+        }).ToList();
+        filtered.Should().HaveCount(2); // Alpha(100.5), Gamma(300.9)
+    }
+
+    [Fact]
+    public void ApplyFilters_BuildIn_可空整数()
+    {
+        // 只用非 null 数据集，避免 Convert 在 null 上抛异常（EF 场景由 SQL 处理 null，仅内存测试需过滤）
+        var data = CreateTestData().Where(e => e.NullableQuantity.HasValue).ToList().AsQueryable();
+        var filtered = data.ApplyFilters(new List<FilterDescriptor>
+        {
+            new() { Field = "NullableQuantity", Operator = "in", Values = new List<string> { "10", "30" } }
+        }).ToList();
+        filtered.Should().HaveCount(2); // Alpha(10), Gamma(30)
+    }
+
+    [Fact]
+    public void ApplyFilters_BuildIn_可空小数()
+    {
+        // 同上：可空 decimal 列 "in" 精确匹配
+        var data = CreateTestData().Where(e => e.NullableWeight.HasValue).ToList().AsQueryable();
+        var filtered = data.ApplyFilters(new List<FilterDescriptor>
+        {
+            new() { Field = "NullableWeight", Operator = "in", Values = new List<string> { "100.5", "300.9" } }
+        }).ToList();
+        filtered.Should().HaveCount(2); // Alpha(100.5), Gamma(300.9)
+    }
+
+    [Fact]
+    public void ApplyFilters_BuildIn_可空整数含null行_内存不抛异常()
+    {
+        // 混合含 null 行，仅断言合法值命中；EF 场景由 SQL 处理
+        var data = CreateTestData().AsQueryable();
+        var filtered = data.ApplyFilters(new List<FilterDescriptor>
+        {
+            new() { Field = "Quantity", Operator = "in", Values = new List<string> { "5" } }
+        }).ToList();
+        filtered.Should().ContainSingle(e => e.Id == 4);
     }
 
     [Fact]

@@ -274,6 +274,7 @@ public partial class IntergranularCorrosionTests
                 item.ObservationResult = result.Data.ObservationResult;
                 item.Judgment = result.Data.Judgment; item.UpdatedTime = result.Data.UpdatedTime;
                 _editingIds.Remove(item.Id); _editCache.Remove(item.Id);
+                if (table != null) await table.ReloadServerData();
                 Snackbar.Add("更新成功", Severity.Success);
             }
             else Snackbar.Add(result.Message ?? "更新失败", Severity.Error);

@@ -119,8 +119,8 @@ public class MaterialPlanServiceTests : TestBase
             {
                 new()
                 {
-                    ProductionMainNo = "D01",
-                    ProductionSubNo = lengthStatus == LengthStatus.NonFixed ? null : "C01",
+                    ProductionMainNo = "X01",
+                    ProductionSubNo = lengthStatus == LengthStatus.NonFixed ? "F0" : "01",
                     OrderItemIds = itemIds
                 }
             }
@@ -813,6 +813,84 @@ public class MaterialPlanServiceTests : TestBase
     }
 
     [Fact]
+    public async Task GetAvailableInventoryAsync_计划已出库_批次释放可再次利用()
+    {
+        var ctx = CreateDbContext();
+        var (woId, _) = await SeedWorkOrderAsync(ctx);
+        var batch = await SeedInventoryBatchAsync(ctx);
+        var svc = CreateService(ctx);
+
+        // 工单1 部分领用计划
+        await svc.CreateInventoryPlanAsync(new CreateInventoryPlanRequest
+        {
+            WorkOrderId = woId,
+            PlanDate = DateTime.Today,
+            InventoryBatchNo = batch.BatchNo,
+            UsageMode = "Partial",
+            UsedQuantity = 40,
+            UsedWeight = 4000m
+        });
+
+        // 部分出库（生产领用），并模拟出库副作用扣减批次剩余量
+        ctx.OutboundRecords.Add(new OutboundRecord
+        {
+            InventoryBatchId = batch.Id,
+            BatchNo = batch.BatchNo,
+            OutboundType = OutboundType.ProductionPick,
+            OutboundQuantity = 40,
+            OutboundWeight = 4000m,
+            OutboundDate = DateTime.Today,
+            CreatedBy = "user1"
+        });
+        batch.RemainingQuantity -= 40;
+        batch.RemainingWeight -= 4000m;
+        await ctx.SaveChangesAsync();
+
+        // 工单2 可用列表应重新出现该批次（剩余 60 支可再次计划）
+        var (woId2, _) = await SeedWorkOrderAsync(ctx);
+        var available = await svc.GetAvailableInventoryAsync(woId2);
+
+        available.Should().Contain(a => a.Id == batch.Id);
+        available.First(a => a.Id == batch.Id).RemainingQuantity.Should().Be(60);
+    }
+
+    [Fact]
+    public async Task GetAvailableInventoryAsync_非生产领用出库_批次仍占用()
+    {
+        var ctx = CreateDbContext();
+        var (woId, _) = await SeedWorkOrderAsync(ctx);
+        var batch = await SeedInventoryBatchAsync(ctx);
+        var svc = CreateService(ctx);
+
+        await svc.CreateInventoryPlanAsync(new CreateInventoryPlanRequest
+        {
+            WorkOrderId = woId,
+            PlanDate = DateTime.Today,
+            InventoryBatchNo = batch.BatchNo,
+            UsageMode = "All",
+            UsedWeight = batch.RemainingWeight
+        });
+
+        // 销售出库（非生产领用）不释放批次占用
+        ctx.OutboundRecords.Add(new OutboundRecord
+        {
+            InventoryBatchId = batch.Id,
+            BatchNo = batch.BatchNo,
+            OutboundType = OutboundType.SalesOut,
+            OutboundQuantity = 2,
+            OutboundWeight = 200m,
+            OutboundDate = DateTime.Today,
+            CreatedBy = "user1"
+        });
+        await ctx.SaveChangesAsync();
+
+        var (woId2, _) = await SeedWorkOrderAsync(ctx);
+        var available = await svc.GetAvailableInventoryAsync(woId2);
+
+        available.Should().NotContain(a => a.Id == batch.Id);
+    }
+
+    [Fact]
     public async Task GetAvailableInventoryAsync_外径不匹配_排除()
     {
         var ctx = CreateDbContext();
@@ -841,6 +919,50 @@ public class MaterialPlanServiceTests : TestBase
         var available = await svc.GetAvailableReworkInventoryAsync(woId, ReworkType.EmptyDrawing);
 
         available.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetAvailableReworkInventoryAsync_计划已出库_批次释放可再次利用()
+    {
+        var ctx = CreateDbContext();
+        var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed, od: 219m, wt: 8m);
+        var batch = await SeedInventoryBatchAsync(ctx, specification: "250*8", od: 250m, wt: 8.2m,
+            plantGrade: "Q345B", unitWeight: 270m);
+        var svc = CreateService(ctx);
+
+        // 工单1 空拉改制计划（部分领用）
+        await svc.CreateInventoryPlanAsync(new CreateInventoryPlanRequest
+        {
+            WorkOrderId = woId,
+            PlanDate = DateTime.Today,
+            InventoryBatchNo = batch.BatchNo,
+            ReworkType = ReworkType.EmptyDrawing,
+            UsageMode = "Partial",
+            UsedQuantity = 30,
+            UsedWeight = 3000m
+        });
+
+        // 生产领用出库，并模拟出库副作用扣减批次剩余量
+        ctx.OutboundRecords.Add(new OutboundRecord
+        {
+            InventoryBatchId = batch.Id,
+            BatchNo = batch.BatchNo,
+            OutboundType = OutboundType.ProductionPick,
+            OutboundQuantity = 30,
+            OutboundWeight = 3000m,
+            OutboundDate = DateTime.Today,
+            CreatedBy = "user1"
+        });
+        batch.RemainingQuantity -= 30;
+        batch.RemainingWeight -= 3000m;
+        await ctx.SaveChangesAsync();
+
+        // 工单2 空拉改制可用列表应重新出现该批次（剩余 70 支可再次计划）
+        var (woId2, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed, od: 219m, wt: 8m);
+        var available = await svc.GetAvailableReworkInventoryAsync(woId2, ReworkType.EmptyDrawing);
+
+        available.Should().Contain(a => a.Id == batch.Id);
+        available.First(a => a.Id == batch.Id).RemainingQuantity.Should().Be(70);
     }
 
     [Fact]

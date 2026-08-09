@@ -12,6 +12,10 @@ public class ProcessDefinitionDto
     public bool IsEnabled { get; set; } = true;
     public bool IsColdRoll { get; set; }
     public bool IsColdDraw { get; set; }
+
+    /// <summary>默认工段（SectionKey 列表，计划页新增该工序行自动填充；null 表示无默认）</summary>
+    public List<string>? DefaultSections { get; set; }
+
     public string? Remark { get; set; }
 }
 
@@ -37,4 +41,7 @@ public class ProcessInfoDto
 
     /// <summary>是否冷拔工序</summary>
     public bool IsColdDraw { get; set; }
+
+    /// <summary>默认工段（SectionKey 列表，计划页新增该工序行自动填充；null 表示无默认）</summary>
+    public List<string>? DefaultSections { get; set; }
 }

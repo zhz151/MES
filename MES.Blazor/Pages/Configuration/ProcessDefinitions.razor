@@ -8,6 +8,7 @@
 @using MES.Core.DTOs.Configuration
 @using System.Text.Json
 @inject ProcessDefinitionService ProcessDefinitionService
+@inject StandardWorkDayService StandardWorkDayService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -199,6 +200,29 @@
                             else
                             {
                                 @(item.IsColdDraw ? "是" : "")
+                            }
+                        }
+                        else if (col.Key == "DefaultSections")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           MultiSelection="true"
+                                           SelectedValues="@rowCache.DefaultSections"
+                                           SelectedValuesChanged="@(v => rowCache.DefaultSections = v?.ToList() ?? new List<string>())"
+                                           Class="compact-input"
+                                           Label="默认工段（多选）">
+                                    @foreach (var sec in _sectionOptions)
+                                    {
+                                        <MudSelectItem Value="@sec.SectionKey" Text="@sec.SectionName">@sec.SectionName</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                @(item.DefaultSections is { Count: > 0 } ? string.Join(", ", item.DefaultSections.Select(k => SectionDisplayHelper.GetSectionNameText(k))) : "")
                             }
                         }
                         else if (col.Key == "Remark")

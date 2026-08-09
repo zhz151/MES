@@ -1,7 +1,7 @@
 // 文件路径: MES.Services/Order/OrderService.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MES.Core.DTOs.Auth;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -1220,19 +1220,32 @@ public class OrderService : IOrderService
             else
                 scheduleStage = 1;
 
-            // UrgencyLevel: 取最紧急（A+ < A < B < C < D 字典序最小）
+            // UrgencyLevel: 取最紧急（按 UrgencyLevelKeys.All 顺序 A+ > A > B > C > D > E，先归一为英文 Key 再比等级）
             var nonEmpty = executionSummaries
-                .Where(e => !string.IsNullOrEmpty(e.UrgencyLevel))
-                .Select(e => e.UrgencyLevel)
-                .Min();
+                .Select(e => UrgencyLevelKeys.ToKey(e.UrgencyLevel))
+                .Where(k => k != null)
+                .OrderBy(k => Array.IndexOf(UrgencyLevelKeys.All, k!))
+                .Select(k => k!)
+                .FirstOrDefault();
             urgencyLevel = nonEmpty;
 
-            // EstimatedCompletionDate: 取最大
-            estimatedCompletionDate = executionSummaries
-                .Where(e => e.EstimatedProcessCompletionDate.HasValue)
-                .Select(e => e.EstimatedProcessCompletionDate!.Value)
-                .DefaultIfEmpty()
-                .Max();
+            // EstimatedCompletionDate: 主号完成取成品入库截止日最大值（实际入库完成时点），其余取预计生产完成日最大值
+            if (scheduleStage == 1)
+            {
+                estimatedCompletionDate = executionSummaries
+                    .Where(e => e.WarehousingEndDate.HasValue)
+                    .Select(e => e.WarehousingEndDate!.Value)
+                    .DefaultIfEmpty()
+                    .Max();
+            }
+            else
+            {
+                estimatedCompletionDate = executionSummaries
+                    .Where(e => e.EstimatedProcessCompletionDate.HasValue)
+                    .Select(e => e.EstimatedProcessCompletionDate!.Value)
+                    .DefaultIfEmpty()
+                    .Max();
+            }
         }
 
         var existingSummary = await _context.Set<OrderListSummary>()

@@ -745,6 +745,7 @@ public class PurchaseOrderService : IPurchaseOrderService
     {
         var purchaseCompleteRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
         var purchaseCompleteDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
+        var purchaseOverRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
 
         // 1. 分别查询两个表的 WorkOrderId（避免 Union 不同 DbSet 导致 EF Core 翻译失败）
         var semiWorkOrderIds = await _context.PurchaseSemiPlans
@@ -794,22 +795,25 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Select(g => new
             {
                 g.Key.WorkOrderId,
-                CategoryName = g.Key.ProductType == FinishedProductType.Critical ? "CriticalFinished" : "OrderFinished",
+                CategoryName = g.Key.ProductType == FinishedProductType.Critical ? "CriticalFinished"
+                    : g.Key.ProductType == FinishedProductType.SpecialDeliveryStatus ? "SpecialDeliveryStatus"
+                    : "OrderFinished",
                 PlanWeight = g.Sum(p => p.RequiredWeight)
             })
             .ToListAsync();
 
-        // 5. 按工单号聚合已采购重量（按采购单 Weight 汇总）
+        // 5. 按工单号+物料分类聚合已采购重量（与计划分组对齐，避免同工单多类计划串量）
         var purchaseWeights = new Dictionary<string, decimal>();
         if (allWorkOrderNos.Count > 0)
         {
             var purchaseData = await _context.PurchaseOrders
                 .AsNoTracking()
                 .Where(p => p.SourceWorkOrderNo != null && allWorkOrderNos.Contains(p.SourceWorkOrderNo))
-                .GroupBy(p => p.SourceWorkOrderNo!)
-                .Select(g => new { WorkOrderNo = g.Key, Weight = g.Sum(p => p.Weight) })
+                .GroupBy(p => new { p.SourceWorkOrderNo, p.MaterialCategory })
+                .Select(g => new { g.Key.SourceWorkOrderNo, g.Key.MaterialCategory, Weight = g.Sum(p => p.Weight) })
                 .ToListAsync();
-            purchaseWeights = purchaseData.ToDictionary(x => x.WorkOrderNo, x => x.Weight, StringComparer.OrdinalIgnoreCase);
+            purchaseWeights = purchaseData
+                .ToDictionary(x => $"{x.SourceWorkOrderNo}|{x.MaterialCategory}", x => x.Weight, StringComparer.OrdinalIgnoreCase);
         }
 
         // 6. 按工单号+物料分类聚合已委外重量（按 ReturnItems RequiredWeight 汇总）
@@ -831,7 +835,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Select(x =>
             {
                 var workOrderNo = workOrders.GetValueOrDefault(x.WorkOrderId, "");
-                var purchaseW = purchaseWeights.GetValueOrDefault(workOrderNo, 0);
+                var purchaseW = purchaseWeights.GetValueOrDefault($"{workOrderNo}|{x.CategoryName}", 0);
                 var subcontractW = subcontractWeights.GetValueOrDefault($"{workOrderNo}|{x.CategoryName}", 0);
                 var total = purchaseW + subcontractW;
                 return new ProcurementStatusDto
@@ -844,6 +848,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                     SubcontractWeight = subcontractW,
                     TotalWeight = total,
                     StatusText = total == 0 ? "未采购"
+                        : total > x.PlanWeight * purchaseOverRatio ? "超额采购"
                         : IsThresholdMet(total, x.PlanWeight, purchaseCompleteRatio, purchaseCompleteDeviation) ? "已采购"
                         : "部分采购"
                 };
@@ -860,6 +865,7 @@ public class PurchaseOrderService : IPurchaseOrderService
     {
         var purchaseCompleteRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
         var purchaseCompleteDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
+        var purchaseOverRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
 
         // 1. 查询圆棒穿孔计划的工单ID
         var piercingWorkOrderIds = await _context.RoundBarPiercingPlans
@@ -921,6 +927,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                     SubcontractWeight = subW,
                     TotalWeight = subW,
                     StatusText = subW == 0 ? "未穿孔"
+                        : subW > x.PlanWeight * purchaseOverRatio ? "超额穿孔"
                         : IsThresholdMet(subW, x.PlanWeight, purchaseCompleteRatio, purchaseCompleteDeviation) ? "已穿孔"
                         : "部分穿孔"
                 };
@@ -1011,8 +1018,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             };
         }
 
-        // 成品采购（临界成品/订单成品）
-        if (materialCategory == "CriticalFinished" || materialCategory == "OrderFinished")
+        // 成品采购（临界成品/订单成品/订成-非交付态）
+        if (materialCategory == "CriticalFinished" || materialCategory == "OrderFinished" || materialCategory == "SpecialDeliveryStatus")
         {
             var finishedPlan = await _context.PurchaseFinishedPlans
                 .AsNoTracking()

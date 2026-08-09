@@ -149,6 +149,22 @@ public class ProductionRecordService : IProductionRecordService
         return null;
     }
 
+    /// <summary>
+    /// 定尺切割长度匹配标识计算（存储枚举名字符串）：
+    /// 仅「成品切割 + 定尺 + 非预成切 + 有成品长度」时计算——
+    /// 完全匹配 = 长度属本工单号（订单+主号+次号）定尺集合；主号匹配 = 仅属订单+主号定尺集合；否则 null（不适用）。
+    /// 现有成品切割长度校验已保证可提交长度必属订单+主号集合，故实际只会命中两态之一。
+    /// </summary>
+    private static string? ComputeCutLengthMatch(
+        string? productStatus, string? recordLengthStatus, bool isPreCut, decimal? finishedCutLength,
+        HashSet<decimal> workOrderLengths, HashSet<decimal> mainNoLengths)
+    {
+        if (productStatus != ProductStatuses.Finished) return null;
+        if (!string.Equals(recordLengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase)) return null;
+        if (isPreCut) return null;
+        return CutLengthMatchHelper.Match(workOrderLengths, mainNoLengths, finishedCutLength)?.ToString();
+    }
+
     private async Task TryRefreshQualityProcessTrackingAsync(int productionBatchId)
     {
         try
@@ -247,6 +263,7 @@ public class ProductionRecordService : IProductionRecordService
                 r.LengthStatus,
                 r.CuttingMultiple,
                 r.FinishedCutLength,
+                r.CutLengthMatchType,
                 r.PostCutQuantity,
                 r.FaceCutCount,
                 r.TagNo,
@@ -276,6 +293,7 @@ public class ProductionRecordService : IProductionRecordService
                 LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(r.LengthStatus),
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
+                CutLengthMatchType = EnumHelper.TryParse<MES.Core.Enums.CutLengthMatchType>(r.CutLengthMatchType),
                 PostCutQuantity = r.PostCutQuantity,
                 FaceCutCount = r.FaceCutCount,
                 TagNo = r.TagNo,
@@ -331,6 +349,7 @@ public class ProductionRecordService : IProductionRecordService
             .ToListAsync();
 
         var productStatus = CalculateProductStatus(request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem, batchProcessGroups, batch.Specification);
+        var recordLengthStatus = CalculateLengthStatus(request.SectionName, productStatus, batch.LengthStatus);
 
         var entity = new ProductionRecord
         {
@@ -350,7 +369,7 @@ public class ProductionRecordService : IProductionRecordService
             SoakTime = request.SoakTime,
             ProductStatus = productStatus,
             IsPreCut = request.IsPreCut,
-            LengthStatus = CalculateLengthStatus(request.SectionName, productStatus, batch.LengthStatus),
+            LengthStatus = recordLengthStatus,
             CuttingMultiple = request.CuttingMultiple,
             FinishedCutLength = request.FinishedCutLength,
             PostCutQuantity = request.PostCutQuantity,
@@ -370,6 +389,11 @@ public class ProductionRecordService : IProductionRecordService
         var cutLengthError = await ValidateFinishedCutLengthAsync(batch, request.FinishedCutLength, request.IsPreCut == true);
         if (cutLengthError != null)
             throw new BusinessException(cutLengthError);
+
+        // 定尺切割长度匹配标识（成品切割+定尺+非预成切+有成品长度时计算，否则空白）
+        var woLengths = await _fixedLengthWorkOrderService.GetLengthsByWorkOrderNoAsync(batch.WorkOrderNo);
+        var mainLengths = await _fixedLengthWorkOrderService.GetLengthsByMainNoAsync(batch.SalesOrderNo, batch.ProductionMainNo);
+        entity.CutLengthMatchType = ComputeCutLengthMatch(productStatus, recordLengthStatus, request.IsPreCut == true, request.FinishedCutLength, woLengths, mainLengths);
 
         _context.ProductionRecords.Add(entity);
         await _context.SaveChangesAsync();
@@ -400,6 +424,7 @@ public class ProductionRecordService : IProductionRecordService
             LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(entity.LengthStatus),
             CuttingMultiple = entity.CuttingMultiple,
             FinishedCutLength = entity.FinishedCutLength,
+            CutLengthMatchType = EnumHelper.TryParse<MES.Core.Enums.CutLengthMatchType>(entity.CutLengthMatchType),
             PostCutQuantity = entity.PostCutQuantity,
             FaceCutCount = entity.FaceCutCount,
             TagNo = entity.TagNo,
@@ -610,16 +635,17 @@ public class ProductionRecordService : IProductionRecordService
             .Where(r => r.SectionName == SectionKeys.ColdRollDraw && r.Weight.HasValue)
             .GroupBy(r => new { r.ProductionBatchId, r.ProcessGroupId })
             .ToDictionary(g => (g.Key.ProductionBatchId, g.Key.ProcessGroupId), g => g.Sum(r => r.Weight!.Value));
-        var outsourcedCrWeights = await _context.SectionOutsources
+        // 委外发出重量预取：扁平投影后内存聚合（避免 GroupBy 无聚合的不可翻译形态）
+        var outsourcedCrRecords = await _context.SectionOutsources
             .Where(o => allBatchIds.Contains(o.ProductionBatchId) && o.SectionName == SectionKeys.ColdRollDraw && o.SendWeight.HasValue)
-            .GroupBy(o => new { o.ProductionBatchId, o.ProcessGroupId })
+            .Select(o => new { o.ProductionBatchId, o.ProcessGroupId, o.SendWeight })
             .ToListAsync();
-        foreach (var grp in outsourcedCrWeights)
+        foreach (var o in outsourcedCrRecords)
         {
-            var key = (grp.Key.ProductionBatchId, grp.Key.ProcessGroupId);
-            var w = grp.Sum(o => o.SendWeight!.Value);
-            if (coldRollDrawWeightByKey.ContainsKey(key))
-                coldRollDrawWeightByKey[key] += w;
+            var key = (o.ProductionBatchId, o.ProcessGroupId);
+            var w = o.SendWeight!.Value;
+            if (coldRollDrawWeightByKey.TryGetValue(key, out var cur))
+                coldRollDrawWeightByKey[key] = cur + w;
             else
                 coldRollDrawWeightByKey[key] = w;
         }
@@ -736,6 +762,9 @@ public class ProductionRecordService : IProductionRecordService
         if (requestErrors.Any())
             throw new BusinessException(string.Join("；", requestErrors));
 
+        // 定尺工单长度映射一次预取（按工单号 / 按订单号+主号），定尺切割长度匹配标识计算用
+        var lengthMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+
         // ========== 构建实体 ==========
         foreach (var request in requests)
         {
@@ -765,6 +794,7 @@ public class ProductionRecordService : IProductionRecordService
             }
 
             var productStatus = CalculateProductStatus(request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem, pgByBatch.GetValueOrDefault(batchId) ?? new(), batch.Specification);
+            var recordLengthStatus = CalculateLengthStatus(request.SectionName, productStatus, batch.LengthStatus);
 
             entities.Add(new ProductionRecord
             {
@@ -784,9 +814,13 @@ public class ProductionRecordService : IProductionRecordService
                 SoakTime = request.SoakTime,
                 ProductStatus = productStatus,
                 IsPreCut = request.IsPreCut,
-                LengthStatus = CalculateLengthStatus(request.SectionName, productStatus, batch.LengthStatus),
+                LengthStatus = recordLengthStatus,
                 CuttingMultiple = request.CuttingMultiple,
                 FinishedCutLength = request.FinishedCutLength,
+                CutLengthMatchType = ComputeCutLengthMatch(
+                    productStatus, recordLengthStatus, request.IsPreCut == true, request.FinishedCutLength,
+                    lengthMaps.ByWorkOrderNo.GetValueOrDefault(batch.WorkOrderNo, new HashSet<decimal>()),
+                    lengthMaps.ByMainKey.GetValueOrDefault($"{batch.SalesOrderNo.Trim()}|{batch.ProductionMainNo.Trim()}", new HashSet<decimal>())),
                 PostCutQuantity = request.PostCutQuantity,
                 FaceCutCount = request.FaceCutCount,
                 TagNo = request.TagNo ?? batch.TagNo,
@@ -828,6 +862,7 @@ public class ProductionRecordService : IProductionRecordService
             LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(e.LengthStatus),
             CuttingMultiple = e.CuttingMultiple,
             FinishedCutLength = e.FinishedCutLength,
+            CutLengthMatchType = EnumHelper.TryParse<MES.Core.Enums.CutLengthMatchType>(e.CutLengthMatchType),
             PostCutQuantity = e.PostCutQuantity,
             FaceCutCount = e.FaceCutCount,
             TagNo = e.TagNo,
@@ -886,6 +921,20 @@ public class ProductionRecordService : IProductionRecordService
         if (cutLengthError != null)
             throw new BusinessException(cutLengthError);
 
+        // 定尺切割长度匹配标识（用生效值重算；批次为空或集合为空时自然返回 null=不适用）
+        HashSet<decimal> woLengths, mainLengths;
+        if (batch != null)
+        {
+            woLengths = await _fixedLengthWorkOrderService.GetLengthsByWorkOrderNoAsync(batch.WorkOrderNo);
+            mainLengths = await _fixedLengthWorkOrderService.GetLengthsByMainNoAsync(batch.SalesOrderNo, batch.ProductionMainNo);
+        }
+        else
+        {
+            woLengths = new HashSet<decimal>();
+            mainLengths = new HashSet<decimal>();
+        }
+        entity.CutLengthMatchType = ComputeCutLengthMatch(entity.ProductStatus, entity.LengthStatus, effectiveIsPreCut == true, effectiveCutLength, woLengths, mainLengths);
+
         _context.ProductionRecords.Update(entity);
         await _context.SaveChangesAsync();
 
@@ -915,6 +964,7 @@ public class ProductionRecordService : IProductionRecordService
             LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(entity.LengthStatus),
             CuttingMultiple = entity.CuttingMultiple,
             FinishedCutLength = entity.FinishedCutLength,
+            CutLengthMatchType = EnumHelper.TryParse<MES.Core.Enums.CutLengthMatchType>(entity.CutLengthMatchType),
             PostCutQuantity = entity.PostCutQuantity,
             FaceCutCount = entity.FaceCutCount,
             TagNo = entity.TagNo,
@@ -1028,6 +1078,73 @@ public class ProductionRecordService : IProductionRecordService
         await BatchUpdateTrackingFromRecordsAsync(batchIds);
         await TryRefreshExecutionSummaryByBatchIdsAsync(batchIds);
         return batchIds.Count;
+    }
+
+    /// <summary>
+    /// 回填全部生产记录的定尺切割长度匹配标识（CutLengthMatchType）
+    /// 全量加载记录 + 批次导航，一次取定尺长度映射后逐条重算
+    /// </summary>
+    public async Task<int> RefreshAllCutLengthMatchAsync()
+    {
+        var records = await _context.ProductionRecords
+            .Include(r => r.ProductionBatch)
+            .ToListAsync();
+        if (records.Count == 0) return 0;
+
+        var maps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+        var updated = 0;
+        foreach (var r in records)
+        {
+            var batch = r.ProductionBatch;
+            if (batch == null) continue;
+            var newValue = ComputeCutLengthMatch(
+                r.ProductStatus, r.LengthStatus, r.IsPreCut == true, r.FinishedCutLength,
+                maps.ByWorkOrderNo.GetValueOrDefault(batch.WorkOrderNo, new HashSet<decimal>()),
+                maps.ByMainKey.GetValueOrDefault($"{batch.SalesOrderNo.Trim()}|{batch.ProductionMainNo.Trim()}", new HashSet<decimal>()));
+            if (r.CutLengthMatchType != newValue)
+            {
+                r.CutLengthMatchType = newValue;
+                updated++;
+            }
+        }
+        await _context.SaveChangesAsync();
+        return updated;
+    }
+
+    /// <summary>
+    /// 重算某批次全部生产记录的定尺切割长度匹配标识（CutLengthMatchType）
+    /// 供批次编辑（LengthStatus/工单号等上游字段变更）后级联调用，与 RefreshAllCutLengthMatchAsync 口径一致
+    /// </summary>
+    public async Task<int> RecomputeCutLengthMatchByBatchAsync(int batchId)
+    {
+        var records = await _context.ProductionRecords
+            .Where(r => r.ProductionBatchId == batchId)
+            .ToListAsync();
+        if (records.Count == 0) return 0;
+
+        var batch = await _context.ProductionBatches
+            .AsNoTracking()
+            .Where(b => b.Id == batchId)
+            .FirstOrDefaultAsync();
+        if (batch == null) return 0;
+
+        var maps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+        var updated = 0;
+        foreach (var r in records)
+        {
+            var newValue = ComputeCutLengthMatch(
+                r.ProductStatus, r.LengthStatus, r.IsPreCut == true, r.FinishedCutLength,
+                maps.ByWorkOrderNo.GetValueOrDefault(batch.WorkOrderNo, new HashSet<decimal>()),
+                maps.ByMainKey.GetValueOrDefault($"{batch.SalesOrderNo.Trim()}|{batch.ProductionMainNo.Trim()}", new HashSet<decimal>()));
+            if (r.CutLengthMatchType != newValue)
+            {
+                r.CutLengthMatchType = newValue;
+                updated++;
+            }
+        }
+        if (updated > 0)
+            await _context.SaveChangesAsync();
+        return updated;
     }
 
     /// <summary>
@@ -2381,6 +2498,7 @@ public class ProductionRecordService : IProductionRecordService
                 r.LengthStatus,
                 r.CuttingMultiple,
                 r.FinishedCutLength,
+                r.CutLengthMatchType,
                 r.PostCutQuantity,
                 r.FaceCutCount,
                 r.TagNo,
@@ -2417,6 +2535,7 @@ public class ProductionRecordService : IProductionRecordService
                 LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(r.LengthStatus),
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
+                CutLengthMatchType = EnumHelper.TryParse<MES.Core.Enums.CutLengthMatchType>(r.CutLengthMatchType),
                 PostCutQuantity = r.PostCutQuantity,
                 FaceCutCount = r.FaceCutCount,
                 TagNo = r.TagNo,
@@ -2469,6 +2588,7 @@ public class ProductionRecordService : IProductionRecordService
                 r.LengthStatus,
                 r.CuttingMultiple,
                 r.FinishedCutLength,
+                r.CutLengthMatchType,
                 r.PostCutQuantity,
                 r.FaceCutCount,
                 r.TagNo,
@@ -2563,6 +2683,12 @@ public class ProductionRecordService : IProductionRecordService
             ("cuttingmultiple", true) => queryable.OrderByDescending(r => r.CuttingMultiple ?? 0),
             ("finishedcutlength", false) => queryable.OrderBy(r => r.FinishedCutLength ?? 0),
             ("finishedcutlength", true) => queryable.OrderByDescending(r => r.FinishedCutLength ?? 0),
+            ("cutlengthmatchtype", false) => queryable.OrderBy(r =>
+                r.CutLengthMatchType == nameof(MES.Core.Enums.CutLengthMatchType.FullMatch) ? 0
+                : r.CutLengthMatchType == nameof(MES.Core.Enums.CutLengthMatchType.MainNoMatch) ? 1 : 2),
+            ("cutlengthmatchtype", true) => queryable.OrderByDescending(r =>
+                r.CutLengthMatchType == nameof(MES.Core.Enums.CutLengthMatchType.FullMatch) ? 0
+                : r.CutLengthMatchType == nameof(MES.Core.Enums.CutLengthMatchType.MainNoMatch) ? 1 : 2),
             ("postcutquantity", false) => queryable.OrderBy(r => r.PostCutQuantity ?? 0),
             ("postcutquantity", true) => queryable.OrderByDescending(r => r.PostCutQuantity ?? 0),
             ("facecutcount", false) => queryable.OrderBy(r => r.FaceCutCount ?? 0),
@@ -2841,6 +2967,7 @@ public class ProductionRecordService : IProductionRecordService
                 r.LengthStatus,
                 r.CuttingMultiple,
                 r.FinishedCutLength,
+                r.CutLengthMatchType,
                 r.PostCutQuantity,
                 r.FaceCutCount,
                 r.TagNo,
@@ -2876,6 +3003,7 @@ public class ProductionRecordService : IProductionRecordService
                 LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(r.LengthStatus),
                 CuttingMultiple = r.CuttingMultiple,
                 FinishedCutLength = r.FinishedCutLength,
+                CutLengthMatchType = EnumHelper.TryParse<MES.Core.Enums.CutLengthMatchType>(r.CutLengthMatchType),
                 PostCutQuantity = r.PostCutQuantity,
                 FaceCutCount = r.FaceCutCount,
                 TagNo = r.TagNo,

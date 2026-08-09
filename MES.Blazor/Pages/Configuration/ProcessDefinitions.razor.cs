@@ -32,6 +32,30 @@ public partial class ProcessDefinitions
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    // 默认工段可选工段（配置表启用工段，失败降级预置 26 工段）
+    private List<SectionInfoDto> _sectionOptions = new();
+
+    private async Task LoadSectionOptionsAsync()
+    {
+        var r = await StandardWorkDayService.GetEnabledSectionsAsync();
+        if (r.Success && r.Data is { Count: > 0 })
+        {
+            _sectionOptions = r.Data;
+        }
+        else
+        {
+            _sectionOptions = SectionDefs.PropertyNames
+                .Select((k, i) => new SectionInfoDto
+                {
+                    SectionKey = k,
+                    SectionName = SectionDefs.PropertyToName[k],
+                    DisplayOrder = i + 1,
+                    IsEnabled = true
+                })
+                .ToList();
+        }
+    }
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "ProcessName",  Label = "工序名称", SortKey = "processname",  FilterType = null, IsRequired = true },
@@ -40,6 +64,7 @@ public partial class ProcessDefinitions
         new() { Key = "IsEnabled",    Label = "启用",     SortKey = "isenabled",    FilterType = null },
         new() { Key = "IsColdRoll",   Label = "冷轧类",   SortKey = "iscoldroll",   FilterType = null },
         new() { Key = "IsColdDraw",   Label = "冷拔类",   SortKey = "iscolddraw",   FilterType = null },
+        new() { Key = "DefaultSections", Label = "默认工段", SortKey = "defaultsections", FilterType = null },
         new() { Key = "Remark",       Label = "备注",     SortKey = "remark",       FilterType = null },
     };
 
@@ -152,6 +177,7 @@ public partial class ProcessDefinitions
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadSectionOptionsAsync();
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("process_definitions", null);
         if (saved.Count > 0)
@@ -248,6 +274,10 @@ public partial class ProcessDefinitions
         public bool IsEnabled { get; set; } = true;
         public bool IsColdRoll { get; set; }
         public bool IsColdDraw { get; set; }
+
+        /// <summary>默认工段（SectionKey 列表，多选勾选绑定）</summary>
+        public List<string> DefaultSections { get; set; } = new();
+
         public string? Remark { get; set; }
     }
 
@@ -269,6 +299,7 @@ public partial class ProcessDefinitions
             IsEnabled = item.IsEnabled,
             IsColdRoll = item.IsColdRoll,
             IsColdDraw = item.IsColdDraw,
+            DefaultSections = item.DefaultSections?.ToList() ?? new List<string>(),
             Remark = item.Remark
         };
     }
@@ -325,6 +356,7 @@ public partial class ProcessDefinitions
                 IsEnabled = cache.IsEnabled,
                 IsColdRoll = cache.IsColdRoll,
                 IsColdDraw = cache.IsColdDraw,
+                DefaultSections = cache.DefaultSections.Count > 0 ? cache.DefaultSections : null,
                 Remark = cache.Remark
             };
 

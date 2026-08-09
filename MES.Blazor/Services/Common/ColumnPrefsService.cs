@@ -54,6 +54,13 @@ public class ColumnDef
     public string? FilterType { get; set; }
 
     /// <summary>
+    /// 筛选时实际使用的后端字段名（默认等于 Key）。
+    /// 用于 DTO 显示名与实体字段名不一致的列，如 ActualInputWeight→InputWeight、MainNoInputRatio→MainNoInputOutputRatio。
+    /// </summary>
+    [JsonIgnore]
+    public string? FilterField { get; set; }
+
+    /// <summary>
     /// 枚举列的可选值列表（用于多选框展示，仅 FilterType="enum" 时有效）
     /// </summary>
     [JsonIgnore]
@@ -90,11 +97,41 @@ public class ColumnDef
     public string? GroupName { get; set; }
 
     /// <summary>
+    /// 列语义层级（表头标色用）：工单级/主号级/订单级，不序列化到 localStorage
+    /// </summary>
+    [JsonIgnore]
+    public ColumnLevel Level { get; set; } = ColumnLevel.WorkOrder;
+
+    /// <summary>
+    /// 表头标色 CSS class（主号级/订单级，带前导空格；工单级为空串）
+    /// </summary>
+    [JsonIgnore]
+    public string LevelCssClass => Level switch
+    {
+        ColumnLevel.MainNo => " col-level-mainno",
+        ColumnLevel.Order => " col-level-order",
+        _ => ""
+    };
+
+    /// <summary>
     /// 显示转换器：原始值→中文显示文本
     /// 三处统一调用：RenderCell / ResolvePrintValue / BuildFilterOptionsFromData
     /// </summary>
     [JsonIgnore]
     public Func<object?, string?>? DisplayConverter { get; set; }
+}
+
+/// <summary>
+/// 列语义层级（表头标色区分）：工单级为默认无标色，主号级青色，订单级橙色
+/// </summary>
+public enum ColumnLevel
+{
+    /// <summary>工单级（默认，无特殊标色）</summary>
+    WorkOrder = 0,
+    /// <summary>主号级（表头青色）</summary>
+    MainNo = 1,
+    /// <summary>订单级（表头橙色）</summary>
+    Order = 2,
 }
 
 /// <summary>

@@ -105,6 +105,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 x.SalesOrderNo.Contains(kw) ||
                 x.Salesman.Contains(kw) ||
                 x.CustomerName.Contains(kw) ||
+                (x.EndCustomer != null && x.EndCustomer.Contains(kw)) ||
                 x.SettlementMethod.Contains(kw) ||
                 x.MaterialName.Contains(kw) ||
                 x.DeliveryState.Contains(kw) ||
@@ -124,6 +125,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         // 排序
         q = q.ApplyFilters(query.Filters);
 
+        // G3 计算列（计划/可投/缺失总重、到料实投一致性）为 DTO 计算属性，通用反射筛选覆盖不到，单独表达式筛选
+        q = ApplyComputedFilters(q, query.Filters);
+
         q = ApplySorting(q, query.SortBy, query.IsDescending);
 
         var totalCount = await q.CountAsync();
@@ -140,6 +144,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 // Group 1
                 Salesman = e.Salesman,
                 CustomerName = e.CustomerName,
+                EndCustomer = e.EndCustomer,
                 SignDate = e.SignDate,
                 DeliveryDate = e.DeliveryDate,
                 DelayPenalty = e.DelayPenalty,
@@ -163,9 +168,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 MaterialPlanStatus = (MaterialPlanStatus)e.MaterialPlanStatus,
                 MainNoMaterialPlanRate = e.MainNoMaterialPlanRate,
                 MainNoMaterialPlanStatus = (MaterialPlanStatus)e.MainNoMaterialPlanStatus,
+                MainNoPlanExecutionStatus = e.MainNoPlanExecutionStatus,
                 MaterialPlanCoveredCount = e.MaterialPlanCoveredCount,
                 MaterialPlanProportion = e.MaterialPlanProportion,
                 TheoreticalCutoffDate = e.TheoreticalCutoffDate,
+                CutoffArrivalDate = e.CutoffArrivalDate,
+                MainNoCutoffArrivalDate = e.MainNoCutoffArrivalDate,
 
                 // G4~G10: 7 种用料计划执行状况
                 PiercingPlanWeight = e.PiercingPlanWeight,
@@ -213,7 +221,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 ReworkTheoreticalOutputQty = e.ReworkTheoreticalOutputQty,
                 ReworkTheoreticalOutputWeight = e.ReworkTheoreticalOutputWeight,
 
-                // Group 21 次品总量
+                // Group 15 次品总量
                 ProcessInspectionDefectWeight = e.ProcessInspectionDefectWeight,
                 ProcessInspectionReworkWeight = e.ProcessInspectionReworkWeight,
                 ProcessInspectionWarehouseWeight = e.ProcessInspectionWarehouseWeight,
@@ -314,6 +322,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         var completeRatio = warehouseConfig.GetValueOrDefault("CompleteRatio", 0.95m);
         var completeDeviation = warehouseConfig.GetValueOrDefault("CompleteDeviation", 100m);
+        var completeOverRatio = warehouseConfig.GetValueOrDefault("CompleteOverRatio", 1.05m);
         var bufferDays = workOrderDaysConfig.GetValueOrDefault("BufferDays", 3m);
         var inspectionFixedDays = workOrderDaysConfig.GetValueOrDefault("InspectionFixedDays", 3m);
         var urgencyAPlus = urgencyConfig.GetValueOrDefault("APlus", 7m);
@@ -373,11 +382,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         var customerNameByWo = new Dictionary<int, string>();
         var customerSalesmanByWo = new Dictionary<int, string>();
+        var endCustomerByWo = new Dictionary<int, string>();
         foreach (var wo in workOrders)
         {
             var so = salesOrders.FirstOrDefault(s => s.OrderNumber.Equals(wo.SalesOrderNo, StringComparison.OrdinalIgnoreCase));
             customerNameByWo[wo.Id] = so?.CustomerName ?? "";
             customerSalesmanByWo[wo.Id] = so?.Salesman ?? "";
+            endCustomerByWo[wo.Id] = so?.EndCustomer ?? "";
         }
 
         // 批量加载采购订单（用于 Group 10 物料执行实时信息）
@@ -465,6 +476,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .GroupBy(or => or.BatchNo!)
             .ToDictionary(g => g.Key, g => g.Sum(or => or.OutboundWeight), StringComparer.OrdinalIgnoreCase);
 
+        // G7/G8 截止到料日出库日期：各仓库批的生产领用出库记录最大出库日期
+        var outboundDateByBatchNo = productionPickRecords
+            .Where(or => or.BatchNo != null)
+            .GroupBy(or => or.BatchNo!)
+            .ToDictionary(g => g.Key, g => g.Max(or => or.OutboundDate), StringComparer.OrdinalIgnoreCase);
+
+        // 批量加载仓库进库批次（G4~G6 截止到料日：SourceOrderNo 非空，经采购/委外来源单号映射回工单号）
+        var arrivalDateByWoNo = await BuildArrivalDateByWorkOrderNoAsync(allPurchaseOrders, returnItems);
+
         // 批量加载批次字典（用于 G8 通过 FK 匹配投料量）
 
         // 批量加载成品检验数据（用于 Group 20 成检不合格，仅 "订单成品" 物料）
@@ -480,7 +500,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .GroupBy(fi => fi.ProductionBatch.WorkOrderNo!)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
-        // 批量加载过程检验数据（用于 G21 次品总量「过程检侧」，仅订单成品物料批次，经批次关联工单）
+        // 批量加载过程检验数据（用于 G15 次品总量「过程检侧」，仅订单成品物料批次，经批次关联工单）
         var processInspections = await _context.ProcessInspections
             .AsNoTracking()
             .Include(pi => pi.ProductionBatch)
@@ -513,7 +533,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
             fiByWoNo.TryGetValue(wo.WorkOrderNo, out var woFiList);
 
-            // G21 次品总量：过程检/成检次品聚合（仅订单成品批次）
+            // G15 次品总量：过程检/成检次品聚合（仅订单成品批次）
             piByWoNo.TryGetValue(wo.WorkOrderNo, out var woPiList);
             var processInspectionReworkWeight = woPiList?.Sum(pi => pi.TheoreticalReworkWeight ?? 0) ?? 0;
             var processInspectionWarehouseWeight = woPiList?.Sum(pi => pi.TheoreticalWarehouseWeight ?? 0) ?? 0;
@@ -526,7 +546,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var finalInspectionDefectWeight = finalInspectionReworkWeight + finalInspectionWarehouseWeight + finalInspectionScrapWeight;
             var reworkSourceEntries = BuildReworkSourceEntries(woPiList, woFiList);
 
-            var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "", woBatches, completeRatio, completeDeviation, groupDiscountRate, supplySatisfiedRate, qualifiedRate, processInspectionReworkWeight, processInspectionWarehouseWeight, processInspectionScrapWeight, processInspectionDefectWeight, finalInspectionReworkWeight, finalInspectionWarehouseWeight, finalInspectionScrapWeight, finalInspectionDefectQty, finalInspectionDefectWeight, reworkSourceEntries);
+            var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "", endCustomerByWo.TryGetValue(wo.Id, out var ec) ? ec : null, woBatches, completeRatio, completeDeviation, completeOverRatio, groupDiscountRate, supplySatisfiedRate, fixedSatisfied, nonFixedSatisfied, qualifiedRate, processInspectionReworkWeight, processInspectionWarehouseWeight, processInspectionScrapWeight, processInspectionDefectWeight, finalInspectionReworkWeight, finalInspectionWarehouseWeight, finalInspectionScrapWeight, finalInspectionDefectQty, finalInspectionDefectWeight, reworkSourceEntries);
 
             // G3: 从用料计划总览读预计算值（避免重算 4 张原始计划表）
             if (execSummaryByWoId.TryGetValue(wo.Id, out var listSummary))
@@ -548,7 +568,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 var safePos = woPos ?? new List<PurchaseOrder>();
                 var safeRis = woRis ?? new List<SubcontractReturnItem>();
 
-                // 荒管组：荒管 + 半成品（数据库存储中文值）
+                // 荒管组：荒管 + 半成品（采购单按 MaterialType 枚举名过滤）
                 var roughTubePos = safePos.Where(po =>
                     po.MaterialCategory == "RoughTube" || po.MaterialCategory == "SemiFinished").ToList();
                 var roughTubeRis = safeRis.Where(ri =>
@@ -558,11 +578,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.PendingRoughTubeWeight = roughTubePos.Sum(po => po.Weight - po.ReceivedWeight)
                     + roughTubeRis.Sum(ri => (ri.RequiredWeight ?? 0) - ri.ReturnedWeight);
 
-                // 外购成组：临界成品 + 订单成品（数据库存储中文值）
+                // 外购成组：临界成品 + 订单成品 + 订成-非交付态（采购单按 MaterialType 枚举名过滤）
                 var finishPos = safePos.Where(po =>
-                    po.MaterialCategory == "CriticalFinished" || po.MaterialCategory == "OrderFinished").ToList();
+                    po.MaterialCategory == "CriticalFinished" || po.MaterialCategory == "OrderFinished" || po.MaterialCategory == "SpecialDeliveryStatus").ToList();
                 var finishRis = safeRis.Where(ri =>
-                    ri.MaterialCategory == "CriticalFinished" || ri.MaterialCategory == "OrderFinished").ToList();
+                    ri.MaterialCategory == "CriticalFinished" || ri.MaterialCategory == "OrderFinished" || ri.MaterialCategory == "SpecialDeliveryStatus").ToList();
                 summary.PendingOutsourceFinishQty = finishPos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
                     + finishRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
                 summary.PendingOutsourceFinishWeight = finishPos.Sum(po => po.Weight - po.ReceivedWeight)
@@ -606,7 +626,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.PiercingSubInWeight = piercingReturnWeight;
                 summary.PiercingSubPendingWeight = Math.Max(0m, piercingOrderWeight - piercingReturnWeight);
                 summary.PiercingReturnStatus = piercingOrderWeight > 0
-                    ? ComputePlanStatus(piercingReturnWeight, piercingOrderWeight, externalLower, externalUpper)
+                    ? ComputePlanStatus(piercingReturnWeight, piercingOrderWeight, externalLower, externalUpper, treatZeroActualAsPartial: true)
                     : 0;
             }
 
@@ -624,7 +644,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.SemiInWeight = semiInWeight;
                 summary.SemiPendingWeight = Math.Max(0m, semiOrderWeight - semiInWeight);
                 summary.SemiInStatus = semiOrderWeight > 0
-                    ? ComputePlanStatus(semiInWeight, semiOrderWeight, externalLower, externalUpper)
+                    ? ComputePlanStatus(semiInWeight, semiOrderWeight, externalLower, externalUpper, treatZeroActualAsPartial: true)
                     : 0;
             }
 
@@ -633,8 +653,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 summary.FinishPlanWeight = finishList.Sum(p => p.RequiredWeight);
 
-                var finishOrderWeight = allPoList.Where(po => po.MaterialCategory is "CriticalFinished" or "OrderFinished").Sum(po => po.Weight);
-                var finishInWeight = allPoList.Where(po => po.MaterialCategory is "CriticalFinished" or "OrderFinished").Sum(po => po.ReceivedWeight);
+                var finishOrderWeight = allPoList.Where(po => po.MaterialCategory is "CriticalFinished" or "OrderFinished" or "SpecialDeliveryStatus").Sum(po => po.Weight);
+                var finishInWeight = allPoList.Where(po => po.MaterialCategory is "CriticalFinished" or "OrderFinished" or "SpecialDeliveryStatus").Sum(po => po.ReceivedWeight);
 
                 summary.FinishOrderWeight = finishOrderWeight;
                 summary.FinishOrderStatus = ComputePlanStatus(finishOrderWeight, summary.FinishPlanWeight, externalLower, externalUpper);
@@ -642,7 +662,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.FinishInWeight = finishInWeight;
                 summary.FinishPendingWeight = Math.Max(0m, finishOrderWeight - finishInWeight);
                 summary.FinishInStatus = finishOrderWeight > 0
-                    ? ComputePlanStatus(finishInWeight, finishOrderWeight, externalLower, externalUpper)
+                    ? ComputePlanStatus(finishInWeight, finishOrderWeight, externalLower, externalUpper, treatZeroActualAsPartial: true)
                     : 0;
             }
 
@@ -702,6 +722,21 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.InMainInputStatus = ComputePlanStatus(g9InputWeight, summary.InMainPlanWeight, productionLower, productionUpper);
             }
 
+            // ========== 截止到料日：G4~G6 仓库到料（SourceOrderNo 关联进库批次最大入库日期）∪ G7/G8 出库日期 的最大值 ==========
+            var arrivalDate = arrivalDateByWoNo.TryGetValue(wo.WorkOrderNo, out var arrD) ? (DateTime?)arrD : null;
+            DateTime? outboundDate = null;
+            if (invByWoId.TryGetValue(wo.Id, out var invAllList))
+            {
+                var allInvBatchNos = invAllList.Select(p => p.InventoryBatchNo).Distinct().ToList();
+                var outDates = allInvBatchNos
+                    .Select(bn => outboundDateByBatchNo.TryGetValue(bn, out var od) ? (DateTime?)od : null)
+                    .Where(d => d.HasValue)
+                    .Select(d => d!.Value)
+                    .ToList();
+                if (outDates.Count > 0) outboundDate = outDates.Max();
+            }
+            summary.CutoffArrivalDate = new DateTime?[] { arrivalDate, outboundDate }.Max();
+
             // ========== Group 18: 成品入库（从 InventoryBatch 聚合） ==========
             ibByWoNo.TryGetValue(wo.WorkOrderNo, out var woIbList);
             if (woIbList?.Count > 0)
@@ -711,20 +746,30 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.WarehousingTotalQty = woIbList.Sum(ib => ib.InitialQuantity);
                 summary.WarehousingTotalWeight = woIbList.Sum(ib => ib.InitialWeight);
 
-                // 工单入库状态
+                // 工单入库状态（4 档：0=无入库 1=入库部分 2=入库完结 3=入库超额）
+                // 定尺按支数：超额=入库支数>需求支数（与主号一致）；重量口径：超额=入库重>需求重×105%
                 var isFixed = summary.LengthStatus == LengthStatus.Fixed.ToString();
+                bool isOver;
                 bool isComplete;
                 if (isFixed)
-                    isComplete = summary.WarehousingTotalQty >= wo.TotalQuantity;
+                {
+                    isOver = summary.WarehousingTotalQty > wo.TotalQuantity;
+                    isComplete = summary.WarehousingTotalQty == wo.TotalQuantity;
+                }
                 else
+                {
+                    isOver = summary.WarehousingTotalWeight > wo.TotalWeight * completeOverRatio;
                     isComplete = summary.WarehousingTotalWeight >= wo.TotalWeight * completeRatio
                               && summary.WarehousingTotalWeight >= wo.TotalWeight - completeDeviation;
+                }
 
                 summary.WoWarehousingStatus = (summary.WarehousingTotalQty == 0 && summary.WarehousingTotalWeight == 0)
                     ? 0  // 无入库
-                    : isComplete
-                        ? 2  // 入库完结
-                        : 1; // 入库部分
+                    : isOver
+                        ? 3  // 入库超额
+                        : isComplete
+                            ? 2  // 入库完结
+                            : 1; // 入库部分
             }
             else
             {
@@ -751,12 +796,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         }
 
         // 计算主号级投料聚合
-        ComputeMainNoInputAggregation(summaries, workOrders, supplySatisfiedRate);
+        ComputeMainNoInputAggregation(summaries, workOrders, supplySatisfiedRate, fixedSatisfied, nonFixedSatisfied, externalLower);
 
         // 计算主号/订单级入库状态聚合
-        ComputeWarehousingAggregation(summaries, workOrders, completeRatio, completeDeviation);
+        ComputeWarehousingAggregation(summaries, workOrders, completeRatio, completeDeviation, completeOverRatio);
 
-        // ========== G16/G2: 先加载暂停与需求调整数据（须在关注状态之前，供「主号暂停」档判定） ==========
+        // ========== G16/G2: 先加载暂停与需求调整数据（须在主号关注之前，供「主号暂停」档判定） ==========
         var pausedIdList = await _context.Set<OrderDemandAdjustment>()
             .AsNoTracking()
             .Where(u => workOrderIds.Contains(u.WorkOrderId) && u.IsPaused)
@@ -778,15 +823,23 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             }
         }
 
-        // ========== G16: 计算关注状态（0=主号暂停/1=主号完成/2=原料锁定/3=生产执行/4=成品检验） ==========
+        // ========== G16: 计算主号关注（0=主号暂停/1=主号完成/2=原料锁定/3=生产执行/4=成品检验，全部主号级） ==========
+        // 档3/4 主号级判定：主号下任一工单有活动批次（未产/在产/暂停）→ 3 生产执行；主号下全部工单仅成检/已完成批次 → 4 成品检验
+        var producingByWo = batchesByWo.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value.Any(b =>
+                b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress || b.Status == BatchStatus.Suspended),
+            StringComparer.OrdinalIgnoreCase);
+        var producingByMainNo = summaries
+            .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
+            .ToDictionary(g => g.Key,
+                g => g.Any(s => producingByWo.GetValueOrDefault(s.WorkOrderNo)));
         foreach (var summary in summaries)
         {
-            var summaryBatches = batchesByWo.TryGetValue(summary.WorkOrderNo, out var bl) ? bl : new List<ProductionBatch>();
-            var hasProducingBatch = summaryBatches.Any(b =>
-                b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress || b.Status == BatchStatus.Suspended);
+            var hasProducingBatch = producingByMainNo.TryGetValue(new { summary.SalesOrderNo, summary.ProductionMainNo }, out var pb) && pb;
             summary.ScheduleStage = summary.IsPaused ? 0
                 : summary.MainNoWarehousingStatus >= 2 ? 1
-                : summary.MainNoFlowStatus != 2 ? 2
+                : summary.MainNoFlowStatus is 0 or 1 ? 2
                 : hasProducingBatch ? 3
                 : 4;
         }
@@ -829,7 +882,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.ProductionFlowProperty = null;
         }
 
-        // ========== G16: 计算剩余总工量 & 工单计划性 ==========
+        // ========== G16: 计算剩余总工量 & 主号计划性 ==========
         var mainNoAgg = summaries
             .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
             .ToDictionary(
@@ -924,7 +977,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             // 总工量 = 工艺剩余总工量 + 产能工量
             var totalDays = (summary.TotalRemainingWorkDays ?? 0) + (summary.CapacityWorkDays ?? 0);
 
-            // 工单计划性
+            // 主号计划性
             var todayDays = DateOnly.FromDateTime(DateTime.Today).DayNumber;
             var deliveryDays = DateOnly.FromDateTime(summary.DeliveryDate).DayNumber;
             var diff = totalDays + todayDays - deliveryDays;
@@ -956,11 +1009,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             }
 
             // 投料满足 → 按附返整主号状态分 A 质量补料 / B 执行返整
-            if (summary.MainNoInputStatus == 2)
+            if (summary.MainNoInputStatus >= 2)
             {
                 // B 执行返整：附返整满足（缺口可由返整量补齐，处于返整执行）
                 // A 质量补料：附返整不满足（连返整量算上仍不足，真缺料需补料）
-                summary.RawMaterialLockRemark = summary.ReworkMainNoStatus == 2 ? RawMaterialLockRemarkKeys.ExecuteRework : RawMaterialLockRemarkKeys.QualityReplenish;
+                summary.RawMaterialLockRemark = summary.ReworkMainNoStatus >= 2 ? RawMaterialLockRemarkKeys.ExecuteRework : RawMaterialLockRemarkKeys.QualityReplenish;
                 continue;
             }
 
@@ -1000,6 +1053,18 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
         await _context.SaveChangesAsync();
 
+        // 同步刷新订单列表读模型（ScheduleStage/UrgencyLevel/EstimatedCompletionDate 已更新）
+        // 说明：全量刷新同样会改变工单档位/紧急性/预计完成时间，若不联动刷新，订单页读模型将停留在旧值
+        using (var scope = _serviceScopeFactory.CreateScope())
+        {
+            var orderService = scope.ServiceProvider.GetRequiredService<IOrderService>();
+            var orderIds = salesOrders.Select(so => so.Id).ToList();
+            foreach (var orderId in orderIds)
+            {
+                await orderService.RefreshByOrderIdAsync(orderId);
+            }
+        }
+
         _logger.LogInformation("工单执行状况刷新完成: 共{Count}条", summaries.Count);
 
         return new WorkOrderExecutionRefreshResultDto
@@ -1023,6 +1088,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var materialPlanStatusConfig = await _configService.GetConfigMapAsync("MaterialPlanStatus");
         var completeRatio = warehouseConfig.GetValueOrDefault("CompleteRatio", 0.95m);
         var completeDeviation = warehouseConfig.GetValueOrDefault("CompleteDeviation", 100m);
+        var completeOverRatio = warehouseConfig.GetValueOrDefault("CompleteOverRatio", 1.05m);
         var bufferDays = workOrderDaysConfig.GetValueOrDefault("BufferDays", 3m);
         var inspectionFixedDays = workOrderDaysConfig.GetValueOrDefault("InspectionFixedDays", 3m);
         var urgencyAPlus = urgencyConfig.GetValueOrDefault("APlus", 7m);
@@ -1089,11 +1155,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .ToListAsync();
         var customerNameByWo = new Dictionary<int, string>();
         var customerSalesmanByWo = new Dictionary<int, string>();
+        var endCustomerByWo = new Dictionary<int, string>();
         foreach (var wo in workOrders)
         {
             var so = salesOrders.FirstOrDefault(s => s.OrderNumber.Equals(wo.SalesOrderNo, StringComparison.OrdinalIgnoreCase));
             customerNameByWo[wo.Id] = so?.CustomerName ?? "";
             customerSalesmanByWo[wo.Id] = so?.Salesman ?? "";
+            endCustomerByWo[wo.Id] = so?.EndCustomer ?? "";
         }
 
         var purchaseOrders = await _context.PurchaseOrders
@@ -1137,7 +1205,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .GroupBy(fi => fi.ProductionBatch.WorkOrderNo!)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
-        // 批量加载过程检验数据（用于 G21 次品总量「过程检侧」，仅订单成品物料批次，经批次关联工单）
+        // 批量加载过程检验数据（用于 G15 次品总量「过程检侧」，仅订单成品物料批次，经批次关联工单）
         var processInspections = await _context.ProcessInspections
             .AsNoTracking()
             .Include(pi => pi.ProductionBatch)
@@ -1202,6 +1270,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .GroupBy(or => or.BatchNo!)
             .ToDictionary(g => g.Key, g => g.Sum(or => or.OutboundWeight), StringComparer.OrdinalIgnoreCase);
 
+        // G7/G8 截止到料日出库日期：各仓库批的生产领用出库记录最大出库日期
+        var outboundDateByBatchNo = productionPickRecords
+            .Where(or => or.BatchNo != null)
+            .GroupBy(or => or.BatchNo!)
+            .ToDictionary(g => g.Key, g => g.Max(or => or.OutboundDate), StringComparer.OrdinalIgnoreCase);
+
+        // 批量加载仓库进库批次（G4~G6 截止到料日：SourceOrderNo 非空，经采购/委外来源单号映射回工单号）
+        var arrivalDateByWoNo = await BuildArrivalDateByWorkOrderNoAsync(allPurchaseOrders, returnItems);
+
         // 4. 逐工单计算
         var now = DateTime.Now;
         var summaries = new List<WorkOrderExecutionSummary>();
@@ -1210,7 +1287,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var woBatches = batchesByWo.TryGetValue(wo.WorkOrderNo, out var b) ? b : new List<ProductionBatch>();
             fiByWoNo.TryGetValue(wo.WorkOrderNo, out var woFiList);
 
-            // G21 次品总量：过程检/成检次品聚合（仅订单成品批次）
+            // G15 次品总量：过程检/成检次品聚合（仅订单成品批次）
             piByWoNo.TryGetValue(wo.WorkOrderNo, out var woPiList);
             var processInspectionReworkWeight = woPiList?.Sum(pi => pi.TheoreticalReworkWeight ?? 0) ?? 0;
             var processInspectionWarehouseWeight = woPiList?.Sum(pi => pi.TheoreticalWarehouseWeight ?? 0) ?? 0;
@@ -1226,8 +1303,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var summary = ComputeSummary(wo,
                 customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "",
                 customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "",
+                endCustomerByWo.TryGetValue(wo.Id, out var ec) ? ec : null,
                 woBatches,
-                completeRatio, completeDeviation, groupDiscountRate, supplySatisfiedRate, qualifiedRate,
+                completeRatio, completeDeviation, completeOverRatio, groupDiscountRate, supplySatisfiedRate, fixedSatisfied, nonFixedSatisfied, qualifiedRate,
                 processInspectionReworkWeight, processInspectionWarehouseWeight, processInspectionScrapWeight, processInspectionDefectWeight,
                 finalInspectionReworkWeight, finalInspectionWarehouseWeight, finalInspectionScrapWeight, finalInspectionDefectQty, finalInspectionDefectWeight,
                 reworkSourceEntries);
@@ -1257,8 +1335,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                     + roughTubeRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
                 summary.PendingRoughTubeWeight = roughTubePos.Sum(po => po.Weight - po.ReceivedWeight)
                     + roughTubeRis.Sum(ri => (ri.RequiredWeight ?? 0) - ri.ReturnedWeight);
-                var finishPos = safePos.Where(po => po.MaterialCategory == "CriticalFinished" || po.MaterialCategory == "OrderFinished").ToList();
-                var finishRis = safeRis.Where(ri => ri.MaterialCategory == "CriticalFinished" || ri.MaterialCategory == "OrderFinished").ToList();
+                var finishPos = safePos.Where(po => po.MaterialCategory == "CriticalFinished" || po.MaterialCategory == "OrderFinished" || po.MaterialCategory == "SpecialDeliveryStatus").ToList();
+                var finishRis = safeRis.Where(ri => ri.MaterialCategory == "CriticalFinished" || ri.MaterialCategory == "OrderFinished" || ri.MaterialCategory == "SpecialDeliveryStatus").ToList();
                 summary.PendingOutsourceFinishQty = finishPos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
                     + finishRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
                 summary.PendingOutsourceFinishWeight = finishPos.Sum(po => po.Weight - po.ReceivedWeight)
@@ -1287,7 +1365,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.PiercingSubInWeight = piercingReturnWeight;
                 summary.PiercingSubPendingWeight = Math.Max(0m, piercingOrderWeight - piercingReturnWeight);
                 summary.PiercingReturnStatus = piercingOrderWeight > 0
-                    ? ComputePlanStatus(piercingReturnWeight, piercingOrderWeight, externalLower, externalUpper) : 0;
+                    ? ComputePlanStatus(piercingReturnWeight, piercingOrderWeight, externalLower, externalUpper, treatZeroActualAsPartial: true) : 0;
             }
 
             // G5: 荒管采购（对外 ±3%）
@@ -1308,8 +1386,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             if (finishByWoId.TryGetValue(wo.Id, out var finishList))
             {
                 summary.FinishPlanWeight = finishList.Sum(p => p.RequiredWeight);
-                var finishOrderWeight = allPoList.Where(po => po.MaterialCategory is "CriticalFinished" or "OrderFinished").Sum(po => po.Weight);
-                var finishInWeight = allPoList.Where(po => po.MaterialCategory is "CriticalFinished" or "OrderFinished").Sum(po => po.ReceivedWeight);
+                var finishOrderWeight = allPoList.Where(po => po.MaterialCategory is "CriticalFinished" or "OrderFinished" or "SpecialDeliveryStatus").Sum(po => po.Weight);
+                var finishInWeight = allPoList.Where(po => po.MaterialCategory is "CriticalFinished" or "OrderFinished" or "SpecialDeliveryStatus").Sum(po => po.ReceivedWeight);
                 summary.FinishOrderWeight = finishOrderWeight;
                 summary.FinishOrderStatus = ComputePlanStatus(finishOrderWeight, summary.FinishPlanWeight, externalLower, externalUpper);
                 summary.FinishInWeight = finishInWeight;
@@ -1374,6 +1452,21 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.InMainInputStatus = ComputePlanStatus(g9InputWeight, summary.InMainPlanWeight, productionLower, productionUpper);
             }
 
+            // ========== 截止到料日：G4~G6 仓库到料（SourceOrderNo 关联进库批次最大入库日期）∪ G7/G8 出库日期 的最大值 ==========
+            var arrivalDate = arrivalDateByWoNo.TryGetValue(wo.WorkOrderNo, out var arrD) ? (DateTime?)arrD : null;
+            DateTime? outboundDate = null;
+            if (invByWoId.TryGetValue(wo.Id, out var invAllList))
+            {
+                var allInvBatchNos = invAllList.Select(p => p.InventoryBatchNo).Distinct().ToList();
+                var outDates = allInvBatchNos
+                    .Select(bn => outboundDateByBatchNo.TryGetValue(bn, out var od) ? (DateTime?)od : null)
+                    .Where(d => d.HasValue)
+                    .Select(d => d!.Value)
+                    .ToList();
+                if (outDates.Count > 0) outboundDate = outDates.Max();
+            }
+            summary.CutoffArrivalDate = new DateTime?[] { arrivalDate, outboundDate }.Max();
+
             // Group 15: 成品入库
             ibByWoNo.TryGetValue(wo.WorkOrderNo, out var woIbList);
             if (woIbList?.Count > 0)
@@ -1382,13 +1475,17 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.WarehousingEndDate = woIbList.Max(ib => ib.InboundDate);
                 summary.WarehousingTotalQty = woIbList.Sum(ib => ib.InitialQuantity);
                 summary.WarehousingTotalWeight = woIbList.Sum(ib => ib.InitialWeight);
+                // 工单入库状态（4 档：0=无入库 1=入库部分 2=入库完结 3=入库超额；定尺按支数/重量口径超 105% 为超额，与主号一致）
                 var isFixed = summary.LengthStatus == LengthStatus.Fixed.ToString();
+                var isOver = isFixed
+                    ? summary.WarehousingTotalQty > wo.TotalQuantity
+                    : summary.WarehousingTotalWeight > wo.TotalWeight * completeOverRatio;
                 var isComplete = isFixed
-                    ? summary.WarehousingTotalQty >= wo.TotalQuantity
+                    ? summary.WarehousingTotalQty == wo.TotalQuantity
                     : summary.WarehousingTotalWeight >= wo.TotalWeight * completeRatio
                       && summary.WarehousingTotalWeight >= wo.TotalWeight - completeDeviation;
                 summary.WoWarehousingStatus = (summary.WarehousingTotalQty == 0 && summary.WarehousingTotalWeight == 0)
-                    ? 0 : isComplete ? 2 : 1;
+                    ? 0 : isOver ? 3 : isComplete ? 2 : 1;
             }
             else
             {
@@ -1402,10 +1499,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         }
 
         // 5. 主号级聚合计算（使用全家族数据，确保聚合正确）
-        ComputeMainNoInputAggregation(summaries, workOrders, supplySatisfiedRate);
-        ComputeWarehousingAggregation(summaries, workOrders, completeRatio, completeDeviation);
+        ComputeMainNoInputAggregation(summaries, workOrders, supplySatisfiedRate, fixedSatisfied, nonFixedSatisfied, externalLower);
+        ComputeWarehousingAggregation(summaries, workOrders, completeRatio, completeDeviation, completeOverRatio);
 
-        // G16/G2: 先加载暂停与需求调整数据（须在关注状态之前，供「主号暂停」档判定）
+        // G16/G2: 先加载暂停与需求调整数据（须在主号关注之前，供「主号暂停」档判定）
         var pausedIdList = await _context.Set<OrderDemandAdjustment>()
             .AsNoTracking()
             .Where(u => allWoIds.Contains(u.WorkOrderId) && u.IsPaused)
@@ -1427,18 +1524,25 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             }
         }
 
-        // G16: 关注状态（0=主号暂停/1=主号完成/2=原料锁定/3=生产执行/4=成品检验）
+        // G16: 主号关注（0=主号暂停/1=主号完成/2=原料锁定/3=生产执行/4=成品检验，全部主号级）
         // 主号暂停：该工单 IsPaused（工单需求调整，联动连带保证同主号未入库完结工单一致）
         // 主号完成：主号入库=完结/超额（真正闭环）
-        // 生产执行：存在 未产/在产/临时暂停(Suspended) 批次；成品检验：仅成检/已完成批次
+        // 档3/4 主号级判定：主号下任一工单有活动批次（未产/在产/临时暂停 Suspended）→ 3 生产执行；主号下全部工单仅成检/已完成批次 → 4 成品检验
+        var producingByWo = batchesByWo.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value.Any(b =>
+                b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress || b.Status == BatchStatus.Suspended),
+            StringComparer.OrdinalIgnoreCase);
+        var producingByMainNo = summaries
+            .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
+            .ToDictionary(g => g.Key,
+                g => g.Any(s => producingByWo.GetValueOrDefault(s.WorkOrderNo)));
         foreach (var summary in summaries)
         {
-            var summaryBatches = batchesByWo.TryGetValue(summary.WorkOrderNo, out var bl) ? bl : new List<ProductionBatch>();
-            var hasProducingBatch = summaryBatches.Any(b =>
-                b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress || b.Status == BatchStatus.Suspended);
+            var hasProducingBatch = producingByMainNo.TryGetValue(new { summary.SalesOrderNo, summary.ProductionMainNo }, out var pb) && pb;
             summary.ScheduleStage = summary.IsPaused ? 0
                 : summary.MainNoWarehousingStatus >= 2 ? 1
-                : summary.MainNoFlowStatus != 2 ? 2
+                : summary.MainNoFlowStatus is 0 or 1 ? 2
                 : hasProducingBatch ? 3
                 : 4;
         }
@@ -1476,7 +1580,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 : null;
         }
 
-        // G16: 计算剩余工量 & 工单计划性
+        // G16: 计算剩余工量 & 主号计划性
         var dailyEstimates = await _dailyOutputService.GetAllAsync();
         var completedBatchOutputByMainNo = batchesByWo.Values
             .SelectMany(b => b)
@@ -1541,9 +1645,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var todayDays = DateOnly.FromDateTime(DateTime.Today).DayNumber;
             var deliveryDays = DateOnly.FromDateTime(summary.DeliveryDate).DayNumber;
             var diff = totalDays + todayDays - deliveryDays;
-            summary.UrgencyLevel = diff > urgencyAPlus ? "A+急"
-                : diff > urgencyA ? "A急" : diff > urgencyB ? "B顺" : diff > urgencyC ? "C缓" : "D缓";
-            if (pausedIds.Contains(summary.WorkOrderId)) summary.UrgencyLevel = "E停";
+            summary.UrgencyLevel = diff > urgencyAPlus ? UrgencyLevelKeys.APlusUrgent
+                : diff > urgencyA ? UrgencyLevelKeys.AUrgent
+                : diff > urgencyB ? UrgencyLevelKeys.BOrder
+                : diff > urgencyC ? UrgencyLevelKeys.CSlow
+                : UrgencyLevelKeys.DSlow;
+            if (pausedIds.Contains(summary.WorkOrderId)) summary.UrgencyLevel = UrgencyLevelKeys.EPaused;
             summary.EstimatedProcessCompletionDate = DateTime.Today.AddDays(totalDays);
             summary.DaysDiffFromDelivery = (summary.EstimatedProcessCompletionDate.Value.Date - summary.DeliveryDate.Date).Days;
         }
@@ -1554,11 +1661,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         foreach (var summary in summaries.Where(s => s.ScheduleStage == 2))
         {
             // 投料满足 → 按附返整主号状态分 A 质量补料 / B 执行返整
-            if (summary.MainNoInputStatus == 2)
+            if (summary.MainNoInputStatus >= 2)
             {
                 // B 执行返整：附返整满足（缺口可由返整量补齐，处于返整执行）
                 // A 质量补料：附返整不满足（连返整量算上仍不足，真缺料需补料）
-                summary.RawMaterialLockRemark = summary.ReworkMainNoStatus == 2 ? RawMaterialLockRemarkKeys.ExecuteRework : RawMaterialLockRemarkKeys.QualityReplenish;
+                summary.RawMaterialLockRemark = summary.ReworkMainNoStatus >= 2 ? RawMaterialLockRemarkKeys.ExecuteRework : RawMaterialLockRemarkKeys.QualityReplenish;
                 continue;
             }
 
@@ -1612,11 +1719,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         WoEntity wo,
         string customerName,
         string salesman,
+        string? endCustomer,
         List<ProductionBatch> batches,
         decimal completeRatio = 0m,
         decimal completeDeviation = 0m,
+        decimal completeOverRatio = 1.05m,
         decimal groupDiscountRate = 0m,
         decimal supplySatisfiedRate = 0m,
+        decimal fixedSatisfied = 110m,
+        decimal nonFixedSatisfied = 120m,
         decimal qualifiedRate = 1m,
         int processInspectionReworkWeight = 0,
         int processInspectionWarehouseWeight = 0,
@@ -1636,6 +1747,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             WorkOrderNo = wo.WorkOrderNo,
             Salesman = salesman,
             CustomerName = customerName,
+            EndCustomer = endCustomer,
             SignDate = wo.SignDate,
             DeliveryDate = wo.DeliveryDate,
             DelayPenalty = wo.DelayPenalty,
@@ -1708,8 +1820,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         summary.TheoreticalOutputQty = Math.Round(theorQty, 0, MidpointRounding.AwayFromZero);
         summary.TheoreticalOutputWeight = Math.Round(theorWeight, 3);
 
-        // 投料成品比 + 状态
-        var (ratio, status) = ComputeInputRatioAndStatus(summary, wo, supplySatisfiedRate);
+        // 投料成品比 + 状态（4 档：0=未投料 1=部分 2=满足 3=超量）
+        var inputExceedRate = summary.LengthStatus == LengthStatus.Fixed.ToString() ? fixedSatisfied : nonFixedSatisfied;
+        var (ratio, status) = ComputeInputRatioAndStatus(summary, wo, supplySatisfiedRate, inputExceedRate);
         summary.InputOutputRatio = ratio;
         summary.InputStatus = status;
 
@@ -1762,7 +1875,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         summary.ReworkInputQuantity = reworkBatches.Sum(b => b.CurrentValidQty ?? 0);
         summary.ReworkInputWeight = reworkBatches.Sum(b => b.CurrentValidWeight ?? 0);
 
-        // G21 次品总量：过程检/成检次品聚合（仅订单成品批次，0 时不显示）
+        // G15 次品总量：过程检/成检次品聚合（仅订单成品批次，0 时不显示）
         summary.ProcessInspectionDefectWeight = processInspectionDefectWeight > 0 ? processInspectionDefectWeight : null;
         summary.ProcessInspectionReworkWeight = processInspectionReworkWeight > 0 ? processInspectionReworkWeight : null;
         summary.ProcessInspectionWarehouseWeight = processInspectionWarehouseWeight > 0 ? processInspectionWarehouseWeight : null;
@@ -1835,8 +1948,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         // 合格流转×98%过程合格率与返整产出均为「成检前」理论值，需扣除实际成检次品（返整+入库+报废 支/重）；负值归零
         var combinedFlowQty = Math.Max(0, summary.ValidOutputQty + summary.ReworkTheoreticalOutputQty - finalInspectionDefectQty);
         var combinedFlowWeight = Math.Max(0, summary.ValidOutputWeight + summary.ReworkTheoreticalOutputWeight - finalInspectionDefectWeight);
+        var flowExceedRate = summary.LengthStatus == LengthStatus.Fixed.ToString() ? fixedSatisfied : nonFixedSatisfied;
         var (flowRatio, flowStatus) = ComputeInputRatioAndStatus(
-            summary.LengthStatus, combinedFlowQty, combinedFlowWeight, wo.TotalQuantity, wo.TotalWeight, supplySatisfiedRate);
+            summary.LengthStatus, combinedFlowQty, combinedFlowWeight, wo.TotalQuantity, wo.TotalWeight, supplySatisfiedRate, flowExceedRate);
         summary.FlowOutputRatio = flowRatio;
         summary.FlowStatus = flowStatus;
 
@@ -2004,13 +2118,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     }
 
     private static (decimal ratio, int status) ComputeInputRatioAndStatus(
-        WorkOrderExecutionSummary summary, WoEntity wo, decimal satisfiedRate)
+        WorkOrderExecutionSummary summary, WoEntity wo, decimal satisfiedRate, decimal exceedRate)
     {
-        return ComputeInputRatioAndStatus(summary.LengthStatus, summary.TheoreticalOutputQty, summary.TheoreticalOutputWeight, wo.TotalQuantity, wo.TotalWeight, satisfiedRate);
+        return ComputeInputRatioAndStatus(summary.LengthStatus, summary.TheoreticalOutputQty, summary.TheoreticalOutputWeight, wo.TotalQuantity, wo.TotalWeight, satisfiedRate, exceedRate);
     }
 
     private static (decimal ratio, int status) ComputeInputRatioAndStatus(
-        string lengthStatus, decimal outputQty, decimal outputWeight, int totalQty, decimal totalWeight, decimal satisfiedRate)
+        string lengthStatus, decimal outputQty, decimal outputWeight, int totalQty, decimal totalWeight, decimal satisfiedRate, decimal exceedRate)
     {
         var isFixed = lengthStatus == LengthStatus.Fixed.ToString();
         decimal ratio;
@@ -2031,6 +2145,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         int status;
         if (ratio <= 0)
             status = 0;      // 未投料
+        else if (ratio > exceedRate)
+            status = 3;      // 超量
         else if (ratio >= satisfiedRate)
             status = 2;      // 满足
         else
@@ -2123,7 +2239,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     }
 
     private static void ComputeMainNoInputAggregation(
-        List<WorkOrderExecutionSummary> summaries, List<WoEntity> workOrders, decimal supplySatisfiedRate)
+        List<WorkOrderExecutionSummary> summaries, List<WoEntity> workOrders,
+        decimal supplySatisfiedRate, decimal fixedSatisfied, decimal nonFixedSatisfied, decimal planExecLowerBound)
     {
         var woDict = workOrders.ToDictionary(wo => wo.Id);
 
@@ -2140,6 +2257,21 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var groupSummaries = group.Select(g => g.Summary).ToList();
 
             // Group 3 的 MainNo 级用料计划（满足率/状态）已从 WorkOrderListSummary 预读，不再重算
+
+            // Group 3: MainNo 级计划执行状态（4 档：0=无计划 1=未执行 2=执行中 3=计划落实）
+            // 同主号所有工单的 G4~G10 计划量/现可量（动作量口径）求和后按比例判定
+            var mainNoTotalPlan = groupSummaries.Sum(s => s.PiercingPlanWeight + s.SemiPlanWeight + s.FinishPlanWeight
+                + s.InventoryPlanWeight + s.ReworkPlanWeight + s.InProcessReworkPlanWeight + s.InMainPlanWeight);
+            var mainNoTotalAvail = groupSummaries.Sum(s => s.PiercingSubOutWeight + s.SemiOrderWeight + s.FinishOrderWeight
+                + s.InventoryOutWeight + s.ReworkPlanInputWeight + s.InProcessReworkInputWeight + s.InMainInputWeight);
+            var mainNoTotalMissing = Math.Max(0m, mainNoTotalPlan - mainNoTotalAvail);
+
+            int mainNoPlanExec;
+            if (mainNoTotalPlan <= 0) mainNoPlanExec = 0;                                      // 无计划
+            else if (mainNoTotalAvail <= 0) mainNoPlanExec = 1;                                // 未执行
+            else if (mainNoTotalMissing / mainNoTotalPlan <= 1 - planExecLowerBound) mainNoPlanExec = 3;  // 计划落实（缺口≤3%）
+            else mainNoPlanExec = 2;                                                           // 执行中
+            foreach (var s in groupSummaries) s.MainNoPlanExecutionStatus = mainNoPlanExec;
 
             // Group 11: MainNo 级投料聚合（使用已修正的理论成品值）
             var totalQty = groupWorkOrders.Sum(wo => wo.TotalQuantity);
@@ -2165,9 +2297,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                         : 0;
                 }
 
+                var mainExceedRate = isFixed ? fixedSatisfied : nonFixedSatisfied;
                 int mainStatus;
                 if (mainRatio <= 0)
                     mainStatus = 0;
+                else if (mainRatio > mainExceedRate)
+                    mainStatus = 3;      // 超量
                 else if (mainRatio >= supplySatisfiedRate)
                     mainStatus = 2;
                 else
@@ -2201,9 +2336,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                         : 0;
                 }
 
+                var mainFlowExceedRate = isFixed ? fixedSatisfied : nonFixedSatisfied;
                 int mainFlowStatus;
                 if (mainFlowRatio <= 0)
                     mainFlowStatus = 0;
+                else if (mainFlowRatio > mainFlowExceedRate)
+                    mainFlowStatus = 3;      // 超量
                 else if (mainFlowRatio >= supplySatisfiedRate)
                     mainFlowStatus = 2;
                 else
@@ -2233,34 +2371,87 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                         : 0;
                 }
 
+                var reworkExceedRate = isFixed ? fixedSatisfied : nonFixedSatisfied;
                 int reworkMainStatus;
                 if (reworkMainRatio <= 0)
                     reworkMainStatus = 0;
+                else if (reworkMainRatio > reworkExceedRate)
+                    reworkMainStatus = 3;      // 超量
                 else if (reworkMainRatio >= supplySatisfiedRate)
                     reworkMainStatus = 2;
                 else
                     reworkMainStatus = 1;
 
-                // 是否必返整：附返整主号状态=满足 且 有效主号状态≠满足（未投料/部分）
-                var mustRework = reworkMainStatus == 2 && mainFlowStatus != 2;
+                // 是否必返整：附返整主号状态=满足/超量 且 有效主号状态未满足（未投料/部分；超量视为满足）
+                var mustRework = reworkMainStatus >= 2 && mainFlowStatus is 0 or 1;
                 foreach (var s in groupSummaries)
                 {
                     s.ReworkMainNoStatus = reworkMainStatus;
                     s.ReworkInputConsistency = mustRework ? "是" : "否";
                 }
             }
+
+            // 主号截止到料日 = 组内各工单截止到料日的最大值
+            var mainNoCutoffDates = groupSummaries.Where(s => s.CutoffArrivalDate.HasValue).Select(s => s.CutoffArrivalDate!.Value).ToList();
+            var mainNoCutoffArrivalDate = mainNoCutoffDates.Count > 0 ? (DateTime?)mainNoCutoffDates.Max() : null;
+            foreach (var s in groupSummaries) s.MainNoCutoffArrivalDate = mainNoCutoffArrivalDate;
         }
+    }
+
+    /// <summary>
+    /// 批量构建「工单号 → 最大到料日期」：G4~G6 的仓库进库（InventoryBatch）按来源单号（采购单/委外单）映射回工单号，
+    /// 取该工单所有来源进库批次 InboundDate 的最大值。仅统计 SourceOrderNo 非空的进库批次（委外/荒管/成品均有来源单号）。
+    /// </summary>
+    private async Task<Dictionary<string, DateTime>> BuildArrivalDateByWorkOrderNoAsync(
+        List<PurchaseOrder> allPurchaseOrders, List<SubcontractReturnItem> returnItems)
+    {
+        // 来源单号 → 工单号（采购单按 OrderNo，委外按 ReturnItem 冗余的 OrderNo）
+        var sourceOrderToWoNo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var po in allPurchaseOrders)
+        {
+            if (string.IsNullOrEmpty(po.OrderNo) || string.IsNullOrEmpty(po.SourceWorkOrderNo)) continue;
+            sourceOrderToWoNo[po.OrderNo] = po.SourceWorkOrderNo;
+        }
+        foreach (var ri in returnItems)
+        {
+            if (string.IsNullOrEmpty(ri.OrderNo) || string.IsNullOrEmpty(ri.SourceWorkOrderNo)) continue;
+            sourceOrderToWoNo[ri.OrderNo] = ri.SourceWorkOrderNo;
+        }
+
+        var result = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        if (sourceOrderToWoNo.Count == 0) return result;
+
+        var sourceOrderNos = sourceOrderToWoNo.Keys.ToList();
+        var arrivalDates = await _context.InventoryBatches
+            .AsNoTracking()
+            .Where(ib => ib.SourceOrderNo != null && sourceOrderNos.Contains(ib.SourceOrderNo))
+            .Select(ib => new { ib.SourceOrderNo, ib.InboundDate })
+            .ToListAsync();
+
+        foreach (var a in arrivalDates)
+        {
+            if (string.IsNullOrEmpty(a.SourceOrderNo) || !sourceOrderToWoNo.TryGetValue(a.SourceOrderNo, out var woNo)) continue;
+            if (result.TryGetValue(woNo, out var cur))
+            {
+                if (a.InboundDate > cur) result[woNo] = a.InboundDate;
+            }
+            else
+            {
+                result[woNo] = a.InboundDate;
+            }
+        }
+        return result;
     }
 
     /// <summary>
     /// 计算主号级和订单级入库状态
     /// 主号级：按「主号聚合入库量 vs 主号总需求」判定（定尺按支数/非定尺按重量，非定尺沿用 completeRatio/completeDeviation 容差）
-    ///         四档 0=无入库（聚合量=0）/1=入库部分（0&lt;聚合量&lt;需求）/2=入库完结（聚合量=需求或达容差）/3=入库超额（聚合量&gt;需求）
+    ///         四档 0=无入库（聚合量=0）/1=入库部分（0&lt;聚合量&lt;需求）/2=入库完结（聚合量=需求或达容差）/3=入库超额（定尺聚合量&gt;需求，或重量口径聚合量&gt;需求×completeOverRatio）
     /// 订单级：按主号入库状态上卷（全部无入库→0；全部达成（完结/超额）→2；否则→1），不再直接上卷工单状态
     /// </summary>
     private static void ComputeWarehousingAggregation(
         List<WorkOrderExecutionSummary> summaries, List<WoEntity> workOrders,
-        decimal completeRatio, decimal completeDeviation)
+        decimal completeRatio, decimal completeDeviation, decimal completeOverRatio)
     {
         var woDict = workOrders.ToDictionary(wo => wo.Id);
 
@@ -2300,8 +2491,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 if (inboundWeight == 0)
                     mainNoStatus = 0; // 无入库
-                else if (inboundWeight > requireWeight)
-                    mainNoStatus = 3; // 超额
+                else if (inboundWeight > requireWeight * completeOverRatio)
+                    mainNoStatus = 3; // 超额（重量口径：超过需求×105%，与工单级一致）
                 else if (inboundWeight >= requireWeight * completeRatio
                       && inboundWeight >= requireWeight - completeDeviation)
                     mainNoStatus = 2; // 完结（含容差）
@@ -2345,11 +2536,16 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     /// <param name="plan">计划量</param>
     /// <param name="lower">容差下限</param>
     /// <param name="upper">容差上限</param>
+    /// <param name="treatZeroActualAsPartial">
+    /// 两个维度区分开关：
+    /// - false（动作类：采购/出库/投料）—— actual≤0 视为「未执行」（有计划但没开始动作）
+    /// - true（结果类：到货/回收）—— actual≤0 视为「部分」（上游已下单/外发，结果未反馈=执行中）
+    /// </param>
     /// <returns>0=无计划 1=未执行 2=部分 3=已完成 4=异常</returns>
-    private static int ComputePlanStatus(decimal actual, decimal plan, decimal lower, decimal upper)
+    private static int ComputePlanStatus(decimal actual, decimal plan, decimal lower, decimal upper, bool treatZeroActualAsPartial = false)
     {
         if (plan <= 0) return 0; // 无计划
-        if (actual <= 0) return 1; // 未执行
+        if (actual <= 0) return treatZeroActualAsPartial ? 2 : 1; // 结果类：已启动待反馈→部分；动作类：未开始→未执行
 
         var ratio = actual / plan;
         if (ratio < lower) return 2;  // 部分
@@ -2363,6 +2559,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.WorkOrderNo = source.WorkOrderNo;
         target.Salesman = source.Salesman;
         target.CustomerName = source.CustomerName;
+        target.EndCustomer = source.EndCustomer;
         target.SignDate = source.SignDate;
         target.DeliveryDate = source.DeliveryDate;
         target.DelayPenalty = source.DelayPenalty;
@@ -2386,10 +2583,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.MaterialPlanStatus = source.MaterialPlanStatus;
         target.MainNoMaterialPlanRate = source.MainNoMaterialPlanRate;
         target.MainNoMaterialPlanStatus = source.MainNoMaterialPlanStatus;
+        target.MainNoPlanExecutionStatus = source.MainNoPlanExecutionStatus;
         target.ProcessCycle = source.ProcessCycle;
         target.MaterialPlanCoveredCount = source.MaterialPlanCoveredCount;
         target.MaterialPlanProportion = source.MaterialPlanProportion;
         target.TheoreticalCutoffDate = source.TheoreticalCutoffDate;
+        target.CutoffArrivalDate = source.CutoffArrivalDate;
+        target.MainNoCutoffArrivalDate = source.MainNoCutoffArrivalDate;
 
         // Group（已废弃）: 物料执行
         target.PendingRoughTubeQty = source.PendingRoughTubeQty;
@@ -2464,7 +2664,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.ReworkTheoreticalOutputQty = source.ReworkTheoreticalOutputQty;
         target.ReworkTheoreticalOutputWeight = source.ReworkTheoreticalOutputWeight;
 
-        // Group 21 次品总量
+        // Group 15 次品总量
         target.ProcessInspectionDefectWeight = source.ProcessInspectionDefectWeight;
         target.ProcessInspectionReworkWeight = source.ProcessInspectionReworkWeight;
         target.ProcessInspectionWarehouseWeight = source.ProcessInspectionWarehouseWeight;
@@ -2690,9 +2890,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var all = await query
                 .Select(s => new
                 {
+                    // 字符串
                     s.WorkOrderNo,
                     s.Salesman,
                     s.CustomerName,
+                    s.EndCustomer,
                     s.SalesOrderNo,
                     s.ProductionMainNo,
                     s.ProductionSubNo,
@@ -2704,14 +2906,123 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                     s.ProductionAttentionProcess,
                     s.MainNoAttentionProcess,
                     s.AdjustmentRemark,
+                    s.ReworkInputConsistency,
+                    // 日期
+                    s.SignDate,
+                    s.DeliveryDate,
+                    s.TheoreticalCutoffDate,
+                    s.CutoffArrivalDate,
+                    s.MainNoCutoffArrivalDate,
+                    s.InputStartDate,
+                    s.InputEndDate,
+                    s.ReworkInputEndDate,
+                    s.WarehousingStartDate,
+                    s.WarehousingEndDate,
+                    s.EstimatedProcessCompletionDate,
+                    // 整数（含可空）
+                    s.TotalItemCount,
+                    s.TotalQuantity,
+                    s.MaterialPlanCoveredCount,
+                    s.MainNoPlanExecutionStatus,
+                    s.TotalBatchCount,
+                    s.InputQuantity,
+                    s.ValidBatchCount,
+                    s.ValidInputQuantity,
+                    s.FlowTotalBatchCount,
+                    s.FlowIncompleteBatchCount,
+                    s.FlowMaxRemainingWorkDays,
+                    s.ReworkBatchCount,
+                    s.ReworkInputQuantity,
+                    s.WarehousingTotalQty,
+                    s.TotalRemainingWorkDays,
+                    s.CapacityWorkDays,
+                    s.DaysDiffFromDelivery,
+                    s.MaxBatchRemainingWorkDays,
+                    s.ReworkTheoreticalProduceQty,
+                    s.ProcessInspectionDefectWeight,
+                    s.ProcessInspectionReworkWeight,
+                    s.ProcessInspectionWarehouseWeight,
+                    s.ProcessInspectionScrapWeight,
+                    s.FinalInspectionDefectQty,
+                    s.FinalInspectionDefectWeight,
+                    s.FinalInspectionReworkWeight,
+                    s.FinalInspectionWarehouseWeight,
+                    s.FinalInspectionScrapWeight,
+                    // 小数（含可空）
+                    s.MinLength,
+                    s.MaxLength,
+                    s.TotalMeters,
+                    s.TotalWeight,
+                    s.MainNoMaterialPlanRate,
+                    s.InputWeight,
+                    s.TheoreticalOutputQty,
+                    s.TheoreticalOutputWeight,
+                    s.InputOutputRatio,
+                    s.MainNoInputOutputRatio,
+                    s.ValidInputWeight,
+                    s.ValidOutputQty,
+                    s.ValidOutputWeight,
+                    s.FlowOutputRatio,
+                    s.MainNoFlowOutputRatio,
+                    s.WarehousingTotalWeight,
+                    s.ReworkTheoreticalProduceWeight,
+                    s.PendingReworkOutputQty,
+                    s.PendingReworkOutputWeight,
+                    s.ReworkInputWeight,
+                    s.ReworkTheoreticalOutputQty,
+                    s.ReworkTheoreticalOutputWeight,
+                    s.PiercingPlanWeight,
+                    s.PiercingSubOutWeight,
+                    s.PiercingSubInWeight,
+                    s.PiercingSubPendingWeight,
+                    s.SemiPlanWeight,
+                    s.SemiOrderWeight,
+                    s.SemiInWeight,
+                    s.SemiPendingWeight,
+                    s.FinishPlanWeight,
+                    s.FinishOrderWeight,
+                    s.FinishInWeight,
+                    s.FinishPendingWeight,
+                    s.InventoryPlanWeight,
+                    s.InventoryOutWeight,
+                    s.ReworkPlanWeight,
+                    s.ReworkPlanInputWeight,
+                    s.InProcessReworkPlanWeight,
+                    s.InProcessReworkInputWeight,
+                    s.InMainPlanWeight,
+                    s.InMainInputWeight,
+                    s.PendingSectionRoughTube,
+                    s.PendingSectionWarehouseFix,
+                    s.PendingSection60Roll,
+                    s.PendingSection50Roll,
+                    s.PendingSection30Roll,
+                    s.PendingSection20Roll,
+                    s.PendingSectionThreeRoll,
+                    s.PendingSectionDrawBench,
                 })
                 .ToListAsync();
 
+            // 数值/日期列 DISTINCT 格式化辅助（与列表页单元格显示口径一致：小数 G29、日期 yyyy-MM-dd）
+            List<string> DistinctInts(IEnumerable<int> vals) =>
+                vals.Distinct().OrderBy(v => v).Select(v => v.ToString()).ToList();
+            List<string> DistinctNullableInts(IEnumerable<int?> vals) =>
+                vals.Where(v => v.HasValue).Select(v => v!.Value).Distinct().OrderBy(v => v).Select(v => v.ToString()).ToList();
+            List<string> DistinctDecimals(IEnumerable<decimal> vals) =>
+                vals.Distinct().OrderBy(v => v).Select(v => v.ToString("G29")).ToList();
+            List<string> DistinctNullableDecimals(IEnumerable<decimal?> vals) =>
+                vals.Where(v => v.HasValue).Select(v => v!.Value).Distinct().OrderBy(v => v).Select(v => v.ToString("G29")).ToList();
+            List<string> DistinctDates(IEnumerable<DateTime> vals) =>
+                vals.Select(v => v.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList();
+            List<string> DistinctNullableDates(IEnumerable<DateTime?> vals) =>
+                vals.Where(v => v.HasValue).Select(v => v!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(v => v).ToList();
+
             return new Dictionary<string, List<string>>
             {
+                // ===== 字符串 =====
                 ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
                 ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
                 ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
+                ["EndCustomer"] = all.Where(x => x.EndCustomer != null).Select(x => x.EndCustomer!).Distinct().OrderBy(x => x).ToList(),
                 ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
                 ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
                 ["ProductionSubNo"] = all.Where(x => x.ProductionSubNo != null).Select(x => x.ProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
@@ -2726,9 +3037,270 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                     .Distinct()
                     .OrderBy(x => x)
                     .ToList(),
+                ["MainNoAttentionProcess"] = all
+                    .Where(x => x.MainNoAttentionProcess != null)
+                    .Select(x => x.MainNoAttentionProcess!)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList(),
                 ["AdjustmentRemark"] = all.Where(x => x.AdjustmentRemark != null).Select(x => x.AdjustmentRemark!).Distinct().OrderBy(x => x).ToList(),
+                ["ReworkInputConsistency"] = all.Where(x => x.ReworkInputConsistency != null).Select(x => x.ReworkInputConsistency!).Distinct().OrderBy(x => x).ToList(),
+
+                // ===== 日期 =====
+                ["SignDate"] = DistinctDates(all.Select(x => x.SignDate)),
+                ["DeliveryDate"] = DistinctDates(all.Select(x => x.DeliveryDate)),
+                ["TheoreticalCutoffDate"] = DistinctNullableDates(all.Select(x => x.TheoreticalCutoffDate)),
+                ["CutoffArrivalDate"] = DistinctNullableDates(all.Select(x => x.CutoffArrivalDate)),
+                ["MainNoCutoffArrivalDate"] = DistinctNullableDates(all.Select(x => x.MainNoCutoffArrivalDate)),
+                ["InputStartDate"] = DistinctNullableDates(all.Select(x => x.InputStartDate)),
+                ["InputEndDate"] = DistinctNullableDates(all.Select(x => x.InputEndDate)),
+                ["ReworkInputEndDate"] = DistinctNullableDates(all.Select(x => x.ReworkInputEndDate)),
+                ["WarehousingStartDate"] = DistinctNullableDates(all.Select(x => x.WarehousingStartDate)),
+                ["WarehousingEndDate"] = DistinctNullableDates(all.Select(x => x.WarehousingEndDate)),
+                ["EstimatedProcessCompletionDate"] = DistinctNullableDates(all.Select(x => x.EstimatedProcessCompletionDate)),
+
+                // ===== 整数 =====
+                ["TotalItemCount"] = DistinctInts(all.Select(x => x.TotalItemCount)),
+                ["TotalQuantity"] = DistinctInts(all.Select(x => x.TotalQuantity)),
+                ["MaterialPlanCoveredCount"] = DistinctInts(all.Select(x => x.MaterialPlanCoveredCount)),
+                // 主号计划执行状态：不返回 DISTINCT，前端回退 IntStatusDisplayHelper.GetMainNoPlanExecutionStatusOptions() 中文下拉（4 档）
+                ["TotalBatchCount"] = DistinctInts(all.Select(x => x.TotalBatchCount)),
+                ["InputQuantity"] = DistinctInts(all.Select(x => x.InputQuantity)),
+                ["ValidBatchCount"] = DistinctInts(all.Select(x => x.ValidBatchCount)),
+                ["ValidInputQuantity"] = DistinctInts(all.Select(x => x.ValidInputQuantity)),
+                ["FlowTotalBatchCount"] = DistinctInts(all.Select(x => x.FlowTotalBatchCount)),
+                ["FlowIncompleteBatchCount"] = DistinctInts(all.Select(x => x.FlowIncompleteBatchCount)),
+                ["FlowMaxRemainingWorkDays"] = DistinctInts(all.Select(x => x.FlowMaxRemainingWorkDays)),
+                ["ReworkBatchCount"] = DistinctInts(all.Select(x => x.ReworkBatchCount)),
+                ["ReworkInputQuantity"] = DistinctInts(all.Select(x => x.ReworkInputQuantity)),
+                ["WarehousingTotalQty"] = DistinctInts(all.Select(x => x.WarehousingTotalQty)),
+                ["TotalRemainingWorkDays"] = DistinctNullableInts(all.Select(x => x.TotalRemainingWorkDays)),
+                ["CapacityWorkDays"] = DistinctNullableInts(all.Select(x => x.CapacityWorkDays)),
+                ["DaysDiffFromDelivery"] = DistinctNullableInts(all.Select(x => x.DaysDiffFromDelivery)),
+                ["MaxBatchRemainingWorkDays"] = DistinctNullableInts(all.Select(x => x.MaxBatchRemainingWorkDays)),
+                ["ReworkTheoreticalProduceQty"] = DistinctNullableInts(all.Select(x => x.ReworkTheoreticalProduceQty)),
+                ["ProcessInspectionDefectWeight"] = DistinctNullableInts(all.Select(x => x.ProcessInspectionDefectWeight)),
+                ["ProcessInspectionReworkWeight"] = DistinctNullableInts(all.Select(x => x.ProcessInspectionReworkWeight)),
+                ["ProcessInspectionWarehouseWeight"] = DistinctNullableInts(all.Select(x => x.ProcessInspectionWarehouseWeight)),
+                ["ProcessInspectionScrapWeight"] = DistinctNullableInts(all.Select(x => x.ProcessInspectionScrapWeight)),
+                ["FinalInspectionDefectQty"] = DistinctNullableInts(all.Select(x => x.FinalInspectionDefectQty)),
+                ["FinalInspectionDefectWeight"] = DistinctNullableInts(all.Select(x => x.FinalInspectionDefectWeight)),
+                ["FinalInspectionReworkWeight"] = DistinctNullableInts(all.Select(x => x.FinalInspectionReworkWeight)),
+                ["FinalInspectionWarehouseWeight"] = DistinctNullableInts(all.Select(x => x.FinalInspectionWarehouseWeight)),
+                ["FinalInspectionScrapWeight"] = DistinctNullableInts(all.Select(x => x.FinalInspectionScrapWeight)),
+
+                // ===== 小数 =====
+                ["MinLength"] = DistinctNullableDecimals(all.Select(x => x.MinLength)),
+                ["MaxLength"] = DistinctNullableDecimals(all.Select(x => x.MaxLength)),
+                ["TotalMeters"] = DistinctDecimals(all.Select(x => x.TotalMeters)),
+                ["TotalWeight"] = DistinctDecimals(all.Select(x => x.TotalWeight)),
+                ["MainNoMaterialPlanRate"] = DistinctDecimals(all.Select(x => x.MainNoMaterialPlanRate)),
+                ["InputWeight"] = DistinctDecimals(all.Select(x => x.InputWeight)),
+                ["TheoreticalOutputQty"] = DistinctDecimals(all.Select(x => x.TheoreticalOutputQty)),
+                ["TheoreticalOutputWeight"] = DistinctDecimals(all.Select(x => x.TheoreticalOutputWeight)),
+                ["InputOutputRatio"] = DistinctDecimals(all.Select(x => x.InputOutputRatio)),
+                ["MainNoInputOutputRatio"] = DistinctDecimals(all.Select(x => x.MainNoInputOutputRatio)),
+                ["ValidInputWeight"] = DistinctDecimals(all.Select(x => x.ValidInputWeight)),
+                ["ValidOutputQty"] = DistinctDecimals(all.Select(x => x.ValidOutputQty)),
+                ["ValidOutputWeight"] = DistinctDecimals(all.Select(x => x.ValidOutputWeight)),
+                ["FlowOutputRatio"] = DistinctDecimals(all.Select(x => x.FlowOutputRatio)),
+                ["MainNoFlowOutputRatio"] = DistinctDecimals(all.Select(x => x.MainNoFlowOutputRatio)),
+                ["WarehousingTotalWeight"] = DistinctDecimals(all.Select(x => x.WarehousingTotalWeight)),
+                ["ReworkTheoreticalProduceWeight"] = DistinctNullableDecimals(all.Select(x => x.ReworkTheoreticalProduceWeight)),
+                ["PendingReworkOutputQty"] = DistinctNullableDecimals(all.Select(x => x.PendingReworkOutputQty)),
+                ["PendingReworkOutputWeight"] = DistinctNullableDecimals(all.Select(x => x.PendingReworkOutputWeight)),
+                ["ReworkInputWeight"] = DistinctDecimals(all.Select(x => x.ReworkInputWeight)),
+                ["ReworkTheoreticalOutputQty"] = DistinctDecimals(all.Select(x => x.ReworkTheoreticalOutputQty)),
+                ["ReworkTheoreticalOutputWeight"] = DistinctDecimals(all.Select(x => x.ReworkTheoreticalOutputWeight)),
+                ["PiercingPlanWeight"] = DistinctDecimals(all.Select(x => x.PiercingPlanWeight)),
+                ["PiercingSubOutWeight"] = DistinctDecimals(all.Select(x => x.PiercingSubOutWeight)),
+                ["PiercingSubInWeight"] = DistinctDecimals(all.Select(x => x.PiercingSubInWeight)),
+                ["PiercingSubPendingWeight"] = DistinctDecimals(all.Select(x => x.PiercingSubPendingWeight)),
+                ["SemiPlanWeight"] = DistinctDecimals(all.Select(x => x.SemiPlanWeight)),
+                ["SemiOrderWeight"] = DistinctDecimals(all.Select(x => x.SemiOrderWeight)),
+                ["SemiInWeight"] = DistinctDecimals(all.Select(x => x.SemiInWeight)),
+                ["SemiPendingWeight"] = DistinctDecimals(all.Select(x => x.SemiPendingWeight)),
+                ["FinishPlanWeight"] = DistinctDecimals(all.Select(x => x.FinishPlanWeight)),
+                ["FinishOrderWeight"] = DistinctDecimals(all.Select(x => x.FinishOrderWeight)),
+                ["FinishInWeight"] = DistinctDecimals(all.Select(x => x.FinishInWeight)),
+                ["FinishPendingWeight"] = DistinctDecimals(all.Select(x => x.FinishPendingWeight)),
+                ["InventoryPlanWeight"] = DistinctDecimals(all.Select(x => x.InventoryPlanWeight)),
+                ["InventoryOutWeight"] = DistinctDecimals(all.Select(x => x.InventoryOutWeight)),
+                ["ReworkPlanWeight"] = DistinctDecimals(all.Select(x => x.ReworkPlanWeight)),
+                ["ReworkPlanInputWeight"] = DistinctDecimals(all.Select(x => x.ReworkPlanInputWeight)),
+                ["InProcessReworkPlanWeight"] = DistinctDecimals(all.Select(x => x.InProcessReworkPlanWeight)),
+                ["InProcessReworkInputWeight"] = DistinctDecimals(all.Select(x => x.InProcessReworkInputWeight)),
+                ["InMainPlanWeight"] = DistinctDecimals(all.Select(x => x.InMainPlanWeight)),
+                ["InMainInputWeight"] = DistinctDecimals(all.Select(x => x.InMainInputWeight)),
+                ["PendingSectionRoughTube"] = DistinctNullableDecimals(all.Select(x => x.PendingSectionRoughTube)),
+                ["PendingSectionWarehouseFix"] = DistinctNullableDecimals(all.Select(x => x.PendingSectionWarehouseFix)),
+                ["PendingSection60Roll"] = DistinctNullableDecimals(all.Select(x => x.PendingSection60Roll)),
+                ["PendingSection50Roll"] = DistinctNullableDecimals(all.Select(x => x.PendingSection50Roll)),
+                ["PendingSection30Roll"] = DistinctNullableDecimals(all.Select(x => x.PendingSection30Roll)),
+                ["PendingSection20Roll"] = DistinctNullableDecimals(all.Select(x => x.PendingSection20Roll)),
+                ["PendingSectionThreeRoll"] = DistinctNullableDecimals(all.Select(x => x.PendingSectionThreeRoll)),
+                ["PendingSectionDrawBench"] = DistinctNullableDecimals(all.Select(x => x.PendingSectionDrawBench)),
+
+                // ===== G3 计算列（DTO 计算属性，实体无列，前端按表达式值筛选） =====
+                ["TotalPlanWeight"] = DistinctDecimals(all.Select(x =>
+                    x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+                    + x.InventoryPlanWeight + x.ReworkPlanWeight + x.InProcessReworkPlanWeight + x.InMainPlanWeight)),
+                ["TotalAvailableWeight"] = DistinctDecimals(all.Select(x =>
+                    x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                    + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight)),
+                ["TotalMissingWeight"] = DistinctDecimals(all.Select(x => Math.Max(0m,
+                    (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+                        + x.InventoryPlanWeight + x.ReworkPlanWeight + x.InProcessReworkPlanWeight + x.InMainPlanWeight)
+                    - (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                        + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight)))),
             };
         }) ?? new Dictionary<string, List<string>>();
+    }
+
+    // ====== G3 计算列排序表达式（SQL 可翻译，供 ApplySorting 复用） ======
+
+    /// <summary>计划投料总重量 = G4~G10 七个计划量之和</summary>
+    private static readonly System.Linq.Expressions.Expression<Func<WorkOrderExecutionSummary, decimal>> G3TotalPlanWeightExpr =
+        x => x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+            + x.InventoryPlanWeight + x.ReworkPlanWeight
+            + x.InProcessReworkPlanWeight + x.InMainPlanWeight;
+
+    /// <summary>现可投料总重量 = G4委外下单 + G5采购下单 + G6采购下单 + G7出库量 + G8投料量 + G9投料量 + G10投料量（执行动作量口径）</summary>
+    private static readonly System.Linq.Expressions.Expression<Func<WorkOrderExecutionSummary, decimal>> G3TotalAvailableWeightExpr =
+        x => x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+            + x.InventoryOutWeight + x.ReworkPlanInputWeight
+            + x.InProcessReworkInputWeight + x.InMainInputWeight;
+
+    /// <summary>理论缺失总料重量 = Max(0, 计划投料总重 − 现可投料总重)</summary>
+    private static readonly System.Linq.Expressions.Expression<Func<WorkOrderExecutionSummary, decimal>> G3TotalMissingWeightExpr =
+        x => Math.Max(0m, (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+            + x.InventoryPlanWeight + x.ReworkPlanWeight + x.InProcessReworkPlanWeight + x.InMainPlanWeight)
+            - (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+            + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight));
+
+    /// <summary>
+    /// 到料实投一致性：0=一致 1=待投 2=疑问-到料未投 3=疑问-到料超投 4=错误-无到料已投（实际已投料量 vs 现可投料总重，现可=动作量口径）
+    /// 错误(4)：已投&gt;0 且 现可=0（无到料却投料）；疑问-到料超投(3)：已投&gt;现可×1.03；
+    /// 投料滞后（已投&lt;现可×0.97）按下料到位时点细分：截止到料日=今天→1（操作时间差）；早于今天→2（需投未投）；
+    /// 晚于今天或空→0（料未到位，投料滞后正常）；一致(0)：已投≈现可（±3% 内）或双零
+    /// </summary>
+    private static readonly System.Linq.Expressions.Expression<Func<WorkOrderExecutionSummary, int>> G3PlanInputConsistencyExpr =
+        x => x.InputWeight > 0 && (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight) <= 0
+                ? 4
+                : (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                    + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight) <= 0
+                    ? 0
+                    : x.InputWeight > (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                        + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight) * 1.03m
+                        ? 3
+                        : x.InputWeight < (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                            + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight) * 0.97m
+                            ? (x.CutoffArrivalDate == null
+                                ? 0
+                                : x.CutoffArrivalDate.Value.Date < DateTime.Today
+                                    ? 2
+                                    : x.CutoffArrivalDate.Value.Date == DateTime.Today
+                                        ? 1
+                                        : 0)
+                            : 0;
+
+    /// <summary>
+    /// G3 计算列筛选：计划投料总重/现可投料总重/理论缺失总料重（decimal）与到料实投一致性（int 5 档 0一致/1待投/2疑问-到料未投/3疑问-到料超投/4错误-无到料已投）。
+    /// 这些是 DTO 计算属性，实体无对应列，通用反射筛选（ApplyFilters）覆盖不到，故内联表达式 WHERE（EF 可翻译为 CASE/IN）。
+    /// 仅支持 "in" 操作符（与前端 ExcelFilter 一致）。
+    /// </summary>
+    private static IQueryable<WorkOrderExecutionSummary> ApplyComputedFilters(
+        IQueryable<WorkOrderExecutionSummary> query, List<FilterDescriptor>? filters)
+    {
+        if (filters == null || filters.Count == 0) return query;
+
+        foreach (var f in filters)
+        {
+            if (string.IsNullOrWhiteSpace(f.Field) || f.Values == null || f.Values.Count == 0)
+                continue;
+
+            switch (f.Field.ToLowerInvariant())
+            {
+                case "totalplanweight":
+                {
+                    var vals = ParseDecimalValues(f.Values);
+                    if (vals.Count == 0) break;
+                    query = query.Where(x => vals.Contains(
+                        x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+                        + x.InventoryPlanWeight + x.ReworkPlanWeight
+                        + x.InProcessReworkPlanWeight + x.InMainPlanWeight));
+                    break;
+                }
+                case "totalavailableweight":
+                {
+                    var vals = ParseDecimalValues(f.Values);
+                    if (vals.Count == 0) break;
+                    query = query.Where(x => vals.Contains(
+                        x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                        + x.InventoryOutWeight + x.ReworkPlanInputWeight
+                        + x.InProcessReworkInputWeight + x.InMainInputWeight));
+                    break;
+                }
+                case "totalmissingweight":
+                {
+                    var vals = ParseDecimalValues(f.Values);
+                    if (vals.Count == 0) break;
+                    query = query.Where(x => vals.Contains(Math.Max(0m,
+                        (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+                            + x.InventoryPlanWeight + x.ReworkPlanWeight
+                            + x.InProcessReworkPlanWeight + x.InMainPlanWeight)
+                        - (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                            + x.InventoryOutWeight + x.ReworkPlanInputWeight
+                            + x.InProcessReworkInputWeight + x.InMainInputWeight))));
+                    break;
+                }
+                case "planinputconsistency":
+                {
+                    var vals = ParseIntValues(f.Values);
+                    if (vals.Count == 0) break;
+                    query = query.Where(x => vals.Contains(
+                        x.InputWeight > 0 && (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                                + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight) <= 0
+                            ? 4
+                            : (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                                + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight) <= 0
+                                ? 0
+                                : x.InputWeight > (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                                    + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight) * 1.03m
+                                    ? 3
+                                    : x.InputWeight < (x.PiercingSubOutWeight + x.SemiOrderWeight + x.FinishOrderWeight
+                                        + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight) * 0.97m
+                                        ? (x.CutoffArrivalDate == null
+                                            ? 0
+                                            : x.CutoffArrivalDate.Value.Date < DateTime.Today
+                                                ? 2
+                                                : x.CutoffArrivalDate.Value.Date == DateTime.Today
+                                                    ? 1
+                                                    : 0)
+                                        : 0));
+                    break;
+                }
+            }
+        }
+
+        return query;
+    }
+
+    private static List<decimal> ParseDecimalValues(List<string> values)
+    {
+        var list = new List<decimal>();
+        foreach (var v in values)
+            if (decimal.TryParse(v, out var d)) list.Add(d);
+        return list;
+    }
+
+    private static List<int> ParseIntValues(List<string> values)
+    {
+        var list = new List<int>();
+        foreach (var v in values)
+            if (int.TryParse(v, out var n)) list.Add(n);
+        return list;
     }
 
     private static IQueryable<WorkOrderExecutionSummary> ApplySorting(
@@ -2743,6 +3315,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("salesman", true) => query.OrderByDescending(x => x.Salesman),
             ("customername", false) => query.OrderBy(x => x.CustomerName),
             ("customername", true) => query.OrderByDescending(x => x.CustomerName),
+            ("endcustomer", false) => query.OrderBy(x => x.EndCustomer),
+            ("endcustomer", true) => query.OrderByDescending(x => x.EndCustomer),
             ("signdate", false) => query.OrderBy(x => x.SignDate),
             ("signdate", true) => query.OrderByDescending(x => x.SignDate),
             ("deliverydate", false) => query.OrderBy(x => x.DeliveryDate),
@@ -2795,6 +3369,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("materialplanstatus", true) => query.OrderByDescending(x => x.MaterialPlanStatus),
             ("mainnomaterialplanstatus", false) => query.OrderBy(x => x.MainNoMaterialPlanStatus),
             ("mainnomaterialplanstatus", true) => query.OrderByDescending(x => x.MainNoMaterialPlanStatus),
+            ("mainnoplanexecutionstatus", false) => query.OrderBy(x => x.MainNoPlanExecutionStatus),
+            ("mainnoplanexecutionstatus", true) => query.OrderByDescending(x => x.MainNoPlanExecutionStatus),
             ("processcycle", false) => query.OrderBy(x => x.ProcessCycle),
             ("processcycle", true) => query.OrderByDescending(x => x.ProcessCycle),
             ("materialplancoveredcount", false) => query.OrderBy(x => x.MaterialPlanCoveredCount),
@@ -2803,6 +3379,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("materialplanproportion", true) => query.OrderByDescending(x => x.MaterialPlanProportion ?? ""),
             ("theoreticalcutoffdate", false) => query.OrderBy(x => x.TheoreticalCutoffDate),
             ("theoreticalcutoffdate", true) => query.OrderByDescending(x => x.TheoreticalCutoffDate),
+            ("cutoffarrivaldate", false) => query.OrderBy(x => x.CutoffArrivalDate),
+            ("cutoffarrivaldate", true) => query.OrderByDescending(x => x.CutoffArrivalDate),
+            ("mainnocutoffarrivaldate", false) => query.OrderBy(x => x.MainNoCutoffArrivalDate),
+            ("mainnocutoffarrivaldate", true) => query.OrderByDescending(x => x.MainNoCutoffArrivalDate),
 
             // G14
             ("reworktheoreticalproduceqty", false) => query.OrderBy(x => x.ReworkTheoreticalProduceQty),
@@ -2830,7 +3410,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("reworktheoreticaloutputweight", false) => query.OrderBy(x => x.ReworkTheoreticalOutputWeight),
             ("reworktheoreticaloutputweight", true) => query.OrderByDescending(x => x.ReworkTheoreticalOutputWeight),
 
-            // G21 次品总量
+            // G15 次品总量
             ("processinspectiondefectweight", false) => query.OrderBy(x => x.ProcessInspectionDefectWeight),
             ("processinspectiondefectweight", true) => query.OrderByDescending(x => x.ProcessInspectionDefectWeight),
             ("processinspectionreworkweight", false) => query.OrderBy(x => x.ProcessInspectionReworkWeight),
@@ -2956,6 +3536,100 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("productionflowproperty", false) => query.OrderBy(x => x.ProductionFlowProperty ?? ""),
             ("productionflowproperty", true) => query.OrderByDescending(x => x.ProductionFlowProperty ?? ""),
 
+            // G18 在产节点待量
+            ("maxbatchremainingworkdays", false) => query.OrderBy(x => x.MaxBatchRemainingWorkDays),
+            ("maxbatchremainingworkdays", true) => query.OrderByDescending(x => x.MaxBatchRemainingWorkDays),
+            ("mainnoattentionprocess", false) => query.OrderBy(x => x.MainNoAttentionProcess ?? ""),
+            ("mainnoattentionprocess", true) => query.OrderByDescending(x => x.MainNoAttentionProcess ?? ""),
+
+            // G3 计算列（DTO 计算属性，实体无对应列 → SQL 可翻译表达式排序）
+            ("totalplanweight", false) => query.OrderBy(G3TotalPlanWeightExpr),
+            ("totalplanweight", true) => query.OrderByDescending(G3TotalPlanWeightExpr),
+            ("totalavailableweight", false) => query.OrderBy(G3TotalAvailableWeightExpr),
+            ("totalavailableweight", true) => query.OrderByDescending(G3TotalAvailableWeightExpr),
+            ("totalmissingweight", false) => query.OrderBy(G3TotalMissingWeightExpr),
+            ("totalmissingweight", true) => query.OrderByDescending(G3TotalMissingWeightExpr),
+            ("actualinputweight", false) => query.OrderBy(x => x.InputWeight),
+            ("actualinputweight", true) => query.OrderByDescending(x => x.InputWeight),
+            ("actualmainnoinputstatus", false) => query.OrderBy(x => x.MainNoInputStatus),
+            ("actualmainnoinputstatus", true) => query.OrderByDescending(x => x.MainNoInputStatus),
+            ("planinputconsistency", false) => query.OrderBy(G3PlanInputConsistencyExpr),
+            ("planinputconsistency", true) => query.OrderByDescending(G3PlanInputConsistencyExpr),
+
+            // G5 圆棒穿孔
+            ("piercingplanweight", false) => query.OrderBy(x => x.PiercingPlanWeight),
+            ("piercingplanweight", true) => query.OrderByDescending(x => x.PiercingPlanWeight),
+            ("piercingsuboutweight", false) => query.OrderBy(x => x.PiercingSubOutWeight),
+            ("piercingsuboutweight", true) => query.OrderByDescending(x => x.PiercingSubOutWeight),
+            ("piercingsubstatus", false) => query.OrderBy(x => x.PiercingSubStatus),
+            ("piercingsubstatus", true) => query.OrderByDescending(x => x.PiercingSubStatus),
+            ("piercingsubinweight", false) => query.OrderBy(x => x.PiercingSubInWeight),
+            ("piercingsubinweight", true) => query.OrderByDescending(x => x.PiercingSubInWeight),
+            ("piercingsubpendingweight", false) => query.OrderBy(x => x.PiercingSubPendingWeight),
+            ("piercingsubpendingweight", true) => query.OrderByDescending(x => x.PiercingSubPendingWeight),
+            ("piercingreturnstatus", false) => query.OrderBy(x => x.PiercingReturnStatus),
+            ("piercingreturnstatus", true) => query.OrderByDescending(x => x.PiercingReturnStatus),
+
+            // G6 荒管采购
+            ("semiplanweight", false) => query.OrderBy(x => x.SemiPlanWeight),
+            ("semiplanweight", true) => query.OrderByDescending(x => x.SemiPlanWeight),
+            ("semiorderweight", false) => query.OrderBy(x => x.SemiOrderWeight),
+            ("semiorderweight", true) => query.OrderByDescending(x => x.SemiOrderWeight),
+            ("semiorderstatus", false) => query.OrderBy(x => x.SemiOrderStatus),
+            ("semiorderstatus", true) => query.OrderByDescending(x => x.SemiOrderStatus),
+            ("semiinweight", false) => query.OrderBy(x => x.SemiInWeight),
+            ("semiinweight", true) => query.OrderByDescending(x => x.SemiInWeight),
+            ("semipendingweight", false) => query.OrderBy(x => x.SemiPendingWeight),
+            ("semipendingweight", true) => query.OrderByDescending(x => x.SemiPendingWeight),
+            ("semiinstatus", false) => query.OrderBy(x => x.SemiInStatus),
+            ("semiinstatus", true) => query.OrderByDescending(x => x.SemiInStatus),
+
+            // G7 成品采购
+            ("finishplanweight", false) => query.OrderBy(x => x.FinishPlanWeight),
+            ("finishplanweight", true) => query.OrderByDescending(x => x.FinishPlanWeight),
+            ("finishorderweight", false) => query.OrderBy(x => x.FinishOrderWeight),
+            ("finishorderweight", true) => query.OrderByDescending(x => x.FinishOrderWeight),
+            ("finishorderstatus", false) => query.OrderBy(x => x.FinishOrderStatus),
+            ("finishorderstatus", true) => query.OrderByDescending(x => x.FinishOrderStatus),
+            ("finishinweight", false) => query.OrderBy(x => x.FinishInWeight),
+            ("finishinweight", true) => query.OrderByDescending(x => x.FinishInWeight),
+            ("finishpendingweight", false) => query.OrderBy(x => x.FinishPendingWeight),
+            ("finishpendingweight", true) => query.OrderByDescending(x => x.FinishPendingWeight),
+            ("finishinstatus", false) => query.OrderBy(x => x.FinishInStatus),
+            ("finishinstatus", true) => query.OrderByDescending(x => x.FinishInStatus),
+
+            // G8 库存使用
+            ("inventoryplanweight", false) => query.OrderBy(x => x.InventoryPlanWeight),
+            ("inventoryplanweight", true) => query.OrderByDescending(x => x.InventoryPlanWeight),
+            ("inventoryoutweight", false) => query.OrderBy(x => x.InventoryOutWeight),
+            ("inventoryoutweight", true) => query.OrderByDescending(x => x.InventoryOutWeight),
+            ("inventoryoutstatus", false) => query.OrderBy(x => x.InventoryOutStatus),
+            ("inventoryoutstatus", true) => query.OrderByDescending(x => x.InventoryOutStatus),
+
+            // G9 库料改制
+            ("reworkplanweight", false) => query.OrderBy(x => x.ReworkPlanWeight),
+            ("reworkplanweight", true) => query.OrderByDescending(x => x.ReworkPlanWeight),
+            ("reworkplaninputweight", false) => query.OrderBy(x => x.ReworkPlanInputWeight),
+            ("reworkplaninputweight", true) => query.OrderByDescending(x => x.ReworkPlanInputWeight),
+            ("reworkplaninputstatus", false) => query.OrderBy(x => x.ReworkPlanInputStatus),
+            ("reworkplaninputstatus", true) => query.OrderByDescending(x => x.ReworkPlanInputStatus),
+
+            // G10 在产改制
+            ("inprocessreworkplanweight", false) => query.OrderBy(x => x.InProcessReworkPlanWeight),
+            ("inprocessreworkplanweight", true) => query.OrderByDescending(x => x.InProcessReworkPlanWeight),
+            ("inprocessreworkinputweight", false) => query.OrderBy(x => x.InProcessReworkInputWeight),
+            ("inprocessreworkinputweight", true) => query.OrderByDescending(x => x.InProcessReworkInputWeight),
+            ("inprocessreworkinputstatus", false) => query.OrderBy(x => x.InProcessReworkInputStatus),
+            ("inprocessreworkinputstatus", true) => query.OrderByDescending(x => x.InProcessReworkInputStatus),
+
+            // G11 在产主工单
+            ("inmainplanweight", false) => query.OrderBy(x => x.InMainPlanWeight),
+            ("inmainplanweight", true) => query.OrderByDescending(x => x.InMainPlanWeight),
+            ("inmaininputweight", false) => query.OrderBy(x => x.InMainInputWeight),
+            ("inmaininputweight", true) => query.OrderByDescending(x => x.InMainInputWeight),
+            ("inmaininputstatus", false) => query.OrderBy(x => x.InMainInputStatus),
+            ("inmaininputstatus", true) => query.OrderByDescending(x => x.InMainInputStatus),
+
             _ => query.OrderByDescending(x => x.LastRefreshTime),
         };
     }
@@ -3032,6 +3706,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 x.SalesOrderNo.Contains(kw) ||
                 x.Salesman.Contains(kw) ||
                 x.CustomerName.Contains(kw) ||
+                (x.EndCustomer != null && x.EndCustomer.Contains(kw)) ||
                 x.SettlementMethod.Contains(kw) ||
                 x.MaterialName.Contains(kw) ||
                 x.DeliveryState.Contains(kw) ||
@@ -3061,6 +3736,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             LastRefreshTime = e.LastRefreshTime,
             Salesman = e.Salesman,
             CustomerName = e.CustomerName,
+            EndCustomer = e.EndCustomer,
             SignDate = e.SignDate,
             DeliveryDate = e.DeliveryDate,
             DelayPenalty = e.DelayPenalty,
@@ -3082,9 +3758,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             MaterialPlanStatus = (MaterialPlanStatus)e.MaterialPlanStatus,
             MainNoMaterialPlanRate = e.MainNoMaterialPlanRate,
             MainNoMaterialPlanStatus = (MaterialPlanStatus)e.MainNoMaterialPlanStatus,
+            MainNoPlanExecutionStatus = e.MainNoPlanExecutionStatus,
             MaterialPlanCoveredCount = e.MaterialPlanCoveredCount,
             MaterialPlanProportion = e.MaterialPlanProportion,
             TheoreticalCutoffDate = e.TheoreticalCutoffDate,
+            CutoffArrivalDate = e.CutoffArrivalDate,
+            MainNoCutoffArrivalDate = e.MainNoCutoffArrivalDate,
 
             // G4~G10: 7 种用料计划执行状况
             PiercingPlanWeight = e.PiercingPlanWeight,
@@ -3209,6 +3888,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         // 状态 int→中文
         "MaterialPlanStatus" => item.MaterialPlanStatusText,
         "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatusText,
+        "MainNoPlanExecutionStatus" => item.MainNoPlanExecutionStatusText,
         "InputStatus" => item.InputStatusText,
         "MainNoInputStatus" => item.MainNoInputStatusText,
         "FlowStatus" => item.FlowStatusText,
@@ -3239,6 +3919,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
         "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
         "TheoreticalCutoffDate" => item.TheoreticalCutoffDate?.ToString("yyyy-MM-dd") ?? "",
+        "CutoffArrivalDate" => item.CutoffArrivalDate?.ToString("yyyy-MM-dd") ?? "",
+        "MainNoCutoffArrivalDate" => item.MainNoCutoffArrivalDate?.ToString("yyyy-MM-dd") ?? "",
         "InputStartDate" => item.InputStartDate?.ToString("yyyy-MM-dd") ?? "",
         "InputEndDate" => item.InputEndDate?.ToString("yyyy-MM-dd") ?? "",
         "ReworkInputEndDate" => item.ReworkInputEndDate?.ToString("yyyy-MM-dd") ?? "",
@@ -3260,6 +3942,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         "WorkOrderNo" => item.WorkOrderNo ?? "",
         "Salesman" => item.Salesman ?? "",
         "CustomerName" => item.CustomerName ?? "",
+        "EndCustomer" => item.EndCustomer ?? "",
         "SalesOrderNo" => item.SalesOrderNo ?? "",
         "ProductionMainNo" => item.ProductionMainNo ?? "",
         "ProductionSubNo" => item.ProductionSubNo ?? "",
@@ -3277,6 +3960,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         "TotalAvailableWeight" => item.TotalAvailableWeight,
         "TotalMissingWeight" => item.TotalMissingWeight,
         "ActualInputWeight" => item.ActualInputWeight,
+        "MainNoPlanExecutionStatus" => item.MainNoPlanExecutionStatus,
         "ActualMainNoInputStatus" => item.ActualMainNoInputStatus,
         "PlanInputConsistency" => item.PlanInputConsistency,
 

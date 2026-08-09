@@ -627,6 +627,89 @@ public class PurchaseOrderServiceTests : TestBase
         statuses.Should().Contain(s => s.WorkOrderNo == wo.WorkOrderNo);
     }
 
+    [Fact]
+    public async Task GetProcurementStatusAsync_成品计划订成非交付态_面板独立映射且采购量匹配()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+
+        // 最小工单（InMemory 无外键约束，必填字段按实体契约补全）
+        var wo = new MES.Data.Entities.WorkOrder.WorkOrder
+        {
+            WorkOrderNo = $"WO-SDS-{Guid.NewGuid():N}"[..15],
+            SalesOrderNo = $"SO-SDS-{Guid.NewGuid():N}"[..15],
+            ProductionMainNo = "D01",
+            ProductionSubNo = "C01",
+            OrderItemIds = "[]",
+            Status = WorkOrderStatus.Pending,
+            RowVersion = new byte[8],
+            SignDate = DateTime.Today,
+            Salesman = "测试",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = "GB/T-8163",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            PlantGrade = "20#",
+            Specification = "219*8",
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.5m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = LengthStatus.Fixed,
+            TotalQuantity = 10,
+            TotalMeters = 60,
+            TotalWeight = 2500m,
+            TotalItemCount = 1
+        };
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+
+        // 订成-非交付态成品采购计划
+        var plan = new PurchaseFinishedPlan
+        {
+            WorkOrderId = wo.Id,
+            PlanDate = DateTime.Today,
+            ProductType = FinishedProductType.SpecialDeliveryStatus,
+            RequiredWeight = 3000m,
+            PlantGrade = "20#",
+            Specification = "219*8",
+            LengthStatus = LengthStatus.Fixed,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            StandardCycle = 3
+        };
+        ctx.PurchaseFinishedPlans.Add(plan);
+
+        // 订成-非交付态采购单（应与面板键匹配，不被归并到订单成品）
+        var po = new PurchaseOrder
+        {
+            OrderNo = $"CG{DateTime.Now:yyMMdd}001",
+            SupplierId = sid,
+            SupplierName = "测试供应商",
+            OrderDate = DateTime.Today,
+            Status = PurchaseOrderStatus.Open,
+            MaterialCategory = "SpecialDeliveryStatus",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            Quantity = 10,
+            Weight = 1500m,
+            RequiredDate = DateTime.Today.AddDays(30),
+            SourceWorkOrderNo = wo.WorkOrderNo
+        };
+        ctx.PurchaseOrders.Add(po);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var statuses = await svc.GetProcurementStatusAsync();
+
+        var row = statuses.Should().ContainSingle(s => s.WorkOrderNo == wo.WorkOrderNo).Subject;
+        row.MaterialCategory.Should().Be(MaterialType.SpecialDeliveryStatus);
+        row.PlanWeight.Should().Be(3000m);
+        row.PurchaseWeight.Should().Be(1500m);
+        row.TotalWeight.Should().Be(1500m);
+        row.StatusText.Should().Be("部分采购");
+    }
+
     // ========== B11 专项测试 ==========
 
     [Fact]

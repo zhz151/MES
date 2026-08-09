@@ -11,7 +11,7 @@ public class WorkOrder : BaseEntity
 {
     /// <summary>
     /// 工单号（业务唯一标识）
-    /// 格式：{订单号}-{主号}[-{次号}]，如 PO2026001-D01-C01
+    /// 格式：{订单号}-{主号}[-{次号}]，如 PO2026001-X01-01
     /// </summary>
     public string WorkOrderNo { get; set; } = null!;
 
@@ -22,13 +22,13 @@ public class WorkOrder : BaseEntity
 
     /// <summary>
     /// 主号
-    /// 格式：前缀 + 2位数字（H/D/F/L + 01-99）
+    /// 格式：前缀 + 2位数字（H=焊管 / X=无缝管 + 01-99）
     /// </summary>
     public string ProductionMainNo { get; set; } = null!;
 
     /// <summary>
-    /// 次号（可为空）
-    /// 格式：C + 2位数字（定尺时必填）
+    /// 次号（2 位，全模式非空）
+    /// 格式：定尺=01~99；范围尺/非定尺=F0
     /// </summary>
     public string? ProductionSubNo { get; set; }
 
