@@ -47,6 +47,7 @@ public partial class AppDbContext
             entity.Property(e => e.LengthStatus).HasMaxLength(20);
             entity.Property(e => e.MinLength).HasColumnType("decimal(18,2)");
             entity.Property(e => e.MaxLength).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.CutLengthMatchType).HasMaxLength(20);
 
             // 数量与重量
             entity.Property(e => e.InitialQuantity).IsRequired().HasDefaultValue(0);

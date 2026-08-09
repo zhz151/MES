@@ -86,6 +86,11 @@ public class InventoryBatch : BaseEntity
     /// </summary>
     public decimal? MaxLength { get; set; }
 
+    /// <summary>
+    /// 定尺切割长度匹配标识（CutLengthMatchType 枚举名 "FullMatch"/"MainNoMatch"，null=不适用）
+    /// </summary>
+    public string? CutLengthMatchType { get; set; }
+
     // ========== 数量与重量 ==========
 
     /// <summary>

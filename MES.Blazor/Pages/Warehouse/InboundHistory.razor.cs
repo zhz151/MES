@@ -275,6 +275,8 @@ public partial class InboundHistory
         new() { Key = "ActualSpecification", Label = "实际规格", SortKey = "ActualSpecification", FilterType = "string", Width = "120" },
         new() { Key = "MinLength",           Label = "最小长度", SortKey = "MinLength", FilterType = null, Width = "80" },
         new() { Key = "MaxLength",           Label = "最大长度", SortKey = "MaxLength", FilterType = null, Width = "80" },
+        new() { Key = "CutLengthMatchType",  Label = "符合工单长度", SortKey = "cutlengthmatchtype", FilterType = "enum", Width = "100",
+            EnumOptions = DisplayHelper.GetCutLengthMatchOptions() },
         new() { Key = "Meters",              Label = "米数", SortKey = "Meters", FilterType = null, Width = "80" },
         new() { Key = "DefectReason",        Label = "次品原因", SortKey = "DefectReason", FilterType = "string", Width = "120" },
         new() { Key = "LiabilityType",       Label = "责任类型", SortKey = "LiabilityType", FilterType = "string", Width = "120" },
@@ -298,6 +300,7 @@ public partial class InboundHistory
                 SetNotApplicable(cols, "OrderItemIds");
                 SetNotApplicable(cols, "MinLength");
                 SetNotApplicable(cols, "MaxLength");
+                SetNotApplicable(cols, "CutLengthMatchType");
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
                 SetNotApplicable(cols, "ProductionBatchNo");
@@ -321,6 +324,7 @@ public partial class InboundHistory
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
                 SetNotApplicable(cols, "SourceOrderSequence");
+                SetNotApplicable(cols, "CutLengthMatchType");
                 AssignDefectGroups(cols);
                 break;
             case "WIP":
@@ -337,6 +341,7 @@ public partial class InboundHistory
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "SourceOrderNo");
                 SetNotApplicable(cols, "SourceOrderSequence");
+                SetNotApplicable(cols, "CutLengthMatchType");
                 AssignWipGroups(cols);
                 break;
         }
@@ -411,6 +416,7 @@ public partial class InboundHistory
         SetGroup(cols, "Meters", 4, "入库计量");
         SetGroup(cols, "MinLength", 4, "入库计量");
         SetGroup(cols, "MaxLength", 4, "入库计量");
+        SetGroup(cols, "CutLengthMatchType", 4, "入库计量");
         SetGroup(cols, "LocationArea", 5, "库位管理");
         SetGroup(cols, "LocationRack", 5, "库位管理");
         SetGroup(cols, "Remark", 5, "库位管理");
@@ -1085,6 +1091,16 @@ public partial class InboundHistory
             case "ManufacturingStatus":
                 if (item.ManufacturingStatus.HasValue)
                     builder.AddContent(0, item.ManufacturingStatusDisplay);
+                break;
+            case "CutLengthMatchType":
+                if (item.CutLengthMatchType.HasValue)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", DisplayHelper.GetCutLengthMatchColor(item.CutLengthMatchType.Value));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.CutLengthMatchTypeDisplay)));
+                    builder.CloseComponent();
+                }
                 break;
             case "LiabilityType":
                 if (!string.IsNullOrEmpty(item.LiabilityType))

@@ -289,6 +289,17 @@ public class InventoryController : ControllerBase
     }
 
     /// <summary>
+    /// 全量回填定尺切割长度匹配标识
+    /// </summary>
+    [HttpPost("refresh-all-cut-length-match")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> RefreshAllCutLengthMatch()
+    {
+        var count = await _service.RefreshAllCutLengthMatchAsync();
+        return Ok(ApiResponse.Ok($"已回填 {count} 条入库批次的定尺切割长度匹配标识"));
+    }
+
+    /// <summary>
     /// 更新出库记录
     /// </summary>
     [HttpPut("outbound-records/{id:long}")]

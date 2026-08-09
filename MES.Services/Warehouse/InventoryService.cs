@@ -43,6 +43,7 @@ public class InventoryService : IInventoryService
         LengthStatus = EnumHelper.TryParse<LengthStatus>(b.LengthStatus),
         MinLength = b.MinLength,
         MaxLength = b.MaxLength,
+        CutLengthMatchType = EnumHelper.TryParse<CutLengthMatchType>(b.CutLengthMatchType),
         InitialQuantity = b.InitialQuantity,
         InitialWeight = b.InitialWeight,
         UnitWeight = b.UnitWeight,
@@ -292,6 +293,11 @@ public class InventoryService : IInventoryService
             "lengthstatus" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.LengthStatus ?? "")
                 : queryable.OrderBy(b => b.LengthStatus ?? ""),
+            "cutlengthmatchtype" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.CutLengthMatchType == nameof(CutLengthMatchType.FullMatch) ? 0
+                    : b.CutLengthMatchType == nameof(CutLengthMatchType.MainNoMatch) ? 1 : 2)
+                : queryable.OrderBy(b => b.CutLengthMatchType == nameof(CutLengthMatchType.FullMatch) ? 0
+                    : b.CutLengthMatchType == nameof(CutLengthMatchType.MainNoMatch) ? 1 : 2),
             "workorderno" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.WorkOrderNo ?? "")
                 : queryable.OrderBy(b => b.WorkOrderNo ?? ""),
@@ -768,4 +774,9 @@ public class InventoryService : IInventoryService
             };
         }) ?? new Dictionary<string, List<string>>();
     }
+
+    /// <summary>
+    /// 全量回填定尺切割长度匹配标识，返回更新条数（委托写服务）
+    /// </summary>
+    public async Task<int> RefreshAllCutLengthMatchAsync() => await _batchWriteService.RefreshAllCutLengthMatchAsync();
 }

@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Data;
 using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.WorkOrder;
 using MES.Core.Helpers;
+using MES.Core.Constants;
 using MES.Core.DTOs.Batch;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
@@ -12,6 +14,7 @@ using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Warehouse;
 using MES.Data;
 using MES.Data.Entities;
+using MES.Data.Entities.Batch;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.WorkOrder;
 using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
@@ -27,6 +30,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
     private readonly ILogger<InventoryBatchWriteService> _logger;
     private readonly IInventorySyncService _syncService;
     private readonly INotificationService _notificationService;
+    private readonly IFixedLengthWorkOrderService _fixedLengthWorkOrderService;
     private static readonly SemaphoreSlim _batchNoLock = new(1, 1);
 
     private static InventoryBatchDto BatchToDto(InventoryBatch b) => new()
@@ -45,6 +49,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         LengthStatus = EnumHelper.TryParse<LengthStatus>(b.LengthStatus),
         MinLength = b.MinLength,
         MaxLength = b.MaxLength,
+        CutLengthMatchType = EnumHelper.TryParse<CutLengthMatchType>(b.CutLengthMatchType),
         InitialQuantity = b.InitialQuantity,
         InitialWeight = b.InitialWeight,
         UnitWeight = b.UnitWeight,
@@ -70,6 +75,70 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         SourceOrderSequence = b.SourceOrderSequence
     };
 
+    // ========== 定尺切割长度匹配标识 ==========
+
+    /// <summary>
+    /// 成品入库物料类型集合（FG 成品，等价成品判定）
+    /// </summary>
+    private static readonly HashSet<string> _fgMaterialTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        InventoryMaterialTypes.Finished,
+        InventoryMaterialTypes.OrderFinished,
+        InventoryMaterialTypes.CriticalFinished,
+        InventoryMaterialTypes.SpecialDeliveryStatus
+    };
+
+    /// <summary>
+    /// 定尺切割长度匹配标识计算（纯判定，ToList 后内存比较）。
+    /// 适用条件：FG 成品物料 + 定尺 + 关联可解析 + 长度映射存在；命中本工单号定尺集合 → 完全匹配；命中订单+主号集合 → 主号匹配；否则 null。
+    /// </summary>
+    private static string? ComputeCutLengthMatch(string? materialType, string? lengthStatus, decimal? minLength,
+        FixedLengthLengthMaps? maps, (string WorkOrderNo, string SalesOrderNo, string ProductionMainNo)? assoc)
+    {
+        if (string.IsNullOrEmpty(materialType)) return null;
+        if (!_fgMaterialTypes.Contains(materialType)) return null;
+        if (!string.Equals(lengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase)) return null;
+        if (assoc == null || maps == null) return null;
+
+        var woLengths = maps.ByWorkOrderNo.GetValueOrDefault(assoc.Value.WorkOrderNo, new HashSet<decimal>());
+        var mainNoLengths = maps.ByMainKey.GetValueOrDefault($"{assoc.Value.SalesOrderNo.Trim()}|{assoc.Value.ProductionMainNo.Trim()}", new HashSet<decimal>());
+        return CutLengthMatchHelper.Match(woLengths, mainNoLengths, minLength)?.ToString();
+    }
+
+    /// <summary>
+    /// 解析入库批次的工单关联（工单号/订单号/主号）：生产批号为主 → 生产批次；工单号兜底 → 工单。
+    /// 支持传入预载字典避免 N+1；未传则逐条查询。返回 null 表示两者皆不可解析。
+    /// </summary>
+    private async Task<(string WorkOrderNo, string SalesOrderNo, string ProductionMainNo)?> ResolveAssociationAsync(InventoryBatch entity,
+        Dictionary<string, ProductionBatch>? batchDict = null, Dictionary<string, WoEntity>? workOrderDict = null)
+    {
+        if (!string.IsNullOrEmpty(entity.ProductionBatchNo))
+        {
+            ProductionBatch? pb = null;
+            if (batchDict != null)
+                batchDict.TryGetValue(entity.ProductionBatchNo, out pb);
+            else
+                pb = await _context.ProductionBatches.AsNoTracking()
+                    .FirstOrDefaultAsync(b => b.BatchNo == entity.ProductionBatchNo);
+            if (pb != null)
+                return (pb.WorkOrderNo, pb.SalesOrderNo, pb.ProductionMainNo);
+        }
+
+        if (!string.IsNullOrEmpty(entity.WorkOrderNo))
+        {
+            WoEntity? wo = null;
+            if (workOrderDict != null)
+                workOrderDict.TryGetValue(entity.WorkOrderNo, out wo);
+            else
+                wo = await _context.WorkOrders.AsNoTracking()
+                    .FirstOrDefaultAsync(w => w.WorkOrderNo == entity.WorkOrderNo);
+            if (wo != null)
+                return (wo.WorkOrderNo, wo.SalesOrderNo, wo.ProductionMainNo);
+        }
+
+        return null;
+    }
+
     public InventoryBatchWriteService(
         AppDbContext context,
         IWorkOrderExecutionService workOrderExecutionService,
@@ -77,6 +146,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         IProductionRecordService productionRecordService,
         IInventorySyncService syncService,
         INotificationService notificationService,
+        IFixedLengthWorkOrderService fixedLengthWorkOrderService,
         ILogger<InventoryBatchWriteService> logger)
     {
         _context = context;
@@ -85,6 +155,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         _productionRecordService = productionRecordService;
         _syncService = syncService;
         _notificationService = notificationService;
+        _fixedLengthWorkOrderService = fixedLengthWorkOrderService;
         _logger = logger;
     }
 
@@ -325,6 +396,11 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             entity.IsLinkedToWorkOrder = false;
         }
 
+        // 定尺切割长度匹配标识（生产批号为主 + 工单号兜底解析关联，长度映射一次取全表）
+        var assoc = await ResolveAssociationAsync(entity);
+        var lengthMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+        entity.CutLengthMatchType = ComputeCutLengthMatch(entity.MaterialType, entity.LengthStatus, entity.MinLength, lengthMaps, assoc);
+
         _context.InventoryBatches.Add(entity);
         await _context.SaveChangesAsync();
 
@@ -374,6 +450,19 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                         .ToDictionaryAsync(w => w.WorkOrderNo, w => w)
                     : new Dictionary<string, WoEntity>();
 
+                // 预载生产批次字典（生产批号为主关联解析）+ 定尺长度映射一次取全表
+                var distinctBatchNos = request.Rows
+                    .Select(r => r.ProductionBatchNo ?? request.ProductionBatchNo)
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .Distinct()
+                    .ToList();
+                var productionBatches = distinctBatchNos.Count > 0
+                    ? await _context.ProductionBatches.AsNoTracking()
+                        .Where(b => distinctBatchNos.Contains(b.BatchNo))
+                        .ToDictionaryAsync(b => b.BatchNo, b => b, StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, ProductionBatch>();
+                var lengthMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+
                 for (int i = 0; i < request.Rows.Count; i++)
                 {
                     var row = request.Rows[i];
@@ -420,6 +509,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                     };
 
                     AutoFillWorkOrderInfo(entity, workOrders);
+
+                    // 定尺切割长度匹配标识（生产批号为主 + 工单号兜底）
+                    var rowAssoc = await ResolveAssociationAsync(entity, productionBatches, workOrders);
+                    entity.CutLengthMatchType = ComputeCutLengthMatch(entity.MaterialType, entity.LengthStatus, entity.MinLength, lengthMaps, rowAssoc);
 
                     _context.InventoryBatches.Add(entity);
                     createdEntities.Add(entity);
@@ -568,6 +661,12 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
         await _context.SaveChangesAsync();
 
+        // 定尺切割长度匹配标识重算（长度状态/最小长度可能已变更）
+        var updAssoc = await ResolveAssociationAsync(entity);
+        var updMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+        entity.CutLengthMatchType = ComputeCutLengthMatch(entity.MaterialType, entity.LengthStatus, entity.MinLength, updMaps, updAssoc);
+        await _context.SaveChangesAsync();
+
         // 入库一致性通知（仅提醒）
         await CheckInboundConsistencyAndNotifyAsync(entity);
 
@@ -617,6 +716,58 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                 }
             }
         }
+    }
+
+    public async Task<int> RefreshAllCutLengthMatchAsync()
+    {
+        // 跟踪加载全部入库批次（直接赋值 + SaveChanges 持久化）
+        var batches = await _context.InventoryBatches.ToListAsync();
+
+        // 预载生产批次字典 + 工单字典 + 定尺长度映射（Chunk 防 SQL Server 2100 参数上限）
+        var batchNos = batches.Select(b => b.ProductionBatchNo)
+            .Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+        var productionBatches = new Dictionary<string, ProductionBatch>(StringComparer.OrdinalIgnoreCase);
+        foreach (var chunk in batchNos.Chunk(1000))
+        {
+            foreach (var pb in await _context.ProductionBatches.AsNoTracking()
+                .Where(b => chunk.Contains(b.BatchNo))
+                .ToListAsync())
+            {
+                productionBatches[pb.BatchNo] = pb;
+            }
+        }
+
+        var woNos = batches.Select(b => b.WorkOrderNo)
+            .Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+        var workOrders = new Dictionary<string, WoEntity>(StringComparer.OrdinalIgnoreCase);
+        foreach (var chunk in woNos.Chunk(1000))
+        {
+            foreach (var wo in await _context.WorkOrders.AsNoTracking()
+                .Where(w => chunk.Contains(w.WorkOrderNo))
+                .ToListAsync())
+            {
+                workOrders[wo.WorkOrderNo] = wo;
+            }
+        }
+
+        var lengthMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+
+        var updated = 0;
+        foreach (var batch in batches)
+        {
+            var assoc = await ResolveAssociationAsync(batch, productionBatches, workOrders);
+            var value = ComputeCutLengthMatch(batch.MaterialType, batch.LengthStatus, batch.MinLength, lengthMaps, assoc);
+            if (batch.CutLengthMatchType != value)
+            {
+                batch.CutLengthMatchType = value;
+                updated++;
+            }
+        }
+
+        if (updated > 0)
+            await _context.SaveChangesAsync();
+
+        return updated;
     }
 
     private async Task<string> GenerateBatchNoAsync()

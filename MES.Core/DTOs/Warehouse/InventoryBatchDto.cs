@@ -32,6 +32,8 @@ public class InventoryBatchDto
     public LengthStatus? LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
+    public CutLengthMatchType? CutLengthMatchType { get; set; }
+    public string? CutLengthMatchTypeDisplay => CutLengthMatchHelper.GetText(CutLengthMatchType);
 
     // 数量重量
     public int InitialQuantity { get; set; }
