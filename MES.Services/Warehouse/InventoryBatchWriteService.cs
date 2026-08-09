@@ -90,11 +90,13 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
     /// <summary>
     /// 定尺切割长度匹配标识计算（纯判定，ToList 后内存比较）。
-    /// 适用条件：FG 成品物料 + 定尺 + 关联可解析 + 长度映射存在；命中本工单号定尺集合 → 完全匹配；命中订单+主号集合 → 主号匹配；否则 null。
+    /// 适用条件：成品库(FG) + FG 成品物料 + 定尺 + 关联可解析 + 长度映射存在；命中本工单号定尺集合 → 完全匹配；命中订单+主号集合 → 主号匹配；否则 null。
+    /// 其他库房（次品库等）即使有生产批号关联的入库也不核查（库房维度为准，与前端列显隐一致）。
     /// </summary>
-    private static string? ComputeCutLengthMatch(string? materialType, string? lengthStatus, decimal? minLength,
+    private static string? ComputeCutLengthMatch(string? warehouseCode, string? materialType, string? lengthStatus, decimal? minLength,
         FixedLengthLengthMaps? maps, (string WorkOrderNo, string SalesOrderNo, string ProductionMainNo)? assoc)
     {
+        if (!string.Equals(warehouseCode, "FG", StringComparison.OrdinalIgnoreCase)) return null;
         if (string.IsNullOrEmpty(materialType)) return null;
         if (!_fgMaterialTypes.Contains(materialType)) return null;
         if (!string.Equals(lengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase)) return null;
@@ -396,10 +398,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             entity.IsLinkedToWorkOrder = false;
         }
 
-        // 定尺切割长度匹配标识（生产批号为主 + 工单号兜底解析关联，长度映射一次取全表）
+        // 定尺切割长度匹配标识（生产批号为主 + 工单号兜底解析关联，长度映射一次取全表；仅成品库 FG 核查）
         var assoc = await ResolveAssociationAsync(entity);
         var lengthMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
-        entity.CutLengthMatchType = ComputeCutLengthMatch(entity.MaterialType, entity.LengthStatus, entity.MinLength, lengthMaps, assoc);
+        entity.CutLengthMatchType = ComputeCutLengthMatch(warehouse.Code, entity.MaterialType, entity.LengthStatus, entity.MinLength, lengthMaps, assoc);
 
         _context.InventoryBatches.Add(entity);
         await _context.SaveChangesAsync();
@@ -510,9 +512,9 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
                     AutoFillWorkOrderInfo(entity, workOrders);
 
-                    // 定尺切割长度匹配标识（生产批号为主 + 工单号兜底）
+                    // 定尺切割长度匹配标识（生产批号为主 + 工单号兜底；仅成品库 FG 核查）
                     var rowAssoc = await ResolveAssociationAsync(entity, productionBatches, workOrders);
-                    entity.CutLengthMatchType = ComputeCutLengthMatch(entity.MaterialType, entity.LengthStatus, entity.MinLength, lengthMaps, rowAssoc);
+                    entity.CutLengthMatchType = ComputeCutLengthMatch(warehouse.Code, entity.MaterialType, entity.LengthStatus, entity.MinLength, lengthMaps, rowAssoc);
 
                     _context.InventoryBatches.Add(entity);
                     createdEntities.Add(entity);
@@ -661,10 +663,14 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
 
         await _context.SaveChangesAsync();
 
-        // 定尺切割长度匹配标识重算（长度状态/最小长度可能已变更）
+        // 定尺切割长度匹配标识重算（长度状态/最小长度可能已变更；仅成品库 FG 核查）
         var updAssoc = await ResolveAssociationAsync(entity);
         var updMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
-        entity.CutLengthMatchType = ComputeCutLengthMatch(entity.MaterialType, entity.LengthStatus, entity.MinLength, updMaps, updAssoc);
+        var updWhCode = await _context.Warehouses.AsNoTracking()
+            .Where(w => w.Id == entity.WarehouseId)
+            .Select(w => w.Code)
+            .FirstOrDefaultAsync();
+        entity.CutLengthMatchType = ComputeCutLengthMatch(updWhCode, entity.MaterialType, entity.LengthStatus, entity.MinLength, updMaps, updAssoc);
         await _context.SaveChangesAsync();
 
         // 入库一致性通知（仅提醒）
@@ -750,13 +756,19 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             }
         }
 
+        // 预载库房代码字典（仅成品库 FG 核查）
+        var warehouseCodes = await _context.Warehouses.AsNoTracking()
+            .Where(w => batches.Select(b => b.WarehouseId).Contains(w.Id))
+            .ToDictionaryAsync(w => w.Id, w => w.Code);
+
         var lengthMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
 
         var updated = 0;
         foreach (var batch in batches)
         {
             var assoc = await ResolveAssociationAsync(batch, productionBatches, workOrders);
-            var value = ComputeCutLengthMatch(batch.MaterialType, batch.LengthStatus, batch.MinLength, lengthMaps, assoc);
+            warehouseCodes.TryGetValue(batch.WarehouseId, out var whCode);
+            var value = ComputeCutLengthMatch(whCode, batch.MaterialType, batch.LengthStatus, batch.MinLength, lengthMaps, assoc);
             if (batch.CutLengthMatchType != value)
             {
                 batch.CutLengthMatchType = value;

@@ -187,11 +187,29 @@ public class InventoryServiceTests : TestBase
         return fixedLenMock;
     }
 
+    /// <summary>种子成品库（FG），定尺切割长度匹配仅在此库核查</summary>
+    private async Task<Warehouse> SeedFgWarehouseAsync(AppDbContext ctx)
+    {
+        var wh = new Warehouse { Name = "成品库", Code = "FG" };
+        ctx.Warehouses.Add(wh);
+        await ctx.SaveChangesAsync();
+        return wh;
+    }
+
+    /// <summary>种子次品库（DEFECT），不参与定尺切割长度匹配核查</summary>
+    private async Task<Warehouse> SeedDefectWarehouseAsync(AppDbContext ctx)
+    {
+        var wh = new Warehouse { Name = "次品库", Code = "DEFECT" };
+        ctx.Warehouses.Add(wh);
+        await ctx.SaveChangesAsync();
+        return wh;
+    }
+
     [Fact]
     public async Task InboundAsync_生产批号关联_定尺长度命中本工单号_完全匹配()
     {
         var ctx = CreateDbContext();
-        var wh = await SeedWarehouseAsync(ctx);
+        var wh = await SeedFgWarehouseAsync(ctx);
         await SeedProductionBatchAsync(ctx, "PB-001", "SO-X01-01", "SO-X01", "X01");
 
         var maps = BuildLengthMaps(("SO-X01-01", 6000m));
@@ -222,7 +240,7 @@ public class InventoryServiceTests : TestBase
     public async Task InboundAsync_生产批号关联_定尺长度仅命中主号_主号匹配()
     {
         var ctx = CreateDbContext();
-        var wh = await SeedWarehouseAsync(ctx);
+        var wh = await SeedFgWarehouseAsync(ctx);
         await SeedProductionBatchAsync(ctx, "PB-002", "SO-X01-01", "SO-X01", "X01");
 
         var maps = BuildLengthMaps(("SO-X01-01", 6500m)); // 本工单号定尺 6500，无 6000
@@ -253,7 +271,7 @@ public class InventoryServiceTests : TestBase
     public async Task InboundAsync_工单号兜底关联_定尺长度命中_完全匹配()
     {
         var ctx = CreateDbContext();
-        var wh = await SeedWarehouseAsync(ctx);
+        var wh = await SeedFgWarehouseAsync(ctx);
         await SeedWorkOrderAsync(ctx, "SO-X01-02", "SO-X01", "X01");
 
         var maps = BuildLengthMaps(("SO-X01-02", 6000m));
@@ -284,7 +302,7 @@ public class InventoryServiceTests : TestBase
     public async Task InboundAsync_非成品物料_不适用()
     {
         var ctx = CreateDbContext();
-        var wh = await SeedWarehouseAsync(ctx);
+        var wh = await SeedFgWarehouseAsync(ctx);
 
         var maps = BuildLengthMaps(("SO-X01-01", 6000m));
         maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
@@ -313,7 +331,7 @@ public class InventoryServiceTests : TestBase
     public async Task InboundAsync_非定尺_不适用()
     {
         var ctx = CreateDbContext();
-        var wh = await SeedWarehouseAsync(ctx);
+        var wh = await SeedFgWarehouseAsync(ctx);
 
         var maps = BuildLengthMaps(("SO-X01-01", 6000m));
         maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
@@ -342,7 +360,7 @@ public class InventoryServiceTests : TestBase
     public async Task RefreshAllCutLengthMatchAsync_回填_生产批号为主工单号兜底()
     {
         var ctx = CreateDbContext();
-        var wh = await SeedWarehouseAsync(ctx);
+        var wh = await SeedFgWarehouseAsync(ctx);
         await SeedProductionBatchAsync(ctx, "PB-003", "SO-X01-01", "SO-X01", "X01");
         await SeedWorkOrderAsync(ctx, "SO-Y01-01", "SO-Y01", "Y01");
 
@@ -366,6 +384,38 @@ public class InventoryServiceTests : TestBase
         after.Single(b => b.BatchNo == "CK100").CutLengthMatchType.Should().Be("FullMatch");
         after.Single(b => b.BatchNo == "CK101").CutLengthMatchType.Should().Be("FullMatch");
         after.Single(b => b.BatchNo == "CK102").CutLengthMatchType.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task InboundAsync_非成品库_即使关联可解析_不核查()
+    {
+        // 用户强调：核查仅针对成品库(FG)，次品库等其他库房即使有生产批号关联的定尺入库也不核查
+        var ctx = CreateDbContext();
+        var wh = await SeedDefectWarehouseAsync(ctx); // DEFECT 次品库
+        await SeedProductionBatchAsync(ctx, "PB-004", "SO-X01-01", "SO-X01", "X01");
+
+        var maps = BuildLengthMaps(("SO-X01-01", 6000m));
+        maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
+        var svc = CreateService(ctx, FixedLenMockWith(maps));
+
+        var result = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.Finished, // 即使是成品物料
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            LengthStatus = LengthStatus.Fixed,
+            MinLength = 6000m,
+            MaxLength = 6000m,
+            ProductionBatchNo = "PB-004", // 且生产批号可解析
+            InboundDate = DateTime.Today
+        });
+
+        result.CutLengthMatchType.Should().BeNull(); // 非成品库 → 不核查
     }
 
     // ========== 出库 ==========
