@@ -55,7 +55,7 @@ public partial class PendingDelivery
     {
         // Group 1：订单关联
         new() { Key = "salesorderno",       Label = "订单号",     SortKey = "SalesOrderNo",    FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 订单关联" },
-        new() { Key = "orderitemids",       Label = "项次",       SortKey = "OrderItemIds",    FilterType = "string", Width = "60",  GroupKey = 1, GroupName = "① 订单关联" },
+        new() { Key = "productionmainno",   Label = "主号",       SortKey = "ProductionMainNo",FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "workorderno",        Label = "工单号",     SortKey = "WorkOrderNo",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "salesman",           Label = "业务员",     SortKey = "Salesman",        FilterType = "string", Width = "60",  GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "customername",       Label = "客户名称",   SortKey = "CustomerName",    FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
@@ -515,7 +515,7 @@ public partial class PendingDelivery
         "remainingmeters" => item.RemainingMeters,
         "inbounddate" => item.InboundDate,
         "salesorderno" => item.SalesOrderNo,
-        "orderitemids" => item.OrderItemIds,
+        "productionmainno" => item.ProductionMainNo,
         "workorderno" => item.WorkOrderNo,
         "customername" => item.CustomerName,
         "salesman" => item.Salesman,
@@ -628,8 +628,8 @@ public partial class PendingDelivery
             case "salesorderno":
                 builder.AddContent(0, item.SalesOrderNo ?? "-");
                 break;
-            case "orderitemids":
-                builder.AddContent(0, item.OrderItemIds ?? "-");
+            case "productionmainno":
+                builder.AddContent(0, item.ProductionMainNo ?? "-");
                 break;
             case "workorderno":
                 builder.AddContent(0, item.WorkOrderNo ?? "-");

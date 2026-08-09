@@ -47,8 +47,8 @@ public class PendingDeliveryItemDto
     // ========== 订单关联信息（从 SalesOrder + OrderItem 关联） ==========
     /// <summary>订单号</summary>
     public string? SalesOrderNo { get; set; }
-    /// <summary>项次</summary>
-    public string? OrderItemIds { get; set; }
+    /// <summary>主号</summary>
+    public string? ProductionMainNo { get; set; }
     /// <summary>工单号</summary>
     public string? WorkOrderNo { get; set; }
     /// <summary>客户名称</summary>

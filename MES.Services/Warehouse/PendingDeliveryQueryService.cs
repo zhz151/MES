@@ -75,7 +75,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                     (d.Specification ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.LengthStatus?.ToString() ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.SalesOrderNo ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
-                    (d.OrderItemIds ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
+                    (d.ProductionMainNo ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.WorkOrderNo ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.CustomerName ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                     (d.Salesman ?? "").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
@@ -188,7 +188,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         AddDistinct("MaterialType", dtos.Select(d => d.MaterialType.ToString()));
         AddDistinct("InboundSource", dtos.Select(d => d.InboundSource.ToString()));
         AddDistinct("SourceName", dtos.Select(d => d.SourceName));
-        AddDistinct("OrderItemIds", dtos.Select(d => d.OrderItemIds));
+        AddDistinct("ProductionMainNo", dtos.Select(d => d.ProductionMainNo));
         AddDistinct("WorkOrderNo", dtos.Select(d => d.WorkOrderNo));
         AddDistinct("LengthStatus", dtos.Select(d => d.LengthStatus?.ToString()));
         AddDistinct("Salesman", dtos.Select(d => d.Salesman));
@@ -322,12 +322,12 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
             var workOrders = await _context.Set<MES.Data.Entities.WorkOrder.WorkOrder>()
                 .AsNoTracking()
                 .Where(w => woNos.Contains(w.WorkOrderNo))
-                .Select(w => new { w.WorkOrderNo, w.SalesOrderNo, w.OrderItemIds })
+                .Select(w => new { w.WorkOrderNo, w.SalesOrderNo, w.OrderItemIds, w.ProductionMainNo })
                 .ToListAsync();
 
             result.WorkOrderDict = workOrders.ToDictionary(
                 w => w.WorkOrderNo,
-                w => (w.SalesOrderNo, w.OrderItemIds),
+                w => (w.SalesOrderNo, w.OrderItemIds, w.ProductionMainNo),
                 StringComparer.OrdinalIgnoreCase);
 
             // 合并 WorkOrder 中的订单号到查询列表
@@ -406,9 +406,11 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
 
         foreach (var batch in batches)
         {
-            // 优先从 WorkOrder 反推 SalesOrderNo 和 OrderItemIds
+            // 优先从 WorkOrder 反推 SalesOrderNo、OrderItemIds 和 ProductionMainNo
+            // （OrderItemIds 仅作内部解析「产品标准/标准等级/交货状态」的关联键，查询/显示已改用主号）
             var resolvedSalesOrderNo = batch.SalesOrderNo;
             var resolvedOrderItemIds = batch.OrderItemIds;
+            var resolvedProductionMainNo = batch.ProductionMainNo;
 
             if (!string.IsNullOrEmpty(batch.WorkOrderNo)
                 && refData.WorkOrderDict.TryGetValue(batch.WorkOrderNo, out var woInfo))
@@ -417,6 +419,8 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                     resolvedSalesOrderNo = woInfo.SalesOrderNo;
                 if (!string.IsNullOrEmpty(woInfo.OrderItemIds))
                     resolvedOrderItemIds = woInfo.OrderItemIds;
+                if (!string.IsNullOrEmpty(woInfo.ProductionMainNo))
+                    resolvedProductionMainNo = woInfo.ProductionMainNo;
             }
 
             // 解析该项次的 OrderItem
@@ -483,7 +487,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                 RemainingMeters = batch.RemainingMeters,
                 InboundDate = batch.InboundDate,
                 SalesOrderNo = resolvedSalesOrderNo,
-                OrderItemIds = resolvedOrderItemIds,
+                ProductionMainNo = resolvedProductionMainNo,
                 WorkOrderNo = batch.WorkOrderNo,
                 CustomerName = customerName,
                 Salesman = salesman,
@@ -518,7 +522,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
 
     private class ReferenceDataCache
     {
-        public Dictionary<string, (string SalesOrderNo, string OrderItemIds)> WorkOrderDict
+        public Dictionary<string, (string SalesOrderNo, string OrderItemIds, string ProductionMainNo)> WorkOrderDict
             = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, SalesOrderInfo> OrderDict
             = new(StringComparer.OrdinalIgnoreCase);

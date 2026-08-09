@@ -248,6 +248,7 @@
         public bool IsLinkedToWorkOrder { get; set; }
         public string? WorkOrderNo { get; set; }
         public string? SalesOrderNo { get; set; }
+        public string? ProductionMainNo { get; set; }
         public string? OrderItemIds { get; set; }
         public string? SourceOrderNo { get; set; }
         public int? SourceOrderSequence { get; set; }
@@ -307,6 +308,7 @@
             new() { Key = "TagNo",               Label = "挂牌号",         IsCommon = true, Visible = false },
             new() { Key = "DefectRemark",        Label = "次品备注",       IsCommon = true, Visible = false },
             new() { Key = "SalesOrderNo",        Label = "订单号",         IsCommon = true, Visible = false },
+            new() { Key = "ProductionMainNo",    Label = "主号",           IsCommon = true, Visible = false },
             new() { Key = "OrderItemIds",        Label = "项次",           IsCommon = true, Visible = false },
         };
     }
@@ -462,6 +464,7 @@
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
                 SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "ProductionMainNo");
                 SetNotApplicable(cols, "OrderItemIds");
                 SetNotApplicable(cols, "IsLinkedToWorkOrder");
                 AssignRawGroups(cols);
@@ -480,10 +483,11 @@
                 AssignFgGroups(cols);
                 break;
             case "DEFECT":
-                // 次品库不含：米数/实际规格/委外序号
+                // 次品库不含：米数/实际规格/委外序号/项次（已弃用，待阶段二删除）
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
                 SetNotApplicable(cols, "SourceOrderSequence");
+                SetNotApplicable(cols, "OrderItemIds");
                 AssignDefectGroups(cols);
                 break;
             case "WIP":
@@ -494,6 +498,7 @@
                 SetNotApplicable(cols, "IsLinkedToWorkOrder");
                 SetNotApplicable(cols, "WorkOrderNo");
                 SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "ProductionMainNo");
                 SetNotApplicable(cols, "OrderItemIds");
                 SetNotApplicable(cols, "DefectReason");
                 SetNotApplicable(cols, "LiabilityType");
@@ -556,6 +561,7 @@
         SetGroup(cols, "SourceOrderNo", 1, "来源信息");
         SetGroup(cols, "ProductionBatchNo", 1, "来源信息");
         SetGroup(cols, "SalesOrderNo", 2, "订单信息");
+        SetGroup(cols, "ProductionMainNo", 2, "订单信息");
         SetGroup(cols, "OrderItemIds", 2, "订单信息");
         SetGroup(cols, "WorkOrderNo", 2, "订单信息");
         SetGroup(cols, "IsLinkedToWorkOrder", 2, "订单信息");
@@ -622,6 +628,7 @@
         SetGroup(cols, "OriginalSupplier", 5, "次品信息");
         SetGroup(cols, "DefectRemark", 5, "次品信息");
         SetGroup(cols, "SalesOrderNo", 6, "可填充");
+        SetGroup(cols, "ProductionMainNo", 6, "可填充");
         SetGroup(cols, "OrderItemIds", 6, "可填充");
         SetGroup(cols, "IsLinkedToWorkOrder", 6, "可填充");
         SetGroup(cols, "WorkOrderNo", 6, "可填充");
@@ -803,6 +810,7 @@
                     case "Remark": newRow.Remark = source.Remark; break;
                     case "WorkOrderNo": newRow.WorkOrderNo = source.WorkOrderNo; break;
                     case "SalesOrderNo": newRow.SalesOrderNo = source.SalesOrderNo; break;
+                    case "ProductionMainNo": newRow.ProductionMainNo = source.ProductionMainNo; break;
                     case "OrderItemIds": newRow.OrderItemIds = source.OrderItemIds; break;
                     case "SourceOrderNo": newRow.SourceOrderNo = source.SourceOrderNo; break;
                     case "SourceOrderSequence": newRow.SourceOrderSequence = source.SourceOrderSequence; break;
@@ -909,6 +917,10 @@
                 if (!string.IsNullOrEmpty(row.SalesOrderNo))
                     builder.AddContent(0, row.SalesOrderNo);
                 break;
+            case "ProductionMainNo":
+                if (!string.IsNullOrEmpty(row.ProductionMainNo))
+                    builder.AddContent(0, row.ProductionMainNo);
+                break;
             case "OrderItemIds":
                 if (!string.IsNullOrEmpty(row.OrderItemIds))
                     builder.AddContent(0, row.OrderItemIds);
@@ -991,7 +1003,7 @@
     {
         "MaterialType", "PlantGrade", "Specification",
         "SourceName", "IsLinkedToWorkOrder", "WorkOrderNo",
-        "SalesOrderNo", "OrderItemIds"
+        "SalesOrderNo", "ProductionMainNo"
     };
 
     private bool IsAutoFillReadOnly(InboundRowModel row, string key) =>
@@ -1067,6 +1079,7 @@
                     {
                         row.WorkOrderNo = null;
                         row.SalesOrderNo = null;
+                        row.ProductionMainNo = null;
                         row.OrderItemIds = null;
                     }
                 }));
@@ -1159,6 +1172,7 @@
         "Remark" => row.Remark,
         "WorkOrderNo" => row.WorkOrderNo,
         "SalesOrderNo" => row.SalesOrderNo,
+        "ProductionMainNo" => row.ProductionMainNo,
         "OrderItemIds" => row.OrderItemIds,
         "SourceOrderNo" => row.SourceOrderNo,
         "ActualSpecification" => row.ActualSpecification,
@@ -1189,6 +1203,7 @@
             case "Remark": row.Remark = value; break;
             case "WorkOrderNo": row.WorkOrderNo = value; row.IsLinkedToWorkOrder = !string.IsNullOrEmpty(value); break;
             case "SalesOrderNo": row.SalesOrderNo = value; break;
+            case "ProductionMainNo": row.ProductionMainNo = value; break;
             case "OrderItemIds": row.OrderItemIds = value; break;
             case "SourceOrderNo": row.SourceOrderNo = value; _ = TriggerAutoFillAsync(row); break;
             case "ActualSpecification": row.ActualSpecification = value; break;
@@ -1245,6 +1260,7 @@
         row.IsLinkedToWorkOrder = source.IsLinkedToWorkOrder;
         row.WorkOrderNo = source.WorkOrderNo;
         row.SalesOrderNo = source.SalesOrderNo;
+        row.ProductionMainNo = source.ProductionMainNo;
         row.OrderItemIds = source.OrderItemIds;
         row.SourceOrderNo = source.SourceOrderNo;
         row.SourceOrderSequence = source.SourceOrderSequence;
@@ -1315,13 +1331,14 @@
 
         var errors = new List<string>();
 
-        // 工单号为空时清空「订单信息」组字段（关联工单=否，工单号/订单号/项次全空）
+        // 工单号为空时清空「订单信息」组字段（关联工单=否，工单号/订单号/主号/项次全空）
         foreach (var r in _rows)
         {
             if (string.IsNullOrEmpty(r.WorkOrderNo))
             {
                 r.IsLinkedToWorkOrder = false;
                 r.SalesOrderNo = null;
+                r.ProductionMainNo = null;
                 r.OrderItemIds = null;
             }
         }
@@ -1427,6 +1444,7 @@
                 TagNo = first.TagNo,
                 DefectRemark = first.DefectRemark,
                 SalesOrderNo = string.IsNullOrEmpty(first.SalesOrderNo) ? null : first.SalesOrderNo,
+                ProductionMainNo = string.IsNullOrEmpty(first.ProductionMainNo) ? null : first.ProductionMainNo,
                 OrderItemIds = string.IsNullOrEmpty(first.OrderItemIds) ? null : first.OrderItemIds,
                 IsLinkedToWorkOrder = first.IsLinkedToWorkOrder ? true : null,
                 WorkOrderNo = first.WorkOrderNo,
@@ -1461,6 +1479,7 @@
                     ProductionBatchNo = r.ProductionBatchNo,
                     ActualSpecification = r.ActualSpecification,
                     SalesOrderNo = string.IsNullOrEmpty(r.SalesOrderNo) ? null : r.SalesOrderNo,
+                    ProductionMainNo = string.IsNullOrEmpty(r.ProductionMainNo) ? null : r.ProductionMainNo,
                     OrderItemIds = string.IsNullOrEmpty(r.OrderItemIds) ? null : r.OrderItemIds,
                     IsLinkedToWorkOrder = r.IsLinkedToWorkOrder ? true : null,
                     WorkOrderNo = r.WorkOrderNo,
@@ -1533,6 +1552,7 @@
                 case "SourceName": row.SourceName = null; break;
                 case "WorkOrderNo": row.WorkOrderNo = null; break;
                 case "SalesOrderNo": row.SalesOrderNo = null; break;
+                case "ProductionMainNo": row.ProductionMainNo = null; break;
                 case "OrderItemIds": row.OrderItemIds = null; break;
                 case "HeatNo": row.HeatNo = null; break;
                 case "ManufacturingStatus": row.ManufacturingStatus = null; break;
@@ -1616,6 +1636,8 @@
             if (!string.IsNullOrEmpty(data.PlantGrade)) { row.PlantGrade = data.PlantGrade; filled.Add("厂内钢种"); }
             if (!string.IsNullOrEmpty(data.Specification)) { row.Specification = data.Specification; filled.Add("规格"); }
             if (!string.IsNullOrEmpty(data.SupplierName)) { row.SourceName = data.SupplierName; filled.Add("供应商"); }
+            if (!string.IsNullOrEmpty(data.SalesOrderNo)) { row.SalesOrderNo = data.SalesOrderNo; filled.Add("订单号"); }
+            if (!string.IsNullOrEmpty(data.ProductionMainNo)) { row.ProductionMainNo = data.ProductionMainNo; filled.Add("主号"); }
             if (!string.IsNullOrEmpty(data.ExpectedWorkOrderNo))
             {
                 row.WorkOrderNo = data.ExpectedWorkOrderNo;
@@ -1714,6 +1736,7 @@
             if (!string.IsNullOrEmpty(data.PlantGrade)) { row.PlantGrade = data.PlantGrade; filled.Add("厂内钢种"); }
             if (!string.IsNullOrEmpty(data.Specification)) { row.Specification = data.Specification; filled.Add("规格"); }
             if (!string.IsNullOrEmpty(data.SalesOrderNo)) { row.SalesOrderNo = data.SalesOrderNo; filled.Add("订单号"); }
+            if (!string.IsNullOrEmpty(data.ProductionMainNo)) { row.ProductionMainNo = data.ProductionMainNo; filled.Add("主号"); }
             if (!string.IsNullOrEmpty(data.OrderItemIds)) { row.OrderItemIds = data.OrderItemIds; filled.Add("项次"); }
             if (!string.IsNullOrEmpty(data.HeatNo)) { row.HeatNo = data.HeatNo; filled.Add("炉号"); }
             if (data.ManufacturingStatus.HasValue) { row.ManufacturingStatus = data.ManufacturingStatus.Value.ToString(); filled.Add("制造状态"); }

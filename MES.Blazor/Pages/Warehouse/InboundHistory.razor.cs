@@ -99,7 +99,7 @@ public partial class InboundHistory
     private static readonly HashSet<string> _editableFieldsDefect = new()
     {
         "InboundDate", "InboundSource", "SourceOrderNo", "ProductionBatchNo", "TagNo",
-        "SalesOrderNo", "OrderItemIds", "IsLinkedToWorkOrder", "WorkOrderNo",
+        "SalesOrderNo", "ProductionMainNo", "IsLinkedToWorkOrder", "WorkOrderNo",
         "MaterialType", "PlantGrade", "Specification", "SourceName",
         "HeatNo", "ManufacturingStatus",
         "LengthStatus", "MinLength", "MaxLength",
@@ -270,6 +270,7 @@ public partial class InboundHistory
 
         // ========== 不通用（各仓库模板控制显隐） ==========
         new() { Key = "SalesOrderNo",        Label = "订单号",   SortKey = "SalesOrderNo", FilterType = "string", Width = "120" },
+        new() { Key = "ProductionMainNo",    Label = "主号",   SortKey = "ProductionMainNo", FilterType = "string", Width = "120" },
         new() { Key = "OrderItemIds",        Label = "项次", SortKey = "OrderItemIds", FilterType = "string", Width = "120" },
         new() { Key = "ProductionBatchNo",   Label = "生产批号", SortKey = "ProductionBatchNo", FilterType = "string", Width = "120" },
         new() { Key = "ActualSpecification", Label = "实际规格", SortKey = "ActualSpecification", FilterType = "string", Width = "120" },
@@ -297,6 +298,7 @@ public partial class InboundHistory
         {
             case "RAW":
                 SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "ProductionMainNo");
                 SetNotApplicable(cols, "OrderItemIds");
                 SetNotApplicable(cols, "MinLength");
                 SetNotApplicable(cols, "MaxLength");
@@ -312,19 +314,27 @@ public partial class InboundHistory
                 AssignRawGroups(cols);
                 break;
             case "FG":
-                SetNotApplicable(cols, "DefectReason");
-                SetNotApplicable(cols, "LiabilityType");
-                SetNotApplicable(cols, "OriginalSupplier");
-                SetNotApplicable(cols, "TagNo");
-                SetNotApplicable(cols, "DefectRemark");
-                SetNotApplicable(cols, "SourceOrderSequence");
-                AssignFgGroups(cols);
-                break;
+                {
+                    SetNotApplicable(cols, "DefectReason");
+                    SetNotApplicable(cols, "LiabilityType");
+                    SetNotApplicable(cols, "OriginalSupplier");
+                    SetNotApplicable(cols, "TagNo");
+                    SetNotApplicable(cols, "DefectRemark");
+                    SetNotApplicable(cols, "SourceOrderSequence");
+                    // 项次已弃用，统一标记不适用（待阶段二删除）；主号列加入但默认隐藏（可手动开启列显隐）
+                    SetNotApplicable(cols, "OrderItemIds");
+                    var fgMainNo = cols.FirstOrDefault(x => x.Key == "ProductionMainNo");
+                    if (fgMainNo != null) fgMainNo.Visible = false;
+                    AssignFgGroups(cols);
+                    break;
+                }
             case "DEFECT":
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "ActualSpecification");
                 SetNotApplicable(cols, "SourceOrderSequence");
                 SetNotApplicable(cols, "CutLengthMatchType");
+                // 项次已弃用，统一标记不适用（待阶段二删除）
+                SetNotApplicable(cols, "OrderItemIds");
                 AssignDefectGroups(cols);
                 break;
             case "WIP":
@@ -332,6 +342,7 @@ public partial class InboundHistory
                 SetNotApplicable(cols, "IsLinkedToWorkOrder");
                 SetNotApplicable(cols, "WorkOrderNo");
                 SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "ProductionMainNo");
                 SetNotApplicable(cols, "OrderItemIds");
                 SetNotApplicable(cols, "DefectReason");
                 SetNotApplicable(cols, "LiabilityType");
@@ -399,6 +410,7 @@ public partial class InboundHistory
         SetGroup(cols, "SourceOrderNo", 1, "来源信息");
         SetGroup(cols, "ProductionBatchNo", 1, "来源信息");
         SetGroup(cols, "SalesOrderNo", 2, "订单信息");
+        SetGroup(cols, "ProductionMainNo", 2, "订单信息");
         SetGroup(cols, "OrderItemIds", 2, "订单信息");
         SetGroup(cols, "WorkOrderNo", 2, "订单信息");
         SetGroup(cols, "IsLinkedToWorkOrder", 2, "订单信息");
@@ -454,6 +466,7 @@ public partial class InboundHistory
         SetGroup(cols, "ProductionBatchNo", 1, "来源信息");
         SetGroup(cols, "TagNo", 1, "来源信息");
         SetGroup(cols, "SalesOrderNo", 2, "订单信息");
+        SetGroup(cols, "ProductionMainNo", 2, "订单信息");
         SetGroup(cols, "OrderItemIds", 2, "订单信息");
         SetGroup(cols, "IsLinkedToWorkOrder", 2, "订单信息");
         SetGroup(cols, "WorkOrderNo", 2, "订单信息");
@@ -952,6 +965,7 @@ public partial class InboundHistory
                         {
                             item.WorkOrderNo = null;
                             item.SalesOrderNo = null;
+                            item.ProductionMainNo = null;
                             item.OrderItemIds = null;
                         }
                     }));
@@ -1165,6 +1179,7 @@ public partial class InboundHistory
         "DefectRemark" => item.DefectRemark,
         "WorkOrderNo" => item.WorkOrderNo,
         "SalesOrderNo" => item.SalesOrderNo,
+        "ProductionMainNo" => item.ProductionMainNo,
         "OrderItemIds" => item.OrderItemIds,
         "SourceOrderNo" => item.SourceOrderNo,
         "SourceOrderSequence" => item.SourceOrderSequence?.ToString(),
@@ -1195,6 +1210,7 @@ public partial class InboundHistory
             case "DefectRemark": item.DefectRemark = value; break;
             case "WorkOrderNo": item.WorkOrderNo = value; break;
             case "SalesOrderNo": item.SalesOrderNo = value; break;
+            case "ProductionMainNo": item.ProductionMainNo = value; break;
             case "OrderItemIds": item.OrderItemIds = value; break;
             case "SourceOrderNo": item.SourceOrderNo = value; break;
         }
@@ -1474,6 +1490,7 @@ public partial class InboundHistory
                 {
                     request.WorkOrderNo = string.Empty;
                     request.SalesOrderNo = string.Empty;
+                    request.ProductionMainNo = string.Empty;
                     request.OrderItemIds = string.Empty;
                     request.MaterialType = MaterialType.Finished;
                 }

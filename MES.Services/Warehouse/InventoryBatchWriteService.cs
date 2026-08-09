@@ -70,6 +70,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         IsLinkedToWorkOrder = b.IsLinkedToWorkOrder,
         WorkOrderNo = b.WorkOrderNo,
         SalesOrderNo = b.SalesOrderNo,
+        ProductionMainNo = b.ProductionMainNo,
         OrderItemIds = b.OrderItemIds,
         SourceOrderNo = b.SourceOrderNo,
         SourceOrderSequence = b.SourceOrderSequence
@@ -339,6 +340,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         if (workOrders.TryGetValue(entity.WorkOrderNo, out var workOrder))
         {
             entity.SalesOrderNo = workOrder.SalesOrderNo;
+            entity.ProductionMainNo = workOrder.ProductionMainNo;
             entity.OrderItemIds = workOrder.OrderItemIds;
         }
     }
@@ -401,6 +403,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             IsLinkedToWorkOrder = request.IsLinkedToWorkOrder,
             WorkOrderNo = request.WorkOrderNo,
             SalesOrderNo = request.SalesOrderNo,
+            ProductionMainNo = request.ProductionMainNo,
             OrderItemIds = request.OrderItemIds,
             SourceOrderNo = request.SourceOrderNo,
             SourceOrderSequence = request.SourceOrderSequence
@@ -415,6 +418,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             if (singleWo != null)
             {
                 entity.SalesOrderNo = singleWo.SalesOrderNo;
+                entity.ProductionMainNo = singleWo.ProductionMainNo;
                 entity.OrderItemIds = singleWo.OrderItemIds;
             }
         }
@@ -533,6 +537,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                         IsLinkedToWorkOrder = row.IsLinkedToWorkOrder ?? false,
                         WorkOrderNo = row.WorkOrderNo,
                         SalesOrderNo = row.SalesOrderNo,
+                        ProductionMainNo = row.ProductionMainNo ?? request.ProductionMainNo,
                         OrderItemIds = row.OrderItemIds,
                         SourceOrderNo = row.SourceOrderNo ?? request.SourceOrderNo,
                         SourceOrderSequence = row.SourceOrderSequence ?? request.SourceOrderSequence
@@ -683,6 +688,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             entity.IsLinkedToWorkOrder = false;
             if (request.WorkOrderNo == "") entity.WorkOrderNo = null;
             if (request.SalesOrderNo == "") entity.SalesOrderNo = null;
+            if (request.ProductionMainNo == "") entity.ProductionMainNo = null;
             if (request.OrderItemIds == "") entity.OrderItemIds = null;
         }
 
@@ -699,6 +705,9 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             .FirstOrDefaultAsync();
         var updAssoc = await ResolveAssociationAsync(entity);
         var updMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
+        // 主号：工单号/生产批号任一非空时按权威关联（生产批号优先→工单号兜底）推导，保证与定尺核查口径一致
+        if (!string.IsNullOrEmpty(entity.WorkOrderNo) || !string.IsNullOrEmpty(entity.ProductionBatchNo))
+            entity.ProductionMainNo = updAssoc?.ProductionMainNo;
         var hasBothLinks = !string.IsNullOrEmpty(entity.ProductionBatchNo) && !string.IsNullOrEmpty(entity.WorkOrderNo);
         if (hasBothLinks
             && string.Equals(updWhCode, "FG", StringComparison.OrdinalIgnoreCase)

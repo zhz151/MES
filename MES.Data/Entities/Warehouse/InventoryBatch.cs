@@ -202,7 +202,12 @@ public class InventoryBatch : BaseEntity
     public string? SalesOrderNo { get; set; }
 
     /// <summary>
-    /// 项次ID列表（逗号分隔）
+    /// 主号（生产主号，实际查询键为「订单号+主号」）
+    /// </summary>
+    public string? ProductionMainNo { get; set; }
+
+    /// <summary>
+    /// 项次ID列表（逗号分隔，已弃用，待阶段二删除）
     /// </summary>
     public string? OrderItemIds { get; set; }
 

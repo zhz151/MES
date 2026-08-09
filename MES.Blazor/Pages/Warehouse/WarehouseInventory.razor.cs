@@ -109,6 +109,7 @@ public partial class WarehouseInventory
         new() { Key = "IsLinkedToWorkOrder", Label = "关联工单", SortKey = "IsLinkedToWorkOrder", FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否" },
         new() { Key = "WorkOrderNo",         Label = "工单号",   SortKey = "WorkOrderNo", FilterType = "string", Width = "120" },
         new() { Key = "SalesOrderNo",        Label = "订单号",   SortKey = "SalesOrderNo", FilterType = "string", Width = "120" },
+        new() { Key = "ProductionMainNo",    Label = "主号",   SortKey = "ProductionMainNo", FilterType = "string", Width = "120" },
         new() { Key = "OrderItemIds",        Label = "项次", SortKey = "OrderItemIds", FilterType = "string", Width = "120" },
         new() { Key = "ProductionBatchNo",   Label = "生产批号", SortKey = "ProductionBatchNo", FilterType = "string", Width = "120" },
         new() { Key = "ActualSpecification", Label = "实际规格", SortKey = "ActualSpecification", FilterType = "string", Width = "120" },
@@ -142,21 +143,30 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "TagNo");
                 SetNotApplicable(cols, "DefectRemark");
                 SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "ProductionMainNo");
                 SetNotApplicable(cols, "OrderItemIds");
                 AssignGroups(cols, whCode);
                 break;
             case "FG":
-                SetNotApplicable(cols, "DefectReason");
-                SetNotApplicable(cols, "LiabilityType");
-                SetNotApplicable(cols, "OriginalSupplier");
-                SetNotApplicable(cols, "TagNo");
-                SetNotApplicable(cols, "DefectRemark");
-                AssignGroups(cols, whCode);
-                break;
+                {
+                    SetNotApplicable(cols, "DefectReason");
+                    SetNotApplicable(cols, "LiabilityType");
+                    SetNotApplicable(cols, "OriginalSupplier");
+                    SetNotApplicable(cols, "TagNo");
+                    SetNotApplicable(cols, "DefectRemark");
+                    // 项次已弃用，统一标记不适用（待阶段二删除）；主号列加入但默认隐藏（可手动开启列显隐）
+                    SetNotApplicable(cols, "OrderItemIds");
+                    var fgMainNo = cols.FirstOrDefault(x => x.Key == "ProductionMainNo");
+                    if (fgMainNo != null) fgMainNo.Visible = false;
+                    AssignGroups(cols, whCode);
+                    break;
+                }
             case "DEFECT":
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "RemainingMeters");
                 SetNotApplicable(cols, "ActualSpecification");
+                // 项次已弃用，统一标记不适用（待阶段二删除）
+                SetNotApplicable(cols, "OrderItemIds");
                 AssignGroups(cols, whCode);
                 break;
             case "WIP":
@@ -164,6 +174,7 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "IsLinkedToWorkOrder");
                 SetNotApplicable(cols, "WorkOrderNo");
                 SetNotApplicable(cols, "SalesOrderNo");
+                SetNotApplicable(cols, "ProductionMainNo");
                 SetNotApplicable(cols, "OrderItemIds");
                 SetNotApplicable(cols, "DefectReason");
                 SetNotApplicable(cols, "LiabilityType");
@@ -193,6 +204,7 @@ public partial class WarehouseInventory
 
         // G2 订单信息
         SetGroup(cols, "SalesOrderNo", 2, "订单信息");
+        SetGroup(cols, "ProductionMainNo", 2, "订单信息");
         SetGroup(cols, "OrderItemIds", 2, "订单信息");
         SetGroup(cols, "WorkOrderNo", 2, "订单信息");
         SetGroup(cols, "IsLinkedToWorkOrder", 2, "订单信息");
@@ -392,6 +404,9 @@ public partial class WarehouseInventory
                 break;
             case "SalesOrderNo":
                 builder.AddContent(0, item.SalesOrderNo);
+                break;
+            case "ProductionMainNo":
+                builder.AddContent(0, item.ProductionMainNo);
                 break;
             case "OrderItemIds":
                 builder.AddContent(0, item.OrderItemIds);
@@ -715,6 +730,7 @@ public partial class WarehouseInventory
         "SourceOrderNo" => 120,
         "ProductionBatchNo" => 120,
         "SalesOrderNo" => 120,
+        "ProductionMainNo" => 120,
         "OrderItemIds" => 120,
         "WorkOrderNo" => 120,
         "IsLinkedToWorkOrder" => 120,

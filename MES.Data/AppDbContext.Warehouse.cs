@@ -78,6 +78,7 @@ public partial class AppDbContext
             entity.Property(e => e.IsLinkedToWorkOrder).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.WorkOrderNo).HasMaxLength(50);
             entity.Property(e => e.SalesOrderNo).HasMaxLength(50);
+            entity.Property(e => e.ProductionMainNo).HasMaxLength(50);
             entity.Property(e => e.OrderItemIds).HasMaxLength(500);
 
             // 乐观并发控制
@@ -90,6 +91,7 @@ public partial class AppDbContext
             entity.HasIndex(e => e.PlantGrade).HasDatabaseName("IX_InventoryBatch_PlantGrade");
             entity.HasIndex(e => e.WorkOrderNo).HasDatabaseName("IX_InventoryBatch_WorkOrderNo");
             entity.HasIndex(e => e.SalesOrderNo).HasDatabaseName("IX_InventoryBatch_SalesOrderNo");
+            entity.HasIndex(e => e.ProductionMainNo).HasDatabaseName("IX_InventoryBatch_ProductionMainNo");
             entity.HasIndex(e => e.ProductionBatchNo).HasDatabaseName("IX_InventoryBatch_ProductionBatchNo");
             entity.HasIndex(e => e.RemainingWeight).HasDatabaseName("IX_InventoryBatch_RemainingWeight")
                 .HasFilter("[RemainingWeight] > 0");

@@ -173,6 +173,19 @@ public class InventorySyncService : IInventorySyncService
             }
         }
 
+        // 来源工单解析出后，回填权威「订单号+主号」用于自动填充（与定尺核查口径一致）
+        if (!string.IsNullOrEmpty(result.ExpectedWorkOrderNo))
+        {
+            var sourceWo = await _context.WorkOrders
+                .AsNoTracking()
+                .FirstOrDefaultAsync(w => w.WorkOrderNo == result.ExpectedWorkOrderNo);
+            if (sourceWo != null)
+            {
+                result.SalesOrderNo = sourceWo.SalesOrderNo;
+                result.ProductionMainNo = sourceWo.ProductionMainNo;
+            }
+        }
+
         return result;
     }
 
@@ -204,6 +217,7 @@ public class InventorySyncService : IInventorySyncService
         result.PlantGrade = batch.PlantGrade;
         result.Specification = batch.Specification;
         result.SalesOrderNo = batch.SalesOrderNo;
+        result.ProductionMainNo = batch.ProductionMainNo;
         result.OrderItemIds = batch.OrderItemIds;
         result.HeatNo = batch.SourceHeatNo;
         result.ManufacturingStatus = EnumHelper.TryParse<DeliveryState>(batch.ManufacturingStatus);

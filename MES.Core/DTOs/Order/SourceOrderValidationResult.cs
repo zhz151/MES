@@ -17,7 +17,9 @@ public class SourceOrderValidationResult
     public string? SupplierName { get; set; }
     /// <summary>订单号（生产批次查询时填充）</summary>
     public string? SalesOrderNo { get; set; }
-    /// <summary>项次（生产批次查询时填充）</summary>
+    /// <summary>主号（生产批次查询时填充）</summary>
+    public string? ProductionMainNo { get; set; }
+    /// <summary>项次（生产批次查询时填充，已弃用）</summary>
     public string? OrderItemIds { get; set; }
     /// <summary>炉号（生产批次查询时填充）</summary>
     public string? HeatNo { get; set; }

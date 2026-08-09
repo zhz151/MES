@@ -64,6 +64,7 @@ public class InventoryService : IInventoryService
         IsLinkedToWorkOrder = b.IsLinkedToWorkOrder,
         WorkOrderNo = b.WorkOrderNo,
         SalesOrderNo = b.SalesOrderNo,
+        ProductionMainNo = b.ProductionMainNo,
         OrderItemIds = b.OrderItemIds,
         SourceOrderNo = b.SourceOrderNo
     };
@@ -180,6 +181,7 @@ public class InventoryService : IInventoryService
                     (b.LiabilityType != null && b.LiabilityType.Contains(keyword)) ||
                     (b.DefectRemark != null && b.DefectRemark.Contains(keyword)) ||
                     (b.OrderItemIds != null && b.OrderItemIds.Contains(keyword)) ||
+                    (b.ProductionMainNo != null && b.ProductionMainNo.Contains(keyword)) ||
                     (b.LengthStatus != null && b.LengthStatus.Contains(keyword)));
             }
         }
@@ -343,6 +345,9 @@ public class InventoryService : IInventoryService
             "orderitemids" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.OrderItemIds ?? "")
                 : queryable.OrderBy(b => b.OrderItemIds ?? ""),
+            "productionmainno" => query.IsDescending
+                ? queryable.OrderByDescending(b => b.ProductionMainNo ?? "")
+                : queryable.OrderBy(b => b.ProductionMainNo ?? ""),
             "remark" => query.IsDescending
                 ? queryable.OrderByDescending(b => b.Remark ?? "")
                 : queryable.OrderBy(b => b.Remark ?? ""),
@@ -740,7 +745,8 @@ public class InventoryService : IInventoryService
                     b.DefectRemark,
                     b.InboundSource,
                     b.LengthStatus,
-                    OrderItemIds = b.OrderItemIds
+                    OrderItemIds = b.OrderItemIds,
+                    ProductionMainNo = b.ProductionMainNo
                 })
                 .ToListAsync();
 
@@ -771,6 +777,7 @@ public class InventoryService : IInventoryService
                 ["InboundSource"] = results.Select(x => x.InboundSource.ToString()).Distinct().OrderBy(x => x).ToList(),
                 ["LengthStatus"] = results.Where(x => x.LengthStatus != null).Select(x => x.LengthStatus!).Distinct().OrderBy(x => x).ToList(),
                 ["OrderItemIds"] = results.Where(x => x.OrderItemIds != null).Select(x => x.OrderItemIds!).Distinct().OrderBy(x => x).ToList(),
+                ["ProductionMainNo"] = results.Where(x => x.ProductionMainNo != null).Select(x => x.ProductionMainNo!).Distinct().OrderBy(x => x).ToList(),
             };
         }) ?? new Dictionary<string, List<string>>();
     }

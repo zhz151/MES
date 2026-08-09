@@ -65,6 +65,7 @@ public class InventoryBatchDto
     public bool IsLinkedToWorkOrder { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
+    public string? ProductionMainNo { get; set; }
     public string? OrderItemIds { get; set; }
 
     // 跨上下文关联

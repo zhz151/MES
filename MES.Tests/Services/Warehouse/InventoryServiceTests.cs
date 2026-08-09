@@ -693,6 +693,143 @@ public class InventoryServiceTests : TestBase
         updated.CutLengthMatchType.Should().BeNull(); // 内联编辑：工单号空 → 清空
     }
 
+    // ========== 主号（ProductionMainNo）落库/回填/清空 ==========
+
+    [Fact]
+    public async Task InboundAsync_生产批号关联_主号落库等于批次主号()
+    {
+        // 第1种自动填充：前端 LookupProductionBatch 已把批次主号填入请求 → 入库落库
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedProductionBatchAsync(ctx, "PB-020", "SO-X01-01", "SO-X01", "X01");
+
+        var result = await CreateService(ctx).InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.InspectionInbound,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            ProductionBatchNo = "PB-020", // 仅生产批次，无工单号
+            SalesOrderNo = "SO-X01",
+            ProductionMainNo = "X01", // 前端自动填充携带
+            InboundDate = DateTime.Today
+        });
+
+        result.ProductionMainNo.Should().Be("X01");
+        var persisted = await ctx.InventoryBatches.AsNoTracking().SingleAsync();
+        persisted.ProductionMainNo.Should().Be("X01");
+    }
+
+    [Fact]
+    public async Task InboundAsync_工单号关联_主号落库等于工单主号()
+    {
+        // 工单号非空时后端按 WorkOrder 权威覆盖（不依赖请求携带）
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedWorkOrderAsync(ctx, "SO-X01-01", "SO-X01", "X01");
+
+        var result = await CreateService(ctx).InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            WorkOrderNo = "SO-X01-01", // 请求不携带主号
+            InboundDate = DateTime.Today
+        });
+
+        result.ProductionMainNo.Should().Be("X01");
+        var persisted = await ctx.InventoryBatches.AsNoTracking().SingleAsync();
+        persisted.ProductionMainNo.Should().Be("X01");
+    }
+
+    [Fact]
+    public async Task BatchInboundAsync_批量入库_主号按行或公共回退落库()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+
+        var result = await CreateService(ctx).BatchInboundAsync(new BatchInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            ProductionMainNo = "X01", // 公共回退
+            Rows = new List<InboundRow>
+            {
+                new() { InitialQuantity = 10, InitialWeight = 1000m, SalesOrderNo = "SO-X01", ProductionMainNo = "X02" }, // 行级优先
+                new() { InitialQuantity = 10, InitialWeight = 1000m, SalesOrderNo = "SO-X01" } // 行级为空 → 公共回退
+            }
+        });
+
+        result.SuccessCount.Should().Be(2);
+        var persisted = await ctx.InventoryBatches.AsNoTracking()
+            .OrderBy(b => b.ProductionMainNo).ToListAsync();
+        persisted.Should().HaveCount(2);
+        persisted.Select(b => b.ProductionMainNo).Should().Equal("X01", "X02");
+    }
+
+    [Fact]
+    public async Task UpdateInventoryBatchAsync_解绑工单_清空主号()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedWorkOrderAsync(ctx, "SO-X01-01", "SO-X01", "X01");
+        var svc = CreateService(ctx);
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            WorkOrderNo = "SO-X01-01",
+            InboundDate = DateTime.Today
+        });
+        batch.ProductionMainNo.Should().Be("X01");
+
+        var updated = await svc.UpdateInventoryBatchAsync(batch.Id, new UpdateInventoryBatchRequest
+        {
+            IsLinkedToWorkOrder = false, // 前端解绑工单：级联清空订单关联
+            WorkOrderNo = "",
+            SalesOrderNo = "",
+            ProductionMainNo = ""
+        });
+
+        updated.ProductionMainNo.Should().BeNull();
+        var persisted = await ctx.InventoryBatches.AsNoTracking().SingleAsync();
+        persisted.ProductionMainNo.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ValidateProductionBatchAsync_返回批次主号()
+    {
+        var ctx = CreateDbContext();
+        await SeedProductionBatchAsync(ctx, "PB-021", "SO-X01-01", "SO-X01", "X01");
+        var svc = CreateService(ctx);
+
+        var result = await svc.ValidateProductionBatchAsync("PB-021");
+
+        result.IsValid.Should().BeTrue();
+        result.ProductionMainNo.Should().Be("X01");
+        result.SalesOrderNo.Should().Be("SO-X01");
+    }
+
     // ========== 出库 ==========
 
     [Fact]
