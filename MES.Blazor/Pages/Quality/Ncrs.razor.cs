@@ -106,8 +106,6 @@ public partial class Ncrs
                GroupKey = 1, GroupName = "G1 问题反馈" },
         new() { Key = "WorkOrderNo",          Label = "工单号",      SortKey = "workorderno",       FilterType = "string", Width = "120",
                GroupKey = 1, GroupName = "G1 问题反馈" },
-        new() { Key = "ProductionMainNo",     Label = "主号",        SortKey = "productionmainno",  FilterType = "string", Width = "120",
-               GroupKey = 1, GroupName = "G1 问题反馈" },
         new() { Key = "PlantGrade",           Label = "牌号",        SortKey = "plantgrade",        FilterType = "string", Width = "80",
                GroupKey = 1, GroupName = "G1 问题反馈" },
         new() { Key = "Specification",        Label = "规格",        SortKey = "specification",     FilterType = "string", Width = "100",

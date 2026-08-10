@@ -27,9 +27,6 @@ public class Ncr : BaseEntity
     /// <summary>工单号（从批次冗余）</summary>
     public string? WorkOrderNo { get; set; }
 
-    /// <summary>主号（从批次冗余）</summary>
-    public string? ProductionMainNo { get; set; }
-
     /// <summary>厂内牌号（从批次冗余）</summary>
     public string? PlantGrade { get; set; }
 
