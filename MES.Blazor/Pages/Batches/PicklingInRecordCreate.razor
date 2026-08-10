@@ -284,6 +284,27 @@
     private static readonly List<(string Value, string Text)> _shiftOptions =
         DisplayHelper.GetEnumOptions<ShiftType>().Select(o => (o.Value, o.Display)).ToList();
 
+    // ========== 下拉显示转换（存储值英文 Key → 显示中文） ==========
+    private string GetProcessDisplayText(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return key ?? "";
+        foreach (var o in _processOptions)
+            if (o.ProcessKey == key) return o.ProcessName;
+        return key;
+    }
+    private static string GetSectionDisplayText(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return key ?? "";
+        return SectionDisplayHelper.GetSectionNameText(key);
+    }
+    private static string GetShiftDisplayText(string val)
+    {
+        if (string.IsNullOrEmpty(val)) return "";
+        foreach (var o in _shiftOptions)
+            if (string.Equals(o.Value, val, StringComparison.OrdinalIgnoreCase)) return o.Text;
+        return val;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
@@ -435,15 +456,17 @@
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.ProcessName);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnProcessNameChangedAsync(r); }));
-                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetProcessDisplayText);
+                builder.AddAttribute(5, "Value", r.ProcessName);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnProcessNameChangedAsync(r); }));
+                builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
                     foreach (var opt in _processOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
                         b.AddAttribute(1, "Value", opt.ProcessKey);
-                        b.AddAttribute(2, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
+                        b.AddAttribute(2, "Text", opt.ProcessName);
+                        b.AddAttribute(3, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
                         b.CloseComponent();
                     }
                 }));
@@ -454,15 +477,17 @@
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.SectionName);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.SectionName = v ?? ""));
-                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetSectionDisplayText);
+                builder.AddAttribute(5, "Value", r.SectionName);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.SectionName = v ?? ""));
+                builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
                     foreach (var key in _sectionOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
                         b.AddAttribute(1, "Value", key);
-                        b.AddContent(2, SectionDisplayHelper.GetSectionNameText(key));
+                        b.AddAttribute(2, "Text", SectionDisplayHelper.GetSectionNameText(key));
+                        b.AddContent(3, SectionDisplayHelper.GetSectionNameText(key));
                         b.CloseComponent();
                     }
                 }));
@@ -510,15 +535,17 @@
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.Shift);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.Shift = v ?? ""));
-                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetShiftDisplayText);
+                builder.AddAttribute(5, "Value", r.Shift);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.Shift = v ?? ""));
+                builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
                     foreach (var opt in _shiftOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
                         b.AddAttribute(1, "Value", opt.Value);
-                        b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, opt.Text)));
+                        b.AddAttribute(2, "Text", opt.Text);
+                        b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, opt.Text)));
                         b.CloseComponent();
                     }
                 }));

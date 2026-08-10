@@ -752,7 +752,16 @@ public class PicklingService : IPicklingService
                 .Where(r => r.PicklingInRecordId == entity.Id)
                 .ToListAsync();
             foreach (var or in outRecords)
+            {
                 or.ProductStatus = entity.ProductStatus;
+                // 入缸可编辑字段逐字段同步到出缸快照列：仅 request 中变更的字段跟随，
+                // 未变更的字段保持出缸原值（对齐「入缸变动哪条、出缸跟哪条」语义）
+                if (request.EquipmentName != null) or.EquipmentName = entity.EquipmentName;
+                if (request.Operator != null) or.Operator = entity.Operator;
+                if (request.Shift != null) or.Shift = entity.Shift;
+                if (request.Quantity.HasValue) or.Quantity = entity.Quantity;
+                if (request.Weight.HasValue) or.Weight = entity.Weight;
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -1114,6 +1123,93 @@ public class PicklingService : IPicklingService
         _context.PicklingOutRecords.Remove(entity);
         await _context.SaveChangesAsync();
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(batchId);
+    }
+
+    /// <summary>
+    /// 回填完工记录的入缸冗余字段：历史存量出缸记录在创建时可能未复制入缸字段，
+    /// 此处从关联入缸记录（批次号经批次导航）补齐空值，已填字段保持不动（尊重历史冻结），返回实际更新条数
+    /// </summary>
+    public async Task<int> BackfillOutRecordInDataAsync()
+    {
+        var records = await _context.PicklingOutRecords
+            .Include(r => r.PicklingInRecord)
+                .ThenInclude(p => p.ProductionBatch)
+            .ToListAsync();
+
+        var updated = 0;
+        foreach (var r in records)
+        {
+            var inRec = r.PicklingInRecord;
+            if (inRec == null) continue;
+            var batch = inRec.ProductionBatch;
+
+            var changed = false;
+            if (string.IsNullOrEmpty(r.BatchNo) && batch != null && !string.IsNullOrEmpty(batch.BatchNo))
+            {
+                r.BatchNo = batch.BatchNo;
+                changed = true;
+            }
+            if (string.IsNullOrEmpty(r.ProcessName) && !string.IsNullOrEmpty(inRec.ProcessName))
+            {
+                r.ProcessName = inRec.ProcessName;
+                changed = true;
+            }
+            if (string.IsNullOrEmpty(r.ManufacturingSpec) && !string.IsNullOrEmpty(inRec.ManufacturingSpec))
+            {
+                r.ManufacturingSpec = inRec.ManufacturingSpec;
+                changed = true;
+            }
+            if (string.IsNullOrEmpty(r.SectionName) && !string.IsNullOrEmpty(inRec.SectionName))
+            {
+                r.SectionName = inRec.SectionName;
+                changed = true;
+            }
+            if (string.IsNullOrEmpty(r.TagNo) && !string.IsNullOrEmpty(inRec.TagNo))
+            {
+                r.TagNo = inRec.TagNo;
+                changed = true;
+            }
+            if (string.IsNullOrEmpty(r.PlantGrade) && !string.IsNullOrEmpty(inRec.PlantGrade))
+            {
+                r.PlantGrade = inRec.PlantGrade;
+                changed = true;
+            }
+            if (string.IsNullOrEmpty(r.EquipmentName) && !string.IsNullOrEmpty(inRec.EquipmentName))
+            {
+                r.EquipmentName = inRec.EquipmentName;
+                changed = true;
+            }
+            if (string.IsNullOrEmpty(r.Operator) && !string.IsNullOrEmpty(inRec.Operator))
+            {
+                r.Operator = inRec.Operator;
+                changed = true;
+            }
+            if (string.IsNullOrEmpty(r.Shift) && !string.IsNullOrEmpty(inRec.Shift))
+            {
+                r.Shift = inRec.Shift;
+                changed = true;
+            }
+            if (!r.Quantity.HasValue && inRec.Quantity.HasValue)
+            {
+                r.Quantity = inRec.Quantity;
+                changed = true;
+            }
+            if (!r.Weight.HasValue && inRec.Weight.HasValue)
+            {
+                r.Weight = inRec.Weight;
+                changed = true;
+            }
+            if (string.IsNullOrEmpty(r.ProductStatus) && !string.IsNullOrEmpty(inRec.ProductStatus))
+            {
+                r.ProductStatus = inRec.ProductStatus;
+                changed = true;
+            }
+
+            if (changed) updated++;
+        }
+
+        await _context.SaveChangesAsync();
+        return updated;
     }
 
     // ========== 打印 ==========

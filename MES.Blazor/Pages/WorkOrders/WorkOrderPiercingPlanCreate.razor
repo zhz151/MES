@@ -263,7 +263,7 @@
                             {
                                 if (GetPgCol(sc.SectionKey).Visible)
                                 {
-                                    <MudTh Style="width:60px;">@sc.SectionName</MudTh>
+                                    <MudTh Style="width:60px;">@SectionDisplayHelper.GetSectionNameText(sc.SectionKey)</MudTh>
                                 }
                             }
                             <MudTh Style="width:60px;">操作</MudTh>
@@ -362,7 +362,7 @@
         // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
         foreach (var sc in _sectionCols)
         {
-            pgCols.Add(new ColumnDef { Key = sc.SectionKey, Label = sc.SectionName, Visible = true });
+            pgCols.Add(new ColumnDef { Key = sc.SectionKey, Label = SectionDisplayHelper.GetSectionNameText(sc.SectionKey), Visible = true });
         }
 
         var saved = await ColumnPrefs.LoadAsync(PgColPrefsKey, null);
@@ -652,7 +652,10 @@
                 errors.Add("定尺工单需求支数为必填");
         }
 
-        // 验证工序组
+        // 验证工序组：无工序组不可提交（工艺工量需工序组内算）
+        if (pgItems.Count == 0)
+            errors.Add("请先添加工序组");
+
         if (pgItems.Count > 0)
         {
             for (int i = 0; i < pgItems.Count; i++)

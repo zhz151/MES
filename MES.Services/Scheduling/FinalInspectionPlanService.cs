@@ -67,7 +67,10 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
             .ToListAsync();
 
         var receivedIds = receiveChecks.Select(r => r.ProductionBatchId).ToHashSet();
-        var receiveDateMap = receiveChecks.ToDictionary(r => r.ProductionBatchId, r => r.ReceiveDate);
+        // 同一批次可能存在多条未强制完成的到料记录（预检+终检/多次到料），按批次分组取最近到料日期，避免 ToDictionary 重复键崩溃
+        var receiveDateMap = receiveChecks
+            .GroupBy(r => r.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.Max(r => r.ReceiveDate));
 
         // 2. FinalInspections 最大检验日期
         var inspectionDateMap = await _context.FinalInspections

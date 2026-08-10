@@ -548,7 +548,8 @@ public partial class Suppliers
                         {
                             b2.OpenComponent<MudSelectItem<MaterialType>>(0);
                             b2.AddAttribute(1, "Value", Enum.Parse<MaterialType>(opt.Value));
-                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
+                            b2.AddAttribute(2, "Text", opt.Display);
+                            b2.AddAttribute(3, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                             b2.CloseComponent();
                         }
                     }));

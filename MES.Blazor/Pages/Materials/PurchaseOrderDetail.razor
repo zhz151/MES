@@ -413,7 +413,8 @@
                         {
                             cb.OpenComponent<MudSelectItem<int>>(0);
                             cb.AddAttribute(1, "Value", s.Id);
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, s.SupplierName)));
+                            cb.AddAttribute(2, "Text", s.SupplierName);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, s.SupplierName)));
                             cb.CloseComponent();
                         }
                     }));
@@ -480,7 +481,8 @@
                         {
                             cb.OpenComponent<MudSelectItem<MaterialType>>(0);
                             cb.AddAttribute(1, "Value", Enum.Parse<MaterialType>(opt.Value));
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.AddAttribute(2, "Text", opt.Display);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));

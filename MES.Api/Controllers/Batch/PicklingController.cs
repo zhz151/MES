@@ -214,6 +214,17 @@ public class PicklingController : ControllerBase
         return Ok(ApiResponse.Ok("删除成功"));
     }
 
+    /// <summary>
+    /// 回填完工记录的入缸冗余字段（历史存量补齐，空值才填）
+    /// </summary>
+    [HttpPost("out-records/refresh-in-data")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse>> RefreshOutRecordInData()
+    {
+        var count = await _service.BackfillOutRecordInDataAsync();
+        return Ok(ApiResponse.Ok($"已回填 {count} 条完工记录的入缸数据"));
+    }
+
     // ========== 打印 ==========
 
     /// <summary>

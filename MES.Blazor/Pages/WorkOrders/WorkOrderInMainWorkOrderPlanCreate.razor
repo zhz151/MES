@@ -1,5 +1,4 @@
 @page "/workorders/{WorkOrderId:int}/in-main-work-order-plan/create"
-@page "/workorders/{WorkOrderId:int}/in-main-work-order-plan/edit/{PlanId:int}"
 @using MES.Blazor.Services
 @using MES.Core.Models
 @using MES.Core.Enums
@@ -22,7 +21,7 @@
             <CardHeaderContent>
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.GroupWork" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
-                    <MudText Typo="Typo.h5" Class="font-weight-bold">@(IsEditMode ? "编辑" : "新增")在产主工单计划</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">新增在产主工单计划</MudText>
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -97,25 +96,22 @@
                             <HeaderContent>
                                 <MudTh Style="width:32px;">选择</MudTh>
                                 <MudTh Style="width:70px;">生产编号</MudTh>
-                                @if (!IsEditMode)
-                                {
-                                    <MudTh Style="width:50px;">挂牌号</MudTh>
-                                }
+                                <MudTh Style="width:50px;">挂牌号</MudTh>
                                 <MudTh Style="width:80px;">源主工单号</MudTh>
-                                @if (!IsEditMode)
-                                {
-                                    <MudTh Style="width:45px;">工厂牌号</MudTh>
-                                    <MudTh Style="width:60px;">成品规格</MudTh>
-                                    <MudTh Style="width:45px;">长度状态</MudTh>
-                                    <MudTh Style="width:35px;">状态</MudTh>
-                                    <MudTh Style="width:55px;">有效原料支数</MudTh>
-                                    <MudTh Style="width:55px;">有效原料重量</MudTh>
-                                    <MudTh Style="width:40px;">投成倍数</MudTh>
-                                    <MudTh Style="width:55px;">原主工单号总重量</MudTh>
-                                    <MudTh Style="width:55px;">原主工单号流转比</MudTh>
-                                    <MudTh Style="width:55px;">现可分配上限重量</MudTh>
-                                    <MudTh Style="width:45px;">现可用料占比</MudTh>
-                                }
+                                <MudTh Style="width:45px;">工厂牌号</MudTh>
+                                <MudTh Style="width:60px;">成品规格</MudTh>
+                                <MudTh Style="width:45px;">长度状态</MudTh>
+                                <MudTh Style="width:35px;">状态</MudTh>
+                                <MudTh Style="width:55px;">有效投料支数</MudTh>
+                                <MudTh Style="width:55px;">有效投料重量</MudTh>
+                                <MudTh Style="width:60px;">已预留</MudTh>
+                                <MudTh Style="width:40px;">投成倍数</MudTh>
+                                <MudTh Style="width:55px;">原主工单号总重量</MudTh>
+                                <MudTh Style="width:55px;">总有效投料重量</MudTh>
+                                <MudTh Style="width:55px;">总预留重量</MudTh>
+                                <MudTh Style="width:70px;">可分配剩余总重量</MudTh>
+                                <MudTh Style="width:55px;">本批可分配支</MudTh>
+                                <MudTh Style="width:70px;">本批可分配重量</MudTh>
                                 <MudTh Style="width:55px; background-color: rgba(255, 152, 0, 0.08);">投料制成倍</MudTh>
                                 <MudTh Style="width:65px; background-color: rgba(255, 152, 0, 0.08);">分配原料支数</MudTh>
                                 <MudTh Style="width:70px; background-color: rgba(255, 152, 0, 0.08);">分配原料重量(kg)</MudTh>
@@ -127,25 +123,22 @@
                                                  Color="Color.Primary" />
                                 </MudTd>
                                 <MudTd>@context.BatchNo</MudTd>
-                                @if (!IsEditMode)
-                                {
-                                    <MudTd>@(context.TagNo ?? "-")</MudTd>
-                                }
+                                <MudTd>@(context.TagNo ?? "-")</MudTd>
                                 <MudTd>@context.WorkOrderNo</MudTd>
-                                @if (!IsEditMode)
-                                {
-                                    <MudTd>@context.PlantGrade</MudTd>
-                                    <MudTd>@context.Specification</MudTd>
-                                    <MudTd>@DisplayHelper.GetLengthStatusText(context.LengthStatus?.ToString())</MudTd>
-                                    <MudTd>@DisplayHelper.GetBatchStatusText(context.Status?.ToString() ?? "")</MudTd>
-                                    <MudTd>@(context.CurrentValidQty?.ToString() ?? "-")</MudTd>
-                                    <MudTd>@(context.CurrentValidWeight?.ToString("F0") ?? "-")</MudTd>
-                                    <MudTd>@context.ProductionRatio</MudTd>
-                                    <MudTd>@context.MainTotalWeight.ToString("F0")</MudTd>
-                                    <MudTd>@context.MainNoFlowOutputRatio.ToString("F0")%</MudTd>
-                                    <MudTd>@context.AvailableLimit.ToString("F0")</MudTd>
-                                    <MudTd>@context.UsageRatio.ToString("P0")</MudTd>
-                                }
+                                <MudTd>@context.PlantGrade</MudTd>
+                                <MudTd>@context.Specification</MudTd>
+                                <MudTd>@DisplayHelper.GetLengthStatusText(context.LengthStatus?.ToString())</MudTd>
+                                <MudTd>@DisplayHelper.GetBatchStatusText(context.Status?.ToString() ?? "")</MudTd>
+                                <MudTd>@context.CurrentValidQty?.ToString()</MudTd>
+                                <MudTd>@context.CurrentValidWeight?.ToString("F0")</MudTd>
+                                <MudTd>@($"{context.ReservedQuantity}支 / {context.ReservedWeight.ToString("F0")}kg")</MudTd>
+                                <MudTd>@context.ProductionRatio</MudTd>
+                                <MudTd>@context.MainTotalWeight.ToString("F0")</MudTd>
+                                <MudTd>@context.MainNoTotalValidWeight.ToString("F0")</MudTd>
+                                <MudTd>@context.MainNoTotalReservedWeight.ToString("F0")</MudTd>
+                                <MudTd>@context.MainNoAllocatableRemaining.ToString("F0")</MudTd>
+                                <MudTd>@GetNetValidQty(context)</MudTd>
+                                <MudTd>@GetBatchAllocatableWeight(context).ToString("F0")</MudTd>
                                 <MudTd Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))
                                     {
@@ -168,7 +161,7 @@
                                                          ValueChanged="@(v => OnAllocatedQtyChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
-                                                         Min="0"
+                                                         Min="0" Max="@GetNetValidQty(context)"
                                                          Class="my-n2" Style="width:65px;" />
                                     }
                                     else
@@ -183,7 +176,7 @@
                                                          ValueChanged="@(v => OnAllocatedWeightChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
-                                                         Min="0"
+                                                         Min="0" Max="@Math.Min(GetNetValidWeight(context), context.MainNoAllocatableRemaining)"
                                                          Class="my-n2" Style="width:70px;" />
                                     }
                                     else
@@ -202,12 +195,8 @@
 
 @code {
     [Parameter] public int WorkOrderId { get; set; }
-    [Parameter] public int PlanId { get; set; }
-
-    private bool IsEditMode => PlanId > 0;
 
     private WorkOrderDetailDto? workOrder;
-    private InMainWorkOrderPlanDto? existingPlan;
     private List<AvailableMainWorkOrderBatchDto> availableBatches = new();
     private bool isLoadingWorkOrder = true;
     private bool isLoadingInventory = false;
@@ -232,11 +221,6 @@
         {
             var result = await WorkOrderService.GetByIdAsync(WorkOrderId);
             workOrder = result.Success ? result.Data : null;
-
-            if (IsEditMode)
-            {
-                await LoadExistingPlan();
-            }
         }
         catch (Exception ex)
         {
@@ -248,44 +232,7 @@
         }
     }
 
-    private async Task LoadExistingPlan()
-    {
-        try
-        {
-            var planResult = await MaterialPlanService.GetInMainWorkOrderPlanByIdAsync(PlanId);
-            if (!planResult.Success || planResult.Data == null)
-            {
-                Snackbar.Add("在产主工单计划不存在", Severity.Error);
-                GoBack();
-                return;
-            }
-
-            existingPlan = planResult.Data;
-            var plan = planResult.Data;
-
-            _planDate = plan.PlanDate.ToString("yyyy-MM-dd");
-            _requiredDate = plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "";
-            _remark = plan.Remark ?? "";
-
-            await LoadAvailableBatches(plan.ProductionBatchId);
-
-            var matchBatch = availableBatches.FirstOrDefault(b => b.Id == plan.ProductionBatchId);
-            if (matchBatch != null && _selections.ContainsKey(matchBatch.Id))
-            {
-                _selections[matchBatch.Id] = true;
-                _allocatedQuantities[matchBatch.Id] = plan.AllocatedQuantity;
-                _allocatedWeights[matchBatch.Id] = plan.AllocatedWeight;
-                _productionRatios[matchBatch.Id] = plan.ProductionRatio;
-                StateHasChanged();
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"加载在产主工单计划失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task LoadAvailableBatches(int? excludePlanBatchId = null)
+    private async Task LoadAvailableBatches()
     {
         isLoadingInventory = true;
         errorMessage = null;
@@ -293,13 +240,10 @@
 
         try
         {
-            var result = await MaterialPlanService.GetAvailableMainWorkOrderBatchesAsync(WorkOrderId, excludePlanBatchId);
+            var result = await MaterialPlanService.GetAvailableMainWorkOrderBatchesAsync(WorkOrderId);
             if (result.Success)
             {
                 availableBatches = (result.Data ?? new()).ToList();
-                // 编辑模式锁定批次：仅保留原批次，不允许换批次或新增批次（换料源请删除重建）
-                if (IsEditMode && existingPlan != null)
-                    availableBatches = availableBatches.Where(b => b.Id == existingPlan.ProductionBatchId).ToList();
                 InitSelections();
                 if (availableBatches.Count == 0)
                 {
@@ -342,6 +286,14 @@
     private decimal GetAllocatedWeight(int batchId) => _allocatedWeights.GetValueOrDefault(batchId);
     private int GetProductionRatio(int batchId) => _productionRatios.GetValueOrDefault(batchId);
 
+    // 净可用 = 有效量 − 其他未取消计划已预留（跨工单可部分预留共享，含已投料计划；已引用批次不排除、显示净额可追加）
+    private static int GetNetValidQty(AvailableMainWorkOrderBatchDto b) => Math.Max(0, (b.CurrentValidQty ?? 0) - b.ReservedQuantity);
+    private static decimal GetNetValidWeight(AvailableMainWorkOrderBatchDto b) => Math.Max(0m, (b.CurrentValidWeight ?? 0m) - b.ReservedWeight);
+
+    // 本批可分配重量 = min(本批净可用, 可分配剩余总重量) = 该批次独立最大可分配上限（与分配重量输入框 Max/保存校验同口径）
+    // 注：各批独立上限求和可能超过主工单可分配剩余总重量（共享额度），实际由保存时按主工单分组的聚合校验兜底
+    private static decimal GetBatchAllocatableWeight(AvailableMainWorkOrderBatchDto b) => Math.Min(GetNetValidWeight(b), b.MainNoAllocatableRemaining);
+
     private void OnSelectionChanged(int batchId, bool value)
     {
         if (_selections.ContainsKey(batchId))
@@ -382,16 +334,38 @@
         if (string.IsNullOrWhiteSpace(_planDate) || !DateTime.TryParse(_planDate, out _))
             errors.Add("计划日期格式无效，请使用 yyyy-MM-dd 格式");
 
-        foreach (var batchId in selectedIds)
-        {
-            var batch = availableBatches.FirstOrDefault(b => b.Id == batchId);
-            if (batch == null) continue;
+        var selectedBatches = selectedIds
+            .Select(id => availableBatches.FirstOrDefault(b => b.Id == id))
+            .Where(b => b != null)
+            .Select(b => b!)
+            .ToList();
 
-            var wt = _allocatedWeights.GetValueOrDefault(batchId);
+        foreach (var batch in selectedBatches)
+        {
+            var wt = _allocatedWeights.GetValueOrDefault(batch.Id);
             if (wt <= 0)
+            {
                 errors.Add($"批次 {batch.BatchNo}：分配重量必须大于0");
-            if (wt > batch.AvailableLimit)
-                errors.Add($"批次 {batch.BatchNo}：分配重量({wt})超过可分配上限({batch.AvailableLimit})");
+                continue;
+            }
+
+            // 单批次：分配重量 ≤ min(本批次有效投料−已预留, 可分配剩余总重量)
+            var maxWt = Math.Min(GetNetValidWeight(batch), batch.MainNoAllocatableRemaining);
+            if (wt > maxWt)
+                errors.Add($"批次 {batch.BatchNo}：分配重量({wt.ToString("G29")})超过可用重量({maxWt.ToString("F0")})（本批次剩余{GetNetValidWeight(batch).ToString("F0")}kg、主工单剩余{batch.MainNoAllocatableRemaining.ToString("F0")}kg）");
+
+            var qty = _allocatedQuantities.GetValueOrDefault(batch.Id);
+            if (qty.HasValue && qty.Value > GetNetValidQty(batch))
+                errors.Add($"批次 {batch.BatchNo}：分配支数({qty.Value})超过可用支数({GetNetValidQty(batch)})");
+        }
+
+        // 聚合校验：按原主工单号，Σ分配重量 ≤ 可分配剩余总重量
+        foreach (var group in selectedBatches.GroupBy(b => b.WorkOrderNo, StringComparer.OrdinalIgnoreCase))
+        {
+            var totalWt = group.Sum(b => _allocatedWeights.GetValueOrDefault(b.Id));
+            var mainRemaining = group.First()!.MainNoAllocatableRemaining;
+            if (totalWt > mainRemaining)
+                errors.Add($"主工单 {group.Key}：分配总重量({totalWt.ToString("G29")})超过可分配剩余总重量({mainRemaining.ToString("F0")})");
         }
 
         if (errors.Any())
@@ -432,15 +406,7 @@
                     Remark = string.IsNullOrWhiteSpace(_remark) ? null : _remark
                 };
 
-                ApiResponse<InMainWorkOrderPlanDto> result;
-                if (IsEditMode && existingPlan != null && batchId == existingPlan.ProductionBatchId)
-                {
-                    result = await MaterialPlanService.UpdateInMainWorkOrderPlanAsync(PlanId, request);
-                }
-                else
-                {
-                    result = await MaterialPlanService.CreateInMainWorkOrderPlanAsync(request);
-                }
+                var result = await MaterialPlanService.CreateInMainWorkOrderPlanAsync(request);
 
                 if (result.Success)
                 {

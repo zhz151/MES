@@ -254,6 +254,66 @@ public class PicklingServiceTests : TestBase
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
     }
 
+    [Fact]
+    public async Task UpdateAsync_入缸变更字段_级联同步到出缸快照()
+    {
+        var ctx = CreateDbContext();
+        var record = await SeedInRecordAsync(ctx);
+        // 出缸记录冗余字段为空（设备/支数/重量待入缸变更同步）
+        ctx.PicklingOutRecords.Add(new PicklingOutRecord
+        {
+            PicklingInRecordId = record.Id,
+            CompleteDate = DateTime.Today,
+            ProductionBatchId = record.ProductionBatchId,
+            SectionName = record.SectionName
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        // 入缸变更：设备/支数/重量
+        await svc.UpdateAsync(record.Id, new UpdatePicklingInRecordRequest
+        {
+            EquipmentName = "酸洗槽2",
+            Quantity = 30,
+            Weight = 3000m
+        });
+
+        var outRec = await ctx.PicklingOutRecords.AsNoTracking().FirstAsync();
+        outRec.EquipmentName.Should().Be("酸洗槽2"); // 入缸变更字段跟随
+        outRec.Quantity.Should().Be(30);
+        outRec.Weight.Should().Be(3000m);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_入缸未变更字段_出缸保持原值()
+    {
+        var ctx = CreateDbContext();
+        var record = await SeedInRecordAsync(ctx);
+        // 出缸记录已有部分快照值
+        ctx.PicklingOutRecords.Add(new PicklingOutRecord
+        {
+            PicklingInRecordId = record.Id,
+            CompleteDate = DateTime.Today,
+            ProductionBatchId = record.ProductionBatchId,
+            SectionName = record.SectionName,
+            Quantity = 88,
+            EquipmentName = "老设备"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        // 仅变更重量，未改设备/支数
+        await svc.UpdateAsync(record.Id, new UpdatePicklingInRecordRequest
+        {
+            Weight = 5000m
+        });
+
+        var outRec = await ctx.PicklingOutRecords.AsNoTracking().FirstAsync();
+        outRec.Weight.Should().Be(5000m);            // 入缸变更字段跟随
+        outRec.Quantity.Should().Be(88);             // 未变更字段保持出缸原值
+        outRec.EquipmentName.Should().Be("老设备");   // 未变更字段保持出缸原值
+    }
+
     // ========== 入缸记录 — DeleteAsync ==========
 
     [Fact]
@@ -430,6 +490,94 @@ public class PicklingServiceTests : TestBase
         // 入缸状态应恢复为 Soaking
         var inRecord = await ctx.PicklingInRecords.FindAsync(record.Id);
         inRecord!.Status.Should().Be(PicklingStatus.Soaking);
+    }
+
+    // ========== 回填入缸冗余字段 ==========
+
+    [Fact]
+    public async Task BackfillOutRecordInDataAsync_补齐空冗余字段_批次号取自批次()
+    {
+        var ctx = CreateDbContext();
+        var inRec = await SeedInRecordAsync(ctx, "BATCH001");
+        // 补齐入缸记录其余可回填字段
+        inRec.TagNo = "TAG-9";
+        inRec.PlantGrade = "304";
+        inRec.Operator = "王五";
+        inRec.Shift = nameof(ShiftType.DayShift);
+        inRec.EquipmentName = "酸洗槽1";
+        inRec.ProductStatus = "InProcess";
+        await ctx.SaveChangesAsync();
+
+        // 出缸记录冗余字段全空（SectionName 为必填列，保持入缸值）
+        ctx.PicklingOutRecords.Add(new PicklingOutRecord
+        {
+            PicklingInRecordId = inRec.Id,
+            CompleteDate = DateTime.Today,
+            DataSource = "MANUAL",
+            ProductionBatchId = inRec.ProductionBatchId,
+            SectionName = inRec.SectionName
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var updated = await svc.BackfillOutRecordInDataAsync();
+
+        updated.Should().Be(1);
+        var outRec = await ctx.PicklingOutRecords.AsNoTracking().FirstAsync();
+        outRec.BatchNo.Should().Be("BATCH001");            // 批次号取自批次导航
+        outRec.ProcessName.Should().Be("冷拔");
+        outRec.ManufacturingSpec.Should().Be("219*8");
+        outRec.SectionName.Should().Be(SectionKeys.Pickle);
+        outRec.TagNo.Should().Be("TAG-9");
+        outRec.PlantGrade.Should().Be("304");
+        outRec.EquipmentName.Should().Be("酸洗槽1");
+        outRec.Operator.Should().Be("王五");
+        outRec.Shift.Should().Be(nameof(ShiftType.DayShift));
+        outRec.Quantity.Should().Be(10);
+        outRec.Weight.Should().Be(1000m);
+        outRec.ProductStatus.Should().Be("InProcess");
+    }
+
+    [Fact]
+    public async Task BackfillOutRecordInDataAsync_已有值不覆盖()
+    {
+        var ctx = CreateDbContext();
+        var inRec = await SeedInRecordAsync(ctx, "BATCH002");
+        // 一条已有部分值（应保持不动），一条全空（应补齐，SectionName 为必填列保持入缸值）
+        ctx.PicklingOutRecords.Add(new PicklingOutRecord
+        {
+            PicklingInRecordId = inRec.Id,
+            CompleteDate = DateTime.Today,
+            DataSource = "MANUAL",
+            ProductionBatchId = inRec.ProductionBatchId,
+            SectionName = inRec.SectionName,
+            BatchNo = "已填批次号",
+            Quantity = 99
+        });
+        ctx.PicklingOutRecords.Add(new PicklingOutRecord
+        {
+            PicklingInRecordId = inRec.Id,
+            CompleteDate = DateTime.Today,
+            DataSource = "MANUAL",
+            ProductionBatchId = inRec.ProductionBatchId,
+            SectionName = inRec.SectionName
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var updated = await svc.BackfillOutRecordInDataAsync();
+
+        updated.Should().Be(2); // 两条记录的其余空字段均被补齐
+        var outRecs = await ctx.PicklingOutRecords.AsNoTracking().OrderBy(r => r.Id).ToListAsync();
+        // 第一条：已填字段不被覆盖，空字段被补齐
+        outRecs[0].BatchNo.Should().Be("已填批次号");
+        outRecs[0].Quantity.Should().Be(99);
+        outRecs[0].ProcessName.Should().Be("冷拔");
+        outRecs[0].Weight.Should().Be(1000m);
+        // 第二条：全部空字段被补齐
+        outRecs[1].BatchNo.Should().Be("BATCH002");
+        outRecs[1].Quantity.Should().Be(10);
+        outRecs[1].ProcessName.Should().Be("冷拔");
     }
 
     // ========== GetByBatchAsync ==========

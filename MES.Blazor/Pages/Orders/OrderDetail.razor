@@ -1181,7 +1181,8 @@
                         {
                             cb.OpenComponent<MudSelectItem<SettlementMethod>>(0);
                             cb.AddAttribute(1, "Value", Enum.Parse<SettlementMethod>(opt.Value));
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.AddAttribute(2, "Text", opt.Display);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));
@@ -1204,7 +1205,8 @@
                         {
                             cb.OpenComponent<MudSelectItem<PipeManufacturingType>>(0);
                             cb.AddAttribute(1, "Value", Enum.Parse<PipeManufacturingType>(opt.Value));
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.AddAttribute(2, "Text", opt.Display);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));
@@ -1250,7 +1252,8 @@
                         {
                             cb.OpenComponent<MudSelectItem<DeliveryState>>(0);
                             cb.AddAttribute(1, "Value", Enum.Parse<DeliveryState>(opt.Value));
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.AddAttribute(2, "Text", opt.Display);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));
@@ -1392,7 +1395,8 @@
                         {
                             cb.OpenComponent<MudSelectItem<LengthStatus>>(0);
                             cb.AddAttribute(1, "Value", Enum.Parse<LengthStatus>(opt.Value));
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.AddAttribute(2, "Text", opt.Display);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));

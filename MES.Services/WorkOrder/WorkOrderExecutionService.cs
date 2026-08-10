@@ -462,25 +462,31 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var inMainByWoId = inMainPlans.GroupBy(p => p.WorkOrderId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // 批量加载生产领用出库记录（用于 G7/G8 库存使用/库料改制的执行量，按 BatchNo 匹配）
+        // 批量加载生产领用出库记录（用于 G7/G8 库存使用/库料改制的执行量与截止到料日，按 出库工单号+仓库批 两级匹配，同第4/5类完成口径）
         var invPlanBatchNos = allInventoryPlans.Select(p => p.InventoryBatchNo).Distinct().ToList();
         var productionPickRecords = invPlanBatchNos.Count > 0
             ? await _context.OutboundRecords
                 .AsNoTracking()
                 .Where(or => or.OutboundType == OutboundType.ProductionPick
                           && or.BatchNo != null
+                          && or.WorkOrderNo != null
+                          && workOrderNos.Contains(or.WorkOrderNo)
                           && invPlanBatchNos.Contains(or.BatchNo))
                 .ToListAsync()
             : new List<OutboundRecord>();
-        var outboundWeightByBatchNo = productionPickRecords
-            .GroupBy(or => or.BatchNo!)
-            .ToDictionary(g => g.Key, g => g.Sum(or => or.OutboundWeight), StringComparer.OrdinalIgnoreCase);
+        // 出库量 = 各工单号下 各仓库批 的生产领用出库重量（外层工单号/内层批次号均忽略大小写，空工单号不计入）
+        var outboundWeightByWoNoAndBatchNo = productionPickRecords
+            .GroupBy(or => or.WorkOrderNo!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g
+                .GroupBy(or => or.BatchNo!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(bg => bg.Key, bg => bg.Sum(or => or.OutboundWeight)));
 
-        // G7/G8 截止到料日出库日期：各仓库批的生产领用出库记录最大出库日期
-        var outboundDateByBatchNo = productionPickRecords
-            .Where(or => or.BatchNo != null)
-            .GroupBy(or => or.BatchNo!)
-            .ToDictionary(g => g.Key, g => g.Max(or => or.OutboundDate), StringComparer.OrdinalIgnoreCase);
+        // G7/G8 截止到料日出库日期：各工单号下 各仓库批 的生产领用出库记录最大出库日期
+        var outboundDateByWoNoAndBatchNo = productionPickRecords
+            .GroupBy(or => or.WorkOrderNo!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g
+                .GroupBy(or => or.BatchNo!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(bg => bg.Key, bg => bg.Max(or => or.OutboundDate)));
 
         // 批量加载仓库进库批次（G4~G6 截止到料日：SourceOrderNo 非空，经采购/委外来源单号映射回工单号）
         var arrivalDateByWoNo = await BuildArrivalDateByWorkOrderNoAsync(allPurchaseOrders, returnItems);
@@ -671,10 +677,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 var plainInvPlans = invList.Where(p => p.ReworkType == null).ToList();
                 summary.InventoryPlanWeight = plainInvPlans.Sum(p => p.UsedWeight);
-                // 出库量 = 关联仓库批的生产领用出库重量
+                // 出库量 = 本工单号下 关联仓库批 的生产领用出库重量（与完成匹配同口径：出库工单号==本工单号）
                 var uniqueBatchNos = plainInvPlans.Select(p => p.InventoryBatchNo).Distinct().ToList();
                 var outWeight = uniqueBatchNos
-                    .Select(bn => outboundWeightByBatchNo.TryGetValue(bn, out var w) ? w : 0m)
+                    .Select(bn => outboundWeightByWoNoAndBatchNo.TryGetValue(wo.WorkOrderNo, out var byBatch)
+                        && byBatch.TryGetValue(bn, out var w) ? w : 0m)
                     .Sum();
                 summary.InventoryOutWeight = outWeight;
                 summary.InventoryOutStatus = ComputePlanStatus(outWeight, summary.InventoryPlanWeight, warehouseLower, warehouseUpper);
@@ -685,10 +692,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 var reworkInvPlans = invList2.Where(p => p.ReworkType != null).ToList();
                 summary.ReworkPlanWeight = reworkInvPlans.Sum(p => p.UsedWeight);
-                // 投料量 = 关联仓库批的生产领用出库重量
+                // 投料量 = 本工单号下 关联仓库批 的生产领用出库重量（与完成匹配同口径：出库工单号==本工单号）
                 var uniqueBatchNos = reworkInvPlans.Select(p => p.InventoryBatchNo).Distinct().ToList();
                 var inputWeight = uniqueBatchNos
-                    .Select(bn => outboundWeightByBatchNo.TryGetValue(bn, out var w) ? w : 0m)
+                    .Select(bn => outboundWeightByWoNoAndBatchNo.TryGetValue(wo.WorkOrderNo, out var byBatch)
+                        && byBatch.TryGetValue(bn, out var w) ? w : 0m)
                     .Sum();
                 summary.ReworkPlanInputWeight = inputWeight;
                 summary.ReworkPlanInputStatus = ComputePlanStatus(inputWeight, summary.ReworkPlanWeight, warehouseLower, warehouseUpper);
@@ -729,7 +737,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 var allInvBatchNos = invAllList.Select(p => p.InventoryBatchNo).Distinct().ToList();
                 var outDates = allInvBatchNos
-                    .Select(bn => outboundDateByBatchNo.TryGetValue(bn, out var od) ? (DateTime?)od : null)
+                    .Select(bn => outboundDateByWoNoAndBatchNo.TryGetValue(wo.WorkOrderNo, out var byBatch)
+                        && byBatch.TryGetValue(bn, out var od) ? (DateTime?)od : null)
                     .Where(d => d.HasValue)
                     .Select(d => d!.Value)
                     .ToList();
@@ -1256,25 +1265,31 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var inMainByWoId = inMainPlans.GroupBy(p => p.WorkOrderId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // 批量加载生产领用出库记录（用于 G7/G8 库存使用/库料改制的执行量，按 BatchNo 匹配）
+        // 批量加载生产领用出库记录（用于 G7/G8 库存使用/库料改制的执行量与截止到料日，按 出库工单号+仓库批 两级匹配，同第4/5类完成口径）
         var invPlanBatchNos = allInventoryPlans.Select(p => p.InventoryBatchNo).Distinct().ToList();
         var productionPickRecords = invPlanBatchNos.Count > 0
             ? await _context.OutboundRecords
                 .AsNoTracking()
                 .Where(or => or.OutboundType == OutboundType.ProductionPick
                           && or.BatchNo != null
+                          && or.WorkOrderNo != null
+                          && workOrderNos.Contains(or.WorkOrderNo)
                           && invPlanBatchNos.Contains(or.BatchNo))
                 .ToListAsync()
             : new List<OutboundRecord>();
-        var outboundWeightByBatchNo = productionPickRecords
-            .GroupBy(or => or.BatchNo!)
-            .ToDictionary(g => g.Key, g => g.Sum(or => or.OutboundWeight), StringComparer.OrdinalIgnoreCase);
+        // 出库量 = 各工单号下 各仓库批 的生产领用出库重量（外层工单号/内层批次号均忽略大小写，空工单号不计入）
+        var outboundWeightByWoNoAndBatchNo = productionPickRecords
+            .GroupBy(or => or.WorkOrderNo!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g
+                .GroupBy(or => or.BatchNo!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(bg => bg.Key, bg => bg.Sum(or => or.OutboundWeight)));
 
-        // G7/G8 截止到料日出库日期：各仓库批的生产领用出库记录最大出库日期
-        var outboundDateByBatchNo = productionPickRecords
-            .Where(or => or.BatchNo != null)
-            .GroupBy(or => or.BatchNo!)
-            .ToDictionary(g => g.Key, g => g.Max(or => or.OutboundDate), StringComparer.OrdinalIgnoreCase);
+        // G7/G8 截止到料日出库日期：各工单号下 各仓库批 的生产领用出库记录最大出库日期
+        var outboundDateByWoNoAndBatchNo = productionPickRecords
+            .GroupBy(or => or.WorkOrderNo!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g
+                .GroupBy(or => or.BatchNo!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(bg => bg.Key, bg => bg.Max(or => or.OutboundDate)));
 
         // 批量加载仓库进库批次（G4~G6 截止到料日：SourceOrderNo 非空，经采购/委外来源单号映射回工单号）
         var arrivalDateByWoNo = await BuildArrivalDateByWorkOrderNoAsync(allPurchaseOrders, returnItems);
@@ -1401,10 +1416,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 var plainInvPlans = invList.Where(p => p.ReworkType == null).ToList();
                 summary.InventoryPlanWeight = plainInvPlans.Sum(p => p.UsedWeight);
-                // 出库量 = 关联仓库批的生产领用出库重量
+                // 出库量 = 本工单号下 关联仓库批 的生产领用出库重量（与完成匹配同口径：出库工单号==本工单号）
                 var uniqueBatchNos = plainInvPlans.Select(p => p.InventoryBatchNo).Distinct().ToList();
                 var outWeight = uniqueBatchNos
-                    .Select(bn => outboundWeightByBatchNo.TryGetValue(bn, out var w) ? w : 0m)
+                    .Select(bn => outboundWeightByWoNoAndBatchNo.TryGetValue(wo.WorkOrderNo, out var byBatch)
+                        && byBatch.TryGetValue(bn, out var w) ? w : 0m)
                     .Sum();
                 summary.InventoryOutWeight = outWeight;
                 summary.InventoryOutStatus = ComputePlanStatus(outWeight, summary.InventoryPlanWeight, warehouseLower, warehouseUpper);
@@ -1415,10 +1431,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 var reworkInvPlans = invList2.Where(p => p.ReworkType != null).ToList();
                 summary.ReworkPlanWeight = reworkInvPlans.Sum(p => p.UsedWeight);
-                // 投料量 = 关联仓库批的生产领用出库重量
+                // 投料量 = 本工单号下 关联仓库批 的生产领用出库重量（与完成匹配同口径：出库工单号==本工单号）
                 var uniqueBatchNos = reworkInvPlans.Select(p => p.InventoryBatchNo).Distinct().ToList();
                 var inputWeight = uniqueBatchNos
-                    .Select(bn => outboundWeightByBatchNo.TryGetValue(bn, out var w) ? w : 0m)
+                    .Select(bn => outboundWeightByWoNoAndBatchNo.TryGetValue(wo.WorkOrderNo, out var byBatch)
+                        && byBatch.TryGetValue(bn, out var w) ? w : 0m)
                     .Sum();
                 summary.ReworkPlanInputWeight = inputWeight;
                 summary.ReworkPlanInputStatus = ComputePlanStatus(inputWeight, summary.ReworkPlanWeight, warehouseLower, warehouseUpper);
@@ -1459,7 +1476,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             {
                 var allInvBatchNos = invAllList.Select(p => p.InventoryBatchNo).Distinct().ToList();
                 var outDates = allInvBatchNos
-                    .Select(bn => outboundDateByBatchNo.TryGetValue(bn, out var od) ? (DateTime?)od : null)
+                    .Select(bn => outboundDateByWoNoAndBatchNo.TryGetValue(wo.WorkOrderNo, out var byBatch)
+                        && byBatch.TryGetValue(bn, out var od) ? (DateTime?)od : null)
                     .Where(d => d.HasValue)
                     .Select(d => d!.Value)
                     .ToList();

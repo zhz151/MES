@@ -18,7 +18,11 @@ public static class SectionDisplayHelper
     {
         if (string.IsNullOrEmpty(value)) return value ?? string.Empty;
         if (OverrideMap != null && OverrideMap.TryGetValue(value, out var cn))
+        {
+            // 防旧 API/英文种子库：OverrideMap 若返回的是英文 Key（如 "ColdRollDraw"），视为种子值未改名，回退规范中文
+            if (SectionKeys.IsKey(cn)) return SectionKeys.ToChinese(cn) ?? cn;
             return cn;
+        }
         return SectionKeys.ToChinese(value) ?? value;
     }
 

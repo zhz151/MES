@@ -57,7 +57,7 @@
             <div>
                 @foreach (var plan in _pendingInProcessReworkPlans)
                 {
-                    <div>批次 "@plan.BatchNo" 存在在产改制计划（工单 @plan.WorkOrderNo），请及时处理！</div>
+                    <div>生产编号 "@plan.BatchNo"用料计划，（@plan.PlanType，@plan.WorkOrderNo，需改制 @(plan.RequiredQuantity?.ToString() ?? "-")支 + @plan.RequiredWeight.ToString("G29")kg），请执行！</div>
                 }
             </div>
         </MudAlert>
@@ -70,7 +70,7 @@
             <div>
                 @foreach (var plan in _pendingInMainWorkOrderPlans)
                 {
-                    <div>批次 "@plan.BatchNo" @plan.Message</div>
+                    <div>生产编号 "@plan.BatchNo"用料计划，（@plan.PlanType，@plan.WorkOrderNo，需分配 @(plan.RequiredQuantity?.ToString() ?? "-")支 + @plan.RequiredWeight.ToString("G29")kg），请执行！</div>
                 }
             </div>
         </MudAlert>

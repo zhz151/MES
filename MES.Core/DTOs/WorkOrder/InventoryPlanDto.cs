@@ -199,6 +199,11 @@ public class CreateInventoryPlanRequest
     /// </summary>
     public ReworkType? ReworkType { get; set; }
 
+    /// <summary>
+    /// 工序组（库料改制 ReworkType 非空时必填；库存使用可为空）
+    /// </summary>
+    public List<SavePlanProcessGroupItem>? ProcessGroups { get; set; }
+
 }
 
 /// <summary>
@@ -232,6 +237,11 @@ public class AvailableInventoryBatchDto
     public string Specification { get; set; } = null!;
 
     /// <summary>
+    /// 实际规格（原实测外径/实测壁厚已删除，实测值由实际规格解析）
+    /// </summary>
+    public string? ActualSpecification { get; set; }
+
+    /// <summary>
     /// 长度状态
     /// </summary>
     public LengthStatus? LengthStatus { get; set; }
@@ -247,14 +257,24 @@ public class AvailableInventoryBatchDto
     public decimal? MaxLength { get; set; }
 
     /// <summary>
-    /// 剩余支数
+    /// 剩余支数（物理剩余）
     /// </summary>
     public int RemainingQuantity { get; set; }
 
     /// <summary>
-    /// 剩余重量(kg)
+    /// 剩余重量(kg)（物理剩余）
     /// </summary>
     public decimal RemainingWeight { get; set; }
+
+    /// <summary>
+    /// 已被其他部分使用计划预留的支数（仅统计未取消且未出库的部分使用计划）
+    /// </summary>
+    public int ReservedQuantity { get; set; }
+
+    /// <summary>
+    /// 已被其他部分使用计划预留的重量(kg)（仅统计未取消且未出库的部分使用计划）
+    /// </summary>
+    public decimal ReservedWeight { get; set; }
 
     /// <summary>
     /// 单重(kg/支)

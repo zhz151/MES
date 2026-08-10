@@ -820,7 +820,8 @@
                         var valueAttrHash = (int)item * 100 + 1;
                         cb.OpenComponent<MudSelectItem<InspectionItem>>(valueAttrHash);
                         cb.AddAttribute(valueAttrHash + 1, "Value", item);
-                        cb.AddAttribute(valueAttrHash + 2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                        cb.AddAttribute(valueAttrHash + 2, "Text", opt.Display);
+                        cb.AddAttribute(valueAttrHash + 3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                         cb.CloseComponent();
                     }
                 }));
@@ -863,15 +864,18 @@
                 {
                     b.OpenComponent<MudSelectItem<ShiftType?>>(0);
                     b.AddAttribute(1, "Value", (ShiftType?)ShiftType.DayShift);
-                    b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetShiftTypeText(ShiftType.DayShift))));
+                    b.AddAttribute(2, "Text", DisplayHelper.GetShiftTypeText(ShiftType.DayShift));
+                    b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetShiftTypeText(ShiftType.DayShift))));
                     b.CloseComponent();
                     b.OpenComponent<MudSelectItem<ShiftType?>>(0);
                     b.AddAttribute(1, "Value", (ShiftType?)ShiftType.MiddleShift);
-                    b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetShiftTypeText(ShiftType.MiddleShift))));
+                    b.AddAttribute(2, "Text", DisplayHelper.GetShiftTypeText(ShiftType.MiddleShift));
+                    b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetShiftTypeText(ShiftType.MiddleShift))));
                     b.CloseComponent();
                     b.OpenComponent<MudSelectItem<ShiftType?>>(0);
                     b.AddAttribute(1, "Value", (ShiftType?)ShiftType.NightShift);
-                    b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetShiftTypeText(ShiftType.NightShift))));
+                    b.AddAttribute(2, "Text", DisplayHelper.GetShiftTypeText(ShiftType.NightShift));
+                    b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetShiftTypeText(ShiftType.NightShift))));
                     b.CloseComponent();
                 }));
                 builder.CloseComponent();
@@ -900,11 +904,13 @@
                 {
                     cb.OpenComponent<MudSelectItem<string?>>(0);
                     cb.AddAttribute(1, "Value", nameof(InspectionType.FormalInspection));
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.FormalInspection)))));
+                    cb.AddAttribute(2, "Text", DisplayHelper.GetInspectionTypeText(nameof(InspectionType.FormalInspection)));
+                    cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.FormalInspection)))));
                     cb.CloseComponent();
                     cb.OpenComponent<MudSelectItem<string?>>(0);
                     cb.AddAttribute(1, "Value", nameof(InspectionType.PreInspection));
-                    cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.PreInspection)))));
+                    cb.AddAttribute(2, "Text", DisplayHelper.GetInspectionTypeText(nameof(InspectionType.PreInspection)));
+                    cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.PreInspection)))));
                     cb.CloseComponent();
                 }));
                 builder.CloseComponent();

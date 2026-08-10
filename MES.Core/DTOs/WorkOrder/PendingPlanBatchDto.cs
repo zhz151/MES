@@ -28,6 +28,16 @@ public class PendingPlanBatchDto
     public int PlanId { get; set; }
 
     /// <summary>
+    /// 需出库支数
+    /// </summary>
+    public int? RequiredQuantity { get; set; }
+
+    /// <summary>
+    /// 需出库重量(kg)
+    /// </summary>
+    public decimal RequiredWeight { get; set; }
+
+    /// <summary>
     /// 异常描述信息
     /// </summary>
     public string? Message { get; set; }

@@ -146,6 +146,7 @@
         public decimal OutboundWeight { get; set; }
         public decimal? OutboundMeters { get; set; }
         public OutboundType OutboundType { get; set; } = OutboundType.ProductionPick;
+        public string? WorkOrderNo { get; set; }
         public string? SourceOrderNo { get; set; }
         public string? TargetCompany { get; set; }
         public string? Remark { get; set; }
@@ -170,6 +171,7 @@
         new() { Key = "OutboundWeight",      Label = "出库重量(kg)", IsRequired = true, Width = "80" },
         new() { Key = "OutboundMeters",      Label = "出库米数", Width = "80" },
         new() { Key = "OutboundType",        Label = "出库类型", IsRequired = true, Width = "120" },
+        new() { Key = "WorkOrderNo",         Label = "出库工单号", Width = "120" },
         new() { Key = "SourceOrderNo",       Label = "委外穿孔号", Width = "120" },
         new() { Key = "TargetCompany",       Label = "目标单位", Width = "120" },
         new() { Key = "Remark",              Label = "备注", Width = "120" },
@@ -337,10 +339,19 @@
                     {
                         b2.OpenComponent<MudSelectItem<OutboundType>>(0);
                         b2.AddAttribute(1, "Value", Enum.Parse<OutboundType>(opt.Value));
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
+                        b2.AddAttribute(2, "Text", opt.Display);
+                        b2.AddAttribute(3, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                         b2.CloseComponent();
                     }
                 }));
+                builder.CloseComponent();
+                break;
+            case "WorkOrderNo":
+                builder.OpenComponent<MudTextField<string>>(0);
+                builder.AddAttribute(1, "Variant", Variant.Outlined);
+                builder.AddAttribute(2, "Dense", true);
+                builder.AddAttribute(3, "Value", item.WorkOrderNo);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => item.WorkOrderNo = v));
                 builder.CloseComponent();
                 break;
             case "SourceOrderNo":
@@ -421,10 +432,11 @@
                 RemainingQuantity = s.RemainingQuantity,
                 RemainingWeight = s.RemainingWeight,
                 RemainingMeters = s.RemainingMeters,
-                // 初始默认值：出库数 = 剩余数
+                // 初始默认值：出库数 = 剩余数；出库工单号 = 仓库批的工单号（可手改）
                 OutboundQuantity = s.RemainingQuantity,
                 OutboundWeight = s.RemainingWeight,
                 OutboundMeters = s.RemainingMeters,
+                WorkOrderNo = s.WorkOrderNo,
             }).ToList();
         }
     }
@@ -520,6 +532,7 @@
             var request = new BatchOutboundRequest
             {
                 OutboundType = first.OutboundType,
+                WorkOrderNo = string.IsNullOrEmpty(first.WorkOrderNo) ? null : first.WorkOrderNo,
                 SourceOrderNo = string.IsNullOrEmpty(first.SourceOrderNo) ? null : first.SourceOrderNo,
                 TargetCompany = string.IsNullOrEmpty(first.TargetCompany) ? null : first.TargetCompany,
                 OutboundDate = parsedDate,
@@ -531,6 +544,7 @@
                     OutboundWeight = i.OutboundWeight,
                     OutboundMeters = i.OutboundMeters,
                     OutboundType = i.OutboundType,
+                    WorkOrderNo = string.IsNullOrEmpty(i.WorkOrderNo) ? null : i.WorkOrderNo,
                     SourceOrderNo = string.IsNullOrEmpty(i.SourceOrderNo) ? null : i.SourceOrderNo,
                     TargetCompany = string.IsNullOrEmpty(i.TargetCompany) ? null : i.TargetCompany,
                     Remark = string.IsNullOrEmpty(i.Remark) ? null : i.Remark,
@@ -570,6 +584,7 @@
         var prev = _items[idx - 1];
         var curr = _items[idx];
         curr.OutboundType = prev.OutboundType;
+        curr.WorkOrderNo = prev.WorkOrderNo;
         curr.SourceOrderNo = prev.SourceOrderNo;
         curr.TargetCompany = prev.TargetCompany;
         curr.Remark = prev.Remark;

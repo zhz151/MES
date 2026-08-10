@@ -329,31 +329,31 @@
                                     @if (GetCol("SalesOrderNo").Visible) { <th style="width:140px;">源订单号</th> }
                                     @if (GetCol("ProductionMainNo").Visible) { <th style="width:100px;">主号</th> }
                                     @if (GetCol("ProductionSubNo").Visible) { <th style="width:100px;">次号</th> }
-                                    @if (GetCol("SignDate").Visible) { <th style="width:120px;">签订日期</th> }
-                                    @if (GetCol("Salesman").Visible) { <th style="width:100px;">业务员</th> }
-                                    @if (GetCol("EndCustomer").Visible) { <th style="width:120px;">最终用户</th> }
-                                    @if (GetCol("DeliveryDate").Visible) { <th style="width:120px;">交货日期</th> }
-                                    @if (GetCol("DelayPenalty").Visible) { <th style="width:80px;">延期罚款</th> }
                                     @if (GetCol("MaterialName").Visible) { <th style="width:140px;">钢管制造</th> }
-                                    @if (GetCol("SettlementMethod").Visible) { <th style="width:140px;">结算方式</th> }
-                                    @if (GetCol("StandardCode").Visible) { <th style="width:140px;">产品标准编码</th> }
                                     @if (GetCol("DeliveryState").Visible) { <th style="width:200px;">交货状态</th> }
                                     @if (GetCol("PlantGrade").Visible) { <th style="width:120px;">工厂牌号</th> }
                                     @if (GetCol("Specification").Visible) { <th style="width:160px;">规格</th> }
-                                    @if (GetCol("OrderItemIds").Visible) { <th style="width:120px;">项次ID列表</th> }
                                     @if (GetCol("LengthStatus").Visible) { <th style="width:100px;">长度状态</th> }
+                                    @if (GetCol("SettlementMethod").Visible) { <th style="width:140px;">结算方式</th> }
+                                    @if (GetCol("StandardCode").Visible) { <th style="width:140px;">产品标准编码</th> }
+                                    @if (GetCol("TotalQuantity").Visible) { <th style="width:100px;">总支数</th> }
+                                    @if (GetCol("TotalWeight").Visible) { <th style="width:120px;">总重量(kg)</th> }
                                     @if (GetCol("OuterDiameterNegative").Visible) { <th style="width:110px;">外径负公差</th> }
                                     @if (GetCol("OuterDiameterPositive").Visible) { <th style="width:110px;">外径正公差</th> }
                                     @if (GetCol("WallThicknessNegative").Visible) { <th style="width:110px;">壁厚负公差</th> }
                                     @if (GetCol("WallThicknessPositive").Visible) { <th style="width:110px;">壁厚正公差</th> }
                                     @if (GetCol("MinLength").Visible) { <th style="width:110px;">最小长度(mm)</th> }
                                     @if (GetCol("MaxLength").Visible) { <th style="width:110px;">最大长度(mm)</th> }
-                                    @if (GetCol("TotalQuantity").Visible) { <th style="width:100px;">总支数</th> }
-                                    @if (GetCol("TotalMeters").Visible) { <th style="width:100px;">总米数</th> }
-                                    @if (GetCol("TotalWeight").Visible) { <th style="width:120px;">总重量(kg)</th> }
-                                    @if (GetCol("TotalItemCount").Visible) { <th style="width:100px;">总项次数</th> }
-                                    @if (GetCol("ItemDetails").Visible) { <th style="width:250px;">明细</th> }
                                     @if (GetCol("TechnicalRequirements").Visible) { <th style="width:120px;">技术要求</th> }
+                                    @if (GetCol("SignDate").Visible) { <th style="width:120px;">签订日期</th> }
+                                    @if (GetCol("DeliveryDate").Visible) { <th style="width:120px;">交货日期</th> }
+                                    @if (GetCol("Salesman").Visible) { <th style="width:100px;">业务员</th> }
+                                    @if (GetCol("EndCustomer").Visible) { <th style="width:120px;">最终用户</th> }
+                                    @if (GetCol("DelayPenalty").Visible) { <th style="width:80px;">延期罚款</th> }
+                                    @if (GetCol("TotalMeters").Visible) { <th style="width:100px;">总米数</th> }
+                                    @if (GetCol("TotalItemCount").Visible) { <th style="width:100px;">总项次数</th> }
+                                    @if (GetCol("OrderItemIds").Visible) { <th style="width:120px;">项次ID列表</th> }
+                                    @if (GetCol("ItemDetails").Visible) { <th style="width:250px;">明细</th> }
                                 </tr>
                             </thead>
                             <tbody>
@@ -361,11 +361,6 @@
                                     @if (GetCol("SalesOrderNo").Visible) { <td><MudTextField T="string" @bind-Value="request.SalesOrderNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
                                     @if (GetCol("ProductionMainNo").Visible) { <td><MudTextField T="string" @bind-Value="request.ProductionMainNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
                                     @if (GetCol("ProductionSubNo").Visible) { <td><MudTextField T="string" @bind-Value="request.ProductionSubNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
-                                    @if (GetCol("SignDate").Visible) { <td><MudTextField T="string" @bind-Value="editSignDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
-                                    @if (GetCol("Salesman").Visible) { <td><MudTextField T="string" @bind-Value="request.Salesman" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
-                                    @if (GetCol("EndCustomer").Visible) { <td><MudTextField T="string" @bind-Value="request.EndCustomer" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
-                                    @if (GetCol("DeliveryDate").Visible) { <td><MudTextField T="string" @bind-Value="editDeliveryDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
-                                    @if (GetCol("DelayPenalty").Visible) { <td><MudCheckBox @bind-Value="editDelayPenaltyValue" Color="Color.Warning" /></td> }
                                     @if (GetCol("MaterialName").Visible)
                                     {
                                         <td>
@@ -374,6 +369,32 @@
                                                 @foreach (var opt in DisplayHelper.GetEnumOptions<PipeManufacturingType>())
                                                 {
                                                     <MudSelectItem Value="@((PipeManufacturingType?)Enum.Parse<PipeManufacturingType>(opt.Value))">@opt.Display</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        </td>
+                                    }
+                                    @if (GetCol("DeliveryState").Visible)
+                                    {
+                                        <td>
+                                            <MudSelect T="DeliveryState?" @bind-Value="formDeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                                <MudSelectItem Value="@((DeliveryState?)null)">请选择</MudSelectItem>
+                                                @foreach (var opt in DisplayHelper.GetEnumOptions<DeliveryState>())
+                                                {
+                                                    <MudSelectItem Value="@((DeliveryState?)Enum.Parse<DeliveryState>(opt.Value))">@opt.Display</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        </td>
+                                    }
+                                    @if (GetCol("PlantGrade").Visible) { <td><MudTextField T="string" @bind-Value="request.PlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("Specification").Visible) { <td><MudTextField T="string" @bind-Value="request.Specification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("LengthStatus").Visible)
+                                    {
+                                        <td>
+                                            <MudSelect T="LengthStatus?" @bind-Value="formLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                                <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
+                                                @foreach (var opt in DisplayHelper.GetEnumOptions<LengthStatus>())
+                                                {
+                                                    <MudSelectItem Value="@((LengthStatus?)Enum.Parse<LengthStatus>(opt.Value))">@opt.Display</MudSelectItem>
                                                 }
                                             </MudSelect>
                                         </td>
@@ -391,44 +412,14 @@
                                         </td>
                                     }
                                     @if (GetCol("StandardCode").Visible) { <td><MudTextField T="string" @bind-Value="request.StandardCode" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
-                                    @if (GetCol("DeliveryState").Visible)
-                                    {
-                                        <td>
-                                            <MudSelect T="DeliveryState?" @bind-Value="formDeliveryState" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
-                                                <MudSelectItem Value="@((DeliveryState?)null)">请选择</MudSelectItem>
-                                                @foreach (var opt in DisplayHelper.GetEnumOptions<DeliveryState>())
-                                                {
-                                                    <MudSelectItem Value="@((DeliveryState?)Enum.Parse<DeliveryState>(opt.Value))">@opt.Display</MudSelectItem>
-                                                }
-                                            </MudSelect>
-                                        </td>
-                                    }
-                                    @if (GetCol("PlantGrade").Visible) { <td><MudTextField T="string" @bind-Value="request.PlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
-                                    @if (GetCol("Specification").Visible) { <td><MudTextField T="string" @bind-Value="request.Specification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
-                                    @if (GetCol("OrderItemIds").Visible) { <td><MudTextField T="string" @bind-Value="request.OrderItemIds" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
-                                    @if (GetCol("LengthStatus").Visible)
-                                    {
-                                        <td>
-                                            <MudSelect T="LengthStatus?" @bind-Value="formLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
-                                                <MudSelectItem Value="@((LengthStatus?)null)">请选择</MudSelectItem>
-                                                @foreach (var opt in DisplayHelper.GetEnumOptions<LengthStatus>())
-                                                {
-                                                    <MudSelectItem Value="@((LengthStatus?)Enum.Parse<LengthStatus>(opt.Value))">@opt.Display</MudSelectItem>
-                                                }
-                                            </MudSelect>
-                                        </td>
-                                    }
+                                    @if (GetCol("TotalQuantity").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("TotalWeight").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
                                     @if (GetCol("OuterDiameterNegative").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.OuterDiameterNegative" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
                                     @if (GetCol("OuterDiameterPositive").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.OuterDiameterPositive" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
                                     @if (GetCol("WallThicknessNegative").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.WallThicknessNegative" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
                                     @if (GetCol("WallThicknessPositive").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.WallThicknessPositive" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
                                     @if (GetCol("MinLength").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.MinLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
                                     @if (GetCol("MaxLength").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.MaxLength" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
-                                    @if (GetCol("TotalQuantity").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td> }
-                                    @if (GetCol("TotalMeters").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalMeters" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
-                                    @if (GetCol("TotalWeight").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
-                                    @if (GetCol("TotalItemCount").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalItemCount" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td> }
-                                    @if (GetCol("ItemDetails").Visible) { <td><MudTextField T="string" @bind-Value="request.ItemDetails" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
                                     @if (GetCol("TechnicalRequirements").Visible)
                                     {
                                         <td>
@@ -441,6 +432,15 @@
                                             </MudSelect>
                                         </td>
                                     }
+                                    @if (GetCol("SignDate").Visible) { <td><MudTextField T="string" @bind-Value="editSignDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("DeliveryDate").Visible) { <td><MudTextField T="string" @bind-Value="editDeliveryDateStr" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("Salesman").Visible) { <td><MudTextField T="string" @bind-Value="request.Salesman" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("EndCustomer").Visible) { <td><MudTextField T="string" @bind-Value="request.EndCustomer" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("DelayPenalty").Visible) { <td><MudCheckBox @bind-Value="editDelayPenaltyValue" Color="Color.Warning" /></td> }
+                                    @if (GetCol("TotalMeters").Visible) { <td><MudNumericField T="decimal?" @bind-Value="request.TotalMeters" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("TotalItemCount").Visible) { <td><MudNumericField T="int?" @bind-Value="request.TotalItemCount" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" /></td> }
+                                    @if (GetCol("OrderItemIds").Visible) { <td><MudTextField T="string" @bind-Value="request.OrderItemIds" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
+                                    @if (GetCol("ItemDetails").Visible) { <td><MudTextField T="string" @bind-Value="request.ItemDetails" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td> }
                                 </tr>
                             </tbody>
                         </MudSimpleTable>
@@ -585,7 +585,7 @@
                                 {
                                     if (GetPgCol(sc.SectionKey).Visible)
                                     {
-                                        <MudTh Style="width:60px;">@sc.SectionName</MudTh>
+                                        <MudTh Style="width:60px;">@SectionDisplayHelper.GetSectionNameText(sc.SectionKey)</MudTh>
                                     }
                                 }
                                 <MudTh Style="width:45px;">操作</MudTh>
@@ -1317,31 +1317,31 @@
             new() { Key = "SalesOrderNo", Label = "源订单号", Visible = true },
             new() { Key = "ProductionMainNo", Label = "主号", Visible = true },
             new() { Key = "ProductionSubNo", Label = "次号", Visible = true },
-            new() { Key = "OrderItemIds", Label = "项次ID列表", Visible = true },
-            new() { Key = "SignDate", Label = "签订日期", Visible = true },
-            new() { Key = "Salesman", Label = "业务员", Visible = true },
-            new() { Key = "EndCustomer", Label = "最终用户", Visible = true },
-            new() { Key = "DeliveryDate", Label = "交货日期", Visible = true },
-            new() { Key = "DelayPenalty", Label = "延期罚款", Visible = true },
             new() { Key = "MaterialName", Label = "钢管制造", Visible = true },
-            new() { Key = "SettlementMethod", Label = "结算方式", Visible = true },
-            new() { Key = "StandardCode", Label = "产品标准编码", Visible = true },
             new() { Key = "DeliveryState", Label = "交货状态", Visible = true },
             new() { Key = "PlantGrade", Label = "工厂牌号", Visible = true },
             new() { Key = "Specification", Label = "规格", Visible = true },
+            new() { Key = "LengthStatus", Label = "长度状态", Visible = true },
+            new() { Key = "SettlementMethod", Label = "结算方式", Visible = true },
+            new() { Key = "StandardCode", Label = "产品标准编码", Visible = true },
+            new() { Key = "TotalQuantity", Label = "总支数", Visible = true },
+            new() { Key = "TotalWeight", Label = "总重量(kg)", Visible = true },
             new() { Key = "OuterDiameterNegative", Label = "外径负公差", Visible = true },
             new() { Key = "OuterDiameterPositive", Label = "外径正公差", Visible = true },
             new() { Key = "WallThicknessNegative", Label = "壁厚负公差", Visible = true },
             new() { Key = "WallThicknessPositive", Label = "壁厚正公差", Visible = true },
-            new() { Key = "LengthStatus", Label = "长度状态", Visible = true },
             new() { Key = "MinLength", Label = "最小长度(mm)", Visible = true },
             new() { Key = "MaxLength", Label = "最大长度(mm)", Visible = true },
-            new() { Key = "TotalQuantity", Label = "总支数", Visible = true },
-            new() { Key = "TotalMeters", Label = "总米数", Visible = true },
-            new() { Key = "TotalWeight", Label = "总重量(kg)", Visible = true },
-            new() { Key = "TotalItemCount", Label = "总项次数", Visible = true },
-            new() { Key = "ItemDetails", Label = "明细", Visible = true },
             new() { Key = "TechnicalRequirements", Label = "技术要求", Visible = true },
+            new() { Key = "SignDate", Label = "签订日期", Visible = false },
+            new() { Key = "DeliveryDate", Label = "交货日期", Visible = false },
+            new() { Key = "Salesman", Label = "业务员", Visible = false },
+            new() { Key = "EndCustomer", Label = "最终用户", Visible = false },
+            new() { Key = "DelayPenalty", Label = "延期罚款", Visible = false },
+            new() { Key = "TotalMeters", Label = "总米数", Visible = false },
+            new() { Key = "TotalItemCount", Label = "总项次数", Visible = false },
+            new() { Key = "OrderItemIds", Label = "项次ID列表", Visible = false },
+            new() { Key = "ItemDetails", Label = "明细", Visible = false },
         };
 
         var saved = await ColumnPrefs.LoadAsync(WoColPrefsKey, null);
@@ -1498,7 +1498,7 @@
             pgCols.Add(new ColumnDef
             {
                 Key = sc.SectionKey,
-                Label = sc.SectionName,
+                Label = SectionDisplayHelper.GetSectionNameText(sc.SectionKey),
                 Visible = true
             });
         }

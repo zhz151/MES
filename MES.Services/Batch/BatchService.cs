@@ -1037,6 +1037,10 @@ public class BatchService : IBatchService
         var dto = ToDetailDto(entity);
 
         await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        // 工单号变更时旧工单的投料量/可用余量须一并重算（同 OutboundWriteService 双刷模式）
+        if (!string.IsNullOrEmpty(oldWorkOrderNo)
+            && !string.Equals(oldWorkOrderNo, entity.WorkOrderNo, StringComparison.OrdinalIgnoreCase))
+            await TryRefreshExecutionSummaryAsync(oldWorkOrderNo);
 
         return dto;
     }
@@ -1635,6 +1639,10 @@ public class BatchService : IBatchService
         await _materialPlanService.RecalculateStandardCycleForBatchAsync(entity.BatchNo);
 
         await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        // 工单号变更时旧工单的投料量/可用余量须一并重算（同 OutboundWriteService 双刷模式）
+        if (!string.IsNullOrEmpty(oldWorkOrderNo)
+            && !string.Equals(oldWorkOrderNo, entity.WorkOrderNo, StringComparison.OrdinalIgnoreCase))
+            await TryRefreshExecutionSummaryAsync(oldWorkOrderNo);
 
         // 刷新质量过程跟踪（批次字段变更同步到物化读模型）
         await TryRefreshQualityProcessTrackingAsync(id);
@@ -1798,7 +1806,7 @@ public class BatchService : IBatchService
                 x.o.OutboundWeight,
                 x.o.OutboundDate,
                 OutboundRemark = x.o.Remark,
-                x.ib.WorkOrderNo,
+                WorkOrderNo = x.o.WorkOrderNo ?? x.ib.WorkOrderNo,
                 x.ib.PlantGrade,
                 x.ib.Specification,
                 x.ib.LengthStatus,
@@ -2201,10 +2209,10 @@ public class BatchService : IBatchService
             "SalesOrderNo" => b.SalesOrderNo,
             "ProductionMainNo" => b.ProductionMainNo,
             "ProductionSubNo" => (object?)b.ProductionSubNo ?? "",
-            "SignDate" => b.SignDate,
+            "SignDate" => b.SignDate == default ? "" : b.SignDate.ToString("yyyy-MM-dd"),
             "Salesman" => b.Salesman,
             "EndCustomer" => (object?)b.EndCustomer ?? "",
-            "DeliveryDate" => b.DeliveryDate,
+            "DeliveryDate" => b.DeliveryDate == default ? "" : b.DeliveryDate.ToString("yyyy-MM-dd"),
             "DelayPenalty" => b.DelayPenalty,
             "MaterialName" => TryGetEnumDisplay<PipeManufacturingType>(b.MaterialName),
             "SettlementMethod" => TryGetEnumDisplay<SettlementMethod>(b.SettlementMethod),

@@ -710,7 +710,8 @@ public partial class MaterialReceiveChecks
                         {
                             b.OpenComponent<MudSelectItem<ShiftType>>(0);
                             b.AddAttribute(1, "Value", Enum.Parse<ShiftType>(opt.Value));
-                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                            b.AddAttribute(2, "Text", opt.Display);
+                            b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 =>
                                 b2.AddContent(0, opt.Display)));
                             b.CloseComponent();
                         }
@@ -797,7 +798,8 @@ public partial class MaterialReceiveChecks
                         {
                             b.OpenComponent<MudSelectItem<int>>(0);
                             b.AddAttribute(1, "Value", pg.Id);
-                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                            b.AddAttribute(2, "Text", ProcessDisplayHelper.GetProcessNameText(pg.ProcessName));
+                            b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 =>
                                 b2.AddContent(0, ProcessDisplayHelper.GetProcessNameText(pg.ProcessName))));
                             b.CloseComponent();
                         }

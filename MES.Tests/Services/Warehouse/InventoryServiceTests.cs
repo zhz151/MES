@@ -29,9 +29,9 @@ namespace MES.Tests.Services;
 /// </summary>
 public class InventoryServiceTests : TestBase
 {
-    private InventoryService CreateService(AppDbContext ctx, Mock<IFixedLengthWorkOrderService>? fixedLenMock = null)
+    private InventoryService CreateService(AppDbContext ctx, Mock<IFixedLengthWorkOrderService>? fixedLenMock = null, Mock<IProductionRecordService>? prMock = null, Mock<IWorkOrderExecutionService>? woExecMock = null)
     {
-        var woExecMock = new Mock<IWorkOrderExecutionService>();
+        woExecMock ??= new Mock<IWorkOrderExecutionService>();
         var qualityMock = new Mock<IQualityProcessTrackingService>();
         var configMock = new Mock<IConfigParameterService>();
         var loggerMain = new Mock<ILogger<InventoryService>>();
@@ -39,7 +39,7 @@ public class InventoryServiceTests : TestBase
         var loggerOutbound = new Mock<ILogger<OutboundWriteService>>();
         var loggerSync = new Mock<ILogger<InventorySyncService>>();
         var syncMock = new Mock<IInventorySyncService>();
-        var prMock = new Mock<IProductionRecordService>();
+        prMock ??= new Mock<IProductionRecordService>();
         var notifMock = new Mock<INotificationService>();
         fixedLenMock ??= new Mock<IFixedLengthWorkOrderService>();
 
@@ -817,6 +817,43 @@ public class InventoryServiceTests : TestBase
     }
 
     [Fact]
+    public async Task UpdateInventoryBatchAsync_解绑工单_刷新旧工单执行状况()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedWorkOrderAsync(ctx, "SO-X01-01", "SO-X01", "X01");
+        var woExecMock = new Mock<IWorkOrderExecutionService>();
+        var svc = CreateService(ctx, woExecMock: woExecMock);
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            WorkOrderNo = "SO-X01-01",
+            InboundDate = DateTime.Today
+        });
+
+        woExecMock.Invocations.Clear();
+
+        await svc.UpdateInventoryBatchAsync(batch.Id, new UpdateInventoryBatchRequest
+        {
+            IsLinkedToWorkOrder = false, // 前端解绑工单：级联清空订单关联
+            WorkOrderNo = "",
+            SalesOrderNo = "",
+            ProductionMainNo = ""
+        });
+
+        // 解绑后 WorkOrderNo 已清空，但旧工单的成品入库数据须一并重算（G17 移除已解绑入库）
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("SO-X01-01"))), Times.AtLeastOnce);
+    }
+
+    [Fact]
     public async Task ValidateProductionBatchAsync_返回批次主号()
     {
         var ctx = CreateDbContext();
@@ -933,7 +970,8 @@ public class InventoryServiceTests : TestBase
             InboundSource = InboundSource.Purchase,
             SourceName = "供应商A",
             InitialQuantity = 10,
-            InitialWeight = 1000m
+            InitialWeight = 1000m,
+            WorkOrderNo = "WO-001"
         });
 
         var record = await svc.OutboundAsync(new CreateOutboundRequest
@@ -949,6 +987,8 @@ public class InventoryServiceTests : TestBase
         record.Should().NotBeNull();
         record.OutboundQuantity.Should().Be(3);
         record.OutboundWeight.Should().Be(300m);
+        // 未显式传出库工单号时，默认回退仓库批的工单号
+        record.WorkOrderNo.Should().Be("WO-001");
 
         // 验证批次剩余量已更新
         var updated = await svc.GetByIdAsync(batch.Id);
@@ -1006,6 +1046,87 @@ public class InventoryServiceTests : TestBase
         // 验证事务回滚：第一笔出库也被回滚
         var updatedB1 = await svc.GetByIdAsync(b1.Id);
         updatedB1.RemainingQuantity.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task BatchOutboundAsync_成功出库_出库工单号默认回退批次工单号()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var b1 = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            WorkOrderNo = "WO-001"
+        });
+
+        var result = await svc.BatchOutboundAsync(new BatchOutboundRequest
+        {
+            OutboundType = OutboundType.SalesOut,
+            TargetCompany = "客户Y",
+            OutboundDate = DateTime.Today,
+            Items = new List<OutboundItemRequest>
+            {
+                new() { InventoryBatchId = b1.Id, OutboundQuantity = 3, OutboundWeight = 300m }
+            }
+        });
+
+        result.SuccessCount.Should().Be(1);
+        // 行/请求级未传出库工单号，默认回退仓库批的工单号
+        result.Records.Should().ContainSingle().Which.WorkOrderNo.Should().Be("WO-001");
+
+        var persisted = await ctx.OutboundRecords.FirstOrDefaultAsync(r => r.Id == result.Records[0].Id);
+        persisted!.WorkOrderNo.Should().Be("WO-001");
+    }
+
+    [Fact]
+    public async Task UpdateOutboundRecordAsync_更新出库工单号()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            WorkOrderNo = "WO-001"
+        });
+
+        var record = await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 3,
+            OutboundWeight = 300m,
+            OutboundType = OutboundType.SalesOut,
+            TargetCompany = "客户X",
+            OutboundDate = DateTime.Today
+        });
+        record.WorkOrderNo.Should().Be("WO-001");
+
+        var updated = await svc.UpdateOutboundRecordAsync(record.Id, new UpdateOutboundRecordRequest
+        {
+            WorkOrderNo = "WO-999"
+        });
+
+        updated.WorkOrderNo.Should().Be("WO-999");
+
+        var persisted = await ctx.OutboundRecords.FirstOrDefaultAsync(r => r.Id == record.Id);
+        persisted!.WorkOrderNo.Should().Be("WO-999");
     }
 
     // ========== 批量入库 ==========
@@ -1304,6 +1425,46 @@ public class InventoryServiceTests : TestBase
         result.Items[0].OutboundType.Should().Be(OutboundType.SalesOut);
         result.Items[0].BatchNo.Should().Be(batch.BatchNo);
         result.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetOutboundRecordsAsync_列表DTO_包含出库工单号()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
+        });
+
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 2,
+            OutboundWeight = 200m,
+            OutboundType = OutboundType.SalesOut,
+            TargetCompany = "客户A",
+            OutboundDate = DateTime.Today,
+            WorkOrderNo = "WO-TEST-001"
+        });
+
+        var result = await svc.GetOutboundRecordsAsync(new OutboundQueryParams
+        {
+            PageIndex = 0,
+            PageSize = 10
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].WorkOrderNo.Should().Be("WO-TEST-001");
     }
 
     // ========== B11 专项测试 ==========
@@ -1639,5 +1800,156 @@ public class InventoryServiceTests : TestBase
         result.Should().NotBeNull();
         foreach (var kvp in result)
             kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+    }
+
+    [Fact]
+    public async Task HardDeleteInventoryBatch_非完成批次删除最后入库_重算批次跟踪()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedProductionBatchAsync(ctx, "PB-DEL", "WO-DEL", "SO-DEL", "M-DEL");
+        batch.Status = BatchStatus.None; // 非完成：修复前仅 Completed 才触发重算，导致"入库"当前工段残留
+        await ctx.SaveChangesAsync();
+        var wh = await SeedWarehouseAsync(ctx);
+        var prMock = new Mock<IProductionRecordService>();
+        var svc = CreateService(ctx, prMock: prMock);
+
+        var inbound = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            ProductionBatchNo = batch.BatchNo,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "304",
+            Specification = "219*8",
+            InboundSource = InboundSource.ProductionInbound,
+            SourceName = "内部",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
+        });
+
+        await svc.HardDeleteInventoryBatchAsync(inbound.Id);
+
+        prMock.Verify(x => x.RefreshBatchTrackingFieldsAsync(batch.Id), Times.Once);
+    }
+
+    // ========== 出库后工单执行状况增量刷新目标 ==========
+
+    private OutboundWriteService CreateOutboundWriteService(AppDbContext ctx, out Mock<IWorkOrderExecutionService> woExecMock)
+    {
+        woExecMock = new Mock<IWorkOrderExecutionService>();
+        var logger = new Mock<ILogger<OutboundWriteService>>();
+        return new OutboundWriteService(ctx, woExecMock.Object, logger.Object);
+    }
+
+    private async Task<InventoryBatch> SeedInventoryBatchAsync(AppDbContext ctx, string workOrderNo)
+    {
+        var wh = await SeedWarehouseAsync(ctx);
+        var batch = new InventoryBatch
+        {
+            BatchNo = "CK001", WarehouseId = wh.Id, MaterialType = "OrderFinished", PlantGrade = "Q345B",
+            Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A",
+            InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m,
+            RemainingQuantity = 10, RemainingWeight = 1000m, WorkOrderNo = workOrderNo, RowVersion = new byte[8]
+        };
+        ctx.InventoryBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+        return batch;
+    }
+
+    [Fact]
+    public async Task OutboundAsync_出库工单号不同于批次工单号_增量刷新目标为出库工单号()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedInventoryBatchAsync(ctx, "WO-001"); // 批次原工单号 WO-001
+        var svc = CreateOutboundWriteService(ctx, out var woExecMock);
+
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 3,
+            OutboundWeight = 300m,
+            OutboundType = OutboundType.ProductionPick,
+            WorkOrderNo = "WO-999", // 出库工单号显式填为计划工单号（≠批次原工单号）
+            OutboundDate = DateTime.Today
+        });
+
+        // 增量刷新必须刷出库记录实际工单号 WO-999，而非批次原工单号 WO-001
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-999"))), Times.AtLeastOnce);
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-001"))), Times.Never);
+    }
+
+    [Fact]
+    public async Task BatchOutboundAsync_行级出库工单号_增量刷新目标为出库工单号()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedInventoryBatchAsync(ctx, "WO-001");
+        var svc = CreateOutboundWriteService(ctx, out var woExecMock);
+
+        var result = await svc.BatchOutboundAsync(new BatchOutboundRequest
+        {
+            OutboundType = OutboundType.ProductionPick,
+            OutboundDate = DateTime.Today,
+            Items = new List<OutboundItemRequest>
+            {
+                new() { InventoryBatchId = batch.Id, OutboundQuantity = 3, OutboundWeight = 300m, WorkOrderNo = "WO-999" }
+            }
+        });
+
+        result.SuccessCount.Should().Be(1);
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-999"))), Times.AtLeastOnce);
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-001"))), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateOutboundRecordAsync_修改出库工单号_增量刷新新旧工单()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedInventoryBatchAsync(ctx, "WO-001");
+        var svc = CreateOutboundWriteService(ctx, out var woExecMock);
+
+        var record = await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 3,
+            OutboundWeight = 300m,
+            OutboundType = OutboundType.ProductionPick,
+            WorkOrderNo = "WO-001",
+            OutboundDate = DateTime.Today
+        });
+
+        woExecMock.Invocations.Clear();
+
+        await svc.UpdateOutboundRecordAsync(record.Id, new UpdateOutboundRecordRequest
+        {
+            WorkOrderNo = "WO-999"
+        });
+
+        // 新工单号 WO-999 计入出库量 → 必须刷新；旧工单号 WO-001 出库量消失 → 也必须刷新
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-999"))), Times.AtLeastOnce);
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-001"))), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task HardDeleteOutboundRecordAsync_删除出库记录_增量刷新目标为出库记录工单号()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedInventoryBatchAsync(ctx, "WO-001");
+        var svc = CreateOutboundWriteService(ctx, out var woExecMock);
+
+        var record = await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 3,
+            OutboundWeight = 300m,
+            OutboundType = OutboundType.ProductionPick,
+            WorkOrderNo = "WO-999", // 出库记录实际工单号≠批次原工单号
+            OutboundDate = DateTime.Today
+        });
+
+        woExecMock.Invocations.Clear();
+
+        await svc.HardDeleteOutboundRecordAsync(record.Id);
+
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-999"))), Times.AtLeastOnce);
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-001"))), Times.Never);
     }
 }

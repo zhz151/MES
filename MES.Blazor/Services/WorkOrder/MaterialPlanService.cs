@@ -382,38 +382,12 @@ public class MaterialPlanService
         }
     }
 
-    public async Task<ApiResponse<InProcessReworkPlanDto>> GetInProcessReworkPlanByIdAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<InProcessReworkPlanDto>>($"{BaseUrl}/in-process-rework/detail/{id}");
-            return response ?? ApiResponse<InProcessReworkPlanDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<InProcessReworkPlanDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<InProcessReworkPlanDto>> CreateInProcessReworkPlanAsync(CreateInProcessReworkPlanRequest request)
     {
         try
         {
             var response = await _http.PostAsJsonAsync<CreateInProcessReworkPlanRequest, ApiResponse<InProcessReworkPlanDto>>($"{BaseUrl}/in-process-rework", request);
             return response ?? ApiResponse<InProcessReworkPlanDto>.Fail("创建失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<InProcessReworkPlanDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse<InProcessReworkPlanDto>> UpdateInProcessReworkPlanAsync(int id, CreateInProcessReworkPlanRequest request)
-    {
-        try
-        {
-            var response = await _http.PutAsJsonAsync<CreateInProcessReworkPlanRequest, ApiResponse<InProcessReworkPlanDto>>($"{BaseUrl}/in-process-rework/{id}", request);
-            return response ?? ApiResponse<InProcessReworkPlanDto>.Fail("更新失败");
         }
         catch (Exception ex)
         {
@@ -434,14 +408,12 @@ public class MaterialPlanService
         }
     }
 
-    public async Task<ApiResponse<List<AvailableInProcessBatchDto>>> GetAvailableInProcessBatchesAsync(int workOrderId, ReworkType? reworkType = null, int? excludePlanId = null)
+    public async Task<ApiResponse<List<AvailableInProcessBatchDto>>> GetAvailableInProcessBatchesAsync(int workOrderId, int? excludePlanId = null)
     {
         try
         {
             var url = $"{BaseUrl}/in-process-batches/{workOrderId}";
             var queryParams = new List<string>();
-            if (reworkType.HasValue)
-                queryParams.Add($"reworkType={reworkType.Value}");
             if (excludePlanId.HasValue)
                 queryParams.Add($"excludePlanId={excludePlanId.Value}");
             if (queryParams.Any())
@@ -559,38 +531,12 @@ public class MaterialPlanService
         }
     }
 
-    public async Task<ApiResponse<InMainWorkOrderPlanDto>> GetInMainWorkOrderPlanByIdAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<InMainWorkOrderPlanDto>>($"{BaseUrl}/in-main-work-order/detail/{id}");
-            return response ?? ApiResponse<InMainWorkOrderPlanDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<InMainWorkOrderPlanDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<InMainWorkOrderPlanDto>> CreateInMainWorkOrderPlanAsync(CreateInMainWorkOrderPlanRequest request)
     {
         try
         {
             var response = await _http.PostAsJsonAsync<CreateInMainWorkOrderPlanRequest, ApiResponse<InMainWorkOrderPlanDto>>($"{BaseUrl}/in-main-work-order", request);
             return response ?? ApiResponse<InMainWorkOrderPlanDto>.Fail("创建失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<InMainWorkOrderPlanDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse<InMainWorkOrderPlanDto>> UpdateInMainWorkOrderPlanAsync(int id, CreateInMainWorkOrderPlanRequest request)
-    {
-        try
-        {
-            var response = await _http.PutAsJsonAsync<CreateInMainWorkOrderPlanRequest, ApiResponse<InMainWorkOrderPlanDto>>($"{BaseUrl}/in-main-work-order/{id}", request);
-            return response ?? ApiResponse<InMainWorkOrderPlanDto>.Fail("更新失败");
         }
         catch (Exception ex)
         {

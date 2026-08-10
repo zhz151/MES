@@ -64,13 +64,6 @@ public class DtoEnumMappingTests
         dto.DeliveryState.Should().Be(DeliveryState.SolutionAnnealedAndPickled);
     }
 
-    [Fact]
-    public void InProcessReworkPlanDto_PlanStatus_默认值为Planned()
-    {
-        var dto = new InProcessReworkPlanDto();
-        dto.PlanStatus.Should().Be(InventoryPlanStatus.Planned);
-    }
-
     #endregion
 
     #region Request DTO — 枚举赋值与读取

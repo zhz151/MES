@@ -33,11 +33,6 @@ public class InProcessReworkPlan : BaseEntity
     public string? BatchTagNo { get; set; }
 
     /// <summary>
-    /// 物料名称（从ProductionBatch冗余）
-    /// </summary>
-    public string MaterialName { get; set; } = null!;
-
-    /// <summary>
     /// 工厂牌号（从ProductionBatch冗余）
     /// </summary>
     public string PlantGrade { get; set; } = null!;
@@ -81,11 +76,6 @@ public class InProcessReworkPlan : BaseEntity
     /// 备注
     /// </summary>
     public string? Remark { get; set; }
-
-    /// <summary>
-    /// 改制类型：EmptyDrawing=空拉改制, FewerPass=少道次改制, ManualSelect=人工选择改制
-    /// </summary>
-    public ReworkType ReworkType { get; set; }
 
     /// <summary>
     /// 工艺周期（天）

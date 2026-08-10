@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -229,6 +230,37 @@ public class MaterialReceiveCheckServiceTests : TestBase
     }
 
     [Fact]
+    public async Task UpdateMaterialReceiveCheckAsync_更新后刷新批次跟踪与工单执行状况()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx);
+        var qptMock = new Mock<IQualityProcessTrackingService>();
+        var wesMock = new Mock<IWorkOrderExecutionService>();
+        var prMock = new Mock<IProductionRecordService>();
+        var svc = new MaterialReceiveCheckService(ctx, qptMock.Object, wesMock.Object, prMock.Object,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<MaterialReceiveCheckService>.Instance,
+            new MemoryCache(new MemoryCacheOptions()));
+
+        var created = await svc.CreateMaterialReceiveCheckAsync(new CreateMaterialReceiveCheckRequest
+        {
+            BatchNo = "BATCH001",
+            ReceiveDate = DateTime.Today
+        });
+
+        // 创建已触发一次批次跟踪刷新
+        prMock.Verify(m => m.RefreshBatchTrackingFieldsAsync(It.IsAny<int>()), Times.Once);
+
+        // 更新（ReceiveDate 变更）→ 必须再次触发批次跟踪字段 + 工单执行状况读模型刷新（对齐 Delete）
+        await svc.UpdateMaterialReceiveCheckAsync(created.Id, new UpdateMaterialReceiveCheckRequest
+        {
+            ReceiveDate = DateTime.Today.AddDays(1)
+        });
+
+        prMock.Verify(m => m.RefreshBatchTrackingFieldsAsync(It.IsAny<int>()), Times.Exactly(2));
+        wesMock.Verify(m => m.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>()), Times.Exactly(2));
+    }
+
+    [Fact]
     public async Task GetAllMaterialReceiveChecksAsync_工艺卡新增更深检验节点_标记成检类型过期()
     {
         var ctx = CreateDbContext();
@@ -349,5 +381,62 @@ public class MaterialReceiveCheckServiceTests : TestBase
         var result = await svc.GetMaterialReceiveCheckAsync(999);
 
         result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CreateMaterialReceiveCheckAsync_余库料批次_拒绝创建()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-SURPLUS-1");
+        batch.ManufacturingItem = nameof(MaterialType.Surplus); // 非成品类制造物品
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        // 余库料虽有 ManufacturingSpec==Specification 的检验工序组，检验属"过程检验"，禁止建到料
+        var act = () => svc.CreateMaterialReceiveCheckAsync(new CreateMaterialReceiveCheckRequest
+        {
+            BatchNo = "BATCH-SURPLUS-1",
+            ReceiveDate = DateTime.Today
+        });
+
+        await act.Should().ThrowAsync<MES.Core.Exceptions.BusinessException>();
+    }
+
+    [Fact]
+    public async Task BatchCreateMaterialReceiveChecksAsync_含余库料批次_整体拒绝()
+    {
+        var ctx = CreateDbContext();
+        var surplus = await SeedBatchAsync(ctx, "BATCH-SURPLUS-2");
+        surplus.ManufacturingItem = nameof(MaterialType.Surplus);
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.BatchCreateMaterialReceiveChecksAsync(new List<CreateMaterialReceiveCheckRequest>
+        {
+            new() { BatchNo = "BATCH-SURPLUS-2", ReceiveDate = DateTime.Today }
+        });
+
+        await act.Should().ThrowAsync<MES.Core.Exceptions.BusinessException>();
+    }
+
+    [Fact]
+    public async Task GetPendingMaterialChecksAsync_非成品类批次_不纳入待成检面板()
+    {
+        var ctx = CreateDbContext();
+        // 余库料批次：下工段=检验 且 ManufacturingSpec==Specification（规格匹配），但非成品类 → 不入面板
+        var surplus = await SeedBatchAsync(ctx, "BATCH-SURPLUS-P");
+        surplus.ManufacturingItem = nameof(MaterialType.Surplus);
+        surplus.NextSectionName = SectionKeys.Inspection;
+        await ctx.SaveChangesAsync();
+        // 正常成品类批次：同配置 → 应入面板
+        var finished = await SeedBatchAsync(ctx, "BATCH-FINISHED-P");
+        finished.NextSectionName = SectionKeys.Inspection;
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPendingMaterialChecksAsync();
+
+        result.Should().NotContain(p => p.BatchNo == "BATCH-SURPLUS-P"); // 余库料被过滤
+        result.Should().Contain(p => p.BatchNo == "BATCH-FINISHED-P");   // 成品类正常列出
     }
 }

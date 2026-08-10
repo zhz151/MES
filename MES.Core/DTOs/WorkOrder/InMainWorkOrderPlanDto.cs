@@ -1,5 +1,4 @@
 using MES.Core.Enums;
-using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.WorkOrder;
 
@@ -17,14 +16,9 @@ public class InMainWorkOrderPlanDto
     public decimal AllocatedWeight { get; set; }
     public int? AllocatedQuantity { get; set; }
     public int ProductionRatio { get; set; }
-    public int StandardCycle { get; set; }
     public DateTime? RequiredDate { get; set; }
     public InventoryPlanStatus PlanStatus { get; set; }
-    public string PlanStatusDisplay => EnumHelper.GetDisplayName(PlanStatus);
-    public string PlanStatusText { get; set; } = null!;
     public string? Remark { get; set; }
-    public DateTimeOffset CreatedTime { get; set; }
-    public string CreatedBy { get; set; } = null!;
 }
 
 /// <summary>
@@ -71,12 +65,28 @@ public class AvailableMainWorkOrderBatchDto
     public int? CurrentValidQty { get; set; }
     /// <summary>有效原料重量(kg)</summary>
     public int? CurrentValidWeight { get; set; }
-    /// <summary>主号总重量(kg)</summary>
+    /// <summary>原主工单号总重量(kg)（主号级需求，来自工单执行摘要聚合）</summary>
     public decimal MainTotalWeight { get; set; }
-    /// <summary>主号流转比(%)</summary>
-    public decimal MainNoFlowOutputRatio { get; set; }
-    /// <summary>可分配上限重量(kg)</summary>
-    public decimal AvailableLimit { get; set; }
-    /// <summary>用料占比（可分配上限重量 / 分工单总重量）</summary>
-    public decimal UsageRatio { get; set; }
+
+    /// <summary>
+    /// 已被其他未取消的在产主工单计划预留的支数（含已投料，跨工单累计）
+    /// </summary>
+    public int ReservedQuantity { get; set; }
+
+    /// <summary>
+    /// 已被其他未取消的在产主工单计划预留的重量(kg)（含已投料，跨工单累计）
+    /// </summary>
+    public decimal ReservedWeight { get; set; }
+
+    /// <summary>总有效投料重量(kg)：按原主工单号聚合本页所有可用批次的 CurrentValidWeight 之和</summary>
+    public decimal MainNoTotalValidWeight { get; set; }
+
+    /// <summary>总预留重量(kg)：按原主工单号聚合本页所有可用批次的 ReservedWeight 之和</summary>
+    public decimal MainNoTotalReservedWeight { get; set; }
+
+    /// <summary>
+    /// 可分配剩余总重量(kg) = max(0, 总有效投料重量 − 原主工单号总重量 − 总预留重量)。
+    /// 主工单富余为负时归 0（批次仍呈现，校验拦截）。
+    /// </summary>
+    public decimal MainNoAllocatableRemaining { get; set; }
 }

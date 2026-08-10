@@ -683,6 +683,8 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         }
 
         // IsLinkedToWorkOrder 级联：是→否（前端发送 IsLinkedToWorkOrder=false 触发）
+        // 断连前快照旧工单号：清空 WorkOrderNo 后旧工单的入库数据须一并重算
+        var oldLinkedWorkOrderNo = entity.WorkOrderNo;
         if (request.IsLinkedToWorkOrder.HasValue && !request.IsLinkedToWorkOrder.Value)
         {
             entity.IsLinkedToWorkOrder = false;
@@ -737,6 +739,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         await CheckInboundConsistencyAndNotifyAsync(entity);
 
         await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        // 断开工单关联（WorkOrderNo 被清空）时旧工单的入库数据须一并重算
+        if (!string.IsNullOrEmpty(oldLinkedWorkOrderNo)
+            && !string.Equals(oldLinkedWorkOrderNo, entity.WorkOrderNo, StringComparison.OrdinalIgnoreCase))
+            await TryRefreshExecutionSummaryAsync(oldLinkedWorkOrderNo);
         await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchNo);
         await TrySyncSourceOrderAsync(entity.SourceOrderNo);
 
@@ -768,6 +774,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         await TrySyncSourceOrderAsync(sourceOrderNo);
 
         // 若此为关联该批次的最后一条入库记录，回退批次状态
+        // （不限定 Completed：非完成批次删除最后一条入库后，"入库"当前工段会残留，需一并重算）
         if (!string.IsNullOrEmpty(productionBatchNo))
         {
             var remainingCount = await _context.InventoryBatches
@@ -776,7 +783,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             {
                 var batch = await _context.ProductionBatches
                     .FirstOrDefaultAsync(b => b.BatchNo == productionBatchNo);
-                if (batch != null && batch.Status == BatchStatus.Completed)
+                if (batch != null)
                 {
                     await _productionRecordService.RefreshBatchTrackingFieldsAsync(batch.Id);
                 }

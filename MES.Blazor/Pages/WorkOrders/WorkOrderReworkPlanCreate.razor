@@ -98,7 +98,7 @@
                             {
                                 if (GetPgCol(sc.SectionKey).Visible)
                                 {
-                                    <MudTh Style="width:60px;">@sc.SectionName</MudTh>
+                                    <MudTh Style="width:60px;">@SectionDisplayHelper.GetSectionNameText(sc.SectionKey)</MudTh>
                                 }
                             }
                             <MudTh Style="width:60px;">操作</MudTh>
@@ -231,12 +231,12 @@
                                 </MudTh>
                                 <MudTh Style="width:45px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.RemainingQuantity))" Style="cursor:pointer;">
-                                        @SortIcon("RemainingQuantity") 剩余支数
+                                        @SortIcon("RemainingQuantity") 可用支数
                                     </span>
                                 </MudTh>
                                 <MudTh Style="width:45px;">
                                     <span @onclick="() => SortBy(nameof(AvailableInventoryBatchDto.RemainingWeight))" Style="cursor:pointer;">
-                                        @SortIcon("RemainingWeight") 剩余重量
+                                        @SortIcon("RemainingWeight") 可用重量
                                     </span>
                                 </MudTh>
                                 <MudTh Style="width:45px;">
@@ -271,8 +271,14 @@
                                 <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus?.ToString())</MudTd>
                                 <MudTd DataLabel="最小长度">@DisplayHelper.FormatNullableDecimal(context.MinLength)</MudTd>
                                 <MudTd DataLabel="最大长度">@DisplayHelper.FormatNullableDecimal(context.MaxLength)</MudTd>
-                                <MudTd DataLabel="剩余支数">@context.RemainingQuantity</MudTd>
-                                <MudTd DataLabel="剩余重量">@context.RemainingWeight.ToString("G29")</MudTd>
+                                <MudTd DataLabel="可用支数">
+                                    @(context.RemainingQuantity - context.ReservedQuantity)
+                                    @if (context.ReservedQuantity > 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Warning" Style="display:inline;">（已预留@(context.ReservedQuantity)）</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="可用重量">@((context.RemainingWeight - context.ReservedWeight).ToString("G29"))</MudTd>
                                 <MudTd DataLabel="理论单支重">@DisplayHelper.FormatNullableDecimal(context.UnitWeight)</MudTd>
                                 <MudTd DataLabel="制造状态">@DisplayHelper.GetDeliveryStateText(context.ManufacturingStatus)</MudTd>
                                 <MudTd DataLabel="放置框架">@GetLocation(context)</MudTd>
@@ -295,7 +301,7 @@
                                                    Size="Size.Small"
                                                    Variant="Variant.Outlined"
                                                    Class="my-n2" Style="width:52px;">
-                                            <MudSelectItem Value="@("All")">全部</MudSelectItem>
+                                            <MudSelectItem Value="@("All")" Disabled="@(context.ReservedQuantity > 0)">全部</MudSelectItem>
                                             <MudSelectItem Value="@("Partial")">部分</MudSelectItem>
                                         </MudSelect>
                                     }
@@ -307,7 +313,7 @@
                                                          ValueChanged="@((int? v) => OnUsedQuantityChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
-                                                         Min="1" Max="@context.RemainingQuantity"
+                                                         Min="1" Max="@(context.RemainingQuantity - context.ReservedQuantity)"
                                                          Class="my-n2" Style="width:42px;" />
                                     }
                                     else if (GetSelection(context.Id))
@@ -447,7 +453,7 @@
         // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
         foreach (var sc in _sectionCols)
         {
-            pgCols.Add(new ColumnDef { Key = sc.SectionKey, Label = sc.SectionName, Visible = true });
+            pgCols.Add(new ColumnDef { Key = sc.SectionKey, Label = SectionDisplayHelper.GetSectionNameText(sc.SectionKey), Visible = true });
         }
 
         var saved = await ColumnPrefs.LoadAsync(PgColPrefsKey, null);
@@ -735,13 +741,6 @@
         Snackbar.Add("已重置工序组列显示", Severity.Normal);
     }
 
-    private async Task<string?> SaveProcessGroupsForPlan(int planId)
-    {
-        if (_pendingProcessGroups.Count == 0) return null;
-        var result = await ProcessGroupService.SaveAsync(3, planId, _pendingProcessGroups);
-        return result.Success ? null : (result.Message ?? "保存工序组失败");
-    }
-
     private async Task LoadAvailableInventory(int? excludePlanId = null)
     {
         isLoadingInventory = true;
@@ -878,6 +877,13 @@
             return;
         }
 
+        // 库料改制必须填写工序组（无工序组不可提交，工量需工序组内算）
+        if (_pendingProcessGroups.Count == 0)
+        {
+            Snackbar.Add("请先添加工序组", Severity.Warning);
+            return;
+        }
+
         // 前端验证
         var errors = new List<string>();
         foreach (var batchId in selectedIds)
@@ -894,10 +900,12 @@
                     errors.Add($"批次 {batch.BatchNo}：部分使用模式下出库支数必须大于0");
                 if (wt == null || wt <= 0)
                     errors.Add($"批次 {batch.BatchNo}：部分使用模式下出库重量必须大于0");
-                if (qty > batch.RemainingQuantity)
-                    errors.Add($"批次 {batch.BatchNo}：出库支数({qty})超过剩余支数({batch.RemainingQuantity})");
-                if (wt > batch.RemainingWeight)
-                    errors.Add($"批次 {batch.BatchNo}：出库重量({wt})超过剩余重量({batch.RemainingWeight})");
+                var availQty = batch.RemainingQuantity - batch.ReservedQuantity;
+                var availWt = batch.RemainingWeight - batch.ReservedWeight;
+                if (qty > availQty)
+                    errors.Add($"批次 {batch.BatchNo}：出库支数({qty})超过可用支数({availQty})");
+                if (wt > availWt)
+                    errors.Add($"批次 {batch.BatchNo}：出库重量({wt})超过可用重量({availWt.ToString("G29")})");
             }
         }
 
@@ -940,22 +948,15 @@
                     ReworkType = reworkType,
                     UsedQuantity = mode == "Partial" ? usedQuantities.GetValueOrDefault(batchId) : null,
                     UsedWeight = mode == "Partial" ? usedWeights.GetValueOrDefault(batchId) ?? 0 : 0,
+                    // 工序组随更新请求内算工量并全量替换
+                    ProcessGroups = _pendingProcessGroups,
                 };
 
                 var updateResult = await MaterialPlanService.UpdateInventoryPlanAsync(PlanId, request);
                 if (updateResult.Success)
                 {
-                    // 保存工序组
-                    var pgErr = await SaveProcessGroupsForPlan(PlanId);
-                    if (pgErr != null)
-                    {
-                        Snackbar.Add($"计划已更新，但工序组保存失败: {pgErr}", Severity.Warning);
-                    }
-                    else
-                    {
-                        Snackbar.Add("更新成功", Severity.Success);
-                        GoBack();
-                    }
+                    Snackbar.Add("更新成功", Severity.Success);
+                    GoBack();
                 }
                 else
                 {
@@ -987,6 +988,8 @@
                         ReworkType = reworkType,
                         UsedQuantity = mode == "Partial" ? usedQuantities.GetValueOrDefault(batchId) : null,
                         UsedWeight = mode == "Partial" ? usedWeights.GetValueOrDefault(batchId) ?? 0 : 0,
+                        // 工序组随创建请求内算工量
+                        ProcessGroups = _pendingProcessGroups,
                     });
                 }
 
@@ -994,24 +997,7 @@
                 if (result.Success)
                 {
                     var createdPlans = result.Data ?? new();
-                    // 为每个新创建的计划保存工序组
-                    bool allPgOk = true;
-                    if (_pendingProcessGroups.Count > 0)
-                    {
-                        foreach (var plan in createdPlans)
-                        {
-                            var pgErr = await SaveProcessGroupsForPlan(plan.Id);
-                            if (pgErr != null)
-                            {
-                                errors.Add($"计划 #{plan.Id} 工序组保存失败: {pgErr}");
-                                allPgOk = false;
-                            }
-                        }
-                    }
-                    if (allPgOk)
-                        Snackbar.Add($"成功创建 {createdPlans.Count} 条改制计划", Severity.Success);
-                    else
-                        Snackbar.Add($"计划已创建，但部分工序组保存失败，请编辑重新保存", Severity.Warning);
+                    Snackbar.Add($"成功创建 {createdPlans.Count} 条改制计划", Severity.Success);
                     GoBack();
                 }
                 else

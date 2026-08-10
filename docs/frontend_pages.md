@@ -1,6 +1,6 @@
 # MES 前端页面结构参考
 
-> 生成日期：2026-08-01（V19）
+> 生成日期：2026-08-09（V20）
 > 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
 
 ---
@@ -13,7 +13,7 @@
 |-------|---------|----------|-------|---------|
 | 首页 | 首页 | 所有 | 1 | 0 |
 | 订单 | 订单管理 | OrderStaff/Director | 7 | 3 |
-| 工单 | 工单管理 | WorkOrderStaff/Director | 16 | 5 |
+| 工单 | 工单管理 | WorkOrderStaff/Director | 17 | 5 |
 | 计划排程 | 计划排程 | 所有 | 8 | 7 |
 | 批次 | 批次管理 | BatchStaff/Director | 14 | 6 |
 | 质量 | 质量管理 | QualityStaff/Director | 32 | 16 |
@@ -77,6 +77,8 @@
 │  WorkOrderReworkPlanCreate.razor   /workorders/{id}/rework-plan/create │
 │  WorkOrderInProcessReworkPlanCreate.razor /workorders/{id}/in-process-rework-plan/create │
 │  WorkOrderInProcessReworkPlanCreate.razor /workorders/{id}/in-process-rework-plan/edit/{PlanId:int} │
+│  WorkOrderInMainWorkOrderPlanCreate.razor /workorders/{id}/in-main-work-order-plan/create │
+│  WorkOrderInMainWorkOrderPlanCreate.razor /workorders/{id}/in-main-work-order-plan/edit/{PlanId:int} │
 │                                                           │
 │  MaterialPlanOverview.razor /material-plan-overview [列表页]│
 │                                                           │
@@ -515,7 +517,7 @@
 | 63 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页 |
 | 64 | PendingDelivery.razor | /warehouse/pending-delivery | 仓库 | | 待发货项列表页 |
 | 65 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选 |
-| 66 | FixedLengthWorkOrderView.razor | /fixed-length-work-order-view | 工单 | | 定尺工单联通视图，主号级按长度实时聚合 + 分组标题栏 + 分页汇总（仅 PlannedQuantity 可求和） |
+| 66 | FixedLengthWorkOrderView.razor | /fixed-length-work-order-view | 工单 | | 定尺工单联通视图，主号级按长度实时聚合 + 分组标题栏 + 分页汇总（可汇总列：G1需求支数/G3切后支数/G4到料·成切·非成切·次品·合格·合格盈缺/G5入库·入库盈缺，G6主号级聚合不参与求和） |
 
 ---
 
@@ -559,6 +561,8 @@
 ---
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
+>
+> **最后更新：2026-08-09（V20）** — 工单上下文子页补入在产主工单计划页（WorkOrderInMainWorkOrderPlanCreate，create+edit 双路由，页面数 16→17）；§3 #66 定尺工单分页汇总描述由「仅 PlannedQuantity 可求和」更正为多列可求和（G1需求支数/G3切后支数/G4成检支数列/G5入库支数列，G6主号级聚合不参与求和）
 >
 > **最后更新：2026-08-01（V19）** — 工单上下文新增定尺工单联通视图（FixedLengthWorkOrderView，1页，列表页数 4→5）；§3 列表页清单补入该页并修正编号错乱（原 #6 缺失、#7 重复，现 #1-#66 连续），计数 64→66
 >

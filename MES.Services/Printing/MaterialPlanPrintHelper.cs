@@ -125,20 +125,17 @@ public static class MaterialPlanPrintHelper
                 columns.RelativeColumn();
                 columns.RelativeColumn();
                 columns.RelativeColumn();
-                columns.RelativeColumn();
             });
 
             table.Header(header =>
             {
-                string[] headers = { "工单号", "计划日期", "生产编号", "挂牌号", "工厂牌号", "规格", "长度状态", "投料制成倍", "使用支数", "使用重量(kg)", "改制类型", "备注" };
+                string[] headers = { "工单号", "计划日期", "生产编号", "挂牌号", "工厂牌号", "规格", "长度状态", "投料制成倍", "使用支数", "使用重量(kg)", "备注" };
                 foreach (var h in headers)
                     header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
             });
 
             foreach (var (plan, workOrder) in items)
             {
-                var reworkTypeText = EnumHelper.GetDisplayName(plan.ReworkType);
-
                 table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
                 table.Cell().Element(CellStyle).Text(plan.BatchNo).FontSize(8);
@@ -149,7 +146,6 @@ public static class MaterialPlanPrintHelper
                 table.Cell().Element(CellStyle).Text(plan.InputMultiple.ToString()).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.UsedQuantity?.ToString() is string q ? $"{q} 支" : "-").FontSize(8);
                 table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);
-                table.Cell().Element(CellStyle).Text(reworkTypeText).FontSize(8).AlignCenter();
                 table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
             }
         });

@@ -46,8 +46,12 @@ public class SectionNameDisplayService : ISectionNameDisplayService
                     .OrderBy(x => x.PlantGradePrefix == null ? 0 : 1)
                     .ThenBy(x => x.DisplayOrder)
                     .First();
-                if (!string.IsNullOrEmpty(row.SectionName))
-                    map[row.SectionKey!] = row.SectionName;
+                if (string.IsNullOrEmpty(row.SectionName)) continue;
+                // 种子 SectionName 存英文 Key（如 "ColdRollDraw"），显示层必须中文；
+                // 配置名若为合法英文 Key 视为种子值未改名 → 回退规范中文；否则（已是中文自定义名）原样采用
+                map[row.SectionKey!] = SectionKeys.IsKey(row.SectionName)
+                    ? SectionKeys.ToChinese(row.SectionName) ?? row.SectionName
+                    : row.SectionName;
             }
 
             // 兜底：SectionDefs 规范中文，保证 26 Key 全覆盖

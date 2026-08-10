@@ -57,7 +57,7 @@ public class BatchServiceTests : TestBase
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    private BatchService CreateService(AppDbContext ctx, Mock<IProductionRecordService>? prodRecordMock = null, Mock<IFinalInspectionService>? finalInspectionMock = null)
+    private BatchService CreateService(AppDbContext ctx, Mock<IProductionRecordService>? prodRecordMock = null, Mock<IFinalInspectionService>? finalInspectionMock = null, Mock<IWorkOrderExecutionService>? workOrderExecMock = null)
     {
         var loggerMock = new Mock<ILogger<BatchService>>();
         prodRecordMock ??= new Mock<IProductionRecordService>();
@@ -65,7 +65,7 @@ public class BatchServiceTests : TestBase
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
+        workOrderExecMock ??= new Mock<IWorkOrderExecutionService>();
         var materialPlanMock = new Mock<IMaterialPlanService>();
         var qptMock = new Mock<IQualityProcessTrackingService>();
         return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, finalInspectionMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new Mock<IOperationLogService>().Object, qptMock.Object, new Mock<INotificationService>().Object, new Mock<ISectionNameDisplayService>().Object, CreateProcessDefinitionServiceMock(), new MemoryCache(new MemoryCacheOptions()));
@@ -619,6 +619,56 @@ public class BatchServiceTests : TestBase
         fiMock.Verify(x => x.RecomputeCutLengthMatchByBatchAsync(It.IsAny<int>()), Times.Never);
     }
 
+    [Fact]
+    public async Task UpdateAsync_变更工单号_新旧工单号都刷新执行状况()
+    {
+        var ctx = CreateDbContext();
+        var woExecMock = new Mock<IWorkOrderExecutionService>();
+        var svc = CreateService(ctx, null, null, woExecMock);
+        var oldWo = await SeedWorkOrderAsync(ctx);
+        var newWo = await SeedWorkOrderAsync(ctx);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            WorkOrderNo = oldWo,
+            TagNo = "TAG-WO-CHANGE",
+            ProductionType = ProductionType.RoughTube,
+            ManufacturingItem = MaterialType.OrderFinished,
+            PlantGrade = "20#",
+            Specification = "219×8",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
+            MaterialName = PipeManufacturingType.SeamlessPipe,
+            LengthStatus = LengthStatus.NonFixed,
+            TotalWeight = 1000m,
+            ProductionRatio = 1,
+            SourcePlantGrade = "20#",
+            SourceSpecification = "219×8",
+            SourceLengthStatus = LengthStatus.NonFixed,
+            InputWeight = 1200m,
+            InputQuantity = 100,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = "GB/T 8163",
+            TechnicalRequirements = RequirementType.Normal
+        });
+
+        var detail = await svc.GetByIdAsync(created.Id);
+
+        woExecMock.Invocations.Clear();
+
+        await svc.UpdateAsync(created.Id, new UpdateProductionBatchRequest
+        {
+            WorkOrderNo = newWo,
+            ProductionType = ProductionType.RoughTube,
+            ManufacturingItem = MaterialType.OrderFinished,
+            RowVersion = detail.RowVersion
+        });
+
+        // 新工单号（当前归属）与旧工单号（投料量已迁出）都必须重算
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains(newWo))), Times.AtLeastOnce);
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains(oldWo))), Times.AtLeastOnce);
+    }
+
     // ========== 更新状态 ==========
 
     [Fact]
@@ -1070,6 +1120,33 @@ public class BatchServiceTests : TestBase
         var available = await svc.GetAvailableBatchesAsync();
 
         available.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetAvailableBatchesAsync_关联工单号_出库工单号优先_空则回退库存批工单号()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var wh = await SeedWarehouseAsync(ctx);
+        var ib1 = new InventoryBatch { BatchNo = "CK-IB-1", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, WorkOrderNo = "IB-WO-1" };
+        var ib2 = new InventoryBatch { BatchNo = "CK-IB-2", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, WorkOrderNo = "IB-WO-2" };
+        ctx.InventoryBatches.AddRange(ib1, ib2);
+        await ctx.SaveChangesAsync();
+
+        // 出库记录1：带出库工单号 → 优先取它
+        // 出库记录2：出库工单号为空 → 回退库存批工单号
+        ctx.OutboundRecords.AddRange(
+            new OutboundRecord { InventoryBatchId = ib1.Id, BatchNo = ib1.BatchNo, OutboundType = OutboundType.ProductionPick, WorkOrderNo = "OUT-WO-1", OutboundQuantity = 5, OutboundWeight = 500m, OutboundDate = DateTime.Today, CreatedBy = "user1" },
+            new OutboundRecord { InventoryBatchId = ib2.Id, BatchNo = ib2.BatchNo, OutboundType = OutboundType.ProductionPick, WorkOrderNo = null, OutboundQuantity = 5, OutboundWeight = 500m, OutboundDate = DateTime.Today, CreatedBy = "user1" });
+        await ctx.SaveChangesAsync();
+
+        var available = await svc.GetAvailableBatchesAsync();
+
+        var b1 = available.Should().ContainSingle(x => x.BatchNo == "CK-IB-1").Subject;
+        b1.WorkOrderNo.Should().Be("OUT-WO-1");
+        var b2 = available.Should().ContainSingle(x => x.BatchNo == "CK-IB-2").Subject;
+        b2.WorkOrderNo.Should().Be("IB-WO-2");
     }
 
     // ========== 复制上批次工序组 ==========

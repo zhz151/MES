@@ -97,9 +97,8 @@
                         }
                     </MudText>
                 </div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">创建人</MudText><MudText Typo="Typo.body2">@batch.CreatedBy</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">创建时间</MudText><MudText Typo="Typo.body2">@batch.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">最后更新</MudText><MudText Typo="Typo.body2">@batch.UpdatedBy / @batch.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</MudText></div>
+                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">最后更新</MudText><MudText Typo="Typo.body2">@batch.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</MudText></div>
             </div>
         </MudPaper>
 
@@ -306,7 +305,7 @@
                                          title="@GetSectionTooltip(section)">
                                         <span class="detail-section-icon">@GetSectionIcon(section.Status)</span>
                                         <div class="d-flex flex-column" Style="gap:0;">
-                                            <span class="detail-section-name">@(section.SectionName)</span>
+                                            <span class="detail-section-name">@SectionDisplayHelper.GetSectionNameText(section.SectionName)</span>
                                             @if (section.ExecDate.HasValue)
                                             {
                                                 <span Style="font-size:0.65rem; color:#888; line-height:1.2;">@(section.ExecDate.Value.ToString("MM-dd"))</span>
@@ -457,16 +456,6 @@
                             @batch.SalesOrderNo
                         </MudLink>
                     }</div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">主号</MudText><MudText Typo="Typo.body2">@FmtStr(batch.ProductionMainNo)</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">次号</MudText><MudText Typo="Typo.body2">@(batch.ProductionSubNo ?? "-")</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">项次ID</MudText><MudText Typo="Typo.body2">@FmtStr(batch.OrderItemIds)</MudText></div>
-                <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">总项次数</MudText><MudText Typo="Typo.body2">@batch.TotalItemCount</MudText></div>
-                <div style="flex:1; min-width:200px;">
-                    <MudText Typo="Typo.caption" Class="detail-label font-weight-bold">明细</MudText>
-                    <MudText Typo="Typo.body2" class="detail-text-ellipsis" title="@batch.ItemDetails">
-                        @(batch.ItemDetails ?? "-")
-                    </MudText>
-                </div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">签订日期</MudText><MudText Typo="Typo.body2">@FmtDate(batch.SignDate)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">业务员</MudText><MudText Typo="Typo.body2">@FmtStr(batch.Salesman)</MudText></div>
                 <div><MudText Typo="Typo.caption" Class="detail-label font-weight-bold">最终用户</MudText><MudText Typo="Typo.body2">@(batch.EndCustomer ?? "-")</MudText></div>
@@ -526,7 +515,7 @@
                             <MudTh>备注</MudTh>
                             @foreach (var sc in _sectionCols)
                             {
-                                <MudTh>@sc.SectionName</MudTh>
+                                <MudTh>@SectionDisplayHelper.GetSectionNameText(sc.SectionKey)</MudTh>
                             }
                         </HeaderContent>
                         <RowTemplate>
@@ -631,7 +620,7 @@
     private bool CanDelete => IsInRole(Roles.Admin);
 
     // 工单字段空值显示辅助
-    private static string FmtDate(DateTime dt) => dt.Year <= 1900 ? "-" : dt.ToString("yyyy-MM-dd");
+    private static string FmtDate(DateTime dt) => dt.Year <= 1900 ? "" : dt.ToString("yyyy-MM-dd");
     private static string FmtStr(string? value) => string.IsNullOrEmpty(value) ? "-" : value;
 
     private static bool IsInRole(string roles)
@@ -1036,7 +1025,7 @@
 
     private static string GetSectionTooltip(SectionVisualDto section)
     {
-        var parts = new List<string> { section.SectionName };
+        var parts = new List<string> { SectionDisplayHelper.GetSectionNameText(section.SectionName) };
         if (section.ExecDate.HasValue)
             parts.Add($"执行日: {section.ExecDate:yyyy-MM-dd}");
 

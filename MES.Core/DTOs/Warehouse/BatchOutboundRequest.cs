@@ -15,6 +15,11 @@ public class BatchOutboundRequest
     public OutboundType OutboundType { get; set; }
 
     /// <summary>
+    /// 出库工单号（行级可覆盖，未填时回退到请求级）
+    /// </summary>
+    public string? WorkOrderNo { get; set; }
+
+    /// <summary>
     /// 委外穿孔号（委外出库+圆棒时关联委外单号）
     /// </summary>
     public string? SourceOrderNo { get; set; }
@@ -73,6 +78,7 @@ public class OutboundItemRequest
 
     // 行级可覆盖字段（row ?? request 回退）
     public OutboundType? OutboundType { get; set; }
+    public string? WorkOrderNo { get; set; }
     public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
     public string? Remark { get; set; }

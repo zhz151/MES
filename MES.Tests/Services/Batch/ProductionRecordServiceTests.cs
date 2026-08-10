@@ -1631,4 +1631,320 @@ public class ProductionRecordServiceTests : TestBase
         // 强制完成批次仅重算理论成品/全工量/成切跟踪：理论成品应按 100×1 回填
         refreshed.TheoreticalOutputQty.Should().Be(100);
     }
+
+    [Fact]
+    public async Task RefreshBatchTracking_首工段即检验_无记录_状态归为成检()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-INSP-FIRST");
+        // 无任何生产记录/检验到料/入库，首工段即为"检验"
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "成品检验",
+            ManufacturingSpec = "219*8",
+            Inspection = 1
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.InFinalInspection);
+    }
+
+    [Fact]
+    public async Task BatchUpdateBatchTracking_首工段即检验_无记录_状态归为成检()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-INSP-BATCH");
+        // 无任何生产记录/检验到料/入库，首工段即为"检验"（批量刷新路径）
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "成品检验",
+            ManufacturingSpec = "219*8",
+            Inspection = 1
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.BatchUpdateBatchTrackingAsync(new[] { batch.Id });
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.InFinalInspection);
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_下工段成品检验_前工段完工_状态归为成检()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-GATE-DONE");
+        // 工序组1 生产工段（矫直）完工 → 下工段=工序组2 的成品检验（ManufacturingSpec==批次规格）
+        var pg1 = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            Straighten = 1
+        };
+        ctx.ProcessGroups.Add(pg1);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 2,
+            ProcessName = "成品检验",
+            ManufacturingSpec = "219*8",
+            Inspection = 2
+        });
+        await ctx.SaveChangesAsync();
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg1.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten, // 英文 Key
+            SequenceNumber = 1,
+            ExecDate = DateTime.Today
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.InFinalInspection);
+        refreshed.RemainingWorkDays.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_下工段检验属半成品组_不归成检()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-GATE-SEMI");
+        // 工序组1（半成品规格，≠批次规格）内嵌过程检验：下工段虽为检验但不属成品规格组 → 不判成检
+        var pg1 = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "圆管坯",
+            ColdRollDraw = 1,
+            Inspection = 2
+        };
+        ctx.ProcessGroups.Add(pg1);
+        await ctx.SaveChangesAsync();
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg1.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "圆管坯",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 1,
+            ExecDate = DateTime.Today,
+            Weight = 1000m // 完工量足够，仅用于排除"冷轧拔未完工"干扰
+        });
+        await ctx.SaveChangesAsync();
+        batch.CurrentValidWeight = 1000;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.InProgress); // 下工段检验属半成品组，仍在产
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_当前工段未完工_下工段检验_不归成检()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-GATE-UNFINISHED");
+        // 工序组1 冷轧拔未达完工重量（95%）→ 当前工段未完工，下工段虽为检验但不判成检
+        var pg1 = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            ColdRollDraw = 1,
+            Inspection = 2
+        };
+        ctx.ProcessGroups.Add(pg1);
+        await ctx.SaveChangesAsync();
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg1.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 1,
+            ExecDate = DateTime.Today
+            // 无 Weight → 完工量 0 < 阈值 95
+        });
+        await ctx.SaveChangesAsync();
+        batch.CurrentValidWeight = 100; // 完工阈值 = 100 × 0.95 = 95
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.InProgress); // 冷轧拔未完工，仍在产
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_余库料_下工段检验规格匹配_不归成检()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-GATE-SURPLUS");
+        // 余库料制造物品，即使检验工段 ManufacturingSpec==批次规格，也属"过程检验" → 永不进成检
+        batch.ManufacturingItem = nameof(MaterialType.Surplus);
+        await ctx.SaveChangesAsync();
+        // 工序组1 生产工段（矫直）完工 → 下工段=工序组2 的检验（ManufacturingSpec==批次规格）
+        var pg1 = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            Straighten = 1
+        };
+        ctx.ProcessGroups.Add(pg1);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 2,
+            ProcessName = "检验",
+            ManufacturingSpec = "219*8",
+            Inspection = 2
+        });
+        await ctx.SaveChangesAsync();
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg1.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten, // 英文 Key
+            SequenceNumber = 1,
+            ExecDate = DateTime.Today
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.InProgress); // 余库料未入库仍"在产"，不与"成检"混淆
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_首工段非检验_无记录_状态归为未产()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-NOINSP-FIRST");
+        // 首工段为冷轧拔（非检验），无记录 → 未产
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            ColdRollDraw = 1
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.None);
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_余库料_首工段即检验_无记录_状态归为未产()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-SURPLUS-INSP-FIRST");
+        // 余库料制造物品，首工段即"检验"、无任何生产记录/检验到料/入库：
+        // 非成品类检验属"过程检验"，永不进成检 → 未产（而非成检）
+        batch.ManufacturingItem = nameof(MaterialType.Surplus);
+        await ctx.SaveChangesAsync();
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "成品检验",
+            ManufacturingSpec = "219*8",
+            Inspection = 1
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.None);
+    }
+
+    [Fact]
+    public async Task BatchUpdateBatchTracking_余库料_首工段即检验_无记录_状态归为未产()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-SURPLUS-INSP-BATCH");
+        // 批量刷新路径对称验证：余库料首工段即检验、无记录 → 未产
+        batch.ManufacturingItem = nameof(MaterialType.Surplus);
+        await ctx.SaveChangesAsync();
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "成品检验",
+            ManufacturingSpec = "219*8",
+            Inspection = 1
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.BatchUpdateBatchTrackingAsync(new[] { batch.Id });
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.Status.Should().Be(BatchStatus.None);
+    }
+
+    [Fact]
+    public async Task GetTrackingVisual_工段执行日期正确回填()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-VISUAL");
+        var pg = await SeedProcessGroupAsync(ctx, batch.Id); // ColdRollDraw = 1（仅一个工段）
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw, // 存储为英文 Key
+            SequenceNumber = 1,
+            ExecDate = DateTime.Today.AddDays(-1)
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var visual = await svc.GetTrackingVisualAsync(batch.Id);
+
+        var section = visual.ProcessGroups.Should().ContainSingle().Subject
+            .Sections.Should().ContainSingle(s => s.SectionName == SectionDefs.ColdRollDraw).Subject;
+        // 修复前：中文显示名与英文 Key 记录失配 → ExecDate 恒空
+        section.ExecDate.Should().Be(DateTime.Today.AddDays(-1));
+        section.Status.Should().Be(SectionStatus.Completed);
+    }
 }

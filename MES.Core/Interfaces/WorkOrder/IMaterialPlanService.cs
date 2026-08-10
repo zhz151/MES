@@ -219,7 +219,7 @@ public interface IMaterialPlanService
 
     /// <summary>
     /// 获取工单可用的在产批次（非工�?+ 未产/在产�?    /// </summary>
-    Task<List<AvailableInProcessBatchDto>> GetAvailableInProcessBatchesAsync(int workOrderId, ReworkType? reworkType = null, int? excludePlanId = null);
+    Task<List<AvailableInProcessBatchDto>> GetAvailableInProcessBatchesAsync(int workOrderId, int? excludePlanId = null);
 
     // ========== 在产主工单计划 ==========
 
@@ -251,7 +251,7 @@ public interface IMaterialPlanService
     /// <summary>
     /// 获取工单可用的主工单批次（用于创建在产主工单计划）
     /// </summary>
-    Task<List<AvailableMainWorkOrderBatchDto>> GetAvailableMainWorkOrderBatchesAsync(int workOrderId, int? excludePlanBatchId = null);
+    Task<List<AvailableMainWorkOrderBatchDto>> GetAvailableMainWorkOrderBatchesAsync(int workOrderId, int? excludePlanId = null);
 
     /// <summary>
     /// 获取所有待处理（Planned状态）的在产主工单计划列表

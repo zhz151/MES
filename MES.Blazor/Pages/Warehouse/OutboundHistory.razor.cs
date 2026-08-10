@@ -98,6 +98,7 @@ public partial class OutboundHistory
         new() { Key = "OutboundDate",     Label = "出库日期", SortKey = "outbounddate",     IsRequired = true, Width = "120" },
         new() { Key = "OutboundType",     Label = "出库类型", SortKey = "outboundtype",     IsRequired = true, FilterType = "enum", Width = "120",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<OutboundType>() },
+        new() { Key = "WorkOrderNo",      Label = "出库工单号", SortKey = "workorderno", FilterType = "string", Width = "120" },
         new() { Key = "SourceOrderNo",    Label = "委外穿孔号", SortKey = "sourceorderno", FilterType = "string", Width = "120" },
         new() { Key = "TargetCompany",    Label = "目标单位", SortKey = "targetcompany", FilterType = "string", Width = "120" },
         new() { Key = "OutboundQuantity", Label = "出库支数", SortKey = "outboundquantity", IsRequired = true, Width = "80" },
@@ -394,6 +395,13 @@ public partial class OutboundHistory
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetOutboundTypeText(item.OutboundType))));
                 builder.CloseComponent();
                 break;
+            case "WorkOrderNo":
+                builder.OpenElement(0, "span");
+                builder.AddAttribute(1, "class", "workorderno-cell");
+                builder.AddAttribute(2, "style", "color:#000!important;font-weight:600;");
+                builder.AddContent(3, item.WorkOrderNo);
+                builder.CloseElement();
+                break;
             case "SourceOrderNo":
                 if (!string.IsNullOrEmpty(item.SourceOrderNo))
                     builder.AddContent(0, item.SourceOrderNo);
@@ -450,7 +458,8 @@ public partial class OutboundHistory
                     {
                         b2.OpenComponent<MudSelectItem<string>>(0);
                         b2.AddAttribute(1, "Value", opt.Value);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
+                        b2.AddAttribute(2, "Text", opt.Text);
+                        b2.AddAttribute(3, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
                         b2.CloseComponent();
                     }
                 }));
@@ -511,18 +520,29 @@ public partial class OutboundHistory
                 var txtVal = col.Key switch
                 {
                     "TargetCompany" => item.TargetCompany,
+                    "WorkOrderNo" => item.WorkOrderNo,
                     "Remark" => item.Remark,
                     _ => ""
                 };
-                builder.OpenComponent<MudTextField<string>>(0);
-                builder.AddAttribute(1, "Dense", true);
-                builder.AddAttribute(2, "Variant", Variant.Outlined);
-                builder.AddAttribute(3, "Value", txtVal);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
+                var seq = 0;
+                builder.OpenComponent<MudTextField<string>>(seq++);
+                builder.AddAttribute(seq++, "Dense", true);
+                builder.AddAttribute(seq++, "Variant", Variant.Outlined);
+                builder.AddAttribute(seq++, "Class", col.Key == "WorkOrderNo" ? "workorderno-cell" : null);
+                builder.AddAttribute(seq++, "Value", txtVal);
+                if (col.Key == "WorkOrderNo")
+                {
+                    builder.AddAttribute(seq++, "InputProps", new Dictionary<string, object>
+                    {
+                        ["style"] = "color:#000!important;font-weight:600;"
+                    });
+                }
+                builder.AddAttribute(seq++, "ValueChanged", EventCallback.Factory.Create<string?>(this, v =>
                 {
                     switch (col.Key)
                     {
                         case "TargetCompany": item.TargetCompany = v; break;
+                        case "WorkOrderNo": item.WorkOrderNo = v; break;
                         case "Remark": item.Remark = v; break;
                     }
                 }));
@@ -683,6 +703,7 @@ public partial class OutboundHistory
         "BatchNo" => item.BatchNo,
         "OutboundDate" => item.OutboundDate.ToString("yyyy-MM-dd"),
         "OutboundType" => DisplayHelper.GetOutboundTypeText(item.OutboundType),
+        "WorkOrderNo" => item.WorkOrderNo,
         "SourceOrderNo" => item.SourceOrderNo,
         "TargetCompany" => item.TargetCompany,
         "OutboundQuantity" => item.OutboundQuantity.ToString("G29"),
@@ -731,6 +752,7 @@ public partial class OutboundHistory
                 OutboundType = outboundType,
                 OutboundDate = parsedDate,
                 TargetCompany = string.IsNullOrEmpty(item.TargetCompany) ? null : item.TargetCompany,
+                WorkOrderNo = string.IsNullOrEmpty(item.WorkOrderNo) ? null : item.WorkOrderNo,
                 OutboundQuantity = item.OutboundQuantity,
                 OutboundWeight = item.OutboundWeight,
                 OutboundMeters = item.OutboundMeters,

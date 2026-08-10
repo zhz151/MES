@@ -211,7 +211,7 @@ public partial class Workstations
     {
         var r = await StandardWorkDayService.GetEnabledSectionsAsync();
         if (r.Success && r.Data != null)
-            _sectionOptions = r.Data.Select(x => (x.SectionKey, x.SectionName)).ToList();
+            _sectionOptions = r.Data.Select(x => (x.SectionKey, SectionDisplayHelper.GetSectionNameText(x.SectionKey))).ToList();
         else
             _sectionOptions = SectionKeys.All.Select(k => (k, SectionDisplayHelper.GetSectionNameText(k))).ToList();
     }

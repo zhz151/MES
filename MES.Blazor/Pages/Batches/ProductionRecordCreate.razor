@@ -214,9 +214,9 @@
         new() { Key = "ProductStatus",     Label = "产类",                     GroupKey = 2, GroupName = "可填充" },
 
         // ========== 组3：人员设备 ==========
+        new() { Key = "EquipmentName",     Label = "设备名称",                 GroupKey = 3, GroupName = "人员设备" },
         new() { Key = "Shift",             Label = "班次",                     GroupKey = 3, GroupName = "人员设备" },
         new() { Key = "Operator",          Label = "操作工",                   GroupKey = 3, GroupName = "人员设备" },
-        new() { Key = "EquipmentName",     Label = "设备名称",                 GroupKey = 3, GroupName = "人员设备" },
 
         // ========== 组4：加工计量 ==========
         new() { Key = "Quantity",          Label = "加工支数",                 GroupKey = 4, GroupName = "加工计量" },
@@ -226,10 +226,10 @@
         // ========== 组5：断切特有 ==========
         new() { Key = "FaceCutCount",      Label = "平头数",                   GroupKey = 5, GroupName = "断切特有" },
         new() { Key = "CuttingMultiple",   Label = "断切倍数",                 GroupKey = 5, GroupName = "断切特有" },
-        new() { Key = "FinishedCutLength", Label = "成品长度",                 GroupKey = 5, GroupName = "断切特有" },
-        new() { Key = "PostCutQuantity",   Label = "切后支数",                 GroupKey = 5, GroupName = "断切特有" },
         new() { Key = "IsPreCut",          Label = "预成切",                   GroupKey = 5, GroupName = "断切特有" },
         new() { Key = "LengthStatus",      Label = "长度状态",                 GroupKey = 5, GroupName = "断切特有" },
+        new() { Key = "FinishedCutLength", Label = "成品长度",                 GroupKey = 5, GroupName = "断切特有" },
+        new() { Key = "PostCutQuantity",   Label = "切后支数",                 GroupKey = 5, GroupName = "断切特有" },
 
         // ========== 组6：固溶特有 ==========
         new() { Key = "SolutionTemperature", Label = "固溶温度(℃)",           GroupKey = 6, GroupName = "固溶特有" },
@@ -376,7 +376,7 @@
         {
             _allSectionOptions = r.Data
                 .Where(x => !excludedKeys.Contains(x.SectionKey, StringComparer.OrdinalIgnoreCase))
-                .Select(x => (x.SectionKey, x.SectionName))
+                .Select(x => (x.SectionKey, SectionDisplayHelper.GetSectionNameText(x.SectionKey)))
                 .ToList();
         }
         else
@@ -387,6 +387,31 @@
                 .Select(k => (k, SectionDisplayHelper.GetSectionNameText(k)))
                 .ToList();
         }
+    }
+
+    // ========== 下拉显示转换（存储值英文 Key → 显示中文） ==========
+    // MudSelectItem.Text 在 Builder 语法下不总是被 MudBlazor 识别，
+    // ToStringFunc 是 MudSelect 标准显示钩子，确保关闭态也显示中文。
+    private string GetProcessDisplayText(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return key ?? "";
+        foreach (var o in _processOptions)
+            if (o.ProcessKey == key) return o.ProcessName;
+        return key;
+    }
+    private string GetSectionDisplayText(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return key ?? "";
+        foreach (var o in _allSectionOptions)
+            if (string.Equals(o.Key, key, StringComparison.OrdinalIgnoreCase)) return o.Text;
+        return key;
+    }
+    private string GetShiftDisplayText(string val)
+    {
+        if (string.IsNullOrEmpty(val)) return "";
+        foreach (var o in _shiftOptions)
+            if (string.Equals(o.Value, val, StringComparison.OrdinalIgnoreCase)) return o.Text;
+        return val;
     }
 
     protected override async Task OnInitializedAsync()
@@ -756,6 +781,7 @@
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetProcessDisplayText);
                 builder.AddAttribute(5, "Value", r.ProcessName);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnProcessNameChangedAsync(r); }));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
@@ -764,7 +790,8 @@
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
                         b.AddAttribute(1, "Value", opt.ProcessKey);
-                        b.AddAttribute(2, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
+                        b.AddAttribute(2, "Text", opt.ProcessName);
+                        b.AddAttribute(3, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
                         b.CloseComponent();
                     }
                 }));
@@ -784,6 +811,7 @@
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetSectionDisplayText);
                 builder.AddAttribute(5, "Value", r.SectionName);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.SectionName = v ?? ""; await OnSectionNameChangedAsync(r); }));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
@@ -792,7 +820,8 @@
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
                         b.AddAttribute(1, "Value", opt.Key);
-                        b.AddContent(2, opt.Text);
+                        b.AddAttribute(2, "Text", opt.Text);
+                        b.AddContent(3, opt.Text);
                         b.CloseComponent();
                     }
                 }));
@@ -821,6 +850,7 @@
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetShiftDisplayText);
                 builder.AddAttribute(5, "Value", r.Shift);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.Shift = v));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
@@ -829,7 +859,8 @@
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
                         b.AddAttribute(1, "Value", opt.Value);
-                        b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, opt.Text)));
+                        b.AddAttribute(2, "Text", opt.Text);
+                        b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, opt.Text)));
                         b.CloseComponent();
                     }
                 }));

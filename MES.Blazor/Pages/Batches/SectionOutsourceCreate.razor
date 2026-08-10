@@ -334,9 +334,25 @@
     {
         var r = await StandardWorkDayService.GetEnabledSectionsAsync();
         if (r.Success && r.Data != null)
-            _sectionOptions = r.Data.Select(x => (x.SectionKey, x.SectionName)).ToList();
+            _sectionOptions = r.Data.Select(x => (x.SectionKey, SectionDisplayHelper.GetSectionNameText(x.SectionKey))).ToList();
         else
             _sectionOptions = SectionKeys.All.Select(k => (k, SectionDisplayHelper.GetSectionNameText(k))).ToList();
+    }
+
+    // ========== 下拉显示转换（存储值英文 Key → 显示中文） ==========
+    private string GetProcessDisplayText(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return key ?? "";
+        foreach (var o in _processOptions)
+            if (o.ProcessKey == key) return o.ProcessName;
+        return key;
+    }
+    private string GetSectionDisplayText(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return key ?? "";
+        foreach (var o in _sectionOptions)
+            if (string.Equals(o.Key, key, StringComparison.OrdinalIgnoreCase)) return o.Text;
+        return key;
     }
 
     protected override async Task OnInitializedAsync()
@@ -522,15 +538,17 @@
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.ProcessName);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await ApplyAutoFillAsync(r); }));
-                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetProcessDisplayText);
+                builder.AddAttribute(5, "Value", r.ProcessName);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await ApplyAutoFillAsync(r); }));
+                builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
                     foreach (var opt in _processOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
                         b.AddAttribute(1, "Value", opt.ProcessKey);
-                        b.AddAttribute(2, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
+                        b.AddAttribute(2, "Text", opt.ProcessName);
+                        b.AddAttribute(3, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
                         b.CloseComponent();
                     }
                 }));
@@ -550,15 +568,17 @@
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.SectionName);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.SectionName = v ?? ""; await ApplyAutoFillAsync(r); }));
-                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b =>
+                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetSectionDisplayText);
+                builder.AddAttribute(5, "Value", r.SectionName);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.SectionName = v ?? ""; await ApplyAutoFillAsync(r); }));
+                builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
                     foreach (var opt in _sectionOptions)
                     {
                         b.OpenComponent<MudSelectItem<string>>(0);
                         b.AddAttribute(1, "Value", opt.Key);
-                        b.AddContent(2, opt.Text);
+                        b.AddAttribute(2, "Text", opt.Text);
+                        b.AddContent(3, opt.Text);
                         b.CloseComponent();
                     }
                 }));

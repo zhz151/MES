@@ -170,6 +170,148 @@ public class MaterialPlanService : IMaterialPlanService
         return sections;
     }
 
+    /// <summary>
+    /// 校验工序组不可为空，为空时抛出友好错误
+    /// </summary>
+    private static void EnsureProcessGroupsNotEmpty(List<SavePlanProcessGroupItem>? items, string message)
+    {
+        if (items is not { Count: > 0 })
+            throw new BusinessException(message);
+    }
+
+    /// <summary>
+    /// 从工序组请求项提取所有非空工段（供工艺周期内算）
+    /// </summary>
+    private static List<(string SectionName, int Sequence)> BuildProcessGroupSections(List<SavePlanProcessGroupItem> items)
+    {
+        var sections = new List<(string, int)>();
+        foreach (var pg in items)
+        {
+            sections.AddRange(ExtractSections(
+                pg.ColdRollDraw, pg.OilPipeCut, pg.Degrease, pg.EmulsionWash,
+                pg.UltrasonicWash, pg.ClothPolish, pg.BrightAnnealing, pg.Solution,
+                pg.Straighten, pg.Cut, pg.ThicknessMeasure, pg.Pickle,
+                pg.OuterPolish, pg.InnerPolish, pg.InnerGrinding, pg.OuterSpotGrinding,
+                pg.SandBlasting, pg.ShotBlasting, pg.Inspection, pg.WeldingHead,
+                pg.Welding, pg.Lubrication, pg.Packing, pg.Warehouse,
+                pg.Extra1, pg.Extra2));
+        }
+        return sections;
+    }
+
+    /// <summary>
+    /// 按工单交货状态计算工序组工艺周期（天）；算不出返回 0
+    /// </summary>
+    private async Task<int> ComputeStandardCycleAsync(int workOrderId, List<SavePlanProcessGroupItem> items)
+    {
+        var workOrder = await _context.WorkOrders.FindAsync(workOrderId);
+        if (workOrder == null) return 0;
+        var sections = BuildProcessGroupSections(items);
+        var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(workOrder.PlantGrade);
+        var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
+        return CalculateStandardCycleFromSections(sections, dayMap, deliveryStateExtraDays, workOrder.DeliveryState.ToString());
+    }
+
+    /// <summary>
+    /// 保存库料改制计划工序组（InventoryPlanProcessGroups 全量替换，需调用方先 RemoveRange 旧行）
+    /// </summary>
+    private async Task SaveInventoryPlanProcessGroupsAsync(int planId, List<SavePlanProcessGroupItem> items)
+    {
+        int seq = 1;
+        foreach (var pg in items)
+        {
+            _context.InventoryPlanProcessGroups.Add(new InventoryPlanProcessGroup
+            {
+                InventoryPlanId = planId,
+                SequenceNumber = seq++,
+                ProcessName = pg.ProcessName,
+                ManufacturingSpec = pg.ManufacturingSpec,
+                OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                WallThicknessTolerance = pg.WallThicknessTolerance,
+                ManufacturingLength = pg.ManufacturingLength,
+                CuttingTreatment = pg.CuttingTreatment,
+                Remark = pg.Remark,
+                ColdRollDraw = pg.ColdRollDraw,
+                OilPipeCut = pg.OilPipeCut,
+                Degrease = pg.Degrease,
+                EmulsionWash = pg.EmulsionWash,
+                UltrasonicWash = pg.UltrasonicWash,
+                ClothPolish = pg.ClothPolish,
+                BrightAnnealing = pg.BrightAnnealing,
+                Solution = pg.Solution,
+                Straighten = pg.Straighten,
+                Cut = pg.Cut,
+                ThicknessMeasure = pg.ThicknessMeasure,
+                Pickle = pg.Pickle,
+                OuterPolish = pg.OuterPolish,
+                InnerPolish = pg.InnerPolish,
+                InnerGrinding = pg.InnerGrinding,
+                OuterSpotGrinding = pg.OuterSpotGrinding,
+                SandBlasting = pg.SandBlasting,
+                ShotBlasting = pg.ShotBlasting,
+                Inspection = pg.Inspection,
+                WeldingHead = pg.WeldingHead,
+                Welding = pg.Welding,
+                Lubrication = pg.Lubrication,
+                Packing = pg.Packing,
+                Warehouse = pg.Warehouse,
+                Extra1 = pg.Extra1,
+                Extra2 = pg.Extra2
+            });
+        }
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// 保存在产改制计划工序组（InProcessReworkPlanProcessGroups 全量替换，需调用方先 RemoveRange 旧行）
+    /// </summary>
+    private async Task SaveInProcessReworkPlanProcessGroupsAsync(int planId, List<SavePlanProcessGroupItem> items)
+    {
+        int seq = 1;
+        foreach (var pg in items)
+        {
+            _context.InProcessReworkPlanProcessGroups.Add(new InProcessReworkPlanProcessGroup
+            {
+                InProcessReworkPlanId = planId,
+                SequenceNumber = seq++,
+                ProcessName = pg.ProcessName,
+                ManufacturingSpec = pg.ManufacturingSpec,
+                OuterDiameterTolerance = pg.OuterDiameterTolerance,
+                WallThicknessTolerance = pg.WallThicknessTolerance,
+                ManufacturingLength = pg.ManufacturingLength,
+                CuttingTreatment = pg.CuttingTreatment,
+                Remark = pg.Remark,
+                ColdRollDraw = pg.ColdRollDraw,
+                OilPipeCut = pg.OilPipeCut,
+                Degrease = pg.Degrease,
+                EmulsionWash = pg.EmulsionWash,
+                UltrasonicWash = pg.UltrasonicWash,
+                ClothPolish = pg.ClothPolish,
+                BrightAnnealing = pg.BrightAnnealing,
+                Solution = pg.Solution,
+                Straighten = pg.Straighten,
+                Cut = pg.Cut,
+                ThicknessMeasure = pg.ThicknessMeasure,
+                Pickle = pg.Pickle,
+                OuterPolish = pg.OuterPolish,
+                InnerPolish = pg.InnerPolish,
+                InnerGrinding = pg.InnerGrinding,
+                OuterSpotGrinding = pg.OuterSpotGrinding,
+                SandBlasting = pg.SandBlasting,
+                ShotBlasting = pg.ShotBlasting,
+                Inspection = pg.Inspection,
+                WeldingHead = pg.WeldingHead,
+                Welding = pg.Welding,
+                Lubrication = pg.Lubrication,
+                Packing = pg.Packing,
+                Warehouse = pg.Warehouse,
+                Extra1 = pg.Extra1,
+                Extra2 = pg.Extra2
+            });
+        }
+        await _context.SaveChangesAsync();
+    }
+
     #endregion
 
     #region 原料采购计划
@@ -231,6 +373,9 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
+                // 无工序组不可提交（工艺工量需工序组内算）
+                EnsureProcessGroupsNotEmpty(request.ProcessGroups, "荒管采购计划必须填写工序组");
+
                 _context.PurchaseSemiPlans.Add(plan);
                 await _context.SaveChangesAsync();
 
@@ -389,6 +534,9 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
+                // 无工序组不可提交（工艺工量需工序组内算）
+                EnsureProcessGroupsNotEmpty(request.ProcessGroups, "荒管采购计划必须填写工序组");
+
                 // 全量替换工序组
                 var existingGroups = await _context.SemiPlanProcessGroups
                     .Where(g => g.PurchaseSemiPlanId == id)
@@ -736,8 +884,12 @@ public class MaterialPlanService : IMaterialPlanService
             .OrderByDescending(p => p.CreatedTime)
             .ToListAsync();
 
+        var workOrderNo = await _context.WorkOrders.AsNoTracking()
+            .Where(w => w.Id == workOrderId)
+            .Select(w => w.WorkOrderNo)
+            .FirstOrDefaultAsync();
         var dtos = plans.Select(p => p.ToDto()).ToList();
-        await MarkOutboundAsync(dtos);
+        await MarkOutboundAsync(dtos, workOrderNo);
         return dtos;
     }
 
@@ -748,22 +900,28 @@ public class MaterialPlanService : IMaterialPlanService
             .OrderByDescending(p => p.CreatedTime)
             .ToListAsync();
 
+        var workOrderNo = await _context.WorkOrders.AsNoTracking()
+            .Where(w => w.Id == workOrderId)
+            .Select(w => w.WorkOrderNo)
+            .FirstOrDefaultAsync();
         var dtos = plans.Select(p => p.ToDto()).ToList();
-        await MarkOutboundAsync(dtos);
+        await MarkOutboundAsync(dtos, workOrderNo);
         return dtos;
     }
 
     /// <summary>
-    /// 批量标记计划是否已生产领用出库
+    /// 批量标记计划是否已生产领用出库（完成匹配：仓库批 + 出库工单号 == 计划工单号，出库类型=生产领用）
     /// </summary>
-    private async Task MarkOutboundAsync(List<InventoryPlanDto> dtos)
+    private async Task MarkOutboundAsync(List<InventoryPlanDto> dtos, string? workOrderNo)
     {
         if (dtos.Count == 0) return;
         var batchNos = dtos.Select(d => d.InventoryBatchNo).Distinct().ToList();
         var outboundBatchNos = await _context.OutboundRecords
             .Where(or => or.BatchNo != null
                 && batchNos.Contains(or.BatchNo)
-                && or.OutboundType == OutboundType.ProductionPick)
+                && or.OutboundType == OutboundType.ProductionPick
+                && or.WorkOrderNo != null
+                && or.WorkOrderNo == workOrderNo)
             .Select(or => or.BatchNo!)
             .Distinct()
             .ToListAsync();
@@ -783,30 +941,47 @@ public class MaterialPlanService : IMaterialPlanService
         if (batch == null)
             throw new BusinessException("库存批次不存在");
 
-        // 校验：批次未被其他工单的未取消库存使用计划引用（排除自身工单）
-        var existingPlan = await _context.InventoryPlans
-            .AnyAsync(p => p.WorkOrderId != request.WorkOrderId
-                && p.InventoryBatchNo == request.InventoryBatchNo
-                && p.PlanStatus != InventoryPlanStatus.Cancelled);
-        if (existingPlan)
-            throw new BusinessException("该库存批次已被其他工单的库存使用计划引用");
+        // 校验锁定与预留（出库计划视为执行完成不再占用，剩余料可被再次计划利用）
+        // 全部使用(All)：批次上存在任一未取消未出库计划（含本工单自身的部分预留）→ 禁止全部使用（All 语义=清空整批）
+        // 部分使用(Partial)：批次上存在"全部使用"计划 → 整批锁定禁止；否则累计预留 + 本次 ≤ 批次剩余
+        var activePlans = await _context.InventoryPlans
+            .Where(p => p.InventoryBatchNo == request.InventoryBatchNo
+                && p.PlanStatus != InventoryPlanStatus.Cancelled
+                && !_context.OutboundRecords.Any(or =>
+                    or.BatchNo != null && or.BatchNo == p.InventoryBatchNo
+                    && or.OutboundType == OutboundType.ProductionPick
+                    && or.WorkOrderNo != null
+                    && or.WorkOrderNo == _context.WorkOrders
+                        .Where(w => w.Id == p.WorkOrderId)
+                        .Select(w => w.WorkOrderNo)
+                        .FirstOrDefault()))
+            .Select(p => new { p.WorkOrderId, p.UsageMode, p.UsedQuantity, p.UsedWeight })
+            .ToListAsync();
 
-        // 校验用量
         if (request.UsageMode == "All")
         {
+            if (activePlans.Count > 0)
+                throw new BusinessException("该库存批次已被使用计划引用（含部分使用预留），不可全部使用");
             request.UsedQuantity = batch.RemainingQuantity;
             request.UsedWeight = batch.RemainingWeight;
         }
         else
         {
+            if (activePlans.Any(p => p.UsageMode == "All"))
+                throw new BusinessException("该库存批次已被全部使用计划占用，不可部分使用");
             if (request.UsedQuantity == null || request.UsedQuantity <= 0)
                 throw new BusinessException("部分使用模式下出库支数必须大于0");
             if (request.UsedWeight <= 0)
                 throw new BusinessException("出库重量必须大于0");
-            if (request.UsedQuantity > batch.RemainingQuantity)
-                throw new BusinessException($"出库支数({request.UsedQuantity})超过库存剩余支数({batch.RemainingQuantity})");
-            if (request.UsedWeight > batch.RemainingWeight)
-                throw new BusinessException($"出库重量({request.UsedWeight})超过库存剩余重量({batch.RemainingWeight})");
+
+            var reservedQty = activePlans.Where(p => p.UsageMode == "Partial").Sum(p => p.UsedQuantity ?? 0);
+            var reservedWt = activePlans.Where(p => p.UsageMode == "Partial").Sum(p => p.UsedWeight);
+            var availableQty = batch.RemainingQuantity - reservedQty;
+            var availableWt = batch.RemainingWeight - reservedWt;
+            if (request.UsedQuantity.Value > availableQty)
+                throw new BusinessException($"出库支数({request.UsedQuantity})超过剩余可用支数({availableQty})");
+            if (request.UsedWeight > availableWt)
+                throw new BusinessException($"出库重量({request.UsedWeight})超过剩余可用重量({availableWt.ToString("G29")})");
         }
 
         var plan = new InventoryPlan
@@ -832,9 +1007,18 @@ public class MaterialPlanService : IMaterialPlanService
 
         var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
         var defaultProcessCycle = (int)await GetConfigAsync("DefaultValue", "DefaultProcessCycle", 22m);
-        // 工艺周期（改制计划在工序组设置后通过 ProcessGroup 管理接口重新计算）
-        // 库料改制（有 ReworkType）创建时默认为 defaultProcessCycle，等工序组保存后重算
-        plan.StandardCycle = request.ReworkType.HasValue ? defaultProcessCycle : defaultStandardCycle;
+        // 工艺周期：库料改制（有 ReworkType）必须填写工序组，创建请求内算；库存使用默认 3 天
+        if (request.ReworkType.HasValue)
+        {
+            EnsureProcessGroupsNotEmpty(request.ProcessGroups, "库料改制必须填写工序组");
+            plan.StandardCycle = await ComputeStandardCycleAsync(request.WorkOrderId, request.ProcessGroups!);
+            if (plan.StandardCycle == 0)
+                plan.StandardCycle = defaultProcessCycle;
+        }
+        else
+        {
+            plan.StandardCycle = defaultStandardCycle;
+        }
 
         _context.InventoryPlans.Add(plan);
         var transaction = await _context.Database.BeginTransactionAsync();
@@ -843,6 +1027,10 @@ public class MaterialPlanService : IMaterialPlanService
             try
             {
                 await _context.SaveChangesAsync();
+
+                // 库料改制：随创建请求保存工序组（与荒管采购创建请求内算一致）
+                if (request.ReworkType.HasValue && request.ProcessGroups is { Count: > 0 })
+                    await SaveInventoryPlanProcessGroupsAsync(plan.Id, request.ProcessGroups);
 
                 // 刷新工单状态（与创建在同一事务中）
                 await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
@@ -885,41 +1073,86 @@ public class MaterialPlanService : IMaterialPlanService
             .Where(b => batchNos.Contains(b.BatchNo))
             .ToDictionaryAsync(b => b.BatchNo);
 
-        // 校验：批次未被其他工单的未取消库存使用计划引用（排除自身工单）
-        var conflictBatchNo = await _context.InventoryPlans
-            .Where(p => p.WorkOrderId != workOrderId
-                && batchNos.Contains(p.InventoryBatchNo)
-                && p.PlanStatus != InventoryPlanStatus.Cancelled)
+        // 加载批次涉及的所有有效计划（未取消且未出库），用于锁定与预留校验
+        var activePlans = await _context.InventoryPlans
+            .Where(p => batchNos.Contains(p.InventoryBatchNo)
+                && p.PlanStatus != InventoryPlanStatus.Cancelled
+                && !_context.OutboundRecords.Any(or =>
+                    or.BatchNo != null && or.BatchNo == p.InventoryBatchNo
+                    && or.OutboundType == OutboundType.ProductionPick
+                    && or.WorkOrderNo != null
+                    && or.WorkOrderNo == _context.WorkOrders
+                        .Where(w => w.Id == p.WorkOrderId)
+                        .Select(w => w.WorkOrderNo)
+                        .FirstOrDefault()))
+            .Select(p => new { p.WorkOrderId, p.InventoryBatchNo, p.UsageMode, p.UsedQuantity, p.UsedWeight })
+            .ToListAsync();
+
+        // 批次上存在任一有效计划（All 或 Partial，含本工单自身的部分预留）→ 禁止对该批次"全部使用"
+        var anyLockNos = activePlans
             .Select(p => p.InventoryBatchNo)
-            .FirstOrDefaultAsync();
-        if (conflictBatchNo != null)
-            throw new BusinessException($"库存批次 {conflictBatchNo} 已被其他工单的库存使用计划引用");
+            .Distinct()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // 批次上存在"全部使用"计划 → 整批锁定，禁止部分使用
+        var allLockNos = activePlans
+            .Where(p => p.UsageMode == "All")
+            .Select(p => p.InventoryBatchNo)
+            .Distinct()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // 现有"部分使用"计划预留账本（所有工单）
+        var reservedMap = activePlans
+            .Where(p => p.UsageMode == "Partial")
+            .GroupBy(p => p.InventoryBatchNo)
+            .ToDictionary(g => g.Key,
+                g => (Qty: g.Sum(p => p.UsedQuantity ?? 0), Wt: g.Sum(p => p.UsedWeight)),
+                StringComparer.OrdinalIgnoreCase);
 
         var plans = new List<InventoryPlan>();
         var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
         var defaultProcessCycle = (int)await GetConfigAsync("DefaultValue", "DefaultProcessCycle", 22m);
+        // 请求内同批次累计跟踪（同一批次 All/Partial 不可混用，Partial 可多条累计）
+        var inRequestSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var inRequestAllSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var inRequestReserved = new Dictionary<string, (int Qty, decimal Wt)>(StringComparer.OrdinalIgnoreCase);
         foreach (var request in requests)
         {
             if (!batches.TryGetValue(request.InventoryBatchNo, out var batch))
                 throw new BusinessException($"库存批次不存在: {request.InventoryBatchNo}");
 
-            // 校验用量
+            // 校验用量（含锁定与累计预留）
             if (request.UsageMode == "All")
             {
+                if (inRequestSeen.Contains(request.InventoryBatchNo))
+                    throw new BusinessException($"批次 {request.InventoryBatchNo}：同一批次只能选择全部使用或部分使用中的一种");
+                if (anyLockNos.Contains(request.InventoryBatchNo))
+                    throw new BusinessException($"批次 {request.InventoryBatchNo}：已被库存使用计划引用（含部分使用预留），不可全部使用");
                 request.UsedQuantity = batch.RemainingQuantity;
                 request.UsedWeight = batch.RemainingWeight;
+                inRequestAllSeen.Add(request.InventoryBatchNo);
+                inRequestReserved[request.InventoryBatchNo] = (batch.RemainingQuantity, batch.RemainingWeight);
             }
             else
             {
+                if (inRequestAllSeen.Contains(request.InventoryBatchNo))
+                    throw new BusinessException($"批次 {request.InventoryBatchNo}：同一批次只能选择全部使用或部分使用中的一种");
+                if (allLockNos.Contains(request.InventoryBatchNo))
+                    throw new BusinessException($"批次 {request.InventoryBatchNo}：已被库存使用计划全部占用，不可部分使用");
                 if (request.UsedQuantity == null || request.UsedQuantity <= 0)
                     throw new BusinessException($"批次 {request.InventoryBatchNo}：部分使用模式下出库支数必须大于0");
                 if (request.UsedWeight <= 0)
                     throw new BusinessException($"批次 {request.InventoryBatchNo}：出库重量必须大于0");
-                if (request.UsedQuantity > batch.RemainingQuantity)
-                    throw new BusinessException($"批次 {request.InventoryBatchNo}：出库支数({request.UsedQuantity})超过库存剩余支数({batch.RemainingQuantity})");
-                if (request.UsedWeight > batch.RemainingWeight)
-                    throw new BusinessException($"批次 {request.InventoryBatchNo}：出库重量({request.UsedWeight})超过库存剩余重量({batch.RemainingWeight})");
+
+                reservedMap.TryGetValue(request.InventoryBatchNo, out var existingReserved);
+                inRequestReserved.TryGetValue(request.InventoryBatchNo, out var acc);
+                var availableQty = batch.RemainingQuantity - existingReserved.Qty - acc.Qty;
+                var availableWt = batch.RemainingWeight - existingReserved.Wt - acc.Wt;
+                if (request.UsedQuantity.Value > availableQty)
+                    throw new BusinessException($"批次 {request.InventoryBatchNo}：出库支数({request.UsedQuantity})超过剩余可用支数({availableQty})");
+                if (request.UsedWeight > availableWt)
+                    throw new BusinessException($"批次 {request.InventoryBatchNo}：出库重量({request.UsedWeight})超过剩余可用重量({availableWt.ToString("G29")})");
+                inRequestReserved[request.InventoryBatchNo] = (acc.Qty + request.UsedQuantity.Value, acc.Wt + request.UsedWeight);
             }
+            inRequestSeen.Add(request.InventoryBatchNo);
 
             var plan = new InventoryPlan
             {
@@ -942,9 +1175,18 @@ public class MaterialPlanService : IMaterialPlanService
                 ReworkType = request.ReworkType,
             };
 
-            // 工艺周期（改制计划在工序组设置后通过 ProcessGroup 管理接口重新计算）
-            // 库料改制（有 ReworkType）创建时默认为 defaultProcessCycle，等工序组保存后重算
-            plan.StandardCycle = request.ReworkType.HasValue ? defaultProcessCycle : defaultStandardCycle;
+            // 工艺周期：库料改制（有 ReworkType）必须填写工序组，创建请求内算；库存使用默认 3 天
+            if (request.ReworkType.HasValue)
+            {
+                EnsureProcessGroupsNotEmpty(request.ProcessGroups, "库料改制必须填写工序组");
+                plan.StandardCycle = await ComputeStandardCycleAsync(workOrderId, request.ProcessGroups!);
+                if (plan.StandardCycle == 0)
+                    plan.StandardCycle = defaultProcessCycle;
+            }
+            else
+            {
+                plan.StandardCycle = defaultStandardCycle;
+            }
 
             plans.Add(plan);
         }
@@ -956,6 +1198,14 @@ public class MaterialPlanService : IMaterialPlanService
             try
             {
                 await _context.SaveChangesAsync();
+
+                // 库料改制：为每个新计划随创建请求保存工序组（同一份工序组克隆，与批量多选共享语义一致）
+                for (int i = 0; i < plans.Count; i++)
+                {
+                    if (requests[i].ReworkType.HasValue && requests[i].ProcessGroups is { Count: > 0 })
+                        await SaveInventoryPlanProcessGroupsAsync(plans[i].Id, requests[i].ProcessGroups!);
+                }
+
                 await UpdateMaterialPlanStatusAsync(workOrderId);
                 await transaction.CommitAsync();
             }
@@ -973,15 +1223,17 @@ public class MaterialPlanService : IMaterialPlanService
     }
 
     /// <summary>
-    /// 判断库存批次是否已生产领用出库（存在 OutboundType=ProductionPick 出库记录）
-    /// 已出库的库存使用/库料改制计划视为执行完成，不可修改、不可删除
+    /// 判断库存批次是否已生产领用出库（完成匹配：仓库批 + 出库工单号 == 计划工单号，出库类型=生产领用）
+    /// 已出库的库存使用/库料改制计划视为执行完成：不可修改，删除已放宽（2026-08-10 决策）
     /// </summary>
-    private Task<bool> IsInventoryPlanOutboundAsync(string inventoryBatchNo)
+    private Task<bool> IsInventoryPlanOutboundAsync(string inventoryBatchNo, string? workOrderNo)
     {
         return _context.OutboundRecords.AnyAsync(or =>
             or.BatchNo != null
             && or.BatchNo == inventoryBatchNo
-            && or.OutboundType == OutboundType.ProductionPick);
+            && or.OutboundType == OutboundType.ProductionPick
+            && or.WorkOrderNo != null
+            && or.WorkOrderNo == workOrderNo);
     }
 
     public async Task DeleteInventoryPlanAsync(int id)
@@ -990,9 +1242,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (plan == null)
             throw new BusinessException("库存使用计划不存在");
 
-        if (await IsInventoryPlanOutboundAsync(plan.InventoryBatchNo))
-            throw new BusinessException($"批次{plan.InventoryBatchNo}已生产领用出库，库存使用计划不可删除（如需撤销请删除出库记录）");
-
+        // 放宽：即使批次已生产领用出库也允许删除（出库记录独立保留，删除计划仅释放预留并刷新工单状态）
         var workOrderId = plan.WorkOrderId;
         _context.InventoryPlans.Remove(plan);
         var transaction = await _context.Database.BeginTransactionAsync();
@@ -1017,6 +1267,45 @@ public class MaterialPlanService : IMaterialPlanService
         await RefreshReadModelAsync(workOrderId);
 
         _logger.LogInformation("删除库存使用计划成功: ID {Id}", id);
+    }
+
+    /// <summary>
+    /// 统计各批次已被"部分使用"计划预留的支数/重量（仅统计未取消且未出库的部分使用计划）。
+    /// 用于可用库存列表展示"可用量 = 物理剩余 - 已预留"及新建计划的累计预留校验。
+    /// </summary>
+    private async Task<Dictionary<string, (int ReservedQuantity, decimal ReservedWeight)>> GetPartialReservedMapAsync(int? excludePlanId)
+    {
+        var query = _context.InventoryPlans
+            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled
+                && p.UsageMode == "Partial"
+                && !_context.OutboundRecords.Any(or =>
+                    or.BatchNo != null && or.BatchNo == p.InventoryBatchNo
+                    && or.OutboundType == OutboundType.ProductionPick
+                    && or.WorkOrderNo != null
+                    && or.WorkOrderNo == _context.WorkOrders
+                        .Where(w => w.Id == p.WorkOrderId)
+                        .Select(w => w.WorkOrderNo)
+                        .FirstOrDefault()));
+
+        if (excludePlanId.HasValue)
+        {
+            query = query.Where(p => p.Id != excludePlanId.Value);
+        }
+
+        var rows = await query
+            .GroupBy(p => p.InventoryBatchNo)
+            .Select(g => new
+            {
+                BatchNo = g.Key,
+                Qty = g.Sum(p => p.UsedQuantity),
+                Wt = g.Sum(p => p.UsedWeight)
+            })
+            .ToListAsync();
+
+        return rows.ToDictionary(
+            x => x.BatchNo,
+            x => (ReservedQuantity: x.Qty ?? 0, ReservedWeight: x.Wt),
+            StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task<List<AvailableInventoryBatchDto>> GetAvailableInventoryAsync(int workOrderId, int? excludePlanId = null)
@@ -1080,13 +1369,20 @@ public class MaterialPlanService : IMaterialPlanService
         var wtMin = Math.Round((wt - workOrder.WallThicknessNegative) * wtLowerRatio, 3);
         var wtMax = Math.Round((wt + workOrder.WallThicknessPositive) * wtUpperRatio, 3);
 
-        // 获取已被其他未取消且未出库计划引用的批次号（排除当前编辑计划自身）
+        // 获取已被其他"全部使用"计划锁定的批次号（排除当前编辑计划自身）
+        // 全部使用(All)=整批锁定；部分使用(Partial)=仅预留不锁定，批次仍可被下个工单使用
         // 已出库（生产领用 ProductionPick）的计划视为执行完成，不再占用批次，剩余料可被再次计划利用
         var usedBatchNosQuery = _context.InventoryPlans
             .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled
+                && p.UsageMode == "All"
                 && !_context.OutboundRecords.Any(or =>
                     or.BatchNo != null && or.BatchNo == p.InventoryBatchNo
-                    && or.OutboundType == OutboundType.ProductionPick));
+                    && or.OutboundType == OutboundType.ProductionPick
+                    && or.WorkOrderNo != null
+                    && or.WorkOrderNo == _context.WorkOrders
+                        .Where(w => w.Id == p.WorkOrderId)
+                        .Select(w => w.WorkOrderNo)
+                        .FirstOrDefault()));
 
         if (excludePlanId.HasValue)
         {
@@ -1097,6 +1393,9 @@ public class MaterialPlanService : IMaterialPlanService
             .Select(p => p.InventoryBatchNo)
             .Distinct()
             .ToListAsync();
+
+        // 各批次已被"部分使用"计划预留的支数/重量（排除当前编辑计划自身）
+        var reservedMap = await GetPartialReservedMapAsync(excludePlanId);
 
         // 查询可用库存
         var query = _context.InventoryBatches
@@ -1148,24 +1447,31 @@ public class MaterialPlanService : IMaterialPlanService
 
                 return true;
             })
-            .Select(b => new AvailableInventoryBatchDto
+            .Select(b =>
             {
-                Id = b.Id,
-                BatchNo = b.BatchNo,
-                MaterialType = EnumHelper.TryParse<MaterialType>(b.MaterialType),
-                PlantGrade = b.PlantGrade,
-                Specification = b.Specification,
-                LengthStatus = EnumHelper.TryParse<LengthStatus>(b.LengthStatus),
-                MinLength = b.MinLength,
-                MaxLength = b.MaxLength,
-                RemainingQuantity = b.RemainingQuantity,
-                RemainingWeight = b.RemainingWeight,
-                UnitWeight = b.UnitWeight,
-                ManufacturingStatus = EnumHelper.TryParse<DeliveryState>(b.ManufacturingStatus),
-                LocationArea = b.LocationArea,
-                LocationRack = b.LocationRack,
+                reservedMap.TryGetValue(b.BatchNo, out var reserved);
+                return new AvailableInventoryBatchDto
+                {
+                    Id = b.Id,
+                    BatchNo = b.BatchNo,
+                    MaterialType = EnumHelper.TryParse<MaterialType>(b.MaterialType),
+                    PlantGrade = b.PlantGrade,
+                    Specification = b.Specification,
+                    ActualSpecification = b.ActualSpecification,
+                    LengthStatus = EnumHelper.TryParse<LengthStatus>(b.LengthStatus),
+                    MinLength = b.MinLength,
+                    MaxLength = b.MaxLength,
+                    RemainingQuantity = b.RemainingQuantity,
+                    RemainingWeight = b.RemainingWeight,
+                    ReservedQuantity = reserved.ReservedQuantity,
+                    ReservedWeight = reserved.ReservedWeight,
+                    UnitWeight = b.UnitWeight,
+                    ManufacturingStatus = EnumHelper.TryParse<DeliveryState>(b.ManufacturingStatus),
+                    LocationArea = b.LocationArea,
+                    LocationRack = b.LocationRack,
+                };
             })
-            .ToList();
+        .ToList();
 
         return available;
     }
@@ -1237,13 +1543,20 @@ public class MaterialPlanService : IMaterialPlanService
             }
         }
 
-        // 已被其他未取消且未出库计划引用的批次号（排除当前编辑计划自身）
+        // 获取已被其他"全部使用"计划锁定的批次号（排除当前编辑计划自身）
+        // 全部使用(All)=整批锁定；部分使用(Partial)=仅预留不锁定，批次仍可被下个工单使用
         // 已出库（生产领用 ProductionPick）的计划视为执行完成，不再占用批次，剩余料可被再次计划利用
         var usedBatchNosQuery = _context.InventoryPlans
             .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled
+                && p.UsageMode == "All"
                 && !_context.OutboundRecords.Any(or =>
                     or.BatchNo != null && or.BatchNo == p.InventoryBatchNo
-                    && or.OutboundType == OutboundType.ProductionPick));
+                    && or.OutboundType == OutboundType.ProductionPick
+                    && or.WorkOrderNo != null
+                    && or.WorkOrderNo == _context.WorkOrders
+                        .Where(w => w.Id == p.WorkOrderId)
+                        .Select(w => w.WorkOrderNo)
+                        .FirstOrDefault()));
 
         if (excludePlanId.HasValue)
         {
@@ -1254,6 +1567,9 @@ public class MaterialPlanService : IMaterialPlanService
             .Select(p => p.InventoryBatchNo)
             .Distinct()
             .ToListAsync();
+
+        // 各批次已被"部分使用"计划预留的支数/重量（排除当前编辑计划自身）
+        var reservedMap = await GetPartialReservedMapAsync(excludePlanId);
 
         // 根据改制类型构建查询
         var query = _context.InventoryBatches
@@ -1331,22 +1647,29 @@ public class MaterialPlanService : IMaterialPlanService
 
                 return true;
             })
-            .Select(b => new AvailableInventoryBatchDto
+            .Select(b =>
             {
-                Id = b.Id,
-                BatchNo = b.BatchNo,
-                MaterialType = EnumHelper.TryParse<MaterialType>(b.MaterialType),
-                PlantGrade = b.PlantGrade,
-                Specification = b.Specification,
-                LengthStatus = EnumHelper.TryParse<LengthStatus>(b.LengthStatus),
-                MinLength = b.MinLength,
-                MaxLength = b.MaxLength,
-                RemainingQuantity = b.RemainingQuantity,
-                RemainingWeight = b.RemainingWeight,
-                UnitWeight = b.UnitWeight,
-                ManufacturingStatus = EnumHelper.TryParse<DeliveryState>(b.ManufacturingStatus),
-                LocationArea = b.LocationArea,
-                LocationRack = b.LocationRack,
+                reservedMap.TryGetValue(b.BatchNo, out var reserved);
+                return new AvailableInventoryBatchDto
+                {
+                    Id = b.Id,
+                    BatchNo = b.BatchNo,
+                    MaterialType = EnumHelper.TryParse<MaterialType>(b.MaterialType),
+                    PlantGrade = b.PlantGrade,
+                    Specification = b.Specification,
+                    ActualSpecification = b.ActualSpecification,
+                    LengthStatus = EnumHelper.TryParse<LengthStatus>(b.LengthStatus),
+                    MinLength = b.MinLength,
+                    MaxLength = b.MaxLength,
+                    RemainingQuantity = b.RemainingQuantity,
+                    RemainingWeight = b.RemainingWeight,
+                    UnitWeight = b.UnitWeight,
+                    ManufacturingStatus = EnumHelper.TryParse<DeliveryState>(b.ManufacturingStatus),
+                    LocationArea = b.LocationArea,
+                    LocationRack = b.LocationRack,
+                    ReservedQuantity = reserved.ReservedQuantity,
+                    ReservedWeight = reserved.ReservedWeight,
+                };
             })
             .ToList();
 
@@ -1359,8 +1682,12 @@ public class MaterialPlanService : IMaterialPlanService
         if (plan == null)
             throw new BusinessException("库存使用计划不存在");
 
+        var workOrderNo = await _context.WorkOrders.AsNoTracking()
+            .Where(w => w.Id == plan.WorkOrderId)
+            .Select(w => w.WorkOrderNo)
+            .FirstOrDefaultAsync();
         var dto = plan.ToDto();
-        dto.IsOutbound = await IsInventoryPlanOutboundAsync(plan.InventoryBatchNo);
+        dto.IsOutbound = await IsInventoryPlanOutboundAsync(plan.InventoryBatchNo, workOrderNo);
         return dto;
     }
 
@@ -1370,27 +1697,35 @@ public class MaterialPlanService : IMaterialPlanService
         if (plan == null)
             throw new BusinessException("库存使用计划不存在");
 
-        if (await IsInventoryPlanOutboundAsync(plan.InventoryBatchNo))
-            throw new BusinessException($"批次{plan.InventoryBatchNo}已生产领用出库，库存使用计划不可修改");
-
         var workOrder = await _context.WorkOrders.FindAsync(plan.WorkOrderId);
         if (workOrder == null)
             throw new BusinessException("关联工单不存在");
 
-        // 校验：批次未被其他工单的未取消库存使用计划引用（排除自身工单和自身计划）
-        var conflictBatchNo = await _context.InventoryPlans
-            .AnyAsync(p => p.Id != id
-                && p.WorkOrderId != plan.WorkOrderId
-                && p.InventoryBatchNo == plan.InventoryBatchNo
-                && p.PlanStatus != InventoryPlanStatus.Cancelled);
-        if (conflictBatchNo)
-            throw new BusinessException("该库存批次已被其他工单的库存使用计划引用");
+        if (await IsInventoryPlanOutboundAsync(plan.InventoryBatchNo, workOrder.WorkOrderNo))
+            throw new BusinessException($"批次{plan.InventoryBatchNo}已生产领用出库，库存使用计划不可修改");
 
-        // 校验用量
+        // 校验锁定与预留（排除自身计划；出库计划视为执行完成不再占用）
+        var activePlans = await _context.InventoryPlans
+            .Where(p => p.Id != id
+                && p.InventoryBatchNo == plan.InventoryBatchNo
+                && p.PlanStatus != InventoryPlanStatus.Cancelled
+                && !_context.OutboundRecords.Any(or =>
+                    or.BatchNo != null && or.BatchNo == p.InventoryBatchNo
+                    && or.OutboundType == OutboundType.ProductionPick
+                    && or.WorkOrderNo != null
+                    && or.WorkOrderNo == _context.WorkOrders
+                        .Where(w => w.Id == p.WorkOrderId)
+                        .Select(w => w.WorkOrderNo)
+                        .FirstOrDefault()))
+            .Select(p => new { p.WorkOrderId, p.UsageMode, p.UsedQuantity, p.UsedWeight })
+            .ToListAsync();
+        var batch = await _context.InventoryBatches
+            .FirstOrDefaultAsync(b => b.BatchNo == plan.InventoryBatchNo);
+
         if (request.UsageMode == "All")
         {
-            var batch = await _context.InventoryBatches
-                .FirstOrDefaultAsync(b => b.BatchNo == plan.InventoryBatchNo);
+            if (activePlans.Count > 0)
+                throw new BusinessException("该库存批次已被使用计划引用（含部分使用预留），不可全部使用");
             if (batch != null)
             {
                 request.UsedQuantity = batch.RemainingQuantity;
@@ -1399,10 +1734,23 @@ public class MaterialPlanService : IMaterialPlanService
         }
         else
         {
+            if (activePlans.Any(p => p.UsageMode == "All"))
+                throw new BusinessException("该库存批次已被全部使用计划占用，不可部分使用");
             if (request.UsedQuantity == null || request.UsedQuantity <= 0)
                 throw new BusinessException("部分使用模式下出库支数必须大于0");
             if (request.UsedWeight <= 0)
                 throw new BusinessException("出库重量必须大于0");
+            if (batch != null)
+            {
+                var reservedQty = activePlans.Where(p => p.UsageMode == "Partial").Sum(p => p.UsedQuantity ?? 0);
+                var reservedWt = activePlans.Where(p => p.UsageMode == "Partial").Sum(p => p.UsedWeight);
+                var availableQty = batch.RemainingQuantity - reservedQty;
+                var availableWt = batch.RemainingWeight - reservedWt;
+                if (request.UsedQuantity.Value > availableQty)
+                    throw new BusinessException($"出库支数({request.UsedQuantity})超过剩余可用支数({availableQty})");
+                if (request.UsedWeight > availableWt)
+                    throw new BusinessException($"出库重量({request.UsedWeight})超过剩余可用重量({availableWt.ToString("G29")})");
+            }
         }
 
         plan.PlanDate = request.PlanDate;
@@ -1418,7 +1766,28 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
-                await _context.SaveChangesAsync();
+                // 库料改制（有 ReworkType）：必须填写工序组，全量替换工序组 + 重算工艺周期；库存使用固定 3 天
+                var effectiveReworkType = request.ReworkType ?? plan.ReworkType;
+                if (effectiveReworkType.HasValue)
+                {
+                    EnsureProcessGroupsNotEmpty(request.ProcessGroups, "库料改制必须填写工序组");
+                    var existingGroups = await _context.InventoryPlanProcessGroups
+                        .Where(g => g.InventoryPlanId == id)
+                        .ToListAsync();
+                    _context.InventoryPlanProcessGroups.RemoveRange(existingGroups);
+                    var defaultProcessCycle = (int)await GetConfigAsync("DefaultValue", "DefaultProcessCycle", 22m);
+                    plan.StandardCycle = await ComputeStandardCycleAsync(plan.WorkOrderId, request.ProcessGroups!);
+                    if (plan.StandardCycle == 0)
+                        plan.StandardCycle = defaultProcessCycle;
+                    await SaveInventoryPlanProcessGroupsAsync(id, request.ProcessGroups!);
+                }
+                else
+                {
+                    var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
+                    plan.StandardCycle = defaultStandardCycle;
+                    await _context.SaveChangesAsync();
+                }
+
                 await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
                 await transaction.CommitAsync();
             }
@@ -1503,6 +1872,9 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
+                // 无工序组不可提交（工艺工量需工序组内算）
+                EnsureProcessGroupsNotEmpty(request.ProcessGroups, "圆棒穿孔计划必须填写工序组");
+
                 _context.RoundBarPiercingPlans.Add(plan);
                 await _context.SaveChangesAsync();
 
@@ -1647,6 +2019,9 @@ public class MaterialPlanService : IMaterialPlanService
         {
             try
             {
+                // 无工序组不可提交（工艺工量需工序组内算）
+                EnsureProcessGroupsNotEmpty(request.ProcessGroups, "圆棒穿孔计划必须填写工序组");
+
                 // 全量替换工序组
                 var existingGroups = await _context.PiercingPlanProcessGroups
                     .Where(g => g.RoundBarPiercingPlanId == id)
@@ -1781,6 +2156,28 @@ public class MaterialPlanService : IMaterialPlanService
 
     #region 在产改制计划
 
+    /// <summary>
+    /// 第6类预留账本：按 ProductionBatchId 分组累计 UsedQuantity/UsedWeight。
+    /// 累计所有未取消计划（含已投料）——批次有效量不随投料扣减，计划用量即唯一占用凭证；
+    /// 批次被某工单部分使用后，余料仍可被其它工单正确显示并可共享。
+    /// </summary>
+    private async Task<Dictionary<int, (int ReservedQuantity, decimal ReservedWeight)>> GetInProcessReworkReservedMapAsync(int? excludePlanId)
+    {
+        var plans = await _context.InProcessReworkPlans
+            .AsNoTracking()
+            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled)
+            .Select(p => new { p.Id, p.ProductionBatchId, p.BatchNo, p.UsedQuantity, p.UsedWeight })
+            .ToListAsync();
+        if (excludePlanId.HasValue)
+            plans = plans.Where(p => p.Id != excludePlanId.Value).ToList();
+
+        return plans
+            .GroupBy(p => p.ProductionBatchId)
+            .ToDictionary(g => g.Key,
+                g => (ReservedQuantity: g.Sum(p => p.UsedQuantity ?? 0),
+                      ReservedWeight: g.Sum(p => p.UsedWeight)));
+    }
+
     public async Task<List<InProcessReworkPlanDto>> GetInProcessReworkPlansAsync(int workOrderId)
     {
         var plans = await _context.InProcessReworkPlans
@@ -1816,8 +2213,6 @@ public class MaterialPlanService : IMaterialPlanService
         if (batch.Status != BatchStatus.None && batch.Status != BatchStatus.InProgress)
             throw new BusinessException("只能选择未产或在产状态的批次");
 
-        var reworkType = request.ReworkType;
-
         // 校验用量
         if (request.UsedQuantity.HasValue && request.UsedQuantity <= 0)
             throw new BusinessException("使用支数必须大于0");
@@ -1828,6 +2223,18 @@ public class MaterialPlanService : IMaterialPlanService
         if (batch.CurrentValidWeight.HasValue && request.UsedWeight > batch.CurrentValidWeight)
             throw new BusinessException($"使用重量({request.UsedWeight})超过批次有效原料重量({batch.CurrentValidWeight})");
 
+        // 累计预留校验：本次用量 ≤ 批次有效量 − 其他未取消计划已预留用量（跨工单可部分预留共享，含已投料计划）
+        var reservedMap = await GetInProcessReworkReservedMapAsync(null);
+        if (reservedMap.TryGetValue(request.ProductionBatchId, out var reserved))
+        {
+            if (request.UsedQuantity.HasValue && batch.CurrentValidQty.HasValue
+                && request.UsedQuantity > batch.CurrentValidQty - reserved.ReservedQuantity)
+                throw new BusinessException($"使用支数({request.UsedQuantity})超过批次可用有效支数({Math.Max(0, batch.CurrentValidQty.Value - reserved.ReservedQuantity)})（已预留{reserved.ReservedQuantity}支）");
+            if (batch.CurrentValidWeight.HasValue
+                && request.UsedWeight > batch.CurrentValidWeight - reserved.ReservedWeight)
+                throw new BusinessException($"使用重量({request.UsedWeight})超过批次可用有效重量({Math.Max(0m, batch.CurrentValidWeight.Value - reserved.ReservedWeight)})（已预留{reserved.ReservedWeight}kg）");
+        }
+
         var plan = new InProcessReworkPlan
         {
             WorkOrderId = request.WorkOrderId,
@@ -1835,7 +2242,6 @@ public class MaterialPlanService : IMaterialPlanService
             ProductionBatchId = request.ProductionBatchId,
             BatchNo = batch.BatchNo,
             BatchTagNo = batch.TagNo,
-            MaterialName = batch.MaterialName,
             PlantGrade = batch.PlantGrade,
             Specification = batch.Specification,
             LengthStatus = batch.LengthStatus,
@@ -1844,12 +2250,14 @@ public class MaterialPlanService : IMaterialPlanService
             UsedWeight = request.UsedWeight,
             RequiredDate = request.RequiredDate,
             Remark = request.Remark,
-            ReworkType = reworkType,
-            StandardCycle = 0,
         };
 
-        var defaultStandardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
-        plan.StandardCycle = defaultStandardCycle;
+        // 在产改制必须填写工序组（无工序组不可提交），工艺周期随创建请求内算
+        EnsureProcessGroupsNotEmpty(request.ProcessGroups, "在产改制必须填写工序组");
+        var defaultProcessCycle = (int)await GetConfigAsync("DefaultValue", "DefaultProcessCycle", 22m);
+        plan.StandardCycle = await ComputeStandardCycleAsync(request.WorkOrderId, request.ProcessGroups!);
+        if (plan.StandardCycle == 0)
+            plan.StandardCycle = defaultProcessCycle;
 
         _context.InProcessReworkPlans.Add(plan);
         var transaction = await _context.Database.BeginTransactionAsync();
@@ -1858,6 +2266,11 @@ public class MaterialPlanService : IMaterialPlanService
             try
             {
                 await _context.SaveChangesAsync();
+
+                // 在产改制：随创建请求保存工序组（与荒管采购创建请求内算一致）
+                if (request.ProcessGroups is { Count: > 0 })
+                    await SaveInProcessReworkPlanProcessGroupsAsync(plan.Id, request.ProcessGroups);
+
                 await UpdateMaterialPlanStatusAsync(request.WorkOrderId);
                 await transaction.CommitAsync();
             }
@@ -1882,45 +2295,8 @@ public class MaterialPlanService : IMaterialPlanService
         if (plan == null)
             throw new BusinessException("在产改制计划不存在");
 
-        var workOrder = await _context.WorkOrders.FindAsync(plan.WorkOrderId);
-        if (workOrder == null)
-            throw new BusinessException("关联工单不存在");
-
-        var reworkType = request.ReworkType;
-
-        if (request.UsedQuantity.HasValue && request.UsedQuantity <= 0)
-            throw new BusinessException("使用支数必须大于0");
-        if (request.UsedWeight <= 0)
-            throw new BusinessException("使用重量必须大于0");
-
-        plan.PlanDate = request.PlanDate;
-        plan.InputMultiple = request.InputMultiple;
-        plan.UsedQuantity = request.UsedQuantity;
-        plan.UsedWeight = request.UsedWeight;
-        plan.RequiredDate = request.RequiredDate;
-        plan.Remark = request.Remark;
-        plan.ReworkType = reworkType;
-
-        var transaction = await _context.Database.BeginTransactionAsync();
-        using (transaction)
-        {
-            try
-            {
-                await _context.SaveChangesAsync();
-                await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-
-        await RefreshReadModelAsync(plan.WorkOrderId);
-
-        _logger.LogInformation("更新在产改制计划成功: ID {Id}", id);
-        return plan.ToDto();
+        // 完全锁死：在产改制计划不可修改（只能删除后重建）
+        throw new BusinessException("在产改制计划不可修改（可删除后重建）");
     }
 
     public async Task DeleteInProcessReworkPlanAsync(int id)
@@ -1952,7 +2328,7 @@ public class MaterialPlanService : IMaterialPlanService
         _logger.LogInformation("删除在产改制计划成功: ID {Id}", id);
     }
 
-    public async Task<List<AvailableInProcessBatchDto>> GetAvailableInProcessBatchesAsync(int workOrderId, ReworkType? reworkType = null, int? excludePlanId = null)
+    public async Task<List<AvailableInProcessBatchDto>> GetAvailableInProcessBatchesAsync(int workOrderId, int? excludePlanId = null)
     {
         var workOrder = await _context.WorkOrders.AsNoTracking()
             .FirstOrDefaultAsync(wo => wo.Id == workOrderId);
@@ -1968,123 +2344,111 @@ public class MaterialPlanService : IMaterialPlanService
                 eligibleGrades.Add(higherGrade);
         }
 
-        // 排除已被其他未取消在产改制计划引用的批次
-        var usedBatchIdsQuery = _context.InProcessReworkPlans
-            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled);
-        if (excludePlanId.HasValue)
-            usedBatchIdsQuery = usedBatchIdsQuery.Where(p => p.Id != excludePlanId.Value);
-
-        var usedBatchIds = await usedBatchIdsQuery
-            .Select(p => p.ProductionBatchId)
-            .Distinct()
-            .ToListAsync();
-
-        // 查询可用在产批次
+        // 已引用批次不排除：本工单或其他工单已建计划的批次仍呈现，余量经预留账本扣减后显示净额（可继续追加），
+        // 避免"已扣减批次直接消失"造成误导；创建校验按累计预留兜底拦截超量
+        // 查询可用在产批次（仅未产/在产，成检等其它状态不显示）
         var query = _context.ProductionBatches
             .AsNoTracking()
             .Include(b => b.ProcessGroups)
             .Where(b => b.WorkOrderNo == WorkOrderNoSentinel.NotWorkOrder)
-            .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress || b.Status == BatchStatus.InFinalInspection)
+            .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress)
             .Where(b => eligibleGrades.Contains(b.PlantGrade))
             .Where(b => b.CurrentValidWeight.HasValue && b.CurrentValidWeight > 0);
 
-        if (usedBatchIds.Count > 0)
-            query = query.Where(b => !usedBatchIds.Contains(b.Id));
+        // 预留账本：跨工单可部分预留共享（含已投料计划），供显示净可用
+        var reservedMap = await GetInProcessReworkReservedMapAsync(excludePlanId);
 
-        // 规格匹配（按改制类型筛选 OD/WT）
-        if (reworkType.HasValue)
+        // 规格匹配（在产改制恒为人工选择改制 ManualSelect：外径不限，壁厚≥目标壁厚）
+        var nominalOdOrNull = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
+        var nominalWtOrNull = SpecificationParser.ParseWallThickness(workOrder.Specification);
+
+        if (nominalOdOrNull != null && nominalWtOrNull != null)
         {
-            var nominalOdOrNull = SpecificationParser.ParseOuterDiameter(workOrder.Specification);
-            var nominalWtOrNull = SpecificationParser.ParseWallThickness(workOrder.Specification);
+            var nominalOd = nominalOdOrNull.Value;
+            var nominalWt = nominalWtOrNull.Value;
+            var calculatedOd = nominalOd - 0.5m * workOrder.OuterDiameterNegative + 0.5m * workOrder.OuterDiameterPositive;
+            var calculatedWt = nominalWt - 0.5m * workOrder.WallThicknessNegative + 0.5m * workOrder.WallThicknessPositive;
 
-            if (nominalOdOrNull != null && nominalWtOrNull != null)
-            {
-                var nominalOd = nominalOdOrNull.Value;
-                var nominalWt = nominalWtOrNull.Value;
-                var calculatedOd = nominalOd - 0.5m * workOrder.OuterDiameterNegative + 0.5m * workOrder.OuterDiameterPositive;
-                var calculatedWt = nominalWt - 0.5m * workOrder.WallThicknessNegative + 0.5m * workOrder.WallThicknessPositive;
+            // 人工选择改制：外径不限，壁厚≥目标壁厚
+            var odMin = 0m;
+            var odMax = decimal.MaxValue;
+            var wtMin = Math.Round(calculatedWt, 3);
+            var wtMax = decimal.MaxValue;
 
-                // 人工选择改制：外径不限，壁厚≥目标壁厚
-                var odMin = 0m;
-                var odMax = decimal.MaxValue;
-                var wtMin = Math.Round(calculatedWt, 3);
-                var wtMax = decimal.MaxValue;
+            // 计算工单需求单支重量
+            var density = await _context.StandardGradeMappings
+                .AsNoTracking()
+                .Where(g => g.PlantGrade == workOrder.PlantGrade)
+                .Select(g => g.Density)
+                .FirstOrDefaultAsync();
+            if (density == 0) density = 7.93m;
 
-                // 计算工单需求单支重量
-                var density = await _context.StandardGradeMappings
-                    .AsNoTracking()
-                    .Where(g => g.PlantGrade == workOrder.PlantGrade)
-                    .Select(g => g.Density)
-                    .FirstOrDefaultAsync();
-                if (density == 0) density = 7.93m;
+            var unitWeightPerMeter = Math.Round(
+                (decimal)Math.PI * density * calculatedWt * (calculatedOd - calculatedWt) / 1000m, 6);
+            var unitWeightLength = await GetConfigAsync("LengthDefault", "UnitWeightLength", 4500m);
+            var pipeLength = await GetConfigAsync("LengthDefault", "PipeLength", 6000m);
+            var minUnitWeightRatio = await GetConfigAsync("ReworkRatio", "MinUnitWeightRatio", 1.05m);
 
-                var unitWeightPerMeter = Math.Round(
-                    (decimal)Math.PI * density * calculatedWt * (calculatedOd - calculatedWt) / 1000m, 6);
-                var unitWeightLength = await GetConfigAsync("LengthDefault", "UnitWeightLength", 4500m);
-                var pipeLength = await GetConfigAsync("LengthDefault", "PipeLength", 6000m);
-                var minUnitWeightRatio = await GetConfigAsync("ReworkRatio", "MinUnitWeightRatio", 1.05m);
+            decimal requiredUnitWeight;
+            if (workOrder.LengthStatus == LengthStatus.NonFixed)
+                requiredUnitWeight = Math.Round(unitWeightPerMeter * unitWeightLength / 1000m, 3);
+            else
+                requiredUnitWeight = Math.Round(unitWeightPerMeter * (workOrder.MaxLength ?? (int)pipeLength) / 1000m, 3);
 
-                decimal requiredUnitWeight;
-                if (workOrder.LengthStatus == LengthStatus.NonFixed)
-                    requiredUnitWeight = Math.Round(unitWeightPerMeter * unitWeightLength / 1000m, 3);
-                else
-                    requiredUnitWeight = Math.Round(unitWeightPerMeter * (workOrder.MaxLength ?? (int)pipeLength) / 1000m, 3);
+            var minUnitWeight = Math.Round(requiredUnitWeight * minUnitWeightRatio, 3);
 
-                var minUnitWeight = Math.Round(requiredUnitWeight * minUnitWeightRatio, 3);
+            var batches = await query.ToListAsync();
+            var available = batches
+                .Where(b =>
+                {
+                    // 规格判定状态感知：未产批次用"下个规格"（首道工序），在产批次用"当前规格"
+                    var spec = EffectiveSpecForAvailable(b);
+                    var bOd = SpecificationParser.ParseOuterDiameter(spec);
+                    var bWt = SpecificationParser.ParseWallThickness(spec);
+                    if (bOd == null || bWt == null) return false;
+                    if (bOd < odMin || bOd > odMax || bWt < wtMin || bWt > wtMax)
+                        return false;
 
-                var batches = await query.ToListAsync();
-                var available = batches
-                    .Where(b =>
+                    // 单支重量条件：重量/支数/工序组制成倍率
+                    // 未产批次（Status=None）材料为原料态、未经任何工序，"当前重量/支数/断切倍率=成品单重"换算不成立
+                    // （CurrentValidQty/Weight 是原料量，ProductionRatio 断切倍率尚未实际发生），故跳过单支重量判定，
+                    // 可用性由"下个规格"（首道工序制造规格）判定保证；在产批次保持原判定。
+                    if (b.Status != BatchStatus.None && b.CurrentValidQty.HasValue && b.CurrentValidQty > 0)
                     {
-                        var spec = b.CurrentSpec ?? b.Specification;
-                        var bOd = SpecificationParser.ParseOuterDiameter(spec);
-                        var bWt = SpecificationParser.ParseWallThickness(spec);
-                        if (bOd == null || bWt == null) return false;
-                        if (bOd < odMin || bOd > odMax || bWt < wtMin || bWt > wtMax)
+                        var multiple = GetCurrentProcessGroupMultiple(b);
+                        var actualUnitWeight = b.CurrentValidWeight.GetValueOrDefault() / b.CurrentValidQty.Value / multiple;
+                        if (actualUnitWeight < minUnitWeight)
                             return false;
+                    }
 
-                        // 单支重量条件：重量/支数/工序组制成倍率
-                        if (b.CurrentValidQty.HasValue && b.CurrentValidQty > 0)
-                        {
-                            var multiple = GetCurrentProcessGroupMultiple(b);
-                            var actualUnitWeight = b.CurrentValidWeight.GetValueOrDefault() / b.CurrentValidQty.Value / multiple;
-                            if (actualUnitWeight < minUnitWeight)
-                                return false;
-                        }
+                    return true;
+                })
+                .Select(b => new AvailableInProcessBatchDto
+                {
+                    Id = b.Id,
+                    BatchNo = b.BatchNo,
+                    TagNo = b.TagNo,
+                    PlantGrade = b.PlantGrade,
+                    Specification = EffectiveSpecForAvailable(b),
+                    LengthStatus = string.IsNullOrEmpty(b.LengthStatus) ? default : Enum.Parse<LengthStatus>(b.LengthStatus),
+                    CurrentValidQty = b.CurrentValidQty,
+                    CurrentValidWeight = b.CurrentValidWeight,
+                    CurrentGroupName = b.CurrentGroupName,
+                    CurrentSectionName = b.CurrentSectionName,
+                    CurrentSpec = b.CurrentSpec,
+                    NextProcess = b.NextProcess,
+                    NextSectionName = b.NextSectionName,
+                    CorrespondingSpec = b.CorrespondingSpec,
+                    ReservedQuantity = reservedMap.TryGetValue(b.Id, out var res) ? res.ReservedQuantity : 0,
+                    ReservedWeight = reservedMap.TryGetValue(b.Id, out var res2) ? res2.ReservedWeight : 0m,
+                })
+                .OrderByDescending(b => b.CurrentValidWeight)
+                .ToList();
 
-                        return true;
-                    })
-                    .Select(b => new AvailableInProcessBatchDto
-                    {
-                        Id = b.Id,
-                        BatchNo = b.BatchNo,
-                        TagNo = b.TagNo,
-                        MaterialName = b.MaterialName,
-                        PlantGrade = b.PlantGrade,
-                        Specification = b.CurrentSpec ?? b.Specification,
-                        LengthStatus = string.IsNullOrEmpty(b.LengthStatus) ? default : Enum.Parse<LengthStatus>(b.LengthStatus),
-                        TotalQuantity = b.TotalQuantity,
-                        TotalWeight = b.TotalWeight,
-                        CurrentValidQty = b.CurrentValidQty * GetCurrentProcessGroupMultiple(b),
-                        CurrentValidWeight = b.CurrentValidWeight,
-                        SourceBatchNo = b.SourceBatchNo,
-                        SourceMaterialType = EnumHelper.TryParse<MaterialType>(b.SourceMaterialType),
-                        SourceHeatNo = b.SourceHeatNo,
-                        SourceSpecification = b.SourceSpecification,
-                        ProductionType = EnumHelper.TryParse<ProductionType>(b.ProductionType),
-                        ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var mi) ? mi : default,
-                        CurrentGroupName = b.CurrentGroupName,
-                        CurrentSectionName = b.CurrentSectionName,
-                        CurrentSpec = b.CurrentSpec,
-                    })
-                    .OrderByDescending(b => b.CurrentValidWeight)
-                    .ToList();
-
-                return available;
-            }
+            return available;
         }
 
-        // 无改制类型筛选时，返回所有可用批次
+        // 规格无法解析时，返回所有可用批次
         var allBatches = await query.ToListAsync();
         return allBatches
             .Select(b => new AvailableInProcessBatchDto
@@ -2092,23 +2456,19 @@ public class MaterialPlanService : IMaterialPlanService
                 Id = b.Id,
                 BatchNo = b.BatchNo,
                 TagNo = b.TagNo,
-                MaterialName = b.MaterialName,
                 PlantGrade = b.PlantGrade,
-                Specification = b.CurrentSpec ?? b.Specification,
+                Specification = EffectiveSpecForAvailable(b),
                 LengthStatus = string.IsNullOrEmpty(b.LengthStatus) ? default : Enum.Parse<LengthStatus>(b.LengthStatus),
-                TotalQuantity = b.TotalQuantity,
-                TotalWeight = b.TotalWeight,
-                CurrentValidQty = b.CurrentValidQty * GetCurrentProcessGroupMultiple(b),
+                CurrentValidQty = b.CurrentValidQty,
                 CurrentValidWeight = b.CurrentValidWeight,
-                SourceBatchNo = b.SourceBatchNo,
-                SourceMaterialType = EnumHelper.TryParse<MaterialType>(b.SourceMaterialType),
-                SourceHeatNo = b.SourceHeatNo,
-                SourceSpecification = b.SourceSpecification,
-                ProductionType = EnumHelper.TryParse<ProductionType>(b.ProductionType),
-                ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var mi) ? mi : default,
                 CurrentGroupName = b.CurrentGroupName,
                 CurrentSectionName = b.CurrentSectionName,
                 CurrentSpec = b.CurrentSpec,
+                NextProcess = b.NextProcess,
+                NextSectionName = b.NextSectionName,
+                CorrespondingSpec = b.CorrespondingSpec,
+                ReservedQuantity = reservedMap.TryGetValue(b.Id, out var res) ? res.ReservedQuantity : 0,
+                ReservedWeight = reservedMap.TryGetValue(b.Id, out var res2) ? res2.ReservedWeight : 0m,
             })
             .OrderByDescending(b => b.CurrentValidWeight)
             .ToList();
@@ -2120,6 +2480,18 @@ public class MaterialPlanService : IMaterialPlanService
     private static int GetCurrentProcessGroupMultiple(ProductionBatch batch)
     {
         return batch.ProductionRatio > 0 ? batch.ProductionRatio : 1;
+    }
+
+    /// <summary>
+    /// 批次当前生效规格（用于在产改制可用料判定与显示）：
+    /// 未产批次（无"当前工序/工段/规格"）取"下个规格"（首道工序制造规格，兜底批次自身规格）；
+    /// 在产批次取"当前规格"（兜底批次自身规格）。
+    /// </summary>
+    private static string EffectiveSpecForAvailable(ProductionBatch b)
+    {
+        return b.Status == BatchStatus.None
+            ? (b.CorrespondingSpec ?? b.Specification)
+            : (b.CurrentSpec ?? b.Specification);
     }
 
     /// <summary>
@@ -2143,9 +2515,11 @@ public class MaterialPlanService : IMaterialPlanService
                 {
                     BatchNo = j.p.BatchNo,
                     WorkOrderNo = wo.WorkOrderNo,
-                    PlanType = "在产改制"
+                    PlanType = "在产改制",
+                    PlanId = j.p.Id,
+                    RequiredQuantity = j.p.UsedQuantity,
+                    RequiredWeight = j.p.UsedWeight
                 })
-            .Distinct()
             .ToListAsync();
     }
 
@@ -2170,7 +2544,10 @@ public class MaterialPlanService : IMaterialPlanService
         await _context.SaveChangesAsync();
 
         foreach (var group in plans.GroupBy(p => p.WorkOrderId))
+        {
             await UpdateMaterialPlanStatusAsync(group.Key);
+            await RefreshReadModelAsync(group.Key);
+        }
     }
 
     /// <summary>
@@ -2192,22 +2569,165 @@ public class MaterialPlanService : IMaterialPlanService
 
         // 触发对应工单的用料状态刷新
         foreach (var group in plans.GroupBy(p => p.WorkOrderId))
+        {
             await UpdateMaterialPlanStatusAsync(group.Key);
+            await RefreshReadModelAsync(group.Key);
+        }
     }
 
     #endregion
 
     #region 在产主工单计划
 
+    /// <summary>
+    /// 第7类预留账本：按 ProductionBatchId 分组累计 AllocatedQuantity/AllocatedWeight。
+    /// 累计所有未取消计划（含已投料），与第6类一致——批次有效量不随投料扣减，计划用量即唯一占用凭证。
+    /// </summary>
+    private async Task<Dictionary<int, (int ReservedQuantity, decimal ReservedWeight)>> GetInMainWorkOrderReservedMapAsync(int? excludePlanId)
+    {
+        var plans = await _context.InMainWorkOrderPlans
+            .AsNoTracking()
+            .Where(p => p.PlanStatus != InventoryPlanStatus.Cancelled)
+            .Select(p => new { p.Id, p.ProductionBatchId, p.BatchNo, p.AllocatedQuantity, p.AllocatedWeight })
+            .ToListAsync();
+        if (excludePlanId.HasValue)
+            plans = plans.Where(p => p.Id != excludePlanId.Value).ToList();
+
+        return plans
+            .GroupBy(p => p.ProductionBatchId)
+            .ToDictionary(g => g.Key,
+                g => (ReservedQuantity: g.Sum(p => p.AllocatedQuantity ?? 0),
+                      ReservedWeight: g.Sum(p => p.AllocatedWeight)));
+    }
+
+    /// <summary>
+    /// 主工单可分配剩余总重量 = max(0, 总有效投料重量 − 原主工单号总重量 − 总预留重量)。
+    /// 总有效投料重量 = 按分工单过滤口径下的主工单可用批次 CurrentValidWeight 之和（与可用列表页口径一致）；
+    /// 原主工单号总重量 = 主号级工单执行摘要 TotalWeight 之和；总预留 = 过滤批次上所有未取消计划（含已投料、跨工单）预留重量之和。
+    /// 主工单富余为负归 0（批次仍呈现，校验拦截超量）。
+    /// </summary>
+    private async Task<decimal> GetMainOrderAllocatableRemainingAsync(int subWorkOrderId, string mainWorkOrderNo, int? excludePlanId)
+    {
+        var subWorkOrder = await _context.WorkOrders.AsNoTracking()
+            .FirstOrDefaultAsync(wo => wo.Id == subWorkOrderId);
+        if (subWorkOrder == null)
+            throw new BusinessException("工单不存在");
+
+        var mainWo = await _context.WorkOrders.AsNoTracking()
+            .FirstOrDefaultAsync(wo => wo.WorkOrderNo == mainWorkOrderNo);
+        if (mainWo == null) return 0m;
+
+        // 原主工单号总重量（主号级需求）
+        var key = mainWo.SalesOrderNo + "|" + mainWo.ProductionMainNo;
+        var summaries = await _context.WorkOrderExecutionSummaries.AsNoTracking()
+            .Where(s => s.SalesOrderNo + "|" + s.ProductionMainNo == key)
+            .ToListAsync();
+        if (summaries.Count == 0) return 0m; // 无执行摘要 → 与页面一致无可用批次，可分配剩余为 0
+        var mainTotalWeight = summaries.Sum(s => s.TotalWeight);
+
+        // 主工单可用批次（状态/制造类型/有效重量门槛，同可用列表查询）
+        var batches = await _context.ProductionBatches.AsNoTracking()
+            .Where(b => b.WorkOrderNo == mainWorkOrderNo
+                     && (b.Status == BatchStatus.None
+                      || b.Status == BatchStatus.InProgress
+                      || b.Status == BatchStatus.InFinalInspection)
+                     && b.ManufacturingItem == "OrderFinished"
+                     && b.CurrentValidWeight.HasValue && b.CurrentValidWeight > 0)
+            .ToListAsync();
+
+        var mainWoDict = new Dictionary<string, MES.Data.Entities.WorkOrder.WorkOrder>(StringComparer.OrdinalIgnoreCase) { [mainWorkOrderNo] = mainWo };
+        var eligible = FilterMainWorkOrderBatches(subWorkOrder, batches, mainWoDict);
+
+        var totalValidWeight = eligible.Sum(b => b.CurrentValidWeight ?? 0m);
+
+        // 总预留重量（仅统计过滤口径内的批次，跨工单含已投料；编辑时排除自身）
+        var reservedMap = await GetInMainWorkOrderReservedMapAsync(excludePlanId);
+        var eligibleIds = eligible.Select(b => b.Id).ToHashSet();
+        var totalReservedWeight = reservedMap
+            .Where(kv => eligibleIds.Contains(kv.Key))
+            .Sum(kv => kv.Value.ReservedWeight);
+
+        return Math.Max(0m, totalValidWeight - mainTotalWeight - totalReservedWeight);
+    }
+
+    /// <summary>
+    /// 过滤可分配的主工单批次（主工单存在/牌号同级或高级替代/长度状态/交货状态/技术条件/规格 OD·WT 范围）。
+    /// 静态辅助，供可用列表查询与创建/更新校验共用，避免口径漂移。
+    /// </summary>
+    private static List<ProductionBatch> FilterMainWorkOrderBatches(
+        MES.Data.Entities.WorkOrder.WorkOrder subWorkOrder,
+        IEnumerable<ProductionBatch> batches,
+        IReadOnlyDictionary<string, MES.Data.Entities.WorkOrder.WorkOrder> mainWoDict)
+    {
+        // 合格牌号：分工单本身牌号 + 高级替代牌号
+        var eligibleGrades = new List<string> { subWorkOrder.PlantGrade };
+        if (GradeSubstitutes.TryGetValue(subWorkOrder.PlantGrade, out var higherGrade))
+            eligibleGrades.Add(higherGrade);
+
+        // 分工单平均外径/壁厚（名义值 + 公差中值）
+        var subNominalOd = SpecificationParser.ParseOuterDiameter(subWorkOrder.Specification);
+        var subNominalWt = SpecificationParser.ParseWallThickness(subWorkOrder.Specification);
+        var subAvgOd = subNominalOd.HasValue
+            ? subNominalOd.Value + (subWorkOrder.OuterDiameterPositive - subWorkOrder.OuterDiameterNegative) / 2
+            : (decimal?)null;
+        var subAvgWt = subNominalWt.HasValue
+            ? subNominalWt.Value + (subWorkOrder.WallThicknessPositive - subWorkOrder.WallThicknessNegative) / 2
+            : (decimal?)null;
+
+        var result = new List<ProductionBatch>();
+        foreach (var batch in batches)
+        {
+            // 主工单存在性
+            if (!mainWoDict.ContainsKey(batch.WorkOrderNo))
+                continue;
+
+            // 牌号匹配（同级或高级替代）
+            if (!eligibleGrades.Contains(batch.PlantGrade))
+                continue;
+
+            // LengthStatus 一致
+            if (batch.LengthStatus != subWorkOrder.LengthStatus.ToString())
+                continue;
+
+            // DeliveryState 一致
+            if (batch.DeliveryState != subWorkOrder.DeliveryState.ToString())
+                continue;
+
+            // TechnicalRequirements 一致
+            if (batch.TechnicalRequirements != subWorkOrder.TechnicalRequirements.ToString())
+                continue;
+
+            // 规格匹配：外径/壁厚范围法
+            var mainNominalOd = SpecificationParser.ParseOuterDiameter(batch.Specification);
+            var mainNominalWt = SpecificationParser.ParseWallThickness(batch.Specification);
+
+            if (!mainNominalOd.HasValue || !mainNominalWt.HasValue || !subAvgOd.HasValue || !subAvgWt.HasValue)
+                continue;
+
+            var mainMinOd = mainNominalOd.Value - batch.OuterDiameterNegative;
+            var mainMaxOd = mainNominalOd.Value + batch.OuterDiameterPositive;
+            var mainMinWt = mainNominalWt.Value - batch.WallThicknessNegative;
+            var mainMaxWt = mainNominalWt.Value + batch.WallThicknessPositive;
+
+            if (subAvgOd.Value < mainMinOd || subAvgOd.Value > mainMaxOd)
+                continue;
+            if (subAvgWt.Value < mainMinWt || subAvgWt.Value > mainMaxWt)
+                continue;
+
+            result.Add(batch);
+        }
+        return result;
+    }
+
     public async Task<List<InMainWorkOrderPlanDto>> GetInMainWorkOrderPlansAsync(int workOrderId)
     {
-        return (await _context.InMainWorkOrderPlans
+        var plans = await _context.InMainWorkOrderPlans
             .AsNoTracking()
             .Where(p => p.WorkOrderId == workOrderId)
             .OrderByDescending(p => p.CreatedTime)
-            .ToListAsync())
-            .Select(p => p.ToDto())
-            .ToList();
+            .ToListAsync();
+
+        return plans.Select(p => p.ToDto()).ToList();
     }
 
     public async Task<InMainWorkOrderPlanDto> GetInMainWorkOrderPlanByIdAsync(int id)
@@ -2215,6 +2735,7 @@ public class MaterialPlanService : IMaterialPlanService
         var plan = await _context.InMainWorkOrderPlans.FindAsync(id);
         if (plan == null)
             throw new BusinessException("在产主工单计划不存在");
+
         return plan.ToDto();
     }
 
@@ -2228,15 +2749,28 @@ public class MaterialPlanService : IMaterialPlanService
         if (batch == null)
             throw new BusinessException("生产批次不存在");
 
+        if (batch.Status != BatchStatus.None && batch.Status != BatchStatus.InProgress && batch.Status != BatchStatus.InFinalInspection)
+            throw new BusinessException("只能选择未产、在产或成检状态的批次");
+
         if (request.AllocatedWeight <= 0)
             throw new BusinessException("分配重量必须大于0");
         if (request.AllocatedQuantity.HasValue && request.AllocatedQuantity <= 0)
             throw new BusinessException("分配支数必须大于0");
 
-        if (batch.CurrentValidWeight.HasValue && request.AllocatedWeight > batch.CurrentValidWeight.Value)
-            throw new BusinessException($"分配重量({request.AllocatedWeight})超过批次有效重量({batch.CurrentValidWeight})");
-        if (request.AllocatedQuantity.HasValue && batch.CurrentValidQty.HasValue && request.AllocatedQuantity > batch.CurrentValidQty.Value)
-            throw new BusinessException($"分配支数({request.AllocatedQuantity})超过批次有效支数({batch.CurrentValidQty})");
+        // 可分配校验：本次分配重量 ≤ min(本批次有效投料−已预留, 主工单可分配剩余总重量)（跨工单可部分预留共享，含已投料计划）
+        // 主工单可分配剩余总重量 = max(0, 总有效投料重量 − 原主工单号总重量 − 总预留重量)
+        var mainRemaining = await GetMainOrderAllocatableRemainingAsync(request.WorkOrderId, batch.WorkOrderNo, null);
+        var reservedMap = await GetInMainWorkOrderReservedMapAsync(null);
+        reservedMap.TryGetValue(request.ProductionBatchId, out var reserved);
+
+        var batchRemaining = (batch.CurrentValidWeight ?? 0m) - reserved.ReservedWeight;
+        var weightRemaining = Math.Min(batchRemaining, mainRemaining);
+        if (request.AllocatedWeight > weightRemaining)
+            throw new BusinessException($"分配重量({request.AllocatedWeight})超过可用重量({Math.Max(0m, weightRemaining)})（本批次剩余{Math.Max(0m, batchRemaining)}kg、主工单剩余{Math.Max(0m, mainRemaining)}kg、已预留{reserved.ReservedWeight}kg）");
+
+        var qtyRemaining = (batch.CurrentValidQty.HasValue ? batch.CurrentValidQty.Value : int.MaxValue) - reserved.ReservedQuantity;
+        if (request.AllocatedQuantity.HasValue && request.AllocatedQuantity > qtyRemaining)
+            throw new BusinessException($"分配支数({request.AllocatedQuantity})超过批次可用支数({Math.Max(0, qtyRemaining)})（已预留{reserved.ReservedQuantity}支）");
 
         // 取生产批次的剩余工量作为工艺周期，无剩余工量时使用默认工艺周期
         var defaultProcessCycle = (int)await GetConfigAsync("DefaultValue", "DefaultProcessCycle", 22m);
@@ -2304,50 +2838,8 @@ public class MaterialPlanService : IMaterialPlanService
         if (plan == null)
             throw new BusinessException("在产主工单计划不存在");
 
-        var workOrder = await _context.WorkOrders.FindAsync(plan.WorkOrderId);
-        if (workOrder == null)
-            throw new BusinessException("关联工单不存在");
-
-        if (request.AllocatedWeight <= 0)
-            throw new BusinessException("分配重量必须大于0");
-        if (request.AllocatedQuantity.HasValue && request.AllocatedQuantity <= 0)
-            throw new BusinessException("分配支数必须大于0");
-
-        plan.PlanDate = request.PlanDate;
-        plan.AllocatedWeight = request.AllocatedWeight;
-        plan.AllocatedQuantity = request.AllocatedQuantity;
-        plan.ProductionRatio = request.ProductionRatio;
-        plan.RequiredDate = request.RequiredDate;
-        plan.Remark = request.Remark;
-
-        // 取生产批次的剩余工量作为工艺周期，无剩余工量时使用默认工艺周期
-        var batch = await _context.ProductionBatches.FindAsync(plan.ProductionBatchId);
-        if (batch != null)
-        {
-            var defaultProcessCycle = (int)await GetConfigAsync("DefaultValue", "DefaultProcessCycle", 22m);
-            plan.StandardCycle = batch.RemainingWorkDays > 0 ? batch.RemainingWorkDays : defaultProcessCycle;
-        }
-
-        var transaction = await _context.Database.BeginTransactionAsync();
-        using (transaction)
-        {
-            try
-            {
-                await _context.SaveChangesAsync();
-                await UpdateMaterialPlanStatusAsync(plan.WorkOrderId);
-                await transaction.CommitAsync();
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
-        }
-
-        await RefreshReadModelAsync(plan.WorkOrderId);
-
-        _logger.LogInformation("更新在产主工单计划成功: ID {Id}", id);
-        return plan.ToDto();
+        // 完全锁死：在产主工单计划不可修改（只能删除后重建）
+        throw new BusinessException("在产主工单计划不可修改（可删除后重建）");
     }
 
     public async Task DeleteInMainWorkOrderPlanAsync(int id)
@@ -2380,28 +2872,17 @@ public class MaterialPlanService : IMaterialPlanService
         _logger.LogInformation("删除在产主工单计划成功: ID {Id}", id);
     }
 
-    public async Task<List<AvailableMainWorkOrderBatchDto>> GetAvailableMainWorkOrderBatchesAsync(int workOrderId, int? excludePlanBatchId = null)
+    public async Task<List<AvailableMainWorkOrderBatchDto>> GetAvailableMainWorkOrderBatchesAsync(int workOrderId, int? excludePlanId = null)
     {
         var subWorkOrder = await _context.WorkOrders.AsNoTracking()
             .FirstOrDefaultAsync(wo => wo.Id == workOrderId);
         if (subWorkOrder == null)
             throw new BusinessException("工单不存在");
 
-        // 合格牌号：分工单本身牌号 + 高级替代牌号
-        var eligibleGrades = new List<string> { subWorkOrder.PlantGrade };
-        if (GradeSubstitutes.TryGetValue(subWorkOrder.PlantGrade, out var higherGrade))
-            eligibleGrades.Add(higherGrade);
-
-        // 排除已被未取消的在产主工单计划引用的批次（同一工单不能重复分配同一批次）
-        var usedBatchIds = await _context.InMainWorkOrderPlans
-            .Where(p => p.WorkOrderId == workOrderId && p.PlanStatus != InventoryPlanStatus.Cancelled)
-            .Select(p => p.ProductionBatchId)
-            .Distinct()
-            .ToListAsync();
-
-        // 编辑时排除当前计划自身的批次，使其在可用列表中可见
-        if (excludePlanBatchId.HasValue && usedBatchIds.Contains(excludePlanBatchId.Value))
-            usedBatchIds.Remove(excludePlanBatchId.Value);
+        // 已引用批次不排除：本工单或其他工单已建计划的批次仍呈现，余量经预留账本扣减后显示净额（可继续追加），
+        // 避免"已扣减批次直接消失"造成误导；创建校验按累计预留兜底拦截超量
+        // 预留账本：跨工单可部分预留共享（含已投料计划），供显示净可用
+        var reservedMap = await GetInMainWorkOrderReservedMapAsync(excludePlanId);
 
         // 查询批次
         var batchQuery = _context.ProductionBatches
@@ -2411,9 +2892,6 @@ public class MaterialPlanService : IMaterialPlanService
                      || b.Status == BatchStatus.InFinalInspection)
             .Where(b => b.ManufacturingItem == "OrderFinished")
             .Where(b => b.CurrentValidWeight.HasValue && b.CurrentValidWeight > 0);
-
-        if (usedBatchIds.Count > 0)
-            batchQuery = batchQuery.Where(b => !usedBatchIds.Contains(b.Id));
 
         var batches = await batchQuery.ToListAsync();
 
@@ -2431,8 +2909,8 @@ public class MaterialPlanService : IMaterialPlanService
             .Distinct()
             .ToList();
 
-        // 从工单执行状况聚合主号级数据（主号总重量、主号流转比）
-        var mainNoAgg = new Dictionary<string, (decimal TotalWeight, decimal FlowRatio)>();
+        // 从工单执行状况聚合主号级数据（原主工单号总重量 = 主号级需求）
+        var mainNoAgg = new Dictionary<string, decimal>();
         if (mainNoKeys.Count > 0)
         {
             var summaries = await _context.WorkOrderExecutionSummaries
@@ -2442,10 +2920,7 @@ public class MaterialPlanService : IMaterialPlanService
 
             mainNoAgg = summaries
                 .GroupBy(s => s.SalesOrderNo + "|" + s.ProductionMainNo)
-                .ToDictionary(
-                    g => g.Key,
-                    g => (TotalWeight: g.Sum(s => s.TotalWeight), FlowRatio: g.First().MainNoFlowOutputRatio)
-                );
+                .ToDictionary(g => g.Key, g => g.Sum(s => s.TotalWeight));
         }
 
         // 批次 WorkOrderNo → 主号分组键 映射
@@ -2455,76 +2930,17 @@ public class MaterialPlanService : IMaterialPlanService
             StringComparer.OrdinalIgnoreCase
         );
 
-        // 计算分工单的平均外径/壁厚
-        var subNominalOd = SpecificationParser.ParseOuterDiameter(subWorkOrder.Specification);
-        var subNominalWt = SpecificationParser.ParseWallThickness(subWorkOrder.Specification);
-        var subAvgOd = subNominalOd.HasValue
-            ? subNominalOd.Value + (subWorkOrder.OuterDiameterPositive - subWorkOrder.OuterDiameterNegative) / 2
-            : (decimal?)null;
-        var subAvgWt = subNominalWt.HasValue
-            ? subNominalWt.Value + (subWorkOrder.WallThicknessPositive - subWorkOrder.WallThicknessNegative) / 2
-            : (decimal?)null;
+        // 过滤可用批次（主工单存在/牌号同级或高级替代/长度状态/交货状态/技术条件/规格 OD·WT 范围）
+        // 与创建/更新校验共用 FilterMainWorkOrderBatches，避免口径漂移
+        var eligibleBatches = FilterMainWorkOrderBatches(subWorkOrder, batches, mainWoDict);
 
         var result = new List<AvailableMainWorkOrderBatchDto>();
 
-        foreach (var batch in batches)
+        foreach (var batch in eligibleBatches)
         {
-            // 主工单存在性
-            if (!mainWoDict.TryGetValue(batch.WorkOrderNo, out var mainWo))
-                continue;
-
-            // 牌号匹配（同级或高级替代）
-            if (!eligibleGrades.Contains(batch.PlantGrade))
-                continue;
-
-            // LengthStatus 一致
-            if (batch.LengthStatus != subWorkOrder.LengthStatus.ToString())
-                continue;
-
-            // DeliveryState 一致
-            if (batch.DeliveryState != subWorkOrder.DeliveryState.ToString())
-                continue;
-
-            // TechnicalRequirements 一致
-            if (batch.TechnicalRequirements != subWorkOrder.TechnicalRequirements.ToString())
-                continue;
-
-
-            // 规格匹配：外径/壁厚范围法
-            var mainNominalOd = SpecificationParser.ParseOuterDiameter(batch.Specification);
-            var mainNominalWt = SpecificationParser.ParseWallThickness(batch.Specification);
-
-            if (!mainNominalOd.HasValue || !mainNominalWt.HasValue || !subAvgOd.HasValue || !subAvgWt.HasValue)
-                continue;
-
-            var mainMinOd = mainNominalOd.Value - batch.OuterDiameterNegative;
-            var mainMaxOd = mainNominalOd.Value + batch.OuterDiameterPositive;
-            var mainMinWt = mainNominalWt.Value - batch.WallThicknessNegative;
-            var mainMaxWt = mainNominalWt.Value + batch.WallThicknessPositive;
-
-            if (subAvgOd.Value < mainMinOd || subAvgOd.Value > mainMaxOd)
-                continue;
-            if (subAvgWt.Value < mainMinWt || subAvgWt.Value > mainMaxWt)
-                continue;
-
-            // 获取主号级聚合数据
+            // 获取主号级聚合数据（原主工单号总重量）
             var mainKey = woToKeyMap[batch.WorkOrderNo];
-            if (!mainNoAgg.TryGetValue(mainKey, out var agg))
-                continue;
-
-            var mainTotalWeight = agg.TotalWeight;
-            var mainFlowRatio = agg.FlowRatio;
-
-            // 可分配上限重量 = 主号总重量 × (流转比/100 - 1)
-            var availableLimit = mainTotalWeight * (mainFlowRatio / 100m - 1m);
-            if (availableLimit <= 0)
-                continue;
-
-            // 用料占比 = 可分配上限重量 / 分工单总重量
-            var usageRatio = subWorkOrder.TotalWeight > 0 ? availableLimit / subWorkOrder.TotalWeight : 0;
-
-            // 用料占比 <10% 的批次余量太小，不展示
-            if (usageRatio < 0.1m)
+            if (!mainNoAgg.TryGetValue(mainKey, out var mainTotalWeight))
                 continue;
 
             result.Add(new AvailableMainWorkOrderBatchDto
@@ -2542,10 +2958,25 @@ public class MaterialPlanService : IMaterialPlanService
                 CurrentValidQty = batch.CurrentValidQty,
                 CurrentValidWeight = batch.CurrentValidWeight,
                 MainTotalWeight = mainTotalWeight,
-                MainNoFlowOutputRatio = mainFlowRatio,
-                AvailableLimit = availableLimit,
-                UsageRatio = usageRatio
+                ReservedQuantity = reservedMap.TryGetValue(batch.Id, out var reserved) ? reserved.ReservedQuantity : 0,
+                ReservedWeight = reservedMap.TryGetValue(batch.Id, out var reserved2) ? reserved2.ReservedWeight : 0m
             });
+        }
+
+        // 主工单级聚合（按原主工单号）：总有效投料重量/总预留重量/可分配剩余总重量
+        // 可分配剩余总重量 = max(0, 总有效投料 − 原主工单号总重量 − 总预留)；富余为负归 0，批次仍呈现（校验拦截超量）
+        foreach (var group in result.GroupBy(b => b.WorkOrderNo, StringComparer.OrdinalIgnoreCase))
+        {
+            var totalValid = group.Sum(b => b.CurrentValidWeight ?? 0m);
+            var totalReserved = group.Sum(b => b.ReservedWeight);
+            var mainTotal = group.First().MainTotalWeight;
+            var remaining = Math.Max(0m, totalValid - mainTotal - totalReserved);
+            foreach (var dto in group)
+            {
+                dto.MainNoTotalValidWeight = totalValid;
+                dto.MainNoTotalReservedWeight = totalReserved;
+                dto.MainNoAllocatableRemaining = remaining;
+            }
         }
 
         return result;
@@ -2559,13 +2990,18 @@ public class MaterialPlanService : IMaterialPlanService
             .Join(_context.ProductionBatches.AsNoTracking(),
                 p => p.ProductionBatchId,
                 b => b.Id,
-                (p, b) => new PendingPlanBatchDto
+                (p, b) => new { p, b })
+            .Join(_context.WorkOrders.AsNoTracking(),
+                j => j.p.WorkOrderId,
+                wo => wo.Id,
+                (j, wo) => new PendingPlanBatchDto
                 {
-                    BatchNo = b.BatchNo,
-                    WorkOrderNo = b.WorkOrderNo,
-                    PlanType = "InMainWorkOrderPlan",
-                    PlanId = p.Id,
-                    Message = $"在产主工单计划待处理"
+                    BatchNo = j.b.BatchNo,
+                    WorkOrderNo = wo.WorkOrderNo,
+                    PlanType = "在产工单分配",
+                    PlanId = j.p.Id,
+                    RequiredQuantity = j.p.AllocatedQuantity,
+                    RequiredWeight = j.p.AllocatedWeight
                 })
             .ToListAsync();
 
@@ -2596,7 +3032,10 @@ public class MaterialPlanService : IMaterialPlanService
         await _context.SaveChangesAsync();
 
         foreach (var group in plans.GroupBy(p => p.WorkOrderId))
+        {
             await UpdateMaterialPlanStatusAsync(group.Key);
+            await RefreshReadModelAsync(group.Key);
+        }
     }
 
     public async Task DismissInMainWorkOrderPlansByBatchAsync(int productionBatchId)
@@ -2615,7 +3054,10 @@ public class MaterialPlanService : IMaterialPlanService
 
         // 触发对应工单的用料状态刷新
         foreach (var group in plans.GroupBy(p => p.WorkOrderId))
+        {
             await UpdateMaterialPlanStatusAsync(group.Key);
+            await RefreshReadModelAsync(group.Key);
+        }
     }
 
     #endregion
@@ -3250,16 +3692,23 @@ public class MaterialPlanService : IMaterialPlanService
                 pg.Extra1, pg.Extra2));
         }
 
-        // 计算工艺周期
+        // 计算工艺周期：按计划关联工单的交货状态逐计划计算（补交货状态附加天数，避免传 null 丢失）
         var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(batch.PlantGrade);
         var deliveryStateExtraDays = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
-        var standardCycle = CalculateStandardCycleFromSections(sections, dayMap, deliveryStateExtraDays, null);
-        if (standardCycle == 0)
-            standardCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
+        var planWorkOrderIds = plans.Select(p => p.WorkOrderId).Distinct().ToList();
+        var workOrderDeliveryStates = await _context.WorkOrders
+            .Where(w => planWorkOrderIds.Contains(w.Id))
+            .Select(w => new { w.Id, w.DeliveryState })
+            .ToDictionaryAsync(w => w.Id, w => w.DeliveryState.ToString());
+        var defaultCycle = (int)await GetConfigAsync("DefaultValue", "StandardCycle", 3m);
 
         // 更新所有关联的改制库存计划
         foreach (var plan in plans)
         {
+            workOrderDeliveryStates.TryGetValue(plan.WorkOrderId, out var deliveryState);
+            var standardCycle = CalculateStandardCycleFromSections(sections, dayMap, deliveryStateExtraDays, deliveryState);
+            if (standardCycle == 0)
+                standardCycle = defaultCycle;
             plan.StandardCycle = standardCycle;
             _context.Entry(plan).Property(e => e.StandardCycle).IsModified = true;
         }
@@ -3520,11 +3969,7 @@ public class MaterialPlanService : IMaterialPlanService
     {
         return await _context.InventoryPlans
             .AsNoTracking()
-            .Where(p => p.PlanStatus == InventoryPlanStatus.Planned
-                     && !_context.OutboundRecords.Any(or =>
-                         or.BatchNo != null
-                         && or.BatchNo == p.InventoryBatchNo
-                         && or.OutboundType == OutboundType.ProductionPick))
+            .Where(p => p.PlanStatus == InventoryPlanStatus.Planned)
             .Join(_context.InventoryBatches.AsNoTracking(),
                 p => p.InventoryBatchNo,
                 b => b.BatchNo,
@@ -3533,13 +3978,23 @@ public class MaterialPlanService : IMaterialPlanService
             .Join(_context.WorkOrders.AsNoTracking(),
                 j => j.p.WorkOrderId,
                 wo => wo.Id,
-                (j, wo) => new PendingPlanBatchDto
-                {
-                    BatchNo = j.p.BatchNo,
-                    WorkOrderNo = wo.WorkOrderNo,
-                    PlanType = j.p.ReworkType != null ? "库料改制" : "库存使用"
-                })
-            .Distinct()
+                (j, wo) => new { p = j.p, wo })
+            // 完成匹配：仓库批 + 出库工单号 == 计划工单号 且 出库类型=生产领用
+            .Where(j => !_context.OutboundRecords.Any(or =>
+                or.BatchNo != null
+                && or.BatchNo == j.p.InventoryBatchNo
+                && or.OutboundType == OutboundType.ProductionPick
+                && or.WorkOrderNo != null
+                && or.WorkOrderNo == j.wo.WorkOrderNo))
+            .Select(j => new PendingPlanBatchDto
+            {
+                BatchNo = j.p.BatchNo,
+                WorkOrderNo = j.wo.WorkOrderNo,
+                PlanType = j.p.ReworkType != null ? "库料改制" : "库存使用",
+                PlanId = j.p.Id,
+                RequiredQuantity = j.p.UsedQuantity,
+                RequiredWeight = j.p.UsedWeight
+            })
             .ToListAsync();
     }
 
@@ -3675,22 +4130,11 @@ internal static class MaterialPlanMappingExtensions
             ProductionBatchId = entity.ProductionBatchId,
             BatchNo = entity.BatchNo,
             BatchTagNo = entity.BatchTagNo,
-            MaterialName = entity.MaterialName,
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
-            LengthStatus = string.IsNullOrEmpty(entity.LengthStatus) ? default : Enum.Parse<LengthStatus>(entity.LengthStatus),
             InputMultiple = entity.InputMultiple,
             UsedQuantity = entity.UsedQuantity,
-            UsedWeight = entity.UsedWeight,
-            RequiredDate = entity.RequiredDate,
-            PlanStatus = entity.PlanStatus,
-            PlanStatusText = EnumHelper.GetDisplayName(entity.PlanStatus),
-            Remark = entity.Remark,
-            ReworkType = entity.ReworkType,
-            ReworkTypeText = EnumHelper.GetDisplayName(entity.ReworkType),
-            StandardCycle = entity.StandardCycle,
-            CreatedTime = entity.CreatedTime,
-            CreatedBy = entity.CreatedBy
+            UsedWeight = entity.UsedWeight
         };
     }
 
@@ -3707,13 +4151,9 @@ internal static class MaterialPlanMappingExtensions
             AllocatedWeight = entity.AllocatedWeight,
             AllocatedQuantity = entity.AllocatedQuantity,
             ProductionRatio = entity.ProductionRatio,
-            StandardCycle = entity.StandardCycle,
             RequiredDate = entity.RequiredDate,
             PlanStatus = entity.PlanStatus,
-            PlanStatusText = EnumHelper.GetDisplayName(entity.PlanStatus),
-            Remark = entity.Remark,
-            CreatedTime = entity.CreatedTime,
-            CreatedBy = entity.CreatedBy
+            Remark = entity.Remark
         };
     }
 }

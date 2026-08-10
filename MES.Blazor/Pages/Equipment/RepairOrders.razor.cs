@@ -449,7 +449,8 @@ public partial class RepairOrders
                     {
                         cb.OpenComponent<MudSelectItem<RepairPriority>>(0);
                         cb.AddAttribute(1, "Value", Enum.Parse<RepairPriority>(opt.Value));
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                        cb.AddAttribute(2, "Text", opt.Display);
+                        cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                         cb.CloseComponent();
                     }
                 }));

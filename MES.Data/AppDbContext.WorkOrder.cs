@@ -383,7 +383,6 @@ public partial class AppDbContext
             entity.Property(e => e.ProductionBatchId).IsRequired();
             entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.BatchTagNo).HasMaxLength(50);
-            entity.Property(e => e.MaterialName).IsRequired().HasMaxLength(50);
             entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.LengthStatus).IsRequired().HasMaxLength(20);
@@ -393,7 +392,6 @@ public partial class AppDbContext
             entity.Property(e => e.RequiredDate).HasColumnType("date");
             entity.Property(e => e.PlanStatus).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InventoryPlanStatus.Planned);
             entity.Property(e => e.Remark).HasMaxLength(500);
-            entity.Property(e => e.ReworkType).IsRequired().HasMaxLength(20).HasConversion<string>();
             entity.Property(e => e.StandardCycle).IsRequired().HasDefaultValue(0);
             entity.HasIndex(e => e.WorkOrderId).HasDatabaseName("IX_InProcessReworkPlan_WorkOrderId");
             entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_InProcessReworkPlan_ProductionBatchId");

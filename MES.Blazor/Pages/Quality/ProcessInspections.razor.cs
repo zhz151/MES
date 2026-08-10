@@ -728,7 +728,8 @@ public partial class ProcessInspections
                         {
                             b.OpenComponent<MudSelectItem<ShiftType>>(0);
                             b.AddAttribute(1, "Value", Enum.Parse<ShiftType>(opt.Value));
-                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                            b.AddAttribute(2, "Text", opt.Display);
+                            b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 =>
                                 b2.AddContent(0, opt.Display)));
                             b.CloseComponent();
                         }
@@ -788,7 +789,8 @@ public partial class ProcessInspections
                         {
                             b2.OpenComponent<MudSelectItem<string>>(0);
                             b2.AddAttribute(1, "Value", opt.Value);
-                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
+                            b2.AddAttribute(2, "Text", opt.Display);
+                            b2.AddAttribute(3, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                             b2.CloseComponent();
                         }
                     }));

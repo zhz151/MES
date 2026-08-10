@@ -2600,4 +2600,103 @@ public class WorkOrderExecutionServiceTests : TestBase
         summaries[0].ScheduleStage.Should().Be(4);
         summaries[1].ScheduleStage.Should().Be(4);
     }
+
+    // ==================== G7/G8 出库量按出库工单号匹配（同第4/5类完成口径） ====================
+
+    [Fact]
+    public async Task RefreshAllAsync_G7G8出库量_同仓库批多工单按出库工单号区分()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var warehouse = await SeedWarehouseAsync(ctx, "原料仓库");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01"));
+        ctx.WorkOrders.Add(CreateWorkOrder("WO002", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D02"));
+        await ctx.SaveChangesAsync();
+        var wo1 = await ctx.WorkOrders.FirstAsync(w => w.WorkOrderNo == "WO001");
+        var wo2 = await ctx.WorkOrders.FirstAsync(w => w.WorkOrderNo == "WO002");
+
+        // 同一仓库批 CK001 被两个工单计划引用（余料共享）
+        var ib = AddInbound("CK001", "WO001", "SO001", warehouse, 100, 2500m);
+        ctx.InventoryBatches.Add(ib);
+        await ctx.SaveChangesAsync();
+        ctx.Set<InventoryPlan>().Add(new InventoryPlan
+        {
+            WorkOrderId = wo1.Id, PlanDate = DateTime.Today, InventoryBatchNo = "CK001", BatchNo = "CK001",
+            MaterialType = "OrderFinished", PlantGrade = "304", Specification = "219*8", UsedWeight = 1000m
+        });
+        ctx.Set<InventoryPlan>().Add(new InventoryPlan
+        {
+            WorkOrderId = wo2.Id, PlanDate = DateTime.Today, InventoryBatchNo = "CK001", BatchNo = "CK001",
+            MaterialType = "OrderFinished", PlantGrade = "304", Specification = "219*8", UsedWeight = 800m,
+            ReworkType = ReworkType.EmptyDrawing
+        });
+        // 出库：WO001 出 100kg、WO002 出 80kg（同一仓库批，按出库工单号区分）
+        ctx.Set<OutboundRecord>().Add(new OutboundRecord
+        {
+            InventoryBatchId = ib.Id, BatchNo = "CK001", OutboundType = OutboundType.ProductionPick,
+            WorkOrderNo = "WO001", OutboundQuantity = 4, OutboundWeight = 100m,
+            OutboundDate = DateTime.Today.AddDays(-1), CreatedBy = "t", UpdatedBy = "t"
+        });
+        ctx.Set<OutboundRecord>().Add(new OutboundRecord
+        {
+            InventoryBatchId = ib.Id, BatchNo = "CK001", OutboundType = OutboundType.ProductionPick,
+            WorkOrderNo = "WO002", OutboundQuantity = 3, OutboundWeight = 80m,
+            OutboundDate = DateTime.Today, CreatedBy = "t", UpdatedBy = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s1 = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync(s => s.WorkOrderNo == "WO001");
+        var s2 = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync(s => s.WorkOrderNo == "WO002");
+        // G7 库存使用：WO001 只算自己出库工单号下的 100，不含 WO002 的 80
+        s1.InventoryPlanWeight.Should().Be(1000m);
+        s1.InventoryOutWeight.Should().Be(100m);
+        // G8 库料改制：WO002 只算自己出库工单号下的 80，不含 WO001 的 100
+        s2.ReworkPlanWeight.Should().Be(800m);
+        s2.ReworkPlanInputWeight.Should().Be(80m);
+        // 截止到料日出库侧：各工单取自己出库记录的最大日期
+        s1.CutoffArrivalDate.Should().Be(DateTime.Today.AddDays(-1));
+        s2.CutoffArrivalDate.Should().Be(DateTime.Today);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_G7G8出库量_出库工单号为空不计入()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var warehouse = await SeedWarehouseAsync(ctx, "原料仓库");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01"));
+        await ctx.SaveChangesAsync();
+        var wo1 = await ctx.WorkOrders.FirstAsync(w => w.WorkOrderNo == "WO001");
+
+        var ib = AddInbound("CK001", "WO001", "SO001", warehouse, 100, 2500m);
+        ctx.InventoryBatches.Add(ib);
+        await ctx.SaveChangesAsync();
+        ctx.Set<InventoryPlan>().Add(new InventoryPlan
+        {
+            WorkOrderId = wo1.Id, PlanDate = DateTime.Today, InventoryBatchNo = "CK001", BatchNo = "CK001",
+            MaterialType = "OrderFinished", PlantGrade = "304", Specification = "219*8", UsedWeight = 1000m
+        });
+        // 出库但未填出库工单号 → 与完成匹配同口径：不计入执行量
+        ctx.Set<OutboundRecord>().Add(new OutboundRecord
+        {
+            InventoryBatchId = ib.Id, BatchNo = "CK001", OutboundType = OutboundType.ProductionPick,
+            OutboundQuantity = 8, OutboundWeight = 200m,
+            OutboundDate = DateTime.Today, CreatedBy = "t", UpdatedBy = "t"
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s1 = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync(s => s.WorkOrderNo == "WO001");
+        s1.InventoryOutWeight.Should().Be(0m);
+        s1.CutoffArrivalDate.Should().BeNull();
+    }
 }

@@ -280,9 +280,9 @@ public class MaterialPlanController : ControllerBase
     [HttpGet("in-process-batches/{workOrderId}")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<AvailableInProcessBatchDto>>>> GetAvailableInProcessBatches(
-        int workOrderId, [FromQuery] ReworkType? reworkType = null, [FromQuery] int? excludePlanId = null)
+        int workOrderId, [FromQuery] int? excludePlanId = null)
     {
-        var result = await _materialPlanService.GetAvailableInProcessBatchesAsync(workOrderId, reworkType, excludePlanId);
+        var result = await _materialPlanService.GetAvailableInProcessBatchesAsync(workOrderId, excludePlanId);
         return Ok(ApiResponse<List<AvailableInProcessBatchDto>>.Ok(result, "查询成功"));
     }
 
@@ -352,9 +352,9 @@ public class MaterialPlanController : ControllerBase
     [HttpGet("main-work-order-batches/{workOrderId}")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<List<AvailableMainWorkOrderBatchDto>>>> GetAvailableMainWorkOrderBatches(
-        int workOrderId, [FromQuery] int? excludePlanBatchId = null)
+        int workOrderId, [FromQuery] int? excludePlanId = null)
     {
-        var result = await _materialPlanService.GetAvailableMainWorkOrderBatchesAsync(workOrderId, excludePlanBatchId);
+        var result = await _materialPlanService.GetAvailableMainWorkOrderBatchesAsync(workOrderId, excludePlanId);
         return Ok(ApiResponse<List<AvailableMainWorkOrderBatchDto>>.Ok(result, "查询成功"));
     }
 

@@ -455,7 +455,8 @@
                     {
                         cb.OpenComponent<MudSelectItem<LifecycleStatus>>(0);
                         cb.AddAttribute(1, "Value", Enum.Parse<LifecycleStatus>(opt.Value));
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                        cb.AddAttribute(2, "Text", opt.Display);
+                        cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                         cb.CloseComponent();
                     }
                 }));
@@ -474,7 +475,8 @@
                     {
                         cb.OpenComponent<MudSelectItem<UsageType>>(0);
                         cb.AddAttribute(1, "Value", Enum.Parse<UsageType>(opt.Value));
-                        cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                        cb.AddAttribute(2, "Text", opt.Display);
+                        cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                         cb.CloseComponent();
                     }
                 }));

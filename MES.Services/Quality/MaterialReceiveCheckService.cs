@@ -205,6 +205,10 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             .FirstOrDefaultAsync(b => b.Id == request.ProductionBatchId)
             ?? throw new BusinessException($"批次不存在: {request.ProductionBatchId}");
 
+        // 仅成品类制造物品可建成检到料；非成品类（余库料等）的检验属"过程检验"，不走成检
+        if (!ProductStatusHelper.IsFinishedManufacturingItem(batch.ManufacturingItem))
+            throw new BusinessException($"批次 {batch.BatchNo} 为非成品类制造物品（{batch.ManufacturingItem}），检验应走过程检验，不能创建成检到料");
+
         var entity = new MaterialReceiveCheck
         {
             ProductionBatchId = request.ProductionBatchId,
@@ -328,6 +332,10 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         foreach (var request in requests)
         {
             var batch = modifiedBatches[entities.Count];
+            // 仅成品类制造物品可建成检到料；非成品类（余库料等）的检验属"过程检验"，不走成检
+            if (!ProductStatusHelper.IsFinishedManufacturingItem(batch.ManufacturingItem))
+                throw new BusinessException($"批次「{batch.BatchNo}」为非成品类制造物品（{batch.ManufacturingItem}），检验应走过程检验，不能创建成检到料");
+
             var batchSpec = batchSpecLookup.GetValueOrDefault(batch.Id, "");
 
             // 按 ManufacturingSpec == batch.Specification 匹配，优先非"附加成检"
@@ -468,6 +476,12 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         await _context.SaveChangesAsync();
 
         await TryRefreshQualityProcessTrackingAsync(entity.Id);
+
+        // 更新可变更 ReceiveDate/IsForceCompleted/ProcessGroupId（→ InspectionType），
+        // 均为批次跟踪字段（Status/CurrentExecDate/CurrentSectionName/InspectionStage）的判定输入，
+        // 需与 Delete 对齐重算批次跟踪字段 + 工单执行状况读模型
+        await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.ProductionBatchId);
+        await TryRefreshExecutionSummaryAsync(entity.ProductionBatch?.WorkOrderNo);
 
         return MapToDto(entity, isLastProcessGroup: isLast);
     }
@@ -936,9 +950,12 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
         // Step 2: 获取下一工段为"检验" 或 尚未开始（已重置）的活跃批次
         // 放宽 NextSectionName 条件，覆盖成检到料删除后 NextSectionName 被回退为 null 的情况
+        // 仅成品类制造物品才有"成品检验"环节，非成品类（余库料等）的检验属"过程检验"，不入本面板
+        var finishedItems = new[] { nameof(MaterialType.OrderFinished), nameof(MaterialType.Finished), nameof(MaterialType.CriticalFinished), nameof(MaterialType.SpecialDeliveryStatus) };
         var batches = await _context.ProductionBatches.AsNoTracking()
             .Where(b => (b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress
                       || b.Status == BatchStatus.InFinalInspection)
+                     && finishedItems.Contains(b.ManufacturingItem)
                      && (b.NextSectionName == SectionKeys.Inspection || b.NextSectionName == null))
             .Select(b => new
             {

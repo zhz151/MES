@@ -141,6 +141,25 @@ public class SectionNameDisplayServiceTests : TestBase
         map[SectionKeys.Cut].Should().Be(SectionDefs.Cut);
     }
 
+    [Fact]
+    public async Task GetSectionNameMapAsync_英文种子值_回退规范中文()
+    {
+        var ctx = CreateDbContext();
+        ctx.StandardWorkDays.Add(new StandardWorkDay
+        {
+            SectionName = nameof(SectionDefs.ColdRollDraw), // 种子 SectionName 存英文 Key（如 "ColdRollDraw"）
+            SectionKey = SectionKeys.ColdRollDraw,
+            DisplayOrder = 1,
+            IsEnabled = true,
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var map = await svc.GetSectionNameMapAsync();
+
+        map[SectionKeys.ColdRollDraw].Should().Be(SectionDefs.ColdRollDraw); // 英文种子值回退规范中文
+    }
+
     // ========== 缓存 ==========
 
     [Fact]

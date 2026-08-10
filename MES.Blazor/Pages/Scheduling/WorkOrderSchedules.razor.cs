@@ -1019,7 +1019,8 @@ public partial class WorkOrderSchedules
                     {
                         b2.OpenComponent<MudSelectItem<string>>(0);
                         b2.AddAttribute(1, "Value", opt.Value);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
+                        b2.AddAttribute(2, "Text", opt.Display);
+                        b2.AddAttribute(3, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                         b2.CloseComponent();
                     }
                 }));
@@ -1047,7 +1048,8 @@ public partial class WorkOrderSchedules
                     {
                         b2.OpenComponent<MudSelectItem<string>>(0);
                         b2.AddAttribute(1, "Value", opt.Value);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
+                        b2.AddAttribute(2, "Text", opt.Text);
+                        b2.AddAttribute(3, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
                         b2.CloseComponent();
                     }
                 }));
@@ -1077,7 +1079,8 @@ public partial class WorkOrderSchedules
                         {
                             b2.OpenComponent<MudSelectItem<string>>(0);
                             b2.AddAttribute(1, "Value", opt.Value);
-                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
+                            b2.AddAttribute(2, "Text", opt.Display);
+                            b2.AddAttribute(3, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
                             b2.CloseComponent();
                         }
                     }
@@ -1110,7 +1113,8 @@ public partial class WorkOrderSchedules
                     {
                         b2.OpenComponent<MudSelectItem<string>>(0);
                         b2.AddAttribute(1, "Value", opt.Value);
-                        b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
+                        b2.AddAttribute(2, "Text", opt.Text);
+                        b2.AddAttribute(3, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Text)));
                         b2.CloseComponent();
                     }
                 }));

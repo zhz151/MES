@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
@@ -230,7 +231,11 @@ public class StandardWorkDayService : IStandardWorkDayService
             .Select(x => new SectionInfoDto
             {
                 SectionKey = x.SectionKey!,
-                SectionName = x.SectionName,
+                // 种子 SectionName 存英文 Key（如 "ColdRollDraw"），显示层必须中文；
+                // 配置名若为合法英文 Key 视为种子值未改名 → 回退规范中文；否则（已是中文自定义名）原样采用
+                SectionName = SectionKeys.IsKey(x.SectionName)
+                    ? SectionKeys.ToChinese(x.SectionName) ?? x.SectionName
+                    : x.SectionName,
                 DisplayOrder = x.DisplayOrder,
                 IsEnabled = x.IsEnabled
             })

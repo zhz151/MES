@@ -107,7 +107,7 @@ else
                         <div>
                             @foreach (var item in _pendingPlanBatches)
                             {
-                                <div>批次 "@item.BatchNo"（@item.WorkOrderNo，@item.PlanType）存在用料计划，请及时出库！</div>
+                                <div>仓库批 "@item.BatchNo"用料计划，（@item.PlanType，@item.WorkOrderNo，需出库 @(item.RequiredQuantity?.ToString() ?? "-")支 + @item.RequiredWeight.ToString("G29")kg），请出库！</div>
                             }
                         </div>
                     </MudAlert>

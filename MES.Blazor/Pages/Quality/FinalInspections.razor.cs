@@ -1302,7 +1302,8 @@ public partial class FinalInspections
                         {
                             b.OpenComponent<MudSelectItem<ShiftType?>>(0);
                             b.AddAttribute(1, "Value", (ShiftType?)Enum.Parse<ShiftType>(opt.Value));
-                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                            b.AddAttribute(2, "Text", opt.Display);
+                            b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 =>
                                 b2.AddContent(0, opt.Display)));
                             b.CloseComponent();
                         }
@@ -1340,11 +1341,13 @@ public partial class FinalInspections
                     {
                         b.OpenComponent<MudSelectItem<string?>>(0);
                         b.AddAttribute(1, "Value", nameof(InspectionType.FormalInspection));
-                        b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.FormalInspection)))));
+                        b.AddAttribute(2, "Text", DisplayHelper.GetInspectionTypeText(nameof(InspectionType.FormalInspection)));
+                        b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.FormalInspection)))));
                         b.CloseComponent();
                         b.OpenComponent<MudSelectItem<string?>>(0);
                         b.AddAttribute(1, "Value", nameof(InspectionType.PreInspection));
-                        b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.PreInspection)))));
+                        b.AddAttribute(2, "Text", DisplayHelper.GetInspectionTypeText(nameof(InspectionType.PreInspection)));
+                        b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetInspectionTypeText(nameof(InspectionType.PreInspection)))));
                         b.CloseComponent();
                     }));
                     builder.CloseComponent();

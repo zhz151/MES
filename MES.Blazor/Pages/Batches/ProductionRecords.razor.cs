@@ -79,38 +79,38 @@ public partial class ProductionRecords
         // ===== Group 1: 执行信息 =====
         new() { Key = "ExecDate",          Label = "执行日期",   SortKey = "execdate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "WorkOrderNo",       Label = "工单号",     SortKey = "workorderno",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "SalesOrderNo",      Label = "订单号",     SortKey = "salesorderno",      FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "ProductionMainNo",  Label = "主号",       SortKey = "productionmainno",  FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
-        new() { Key = "ManufacturingSpec", Label = "制造规格",   SortKey = "manufacturingspec", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "SectionName",       Label = "工段名称",   SortKey = "sectionname",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "ManufacturingSpec", Label = "制造规格",   SortKey = "manufacturingspec", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "SequenceNumber",    Label = "执行序号",   SortKey = "sequencenumber", Width = "45", GroupKey = 1, GroupName = "执行信息" },
 
         // ===== Group 2: 产出数据 =====
         new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname",     FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据" },
-        new() { Key = "Operator",          Label = "操作人",     SortKey = "operator",          FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "Shift",             Label = "班次",       SortKey = "shift",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "Operator",          Label = "操作人",     SortKey = "operator",          FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "ProductStatus",      Label = "产类",       SortKey = "productstatus",         FilterType = "string", Width = "80", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "FaceCutCount",      Label = "平头数",     SortKey = "facecutcount", Width = "60", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "IsPreCut",           Label = "预成切",     SortKey = "isprecut",             FilterType = "enum", Width = "70", GroupKey = 2, GroupName = "产出数据",
             EnumOptions = new() { new("true", "是") } },
         new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus",         FilterType = "string", Width = "80", GroupKey = 2, GroupName = "产出数据" },
-        new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "CutLengthMatchType", Label = "符合工单长度", SortKey = "cutlengthmatchtype", FilterType = "enum", Width = "100", GroupKey = 2, GroupName = "产出数据",
             EnumOptions = DisplayHelper.GetCutLengthMatchOptions() },
         new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity", Width = "80", GroupKey = 2, GroupName = "产出数据" },
-        new() { Key = "FaceCutCount",      Label = "平头数",     SortKey = "facecutcount", Width = "60", GroupKey = 2, GroupName = "产出数据" },
 
         // ===== Group 3: 工艺参数 =====
         new() { Key = "SolutionTemperature", Label = "固溶温度(℃)", SortKey = "solutiontemperature", Width = "80", GroupKey = 3, GroupName = "工艺参数" },
         new() { Key = "SoakTime",           Label = "保温时间(min)", SortKey = "soaktime", Width = "80", GroupKey = 3, GroupName = "工艺参数" },
 
         // ===== Group 4: 追溯信息 =====
-        new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno",             FilterType = "string", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
-        new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade",        FilterType = "string", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
         new() { Key = "Remark",            Label = "备注",       SortKey = "remark",            FilterType = "string", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
         new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource",        FilterType = "enum", Width = "80", GroupKey = 4, GroupName = "追溯信息",
             EnumOptions = DisplayHelper.GetDataSourceOptions() },
@@ -741,7 +741,8 @@ public partial class ProductionRecords
                         {
                             b.OpenComponent<MudSelectItem<ShiftType>>(0);
                             b.AddAttribute(1, "Value", Enum.Parse<ShiftType>(opt.Value));
-                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 =>
+                            b.AddAttribute(2, "Text", opt.Display);
+                            b.AddAttribute(3, "ChildContent", (RenderFragment)(b2 =>
                                 b2.AddContent(0, opt.Display)));
                             b.CloseComponent();
                         }

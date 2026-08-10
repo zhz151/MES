@@ -576,7 +576,8 @@ public partial class Customers
                         {
                             cb.OpenComponent<MudSelectItem<string>>(0);
                             cb.AddAttribute(1, "Value", opt.Value);
-                            cb.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.AddAttribute(2, "Text", opt.Display);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
                             cb.CloseComponent();
                         }
                     }));

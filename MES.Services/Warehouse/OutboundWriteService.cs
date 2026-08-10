@@ -25,6 +25,7 @@ public class OutboundWriteService : IOutboundWriteService
         InventoryBatchId = r.InventoryBatchId,
         BatchNo = r.BatchNo,
         OutboundType = r.OutboundType,
+        WorkOrderNo = r.WorkOrderNo,
         SourceOrderNo = r.SourceOrderNo,
         TargetCompany = r.TargetCompany,
         OutboundQuantity = r.OutboundQuantity,
@@ -92,6 +93,7 @@ public class OutboundWriteService : IOutboundWriteService
                 InventoryBatchId = request.InventoryBatchId,
                 BatchNo = batch.BatchNo,
                 OutboundType = request.OutboundType,
+                WorkOrderNo = request.WorkOrderNo ?? batch.WorkOrderNo,
                 SourceOrderNo = request.SourceOrderNo,
                 TargetCompany = request.TargetCompany,
                 OutboundQuantity = request.OutboundQuantity,
@@ -105,7 +107,8 @@ public class OutboundWriteService : IOutboundWriteService
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            await TryRefreshExecutionSummaryAsync(batch.WorkOrderNo);
+            // 刷新出库记录实际写入的出库工单号（而非批次原工单号），保证计划所属工单读模型同步
+            await TryRefreshExecutionSummaryAsync(record.WorkOrderNo);
 
             var dto = OutboundToDto(record);
             return dto;
@@ -169,6 +172,7 @@ public class OutboundWriteService : IOutboundWriteService
                     InventoryBatchId = item.InventoryBatchId,
                     BatchNo = batch.BatchNo,
                     OutboundType = item.OutboundType ?? request.OutboundType,
+                    WorkOrderNo = item.WorkOrderNo ?? request.WorkOrderNo ?? batch.WorkOrderNo,
                     SourceOrderNo = item.SourceOrderNo ?? request.SourceOrderNo,
                     TargetCompany = item.TargetCompany ?? request.TargetCompany,
                     OutboundQuantity = item.OutboundQuantity,
@@ -187,9 +191,10 @@ public class OutboundWriteService : IOutboundWriteService
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            var woNos = batches.Values
-                .Where(b => !string.IsNullOrWhiteSpace(b.WorkOrderNo))
-                .Select(b => b.WorkOrderNo!)
+            // 刷新出库记录实际写入的出库工单号（而非批次原工单号），保证计划所属工单读模型同步
+            var woNos = results
+                .Where(r => !string.IsNullOrWhiteSpace(r.WorkOrderNo))
+                .Select(r => r.WorkOrderNo!)
                 .Distinct()
                 .ToList();
             foreach (var woNo in woNos)
@@ -223,8 +228,10 @@ public class OutboundWriteService : IOutboundWriteService
             var oldQty = entity.OutboundQuantity;
             var oldWt = entity.OutboundWeight;
             var oldOutboundMeters = entity.OutboundMeters;
+            var oldWorkOrderNo = entity.WorkOrderNo;
 
             entity.OutboundType = request.OutboundType ?? entity.OutboundType;
+            entity.WorkOrderNo = request.WorkOrderNo ?? entity.WorkOrderNo;
             entity.TargetCompany = request.TargetCompany ?? entity.TargetCompany;
             if (request.OutboundQuantity.HasValue) entity.OutboundQuantity = request.OutboundQuantity.Value;
             if (request.OutboundWeight.HasValue) entity.OutboundWeight = request.OutboundWeight.Value;
@@ -257,11 +264,11 @@ public class OutboundWriteService : IOutboundWriteService
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            var batchForRefresh = await _context.InventoryBatches
-                .AsNoTracking()
-                .FirstOrDefaultAsync(b => b.Id == entity.InventoryBatchId);
-            if (batchForRefresh?.WorkOrderNo != null)
-                await TryRefreshExecutionSummaryAsync(batchForRefresh.WorkOrderNo);
+            // 刷新出库记录实际工单号（可能被本次修改）；若工单号被变更，旧工单号也需重算（此前计入的出库量消失）
+            await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+            if (!string.IsNullOrWhiteSpace(oldWorkOrderNo)
+                && !string.Equals(oldWorkOrderNo, entity.WorkOrderNo, StringComparison.OrdinalIgnoreCase))
+                await TryRefreshExecutionSummaryAsync(oldWorkOrderNo);
 
             var dto = OutboundToDto(entity);
             return dto;
@@ -295,12 +302,13 @@ public class OutboundWriteService : IOutboundWriteService
                     batch.RemainingMeters += entity.OutboundMeters.Value;
             }
 
+            var workOrderNo = entity.WorkOrderNo;
             _context.OutboundRecords.Remove(entity);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            if (batch?.WorkOrderNo != null)
-                await TryRefreshExecutionSummaryAsync(batch.WorkOrderNo);
+            // 刷新出库记录实际工单号（删除后该工单出库量减少）
+            await TryRefreshExecutionSummaryAsync(workOrderNo);
         }
         catch
         {

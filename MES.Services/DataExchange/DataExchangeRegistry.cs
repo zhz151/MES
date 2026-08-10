@@ -1223,7 +1223,6 @@ public static class DataExchangeRegistry
             new("生产批次ID", "ProductionBatchId", typeof(int)),
             new("批次号", "BatchNo"),
             new("挂牌号", "BatchTagNo", typeof(string), isRequired: false),
-            new("物料名称", "MaterialName", typeof(MES.Core.Enums.PipeManufacturingType), isEnum: true),
             new("工厂牌号", "PlantGrade"),
             new("规格", "Specification"),
             new("长度状态", "LengthStatus", typeof(MES.Core.Enums.LengthStatus), isEnum: true),
@@ -1237,7 +1236,6 @@ public static class DataExchangeRegistry
             new("要求到货日", "RequiredDate", typeof(DateTime?), isRequired: false),
             new("计划状态", "PlanStatus", typeof(MES.Core.Enums.InventoryPlanStatus), isEnum: true),
             new("备注", "Remark", typeof(string), isRequired: false),
-            new("改制类型", "ReworkType", typeof(MES.Core.Enums.ReworkType), isEnum: true),
             new("工艺周期(天)", "StandardCycle", typeof(int)),
         }),
 

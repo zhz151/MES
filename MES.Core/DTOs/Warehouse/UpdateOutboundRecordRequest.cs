@@ -8,6 +8,7 @@ namespace MES.Core.DTOs.Warehouse;
 public class UpdateOutboundRecordRequest
 {
     public OutboundType? OutboundType { get; set; }
+    public string? WorkOrderNo { get; set; }
     public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
     public int? OutboundQuantity { get; set; }

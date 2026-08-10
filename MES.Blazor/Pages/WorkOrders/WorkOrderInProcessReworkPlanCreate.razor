@@ -1,5 +1,4 @@
 @page "/workorders/{WorkOrderId:int}/in-process-rework-plan/create"
-@page "/workorders/{WorkOrderId:int}/in-process-rework-plan/edit/{PlanId:int}"
 @using MES.Blazor.Services
 @using MES.Core.Models
 @using MES.Core.Enums
@@ -10,7 +9,6 @@
 @using MES.Core.DTOs.WorkOrder
 @using Microsoft.AspNetCore.Authorization
 @inject MaterialPlanService MaterialPlanService
-@inject MaterialPlanProcessGroupService ProcessGroupService
 @inject StandardWorkDayService StandardWorkDayService
 @inject ProcessDefinitionService ProcessDefinitionService
 @inject WorkOrderService WorkOrderService
@@ -39,7 +37,7 @@
             <CardHeaderContent>
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.Autorenew" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
-                    <MudText Typo="Typo.h5" Class="font-weight-bold">@(IsEditMode ? "编辑" : "新增")在产改制</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">新增在产改制</MudText>
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -111,7 +109,7 @@
                             {
                                 if (GetPgCol(sc.SectionKey).Visible)
                                 {
-                                    <MudTh Style="width:60px;">@sc.SectionName</MudTh>
+                                    <MudTh Style="width:60px;">@SectionDisplayHelper.GetSectionNameText(sc.SectionKey)</MudTh>
                                 }
                             }
                             <MudTh Style="width:60px;">操作</MudTh>
@@ -200,9 +198,13 @@
                                 <MudTh Style="width:50px;">当前工序</MudTh>
                                 <MudTh Style="width:50px;">当前工段</MudTh>
                                 <MudTh Style="width:55px;">当前规格</MudTh>
+                                <MudTh Style="width:50px;">下个工序</MudTh>
+                                <MudTh Style="width:50px;">下个工段</MudTh>
+                                <MudTh Style="width:55px;">下个规格</MudTh>
                                 <MudTh Style="width:40px;">长度状态</MudTh>
                                 <MudTh Style="width:50px;">可用支数</MudTh>
                                 <MudTh Style="width:55px;">可用重量(kg)</MudTh>
+                                <MudTh Style="width:60px;">已预留</MudTh>
                                 <MudTh Style="width:55px; background-color: rgba(255, 152, 0, 0.08);">投料制成倍</MudTh>
                                 <MudTh Style="width:55px; background-color: rgba(255, 152, 0, 0.08);">使用支数</MudTh>
                                 <MudTh Style="width:55px; background-color: rgba(255, 152, 0, 0.08);">使用重量(kg)</MudTh>
@@ -220,9 +222,19 @@
                                 <MudTd DataLabel="当前工序">@(ProcessDisplayHelper.GetProcessNameText(context.CurrentGroupName ?? "-"))</MudTd>
                                 <MudTd DataLabel="当前工段">@(string.IsNullOrEmpty(context.CurrentSectionName) ? "-" : SectionDisplayHelper.GetSectionNameText(context.CurrentSectionName))</MudTd>
                                 <MudTd DataLabel="当前规格">@(context.CurrentSpec ?? "-")</MudTd>
+                                <MudTd DataLabel="下个工序">@(ProcessDisplayHelper.GetProcessNameText(context.NextProcess ?? "-"))</MudTd>
+                                <MudTd DataLabel="下个工段">@(string.IsNullOrEmpty(context.NextSectionName) ? "-" : SectionDisplayHelper.GetSectionNameText(context.NextSectionName))</MudTd>
+                                <MudTd DataLabel="下个规格">@(context.CorrespondingSpec ?? "-")</MudTd>
                                 <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>
-                                <MudTd DataLabel="可用支数">@(context.CurrentValidQty?.ToString() ?? "-")</MudTd>
-                                <MudTd DataLabel="可用重量">@(context.CurrentValidWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd DataLabel="可用支数">
+                                    @GetNetValidQty(context)
+                                    @if (context.ReservedQuantity > 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-inline">（已预留@(context.ReservedQuantity)）</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="可用重量">@GetNetValidWeight(context).ToString("G29")</MudTd>
+                                <MudTd DataLabel="已预留">@($"{context.ReservedQuantity}支 / {context.ReservedWeight.ToString("G29")}kg")</MudTd>
                                 <MudTd DataLabel="投料制成倍" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))
                                     {
@@ -245,7 +257,7 @@
                                                          ValueChanged="@(v => OnUsedQuantityChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
-                                                         Min="1" Max="@context.CurrentValidQty"
+                                                         Min="1" Max="@GetNetValidQty(context)"
                                                          Class="my-n2" Style="width:48px;" />
                                     }
                                     else
@@ -260,7 +272,7 @@
                                                          ValueChanged="@(v => OnUsedWeightChanged(context.Id, v))"
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
-                                                         Min="0"
+                                                         Min="0" Max="@GetNetValidWeight(context)"
                                                          Class="my-n2" Style="width:55px;" />
                                     }
                                     else
@@ -280,12 +292,8 @@
 
 @code {
     [Parameter] public int WorkOrderId { get; set; }
-    [Parameter] public int PlanId { get; set; }
-
-    private bool IsEditMode => PlanId > 0;
 
     private WorkOrderDetailDto? workOrder;
-    private InProcessReworkPlanDto? existingPlan;
     private List<AvailableInProcessBatchDto> availableBatches = new();
     private bool isLoadingWorkOrder = true;
     private bool isLoadingInventory = false;
@@ -329,7 +337,7 @@
         // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
         foreach (var sc in _sectionCols)
         {
-            pgCols.Add(new ColumnDef { Key = sc.SectionKey, Label = sc.SectionName, Visible = true });
+            pgCols.Add(new ColumnDef { Key = sc.SectionKey, Label = SectionDisplayHelper.GetSectionNameText(sc.SectionKey), Visible = true });
         }
 
         var saved = await ColumnPrefs.LoadAsync(PgColPrefsKey, null);
@@ -454,11 +462,6 @@
         {
             var result = await WorkOrderService.GetByIdAsync(WorkOrderId);
             workOrder = result.Success ? result.Data : null;
-
-            if (IsEditMode)
-            {
-                await LoadExistingPlan();
-            }
         }
         catch (Exception ex)
         {
@@ -467,90 +470,6 @@
         finally
         {
             isLoadingWorkOrder = false;
-        }
-    }
-
-    private async Task LoadExistingPlan()
-    {
-        try
-        {
-            var planResult = await MaterialPlanService.GetInProcessReworkPlanByIdAsync(PlanId);
-            if (!planResult.Success || planResult.Data == null)
-            {
-                Snackbar.Add("在产改制计划不存在", Severity.Error);
-                GoBack();
-                return;
-            }
-
-            existingPlan = planResult.Data;
-            var plan = planResult.Data;
-
-            // 回填基本信息
-            _planDate = plan.PlanDate.ToString("yyyy-MM-dd");
-            _requiredDate = plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "";
-            _remark = plan.Remark ?? "";
-
-            // 加载可用在产批次（排除自身）
-            await LoadAvailableBatches();
-
-            // 自动选中匹配批次
-            var matchBatch = availableBatches.FirstOrDefault(b => b.Id == plan.ProductionBatchId);
-            if (matchBatch != null && _selections.ContainsKey(matchBatch.Id))
-            {
-                _selections[matchBatch.Id] = true;
-                _inputMultiples[matchBatch.Id] = plan.InputMultiple;
-                _usedQuantities[matchBatch.Id] = plan.UsedQuantity;
-                _usedWeights[matchBatch.Id] = plan.UsedWeight;
-                StateHasChanged();
-            }
-
-            // 加载已有的工序组
-            var pgResult = await ProcessGroupService.GetByPlanAsync(6, PlanId);
-            if (pgResult.Success && pgResult.Data != null)
-            {
-                _pendingProcessGroups = pgResult.Data.Select(p => new SavePlanProcessGroupItem
-                {
-                    Id = p.Id,
-                    SequenceNumber = p.SequenceNumber,
-                    ProcessName = p.ProcessName,
-                    ManufacturingSpec = p.ManufacturingSpec,
-                    OuterDiameterTolerance = p.OuterDiameterTolerance,
-                    WallThicknessTolerance = p.WallThicknessTolerance,
-                    ManufacturingLength = p.ManufacturingLength,
-                    CuttingTreatment = p.CuttingTreatment,
-                    Remark = p.Remark,
-                    ColdRollDraw = p.ColdRollDraw,
-                    OilPipeCut = p.OilPipeCut,
-                    Degrease = p.Degrease,
-                    EmulsionWash = p.EmulsionWash,
-                    UltrasonicWash = p.UltrasonicWash,
-                    ClothPolish = p.ClothPolish,
-                    BrightAnnealing = p.BrightAnnealing,
-                    Solution = p.Solution,
-                    Straighten = p.Straighten,
-                    Cut = p.Cut,
-                    ThicknessMeasure = p.ThicknessMeasure,
-                    Pickle = p.Pickle,
-                    OuterPolish = p.OuterPolish,
-                    InnerPolish = p.InnerPolish,
-                    InnerGrinding = p.InnerGrinding,
-                    OuterSpotGrinding = p.OuterSpotGrinding,
-                    SandBlasting = p.SandBlasting,
-                    ShotBlasting = p.ShotBlasting,
-                    Inspection = p.Inspection,
-                    WeldingHead = p.WeldingHead,
-                    Welding = p.Welding,
-                    Lubrication = p.Lubrication,
-                    Packing = p.Packing,
-                    Warehouse = p.Warehouse,
-                    Extra1 = p.Extra1,
-                    Extra2 = p.Extra2
-                }).ToList();
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"加载在产改制计划失败: {ex.Message}", Severity.Error);
         }
     }
 
@@ -598,13 +517,6 @@
         Snackbar.Add("已重置工序组列显示", Severity.Normal);
     }
 
-    private async Task<string?> SaveProcessGroupsForPlan(int planId)
-    {
-        if (_pendingProcessGroups.Count == 0) return null;
-        var result = await ProcessGroupService.SaveAsync(6, planId, _pendingProcessGroups);
-        return result.Success ? null : (result.Message ?? "保存工序组失败");
-    }
-
     private async Task LoadAvailableBatches()
     {
         isLoadingInventory = true;
@@ -613,14 +525,10 @@
 
         try
         {
-            const ReworkType reworkType = ReworkType.ManualSelect;
-            var result = await MaterialPlanService.GetAvailableInProcessBatchesAsync(WorkOrderId, reworkType, IsEditMode ? PlanId : null);
+            var result = await MaterialPlanService.GetAvailableInProcessBatchesAsync(WorkOrderId);
             if (result.Success)
             {
                 availableBatches = (result.Data ?? new()).ToList();
-                // 编辑模式锁定批次：仅保留原批次，不允许换批次或新增批次（换料源请删除重建）
-                if (IsEditMode && existingPlan != null)
-                    availableBatches = availableBatches.Where(b => b.Id == existingPlan.ProductionBatchId).ToList();
                 InitSelections();
                 if (availableBatches.Count == 0)
                 {
@@ -653,8 +561,8 @@
         {
             _selections[batch.Id] = false;
             _inputMultiples[batch.Id] = 1;
-            _usedQuantities[batch.Id] = batch.CurrentValidQty;
-            _usedWeights[batch.Id] = batch.CurrentValidWeight ?? 0;
+            _usedQuantities[batch.Id] = GetNetValidQty(batch);
+            _usedWeights[batch.Id] = GetNetValidWeight(batch);
         }
     }
 
@@ -662,6 +570,10 @@
     private int GetInputMultiple(int batchId) => _inputMultiples.GetValueOrDefault(batchId, 1);
     private int? GetUsedQuantity(int batchId) => _usedQuantities.GetValueOrDefault(batchId);
     private decimal GetUsedWeight(int batchId) => _usedWeights.GetValueOrDefault(batchId);
+
+    // 净可用 = 有效量 − 其他未取消计划已预留（跨工单可部分预留共享）
+    private static int GetNetValidQty(AvailableInProcessBatchDto b) => Math.Max(0, (b.CurrentValidQty ?? 0) - b.ReservedQuantity);
+    private static decimal GetNetValidWeight(AvailableInProcessBatchDto b) => Math.Max(0m, (b.CurrentValidWeight ?? 0m) - b.ReservedWeight);
 
     private void OnSelectionChanged(int batchId, bool value)
     {
@@ -708,6 +620,13 @@
             return;
         }
 
+        // 在产改制必须填写工序组（无工序组不可提交，工量需工序组内算）
+        if (_pendingProcessGroups.Count == 0)
+        {
+            Snackbar.Add("请先添加工序组", Severity.Warning);
+            return;
+        }
+
         // 前端验证
         var errors = new List<string>();
 
@@ -726,10 +645,12 @@
                 errors.Add($"批次 {batch.BatchNo}：使用支数必须大于0");
             if (wt <= 0)
                 errors.Add($"批次 {batch.BatchNo}：使用重量必须大于0");
-            if (qty > batch.CurrentValidQty)
-                errors.Add($"批次 {batch.BatchNo}：使用支数({qty})超过有效支数({batch.CurrentValidQty})");
-            if (wt > batch.CurrentValidWeight)
-                errors.Add($"批次 {batch.BatchNo}：使用重量({wt})超过有效重量({batch.CurrentValidWeight})");
+            var availQty = GetNetValidQty(batch);
+            var availWt = GetNetValidWeight(batch);
+            if (qty > availQty)
+                errors.Add($"批次 {batch.BatchNo}：使用支数({qty})超过可用支数({availQty})");
+            if (wt > availWt)
+                errors.Add($"批次 {batch.BatchNo}：使用重量({wt})超过可用重量({availWt.ToString("G29")})");
         }
 
         if (errors.Any())
@@ -768,28 +689,14 @@
                     UsedWeight = _usedWeights.GetValueOrDefault(batchId),
                     RequiredDate = requiredDate,
                     Remark = string.IsNullOrWhiteSpace(_remark) ? null : _remark,
-                    ReworkType = ReworkType.ManualSelect
+                    // 工序组随创建请求内算工量
+                    ProcessGroups = _pendingProcessGroups
                 };
 
-                ApiResponse<InProcessReworkPlanDto> result;
-                if (IsEditMode && existingPlan != null && batchId == existingPlan.ProductionBatchId)
-                {
-                    result = await MaterialPlanService.UpdateInProcessReworkPlanAsync(PlanId, request);
-                }
-                else
-                {
-                    result = await MaterialPlanService.CreateInProcessReworkPlanAsync(request);
-                }
+                var result = await MaterialPlanService.CreateInProcessReworkPlanAsync(request);
 
                 if (result.Success)
                 {
-                    var planId = result.Data?.Id ?? 0;
-                    if (planId > 0)
-                    {
-                        var pgErr = await SaveProcessGroupsForPlan(planId);
-                        if (pgErr != null)
-                            Snackbar.Add($"批次 {batch.BatchNo} 计划已保存，但工序组保存失败: {pgErr}", Severity.Warning);
-                    }
                     successCount++;
                 }
                 else

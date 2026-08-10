@@ -1283,7 +1283,8 @@ public class ProductionRecordService : IProductionRecordService
 
             foreach (var (sectionName, seq) in sections)
             {
-                var key = (pg.Id, sectionName);
+                // 记录/委外/检验/入缸的 SectionName 存英文 Key；显示名（中文）先归一为 Key 再匹配
+                var key = (pg.Id, SectionKeys.ToKey(sectionName)!);
                 var hasRecord = recordByKey.TryGetValue(key, out var record);
                 var hasOutsource = outsourceByKey.TryGetValue(key, out var outsource);
                 var hasPickling = picklingByKey.TryGetValue(key, out var pickling);
@@ -1601,10 +1602,13 @@ public class ProductionRecordService : IProductionRecordService
 
             var hasRecords = productionRecords.Count > 0 || sectionOutsources.Count > 0 || processInspections.Count > 0 || picklingInRecords.Count > 0;
 
-            // ====== 1. 状态 ======
+            // ====== 1. 状态（临时，供 ComputeBatchTrackingCore 计算剩余工量使用） ======
             // 挂起/强制完成状态不自动覆盖；检验到料已完成的批次保持 Completed
+            // 无检验到料时先按"在产/未产"计，ComputeBatchTrackingCore 之后按"到达成检门"再定稿
             if (batch.Status != BatchStatus.Suspended && !hasMaterialCheck)
+            {
                 batch.Status = hasRecords ? BatchStatus.InProgress : BatchStatus.None;
+            }
 
             // ====== 3-5. 当前工段/工序/设备/委外/规格 + 截止执行日 ======
             // 构建 ProcessGroup 查表（Id -> ManufacturingSpec）
@@ -1645,6 +1649,14 @@ public class ProductionRecordService : IProductionRecordService
             ComputeBatchTrackingCore(batch, pgSpecLookup, productionRecords, outsourceInfos,
                 processInspections, picklingInRecords, hasMaterialCheck,
                 materialChecks.OrderByDescending(m => m.SequenceNumber).FirstOrDefault(), materialCheckSeq, materialCheckPg, coldRollCompleteRatio, dayMap, dsExtraDaysMap);
+
+            // ====== 1b. 状态定稿：无检验到料/无仓库入库时，下工段为成品检验且前段已完工 → 成检 ======
+            if (batch.Status != BatchStatus.Suspended && !hasMaterialCheck && !hasWarehouse
+                && ReachedFinalInspectionGate(batch, hasRecords))
+            {
+                batch.Status = BatchStatus.InFinalInspection;
+                batch.RemainingWorkDays = 0; // 成检无剩余工量（对齐 CalculateRemainingWorkDays）
+            }
 
             // ====== 仓库入库覆盖：入库后当前工段为"入库"，无下一工段 ======
             if (hasWarehouse)
@@ -1689,6 +1701,25 @@ public class ProductionRecordService : IProductionRecordService
             _logger.LogError(ex, "刷新批次跟踪字段失败 (BatchId={BatchId})", batchId);
             throw;
         }
+    }
+
+    /// <summary>
+    /// 判定批次是否"到达成检门"：下工段为"检验"且属成品规格组（ManufacturingSpec == 批次规格），
+    /// 且上工段为空（尚未开工）或上工段已完工。
+    /// 供无检验到料/无仓库入库的批次做状态归属：到达成检门 → 成检，否则未产/在产。
+    /// 依赖 ComputeBatchTrackingCore 输出的 NextSectionName / CorrespondingSpec / CurrentSectionCompleted。
+    /// </summary>
+    private static bool ReachedFinalInspectionGate(ProductionBatch batch, bool hasRecords)
+    {
+        // 仅成品类制造物品（订单成品/备料成品/临界成品/非交付态）才存在"成品检验"环节。
+        // 非成品类（余库料/半成品/荒管等在制流转料）即使检验工段 ManufacturingSpec==Specification，
+        // 也属"过程检验"，永不进成检（否则"在产"批次会被误归"成检"）。
+        if (!ProductStatusHelper.IsFinishedManufacturingItem(batch.ManufacturingItem)) return false;
+        // 下工段为"检验"（英文 Key），且该检验属成品规格组（成品检验，区别于过程检验）
+        if (batch.NextSectionName != SectionKeys.Inspection) return false;
+        if (!string.Equals(batch.CorrespondingSpec, batch.Specification, StringComparison.OrdinalIgnoreCase)) return false;
+        // 上工段为空（无记录）或上工段已完工
+        return !hasRecords || batch.CurrentSectionCompleted == true;
     }
 
     private static void ComputeTheoreticalOutput(ProductionBatch batch, decimal groupDiscountRate)
@@ -2103,6 +2134,7 @@ public class ProductionRecordService : IProductionRecordService
             else if (batch.Status != BatchStatus.Suspended)
             {
                 // 无检验到料：人工暂停的批次不覆盖状态（对齐单批次刷新路径）
+                // 先按"在产/未产"计，ComputeBatchTrackingCore 之后按"到达成检门"再定稿
                 batch.Status = hasRecords ? BatchStatus.InProgress : BatchStatus.None;
             }
 
@@ -2140,6 +2172,14 @@ public class ProductionRecordService : IProductionRecordService
                 processInspections, picklingInRecords, hasCheck,
                 batchMaterialChecks?.FirstOrDefault(), materialCheckSeq, materialCheckPg,
                 coldRollCompleteRatio, dayMap, dsExtraDaysMap);
+
+            // 状态定稿：无检验到料/无仓库入库时，下工段为成品检验且前段已完工 → 成检（对齐单批次刷新路径）
+            if (batch.Status != BatchStatus.Suspended && !hasCheck && !hasWarehouse
+                && ReachedFinalInspectionGate(batch, hasRecords))
+            {
+                batch.Status = BatchStatus.InFinalInspection;
+                batch.RemainingWorkDays = 0;
+            }
 
             // 仓库入库覆盖：入库后当前工段为"入库"，无下一工段（批量模式）
             if (hasWarehouse)

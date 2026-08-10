@@ -36,6 +36,11 @@ public class OutboundRecord : IAuditableEntity
     public OutboundType OutboundType { get; set; }
 
     /// <summary>
+    /// 出库工单号（创建时默认取关联仓库批的工单号，可手动修改）
+    /// </summary>
+    public string? WorkOrderNo { get; set; }
+
+    /// <summary>
     /// 委外穿孔号（委外出库+圆棒时关联委外单号）
     /// </summary>
     public string? SourceOrderNo { get; set; }
