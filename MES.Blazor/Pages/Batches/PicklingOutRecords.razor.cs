@@ -91,14 +91,15 @@ public partial class PicklingOutRecords
     {
         // G1: 入缸信息
         new() { Key = "BatchNo",           Label = "批次号",       SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "TagNo",             Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "100", GroupKey = 1, GroupName = "入缸信息" },
         new() { Key = "ProcessName",       Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "100", GroupKey = 1, GroupName = "入缸信息" },
         new() { Key = "SectionName",       Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "100", GroupKey = 1, GroupName = "入缸信息" },
-        new() { Key = "ManufacturingSpec", Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "入缸信息" },
         new() { Key = "PlantGrade",        Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "入缸信息" },
-        new() { Key = "TagNo",             Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "100", GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "ManufacturingSpec", Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "入缸信息" },
         new() { Key = "EquipmentName",     Label = "设备名称",     SortKey = "equipmentname",       FilterType = "string", Width = "100", GroupKey = 1, GroupName = "入缸信息" },
         new() { Key = "Quantity",          Label = "加工支数",     SortKey = "quantity",                                       Width = "80",  GroupKey = 1, GroupName = "入缸信息" },
         new() { Key = "Weight",            Label = "加工重量(kg)", SortKey = "weight",                                         Width = "80",  GroupKey = 1, GroupName = "入缸信息" },
+        new() { Key = "ProductStatus",     Label = "产类",         SortKey = "productstatus",       FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "入缸信息" },
         // G2: 完工信息
         new() { Key = "CompleteDate",      Label = "完工日期",     SortKey = "completedate",        FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "完工信息" },
         new() { Key = "Shift",             Label = "班次",         SortKey = "shift",               FilterType = "enum",   Width = "80",  GroupKey = 2, GroupName = "完工信息",
@@ -331,6 +332,7 @@ public partial class PicklingOutRecords
                 {
                     "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v),
                     "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(v),
+                    "ProductStatus" => DisplayHelper.GetProductStatusText(v),
                     _ => v
                 },
                 Count = 0
@@ -599,6 +601,13 @@ public partial class PicklingOutRecords
                 break;
             case "Weight":
                 builder.AddContent(0, $"{(int)(item.Weight ?? 0)}");
+                break;
+            case "ProductStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", DisplayHelper.GetProductStatusColor(item.ProductStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetProductStatusText(item.ProductStatus))));
+                builder.CloseComponent();
                 break;
             case "TagNo":
                 builder.AddContent(0, item.TagNo ?? "");

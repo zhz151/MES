@@ -721,6 +721,94 @@ public class ProductionRecordServiceTests : TestBase
     }
 
     [Fact]
+    public async Task BatchCreateProductionRecordsAsync_断切聚合重量超限_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutMatchBatchAsync(ctx);
+        batch.CurrentValidWeight = 1000;
+        await ctx.SaveChangesAsync();
+        var pg = await ctx.ProcessGroups.FirstAsync(p => p.ProductionBatchId == batch.Id);
+        pg.Cut = 5;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+
+        // 单条各 600 ≤ 1000（单条校验通过），但同批次同工序组聚合 1200 > 1000 → 抛错
+        var act = () => svc.BatchCreateProductionRecordsAsync(new List<CreateProductionRecordRequest>
+        {
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.ColdRollDraw, ExecDate = DateTime.Today, Quantity = 10 },
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.Cut, ExecDate = DateTime.Today, FinishedCutLength = 4000m, Weight = 600m },
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.Cut, ExecDate = DateTime.Today, FinishedCutLength = 6000m, Weight = 600m }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*断切总加工重量(1200)*");
+    }
+
+    [Fact]
+    public async Task BatchCreateProductionRecordsAsync_断切聚合含DB已有重量_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutMatchBatchAsync(ctx);
+        batch.CurrentValidWeight = 1000;
+        await ctx.SaveChangesAsync();
+        var pg = await ctx.ProcessGroups.FirstAsync(p => p.ProductionBatchId == batch.Id);
+        pg.Cut = 5;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+
+        // DB 已有断切 700（单条路径仅单条 ≤ 校验，700 ≤ 1000 通过）
+        await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH-MATCH",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Cut,
+            ExecDate = DateTime.Today,
+            FinishedCutLength = 4000m,
+            Weight = 700m
+        });
+
+        // 本次再提交断切 400 → 700+400=1100 > 1000 → 抛错
+        var act = () => svc.BatchCreateProductionRecordsAsync(new List<CreateProductionRecordRequest>
+        {
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.ColdRollDraw, ExecDate = DateTime.Today, Quantity = 10 },
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.Cut, ExecDate = DateTime.Today, FinishedCutLength = 6000m, Weight = 400m }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*断切总加工重量(1100)*");
+    }
+
+    [Fact]
+    public async Task BatchCreateProductionRecordsAsync_断切聚合重量未超限_创建成功()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedCutMatchBatchAsync(ctx);
+        batch.CurrentValidWeight = 1000;
+        await ctx.SaveChangesAsync();
+        var pg = await ctx.ProcessGroups.FirstAsync(p => p.ProductionBatchId == batch.Id);
+        pg.Cut = 5;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, CreateCutMatchSvcMock(
+            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
+
+        // 聚合 400+400=800 ≤ 1000 → 通过
+        var results = await svc.BatchCreateProductionRecordsAsync(new List<CreateProductionRecordRequest>
+        {
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.ColdRollDraw, ExecDate = DateTime.Today, Quantity = 10 },
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.Cut, ExecDate = DateTime.Today, FinishedCutLength = 4000m, Weight = 400m },
+            new() { BatchNo = "BATCH-MATCH", ProcessName = "60冷轧", ManufacturingSpec = "219*8", SectionName = SectionKeys.Cut, ExecDate = DateTime.Today, FinishedCutLength = 6000m, Weight = 400m }
+        });
+
+        results.Should().HaveCount(3);
+    }
+
+    [Fact]
     public async Task UpdateProductionRecordAsync_修改长度_重算标识()
     {
         var ctx = CreateDbContext();

@@ -650,6 +650,12 @@ public class ProductionRecordService : IProductionRecordService
                 coldRollDrawWeightByKey[key] = w;
         }
 
+        // 预查询：各批次各工序组的断切总重量（用于断切总加工重量验证，同批次+同工序组聚合，含预成切）
+        var cutWeightByKey = allExistingRecords
+            .Where(r => r.SectionName == SectionKeys.Cut && r.Weight.HasValue)
+            .GroupBy(r => new { r.ProductionBatchId, r.ProcessGroupId })
+            .ToDictionary(g => (g.Key.ProductionBatchId, g.Key.ProcessGroupId), g => g.Sum(r => r.Weight!.Value));
+
         var simpleDuplicateSections = new HashSet<string>
         {
             SectionKeys.OilPipeCut, SectionKeys.Degrease, SectionKeys.EmulsionWash,
@@ -676,6 +682,8 @@ public class ProductionRecordService : IProductionRecordService
         var pendingSimpleKeys = new HashSet<(int batchId, int pgId, string section)>();
         var pendingColdRollDrawKeys = new HashSet<(int batchId, int pgId, DateTime date, string equipment, string op)>();
         var pendingCutKeys = new HashSet<(int batchId, int pgId, decimal? cutLength)>();
+        // 断切本次提交累计重量（同批次+同工序组聚合，用于断切总加工重量验证，防行间多条累加超限）
+        var pendingCutWeightByKey = new Dictionary<(int batchId, int pgId), decimal>();
         for (int i = 0; i < requests.Count; i++)
         {
             var request = requests[i];
@@ -742,6 +750,14 @@ public class ProductionRecordService : IProductionRecordService
                     requestErrors.Add($"第{i + 1}行：断切在该批次该工序组中已存在相同成品长度的记录，不能重复创建");
                 else
                     pendingCutKeys.Add(key);
+
+                // 附加：断切总加工重量（DB已有 + 本次提交，同批次+同工序组聚合，含预成切）不能大于现有效原料重量
+                var existingCutWeight = cutWeightByKey.GetValueOrDefault((batchId, pgId.Value), 0m);
+                var pendingCutWeight = pendingCutWeightByKey.GetValueOrDefault((batchId, pgId.Value), 0m);
+                var totalCutWeight = existingCutWeight + pendingCutWeight + (request.Weight ?? 0m);
+                if (totalCutWeight > (batch.CurrentValidWeight ?? batch.InputWeight))
+                    requestErrors.Add($"第{i + 1}行：断切总加工重量({totalCutWeight})不能大于有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
+                pendingCutWeightByKey[(batchId, pgId.Value)] = pendingCutWeight + (request.Weight ?? 0m);
             }
 
             // 预成切一致性校验（必须是断切工段 + 必须填写成品长度）

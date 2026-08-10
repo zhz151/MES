@@ -72,27 +72,27 @@ public partial class OutsourceRecoveries
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        // ===== 回收信息 =====
-        new() { Key = "RecoveryDate",        Label = "回收日期",       SortKey = "recoverydate",        FilterType = "date",   Width = "120", GroupKey = 1, GroupName = "回收信息" },
-        new() { Key = "RecoveryQuantity",    Label = "正常回收(支)",   SortKey = "recoveryquantity",                           Width = "80",  GroupKey = 1, GroupName = "回收信息" },
-        new() { Key = "RecoveryWeight",      Label = "正常回收(重)",   SortKey = "recoveryweight",                             Width = "80",  GroupKey = 1, GroupName = "回收信息" },
-        new() { Key = "UnprocessedQuantity", Label = "非正常回收(支)", SortKey = "unprocessedquantity",                       Width = "80",  GroupKey = 1, GroupName = "回收信息" },
-        new() { Key = "UnprocessedWeight",   Label = "非正常回收(重)", SortKey = "unprocessedweight",                         Width = "80",  GroupKey = 1, GroupName = "回收信息" },
-        new() { Key = "Remark",              Label = "回收备注",       SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "回收信息" },
-        new() { Key = "DataSource",          Label = "数据来源",       SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "回收信息",
-            EnumOptions = DisplayHelper.GetDataSourceOptions() },
-        new() { Key = "UpdatedTime",         Label = "更新时间",       SortKey = "updatedtime",         FilterType = "date",   Width = "120", GroupKey = 1, GroupName = "回收信息" },
         // ===== 委外信息（导航属性冗余字段）=====
-        new() { Key = "BatchNo",             Label = "生产编号",       SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
-        new() { Key = "OutsourceVendor",     Label = "委外单位",       SortKey = "outsourcevendor",     FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
-        new() { Key = "ProcessName",         Label = "工序名称",       SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
-        new() { Key = "SectionName",         Label = "工段名称",       SortKey = "sectionname",         FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
-        new() { Key = "ManufacturingSpec",   Label = "制造规格",       SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
-        new() { Key = "OutsourceSpec",       Label = "委外规格",       SortKey = "outsourcespec",       FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
-        new() { Key = "SendQuantity",        Label = "发出支数",       SortKey = "sendquantity",                              Width = "80",  GroupKey = 2, GroupName = "委外信息" },
-        new() { Key = "SendWeight",          Label = "发出重量",       SortKey = "sendweight",                                Width = "80",  GroupKey = 2, GroupName = "委外信息" },
-        new() { Key = "TagNo",               Label = "挂牌号",         SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
-        new() { Key = "PlantGrade",          Label = "工厂牌号",       SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 2, GroupName = "委外信息" },
+        new() { Key = "BatchNo",             Label = "生产编号",       SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "TagNo",               Label = "挂牌号",         SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "ProcessName",         Label = "工序名称",       SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "SectionName",         Label = "工段名称",       SortKey = "sectionname",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "PlantGrade",          Label = "工厂牌号",       SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "ManufacturingSpec",   Label = "制造规格",       SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "OutsourceSpec",       Label = "委外规格",       SortKey = "outsourcespec",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "OutsourceVendor",     Label = "委外单位",       SortKey = "outsourcevendor",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "SendQuantity",        Label = "发出支数",       SortKey = "sendquantity",                              Width = "80",  GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "SendWeight",          Label = "发出重量",       SortKey = "sendweight",                                Width = "80",  GroupKey = 1, GroupName = "委外信息" },
+        // ===== 回收信息 =====
+        new() { Key = "RecoveryDate",        Label = "回收日期",       SortKey = "recoverydate",        FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "RecoveryQuantity",    Label = "正常回收(支)",   SortKey = "recoveryquantity",                           Width = "80",  GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "RecoveryWeight",      Label = "正常回收(重)",   SortKey = "recoveryweight",                             Width = "80",  GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "UnprocessedQuantity", Label = "非正常回收(支)", SortKey = "unprocessedquantity",                       Width = "80",  GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "UnprocessedWeight",   Label = "非正常回收(重)", SortKey = "unprocessedweight",                         Width = "80",  GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "Remark",              Label = "回收备注",       SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "DataSource",          Label = "数据来源",       SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 2, GroupName = "回收信息",
+            EnumOptions = DisplayHelper.GetDataSourceOptions() },
+        new() { Key = "UpdatedTime",         Label = "更新时间",       SortKey = "updatedtime",         FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "回收信息" },
     };
 
     // ========== 分页汇总计算 ==========
