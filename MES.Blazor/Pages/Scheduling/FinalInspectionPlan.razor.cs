@@ -111,7 +111,7 @@ public partial class FinalInspectionPlan
         // G3: 排程信息
         var g3 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",         Label = "计划状态",   SortKey = "ScheduleStage",         FilterType = "enum", Width = "110", EnumOptions = new List<EnumOption> { new("-1","存错-无此工单") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList(), DisplayConverter = v => v is int s ? s switch { -1 => "存错-无此工单", _ => IntStatusDisplayHelper.GetScheduleStageText(s) } : null, GroupKey = 3, GroupName = "排程信息" },
+            new() { Key = "ScheduleStage",         Label = "计划状态",   SortKey = "ScheduleStage",         FilterType = "enum", Width = "110", EnumOptions = new List<EnumOption> { new("-1","无此工单") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList(), DisplayConverter = v => v is int s ? s switch { -1 => "无此工单", _ => IntStatusDisplayHelper.GetScheduleStageText(s) } : null, GroupKey = 3, GroupName = "排程信息" },
             new() { Key = "UrgencyLevel",          Label = "紧急程度",   SortKey = "UrgencyLevel",          FilterType = "enum", Width = "90",  EnumOptions = _urgencyOptions.Select(o => new EnumOption(o.Value, o.Text)).ToList(), GroupKey = 3, GroupName = "排程信息" },
         };
 
@@ -695,7 +695,7 @@ public partial class FinalInspectionPlan
                 };
                 var stageText = item.ScheduleStage switch
                 {
-                    -1 => "存错-无此工单",
+                    -1 => "无此工单",
                     _ => IntStatusDisplayHelper.GetScheduleStageText(item.ScheduleStage)
                 };
                 builder.CloseElement(); // close span

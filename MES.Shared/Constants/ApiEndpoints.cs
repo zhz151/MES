@@ -72,6 +72,7 @@ public static class ApiEndpoints
     // ===== Scheduling 排程 =====
     public const string SectionProductionStatus = "api/section-production-status";
     public const string SectionFlowAnalysis = "api/section-flow-analysis";
+    public const string SectionParagraphFlowAnalysis = "api/section-paragraph-flow-analysis";
     public const string WorkOrderSchedule = "api/workorder-schedule";
     public const string BatchPlan = "api/batch-plan";
     public const string ColdRollPlan = "api/cold-roll-plan";
@@ -106,6 +107,8 @@ public static class ApiEndpoints
     public const string DailyOutputEstimate = "api/daily-output-estimate";
     public const string DailyProductionCapacity = "api/daily-production-capacity";
     public const string SectionFlowCategorySettings = "api/section-flow-category-settings";
+    public const string SectionParagraphConfigSettings = "api/section-paragraph-config-settings";
+    public const string CombinationGroup = "api/combination-group";
     public const string Workstation = "api/workstation";
     public const string Employee = "api/employee";
 
@@ -115,6 +118,7 @@ public static class ApiEndpoints
     public const string GradePhysicalProperty = "api/grade-physical-property";
     public const string SubStandardQuickView = "api/sub-standard-quick-view";
     public const string StandardInspectionRequirement = "api/standard-inspection-requirement";
+    public const string FactoryInspectionRequirement = "api/factory-inspection-requirement";
     public const string ChemicalComposition = "api/chemical-composition";
     public const string ChemicalValidationRule = "api/chemical-validation-rule";
     public const string GradeMapping = "api/grade-mapping";

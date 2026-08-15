@@ -277,4 +277,80 @@ public class WorkOrderScheduleServiceTests : TestBase
         foreach (var kvp in result)
             kvp.Value.Should().BeEmpty();
     }
+
+    // ==================== PlanScheduleAllAsync 测试 ====================
+
+    [Fact]
+    public async Task PlanScheduleAllAsync_关注档位映射为排程4档()
+    {
+        using var ctx = CreateDbContext();
+        SeedSummary(ctx, "WO001", 1, scheduleStage: 1, productionFlowProperty: ProductionFlowKeys.Normal);
+        SeedSummary(ctx, "WO002", 2, scheduleStage: 2, productionFlowProperty: ProductionFlowKeys.Waiting);
+        SeedSummary(ctx, "WO003", 3, scheduleStage: 3, productionFlowProperty: ProductionFlowKeys.Normal);
+        SeedSummary(ctx, "WO004", 4, scheduleStage: 4, productionFlowProperty: ProductionFlowKeys.Doubt);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.PlanScheduleAllAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        result.Should().BeTrue();
+        var plans = ctx.Set<WorkOrderPlan>().OrderBy(p => p.WorkOrderId).ToList();
+        plans.Should().HaveCount(4);
+        plans.Single(p => p.WorkOrderId == 1).ScheduleStage.Should().Be(0); // 主号完成→主号完成
+        plans.Single(p => p.WorkOrderId == 2).ScheduleStage.Should().Be(1); // 原料锁定→原料锁定
+        plans.Single(p => p.WorkOrderId == 3).ScheduleStage.Should().Be(2); // 生产执行→生产执行
+        plans.Single(p => p.WorkOrderId == 4).ScheduleStage.Should().Be(3); // 成品检验→成品检验
+    }
+
+    [Fact]
+    public async Task PlanScheduleAllAsync后_一致性判定为一致()
+    {
+        using var ctx = CreateDbContext();
+        SeedSummary(ctx, "WO001", 1, scheduleStage: 2, productionFlowProperty: ProductionFlowKeys.Waiting);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.PlanScheduleAllAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+        var item = result.Items.Single();
+        item.PlanScheduleStage.Should().Be(1); // 4 档：原料锁定
+        item.ConsistencyStatus.Should().Be("一致");
+    }
+
+    [Fact]
+    public async Task 一致性_工单状态覆盖与系统不一致_为错误()
+    {
+        using var ctx = CreateDbContext();
+        SeedSummary(ctx, "WO001", 1, scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent, productionFlowProperty: ProductionFlowKeys.Waiting);
+        ctx.Set<WorkOrderPlan>().Add(new WorkOrderPlan
+        {
+            WorkOrderId = 1,
+            ScheduleStage = 3, // 映射档4=成品检验，系统是档2 → 不一致（原"值存疑"，现并入"错误"）
+            UrgencyLevel = UrgencyLevelKeys.AUrgent,
+            ProductionFlowProperty = ProductionFlowKeys.Waiting,
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var item = result.Items.Single();
+        item.ConsistencyStatus.Should().Be("错误");
+    }
+
+    [Fact]
+    public async Task PlanScheduleAllAsync_超出4档的存量值不再发生()
+    {
+        using var ctx = CreateDbContext();
+        SeedSummary(ctx, "WO001", 1, scheduleStage: 4, productionFlowProperty: ProductionFlowKeys.Doubt);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.PlanScheduleAllAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var plan = ctx.Set<WorkOrderPlan>().Single();
+        plan.ScheduleStage.Should().Be(3); // 成品检验(4) → 排程 3，绝不再存 5 档值 4
+    }
+
 }

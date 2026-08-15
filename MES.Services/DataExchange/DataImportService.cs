@@ -1208,28 +1208,28 @@ public class DataImportService : IDataImportService
                 value = await ResolveOrderItemIdsForImportAsync(cellValue);
             }
 
-            // 特殊处理：SectionName 存储改英文 Key（Excel 中文 → Key）
+            // 特殊处理：SectionName 存储改英文 Key（Excel 中文 → Key；未知值原样保留，防置 NULL）
             if (colDef.Property == "SectionName" && value is string sectionName)
             {
-                value = SectionKeys.ToKey(sectionName);
+                value = SectionKeys.ToKey(sectionName) ?? sectionName;
             }
 
-            // 特殊处理：ProcessName/ProcessGroupName 存储改英文 Key（Excel 中文 → Key）
+            // 特殊处理：ProcessName/ProcessGroupName 存储改英文 Key（Excel 中文 → Key；未知值原样保留，如 ColdRoll90 不在 ProcessKeys）
             if ((colDef.Property == "ProcessName" || colDef.Property == "ProcessGroupName") && value is string processName)
             {
-                value = ProcessKeys.ToKey(processName);
+                value = ProcessKeys.ToKey(processName) ?? processName;
             }
 
-            // 特殊处理：CurrentGroupName/NextProcess 存储改英文 Key（Excel 中文 → Key）
+            // 特殊处理：CurrentGroupName/NextProcess 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
             if ((colDef.Property == "CurrentGroupName" || colDef.Property == "NextProcess") && value is string currentProcessName)
             {
-                value = ProcessKeys.ToKey(currentProcessName);
+                value = ProcessKeys.ToKey(currentProcessName) ?? currentProcessName;
             }
 
-            // 特殊处理：CurrentSectionName/NextSectionName 存储改英文 Key（Excel 中文 → Key）
+            // 特殊处理：CurrentSectionName/NextSectionName 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
             if ((colDef.Property == "CurrentSectionName" || colDef.Property == "NextSectionName") && value is string currentSectionName)
             {
-                value = SectionKeys.ToKey(currentSectionName);
+                value = SectionKeys.ToKey(currentSectionName) ?? currentSectionName;
             }
 
             // 特殊处理：ProductStatus 存储改英文 Key（Excel 中文 → Key）

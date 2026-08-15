@@ -77,27 +77,95 @@ public class MaintenanceOrderService : IMaintenanceOrderService
         if (query.EquipmentId.HasValue)
             baseQuery = baseQuery.Where(x => x.Order.EquipmentId == query.EquipmentId.Value);
 
-        // 处理 Equipment 关联字段筛选（EquipmentName/EquipmentCode/Location 来自 Equipment 表，
-        // ApplyFilters 通过反射在匿名类型 { Order, Equipment } 上找不到这些属性，需手动处理）
+        // 处理 JOIN 匿名类型 { Order, Equipment } 上的字段筛选：
+        // ApplyFilters 通过反射在匿名类型上找不到业务字段属性（只有 Order/Equipment），
+        // 故 Equipment 关联字段与 MaintenanceOrder 全部字段均需手动处理
         if (query.Filters != null)
         {
+            // Equipment 关联字段（EquipmentName/EquipmentCode/Location 来自 Equipment 表）
             var equipmentFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "EquipmentName", "EquipmentCode", "Location" };
-            foreach (var f in query.Filters.Where(f => equipmentFields.Contains(f.Field)).ToList())
+            // MaintenanceOrder 表自身 string 字段
+            var orderStringFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "MaintOrderNo", "Executor", "ExecutionSummary", "Remark" };
+            // MaintenanceOrder 表自身日期字段
+            var orderDateFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "ActualDate" };
+
+            foreach (var f in query.Filters.ToList())
             {
+                if (string.IsNullOrWhiteSpace(f.Field)) continue;
                 var op = f.Operator?.ToLowerInvariant() ?? "contains";
-                if (op == "in" && f.Values?.Count > 0)
+                var handled = false;
+
+                if (equipmentFields.Contains(f.Field))
                 {
-                    var values = f.Values;
-                    var fieldName = f.Field;
-                    baseQuery = baseQuery.Where(x => values.Contains(EF.Property<string>(x.Equipment, fieldName)));
+                    if (op == "in" && f.Values?.Count > 0)
+                    {
+                        var values = f.Values;
+                        var fieldName = f.Field;
+                        baseQuery = baseQuery.Where(x => values.Contains(EF.Property<string>(x.Equipment, fieldName)));
+                        handled = true;
+                    }
+                    else if (op == "contains" && !string.IsNullOrEmpty(f.Value))
+                    {
+                        var val = f.Value;
+                        var fieldName = f.Field;
+                        baseQuery = baseQuery.Where(x => EF.Property<string>(x.Equipment, fieldName).Contains(val));
+                        handled = true;
+                    }
+                    else if (op == "equals" && !string.IsNullOrEmpty(f.Value))
+                    {
+                        var val = f.Value;
+                        var fieldName = f.Field;
+                        baseQuery = baseQuery.Where(x => EF.Property<string>(x.Equipment, fieldName) == val);
+                        handled = true;
+                    }
                 }
-                else if (op == "contains" && !string.IsNullOrEmpty(f.Value))
+                else if (orderStringFields.Contains(f.Field))
                 {
-                    var val = f.Value;
-                    var fieldName = f.Field;
-                    baseQuery = baseQuery.Where(x => EF.Property<string>(x.Equipment, fieldName).Contains(val));
+                    if (op == "in" && f.Values?.Count > 0)
+                    {
+                        var values = f.Values;
+                        baseQuery = baseQuery.Where(x => values.Contains(EF.Property<string>(x.Order, f.Field)));
+                        handled = true;
+                    }
+                    else if (op == "contains" && !string.IsNullOrEmpty(f.Value))
+                    {
+                        var val = f.Value;
+                        baseQuery = baseQuery.Where(x => EF.Property<string>(x.Order, f.Field).Contains(val));
+                        handled = true;
+                    }
+                    else if (op == "equals" && !string.IsNullOrEmpty(f.Value))
+                    {
+                        var val = f.Value;
+                        baseQuery = baseQuery.Where(x => EF.Property<string>(x.Order, f.Field) == val);
+                        handled = true;
+                    }
                 }
-                query.Filters.Remove(f);
+                else if (orderDateFields.Contains(f.Field))
+                {
+                    // 日期按「精确到天」匹配（与 QueryableExtensions 的 DateTime in 分支一致）
+                    if (op == "in" && f.Values?.Count > 0)
+                    {
+                        var dates = f.Values
+                            .Select(v => DateTime.TryParse(v, out var dt) ? (DateTime?)dt.Date : null)
+                            .Where(v => v.HasValue)
+                            .Select(v => v!.Value)
+                            .ToList();
+                        if (dates.Count > 0)
+                        {
+                            baseQuery = baseQuery.Where(x => dates.Contains(EF.Property<DateTime?>(x.Order, "ActualDate")!.Value.Date));
+                            handled = true;
+                        }
+                    }
+                    else if (op == "equals" && !string.IsNullOrEmpty(f.Value) && DateTime.TryParse(f.Value, out var eqDate))
+                    {
+                        baseQuery = baseQuery.Where(x => EF.Property<DateTime?>(x.Order, "ActualDate")!.Value.Date == eqDate.Date);
+                        handled = true;
+                    }
+                }
+
+                if (handled) query.Filters.Remove(f);
             }
         }
         baseQuery = baseQuery.ApplyFilters(query.Filters);

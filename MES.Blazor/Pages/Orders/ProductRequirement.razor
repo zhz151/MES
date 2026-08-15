@@ -91,31 +91,52 @@
                 </div>
 
                 <div id="product-requirement-table">
-                <div style="overflow-x: auto;">
-                    <MudTable Items="@(_isEditMode ? _editItems : _viewItems)"
-                              Dense="true"
-                              Hover="true"
-                              Elevation="0"
-                              RowsPerPage="10"
-                              RowsPerPageLabel="每页行数:"
-                              Class="auto-table">
-                        <HeaderContent>
-                            @foreach (var col in _visibleColumns)
-                            {
-                                <MudTh>
-                                    @col.Label
-                                </MudTh>
-                            }
-                        </HeaderContent>
-                        <RowTemplate Context="item">
-                            @foreach (var col in _visibleColumns)
-                            {
-                                <MudTd>@RenderCell(item, col)</MudTd>
-                            }
-                        </RowTemplate>
-                    </MudTable>
+                @{
+                    var _groupHeaders = GetGroupHeaders();
+                }
+                <div class="col-group-header-scroll">
+                    <div class="col-group-header-bar">
+                        @foreach (var gh in _groupHeaders)
+                        {
+                            <div class="col-group-header-item @gh.CssClass">
+                                <span class="col-group-badge">@gh.GroupName</span>
+                            </div>
+                        }
+                    </div>
                 </div>
-
+                <MudTable Items="@(_isEditMode ? _editItems : _viewItems)"
+                          Dense="true"
+                          Hover="true"
+                          Elevation="0"
+                          RowsPerPage="10"
+                          RowsPerPageLabel="每页行数:"
+                          Class="auto-table">
+                    <HeaderContent>
+                        @{
+                            int? _prevGk = null;
+                        }
+                        @foreach (var col in _visibleColumns)
+                        {
+                            var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                            _prevGk = col.GroupKey;
+                            var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                            <MudTh Class="@_headerClass" Style="@($"width:{col.Width}px")">
+                                <div class="col-header-cell">@col.Label</div>
+                            </MudTh>
+                        }
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        @{
+                            int? _prevGk2 = null;
+                        }
+                        @foreach (var col in _visibleColumns)
+                        {
+                            var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                            _prevGk2 = col.GroupKey;
+                            <MudTd Class="@GetCellGroupCss(col.GroupKey, _isGroupStart2)">@RenderCell(item, col)</MudTd>
+                        }
+                    </RowTemplate>
+                </MudTable>
                 </div>
             </MudCardContent>
         </MudCard>
@@ -146,12 +167,43 @@
         public int OrderItemId { get; set; }
         public int Sequence { get; set; }
         public bool HasExisting { get; set; }
+        public string? StandardNo { get; set; }
+        public string StandardGrade { get; set; } = null!;
+        public decimal OuterDiameter { get; set; }
+        public decimal WallThickness { get; set; }
+        public LengthStatus LengthStatus { get; set; }
+        public int? Quantity { get; set; }
+        public decimal ContractWeight { get; set; }
         public RequirementType RequirementType { get; set; } = RequirementType.Normal;
-        public string? ChemicalComposition { get; set; }
-        public string? MechanicalProperty { get; set; }
-        public string? ToleranceRequirement { get; set; }
-        public string? SurfaceQuality { get; set; }
-        public string? NdtRequirement { get; set; }
+        public bool ChemicalComposition { get; set; }
+        public bool PmiInspection { get; set; }
+        public bool SurfaceInspection { get; set; }
+        public bool Dimension { get; set; }
+        public bool Endoscopy { get; set; }
+        public bool HydrostaticTest { get; set; }
+        public bool UnderwaterPressure { get; set; }
+        public bool EddyCurrent { get; set; }
+        public bool UltrasonicTest { get; set; }
+        public bool PortColoring { get; set; }
+        public bool RadiographicTest { get; set; }
+        public bool HardnessRockwell { get; set; }
+        public bool HardnessBrinell { get; set; }
+        public bool HardnessVickers { get; set; }
+        public bool TensileRoomTemp { get; set; }
+        public bool TensileHighTemp { get; set; }
+        public bool WeldJointTensile { get; set; }
+        public bool ImpactTest { get; set; }
+        public bool WeldJointImpact { get; set; }
+        public bool FlatteningTest { get; set; }
+        public bool FlaringTest { get; set; }
+        public bool ExpandingTest { get; set; }
+        public bool BendTest { get; set; }
+        public bool WeldJointBend { get; set; }
+        public bool GrainSize { get; set; }
+        public bool IntergranularCorrosion { get; set; }
+        public bool PittingCorrosion { get; set; }
+        public bool FerriteContent { get; set; }
+        public bool Macrostructure { get; set; }
         public string? OtherRequirement { get; set; }
         public DateTimeOffset CreatedTime { get; set; }
         public DateTimeOffset UpdatedTime { get; set; }
@@ -174,16 +226,52 @@
     {
         _allColumns = new List<ColumnDef>
         {
-            new() { Key = "sequence", Label = "项次", Visible = true },
-            new() { Key = "requirementtype", Label = "要求类型", Visible = true },
-            new() { Key = "chemicalcomposition", Label = "化学成分", Visible = true },
-            new() { Key = "mechanicalproperty", Label = "机械性能", Visible = true },
-            new() { Key = "tolerancerequirement", Label = "尺寸公差", Visible = true },
-            new() { Key = "surfacequality", Label = "表面质量", Visible = true },
-            new() { Key = "ndtreq", Label = "无损检测", Visible = true },
-            new() { Key = "otherrequirement", Label = "其他要求", Visible = true },
-            new() { Key = "createdtime", Label = "创建时间", Visible = false },
-            new() { Key = "updatedtime", Label = "更新时间", Visible = false },
+            // === 项次基础信息 ===
+            new() { Key = "sequence", Label = "项次", Visible = true, Width = "60", GroupKey = 1, GroupName = "项次基础信息" },
+            new() { Key = "standardgrade", Label = "标准牌号", Visible = true, Width = "110", GroupKey = 1, GroupName = "项次基础信息" },
+            new() { Key = "outerdiameter", Label = "外径", Visible = true, Width = "90", GroupKey = 1, GroupName = "项次基础信息" },
+            new() { Key = "wallthickness", Label = "壁厚", Visible = true, Width = "90", GroupKey = 1, GroupName = "项次基础信息" },
+            new() { Key = "lengthstatus", Label = "长度状态", Visible = true, Width = "100", GroupKey = 1, GroupName = "项次基础信息" },
+            new() { Key = "quantity", Label = "支数", Visible = true, Width = "70", GroupKey = 1, GroupName = "项次基础信息" },
+            new() { Key = "contractweight", Label = "合同重量", Visible = true, Width = "100", GroupKey = 1, GroupName = "项次基础信息" },
+            new() { Key = "standardno", Label = "产品标准", Visible = true, Width = "130", GroupKey = 1, GroupName = "项次基础信息" },
+            // === 技术要求 ===
+            new() { Key = "requirementtype", Label = "要求类型", Visible = true, Width = "110", GroupKey = 2, GroupName = "技术要求" },
+            new() { Key = "otherrequirement", Label = "其他要求", Visible = true, Width = "200", GroupKey = 2, GroupName = "技术要求" },
+            // === 成品检验 ===
+            new() { Key = "pmiinspection", Label = "PMI检验", Visible = true, Width = "90", GroupKey = 3, GroupName = "成品检验" },
+            new() { Key = "surfaceinspection", Label = "表检", Visible = true, Width = "90", GroupKey = 3, GroupName = "成品检验" },
+            new() { Key = "dimension", Label = "尺寸", Visible = true, Width = "90", GroupKey = 3, GroupName = "成品检验" },
+            new() { Key = "endoscopy", Label = "内窥", Visible = true, Width = "90", GroupKey = 3, GroupName = "成品检验" },
+            new() { Key = "hydrostatictest", Label = "液压检验", Visible = true, Width = "100", GroupKey = 3, GroupName = "成品检验" },
+            new() { Key = "underwaterpressure", Label = "水下气压", Visible = true, Width = "100", GroupKey = 3, GroupName = "成品检验" },
+            new() { Key = "eddycurrent", Label = "涡流探伤", Visible = true, Width = "100", GroupKey = 3, GroupName = "成品检验" },
+            new() { Key = "ultrasonictest", Label = "超声波检验", Visible = true, Width = "110", GroupKey = 3, GroupName = "成品检验" },
+            new() { Key = "portcoloring", Label = "端口着色", Visible = false, Width = "100", GroupKey = 3, GroupName = "成品检验" },
+            new() { Key = "radiographictest", Label = "射线探伤", Visible = false, Width = "100", GroupKey = 3, GroupName = "成品检验" },
+            // === 理化要求 ===
+            new() { Key = "chemicalcomposition", Label = "化学分析(成品)", Visible = true, Width = "110", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "hardnessrockwell", Label = "硬度(洛氏)", Visible = true, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "hardnessbrinell", Label = "硬度(布氏)", Visible = false, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "hardnessvickers", Label = "硬度(维氏)", Visible = false, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "tensileroomtemp", Label = "拉伸(室温)", Visible = true, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "tensilehightemp", Label = "拉伸(高温)", Visible = false, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "weldjointtensile", Label = "焊接接头拉伸", Visible = false, Width = "110", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "impacttest", Label = "冲击试验", Visible = false, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "weldjointimpact", Label = "焊接接头冲击", Visible = false, Width = "110", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "flatteningtest", Label = "压扁试验", Visible = true, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "flaringtest", Label = "卷边试验", Visible = false, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "expandingtest", Label = "扩口试验", Visible = true, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "bendtest", Label = "弯曲试验", Visible = false, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "weldjointbend", Label = "焊接接头弯曲", Visible = false, Width = "110", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "grainsize", Label = "晶粒度", Visible = true, Width = "90", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "intergranularcorrosion", Label = "晶间腐蚀", Visible = true, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "pittingcorrosion", Label = "点腐蚀", Visible = true, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "ferritecontent", Label = "金相检验", Visible = true, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            new() { Key = "macrostructure", Label = "低倍组织", Visible = false, Width = "100", GroupKey = 4, GroupName = "理化要求" },
+            // === 记录信息 ===
+            new() { Key = "createdtime", Label = "创建时间", Visible = false, Width = "140", GroupKey = 5, GroupName = "记录信息" },
+            new() { Key = "updatedtime", Label = "更新时间", Visible = false, Width = "140", GroupKey = 5, GroupName = "记录信息" },
         };
     }
 
@@ -265,12 +353,43 @@
                     OrderItemId = i.Id,
                     Sequence = i.Sequence,
                     HasExisting = req != null,
+                    StandardNo = i.StandardNo,
+                    StandardGrade = i.StandardGrade,
+                    OuterDiameter = i.OuterDiameter,
+                    WallThickness = i.WallThickness,
+                    LengthStatus = i.LengthStatus,
+                    Quantity = i.Quantity,
+                    ContractWeight = i.ContractWeight,
                     RequirementType = req?.RequirementType ?? RequirementType.Normal,
-                    ChemicalComposition = req?.ChemicalComposition,
-                    MechanicalProperty = req?.MechanicalProperty,
-                    ToleranceRequirement = req?.ToleranceRequirement,
-                    SurfaceQuality = req?.SurfaceQuality,
-                    NdtRequirement = req?.NdtRequirement,
+                    ChemicalComposition = req?.ChemicalComposition ?? false,
+                    PmiInspection = req?.PmiInspection ?? false,
+                    SurfaceInspection = req?.SurfaceInspection ?? false,
+                    Dimension = req?.Dimension ?? false,
+                    Endoscopy = req?.Endoscopy ?? false,
+                    HydrostaticTest = req?.HydrostaticTest ?? false,
+                    UnderwaterPressure = req?.UnderwaterPressure ?? false,
+                    EddyCurrent = req?.EddyCurrent ?? false,
+                    UltrasonicTest = req?.UltrasonicTest ?? false,
+                    PortColoring = req?.PortColoring ?? false,
+                    RadiographicTest = req?.RadiographicTest ?? false,
+                    HardnessRockwell = req?.HardnessRockwell ?? false,
+                    HardnessBrinell = req?.HardnessBrinell ?? false,
+                    HardnessVickers = req?.HardnessVickers ?? false,
+                    TensileRoomTemp = req?.TensileRoomTemp ?? false,
+                    TensileHighTemp = req?.TensileHighTemp ?? false,
+                    WeldJointTensile = req?.WeldJointTensile ?? false,
+                    ImpactTest = req?.ImpactTest ?? false,
+                    WeldJointImpact = req?.WeldJointImpact ?? false,
+                    FlatteningTest = req?.FlatteningTest ?? false,
+                    FlaringTest = req?.FlaringTest ?? false,
+                    ExpandingTest = req?.ExpandingTest ?? false,
+                    BendTest = req?.BendTest ?? false,
+                    WeldJointBend = req?.WeldJointBend ?? false,
+                    GrainSize = req?.GrainSize ?? false,
+                    IntergranularCorrosion = req?.IntergranularCorrosion ?? false,
+                    PittingCorrosion = req?.PittingCorrosion ?? false,
+                    FerriteContent = req?.FerriteContent ?? false,
+                    Macrostructure = req?.Macrostructure ?? false,
                     OtherRequirement = req?.OtherRequirement,
                     CreatedTime = req?.CreatedTime ?? DateTimeOffset.MinValue,
                     UpdatedTime = req?.UpdatedTime ?? DateTimeOffset.MinValue
@@ -282,12 +401,43 @@
                 OrderItemId = v.OrderItemId,
                 Sequence = v.Sequence,
                 HasExisting = v.HasExisting,
+                StandardNo = v.StandardNo,
+                StandardGrade = v.StandardGrade,
+                OuterDiameter = v.OuterDiameter,
+                WallThickness = v.WallThickness,
+                LengthStatus = v.LengthStatus,
+                Quantity = v.Quantity,
+                ContractWeight = v.ContractWeight,
                 RequirementType = v.RequirementType,
                 ChemicalComposition = v.ChemicalComposition,
-                MechanicalProperty = v.MechanicalProperty,
-                ToleranceRequirement = v.ToleranceRequirement,
-                SurfaceQuality = v.SurfaceQuality,
-                NdtRequirement = v.NdtRequirement,
+                PmiInspection = v.PmiInspection,
+                SurfaceInspection = v.SurfaceInspection,
+                Dimension = v.Dimension,
+                Endoscopy = v.Endoscopy,
+                HydrostaticTest = v.HydrostaticTest,
+                UnderwaterPressure = v.UnderwaterPressure,
+                EddyCurrent = v.EddyCurrent,
+                UltrasonicTest = v.UltrasonicTest,
+                PortColoring = v.PortColoring,
+                RadiographicTest = v.RadiographicTest,
+                HardnessRockwell = v.HardnessRockwell,
+                HardnessBrinell = v.HardnessBrinell,
+                HardnessVickers = v.HardnessVickers,
+                TensileRoomTemp = v.TensileRoomTemp,
+                TensileHighTemp = v.TensileHighTemp,
+                WeldJointTensile = v.WeldJointTensile,
+                ImpactTest = v.ImpactTest,
+                WeldJointImpact = v.WeldJointImpact,
+                FlatteningTest = v.FlatteningTest,
+                FlaringTest = v.FlaringTest,
+                ExpandingTest = v.ExpandingTest,
+                BendTest = v.BendTest,
+                WeldJointBend = v.WeldJointBend,
+                GrainSize = v.GrainSize,
+                IntergranularCorrosion = v.IntergranularCorrosion,
+                PittingCorrosion = v.PittingCorrosion,
+                FerriteContent = v.FerriteContent,
+                Macrostructure = v.Macrostructure,
                 OtherRequirement = v.OtherRequirement,
                 CreatedTime = v.CreatedTime,
                 UpdatedTime = v.UpdatedTime
@@ -298,12 +448,43 @@
                 OrderItemId = v.OrderItemId,
                 Sequence = v.Sequence,
                 HasExisting = v.HasExisting,
+                StandardNo = v.StandardNo,
+                StandardGrade = v.StandardGrade,
+                OuterDiameter = v.OuterDiameter,
+                WallThickness = v.WallThickness,
+                LengthStatus = v.LengthStatus,
+                Quantity = v.Quantity,
+                ContractWeight = v.ContractWeight,
                 RequirementType = v.RequirementType,
                 ChemicalComposition = v.ChemicalComposition,
-                MechanicalProperty = v.MechanicalProperty,
-                ToleranceRequirement = v.ToleranceRequirement,
-                SurfaceQuality = v.SurfaceQuality,
-                NdtRequirement = v.NdtRequirement,
+                PmiInspection = v.PmiInspection,
+                SurfaceInspection = v.SurfaceInspection,
+                Dimension = v.Dimension,
+                Endoscopy = v.Endoscopy,
+                HydrostaticTest = v.HydrostaticTest,
+                UnderwaterPressure = v.UnderwaterPressure,
+                EddyCurrent = v.EddyCurrent,
+                UltrasonicTest = v.UltrasonicTest,
+                PortColoring = v.PortColoring,
+                RadiographicTest = v.RadiographicTest,
+                HardnessRockwell = v.HardnessRockwell,
+                HardnessBrinell = v.HardnessBrinell,
+                HardnessVickers = v.HardnessVickers,
+                TensileRoomTemp = v.TensileRoomTemp,
+                TensileHighTemp = v.TensileHighTemp,
+                WeldJointTensile = v.WeldJointTensile,
+                ImpactTest = v.ImpactTest,
+                WeldJointImpact = v.WeldJointImpact,
+                FlatteningTest = v.FlatteningTest,
+                FlaringTest = v.FlaringTest,
+                ExpandingTest = v.ExpandingTest,
+                BendTest = v.BendTest,
+                WeldJointBend = v.WeldJointBend,
+                GrainSize = v.GrainSize,
+                IntergranularCorrosion = v.IntergranularCorrosion,
+                PittingCorrosion = v.PittingCorrosion,
+                FerriteContent = v.FerriteContent,
+                Macrostructure = v.Macrostructure,
                 OtherRequirement = v.OtherRequirement,
                 CreatedTime = v.CreatedTime,
                 UpdatedTime = v.UpdatedTime
@@ -321,13 +502,59 @@
     }
 
     // ========== 编辑模式 ==========
-    private void EnterEditMode()
+    private async Task EnterEditMode()
     {
         if (_orderStatus == SalesOrderStatus.Cancelled)
         {
             Snackbar.Add("已取消的订单无法编辑技术要求", Severity.Warning);
             return;
         }
+
+        // 新建/未设置项次（29 个检验项均未勾选且无其他要求）：按标准号从工厂检验项要求带出默认值（必检→是，否则 -）
+        // 已保存过真实值（任一项为 true 或有其他要求）的项次不覆盖，保护手工配置
+        var pendingItems = _editItems.Where(x => !HasAnyRequirement(x) && !string.IsNullOrWhiteSpace(x.StandardNo)).ToList();
+        var handledStandardNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in pendingItems)
+        {
+            if (!handledStandardNos.Add(item.StandardNo!)) continue;
+            var defaultsResult = await RequirementService.GetDefaultsByStandardNoAsync(orderId, item.StandardNo);
+            if (!defaultsResult.Success || defaultsResult.Data == null) continue;
+            var d = defaultsResult.Data;
+            foreach (var target in _editItems.Where(x => !HasAnyRequirement(x) && string.Equals(x.StandardNo, item.StandardNo, StringComparison.OrdinalIgnoreCase)))
+            {
+                target.ChemicalComposition = d.ChemicalComposition;
+                target.PmiInspection = d.PmiInspection;
+                target.SurfaceInspection = d.SurfaceInspection;
+                target.Dimension = d.Dimension;
+                target.Endoscopy = d.Endoscopy;
+                // 液压检验（水压）仅定尺钢管按标准号带出；非定尺默认"-"（不适用）
+                target.HydrostaticTest = target.LengthStatus == LengthStatus.Fixed && d.HydrostaticTest;
+                target.UnderwaterPressure = d.UnderwaterPressure;
+                target.EddyCurrent = d.EddyCurrent;
+                target.UltrasonicTest = d.UltrasonicTest;
+                target.PortColoring = d.PortColoring;
+                target.RadiographicTest = d.RadiographicTest;
+                target.HardnessRockwell = d.HardnessRockwell;
+                target.HardnessBrinell = d.HardnessBrinell;
+                target.HardnessVickers = d.HardnessVickers;
+                target.TensileRoomTemp = d.TensileRoomTemp;
+                target.TensileHighTemp = d.TensileHighTemp;
+                target.WeldJointTensile = d.WeldJointTensile;
+                target.ImpactTest = d.ImpactTest;
+                target.WeldJointImpact = d.WeldJointImpact;
+                target.FlatteningTest = d.FlatteningTest;
+                target.FlaringTest = d.FlaringTest;
+                target.ExpandingTest = d.ExpandingTest;
+                target.BendTest = d.BendTest;
+                target.WeldJointBend = d.WeldJointBend;
+                target.GrainSize = d.GrainSize;
+                target.IntergranularCorrosion = d.IntergranularCorrosion;
+                target.PittingCorrosion = d.PittingCorrosion;
+                target.FerriteContent = d.FerriteContent;
+                target.Macrostructure = d.Macrostructure;
+            }
+        }
+
         _isEditMode = true;
     }
 
@@ -340,12 +567,37 @@
             OrderItemId = v.OrderItemId,
             Sequence = v.Sequence,
             HasExisting = v.HasExisting,
+            StandardNo = v.StandardNo,
             RequirementType = v.RequirementType,
             ChemicalComposition = v.ChemicalComposition,
-            MechanicalProperty = v.MechanicalProperty,
-            ToleranceRequirement = v.ToleranceRequirement,
-            SurfaceQuality = v.SurfaceQuality,
-            NdtRequirement = v.NdtRequirement,
+            PmiInspection = v.PmiInspection,
+            SurfaceInspection = v.SurfaceInspection,
+            Dimension = v.Dimension,
+            Endoscopy = v.Endoscopy,
+            HydrostaticTest = v.HydrostaticTest,
+            UnderwaterPressure = v.UnderwaterPressure,
+            EddyCurrent = v.EddyCurrent,
+            UltrasonicTest = v.UltrasonicTest,
+            PortColoring = v.PortColoring,
+            RadiographicTest = v.RadiographicTest,
+            HardnessRockwell = v.HardnessRockwell,
+            HardnessBrinell = v.HardnessBrinell,
+            HardnessVickers = v.HardnessVickers,
+            TensileRoomTemp = v.TensileRoomTemp,
+            TensileHighTemp = v.TensileHighTemp,
+            WeldJointTensile = v.WeldJointTensile,
+            ImpactTest = v.ImpactTest,
+            WeldJointImpact = v.WeldJointImpact,
+            FlatteningTest = v.FlatteningTest,
+            FlaringTest = v.FlaringTest,
+            ExpandingTest = v.ExpandingTest,
+            BendTest = v.BendTest,
+            WeldJointBend = v.WeldJointBend,
+            GrainSize = v.GrainSize,
+            IntergranularCorrosion = v.IntergranularCorrosion,
+            PittingCorrosion = v.PittingCorrosion,
+            FerriteContent = v.FerriteContent,
+            Macrostructure = v.Macrostructure,
             OtherRequirement = v.OtherRequirement,
             CreatedTime = v.CreatedTime,
             UpdatedTime = v.UpdatedTime
@@ -376,10 +628,34 @@
                 {
                     RequirementType = item.RequirementType,
                     ChemicalComposition = item.ChemicalComposition,
-                    MechanicalProperty = item.MechanicalProperty,
-                    ToleranceRequirement = item.ToleranceRequirement,
-                    SurfaceQuality = item.SurfaceQuality,
-                    NdtRequirement = item.NdtRequirement,
+                    PmiInspection = item.PmiInspection,
+                    SurfaceInspection = item.SurfaceInspection,
+                    Dimension = item.Dimension,
+                    Endoscopy = item.Endoscopy,
+                    HydrostaticTest = item.HydrostaticTest,
+                    UnderwaterPressure = item.UnderwaterPressure,
+                    EddyCurrent = item.EddyCurrent,
+                    UltrasonicTest = item.UltrasonicTest,
+                    PortColoring = item.PortColoring,
+                    RadiographicTest = item.RadiographicTest,
+                    HardnessRockwell = item.HardnessRockwell,
+                    HardnessBrinell = item.HardnessBrinell,
+                    HardnessVickers = item.HardnessVickers,
+                    TensileRoomTemp = item.TensileRoomTemp,
+                    TensileHighTemp = item.TensileHighTemp,
+                    WeldJointTensile = item.WeldJointTensile,
+                    ImpactTest = item.ImpactTest,
+                    WeldJointImpact = item.WeldJointImpact,
+                    FlatteningTest = item.FlatteningTest,
+                    FlaringTest = item.FlaringTest,
+                    ExpandingTest = item.ExpandingTest,
+                    BendTest = item.BendTest,
+                    WeldJointBend = item.WeldJointBend,
+                    GrainSize = item.GrainSize,
+                    IntergranularCorrosion = item.IntergranularCorrosion,
+                    PittingCorrosion = item.PittingCorrosion,
+                    FerriteContent = item.FerriteContent,
+                    Macrostructure = item.Macrostructure,
                     OtherRequirement = item.OtherRequirement
                 };
 
@@ -420,6 +696,7 @@
             if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#product-requirement-table"))
                 _isArrowNavSetup = false;
         }
+        await JS.InvokeVoidAsync("initGroupHeaders", "#product-requirement-table");
     }
 
     private void GoBack() => Navigation.NavigateTo($"/orders/{orderId}");
@@ -441,6 +718,85 @@
     // ========== 辅助方法 ==========
     private string GetRequirementTypeText(RequirementType type) => DisplayHelper.GetRequirementTypeText(type);
 
+    private static bool GetBool(OrderItemRequirement item, string key)
+        => (bool)(typeof(OrderItemRequirement).GetProperty(key, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase)?.GetValue(item) ?? false);
+
+    private static void SetBool(OrderItemRequirement item, string key, bool value)
+        => typeof(OrderItemRequirement).GetProperty(key, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase)?.SetValue(item, value);
+
+    private static string BoolText(bool value) => value ? "是" : "-";
+
+    /// <summary>
+    /// 项次是否已设置任何技术要求值（任一检验项为 true 或有其他要求文本）。
+    /// 用于判定"未设置项次"：点编辑时按标准号从工厂检验项要求带出默认值；已保存真实值的不覆盖。
+    /// </summary>
+    private static bool HasAnyRequirement(OrderItemRequirement x)
+        => x.ChemicalComposition || x.PmiInspection || x.SurfaceInspection || x.Dimension || x.Endoscopy
+           || x.HydrostaticTest || x.UnderwaterPressure || x.EddyCurrent || x.UltrasonicTest || x.PortColoring
+           || x.RadiographicTest || x.HardnessRockwell || x.HardnessBrinell || x.HardnessVickers || x.TensileRoomTemp
+           || x.TensileHighTemp || x.WeldJointTensile || x.ImpactTest || x.WeldJointImpact || x.FlatteningTest
+           || x.FlaringTest || x.ExpandingTest || x.BendTest || x.WeldJointBend || x.GrainSize
+           || x.IntergranularCorrosion || x.PittingCorrosion || x.FerriteContent || x.Macrostructure
+           || !string.IsNullOrEmpty(x.OtherRequirement);
+
+    // ========== 分组表头 ==========
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        int? lastKey = null;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk == 0) continue;
+            if (lastKey.HasValue && gk == lastKey.Value) continue;
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = gk,
+                GroupName = col.GroupName ?? "",
+                CssClass = GetHeaderGroupCss(gk, true)
+            });
+            lastKey = gk;
+        }
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            3 => "col-g3",
+            4 => "col-g4",
+            5 => "col-g5",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            3 => "col-g3-cell",
+            4 => "col-g4-cell",
+            5 => "col-g5-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
     private string FormatDateTime(DateTimeOffset dt)
     {
         return dt == DateTimeOffset.MinValue ? "-" : dt.LocalDateTime.ToString("yyyy-MM-dd HH:mm");
@@ -453,6 +809,27 @@
         {
             case "sequence":
                 builder.AddContent(0, item.Sequence.ToString());
+                break;
+            case "standardgrade":
+                builder.AddContent(0, item.StandardGrade);
+                break;
+            case "outerdiameter":
+                builder.AddContent(0, item.OuterDiameter.ToString("G29"));
+                break;
+            case "wallthickness":
+                builder.AddContent(0, item.WallThickness.ToString("G29"));
+                break;
+            case "lengthstatus":
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                break;
+            case "quantity":
+                builder.AddContent(0, item.Quantity?.ToString() ?? "-");
+                break;
+            case "contractweight":
+                builder.AddContent(0, item.ContractWeight.ToString("G29"));
+                break;
+            case "standardno":
+                builder.AddContent(0, item.StandardNo);
                 break;
             case "requirementtype":
                 if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)
@@ -479,74 +856,45 @@
                 else { builder.AddContent(0, GetRequirementTypeText(item.RequirementType)); }
                 break;
             case "chemicalcomposition":
+            case "pmiinspection":
+            case "surfaceinspection":
+            case "dimension":
+            case "endoscopy":
+            case "hydrostatictest":
+            case "underwaterpressure":
+            case "eddycurrent":
+            case "ultrasonictest":
+            case "portcoloring":
+            case "radiographictest":
+            case "hardnessrockwell":
+            case "hardnessbrinell":
+            case "hardnessvickers":
+            case "tensileroomtemp":
+            case "tensilehightemp":
+            case "weldjointtensile":
+            case "impacttest":
+            case "weldjointimpact":
+            case "flatteningtest":
+            case "flaringtest":
+            case "expandingtest":
+            case "bendtest":
+            case "weldjointbend":
+            case "grainsize":
+            case "intergranularcorrosion":
+            case "pittingcorrosion":
+            case "ferritecontent":
+            case "macrostructure":
                 if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)
                 {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", item.ChemicalComposition);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => item.ChemicalComposition = v));
+                    builder.OpenComponent<MudSwitch<bool>>(0);
+                    builder.AddAttribute(1, "Value", GetBool(item, col.Key));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => SetBool(item, col.Key, v)));
                     builder.AddAttribute(3, "Dense", true);
-                    builder.AddAttribute(4, "Variant", Variant.Outlined);
-                    builder.AddAttribute(5, "Size", Size.Small);
-                    builder.AddAttribute(6, "FullWidth", true);
+                    builder.AddAttribute(4, "Color", Color.Primary);
+                    builder.AddAttribute(5, "Class", "d-flex justify-center");
                     builder.CloseComponent();
                 }
-                else { builder.AddContent(0, item.ChemicalComposition); }
-                break;
-            case "mechanicalproperty":
-                if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", item.MechanicalProperty);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => item.MechanicalProperty = v));
-                    builder.AddAttribute(3, "Dense", true);
-                    builder.AddAttribute(4, "Variant", Variant.Outlined);
-                    builder.AddAttribute(5, "Size", Size.Small);
-                    builder.AddAttribute(6, "FullWidth", true);
-                    builder.CloseComponent();
-                }
-                else { builder.AddContent(0, item.MechanicalProperty); }
-                break;
-            case "tolerancerequirement":
-                if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", item.ToleranceRequirement);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => item.ToleranceRequirement = v));
-                    builder.AddAttribute(3, "Dense", true);
-                    builder.AddAttribute(4, "Variant", Variant.Outlined);
-                    builder.AddAttribute(5, "Size", Size.Small);
-                    builder.AddAttribute(6, "FullWidth", true);
-                    builder.CloseComponent();
-                }
-                else { builder.AddContent(0, item.ToleranceRequirement); }
-                break;
-            case "surfacequality":
-                if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", item.SurfaceQuality);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => item.SurfaceQuality = v));
-                    builder.AddAttribute(3, "Dense", true);
-                    builder.AddAttribute(4, "Variant", Variant.Outlined);
-                    builder.AddAttribute(5, "Size", Size.Small);
-                    builder.AddAttribute(6, "FullWidth", true);
-                    builder.CloseComponent();
-                }
-                else { builder.AddContent(0, item.SurfaceQuality); }
-                break;
-            case "ndtreq":
-                if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)
-                {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", item.NdtRequirement);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => item.NdtRequirement = v));
-                    builder.AddAttribute(3, "Dense", true);
-                    builder.AddAttribute(4, "Variant", Variant.Outlined);
-                    builder.AddAttribute(5, "Size", Size.Small);
-                    builder.AddAttribute(6, "FullWidth", true);
-                    builder.CloseComponent();
-                }
-                else { builder.AddContent(0, item.NdtRequirement); }
+                else { builder.AddContent(0, BoolText(GetBool(item, col.Key))); }
                 break;
             case "otherrequirement":
                 if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)

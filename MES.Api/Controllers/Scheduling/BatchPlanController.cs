@@ -52,6 +52,13 @@ public class BatchPlanController : ControllerBase
         return Ok(ApiResponse<List<BatchPlanDto>>.Ok(result));
     }
 
+    [HttpGet("summary")]
+    public async Task<ActionResult<ApiResponse<List<BatchPlanSummaryRowDto>>>> GetSummary()
+    {
+        var result = await _service.GetSummaryAsync();
+        return Ok(ApiResponse<List<BatchPlanSummaryRowDto>>.Ok(result));
+    }
+
     [HttpGet("filter-contexts")]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
@@ -66,12 +73,4 @@ public class BatchPlanController : ControllerBase
         return File(pdfBytes, "application/pdf", "批次计划.pdf");
     }
 
-    [HttpGet("flow-summary")]
-    public async Task<ActionResult<ApiResponse<List<ColdRollScheduleSummaryDto>>>> GetFlowSummary(
-        [FromQuery] string? sectionTab = null,
-        [FromQuery] int? maxDiff = null)
-    {
-        var result = await _service.GetFlowSummaryAsync(sectionTab, maxDiff);
-        return Ok(ApiResponse<List<ColdRollScheduleSummaryDto>>.Ok(result));
-    }
 }

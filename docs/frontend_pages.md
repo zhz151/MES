@@ -1,6 +1,6 @@
 # MES 前端页面结构参考
 
-> 生成日期：2026-08-09（V20）
+> 生成日期：2026-08-15（V21）
 > 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
 
 ---
@@ -14,7 +14,7 @@
 | 首页 | 首页 | 所有 | 1 | 0 |
 | 订单 | 订单管理 | OrderStaff/Director | 7 | 3 |
 | 工单 | 工单管理 | WorkOrderStaff/Director | 17 | 5 |
-| 计划排程 | 计划排程 | 所有 | 8 | 7 |
+| 计划排程 | 计划排程 | 所有 | 6 | 5 |
 | 批次 | 批次管理 | BatchStaff/Director | 14 | 6 |
 | 质量 | 质量管理 | QualityStaff/Director | 32 | 16 |
 | 物料 | 物料管理 | MaterialStaff/Director | 11 | 5 |
@@ -25,7 +25,7 @@
 | 数据工具 | (独立按钮) | 所有 | 2 | 0 |
 | 扫码报工 | (独立按钮) | 所有 | 1 | 0 |
 | 设备扫码 | (独立按钮) | 所有 | 1 | 0 |
-| 配置 | 参数表 | Admin | 8 | 8 |
+| 配置 | 参数表 | Admin | 13 | 13 |
 | 用户管理 | (Admin按钮) | Admin | 1 | 0 |
 
 ---
@@ -96,25 +96,25 @@
 ### 2.3 计划排程上下文
 
 ```
-路由前缀: /plan-overview, /section-production-status, /section-flow-analysis, /raw-material-lock-plan, /scheduling-plans, /cold-roll-plans, /batch-plans, /final-inspection-plan
-菜单: 计划排程 → [负载总览, 工段待产量, 工段流转分析, 原锁计划, 排程计划, 冷轧计划, 批次计划, 成检计划]
+路由前缀: /plan-overview, /raw-material-lock-plan, /scheduling-plans, /cold-roll-plans, /batch-plans, /final-inspection-plan
+菜单: 计划排程 → [负载总览, 原锁计划, 排程计划, 冷轧计划, 批次计划, 成检计划]
 
 ┌─ 计划排程 ─────────────────────────────────────────────┐
 │                                                           │
 │  PlanOverview.razor                  /plan-overview                    [只读聚合] │
-│  SectionProductionStatus.razor      /section-production-status      [列表页]     │
-│  SectionFlowAnalysis.razor          /section-flow-analysis          [列表页]     │
 │  RawMaterialLockPlanAndExecution.razor /raw-material-lock-plan      [列表页]     │
 │  WorkOrderSchedules.razor           /scheduling-plans                [列表页]     │
 │  ColdRollPlans.razor                /cold-roll-plans                [列表页]     │
 │  BatchPlans.razor                   /batch-plans                    [列表页]     │
 │  FinalInspectionPlan.razor          /final-inspection-plan          [列表页]     │
 │                                                           │
-│  列表页: SectionProductionStatus, SectionFlowAnalysis,    │
-│          RawMaterialLockPlanAndExecution,                 │
+│  列表页: RawMaterialLockPlanAndExecution,                 │
 │          WorkOrderSchedules, ColdRollPlans, BatchPlans,   │
 │          FinalInspectionPlan                              │
 │  只读聚合: PlanOverview（MudTable 客户端模式，无分页/排序/筛选）│
+│  ※ 已从菜单移除（页面/路由/接口仍保留）：                    │
+│     SectionProductionStatus, SectionFlowAnalysis,         │
+│     SectionParagraphFlowAnalysis                          │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -215,7 +215,7 @@
 │  CertificateDetail.razor         /quality/certificates/{Id:int} [详情页]    │
 │                                                           │
 │  列表页: FurnaceRegistrations, ProcessInspections,           │
-│          MaterialChecks, FinalInspections,                   │
+│          MaterialReceiveChecks, FinalInspections,            │
 │          QualityProcessTracking, Ncrs,                       │
 │          ChemicalAnalyses, HardnessTests, GrainSizeTests,    │
 │          PittingCorrosionTests, IntergranularCorrosionTests, │
@@ -365,24 +365,31 @@
 ### 2.10 配置上下文
 
 ```
-路由前缀: /section-flow-category-settings, /daily-production-capacities, /daily-output-estimates, /standard-work-days, /standard-work-day-delivery-states, /config-parameters, /workstations, /employees
-菜单: 参数表 → [生产-工段日流转量, 生产-重点工段日产, 生产-规格日产预估, 生产-工段工量天数, 生产-交态附加天数, 默认配置-系统参数, 扫码-工位管理, 扫码-员工管理]
+路由前缀: /section-flow-category-settings, /section-paragraph-config-settings, /combination-groups, /daily-production-capacities, /daily-output-estimates, /standard-work-days, /standard-work-day-delivery-states, /process-definitions, /enum-display-definitions, /dict-value-definitions, /config-parameters, /workstations, /employees
+菜单: 参数表 → [生产-流转类别日产配置, 生产-段落日产配置, 生产-组合归类表, 生产-重点工段日产, 生产-规格日产预估, 生产-工段工量天数, 生产-交态附加天数, 生产-工序组定义, 参数-枚举显示配置, 参数-字典显示配置, 默认配置-系统参数, 扫码-工位管理, 扫码-员工管理]
 
 ┌─ 系统配置 ───────────────────────────────────────────────┐
 │                                                           │
-│  StandardWorkDays.razor              /standard-work-days                [列表页+内联编辑]│
-│  StandardWorkDayDeliveryStates.razor /standard-work-day-delivery-states [列表页+内联编辑]│
-│  ConfigParameters.razor             /config-parameters                [列表页+内联编辑]│
 │  SectionFlowCategorySettings.razor  /section-flow-category-settings   [列表页+内联编辑]│
+│  SectionParagraphConfigSettings.razor /section-paragraph-config-settings [列表页+内联编辑]│
+│  CombinationGroups.razor            /combination-groups               [列表页+内联编辑]│
 │  DailyProductionCapacities.razor    /daily-production-capacities      [列表页+内联编辑]│
 │  DailyOutputEstimates.razor         /daily-output-estimates           [列表页+内联编辑]│
+│  StandardWorkDays.razor              /standard-work-days                [列表页+内联编辑]│
+│  StandardWorkDayDeliveryStates.razor /standard-work-day-delivery-states [列表页+内联编辑]│
+│  ProcessDefinitions.razor            /process-definitions              [列表页+内联编辑]│
+│  EnumDisplayDefinitions.razor        /enum-display-definitions         [列表页+内联编辑]│
+│  DictValueDefinitions.razor          /dict-value-definitions           [列表页+内联编辑]│
+│  ConfigParameters.razor             /config-parameters                [列表页+内联编辑]│
 │  Workstations.razor                 /workstations                     [列表页+内联编辑]│
 │  Employees.razor                    /employees                        [列表页+内联编辑]│
 │                                                           │
-│  列表页: StandardWorkDays, StandardWorkDayDeliveryStates,  │
-│          ConfigParameters, SectionFlowCategorySettings,    │
-│          DailyProductionCapacities, DailyOutputEstimates,  │
-│          Workstations, Employees                           │
+│  列表页: SectionFlowCategorySettings, SectionParagraphConfigSettings, │
+│          CombinationGroups, DailyProductionCapacities,     │
+│          DailyOutputEstimates, StandardWorkDays,            │
+│          StandardWorkDayDeliveryStates, ProcessDefinitions, │
+│          EnumDisplayDefinitions, DictValueDefinitions,      │
+│          ConfigParameters, Workstations, Employees           │
 │  注: AdminOnly，所有业务模块引用其参数参与工量/业务计算          │
 │  SectionFlowCategorySettings 数据源和 API 均在 Configuration 上下文│
 │  （独立服务：SectionFlowCategoryService，独立控制器：SectionFlowCategorySettingsController）│
@@ -435,10 +442,12 @@
           │            牌号物理性能 / 子标准速览             │
 │          ▸ 报表系统 → 产量报表                          │
 │          数据工具 / 扫码报工 / 设备扫码                  │
-│          ▸ 参数表 → 生产-工段日流转量 / 生产-重点工段日产 / │
-│                    生产-规格日产预估 / 生产-工段工量天数 /   │
-│                    生产-交态附加天数 / 默认配置-系统参数 /   │
-│                    扫码-工位管理 / 扫码-员工管理           │
+│          ▸ 参数表 → 生产-流转类别日产配置 / 生产-段落日产配置 / │
+│                    生产-组合归类表 / 生产-重点工段日产 /      │
+│                    生产-规格日产预估 / 生产-工段工量天数 /     │
+│                    生产-交态附加天数 / 生产-工序组定义 /       │
+│                    参数-枚举显示配置 / 参数-字典显示配置 /     │
+│                    默认配置-系统参数 / 扫码-工位管理 / 扫码-员工管理 │
 │          用户管理                                        │
 │                                                           │
 └───────────────────────────────────────────────────────────┘
@@ -448,7 +457,7 @@
 
 ## 3. 列表页完整清单（需检查加载/排序/筛选）
 
-共 **66 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
+共 **71 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
 
 | # | 页面文件 | 路由 | 上下文 | 内联编辑 | 备注 |
 |---|---------|------|-------|---------|------|
@@ -488,15 +497,15 @@
 | 34 | StandardWorkDays.razor | /standard-work-days | 配置 | ✅ | 查改一体表 |
 | 35 | StandardWorkDayDeliveryStates.razor | /standard-work-day-delivery-states | 配置 | ✅ | 查改一体表 |
 | 36 | ConfigParameters.razor | /config-parameters | 配置 | ✅ | 查改一体表 |
-| 37 | SectionFlowAnalysis.razor | /section-flow-analysis | 计划排程 | | 客户端模式，4列 |
-| 38 | SectionProductionStatus.razor | /section-production-status | 计划排程 | | 客户端模式，6列 |
+| 37 | SectionFlowAnalysis.razor | /section-flow-analysis | 计划排程 | | 客户端模式，4列；已从菜单移除 |
+| 38 | SectionProductionStatus.razor | /section-production-status | 计划排程 | | 客户端模式，6列；已从菜单移除 |
 | 39 | SectionFlowCategorySettings.razor | /section-flow-category-settings | 配置 | ✅ | 主表+子表展开 |
 | 40 | WorkOrderSchedules.razor | /scheduling-plans | 计划排程 | | LEFT JOIN 实时查询模式（WorkOrderExecutionSummary + WorkOrderPlan 薄表），G15 内联编辑 + 计划安排按钮 |
 | 41 | DailyOutputEstimates.razor | /daily-output-estimates | 配置 | ✅ | 查改一体表 |
 | 42 | Workstations.razor | /workstations | 配置 | ✅ | 查改一体表 |
 | 43 | Employees.razor | /employees | 配置 | ✅ | 查改一体表 |
 | 44 | ColdRollPlans.razor | /cold-roll-plans | 计划排程 | | 冷轧按规格维度聚合时间桶分布计划 + 简化/明细视图切换 + 打印功能 + 排程编辑模式（在轧要求/待轧要求/待轧序/待轧设备号）+ 搜索栏+ExcelFilter列筛选 |
-| 45 | BatchPlans.razor | /batch-plans | 计划排程 | | ServerData 模式 + 18 工段 Tab 筛选（冷轧类前移，过程检验拆分为荒管检/在制检）+ 产量目标输入行（MudNumericField 内联编辑，全量覆盖保存 BatchPlanTarget）+ 列分组标题栏 + 客户端排序 + 6 项 Tab 汇总（含流转批次/重量）+ 汇总重量单位吨(t) |
+| 45 | BatchPlans.razor | /batch-plans | 计划排程 | | 全量加载 Items 模式 + 17 工段 Tab 筛选（冷轧类前移，检验类为荒管检/在制检，过程检/成品检 Tab 已删除）+ 列分组标题栏 + 列显隐（永久隐藏 22 列：冷轧排程 5 组 + 工单需求调整 + 批次基础信息多余字段）+ 客户端排序/筛选 + 6 项 Tab 汇总（批次数/总重量/计划流转批次/重量/计划重点批次/重量，重点按 PlanFlowLevel==1 急+）+ 汇总重量单位吨(t) + G13 批次计划组只读（仅抢单/计划备注内联编辑） |
 | 46 | FinalInspectionPlan.razor | /final-inspection-plan | 计划排程 | | 全量加载 Items 模式 + 四档Tab(全部/待到料/待检验/检验中) + Tab 汇总 + 客户排序/筛选 + 列分组 G1-G4 + 紧急程度 MudChip 颜色渲染 |
 | 47 | StandardRegisters.razor | /standard-registers | 生产标准 | | ExcelFilter 列筛选 + RenderCell 模板 + FooterContent 分页汇总 + 导航至详情页；Save/SaveItem 返回 Id 防 SeqNo 重复 |
 | 48 | GradeChemicalCompositions.razor | /grade-chemical-compositions | 生产标准 | ✅ | 15元素内联编辑 + 全列ExcelFilter(17列) + 列显隐 |
@@ -518,6 +527,11 @@
 | 64 | PendingDelivery.razor | /warehouse/pending-delivery | 仓库 | | 待发货项列表页 |
 | 65 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选 |
 | 66 | FixedLengthWorkOrderView.razor | /fixed-length-work-order-view | 工单 | | 定尺工单联通视图，主号级按长度实时聚合 + 分组标题栏 + 分页汇总（可汇总列：G1需求支数/G3切后支数/G4到料·成切·非成切·次品·合格·合格盈缺/G5入库·入库盈缺，G6主号级聚合不参与求和） |
+| 67 | SectionParagraphConfigSettings.razor | /section-paragraph-config-settings | 配置 | ✅ | 段落日产配置，查改一体表 |
+| 68 | CombinationGroups.razor | /combination-groups | 配置 | ✅ | 组合归类表，查改一体表 |
+| 69 | ProcessDefinitions.razor | /process-definitions | 配置 | ✅ | 工序组定义（含默认工段 DefaultSections） |
+| 70 | EnumDisplayDefinitions.razor | /enum-display-definitions | 配置 | ✅ | 枚举显示配置（display-map/options-map） |
+| 71 | DictValueDefinitions.razor | /dict-value-definitions | 配置 | ✅ | 字典显示配置（display-map/enabled-values） |
 
 ---
 
@@ -561,6 +575,8 @@
 ---
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
+>
+> **最后更新：2026-08-15（V21）** — 文档失效内容清理：§1 计划排程 8→6 页（工段待产量/工段流转分析已从菜单移除，§2.3 同步删菜单项并注明页面/接口保留）；配置上下文 8→13 页（新增生产-段落日产配置/生产-组合归类表/生产-工序组定义/参数-枚举显示配置/参数-字典显示配置）；§2.10 与 §2.12 参数表菜单、路由前缀、列表页清单同步更新；§3 列表页 #37/#38 标注"已从菜单移除"、#45 检验类 Tab 描述更正（过程检/成品检已删）、补入 #67-#71 五个新配置列表页，计数 66→71
 >
 > **最后更新：2026-08-09（V20）** — 工单上下文子页补入在产主工单计划页（WorkOrderInMainWorkOrderPlanCreate，create+edit 双路由，页面数 16→17）；§3 #66 定尺工单分页汇总描述由「仅 PlannedQuantity 可求和」更正为多列可求和（G1需求支数/G3切后支数/G4成检支数列/G5入库支数列，G6主号级聚合不参与求和）
 >

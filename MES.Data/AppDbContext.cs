@@ -123,7 +123,6 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<RawMaterialLockPreExecution> RawMaterialLockPreExecutions { get; set; } = null!;
     public DbSet<WorkOrderPlan> WorkOrderPlans { get; set; } = null!;
     public DbSet<SectionFlowCategorySetting> SectionFlowCategorySettings { get; set; } = null!;
-    public DbSet<SectionFlowCategoryItem> SectionFlowCategoryItems { get; set; } = null!;
     public DbSet<ColdRollSpecSchedule> ColdRollSpecSchedules { get; set; } = null!;
     public DbSet<BatchPlanSchedule> BatchPlanSchedules { get; set; } = null!;
     public DbSet<BatchPlanTarget> BatchPlanTargets { get; set; } = null!;
@@ -139,6 +138,8 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<DailyProductionCapacity> DailyProductionCapacities { get; set; } = null!;
     public DbSet<Workstation> Workstations { get; set; } = null!;
     public DbSet<Employee> Employees { get; set; } = null!;
+    public DbSet<CombinationGroup> CombinationGroups { get; set; } = null!;
+    public DbSet<SectionParagraphConfig> SectionParagraphConfigs { get; set; } = null!;
 
     // ========== StandardRegister 上下文 ==========
     public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
@@ -148,6 +149,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<GradePhysicalProperty> GradePhysicalProperties { get; set; } = null!;
     public DbSet<SubStandardQuickView> SubStandardQuickViews { get; set; } = null!;
     public DbSet<StandardInspectionRequirement> StandardInspectionRequirements { get; set; } = null!;
+    public DbSet<FactoryInspectionRequirement> FactoryInspectionRequirements { get; set; } = null!;
     public DbSet<ChemicalComposition> ChemicalCompositions { get; set; } = null!;
     public DbSet<ChemicalValidationRule> ChemicalValidationRules { get; set; } = null!;
 
@@ -239,12 +241,13 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureRawMaterialLockPreExecution(builder);
         ConfigureWorkOrderPlan(builder);
         ConfigureSectionFlowCategorySetting(builder);
-        ConfigureSectionFlowCategoryItem(builder);
         ConfigureColdRollSpecSchedule(builder);
         ConfigureBatchPlanSchedule(builder);
         ConfigureBatchPlanTarget(builder);
 
         // ========== Configuration 上下文 ==========
+        ConfigureCombinationGroup(builder);
+        ConfigureSectionParagraphConfig(builder);
         ConfigureStandardWorkDay(builder);
         ConfigureStandardWorkDayDeliveryState(builder);
         ConfigureProcessDefinition(builder);
@@ -264,6 +267,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureGradePhysicalProperty(builder);
         ConfigureSubStandardQuickView(builder);
         ConfigureStandardInspectionRequirement(builder);
+        ConfigureFactoryInspectionRequirement(builder);
         ConfigureChemicalComposition(builder);
         ConfigureChemicalValidationRule(builder);
 

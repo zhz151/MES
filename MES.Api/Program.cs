@@ -173,6 +173,7 @@ builder.Services.AddScoped<IGradeChemicalCompositionService, GradeChemicalCompos
 builder.Services.AddScoped<IGradePhysicalPropertyService, GradePhysicalPropertyService>();
 builder.Services.AddScoped<ISubStandardQuickViewService, SubStandardQuickViewService>();
 builder.Services.AddScoped<IStandardInspectionRequirementService, StandardInspectionRequirementService>();
+builder.Services.AddScoped<IFactoryInspectionRequirementService, FactoryInspectionRequirementService>();
 builder.Services.AddScoped<IStandardWorkDayService, StandardWorkDayService>();
 builder.Services.AddScoped<ISectionNameDisplayService, SectionNameDisplayService>();
 builder.Services.AddScoped<IProcessDefinitionService, ProcessDefinitionService>();
@@ -255,7 +256,10 @@ builder.Services.AddScoped<IRawMaterialLockPlanAndExecutionService, RawMaterialL
 builder.Services.AddScoped<IProductionOverviewService, ProductionOverviewService>();
 builder.Services.AddScoped<ISectionProductionStatusService, SectionProductionStatusService>();
 builder.Services.AddScoped<ISectionFlowAnalysisService, SectionFlowAnalysisService>();
+builder.Services.AddScoped<ISectionParagraphFlowAnalysisService, SectionParagraphFlowAnalysisService>();
 builder.Services.AddScoped<ISectionFlowCategoryService, MES.Services.Configuration.SectionFlowCategoryService>();
+builder.Services.AddScoped<ISectionParagraphConfigService, MES.Services.Configuration.SectionParagraphConfigService>();
+builder.Services.AddScoped<ICombinationGroupService, MES.Services.Configuration.CombinationGroupService>();
 builder.Services.AddScoped<IWorkOrderScheduleService, WorkOrderScheduleService>();
 builder.Services.AddScoped<IBatchPlanService, BatchPlanService>();
 builder.Services.AddScoped<IColdRollPlanService, ColdRollPlanService>();

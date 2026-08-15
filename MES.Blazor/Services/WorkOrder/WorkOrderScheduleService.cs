@@ -77,17 +77,4 @@ public class WorkOrderScheduleService
             return ApiResponse<bool>.Fail($"计划安排失败: {ex.Message}");
         }
     }
-
-    public async Task<ApiResponse<bool>> PlanScheduleKeepAttentionAsync(QueryParams query)
-    {
-        try
-        {
-            var result = await _http.PostAsJsonAsync<QueryParams, ApiResponse<bool>>($"{BaseUrl}/plan-keep-attention", query);
-            return result ?? ApiResponse<bool>.Fail("进度保留计划失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<bool>.Fail($"进度保留计划失败: {ex.Message}");
-        }
-    }
 }

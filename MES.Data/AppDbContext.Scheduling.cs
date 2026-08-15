@@ -17,7 +17,6 @@ public partial class AppDbContext
             entity.Property(e => e.WorkOrderId).IsRequired();
             entity.Property(e => e.IsPreInput).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.BudgetInputDate).HasColumnType("date");
-            entity.Property(e => e.IsMainNoMaterialComplete).IsRequired().HasDefaultValue(false);
 
             // 索引
             entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_RMLPE_WorkOrderId");
@@ -65,33 +64,11 @@ public partial class AppDbContext
         {
             entity.ToTable("SectionFlowCategorySettings");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.CategoryCode).IsRequired().HasMaxLength(10);
             entity.Property(e => e.CategoryName).IsRequired().HasMaxLength(50);
             entity.Property(e => e.DailyProductionTarget).HasColumnType("decimal(18,2)");
             entity.Property(e => e.LowerLimitDays).HasColumnType("decimal(18,2)");
             entity.Property(e => e.UpperLimitDays).HasColumnType("decimal(18,2)");
             entity.Property(e => e.Remark).HasMaxLength(200);
-            entity.HasIndex(e => e.CategoryCode)
-                .IsUnique()
-                .HasDatabaseName("UK_SFCS_CategoryCode");
-        });
-    }
-    private static void ConfigureSectionFlowCategoryItem(ModelBuilder builder)
-    {
-        builder.Entity<SectionFlowCategoryItem>(entity =>
-        {
-            entity.ToTable("SectionFlowCategoryItems");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.ProcessGroupName).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Coefficient).IsRequired().HasColumnType("decimal(18,4)");
-            entity.HasOne(e => e.Setting)
-                .WithMany(s => s.Items)
-                .HasForeignKey(e => e.SettingId)
-                .OnDelete(DeleteBehavior.Cascade);
-            entity.HasIndex(e => new { e.SettingId, e.ProcessGroupName, e.SectionName })
-                .IsUnique()
-                .HasDatabaseName("UK_SFCI_SettingId_ProcessGroupName_SectionName");
         });
     }
     private static void ConfigureBatchPlanSchedule(ModelBuilder builder)

@@ -56,8 +56,8 @@
             {
                 var colClass = col.Key switch
                 {
-                    "PendingTotal" or "SustainableDays" => "mud-table-cell--right",
-                    "StatusJudgment" => "mud-table-cell--center",
+                    "PendingTotal" or "PlanFlowQuantity" or "PlanKeyWeight" or "SustainableDays" => "mud-table-cell--right",
+                    "PlanFlowJudgment" or "StatusJudgment" => "mud-table-cell--center",
                     _ => ""
                 };
                 <MudTh Class="@colClass">
@@ -87,19 +87,33 @@
             {
                 var cellClass = col.Key switch
                 {
-                    "PendingTotal" or "SustainableDays" => "mud-table-cell--right",
-                    "StatusJudgment" => "mud-table-cell--center",
+                    "PendingTotal" or "PlanFlowQuantity" or "PlanKeyWeight" or "SustainableDays" => "mud-table-cell--right",
+                    "PlanFlowJudgment" or "StatusJudgment" => "mud-table-cell--center",
                     _ => ""
                 };
                 <MudTd Class="@cellClass">
                     @if (col.Key == "Category")
                     {
-                        <span class="font-weight-bold">@item.CategoryCode</span>
-                        <text> </text>@item.CategoryName
+                        <span class="font-weight-bold">@item.CategoryName</span>
                     }
                     else if (col.Key == "PendingTotal")
                     {
                         @RenderInt(item.PendingTotal)
+                    }
+                    else if (col.Key == "PlanFlowQuantity")
+                    {
+                        @RenderInt(item.PlanFlowQuantity)
+                    }
+                    else if (col.Key == "PlanFlowJudgment")
+                    {
+                        <MudChip Size="Size.Small"
+                                 Color="@GetPlanFlowJudgmentColor(item.PlanFlowJudgment)">
+                            @(item.PlanFlowJudgment ?? "-")
+                        </MudChip>
+                    }
+                    else if (col.Key == "PlanKeyWeight")
+                    {
+                        @RenderInt(item.PlanKeyWeight)
                     }
                     else if (col.Key == "SustainableDays")
                     {
@@ -124,7 +138,7 @@
             {
                 var footerClass = col.Key switch
                 {
-                    "PendingTotal" or "SustainableDays" => "col-footer-sum",
+                    "PendingTotal" or "PlanFlowQuantity" or "PlanKeyWeight" or "SustainableDays" => "col-footer-sum",
                     _ => ""
                 };
                 <MudTd Class="@($"col-footer-cell {footerClass}")">

@@ -44,11 +44,11 @@ public class SectionFlowCategoryService
         }
     }
 
-    public async Task<ApiResponse> CreateItemAsync(int settingId, SectionFlowCategoryItemDto dto)
+    public async Task<ApiResponse> CreateSettingAsync(SectionFlowCategorySettingDto dto)
     {
         try
         {
-            var response = await _http.PostAsJsonAsync<SectionFlowCategoryItemDto, ApiResponse>($"{BaseUrl}/{settingId}/items", dto);
+            var response = await _http.PostAsJsonAsync<SectionFlowCategorySettingDto, ApiResponse>(BaseUrl, dto);
             return response ?? ApiResponse.Fail("新增失败");
         }
         catch (Exception ex)
@@ -57,24 +57,11 @@ public class SectionFlowCategoryService
         }
     }
 
-    public async Task<ApiResponse> SaveItemAsync(int itemId, SectionFlowCategoryItemDto dto)
+    public async Task<ApiResponse> DeleteSettingAsync(int id)
     {
         try
         {
-            var response = await _http.PutAsJsonAsync<SectionFlowCategoryItemDto, ApiResponse>($"{BaseUrl}/items/{itemId}", dto);
-            return response ?? ApiResponse.Fail("保存失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse> DeleteItemAsync(int itemId)
-    {
-        try
-        {
-            var response = await _http.DeleteFromJsonAsync<ApiResponse>($"{BaseUrl}/items/{itemId}");
+            var response = await _http.DeleteFromJsonAsync<ApiResponse>($"{BaseUrl}/{id}");
             return response ?? ApiResponse.Fail("删除失败");
         }
         catch (Exception ex)

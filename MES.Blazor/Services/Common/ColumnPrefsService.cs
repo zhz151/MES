@@ -114,6 +114,12 @@ public class ColumnDef
     };
 
     /// <summary>
+    /// 表头高亮 CSS class（特殊多档判定列，如"到料实投一致性"，加粗+着色；带前导空格，默认 null 不追加）
+    /// </summary>
+    [JsonIgnore]
+    public string? HighlightCssClass { get; set; }
+
+    /// <summary>
     /// 显示转换器：原始值→中文显示文本
     /// 三处统一调用：RenderCell / ResolvePrintValue / BuildFilterOptionsFromData
     /// </summary>

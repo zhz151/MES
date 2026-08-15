@@ -729,6 +729,7 @@ public partial class RepairOrders
                 _editingIds.Remove(id);
                 _editCache.Remove(id);
                 if (table != null) await table.ReloadServerData();
+                await LoadFilterContextsAsync();
             }
             else
             {
@@ -761,6 +762,7 @@ public partial class RepairOrders
                 {
                     Snackbar.Add("删除成功", Severity.Success);
                     if (table != null) await table.ReloadServerData();
+                    await LoadFilterContextsAsync();
                 }
                 else
                 {

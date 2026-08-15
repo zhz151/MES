@@ -7,6 +7,7 @@
 @using MES.Core.DTOs.Batch
 @using Microsoft.AspNetCore.Authorization
 @inject BatchService BatchService
+@inject ProductRequirementService RequirementService
 @inject WorkOrderService WorkOrderService
 @inject GradeMappingService GradeMappingService
 @inject NavigationManager Navigation
@@ -1222,6 +1223,14 @@
                 request.TotalItemCount = wo.TotalItemCount;
                 request.ItemDetails = wo.ItemDetails;
                 request.TechnicalRequirements = string.IsNullOrEmpty(wo.TechnicalRequirements) ? null : Enum.Parse<RequirementType>(wo.TechnicalRequirements);
+
+                // 质量备注：从工单关联订单项次的技术要求「其他要求」带出
+                if (!string.IsNullOrWhiteSpace(wo.OrderItemIds))
+                {
+                    var qualityResult = await RequirementService.GetQualityRemarkByOrderItemIdsAsync(wo.OrderItemIds);
+                    if (qualityResult.Success)
+                        request.QualityRemark = qualityResult.Data;
+                }
 
                 // 计算制成倍数
                 RecalcProductionRatio();

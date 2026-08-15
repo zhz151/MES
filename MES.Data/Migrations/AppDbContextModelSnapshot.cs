@@ -1270,6 +1270,63 @@ namespace MES.Data.Migrations
                     b.ToTable("SectionOutsource", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.Configuration.CombinationGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("FlowCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ParagraphName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ProcessGroupName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ProductStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SectionName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FlowCategoryId");
+
+                    b.HasIndex("ProcessGroupName", "SectionName", "ProductStatus")
+                        .IsUnique()
+                        .HasDatabaseName("UK_CG_ProcessGroupName_SectionName_ProductStatus");
+
+                    b.ToTable("CombinationGroups", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.Configuration.ConfigParameter", b =>
                 {
                     b.Property<int>("Id")
@@ -1650,58 +1707,6 @@ namespace MES.Data.Migrations
                     b.ToTable("ProcessDefinitions", (string)null);
                 });
 
-            modelBuilder.Entity("MES.Data.Entities.Configuration.SectionFlowCategoryItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Coefficient")
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("CreatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ProcessGroupName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("SectionName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("SettingId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UpdatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("UpdatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SettingId", "ProcessGroupName", "SectionName")
-                        .IsUnique()
-                        .HasDatabaseName("UK_SFCI_SettingId_ProcessGroupName_SectionName");
-
-                    b.ToTable("SectionFlowCategoryItems", (string)null);
-                });
-
             modelBuilder.Entity("MES.Data.Entities.Configuration.SectionFlowCategorySetting", b =>
                 {
                     b.Property<int>("Id")
@@ -1709,11 +1714,6 @@ namespace MES.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CategoryCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("CategoryName")
                         .IsRequired()
@@ -1730,6 +1730,9 @@ namespace MES.Data.Migrations
 
                     b.Property<decimal?>("DailyProductionTarget")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("LowerLimitDays")
                         .HasColumnType("decimal(18,2)");
@@ -1751,11 +1754,61 @@ namespace MES.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CategoryCode")
-                        .IsUnique()
-                        .HasDatabaseName("UK_SFCS_CategoryCode");
-
                     b.ToTable("SectionFlowCategorySettings", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Configuration.SectionParagraphConfig", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("DailyFlowTarget")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("LowerLimitDays")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ParagraphName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("UpperLimitDays")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParagraphName")
+                        .IsUnique()
+                        .HasDatabaseName("UK_SPC_ParagraphName");
+
+                    b.ToTable("SectionParagraphConfigs", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.Configuration.StandardWorkDay", b =>
@@ -3420,9 +3473,15 @@ namespace MES.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ChemicalComposition")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                    b.Property<bool>("BendTest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("ChemicalComposition")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -3432,16 +3491,83 @@ namespace MES.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<bool>("Dimension")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("EddyCurrent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("Endoscopy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("ExpandingTest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("FerriteContent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("FlaringTest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("FlatteningTest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("GrainSize")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("HardnessBrinell")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("HardnessRockwell")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("HardnessVickers")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("HydrostaticTest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("ImpactTest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IntergranularCorrosion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<int?>("ItemSequence")
                         .HasColumnType("int");
 
-                    b.Property<string>("MechanicalProperty")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("NdtRequirement")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                    b.Property<bool>("Macrostructure")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<int>("OrderItemId")
                         .HasColumnType("int");
@@ -3454,6 +3580,26 @@ namespace MES.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<bool>("PittingCorrosion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("PmiInspection")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("PortColoring")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("RadiographicTest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("RequirementType")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -3461,13 +3607,30 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasDefaultValue("Normal");
 
-                    b.Property<string>("SurfaceQuality")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                    b.Property<bool>("SurfaceInspection")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
-                    b.Property<string>("ToleranceRequirement")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                    b.Property<bool>("TensileHighTemp")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("TensileRoomTemp")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("UltrasonicTest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("UnderwaterPressure")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
@@ -3476,6 +3639,21 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("UpdatedTime")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("WeldJointBend")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("WeldJointImpact")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("WeldJointTensile")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.HasKey("Id");
 
@@ -5733,6 +5911,9 @@ namespace MES.Data.Migrations
                     b.Property<bool>("IsGrabOrder")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsPaused")
+                        .HasColumnType("bit");
+
                     b.Property<string>("PlanOuterDiameterSpan")
                         .HasColumnType("nvarchar(max)");
 
@@ -5896,14 +6077,6 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<bool>("IsBudgetComplete")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsMainNoMaterialComplete")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsPreInput")
                         .ValueGeneratedOnAdd()
@@ -6243,6 +6416,160 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("UK_ChemicalValidationRule_PlantGrade");
 
                     b.ToTable("ChemicalValidationRule", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.StandardRegister.FactoryInspectionRequirement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BendTest")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ChemicalComposition")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Dimension")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("EddyCurrent")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Endoscopy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ExpandingTest")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FerriteContent")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FlaringTest")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FlatteningTest")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("GrainSize")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("HardnessBrinell")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("HardnessRockwell")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("HardnessVickers")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("HydrostaticTest")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ImpactTest")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("IntergranularCorrosion")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Macrostructure")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PittingCorrosion")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PmiInspection")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PortColoring")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("RadiographicTest")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("StandardNo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SurfaceInspection")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TensileHighTemp")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TensileRoomTemp")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UltrasonicTest")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UnderwaterPressure")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("WeldJointBend")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("WeldJointImpact")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("WeldJointTensile")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StandardNo")
+                        .IsUnique()
+                        .HasDatabaseName("UK_FactoryInspectionRequirement_StandardNo");
+
+                    b.ToTable("FactoryInspectionRequirement", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.StandardRegister.GradeChemicalComposition", b =>
@@ -8670,7 +8997,7 @@ namespace MES.Data.Migrations
                     b.Property<int?>("DaysDiffFromDelivery")
                         .HasColumnType("int");
 
-                    b.Property<bool>("DeformedProcessCompleted")
+                    b.Property<bool?>("DeformedProcessCompleted")
                         .HasColumnType("bit");
 
                     b.Property<bool>("DelayPenalty")
@@ -9839,15 +10166,14 @@ namespace MES.Data.Migrations
                     b.Navigation("ProductionBatch");
                 });
 
-            modelBuilder.Entity("MES.Data.Entities.Configuration.SectionFlowCategoryItem", b =>
+            modelBuilder.Entity("MES.Data.Entities.Configuration.CombinationGroup", b =>
                 {
-                    b.HasOne("MES.Data.Entities.Configuration.SectionFlowCategorySetting", "Setting")
-                        .WithMany("Items")
-                        .HasForeignKey("SettingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.HasOne("MES.Data.Entities.Configuration.SectionFlowCategorySetting", "FlowCategory")
+                        .WithMany()
+                        .HasForeignKey("FlowCategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
-                    b.Navigation("Setting");
+                    b.Navigation("FlowCategory");
                 });
 
             modelBuilder.Entity("MES.Data.Entities.Equipment.InspectionRecord", b =>
@@ -10155,11 +10481,6 @@ namespace MES.Data.Migrations
             modelBuilder.Entity("MES.Data.Entities.Batch.SectionOutsource", b =>
                 {
                     b.Navigation("OutsourceRecoveries");
-                });
-
-            modelBuilder.Entity("MES.Data.Entities.Configuration.SectionFlowCategorySetting", b =>
-                {
-                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("MES.Data.Entities.Materials.SubcontractOrder", b =>

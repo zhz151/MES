@@ -59,13 +59,6 @@ public class WorkOrderScheduleController : ControllerBase
         return Ok(ApiResponse<bool>.Ok(result));
     }
 
-    [HttpPost("plan-keep-attention")]
-    public async Task<ActionResult<ApiResponse<bool>>> PlanKeepAttention([FromBody] QueryParams query)
-    {
-        var result = await _service.PlanScheduleKeepAttentionAsync(query);
-        return Ok(ApiResponse<bool>.Ok(result));
-    }
-
     [HttpPost("print-file")]
     public async Task<IActionResult> PrintFile([FromBody] WorkOrderSchedulePrintRequest request)
     {

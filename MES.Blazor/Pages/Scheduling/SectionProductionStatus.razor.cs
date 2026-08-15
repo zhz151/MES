@@ -33,10 +33,6 @@ public partial class SectionProductionStatus
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
     // B18: 分页汇总
     private Dictionary<string, string> _pageSums = new();
-    private static readonly HashSet<string> _summableColumnKeys = new()
-    {
-        "InProduction", "PendingProduction", "Total", "FinalProcessTotal"
-    };
     private int _lastSummedPage = -1;
     private int _lastSummedCount = -1;
     private int _lastSummedPageSize = -1;
@@ -54,12 +50,14 @@ public partial class SectionProductionStatus
     {
         return new List<ColumnDef>
         {
-            new() { Key = "ProcessGroupName", Label = "工序组",      SortKey = "processgroupname", FilterType = "string" },
-            new() { Key = "SectionName",      Label = "工段",        SortKey = "sectionname",      FilterType = "string" },
-            new() { Key = "InProduction",     Label = "生产中",      SortKey = "inproduction",     FilterType = "number" },
-            new() { Key = "PendingProduction",Label = "待产量",      SortKey = "pendingproduction",FilterType = "number" },
-            new() { Key = "Total",            Label = "汇总量",      SortKey = "total",            FilterType = "number" },
-            new() { Key = "FinalProcessTotal",Label = "属成品工序量",SortKey = "finalprocesstotal", FilterType = "number" },
+            new() { Key = "ProcessGroupName", Label = "工序组", SortKey = "processgroupname", FilterType = "string" },
+            new() { Key = "SectionName",      Label = "工段",   SortKey = "sectionname",      FilterType = "string" },
+            new() { Key = "ProductStatus",    Label = "产类",   SortKey = "productstatus",    FilterType = "string" },
+            new() { Key = "InProduction",     Label = "生产中", SortKey = "inproduction",     FilterType = "number" },
+            new() { Key = "PendingProduction",Label = "待产量", SortKey = "pendingproduction",FilterType = "number" },
+            new() { Key = "Total",            Label = "汇总量", SortKey = "total",            FilterType = "number" },
+            new() { Key = "PlanFlowQuantity", Label = "计划流转量", SortKey = "planflowquantity", FilterType = "number" },
+            new() { Key = "PlanKeyWeight",    Label = "重点批重量", SortKey = "plankeyweight",    FilterType = "number" },
         };
     }
 
@@ -130,8 +128,9 @@ public partial class SectionProductionStatus
         try
         {
             var result = await Service.GetStatusAsync();
+            // 页面加载只呈现汇总量非空的数据行（全维度空行的(工序组,工段,产类)无业务意义）
             _allItems = result?.Success == true && result.Data != null
-                ? result.Data
+                ? result.Data.Where(x => x.Total.HasValue).ToList()
                 : new List<SectionProductionStatusDto>();
 
             if (result?.Success != true)
@@ -181,6 +180,7 @@ public partial class SectionProductionStatus
                         {
                             "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(val!),
                             "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(val!),
+                            "ProductStatus" => DisplayHelper.GetCombinationProductStatusText(val!),
                             _ => val!
                         },
                         Count = _allItems.Count(x => string.Equals(GetStringValue(x, col.Key), val, StringComparison.OrdinalIgnoreCase))
@@ -195,6 +195,7 @@ public partial class SectionProductionStatus
     {
         "ProcessGroupName" => item.ProcessGroupName,
         "SectionName" => item.SectionName,
+        "ProductStatus" => item.ProductStatus,
         _ => null
     };
 
@@ -240,6 +241,10 @@ public partial class SectionProductionStatus
             {
                 query = query.Where(x => kvp.Value.Contains(x.SectionName ?? "", StringComparer.OrdinalIgnoreCase));
             }
+            else if (col.FilterType == "string" && col.Key == "ProductStatus")
+            {
+                query = query.Where(x => kvp.Value.Contains(x.ProductStatus ?? "", StringComparer.OrdinalIgnoreCase));
+            }
         }
 
         // 排序
@@ -251,6 +256,9 @@ public partial class SectionProductionStatus
             "SectionName" => sortDescending
                 ? query.OrderByDescending(x => x.SectionName)
                 : query.OrderBy(x => x.SectionName),
+            "ProductStatus" => sortDescending
+                ? query.OrderByDescending(x => x.ProductStatus)
+                : query.OrderBy(x => x.ProductStatus),
             "InProduction" => sortDescending
                 ? query.OrderByDescending(x => x.InProduction)
                 : query.OrderBy(x => x.InProduction),
@@ -260,9 +268,12 @@ public partial class SectionProductionStatus
             "Total" => sortDescending
                 ? query.OrderByDescending(x => x.Total)
                 : query.OrderBy(x => x.Total),
-            "FinalProcessTotal" => sortDescending
-                ? query.OrderByDescending(x => x.FinalProcessTotal)
-                : query.OrderBy(x => x.FinalProcessTotal),
+            "PlanFlowQuantity" => sortDescending
+                ? query.OrderByDescending(x => x.PlanFlowQuantity)
+                : query.OrderBy(x => x.PlanFlowQuantity),
+            "PlanKeyWeight" => sortDescending
+                ? query.OrderByDescending(x => x.PlanKeyWeight)
+                : query.OrderBy(x => x.PlanKeyWeight),
             _ => query.OrderBy(x => x.ProcessGroupName)
         };
 
@@ -275,7 +286,8 @@ public partial class SectionProductionStatus
         "InProduction" => item.InProduction,
         "PendingProduction" => item.PendingProduction,
         "Total" => item.Total,
-        "FinalProcessTotal" => item.FinalProcessTotal,
+        "PlanFlowQuantity" => item.PlanFlowQuantity,
+        "PlanKeyWeight" => item.PlanKeyWeight,
         _ => null
     };
 
@@ -349,6 +361,16 @@ public partial class SectionProductionStatus
         await SavePageStateAsync();
     }
 
+    // ========== 每页行数切换 ==========
+
+    private async Task OnRowsPerPageChanged(int size)
+    {
+        _pageSize = size;
+        ApplyFiltersAndSort(); // 内部 ComputePageSums 重算当前页汇总
+        StateHasChanged();
+        await SavePageStateAsync();
+    }
+
     // ========== 状态持久化 ==========
 
     private async Task SavePageStateAsync()
@@ -390,6 +412,9 @@ public partial class SectionProductionStatus
             case "SectionName":
                 builder.AddContent(0, SectionDisplayHelper.GetSectionNameText(item.SectionName));
                 break;
+            case "ProductStatus":
+                builder.AddContent(0, DisplayHelper.GetCombinationProductStatusText(item.ProductStatus));
+                break;
             case "InProduction":
                 builder.AddContent(0, RenderCellValue(item.InProduction));
                 break;
@@ -399,8 +424,11 @@ public partial class SectionProductionStatus
             case "Total":
                 builder.AddContent(0, RenderCellValue(item.Total));
                 break;
-            case "FinalProcessTotal":
-                builder.AddContent(0, RenderCellValue(item.FinalProcessTotal));
+            case "PlanFlowQuantity":
+                builder.AddContent(0, RenderCellValue(item.PlanFlowQuantity));
+                break;
+            case "PlanKeyWeight":
+                builder.AddContent(0, RenderCellValue(item.PlanKeyWeight));
                 break;
         }
     };
@@ -422,7 +450,8 @@ public partial class SectionProductionStatus
         _pageSums["InProduction"] = ((int)pageItems.Sum(x => x.InProduction ?? 0m)).ToString();
         _pageSums["PendingProduction"] = ((int)pageItems.Sum(x => x.PendingProduction ?? 0m)).ToString();
         _pageSums["Total"] = ((int)pageItems.Sum(x => x.Total ?? 0m)).ToString();
-        _pageSums["FinalProcessTotal"] = ((int)pageItems.Sum(x => x.FinalProcessTotal ?? 0m)).ToString();
+        _pageSums["PlanFlowQuantity"] = ((int)pageItems.Sum(x => x.PlanFlowQuantity ?? 0m)).ToString();
+        _pageSums["PlanKeyWeight"] = ((int)pageItems.Sum(x => x.PlanKeyWeight ?? 0m)).ToString();
     }
 
     private string RenderFooterCell(ColumnDef col)
@@ -466,7 +495,7 @@ public partial class SectionProductionStatus
 
         var request = new SectionProductionStatusPrintRequest
         {
-            Title = "工段待产量",
+            Title = "工段待在产量",
             Items = printItems,
             Columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList()
         };
@@ -495,10 +524,12 @@ public partial class SectionProductionStatus
     {
         "ProcessGroupName" => ProcessDisplayHelper.GetProcessNameText(item.ProcessGroupName),
         "SectionName" => SectionDisplayHelper.GetSectionNameText(item.SectionName),
+        "ProductStatus" => DisplayHelper.GetCombinationProductStatusText(item.ProductStatus),
         "InProduction" => item.InProduction.HasValue ? ((int)item.InProduction.Value).ToString() : "-",
         "PendingProduction" => item.PendingProduction.HasValue ? ((int)item.PendingProduction.Value).ToString() : "-",
         "Total" => item.Total.HasValue ? ((int)item.Total.Value).ToString() : "-",
-        "FinalProcessTotal" => item.FinalProcessTotal.HasValue ? ((int)item.FinalProcessTotal.Value).ToString() : "-",
+        "PlanFlowQuantity" => item.PlanFlowQuantity.HasValue ? ((int)item.PlanFlowQuantity.Value).ToString() : "-",
+        "PlanKeyWeight" => item.PlanKeyWeight.HasValue ? ((int)item.PlanKeyWeight.Value).ToString() : "-",
         _ => ""
     };
 

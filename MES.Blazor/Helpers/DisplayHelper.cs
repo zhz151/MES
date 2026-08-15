@@ -78,6 +78,21 @@ public static class DisplayHelper
     /// <summary>获取长度状态中文文本（字符串版本）</summary>
     public static string GetLengthStatusText(string? lengthStatus) => EnumHelper.GetDisplayName<LengthStatus>(lengthStatus);
 
+    /// <summary>
+    /// 获取工单长度状态中文文本（定尺仅对"多种"情形附加标记，仅工单维度页面使用）
+    /// Fixed 且 最小长度≠最大长度 → "定尺（多）"；其余定尺（单种/长度缺失）→ "定尺"
+    /// </summary>
+    public static string GetWorkOrderLengthStatusText(LengthStatus status, decimal? minLength, decimal? maxLength)
+    {
+        if (status == LengthStatus.Fixed)
+        {
+            if (minLength.HasValue && maxLength.HasValue && minLength.Value != maxLength.Value)
+                return "定尺（多）";
+            return "定尺";
+        }
+        return GetLengthStatusText(status);
+    }
+
     /// <summary>获取交货状态中文文本</summary>
     public static string GetDeliveryStateText(DeliveryState state) => EnumHelper.GetDisplayName(state);
 
@@ -310,27 +325,29 @@ public static class DisplayHelper
     public static string GetScheduleStageText(int stage) => IntStatusDisplayHelper.GetScheduleStageText(stage);
 
     /// <summary>
-    /// 获取排程计划覆盖档位中文文本（WorkOrderPlan.ScheduleStage，4 档：0=工单完成 1=原料锁定 2=生产执行 3=成品检验）
+    /// 获取排程计划覆盖档位中文文本（WorkOrderPlan.ScheduleStage，4 档：0=主号完成 1=原料锁定 2=生产执行 3=成品检验）
     /// </summary>
     public static string GetPlanScheduleStageText(int stage) => IntStatusDisplayHelper.GetPlanScheduleStageText(stage);
 
-    /// <summary>冷轧完工要求中文显示（数据库字符串字段）</summary>
+    /// <summary>冷轧完工要求中文显示（数据库字符串字段，Model B 层级档位，急+ > 急 > 急-）</summary>
     public static string GetCompletionTypeText(string? ct) => ct switch
     {
+        "CrOnly" => "急+",
+        "Urgent" or "Partial1" => "急+/急",
+        "Partial2" => "急+/急/急-",
+        "Partial3" => "急+/急/急-/顺",
         "All" => "全量",
-        "Urgent" or "Partial1" => "特急单",
-        "Partial2" => "急单",
-        "Partial3" => "含B顺",
         _ => "",
     };
 
-    /// <summary>冷轧排程类型中文显示（数据库字符串字段）</summary>
+    /// <summary>冷轧排程类型中文显示（数据库字符串字段，Model B 层级档位，急+ > 急 > 急-）</summary>
     public static string GetRollTypeText(string? rollType) => rollType switch
     {
+        "CrOnly" => "急+",
+        "Urgent" or "Partial1" => "急+/急",
+        "Partial2" => "急+/急/急-",
+        "Partial3" => "急+/急/急-/顺",
         "All" or "Subsequent" => "全量",
-        "Urgent" or "Partial1" => "特急单",
-        "Partial2" => "急单",
-        "Partial3" => "含B顺",
         _ => "",
     };
 
@@ -390,7 +407,7 @@ public static class DisplayHelper
                                  .Select(o => new EnumOption(o.Value, o.DisplayName))
                                  .ToList();
 
-    /// <summary>到料实投一致性筛选选项（int 字段，5 档：0=一致 1=待投 2=疑问-到料未投 3=疑问-到料超投 4=错误-无到料已投）</summary>
+    /// <summary>到料实投一致性筛选选项（int 字段，5 档：0=一致 1=待投 2=疑问-到料少投 3=疑问-到料超投 4=错误-无料已投）</summary>
     public static List<EnumOption> GetPlanInputConsistencyOptions()
         => IntStatusDisplayHelper.GetPlanInputConsistencyOptions()
                                  .Select(o => new EnumOption(o.Value, o.DisplayName))
@@ -425,16 +442,32 @@ public static class DisplayHelper
         _ => Color.Default
     };
 
-    /// <summary>冷轧完工要求筛选选项</summary>
+    /// <summary>冷轧完工要求筛选选项（Model B 层级档位，急+ > 急 > 急-）</summary>
     public static List<EnumOption> GetCompletionTypeOptions() => new()
     {
-        new("None", "无计划"), new("All", "全量"), new("Urgent", "特急单"), new("Partial2", "急单"), new("Partial3", "含B顺")
+        new("CrOnly", "急+"), new("Urgent", "急+/急"), new("Partial2", "急+/急/急-"),
+        new("Partial3", "急+/急/急-/顺"), new("All", "全量"), new("None", "-")
     };
 
-    /// <summary>冷轧排程类型筛选选项</summary>
+    /// <summary>冷轧排程类型筛选选项（Model B 层级档位，急+ > 急 > 急-）</summary>
     public static List<EnumOption> GetRollTypeOptions() => new()
     {
-        new("None", "无计划"), new("All", "全量"), new("Urgent", "特急单"), new("Partial2", "急单"), new("Partial3", "含B顺")
+        new("CrOnly", "急+"), new("Urgent", "急+/急"), new("Partial2", "急+/急/急-"),
+        new("Partial3", "急+/急/急-/顺"), new("All", "全量"), new("None", "-")
+    };
+
+    /// <summary>排程档位筛选选项（批次实际档位，V5.26 档位序 急+ &gt; 急 &gt; 急- &gt; 顺 &gt; 带 &gt; 略，对应 ScheduleTierDisplay）</summary>
+    public static List<EnumOption> GetScheduleTierOptions() => new()
+    {
+        new("急+", "急+"), new("急", "急"), new("急-", "急-"),
+        new("顺", "顺"), new("带", "带"), new("略", "略")
+    };
+
+    /// <summary>批次计划薄表等级筛选选项（档位序：急+/急/急-/一般/略，对应 PlanFlowLevelDisplay 五档）</summary>
+    public static List<EnumOption> GetPlanFlowLevelOptions() => new()
+    {
+        new("急+", "急+"), new("急", "急"), new("急-", "急-"),
+        new("一般", "一般"), new("略", "略")
     };
 
     // ========== 公差格式化 ==========
@@ -792,6 +825,15 @@ public static class DisplayHelper
     /// </summary>
     public static string GetProductStatusText(string? productStatus)
         => DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, productStatus) ?? "在制";
+
+    /// <summary>
+    /// 组合归类表产类中文显示：AllStatus（不限定产类）→"全部"；其余走 <see cref="GetProductStatusText"/>。
+    /// 组合表产类列使用本方法（"All" 不在字典表，直接走 GetProductStatusText 会错误回退"在制"）。
+    /// </summary>
+    public static string GetCombinationProductStatusText(string? productStatus)
+        => string.Equals(productStatus, ProductStatuses.AllStatus, StringComparison.OrdinalIgnoreCase)
+            ? "全部"
+            : GetProductStatusText(productStatus);
 
     /// <summary>产类颜色映射（字符串字段存稳定英文 Key）</summary>
     public static Color GetProductStatusColor(string? productStatus) => productStatus switch

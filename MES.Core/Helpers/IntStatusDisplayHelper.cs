@@ -44,10 +44,10 @@ public static class IntStatusDisplayHelper
         _ => fallback ?? ""
     };
 
-    /// <summary>计划覆盖档位 4 档文本（0=工单完成 1=原料锁定 2=生产执行 3=成品检验）</summary>
+    /// <summary>计划覆盖档位 4 档文本（0=主号完成 1=原料锁定 2=生产执行 3=成品检验）</summary>
     public static string GetPlanScheduleStageText(int? stage) => stage switch
     {
-        0 => "工单完成",
+        0 => "主号完成",
         1 => "原料锁定",
         2 => "生产执行",
         3 => "成品检验",
@@ -101,14 +101,17 @@ public static class IntStatusDisplayHelper
         _ => "未知"
     };
 
-    /// <summary>到料实投一致性 5 档文本（0=一致 1=待投 2=疑问-到料未投 3=疑问-到料超投 4=错误-无到料已投）</summary>
+    /// <summary>到料实投一致性 7 档文本（0=一致 1=待投 2=疑问-到料少投 3=疑问-到料超投 4=错误-无料已投 5=错误-无需投料 6=略）。
+    /// 档 5/6 为阶段门控：主号关注=生产执行/成品检验/主号完成（已过投料期）时，理论缺失总料重&gt;0 → 5 错误-无需投料（应已无需投料却缺料）；=0 → 6 略（不细看）</summary>
     public static string GetPlanInputConsistencyText(int status) => status switch
     {
         0 => "一致",
         1 => "待投",
-        2 => "疑问-到料未投",
+        2 => "疑问-到料少投",
         3 => "疑问-到料超投",
-        4 => "错误-无到料已投",
+        4 => "错误-无料已投",
+        5 => "错误-无需投料",
+        6 => "略",
         _ => "未知"
     };
 
@@ -145,7 +148,7 @@ public static class IntStatusDisplayHelper
     /// <summary>计划覆盖档位筛选选项（4 档）</summary>
     public static List<EnumDisplayOptionDto> GetPlanScheduleStageOptions() => new()
     {
-        new EnumDisplayOptionDto { Value = "0", DisplayName = "工单完成" },
+        new EnumDisplayOptionDto { Value = "0", DisplayName = "主号完成" },
         new EnumDisplayOptionDto { Value = "1", DisplayName = "原料锁定" },
         new EnumDisplayOptionDto { Value = "2", DisplayName = "生产执行" },
         new EnumDisplayOptionDto { Value = "3", DisplayName = "成品检验" }
@@ -194,14 +197,16 @@ public static class IntStatusDisplayHelper
         new EnumDisplayOptionDto { Value = "4", DisplayName = "异常" }
     };
 
-    /// <summary>到料实投一致性筛选选项（5 档：0=一致 1=待投 2=疑问-到料未投 3=疑问-到料超投 4=错误-无到料已投）</summary>
+    /// <summary>到料实投一致性筛选选项（7 档：0=一致 1=待投 2=疑问-到料少投 3=疑问-到料超投 4=错误-无料已投 5=错误-无需投料 6=略）</summary>
     public static List<EnumDisplayOptionDto> GetPlanInputConsistencyOptions() => new()
     {
         new EnumDisplayOptionDto { Value = "0", DisplayName = "一致" },
         new EnumDisplayOptionDto { Value = "1", DisplayName = "待投" },
-        new EnumDisplayOptionDto { Value = "2", DisplayName = "疑问-到料未投" },
+        new EnumDisplayOptionDto { Value = "2", DisplayName = "疑问-到料少投" },
         new EnumDisplayOptionDto { Value = "3", DisplayName = "疑问-到料超投" },
-        new EnumDisplayOptionDto { Value = "4", DisplayName = "错误-无到料已投" }
+        new EnumDisplayOptionDto { Value = "4", DisplayName = "错误-无料已投" },
+        new EnumDisplayOptionDto { Value = "5", DisplayName = "错误-无需投料" },
+        new EnumDisplayOptionDto { Value = "6", DisplayName = "略" }
     };
 
     /// <summary>主号计划执行状态筛选选项（4 档：0=无计划 1=未执行 2=执行中 3=计划落实）</summary>

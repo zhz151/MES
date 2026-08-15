@@ -77,13 +77,13 @@
                             @if (_flowSortColumn == "Category")
                             {
                                 <span @onclick='() => ToggleFlowSort("Category")' style="cursor:pointer">
-                                    段落类别 @(_flowSortDescending ? " ▼" : " ▲")
+                                    流转类别 @(_flowSortDescending ? " ▼" : " ▲")
                                 </span>
                             }
                             else
                             {
                                 <span @onclick='() => ToggleFlowSort("Category")' style="cursor:pointer">
-                                    段落类别
+                                    流转类别
                                 </span>
                             }
                         </MudTh>
@@ -91,13 +91,13 @@
                             @if (_flowSortColumn == "PendingTotal")
                             {
                                 <span @onclick='() => ToggleFlowSort("PendingTotal")' style="cursor:pointer">
-                                    待产总量 @(_flowSortDescending ? " ▼" : " ▲")
+                                    待在产重量 @(_flowSortDescending ? " ▼" : " ▲")
                                 </span>
                             }
                             else
                             {
                                 <span @onclick='() => ToggleFlowSort("PendingTotal")' style="cursor:pointer">
-                                    待产总量
+                                    待在产重量
                                 </span>
                             }
                         </MudTh>
@@ -132,8 +132,7 @@
                     </HeaderContent>
                     <RowTemplate Context="item">
                         <MudTd>
-                            <span class="font-weight-bold">@item.CategoryCode</span>
-                            <text> </text>@item.CategoryName
+                            <span class="font-weight-bold">@item.CategoryName</span>
                         </MudTd>
                         <MudTd Class="mud-table-cell--right">
                             @FlowRenderInt(item.PendingTotal)

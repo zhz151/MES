@@ -39,12 +39,16 @@ using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Batch;
+using MES.Data.Entities.Configuration;
+using MES.Services.Helpers;
 using MES.Services.Printing;
 
 namespace MES.Services.Scheduling;
 
 /// <summary>
-/// 生产段流转量分析服务 — 按段落类别汇总生产工段待产量数据
+/// 生产段流转量分析服务 — 按流转类别汇总生产工段待在产量数据。
+/// 全部类别（含 D/E/N 检验类）统一由组合归类表 CombinationGroups 的(工序组,工段,产类)三维行驱动，
+/// 不再有任何类别类型硬编码；检验三态通过 (全部, 检验, 产类) 通配行自然划分。
 /// </summary>
 public class SectionFlowAnalysisService : ISectionFlowAnalysisService
 {
@@ -68,67 +72,61 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
     public async Task<List<SectionFlowAnalysisDto>> GetAnalysisAsync()
     {
         var crKeys = await _processDefService.GetColdRollOrDrawKeysAsync();
-        // 1. 获取生产工段待产量数据
+        // 1. 获取生产工段待产量数据（(工序组,工段,产类)三维，含每维度 All 汇总行）
         var statusData = await _statusService.GetStatusAsync();
-        var statusLookup = new Dictionary<(string ProcessGroupName, string SectionName), SectionProductionStatusDto>();
-        foreach (var item in statusData)
-            statusLookup[(item.ProcessGroupName, item.SectionName)] = item;
 
-        // 按 ProcessGroupName 分组的便捷查询（用于"全部"通配）
-        var groupedLookup = statusLookup
-            .GroupBy(kv => kv.Key.ProcessGroupName, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.Select(kv => kv.Value).ToList(), StringComparer.OrdinalIgnoreCase);
-
-        // 2. 从 Configuration 服务加载分类设置 + 明细
+        // 2. 从 Configuration 服务加载分类设置 + 组合归类表
         var allSettings = await _categoryService.GetSettingsAsync();
-        var settings = allSettings.OrderBy(s => s.CategoryCode).ToList();
+        var settings = allSettings.OrderBy(s => s.DisplayOrder).ThenBy(s => s.Id).ToList();
 
-        // 3. 逐类计算
+        // 组合归类表：(工序组,工段,产类)三维唯一归属映射，未归属行不参与聚合
+        var combinationGroups = await _context.CombinationGroups.AsNoTracking().ToListAsync();
+        var groupsBySetting = new Dictionary<int, List<CombinationGroup>>();
+        foreach (var c in combinationGroups)
+        {
+            if (!c.FlowCategoryId.HasValue) continue;
+            var id = c.FlowCategoryId.Value;
+            if (!groupsBySetting.TryGetValue(id, out var groupList))
+                groupsBySetting[id] = groupList = new List<CombinationGroup>();
+            groupList.Add(c);
+        }
+
+        // 3. 逐类计算：所有类别统一从组合归类表聚合（含 D/E/N 检验类通配行）
         var results = settings.Select(setting =>
         {
             decimal pendingTotal = 0;
             decimal variationTotal = 0;
+            decimal planFlowTotal = 0;
+            decimal planKeyTotal = 0;
 
-            foreach (var item in setting.Items)
+            if (groupsBySetting.TryGetValue(setting.Id, out var groupRows))
             {
-                List<SectionProductionStatusDto> matches;
-
-                if (string.Equals(item.ProcessGroupName, "全部", StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(item.SectionName, "全部", StringComparison.OrdinalIgnoreCase))
+                foreach (var grp in groupRows)
                 {
-                    // 双通配：匹配所有工序组的所有工段
-                    matches = statusLookup.Values.ToList();
-                }
-                else if (string.Equals(item.ProcessGroupName, "全部", StringComparison.OrdinalIgnoreCase))
-                {
-                    // 工序组通配：匹配所有工序组中指定工段名
-                    matches = statusLookup.Values
-                        .Where(v => string.Equals(v.SectionName, item.SectionName, StringComparison.OrdinalIgnoreCase))
-                        .ToList();
-                }
-                else if (string.Equals(item.SectionName, "全部", StringComparison.OrdinalIgnoreCase))
-                {
-                    // 工段通配：匹配该工序组下所有工段
-                    matches = groupedLookup.GetValueOrDefault(item.ProcessGroupName, new List<SectionProductionStatusDto>());
-                }
-                else
-                {
-                    if (!statusLookup.TryGetValue((item.ProcessGroupName, item.SectionName), out var match))
-                        continue;
-                    matches = new List<SectionProductionStatusDto> { match };
-                }
-
-                foreach (var match in matches)
-                {
-                    var baseAmount = GetBaseAmount(setting.CategoryCode, match);
+                    decimal baseAmount = 0;
+                    decimal planFlowAmount = 0;
+                    decimal planKeyAmount = 0;
+                    foreach (var match in statusData)
+                    {
+                        if (!Matches(grp, match.ProcessGroupName, match.SectionName, match.ProductStatus))
+                            continue;
+                        baseAmount += match.Total ?? 0m;
+                        planFlowAmount += match.PlanFlowQuantity ?? 0m;
+                        planKeyAmount += match.PlanKeyWeight ?? 0m;
+                    }
+                    if (baseAmount == 0) continue;
                     pendingTotal += baseAmount;
-                    variationTotal += item.Coefficient * baseAmount;
+                    variationTotal += baseAmount;
+                    planFlowTotal += planFlowAmount;
+                    planKeyTotal += planKeyAmount;
                 }
             }
 
             // 转换为吨
             pendingTotal = Math.Round(pendingTotal / 1000m, 0);
             variationTotal = Math.Round(variationTotal / 1000m, 0);
+            var planFlowTons = Math.Round(planFlowTotal / 1000m, 0);
+            var planKeyTons = Math.Round(planKeyTotal / 1000m, 0);
 
             var sustainableDays = setting.DailyProductionTarget.HasValue && setting.DailyProductionTarget.Value > 0
                 ? Math.Round(variationTotal / setting.DailyProductionTarget.Value, 1)
@@ -145,11 +143,16 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
                     status = "正常";
             }
 
+            // 计划流转判定：计划流转量 > 日产设定 → 加速，否则 -
+            var planFlowJudgment = setting.DailyProductionTarget.HasValue && planFlowTons > setting.DailyProductionTarget.Value
+                ? "加速"
+                : "-";
+
             return new SectionFlowAnalysisDto
             {
                 Id = setting.Id,
-                CategoryCode = setting.CategoryCode,
                 CategoryName = setting.CategoryName,
+                DisplayOrder = setting.DisplayOrder,
                 PendingTotal = pendingTotal > 0 ? pendingTotal : null,
                 VariationTotal = variationTotal > 0 ? variationTotal : null,
                 DailyProductionTarget = setting.DailyProductionTarget,
@@ -157,22 +160,14 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
                 LowerLimitDays = setting.LowerLimitDays,
                 UpperLimitDays = setting.UpperLimitDays,
                 StatusJudgment = status,
+                PlanFlowQuantity = planFlowTons > 0 ? planFlowTons : null,
+                PlanFlowJudgment = planFlowJudgment,
+                PlanKeyWeight = planKeyTons > 0 ? planKeyTons : null,
             };
         }).ToList();
 
-        // 4. 后处理：E(在制检) = Total(全部, 检验) - D.PendingTotal - N.PendingTotal
-        var eResult = results.FirstOrDefault(r => r.CategoryCode == "E");
-        var nResult = results.FirstOrDefault(r => r.CategoryCode == "N");
-        var dResult = results.FirstOrDefault(r => r.CategoryCode == "D");
-        if (eResult != null && nResult?.PendingTotal.HasValue == true && dResult?.PendingTotal.HasValue == true)
-        {
-            var rawE = eResult.PendingTotal ?? 0m;
-            var subtract = dResult.PendingTotal.Value + nResult.PendingTotal.Value;
-            eResult.PendingTotal = rawE > subtract ? rawE - subtract : null;
-            eResult.VariationTotal = eResult.PendingTotal > 0 ? eResult.PendingTotal : null;
-        }
-
-        // 5. 重点批次统计（按类别汇总批次计划中的重点批次计数和重量，单位：吨）
+        // 4. 重点批次统计（按类别汇总批次计划中的重点批次计数和重量，单位：吨）
+        // 与待产量聚合同源：批次按(待产工序组,待产工段,批次产类)匹配组合归类表三维行
         var batchQuery = _context.ProductionBatches.AsNoTracking()
             .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress);
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
@@ -189,6 +184,8 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
                             b.CurrentSectionName,
                             b.NextProcess,
                             b.NextSectionName,
+                            b.ManufacturingItem,
+                            b.Specification,
                             ScheduleStage = s != null ? (int?)s.ScheduleStage : null,
                             UrgencyLevel = s != null ? s.UrgencyLevel : null,
                             MainNoAttentionProcess = s != null ? s.MainNoAttentionProcess : null,
@@ -198,23 +195,17 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
 
         var batches = await batchJoin.ToListAsync();
 
-        // 加载工序组，推导每个批次的末道工序
+        // 加载批次全部工序组（供 ProductStatusHelper 按批次粒度算产类）
         var batchIds = batches.Select(b => b.Id).Distinct().ToList();
-        var lastProcessLookup = await _context.Set<ProcessGroup>()
+        var processGroups = await _context.Set<ProcessGroup>()
             .AsNoTracking()
             .Where(pg => batchIds.Contains(pg.ProductionBatchId))
+            .ToListAsync();
+        var pgByBatch = processGroups
             .GroupBy(pg => pg.ProductionBatchId)
-            .ToDictionaryAsync(g => g.Key,
-                g => g.OrderByDescending(pg => pg.SequenceNumber)
-                    .Select(pg => pg.ProcessName)
-                    .FirstOrDefault());
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         var keyBatchStats = results.ToDictionary(r => r.Id, _ => (count: 0, weight: 0m));
-        // 额外跟踪检验类统计用于 E/N 后处理
-        var inspectionStats = (totalCount: 0, totalWeight: 0m, dCount: 0, dWeight: 0m, nCount: 0, nWeight: 0m);
-        var dSettingId = settings.FirstOrDefault(s => s.CategoryCode == "D")?.Id;
-        var eSettingId = settings.FirstOrDefault(s => s.CategoryCode == "E")?.Id;
-        var nSettingId = settings.FirstOrDefault(s => s.CategoryCode == "N")?.Id;
 
         foreach (var b in batches)
         {
@@ -225,96 +216,52 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
             if (string.IsNullOrEmpty(pendingProcess) || string.IsNullOrEmpty(pendingSection))
                 continue;
 
+            var pendingProcessKey = ProcessKeys.ToKey(pendingProcess) ?? pendingProcess;
+            var pendingSectionKey = SectionKeys.ToKey(pendingSection) ?? pendingSection;
+            var attentionProcessKey = ProcessKeys.ToKey(b.MainNoAttentionProcess) ?? b.MainNoAttentionProcess;
+
             var uLevel = b.UrgencyLevel ?? "";
             var isKeyBatch =
                 (b.ScheduleStage == 3 &&
                  UrgencyLevelKeys.IsUrgent(uLevel) &&
-                 (pendingProcess == ProcessKeys.RoughTubeProcessing ||
-                  (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                      && (!crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess) || pendingSection == SectionKeys.ColdRollDraw))))
+                 (pendingProcessKey == ProcessKeys.RoughTubeProcessing ||
+                  (attentionProcessKey != null && pendingProcessKey == attentionProcessKey
+                      && (!crKeys.Contains(pendingProcessKey) || pendingSectionKey == SectionKeys.ColdRollDraw))))
                 ||
                 (b.ScheduleStage == 2 &&
                  (b.IsUrging || b.IsBatchDelivery) &&
                  UrgencyLevelKeys.IsUrgent(uLevel) &&
-                 (pendingProcess == ProcessKeys.RoughTubeProcessing ||
-                  (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                      && (!crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess) || pendingSection == SectionKeys.ColdRollDraw))));
+                 (pendingProcessKey == ProcessKeys.RoughTubeProcessing ||
+                  (attentionProcessKey != null && pendingProcessKey == attentionProcessKey
+                      && (!crKeys.Contains(pendingProcessKey) || pendingSectionKey == SectionKeys.ColdRollDraw))));
 
             if (!isKeyBatch) continue;
 
-            var isInspection = string.Equals(pendingSection, SectionKeys.Inspection, StringComparison.OrdinalIgnoreCase);
-            var isFinalProcess = lastProcessLookup.TryGetValue(b.Id, out var lastProc)
-                && string.Equals(pendingProcess, lastProc, StringComparison.OrdinalIgnoreCase);
+            // 批次产类：复用 ProductStatusHelper（制造规格=待产工序组的制造规格，成品规格=批次 Specification）
+            var batchPgList = pgByBatch.TryGetValue(b.Id, out var pgList) ? pgList : new List<ProcessGroup>();
+            var pendingPg = batchPgList
+                .FirstOrDefault(pg => string.Equals(ProcessKeys.ToKey(pg.ProcessName) ?? pg.ProcessName, pendingProcessKey, StringComparison.OrdinalIgnoreCase));
+            var productStatus = ProductStatusHelper.Calculate(
+                pendingProcessKey, pendingPg?.ManufacturingSpec, b.ManufacturingItem, batchPgList, b.Specification);
+
             var weightTons = (b.CurrentValidWeight ?? 0m) / 1000m;
 
-            // 对于 D（荒管检）：直接匹配固定维度
-            if (dSettingId.HasValue
-                && string.Equals(pendingProcess, ProcessKeys.RoughTubeProcessing, StringComparison.OrdinalIgnoreCase)
-                && isInspection)
-            {
-                var stats = keyBatchStats[dSettingId.Value];
-                keyBatchStats[dSettingId.Value] = (stats.count + 1, stats.weight + weightTons);
-            }
-
-            // 对于 N（成品待检）：仅末道工序的检验批次
-            if (nSettingId.HasValue && isInspection && isFinalProcess)
-            {
-                var stats = keyBatchStats[nSettingId.Value];
-                keyBatchStats[nSettingId.Value] = (stats.count + 1, stats.weight + weightTons);
-            }
-
-            // 通用匹配（A-C, F-M）
+            // 每个重点批次在同一类别下只计一次（与旧实现一致）
             foreach (var setting in settings)
             {
-                if (setting.CategoryCode is "D" or "E" or "N") continue; // 已单独处理
-
-                foreach (var item in setting.Items)
+                if (!groupsBySetting.TryGetValue(setting.Id, out var groupRows)) continue;
+                var matched = false;
+                foreach (var grp in groupRows)
                 {
-                    bool match;
-                    if (string.Equals(item.ProcessGroupName, "全部", StringComparison.OrdinalIgnoreCase)
-                        && string.Equals(item.SectionName, "全部", StringComparison.OrdinalIgnoreCase))
-                        match = true;
-                    else if (string.Equals(item.ProcessGroupName, "全部", StringComparison.OrdinalIgnoreCase))
-                        match = string.Equals(pendingSection, item.SectionName, StringComparison.OrdinalIgnoreCase);
-                    else if (string.Equals(item.SectionName, "全部", StringComparison.OrdinalIgnoreCase))
-                        match = string.Equals(pendingProcess, item.ProcessGroupName, StringComparison.OrdinalIgnoreCase);
-                    else
-                        match = string.Equals(pendingProcess, item.ProcessGroupName, StringComparison.OrdinalIgnoreCase)
-                             && string.Equals(pendingSection, item.SectionName, StringComparison.OrdinalIgnoreCase);
-
-                    if (match)
-                    {
-                        var stats = keyBatchStats[setting.Id];
-                        keyBatchStats[setting.Id] = (stats.count + 1, stats.weight + weightTons);
-                        break;
-                    }
+                    if (!Matches(grp, pendingProcessKey, pendingSectionKey, productStatus))
+                        continue;
+                    matched = true;
+                    break;
                 }
+                if (!matched) continue;
+                var stats = keyBatchStats[setting.Id];
+                keyBatchStats[setting.Id] = (stats.count + 1, stats.weight + weightTons);
             }
-
-            // 收集检验类统计（用于 E = 全部检验 - D - N）
-            if (isInspection)
-            {
-                inspectionStats.totalCount++;
-                inspectionStats.totalWeight += weightTons;
-                if (string.Equals(pendingProcess, ProcessKeys.RoughTubeProcessing, StringComparison.OrdinalIgnoreCase))
-                {
-                    inspectionStats.dCount++;
-                    inspectionStats.dWeight += weightTons;
-                }
-                if (isFinalProcess)
-                {
-                    inspectionStats.nCount++;
-                    inspectionStats.nWeight += weightTons;
-                }
-            }
-        }
-
-        // 计算 E（在制检）= 全部检验 - D - N
-        if (eSettingId.HasValue)
-        {
-            var eCount = inspectionStats.totalCount - inspectionStats.dCount - inspectionStats.nCount;
-            var eWeight = inspectionStats.totalWeight - inspectionStats.dWeight - inspectionStats.nWeight;
-            keyBatchStats[eSettingId.Value] = (eCount > 0 ? eCount : 0, eWeight > 0 ? eWeight : 0m);
         }
 
         foreach (var r in results)
@@ -334,15 +281,24 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
         return await _categoryService.UpdateSettingAsync(dto);
     }
 
-    private static decimal GetBaseAmount(string categoryCode, SectionProductionStatusDto match)
+    /// <summary>
+    /// 组合归类行三维匹配：工序组/工段支持"全部"通配；产类 AllStatus=不限定，否则精确匹配。
+    /// </summary>
+    private static bool Matches(CombinationGroup grp, string processKey, string sectionKey, string productStatus)
     {
-        return categoryCode switch
-        {
-            "D" => match.Total ?? 0m,                              // 荒管检：汇总量
-            "E" => match.Total ?? 0m,                              // 在制检：汇总量（后需整体减 N）
-            "N" => match.FinalProcessTotal ?? 0m,                  // 成品待检：所有工序组中工段=检验的属成品工序量
-            _ => match.Total ?? 0m                                 // A-C, F-M：汇总量
-        };
+        if (!string.Equals(grp.ProcessGroupName, CombinationWildcards.All, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(grp.ProcessGroupName, processKey, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!string.Equals(grp.SectionName, CombinationWildcards.All, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(grp.SectionName, sectionKey, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!string.Equals(grp.ProductStatus, ProductStatuses.AllStatus, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(grp.ProductStatus, productStatus, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return true;
     }
 
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>

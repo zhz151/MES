@@ -346,6 +346,13 @@ public partial class PendingDelivery
                 opt.Display = DisplayHelper.GetLengthStatusText(opt.Value);
         }
 
+        // MaterialType 列显示中文（后端返回枚举英文名）
+        if (_filterContextOptions.TryGetValue("materialtype", out var materialOptions))
+        {
+            foreach (var opt in materialOptions)
+                opt.Display = DisplayHelper.GetMaterialTypeText(opt.Value);
+        }
+
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
         foreach (var col in _allColumns)
         {

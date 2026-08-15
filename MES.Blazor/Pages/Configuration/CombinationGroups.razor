@@ -1,0 +1,176 @@
+@page "/combination-groups"
+@using MES.Blazor.Services
+@using MES.Core.Models
+@using MES.Blazor.Shared
+@using MES.Core.DTOs.Configuration
+@using Microsoft.AspNetCore.Authorization
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = Roles.Policies.AdminOnly)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Tune" Class="mr-2" Color="Color.Primary" />
+                    组合归类表
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudText Typo="Typo.body2" Class="mr-4">
+                    共 @_items.Count 个组合
+                </MudText>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Success"
+                           Disabled="@_isLoading"
+                           OnClick="AddNewItem"
+                           Class="mr-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-1" />
+                    新增组合
+                </MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="@_isLoading"
+                           OnClick="LoadDataAsync">
+                    <MudIcon Icon="@Icons.Material.Filled.Refresh" Class="mr-1" />
+                    刷新
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <MudTable T="CombinationGroupDto"
+                      Items="@_items"
+                      Dense="true" Hover="true" Elevation="0" Class="auto-table"
+                      RowsPerPage="25" RowsPerPageLabel="每页行数:">
+                <HeaderContent>
+                    <MudTh><span class="th-label">工序组<span class="required-star">*</span></span></MudTh>
+                    <MudTh><span class="th-label">工段<span class="required-star">*</span></span></MudTh>
+                    <MudTh><span class="th-label">产类<span class="required-star">*</span></span></MudTh>
+                    <MudTh><span class="th-label">归属流转类别<span class="required-star">*</span></span></MudTh>
+                    <MudTh><span class="th-label">归属段落</span></MudTh>
+                    <MudTh Style="width: 120px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @{
+                        var rowEditing = _editingIds.Contains(item.Id);
+                        var rowCache = rowEditing && _editCache.TryGetValue(item.Id, out var rc) ? rc : null;
+                    }
+                    <MudTd>
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudSelect T="string" Dense="true" Variant="Variant.Outlined"
+                                       Value="@rowCache.ProcessGroupName"
+                                       ValueChanged="@(v => rowCache.ProcessGroupName = v)"
+                                       Class="compact-input">
+                                @foreach (var p in _processOptions)
+                                {
+                                    <MudSelectItem T="string" Value="@p.ProcessKey">@GetProcessDisplay(p.ProcessKey)</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            @GetProcessDisplay(item.ProcessGroupName)
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudSelect T="string" Dense="true" Variant="Variant.Outlined"
+                                       Value="@rowCache.SectionName"
+                                       ValueChanged="@(v => rowCache.SectionName = v)"
+                                       Class="compact-input">
+                                @foreach (var s in _sectionOptions)
+                                {
+                                    <MudSelectItem T="string" Value="@s.SectionKey">@GetSectionDisplay(s.SectionKey)</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            @GetSectionDisplay(item.SectionName)
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudSelect T="string" Dense="true" Variant="Variant.Outlined"
+                                       Value="@rowCache.ProductStatus"
+                                       ValueChanged="@(v => rowCache.ProductStatus = v)"
+                                       Class="compact-input">
+                                @foreach (var ps in _productStatusOptions)
+                                {
+                                    <MudSelectItem T="string" Value="@ps.Value">@ps.Text</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            @GetProductStatusDisplay(item.ProductStatus)
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudSelect T="int?" Dense="true" Variant="Variant.Outlined"
+                                       Value="@rowCache.FlowCategoryId"
+                                       ValueChanged="@(v => rowCache.FlowCategoryId = v)"
+                                       Class="compact-input">
+                                @foreach (var cat in _categoryOptions)
+                                {
+                                    <MudSelectItem T="int?" Value="@((int?)cat.Id)">@cat.CategoryName</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            @GetCategoryDisplay(item.FlowCategoryId)
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @if (rowEditing && rowCache != null)
+                        {
+                            <MudSelect T="string?" Dense="true" Variant="Variant.Outlined"
+                                       Value="@rowCache.ParagraphName"
+                                       ValueChanged="@(v => rowCache.ParagraphName = v)"
+                                       Class="compact-input">
+                                @foreach (var p in _paragraphOptions)
+                                {
+                                    <MudSelectItem T="string?" Value="@p.ParagraphName">@p.ParagraphName</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            @GetParagraphDisplay(item.ParagraphName)
+                        }
+                    </MudTd>
+                    <MudTd Style="white-space: nowrap; width: 120px;">
+                        @if (rowEditing)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small" OnClick="() => CancelEdit(item)" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(item)" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
+
+    <!-- 加载遮罩 -->
+    <MudOverlay Visible="@_isLoading">
+        <div class="d-flex justify-center align-center" style="height: 100%;">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+        </div>
+    </MudOverlay>
+</MudContainer>

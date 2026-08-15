@@ -57,7 +57,11 @@ public class ColdRollPlanService : IColdRollPlanService
         _processDefService = processDefService;
     }
 
-    public async Task<List<ColdRollPlanRowDto>> GetPlanAsync(string? sectionFilter)
+    /// <summary>
+    /// 构建中间分配数据（主列表 GetPlanAsync 与排程汇总 GetScheduleSummaryAsync 共用）
+    /// 批次 → 每个冷轧工序组一行，含三档分类输入(IsUrgent/IsNormal/AttentionMatchesCurrentCR)与时间桶(PositionDiff)
+    /// </summary>
+    private async Task<List<BatchAllocation>> BuildAllocationsAsync(string? sectionFilter)
     {
         var crKeys = await _processDefService.GetColdRollOrDrawKeysAsync();
         // 1. 加载所有在产/待产批次（投影仅加载需要的字段，减少数据传输）
@@ -87,18 +91,29 @@ public class ColdRollPlanService : IColdRollPlanService
                     ColdRollDraw = pg.ColdRollDraw,
                     OilPipeCut = pg.OilPipeCut,
                     Degrease = pg.Degrease,
+                    EmulsionWash = pg.EmulsionWash,
+                    UltrasonicWash = pg.UltrasonicWash,
+                    ClothPolish = pg.ClothPolish,
+                    BrightAnnealing = pg.BrightAnnealing,
                     Solution = pg.Solution,
                     Straighten = pg.Straighten,
                     Cut = pg.Cut,
                     ThicknessMeasure = pg.ThicknessMeasure,
                     Pickle = pg.Pickle,
                     OuterPolish = pg.OuterPolish,
+                    InnerPolish = pg.InnerPolish,
                     InnerGrinding = pg.InnerGrinding,
                     OuterSpotGrinding = pg.OuterSpotGrinding,
+                    SandBlasting = pg.SandBlasting,
+                    ShotBlasting = pg.ShotBlasting,
                     Inspection = pg.Inspection,
                     WeldingHead = pg.WeldingHead,
+                    Welding = pg.Welding,
                     Lubrication = pg.Lubrication,
+                    Packing = pg.Packing,
                     Warehouse = pg.Warehouse,
+                    Extra1 = pg.Extra1,
+                    Extra2 = pg.Extra2,
                 }).ToList()
             })
             .ToListAsync();
@@ -144,21 +159,33 @@ public class ColdRollPlanService : IColdRollPlanService
                 .Select(pg => (int?)pg.SequenceNumber)
                 .FirstOrDefault();
 
-            // 确定批次当前执行工段的"生产执行序号"（跨组统一编号）
-            int currentGlobalSeq = 0;
-            if (currentPgSeq.HasValue)
+            // ===== 构建全局"工作序"：按工序组顺序累加实际非空工段数，得到每个工段在批次全流程中的执行序号 =====
+            // 例：荒管处理 3 道工段(工作序 1-3) → 三辊冷轧冷轧拔为第 4 道(工作序 4) → 附加成检(5...)。
+            // 目标冷轧拔工作序与批次当前执行工作序对比：当前已越过目标 → 批次已轧完此冷轧，非待轧。
+            var sectionGlobalSeq = new Dictionary<(int GroupSeq, string SectionKey), int>();
+            int currentGlobalExecSeq = 0;
             {
-                var currentPg = sortedPgs.FirstOrDefault(pg => pg.SequenceNumber == currentPgSeq.Value);
-                if (currentPg != null)
+                int running = 0;
+                foreach (var pg in sortedPgs)
                 {
-                    foreach (var (name, seq) in currentPg.GetNonEmptySections())
+                    foreach (var (name, _) in pg.GetNonEmptySections())
                     {
-                        if (name == batch.CurrentSectionName)
-                        {
-                            currentGlobalSeq = seq;
-                            break;
-                        }
+                        running++;
+                        var key = SectionKeys.ToKey(name) ?? name;
+                        sectionGlobalSeq[(pg.SequenceNumber, key)] = running;
                     }
+                    // 批次当前工序组已确定但无当前工段 → 视为该组已完成，当前执行工作序 = 该组最后一道工段
+                    if (currentPgSeq.HasValue && pg.SequenceNumber == currentPgSeq.Value
+                        && string.IsNullOrEmpty(batch.CurrentSectionName))
+                    {
+                        currentGlobalExecSeq = running;
+                    }
+                }
+                // 批次有当前工段 → 取其全局工作序（未投产或匹配不到时保持 0）
+                if (currentPgSeq.HasValue && !string.IsNullOrEmpty(batch.CurrentSectionName))
+                {
+                    var currentKey = SectionKeys.ToKey(batch.CurrentSectionName) ?? batch.CurrentSectionName;
+                    currentGlobalExecSeq = sectionGlobalSeq.GetValueOrDefault((currentPgSeq.Value, currentKey), 0);
                 }
             }
 
@@ -170,25 +197,26 @@ public class ColdRollPlanService : IColdRollPlanService
                     && crPg.ProcessName != (ProcessKeys.ToKey(sectionFilter) ?? sectionFilter))
                     continue;
 
-                int targetGlobalSeq = crPg.GetSectionSequence(SectionKeys.ColdRollDraw) ?? 0;
-                if (targetGlobalSeq <= 0) continue;
+                // 目标冷轧拔的全局工作序（该工段在批次全流程中的执行序号）
+                int targetGlobalExecSeq = sectionGlobalSeq.GetValueOrDefault(
+                    (crPg.SequenceNumber, SectionKeys.ColdRollDraw), 0);
+                if (targetGlobalExecSeq <= 0) continue; // 该工序组无冷轧拔工段
 
-                // 批次已在此工序组且已完成或无当前工段 → 视为已过此冷轧
+                // 批次当前就在目标冷轧工序组内且无当前工段 → 本组已完成，视为已过此冷轧
                 if (currentPgSeq.HasValue && crPg.SequenceNumber == currentPgSeq.Value)
                 {
-                    // 无当前工段名（数据上无活动工段）→ 视为本组已完成
-                    if (string.IsNullOrEmpty(batch.CurrentSectionName))
-                        continue;
-                    // 冷轧拔已完成
+                    if (string.IsNullOrEmpty(batch.CurrentSectionName)) continue;
+                    // 当前工段是冷轧拔且已完成 → 已过
                     if (batch.CurrentSectionName == SectionKeys.ColdRollDraw
                         && batch.CurrentSectionCompleted == true)
                         continue;
                 }
 
-                int diff = targetGlobalSeq - currentGlobalSeq;
-                if (diff < 0) continue; // 已过此冷轧，跳过
+                // 工作序对比：目标冷轧拔工作序 − 批次当前执行工作序（未投产=0）
+                int diff = targetGlobalExecSeq - currentGlobalExecSeq;
+                if (diff < 0) continue; // 批次当前执行工作序已越过目标冷轧拔工作序 → 已轧完，跳过
 
-                // 判断是否正在此工序组做冷轧拔（近日在轧），不使用 diff==0
+                // 判断是否正在此工序组做冷轧拔（近日在轧）
                 bool isProducing = batch.Status == BatchStatus.InProgress
                     && !string.IsNullOrEmpty(batch.CurrentSectionName)
                     && batch.CurrentSectionName == SectionKeys.ColdRollDraw
@@ -196,8 +224,7 @@ public class ColdRollPlanService : IColdRollPlanService
                     && currentPgSeq.HasValue
                     && crPg.SequenceNumber == currentPgSeq.Value;
 
-                // 只有真正在此PG做冷轧拔才能占位0（近日在轧），
-                // 否则即使 diff==0 也应归入待轧今日(positionDiff=1)
+                // 只有真正在此PG做冷轧拔才能占位0（近日在轧），否则即使 diff==0 也应归入待轧今日(positionDiff=1)
                 int positionDiff = isProducing ? 0 : (diff == 0 ? 1 : diff);
 
                 // 规格维度推导
@@ -205,32 +232,21 @@ public class ColdRollPlanService : IColdRollPlanService
                 var billetSpec = GetBilletSpec(sortedPgs, crPg, batch.SourceSpecification);
                 var isFinished = crPg.SequenceNumber == sortedPgs.Max(pg => pg.SequenceNumber);
 
-                // IsKeyBatch（新逻辑，与批次计划 V5.10 同步）
                 var plan = summary != null ? planDict.GetValueOrDefault(summary.WorkOrderId) : null;
                 var urgency = plan?.UrgencyLevel ?? summary?.UrgencyLevel;
                 var productionFlowProperty = plan?.ProductionFlowProperty ?? summary?.ProductionFlowProperty;
                 var attentionProcess = plan?.ProductionAttentionProcess ?? summary?.MainNoAttentionProcess;
 
-                bool isKeyBatch = false;
-                bool isGeneralKeyBatch = false; // 总的特急（不区分冷轧/非冷轧）
-                if (UrgencyLevelKeys.IsUrgent(urgency)
-                    && productionFlowProperty == ProductionFlowKeys.Normal)
+                // Model B：三档分类器输入（不再使用 IsKeyBatch/IsGeneralKeyBatch）
+                // isUrgent = UrgencyLevelKeys.IsUrgent(urgency)（与下方 IsUrgent 字段同源）
+                // isNormal = 正常流转；attentionMatchesCurrentCR = 关注工序 == 当前冷轧排程行 ProcessType（ProcessKeys 归一）
+                bool isNormal = productionFlowProperty == ProductionFlowKeys.Normal;
+                bool attentionMatchesCurrentCR = false;
+                if (!string.IsNullOrEmpty(attentionProcess))
                 {
-                    if (crKeys.Contains(ProcessKeys.ToKey(attentionProcess) ?? attentionProcess ?? ""))
-                    {
-                        var attentionPg = sortedPgs.FirstOrDefault(pg => pg.ProcessName == attentionProcess);
-                        var attentionSectionSeq = attentionPg?.GetSectionSequence(SectionKeys.ColdRollDraw);
-                        if (attentionSectionSeq.HasValue)
-                        {
-                            isKeyBatch = currentGlobalSeq < attentionSectionSeq.Value + 1;
-                            isGeneralKeyBatch = isKeyBatch;
-                        }
-                    }
-                    else
-                    {
-                        // 非冷轧类(荒管处理/在制修检)：满足 Urgent+正常 即视为总的特急
-                        isGeneralKeyBatch = true;
-                    }
+                    var attnKey = ProcessKeys.ToKey(attentionProcess) ?? attentionProcess;
+                    var pgKey = ProcessKeys.ToKey(crPg.ProcessName) ?? crPg.ProcessName;
+                    attentionMatchesCurrentCR = string.Equals(attnKey, pgKey, StringComparison.OrdinalIgnoreCase);
                 }
 
                 intermediate.Add(new BatchAllocation
@@ -240,16 +256,24 @@ public class ColdRollPlanService : IColdRollPlanService
                     BilletSpec = billetSpec,
                     RollingSpec = rollingSpec,
                     IsFinished = isFinished,
-                    IsKeyBatch = isKeyBatch,
-                    IsGeneralKeyBatch = isGeneralKeyBatch,
                     IsUrgent = UrgencyLevelKeys.IsUrgent(urgency),
-                    IsAttentionColdRoll = crKeys.Contains(ProcessKeys.ToKey(attentionProcess) ?? attentionProcess ?? ""),
+                    UrgencyLevel = urgency,
+                    IsNormal = isNormal,
+                    AttentionMatchesCurrentCR = attentionMatchesCurrentCR,
                     PositionDiff = positionDiff,
                     Weight = batch.CurrentValidWeight ?? 0m,
                     MachineNo = isProducing ? (batch.CurrentEquipmentName ?? batch.CurrentOutsource) : null,
+                    ShortDisplay = GetShortDisplay(billetSpec, rollingSpec),
                 });
             }
         }
+
+        return intermediate;
+    }
+
+    public async Task<List<ColdRollPlanRowDto>> GetPlanAsync(string? sectionFilter)
+    {
+        var intermediate = await BuildAllocationsAsync(sectionFilter);
 
         // 5. 聚合：按 (ProcessType, BilletSpec, RollingSpec, IsFinished) 分组
         var result = intermediate
@@ -270,8 +294,10 @@ public class ColdRollPlanService : IColdRollPlanService
                     if (item.PositionDiff == 0)
                     {
                         row.WeightProd += item.Weight;
-                        if (item.IsKeyBatch)
+                        if (item.IsUrgent && item.IsNormal && item.AttentionMatchesCurrentCR)
                             row.WeightProdUrgent += item.Weight;
+                        else if (item.IsUrgent && item.IsNormal)
+                            row.WeightProdUrgentSub += item.Weight;
                         else if (item.IsUrgent)
                             row.WeightProdUrgentOther += item.Weight;
                     }
@@ -310,8 +336,6 @@ public class ColdRollPlanService : IColdRollPlanService
                         row.WeightDistant += item.Weight;
                     }
 
-                    if (item.IsKeyBatch)
-                        row.KeyBatchCount++;
                 }
 
                 // 计算展示字段
@@ -342,7 +366,112 @@ public class ColdRollPlanService : IColdRollPlanService
         return result;
     }
 
+    /// <summary>
+    /// 冷轧排程汇总：复用主列表中间数据，按 (冷轧类型, 外径跨度) 聚合分档
+    /// 在轧(PositionDiff==0) 与 待轧(PositionDiff 1~6) 均按三档分类器对称分档：
+    ///   特急 = IsUrgent ∧ 正常流转 ∧ 关注==当前冷轧；特急- = IsUrgent ∧ 正常流转 ∧ 关注≠当前冷轧；急 = IsUrgent ∧ 非正常流转
+    /// 余量 = 该侧总量 − 特急 − 特急- − 急
+    /// 仅统计"排程设置"中按档位排程的批次：在轧侧按 CompletionType(在轧要求)、待轧侧按 RollType(待轧要求) 匹配档位，
+    /// 档位不匹配的批次不计入（如要求=特急，则只统计特急档，特急-/急/普通批次不显示）
+    /// </summary>
+    public async Task<List<ColdRollPlanSummaryDto>> GetScheduleSummaryAsync(string? sectionFilter, int? maxDiff = null)
+    {
+        var allocations = await BuildAllocationsAsync(sectionFilter);
+
+        // 仅统计"排程设置"中按档位排程的批次：
+        // 在轧侧(PositionDiff==0)按 CompletionType(在轧要求)、待轧侧按 RollType(待轧要求) 匹配档位。
+        // 档位语义（与批次计划 BatchPlanScheduleService/BatchPlanDto 一致）：
+        //   All/Subsequent → 该侧全部批次；CrOnly → 特急(正常流转∧关注==当前冷轧)；
+        //   Urgent/Partial1 → 特急/特急-(正常流转)；Partial2 → A+/A急(IsUrgent)；Partial3 → A+/A急 或 B顺；None/无排程记录 → 该侧不统计
+        var scheduleDict = await _context.ColdRollSpecSchedules
+            .AsNoTracking()
+            .Select(s => new { s.ProcessType, s.BilletSpec, s.RollingSpec, s.IsFinished, s.CompletionType, s.RollType })
+            .ToDictionaryAsync(
+                s => $"{s.ProcessType}|{s.BilletSpec}|{s.RollingSpec}|{s.IsFinished}",
+                s => new { s.CompletionType, s.RollType },
+                StringComparer.OrdinalIgnoreCase);
+
+        allocations = allocations
+            .Where(a =>
+            {
+                if (!scheduleDict.TryGetValue($"{a.ProcessType}|{a.BilletSpec}|{a.RollingSpec}|{a.IsFinished}", out var sched))
+                    return false;
+                return a.PositionDiff == 0
+                    ? MatchesScheduleType(sched.CompletionType, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel)
+                    : MatchesScheduleType(sched.RollType, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel);
+            })
+            .ToList();
+
+        // maxDiff 过滤：在轧(0)恒包含；全部(null)=待轧近(1~6，不含远日)；近2天=≤2；近4天=≤4
+        allocations = maxDiff.HasValue
+            ? allocations.Where(a => a.PositionDiff == 0 || a.PositionDiff <= maxDiff.Value).ToList()
+            : allocations.Where(a => a.PositionDiff <= 6).ToList();
+
+        if (allocations.Count == 0) return new List<ColdRollPlanSummaryDto>();
+
+        var result = allocations
+            .GroupBy(a => new { a.ProcessType, a.ShortDisplay })
+            .Select(g =>
+            {
+                var inProd = g.Where(a => a.PositionDiff == 0).ToList();
+                var inWait = g.Where(a => a.PositionDiff > 0).ToList();
+
+                decimal prodTotal = inProd.Sum(a => a.Weight);
+                decimal prodUrgent = inProd.Where(a => a.IsUrgent && a.IsNormal && a.AttentionMatchesCurrentCR).Sum(a => a.Weight);
+                decimal prodUrgentSub = inProd.Where(a => a.IsUrgent && a.IsNormal && !a.AttentionMatchesCurrentCR).Sum(a => a.Weight);
+                decimal prodOther = inProd.Where(a => a.IsUrgent && !a.IsNormal).Sum(a => a.Weight);
+
+                decimal waitTotal = inWait.Sum(a => a.Weight);
+                decimal waitUrgent = inWait.Where(a => a.IsUrgent && a.IsNormal && a.AttentionMatchesCurrentCR).Sum(a => a.Weight);
+                decimal waitUrgentSub = inWait.Where(a => a.IsUrgent && a.IsNormal && !a.AttentionMatchesCurrentCR).Sum(a => a.Weight);
+                decimal waitOther = inWait.Where(a => a.IsUrgent && !a.IsNormal).Sum(a => a.Weight);
+
+                return new ColdRollPlanSummaryDto
+                {
+                    ProcessType = g.Key.ProcessType,
+                    ShortDisplay = g.Key.ShortDisplay,
+                    BatchCount = g.Count(),
+                    TotalFlowWeight = prodTotal + waitTotal,
+
+                    ProdTotalWeight = prodTotal,
+                    ProdUrgentWeight = prodUrgent,
+                    ProdUrgentSubWeight = prodUrgentSub,
+                    ProdOtherWeight = prodOther,
+                    ProdRestWeight = prodTotal - prodUrgent - prodUrgentSub - prodOther,
+
+                    WaitTotalWeight = waitTotal,
+                    WaitUrgentWeight = waitUrgent,
+                    WaitUrgentSubWeight = waitUrgentSub,
+                    WaitOtherWeight = waitOther,
+                    WaitRestWeight = waitTotal - waitUrgent - waitUrgentSub - waitOther,
+                };
+            })
+            .OrderBy(r => r.ProcessType)
+            .ThenBy(r => r.ShortDisplay)
+            .ToList();
+
+        return result;
+    }
+
     // ========== 私有方法 ==========
+
+    /// <summary>
+    /// 排程要求档位是否匹配批次（与批次计划 BatchPlanDto._trigger 档位语义一致，Model B）：
+    /// All/Subsequent=该侧全部；CrOnly=特急(正常流转∧关注==当前冷轧)；Urgent/Partial1=特急/特急-(正常流转)；
+    /// Partial2=A+/A急(IsUrgent)；Partial3=A+/A急 或 B顺；None/未知=不匹配
+    /// </summary>
+    private static bool MatchesScheduleType(string? scheduleType, bool isUrgent, bool isNormal, bool attentionMatchesThisCR, string? urgencyLevel)
+    {
+        return scheduleType switch
+        {
+            "All" or "Subsequent" => true,
+            "CrOnly" => isUrgent && isNormal && attentionMatchesThisCR,
+            "Urgent" or "Partial1" => isUrgent && isNormal,
+            "Partial2" => isUrgent,
+            "Partial3" => isUrgent || urgencyLevel == UrgencyLevelKeys.BOrder,
+            _ => false,
+        };
+    }
 
     /// <summary>
     /// 获取轧坯规格：冷轧工序组的前一个工序组的制造规格
@@ -368,18 +497,18 @@ public class ColdRollPlanService : IColdRollPlanService
     }
 
     /// <summary>
-    /// 待轧紧急批次三层拆分累加：
-    /// 特急管 = 总的特急 ∩ 冷轧类关注工序（IsGeneralKeyBatch + IsAttentionColdRoll）
-    /// 后特急 = 总的特急 ∩ 非冷轧类关注工序（荒管处理/在制修检）
-    /// 其它急管 = 紧急(A+急/A急) - 总的特急
+    /// 待轧紧急批次三层拆分累加（三档分类器）：
+    /// 特急 = 正常流转 ∧ 关注==当前冷轧（关注工序==当前冷轧行 ProcessType）
+    /// 特急- = 正常流转 ∧ 关注≠当前冷轧（含非冷轧关注/无关注）
+    /// 急 = 非正常流转
     /// </summary>
     private static void AccumulateWaitUrgent(ColdRollPlanRowDto row, BatchAllocation item)
     {
         if (!item.IsUrgent) return;
 
-        if (item.IsGeneralKeyBatch && item.IsAttentionColdRoll)
+        if (item.IsNormal && item.AttentionMatchesCurrentCR)
             row.WeightWaitNearUrgent += item.Weight;
-        else if (item.IsGeneralKeyBatch && !item.IsAttentionColdRoll)
+        else if (item.IsNormal)
             row.WeightWaitNearBackUrgent += item.Weight;
         else
             row.WeightWaitNearOtherUrgent += item.Weight;
@@ -395,10 +524,11 @@ public class ColdRollPlanService : IColdRollPlanService
         public string BilletSpec { get; set; } = "";
         public string RollingSpec { get; set; } = "";
         public bool IsFinished { get; set; }
-        public bool IsKeyBatch { get; set; }
-        public bool IsGeneralKeyBatch { get; set; } // 总的特急（不区分冷轧/非冷轧）
         public bool IsUrgent { get; set; }          // (A+急/A急)
-        public bool IsAttentionColdRoll { get; set; } // IsColdRollOrDraw(attentionProcess)
+        public string? UrgencyLevel { get; set; }   // 批次紧急性（B顺判定用）
+        public bool IsNormal { get; set; }          // ProductionFlowProperty==正常
+        public bool AttentionMatchesCurrentCR { get; set; } // 关注工序==当前冷轧行 ProcessType
+        public string ShortDisplay { get; set; } = ""; // 外径跨度
         public int PositionDiff { get; set; }
         public decimal Weight { get; set; }
         /// <summary>在产设备的设备名（仅 PositionDiff==0 时有值）</summary>

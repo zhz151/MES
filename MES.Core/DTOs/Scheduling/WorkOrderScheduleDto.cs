@@ -15,6 +15,9 @@ public class WorkOrderScheduleDto
     public string WorkOrderNo { get; set; } = null!;
     public string Salesman { get; set; } = null!;
     public string CustomerName { get; set; } = null!;
+
+    /// <summary>最终客户（终端用户，从 SalesOrder.EndCustomer 快照）</summary>
+    public string? EndCustomer { get; set; }
     public DateTime SignDate { get; set; }
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
@@ -86,8 +89,8 @@ public class WorkOrderScheduleDto
     /// <summary>冷拔·冷轧拔 待量(kg)</summary>
     public decimal? PendingSectionDrawBench { get; set; }
 
-    /// <summary>变形工序是否完成</summary>
-    public bool DeformedProcessCompleted { get; set; }
+    /// <summary>变形工序完成三档：null=略（无在产批次）/ true=是（收尾）/ false=否</summary>
+    public bool? DeformedProcessCompleted { get; set; }
 
     /// <summary>生产关注工序</summary>
     public string? ProductionAttentionProcess { get; set; }
@@ -131,8 +134,7 @@ public class WorkOrderScheduleDto
     /// 实时一致性（由 Service 在查询后设置）：
     /// - "一致"：4 个 Plan 字段均匹配系统值
     /// - "进度调整"：仅 ProductionAttentionProcess 不一致（人为调进度，合理）
-    /// - "值存疑"：工单状态/紧急性/流转性 任一不一致（存在疑问）
-    /// - "错误"：同主号下不同工单的计划值不一致（应保持主号级一致）
+    /// - "错误"：工单状态/紧急性/流转性 任一不一致，或同主号下不同工单的计划值不一致（计划值异常，需核查修正）
     /// </summary>
     public string? ConsistencyStatus { get; set; }
 

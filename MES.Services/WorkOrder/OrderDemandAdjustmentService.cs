@@ -75,6 +75,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     WorkOrderNo = e.WorkOrderNo,
                     Salesman = e.Salesman,
                     CustomerName = e.CustomerName,
+                    EndCustomer = e.EndCustomer,
                     SignDate = e.SignDate,
                     DeliveryDate = e.DeliveryDate,
                     DelayPenalty = e.DelayPenalty,
@@ -100,13 +101,6 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
                     DaysDiffFromDelivery = e.DaysDiffFromDelivery,
                     RawMaterialLockRemark = e.RawMaterialLockRemark,
-                    FlowOutputRatio = e.FlowOutputRatio,
-                    FlowStatus = e.FlowStatus,
-                    MainNoFlowOutputRatio = e.MainNoFlowOutputRatio,
-                    MainNoFlowStatus = e.MainNoFlowStatus,
-                    FlowTotalBatchCount = e.FlowTotalBatchCount,
-                    FlowIncompleteBatchCount = e.FlowIncompleteBatchCount,
-                    FlowMaxRemainingWorkDays = e.FlowMaxRemainingWorkDays,
                     IsUrging = u != null && u.IsUrging,
                     IsBatchDelivery = u != null && u.IsBatchDelivery,
                     IsPaused = u != null && u.IsPaused,
@@ -128,6 +122,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                 x.SalesOrderNo.Contains(kw) ||
                 x.Salesman.Contains(kw) ||
                 x.CustomerName.Contains(kw) ||
+                (x.EndCustomer != null && x.EndCustomer.Contains(kw)) ||
                 (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw)) ||
                 x.PlantGrade.Contains(kw) ||
                 x.Specification.Contains(kw) ||
@@ -250,6 +245,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     s.WorkOrderNo,
                     s.Salesman,
                     s.CustomerName,
+                    s.EndCustomer,
                     s.SalesOrderNo,
                     s.ProductionMainNo,
                     s.ProductionSubNo,
@@ -277,6 +273,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                 ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
                 ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
                 ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
+                ["EndCustomer"] = all.Where(x => x.EndCustomer != null).Select(x => x.EndCustomer!).Distinct().OrderBy(x => x).ToList(),
                 ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
                 ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
                 ["ProductionSubNo"] = all.Where(x => x.ProductionSubNo != null).Select(x => x.ProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
@@ -313,6 +310,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     WorkOrderNo = e.WorkOrderNo,
                     Salesman = e.Salesman,
                     CustomerName = e.CustomerName,
+                    EndCustomer = e.EndCustomer,
                     SignDate = e.SignDate,
                     DeliveryDate = e.DeliveryDate,
                     DelayPenalty = e.DelayPenalty,
@@ -338,13 +336,6 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
                     DaysDiffFromDelivery = e.DaysDiffFromDelivery,
                     RawMaterialLockRemark = e.RawMaterialLockRemark,
-                    FlowOutputRatio = e.FlowOutputRatio,
-                    FlowStatus = e.FlowStatus,
-                    MainNoFlowOutputRatio = e.MainNoFlowOutputRatio,
-                    MainNoFlowStatus = e.MainNoFlowStatus,
-                    FlowTotalBatchCount = e.FlowTotalBatchCount,
-                    FlowIncompleteBatchCount = e.FlowIncompleteBatchCount,
-                    FlowMaxRemainingWorkDays = e.FlowMaxRemainingWorkDays,
                     IsUrging = u != null && u.IsUrging,
                     IsBatchDelivery = u != null && u.IsBatchDelivery,
                     IsPaused = u != null && u.IsPaused,
@@ -364,6 +355,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                 x.SalesOrderNo.Contains(kw) ||
                 x.Salesman.Contains(kw) ||
                 x.CustomerName.Contains(kw) ||
+                (x.EndCustomer != null && x.EndCustomer.Contains(kw)) ||
                 (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw)) ||
                 x.PlantGrade.Contains(kw) ||
                 x.Specification.Contains(kw) ||
@@ -395,12 +387,10 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
     {
         "MaterialName" => GetMaterialNameText(item.MaterialName),
         "DeliveryState" => GetDeliveryStateText(item.DeliveryState.ToString()),
-        "LengthStatus" => GetLengthStatusText(item.LengthStatus.ToString()),
+        "LengthStatus" => GetWorkOrderLengthStatusText(item.LengthStatus, item.MinLength, item.MaxLength),
         "SettlementMethod" => GetSettlementMethodText(item.SettlementMethod.ToString()),
         "DelayPenalty" => item.DelayPenaltyText,
         "ScheduleStage" => item.ScheduleStageText,
-        "FlowStatus" => IntStatusDisplayHelper.GetInputStatusText(item.FlowStatus),
-        "MainNoFlowStatus" => IntStatusDisplayHelper.GetMainNoFlowStatusText(item.MainNoFlowStatus),
         "IsUrging" => item.IsUrging ? "是" : "否",
         "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
         "IsPaused" => item.IsPaused ? "是" : "否",
@@ -408,13 +398,10 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
         "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
         "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate?.ToString("yyyy-MM-dd") ?? "",
-        "FlowOutputRatio" => item.FlowOutputRatio.ToString("F1") + "%",
-        "MainNoFlowOutputRatio" => item.MainNoFlowOutputRatio.ToString("F1") + "%",
         "TotalWeight" => ((int)item.TotalWeight).ToString(),
         "TotalRemainingWorkDays" => item.TotalRemainingWorkDays?.ToString() ?? "",
         "CapacityWorkDays" => item.CapacityWorkDays?.ToString() ?? "",
         "DaysDiffFromDelivery" => item.DaysDiffFromDelivery?.ToString() ?? "",
-        "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays.ToString(),
         _ => GetRawValue(item, key)
     };
 
@@ -423,16 +410,19 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         "WorkOrderNo" => item.WorkOrderNo ?? "",
         "Salesman" => item.Salesman ?? "",
         "CustomerName" => item.CustomerName ?? "",
+        "EndCustomer" => item.EndCustomer ?? "",
         "SalesOrderNo" => item.SalesOrderNo ?? "",
         "ProductionMainNo" => item.ProductionMainNo ?? "",
         "ProductionSubNo" => item.ProductionSubNo ?? "",
         "PlantGrade" => item.PlantGrade ?? "",
         "Specification" => item.Specification ?? "",
+        "MinLength" => item.MinLength?.ToString("G29") ?? "",
+        "MaxLength" => item.MaxLength?.ToString("G29") ?? "",
+        "TotalItemCount" => item.TotalItemCount.ToString(),
+        "TotalMeters" => ((int)item.TotalMeters).ToString(),
         "TotalQuantity" => item.TotalQuantity.ToString(),
         "UrgencyLevel" => UrgencyLevelKeys.ToChinese(item.UrgencyLevel) ?? "",
         "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "",
-        "FlowTotalBatchCount" => item.FlowTotalBatchCount.ToString(),
-        "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount.ToString(),
         _ => ""
     };
 
@@ -443,6 +433,18 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
     private static string GetSettlementMethodText(string? method) => EnumHelper.GetDisplayName<SettlementMethod>(method);
 
     private static string GetLengthStatusText(string? lengthStatus) => EnumHelper.GetDisplayName<LengthStatus>(lengthStatus);
+
+    /// <summary>工单长度状态中文文本（与前端工单维度 helper 一致：定尺仅"多种"附加标记）</summary>
+    private static string GetWorkOrderLengthStatusText(LengthStatus lengthStatus, decimal? minLength, decimal? maxLength)
+    {
+        if (lengthStatus == LengthStatus.Fixed)
+        {
+            if (minLength.HasValue && maxLength.HasValue && minLength.Value != maxLength.Value)
+                return "定尺（多）";
+            return "定尺";
+        }
+        return GetLengthStatusText(lengthStatus.ToString());
+    }
 
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)

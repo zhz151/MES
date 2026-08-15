@@ -382,8 +382,8 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>冷拔·冷轧拔 待量(kg)</summary>
     public decimal? PendingSectionDrawBench { get; set; }
 
-    /// <summary>变形工序是否完成（后6项之和=0→true）</summary>
-    public bool DeformedProcessCompleted { get; set; }
+    /// <summary>变形工序完成三档：null=略（无在产批次）/ true=是（后6项之和=0，收尾）/ false=否（后6项之和&gt;0）</summary>
+    public bool? DeformedProcessCompleted { get; set; }
 
     /// <summary>生产关注工序：前8项中值>0且SequenceNumber最小的工序名称</summary>
     public string? ProductionAttentionProcess { get; set; }

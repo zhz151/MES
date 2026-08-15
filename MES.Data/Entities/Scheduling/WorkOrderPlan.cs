@@ -10,7 +10,7 @@ public class WorkOrderPlan : BaseEntity
     /// <summary>工单ID（唯一，一个工单一条记录）</summary>
     public int WorkOrderId { get; set; }
 
-    /// <summary>工单状态覆盖值（0=工单完成 1=原料锁定 2=生产执行 3=成品检验）</summary>
+    /// <summary>工单状态覆盖值（0=主号完成 1=原料锁定 2=生产执行 3=成品检验）</summary>
     public int? ScheduleStage { get; set; }
 
     /// <summary>紧急性覆盖值（A+急/A急/B顺/C缓/D缓）</summary>

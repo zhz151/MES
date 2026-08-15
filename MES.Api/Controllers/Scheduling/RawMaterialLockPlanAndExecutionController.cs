@@ -41,7 +41,7 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     [HttpPost("set-pre-execute-flags")]
     public async Task<ActionResult<ApiResponse<SetPreExecuteFlagsResult>>> SetPreExecuteFlags([FromBody] SetPreExecuteFlagsRequest request)
     {
-        var result = await _service.SetPreExecuteFlagsAsync(request.WorkOrderIds, request.IsPreInput, request.IsMainNoMaterialComplete, request.BudgetInputDate, request.IsBudgetComplete);
+        var result = await _service.SetPreExecuteFlagsAsync(request.WorkOrderIds, request.IsPreInput, request.BudgetInputDate);
         return Ok(ApiResponse<SetPreExecuteFlagsResult>.Ok(result, result.Message));
     }
 
@@ -64,7 +64,5 @@ public class SetPreExecuteFlagsRequest
 {
     public List<int> WorkOrderIds { get; set; } = new();
     public bool? IsPreInput { get; set; }
-    public bool? IsMainNoMaterialComplete { get; set; }
     public DateTime? BudgetInputDate { get; set; }
-    public bool? IsBudgetComplete { get; set; }
 }

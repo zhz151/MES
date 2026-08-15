@@ -565,7 +565,7 @@ public partial class MaterialPlanOverview
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
         "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType),
-        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
+        "LengthStatus" => DisplayHelper.GetWorkOrderLengthStatusText(item.LengthStatus, item.MinLength, item.MaxLength),
         "MaxLength" => item.MaxLength?.ToString("G29"),
         "MinLength" => item.MinLength?.ToString("G29"),
         "TotalQuantity" => item.TotalQuantity.ToString("G29"),
@@ -590,7 +590,7 @@ public partial class MaterialPlanOverview
         "DelayPenalty" => DisplayHelper.GetYesNoText(item.DelayPenalty),
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
         "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType),
-        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
+        "LengthStatus" => DisplayHelper.GetWorkOrderLengthStatusText(item.LengthStatus, item.MinLength, item.MaxLength),
         "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
         "MaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText(item.MaterialPlanStatus),
         "MainNoMaterialPlanStatus" => GetStatusText(item.MainNoMaterialPlanStatus),
@@ -743,7 +743,7 @@ public partial class MaterialPlanOverview
                 builder.AddContent(0, DisplayHelper.GetPipeManufacturingTypeText(wo.PipeManufacturingType));
                 break;
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(wo.LengthStatus));
+                builder.AddContent(0, DisplayHelper.GetWorkOrderLengthStatusText(wo.LengthStatus, wo.MinLength, wo.MaxLength));
                 break;
             case "MaxLength":
                 builder.AddContent(0, wo.MaxLength?.ToString("G29") ?? "-");

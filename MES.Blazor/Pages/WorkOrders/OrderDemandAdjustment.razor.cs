@@ -81,65 +81,57 @@ public partial class OrderDemandAdjustment
 
     private static List<ColumnDef> GetAllColumnDefs()
     {
-        // G1: 工单基础数据
+        // G1: 工单基础数据（与工单执行状况读模型 G1 对齐：顺序/默认可见性一致）
         var g1 = new List<ColumnDef>
         {
             new() { Key = "WorkOrderNo",             Label = "工单号",          SortKey = "WorkOrderNo",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Salesman",                Label = "业务员",          SortKey = "Salesman",                FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "CustomerName",            Label = "往来单位",        SortKey = "CustomerName",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "CustomerName",            Label = "往来单位",        SortKey = "CustomerName",            FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "EndCustomer",             Label = "最终客户",        SortKey = "EndCustomer",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SalesOrderNo",            Label = "订单号",          SortKey = "SalesOrderNo",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "ProductionMainNo",        Label = "主号",            SortKey = "ProductionMainNo",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "ProductionSubNo",         Label = "次号",            SortKey = "ProductionSubNo",         FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "MaterialName",            Label = "钢管制造",        SortKey = "MaterialName",            FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>(), GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MaterialName",            Label = "钢管制造",        SortKey = "MaterialName",            FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "PlantGrade",              Label = "工厂牌号",        SortKey = "PlantGrade",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Specification",           Label = "规格",            SortKey = "Specification",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "TotalQuantity",           Label = "总支数",          SortKey = "TotalQuantity",           Width = "80", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "TotalWeight",             Label = "总重量",          SortKey = "TotalWeight",             Width = "80", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MinLength",               Label = "最小长度",        SortKey = "MinLength",               FilterType = "number", Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MaxLength",               Label = "最大长度",        SortKey = "MaxLength",               FilterType = "number", Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalItemCount",          Label = "含项次数",        SortKey = "TotalItemCount",          FilterType = "number", Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalQuantity",           Label = "总支数",          SortKey = "TotalQuantity",           FilterType = "number", Width = "80", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalMeters",             Label = "总米数",          SortKey = "TotalMeters",             FilterType = "number", Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "TotalWeight",             Label = "总重量",          SortKey = "TotalWeight",             FilterType = "number", Width = "80", GroupKey = 1, GroupName = "基础数据" },
         };
 
-        // G12: 实时关注
+        // G12: 实时关注（与工单执行状况读模型 G3 对齐：顺序/「主号-」前缀/主号级标色一致）
         var g12 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",           Label = "主号-关注",     SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "CapacityWorkDays",        Label = "产能工量(天)", SortKey = "CapacityWorkDays",        Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "UrgencyLevel",            Label = "主号-计划性",  SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "EstimatedProcessCompletionDate",Label = "工艺预计完成日",SortKey = "EstimatedProcessCompletionDate", Width = "120",                  GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "DaysDiffFromDelivery",    Label = "交期相差天数",  SortKey = "DaysDiffFromDelivery",    Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "ScheduleStage",           Label = "主号-关注",       SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "UrgencyLevel",            Label = "主号-计划性",     SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "EstimatedProcessCompletionDate",Label = "主号-预计完成日",SortKey = "EstimatedProcessCompletionDate", FilterType = "date", Width = "120", GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "DaysDiffFromDelivery",    Label = "主号-交期相差天数", SortKey = "DaysDiffFromDelivery",  FilterType = "number", Width = "80", GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "TotalRemainingWorkDays",  Label = "主号-剩余总工量(天)",SortKey = "TotalRemainingWorkDays", FilterType = "number", Width = "80", GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "CapacityWorkDays",        Label = "主号-产能工量(天)", SortKey = "CapacityWorkDays",      FilterType = "number", Width = "80", GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "RawMaterialLockRemark",   Label = "主号-原锁备注",   SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
         };
 
-        // G7: 有效流转
-        var g7 = new List<ColumnDef>
-        {
-            new() { Key = "FlowOutputRatio",          Label = "流转成品比(%)",          SortKey = "FlowOutputRatio",          Width = "100", GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "FlowStatus",               Label = "有效流转状态",           SortKey = "FlowStatus",               FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetFlowStatusOptions(), GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "MainNoFlowOutputRatio",    Label = "主号-流转比",           SortKey = "MainNoFlowOutputRatio",    Width = "100", GroupKey = 7, GroupName = "有效流转", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoFlowStatus",          Label = "主号-流转状态",         SortKey = "MainNoFlowStatus",          FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetMainNoFlowStatusOptions(), GroupKey = 7, GroupName = "有效流转", Level = ColumnLevel.MainNo },
-            new() { Key = "FlowTotalBatchCount",       Label = "总批次数",              SortKey = "FlowTotalBatchCount",       Width = "80", GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "FlowIncompleteBatchCount",  Label = "未完成批数",            SortKey = "FlowIncompleteBatchCount",  Width = "80", GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "FlowMaxRemainingWorkDays",  Label = "最大剩余工量(天)",      SortKey = "FlowMaxRemainingWorkDays",  Width = "100", GroupKey = 7, GroupName = "有效流转" },
-        };
-
-        // G13: 工单需求调整（手工编辑）
+        // G13: 工单需求调整（手工编辑，与读模型 G2 Label/宽度对齐）
         var g13 = new List<ColumnDef>
         {
-            new() { Key = "IsUrging",      Label = "催单",  SortKey = "IsUrging",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
-            new() { Key = "IsBatchDelivery",          Label = "分批交货",      SortKey = "IsBatchDelivery",          FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
-            new() { Key = "IsPaused",                  Label = "工单暂停",      SortKey = "IsPaused",                  FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
-            new() { Key = "AdjustmentRemark",          Label = "需求调整备注",  SortKey = "AdjustmentRemark",          FilterType = "string", Width = "200", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsUrging",              Label = "催单",          SortKey = "IsUrging",              FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsBatchDelivery",       Label = "分批交货",      SortKey = "IsBatchDelivery",       FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsPaused",               Label = "暂停",          SortKey = "IsPaused",               FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "AdjustmentRemark",       Label = "调整备注",      SortKey = "AdjustmentRemark",       FilterType = "string", Width = "120", GroupKey = 13, GroupName = "工单需求调整" },
         };
 
         var all = new List<ColumnDef>();
         all.AddRange(g1);
         all.AddRange(g12);
-        all.AddRange(g7);
         all.AddRange(g13);
         return all;
     }
@@ -390,6 +382,7 @@ public partial class OrderDemandAdjustment
             if (result.Success)
             {
                 Snackbar.Add("保存成功", Severity.Success);
+                await LoadFilterContextsAsync();
             }
             else
             {
@@ -589,6 +582,9 @@ public partial class OrderDemandAdjustment
             case "CustomerName":
                 builder.AddContent(0, item.CustomerName);
                 break;
+            case "EndCustomer":
+                builder.AddContent(0, item.EndCustomer ?? "-");
+                break;
             case "SignDate":
                 builder.AddContent(0, item.SignDate.ToString("yyyy-MM-dd"));
                 break;
@@ -623,10 +619,22 @@ public partial class OrderDemandAdjustment
                 builder.AddContent(0, item.Specification);
                 break;
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, DisplayHelper.GetWorkOrderLengthStatusText(item.LengthStatus, item.MinLength, item.MaxLength));
+                break;
+            case "MinLength":
+                builder.AddContent(0, item.MinLength?.ToString("G29") ?? "-");
+                break;
+            case "MaxLength":
+                builder.AddContent(0, item.MaxLength?.ToString("G29") ?? "-");
+                break;
+            case "TotalItemCount":
+                builder.AddContent(0, item.TotalItemCount);
                 break;
             case "TotalQuantity":
                 builder.AddContent(0, item.TotalQuantity);
+                break;
+            case "TotalMeters":
+                builder.AddContent(0, ((int)item.TotalMeters).ToString());
                 break;
             case "TotalWeight":
                 builder.AddContent(0, ((int)item.TotalWeight).ToString());
@@ -645,7 +653,18 @@ public partial class OrderDemandAdjustment
                 builder.AddContent(0, item.CapacityWorkDays.HasValue ? $"{item.CapacityWorkDays}天" : "-");
                 break;
             case "UrgencyLevel":
-                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "-");
+                if (!string.IsNullOrEmpty(item.UrgencyLevel))
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", DisplayHelper.GetUrgencyColor(item.UrgencyLevel));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel))));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "-");
+                }
                 break;
             case "EstimatedProcessCompletionDate":
                 builder.AddContent(0, item.EstimatedProcessCompletionDate?.ToString("yyyy-MM-dd") ?? "-");
@@ -655,35 +674,6 @@ public partial class OrderDemandAdjustment
                 break;
             case "RawMaterialLockRemark":
                 builder.AddContent(0, RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "-");
-                break;
-            case "FlowOutputRatio":
-                builder.AddContent(0, $"{item.FlowOutputRatio.ToString("F1")}%");
-                break;
-            case "FlowStatus":
-                builder.OpenComponent<MudChip>(0);
-                builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetFlowStatusColor(item.FlowStatus));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetFlowStatusText(item.FlowStatus))));
-                builder.CloseComponent();
-                break;
-            case "MainNoFlowOutputRatio":
-                builder.AddContent(0, $"{item.MainNoFlowOutputRatio.ToString("F1")}%");
-                break;
-            case "MainNoFlowStatus":
-                builder.OpenComponent<MudChip>(0);
-                builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", GetMainNoFlowStatusColor(item.MainNoFlowStatus));
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetMainNoFlowStatusText(item.MainNoFlowStatus))));
-                builder.CloseComponent();
-                break;
-            case "FlowTotalBatchCount":
-                builder.AddContent(0, item.FlowTotalBatchCount);
-                break;
-            case "FlowIncompleteBatchCount":
-                builder.AddContent(0, item.FlowIncompleteBatchCount);
-                break;
-            case "FlowMaxRemainingWorkDays":
-                builder.AddContent(0, $"{item.FlowMaxRemainingWorkDays}天");
                 break;
             case "IsUrging":
                 // 内联编辑：Switch 切换催单状态
@@ -755,22 +745,6 @@ public partial class OrderDemandAdjustment
     };
 
     // ========== 颜色 ==========
-
-    private static Color GetFlowStatusColor(int status) => status switch
-    {
-        0 => Color.Default,
-        1 => Color.Warning,
-        2 => Color.Success,
-        _ => Color.Default
-    };
-
-    private static Color GetMainNoFlowStatusColor(int status) => status switch
-    {
-        0 => Color.Default,
-        1 => Color.Warning,
-        2 => Color.Success,
-        _ => Color.Default
-    };
 
     // ========== 打印 ==========
 
@@ -854,12 +828,10 @@ public partial class OrderDemandAdjustment
         // 枚举→中文
         "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName) ?? "",
         "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState) ?? "",
-        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
+        "LengthStatus" => DisplayHelper.GetWorkOrderLengthStatusText(item.LengthStatus, item.MinLength, item.MaxLength) ?? "",
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
         "DelayPenalty" => item.DelayPenaltyText,
         "ScheduleStage" => item.ScheduleStageText,
-        "FlowStatus" => DisplayHelper.GetFlowStatusText(item.FlowStatus),
-        "MainNoFlowStatus" => DisplayHelper.GetMainNoFlowStatusText(item.MainNoFlowStatus),
         "IsUrging" => item.IsUrging ? "是" : "否",
         "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
         "IsPaused" => item.IsPaused ? "是" : "否",
@@ -872,6 +844,7 @@ public partial class OrderDemandAdjustment
         "WorkOrderNo" => item.WorkOrderNo ?? "",
         "Salesman" => item.Salesman ?? "",
         "CustomerName" => item.CustomerName ?? "",
+        "EndCustomer" => item.EndCustomer ?? "",
         "SignDate" => item.SignDate,
         "DeliveryDate" => item.DeliveryDate,
         "SalesOrderNo" => item.SalesOrderNo ?? "",
@@ -879,6 +852,10 @@ public partial class OrderDemandAdjustment
         "ProductionSubNo" => item.ProductionSubNo ?? "",
         "PlantGrade" => item.PlantGrade ?? "",
         "Specification" => item.Specification ?? "",
+        "MinLength" => item.MinLength?.ToString("G29") ?? "",
+        "MaxLength" => item.MaxLength?.ToString("G29") ?? "",
+        "TotalItemCount" => item.TotalItemCount,
+        "TotalMeters" => ((int)item.TotalMeters).ToString(),
         "TotalQuantity" => item.TotalQuantity,
         "TotalWeight" => item.TotalWeight,
         "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
@@ -887,11 +864,6 @@ public partial class OrderDemandAdjustment
         "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
         "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
         "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "",
-        "FlowOutputRatio" => item.FlowOutputRatio,
-        "MainNoFlowOutputRatio" => item.MainNoFlowOutputRatio,
-        "FlowTotalBatchCount" => item.FlowTotalBatchCount,
-        "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount,
-        "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays,
         _ => ""
     })!;
 

@@ -9,7 +9,7 @@ public class SaveWorkOrderPlanRequest
     /// <summary>工单ID</summary>
     public int WorkOrderId { get; set; }
 
-    /// <summary>工单状态覆盖（0=工单完成 1=原料锁定 2=生产执行 3=成品检验）</summary>
+    /// <summary>工单状态覆盖（0=主号完成 1=原料锁定 2=生产执行 3=成品检验）</summary>
     public int? ScheduleStage { get; set; }
 
     /// <summary>紧急性覆盖</summary>

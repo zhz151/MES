@@ -39,38 +39,36 @@ public partial class RawMaterialLockPlanAndExecution
     }
 
     // 汇总数据
+    private bool _showSummaryCard;          // 汇总卡片显隐（默认折叠）
     private int _totalOrderCount;
     private decimal _totalWeight;
-    private int _outsourceBatchCount;
-    private decimal _outsourceWeight;
-    private decimal _outsourceWeight_AJ;
-    private decimal _outsourceWeight_A;
-    private decimal _outsourceWeight_B;
-    private decimal _outsourceWeight_C;
-    private decimal _outsourceWeight_D;
     private decimal _pendingWeight;
-    private decimal _pendingWeight_AJ;
-    private decimal _pendingWeight_A;
-    private decimal _pendingWeight_B;
-    private decimal _pendingWeight_C;
-    private decimal _pendingWeight_D;
-    private int _preInputCount;
-    private decimal _preInputWeight;
-    private int _preInputOutsourceCount;
-    private decimal _preInputOutsourceWeight;
-    private int _preInputSelfCount;
-    private decimal _preInputSelfWeight;
+    private int _purchaseCount;             // 成购（外购成品）单数：成品计划量>成品到货量 的行数
+    private decimal _purchaseWeight;        // 成购重量 = Σ(成品计划量 − 成品到货量)
+
+    // 汇总交叉矩阵（原料锁定备注 × 主号计划性）：单数 + 待投料重量 + 成购单数/重量
+    private readonly record struct MatrixCell(int Count, decimal PendingWeight, int PurchaseCount, decimal PurchaseWeight);
+    private readonly Dictionary<string, MatrixCell> _summaryMatrix = new();
+
+    // 矩阵列：主号计划性五档（不含 EPaused 暂停档）
+    private static readonly string[] _urgencyColumns =
+    [
+        UrgencyLevelKeys.APlusUrgent, UrgencyLevelKeys.AUrgent,
+        UrgencyLevelKeys.BOrder, UrgencyLevelKeys.CSlow, UrgencyLevelKeys.DSlow,
+    ];
 
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
         "TotalItemCount", "TotalQuantity", "TotalMeters", "TotalWeight",
-        "TotalBatchCount",
-        "PendingRoughTubeQty", "PendingRoughTubeWeight", "PendingOutsourceFinishQty", "PendingOutsourceFinishWeight",
-        "TheoreticalFinishQty", "TheoreticalFinishWeight",
-        "InputQuantity", "InputWeight", "TheoreticalOutputQty", "TheoreticalOutputWeight",
-        "FlowTotalBatchCount", "FlowIncompleteBatchCount",
+        "TotalPlanWeight", "TotalAvailableWeight", "TotalMissingWeight", "ActualInputWeight",
+        "PiercingPlanWeight", "PiercingSubOutWeight", "PiercingSubInWeight", "PiercingSubPendingWeight",
+        "SemiPlanWeight", "SemiOrderWeight", "SemiInWeight", "SemiPendingWeight",
+        "FinishPlanWeight", "FinishOrderWeight", "FinishInWeight", "FinishPendingWeight",
+        "InventoryPlanWeight", "InventoryOutWeight",
+        "ReworkPlanWeight", "ReworkPlanInputWeight",
+        "InProcessReworkPlanWeight", "InProcessReworkInputWeight",
     };
     private int _lastSummedPage = -1;
     private int _lastSummedCount = -1;
@@ -104,18 +102,19 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "WorkOrderNo",             Label = "工单号",          SortKey = "WorkOrderNo",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Salesman",                Label = "业务员",          SortKey = "Salesman",                FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "CustomerName",            Label = "往来单位",        SortKey = "CustomerName",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "EndCustomer",             Label = "最终客户",        SortKey = "EndCustomer",             FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SalesOrderNo",            Label = "订单号",          SortKey = "SalesOrderNo",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "ProductionMainNo",        Label = "主号",            SortKey = "ProductionMainNo",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "ProductionSubNo",         Label = "次号",            SortKey = "ProductionSubNo",         FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "MaterialName",            Label = "钢管制造",        SortKey = "MaterialName",            FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>(), GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "MaterialName",            Label = "钢管制造",        SortKey = "MaterialName",            FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "DeliveryState",           Label = "交货状态",        SortKey = "DeliveryState",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "PlantGrade",              Label = "工厂牌号",        SortKey = "PlantGrade",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Specification",           Label = "规格",            SortKey = "Specification",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "LengthStatus",            Label = "长度状态",        SortKey = "LengthStatus",            FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "MinLength",               Label = "最小长度",        SortKey = "MinLength",               Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "MaxLength",               Label = "最大长度",        SortKey = "MaxLength",               Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "TotalItemCount",          Label = "总项数",          SortKey = "TotalItemCount",          Width = "80", Visible = false, GroupKey = 1, GroupName = "基础数据" },
@@ -124,94 +123,137 @@ public partial class RawMaterialLockPlanAndExecution
             new() { Key = "TotalWeight",             Label = "总重量",          SortKey = "TotalWeight",             Width = "80", GroupKey = 1, GroupName = "基础数据" },
         };
 
-        // G2: 用料计划
+        // G2: 工单需求调整
         var g2 = new List<ColumnDef>
         {
-            new() { Key = "MaterialPlanStatus",      Label = "用料计划状态",    SortKey = "MaterialPlanStatus",      FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialPlanStatus>(), GroupKey = 2, GroupName = "用料计划" },
-            new() { Key = "MainNoMaterialPlanRate",  Label = "主号-计划满足率(%)", SortKey = "MainNoMaterialPlanRate",  Width = "80", Visible = false, GroupKey = 2, GroupName = "用料计划", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoMaterialPlanStatus",Label = "主号-用料计划",   SortKey = "MainNoMaterialPlanStatus",FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialPlanStatus>(), Visible = false, GroupKey = 2, GroupName = "用料计划", Level = ColumnLevel.MainNo },
-            new() { Key = "MaterialPlanProportion",   Label = "用料占比",       SortKey = "MaterialPlanProportion",   Width = "120",                             GroupKey = 2, GroupName = "用料计划" },
+            new() { Key = "IsUrging",             Label = "催单",           SortKey = "IsUrging",             FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 2, GroupName = "工单需求调整" },
+            new() { Key = "IsBatchDelivery",      Label = "分批交货",       SortKey = "IsBatchDelivery",      FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", Visible = false, GroupKey = 2, GroupName = "工单需求调整" },
+            new() { Key = "IsPaused",             Label = "工单暂停",       SortKey = "IsPaused",             FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 2, GroupName = "工单需求调整" },
+            new() { Key = "AdjustmentRemark",     Label = "调整备注",       SortKey = "AdjustmentRemark",     FilterType = "string",  Width = "200", Visible = false, GroupKey = 2, GroupName = "工单需求调整" },
         };
 
-        // G5: 物料执行实时信息
+        // G4: 用料计划及执行实况
+        var g4 = new List<ColumnDef>
+        {
+            // 主号级（放组首，主号- 前缀，整组默认隐藏）
+            new() { Key = "MainNoMaterialPlanStatus",Label = "主号-用料计划",   SortKey = "MainNoMaterialPlanStatus", FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions(), Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoMaterialPlanRate",  Label = "主号-计划满足率(%)", SortKey = "MainNoMaterialPlanRate", Width = "80",  Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoPlanExecutionStatus", Label = "主号-计划执行状态", SortKey = "MainNoPlanExecutionStatus", FilterType = "enum", EnumOptions = DisplayHelper.GetMainNoPlanExecutionStatusOptions(), Width = "110", Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况", Level = ColumnLevel.MainNo },
+            new() { Key = "ActualMainNoInputStatus",  Label = "主号-实投状态",   SortKey = "ActualMainNoInputStatus",  FilterType = "enum", EnumOptions = DisplayHelper.GetFlowStatusOptions(), Width = "100", Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况", Level = ColumnLevel.MainNo },
+            // 工单级（整组默认隐藏）
+            new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",    SortKey = "MaterialPlanStatus",      FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions(), Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况" },
+            new() { Key = "MaterialPlanCoveredCount", Label = "料态种数",       SortKey = "MaterialPlanCoveredCount", Width = "80",       Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况" },
+            new() { Key = "MaterialPlanProportion",   Label = "用料占比",       SortKey = "MaterialPlanProportion",   Width = "120",                             Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况" },
+            new() { Key = "TheoreticalCutoffDate",    Label = "理论截止投料日",  SortKey = "TheoreticalCutoffDate",   Width = "120",                             Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况" },
+            new() { Key = "TotalPlanWeight",         Label = "计划投料总重",    SortKey = "TotalPlanWeight",         Width = "100",     Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况" },
+            new() { Key = "CutoffArrivalDate",         Label = "截止到料日",     SortKey = "CutoffArrivalDate",       Width = "120",                             Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况" },
+            new() { Key = "TotalAvailableWeight",     Label = "现可投料总重",    SortKey = "TotalAvailableWeight",     Width = "100",     Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况" },
+            new() { Key = "TotalMissingWeight",       Label = "理论缺失总料重",  SortKey = "TotalMissingWeight",       Width = "100",     Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况" },
+            new() { Key = "ActualInputWeight",        Label = "实际已投料量",    SortKey = "ActualInputWeight",        Width = "100", Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况" },
+            new() { Key = "PlanInputConsistency",     Label = "到料实投一致性",  SortKey = "PlanInputConsistency",     FilterType = "enum", EnumOptions = DisplayHelper.GetPlanInputConsistencyOptions(), Width = "140", Visible = false, GroupKey = 4, GroupName = "用料计划及执行实况", HighlightCssClass = " col-header-consistency" },
+        };
+
+        // G5: 圆棒穿孔（默认全隐）
         var g5 = new List<ColumnDef>
         {
-            new() { Key = "PendingRoughTubeQty",        Label = "待回荒管支",     SortKey = "PendingRoughTubeQty",        Width = "80",                      GroupKey = 5, GroupName = "物料执行" },
-            new() { Key = "PendingRoughTubeWeight",     Label = "待回荒管重",     SortKey = "PendingRoughTubeWeight",     Width = "80",                      GroupKey = 5, GroupName = "物料执行" },
-            new() { Key = "PendingOutsourceFinishQty",  Label = "待回外购成支",   SortKey = "PendingOutsourceFinishQty",  Width = "80",                      GroupKey = 5, GroupName = "物料执行" },
-            new() { Key = "PendingOutsourceFinishWeight",Label = "待回外购成重",  SortKey = "PendingOutsourceFinishWeight",Width = "80",                    GroupKey = 5, GroupName = "物料执行" },
-            new() { Key = "TheoreticalFinishQty",        Label = "理论成品支",    SortKey = "TheoreticalFinishQty",        Width = "80",                    GroupKey = 5, GroupName = "物料执行" },
-            new() { Key = "TheoreticalFinishWeight",     Label = "理论成品重",    SortKey = "TheoreticalFinishWeight",     Width = "80",                    GroupKey = 5, GroupName = "物料执行" },
+            new() { Key = "PiercingPlanWeight",        Label = "穿孔计划量(kg)",    SortKey = "PiercingPlanWeight",        Width = "80",  Visible = false, GroupKey = 5, GroupName = "圆棒穿孔" },
+            new() { Key = "PiercingSubOutWeight",      Label = "穿孔委外量(kg)",    SortKey = "PiercingSubOutWeight",      Width = "80",  Visible = false, GroupKey = 5, GroupName = "圆棒穿孔" },
+            new() { Key = "PiercingSubStatus",         Label = "穿孔委外状态",      SortKey = "PiercingSubStatus",         FilterType = "enum", EnumOptions = DisplayHelper.GetPlanExecutionStatusOptions(), Width = "100", Visible = false, GroupKey = 5, GroupName = "圆棒穿孔" },
+            new() { Key = "PiercingSubInWeight",       Label = "穿孔回收量(kg)",    SortKey = "PiercingSubInWeight",       Width = "80",  Visible = false, GroupKey = 5, GroupName = "圆棒穿孔" },
+            new() { Key = "PiercingSubPendingWeight",  Label = "穿孔待回收(kg)",    SortKey = "PiercingSubPendingWeight",  Width = "80",  Visible = false, GroupKey = 5, GroupName = "圆棒穿孔" },
+            new() { Key = "PiercingReturnStatus",      Label = "穿孔回收状态",      SortKey = "PiercingReturnStatus",      FilterType = "enum", EnumOptions = DisplayHelper.GetPlanExecutionStatusOptions(), Width = "100", Visible = false, GroupKey = 5, GroupName = "圆棒穿孔" },
         };
-
-        // G3: 投料数据
-        var g3 = new List<ColumnDef>
+        // G6: 荒管采购（默认全隐）
+        var g6 = new List<ColumnDef>
         {
-            new() { Key = "InputStartDate",          Label = "原始投料起始日",  SortKey = "InputStartDate",          Width = "120", GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "InputEndDate",            Label = "原始投料截止日",  SortKey = "InputEndDate",            Width = "120", GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "TotalBatchCount",         Label = "原始批次数",     SortKey = "TotalBatchCount",         Width = "80",                              GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "InputQuantity",           Label = "原始投料支数",    SortKey = "InputQuantity",           Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "InputWeight",             Label = "原始投料重量",    SortKey = "InputWeight",             Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "TheoreticalOutputQty",    Label = "理论产出支数",    SortKey = "TheoreticalOutputQty",    Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "TheoreticalOutputWeight", Label = "理论产出重量",    SortKey = "TheoreticalOutputWeight", Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "InputOutputRatio",        Label = "原始成品比",     SortKey = "InputOutputRatio",        Width = "80",                             GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "InputStatus",             Label = "原始投料状态",    SortKey = "InputStatus",             FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetFlowStatusOptions(), GroupKey = 3, GroupName = "投料数据" },
-            new() { Key = "MainNoInputOutputRatio",  Label = "主号-投料比",     SortKey = "MainNoInputOutputRatio",  Width = "80", Visible = false, GroupKey = 3, GroupName = "投料数据", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoInputStatus",       Label = "主号-投料状态",   SortKey = "MainNoInputStatus",       FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetFlowStatusOptions(), Visible = false, GroupKey = 3, GroupName = "投料数据", Level = ColumnLevel.MainNo },
+            new() { Key = "SemiPlanWeight",            Label = "荒管计划量(kg)",    SortKey = "SemiPlanWeight",            Width = "80",  Visible = false, GroupKey = 6, GroupName = "荒管采购" },
+            new() { Key = "SemiOrderWeight",           Label = "荒管采购量(kg)",    SortKey = "SemiOrderWeight",           Width = "80",  Visible = false, GroupKey = 6, GroupName = "荒管采购" },
+            new() { Key = "SemiOrderStatus",           Label = "荒管采购状态",      SortKey = "SemiOrderStatus",           FilterType = "enum", EnumOptions = DisplayHelper.GetPlanExecutionStatusOptions(), Width = "100", Visible = false, GroupKey = 6, GroupName = "荒管采购" },
+            new() { Key = "SemiInWeight",              Label = "荒管到货量(kg)",    SortKey = "SemiInWeight",              Width = "80",  Visible = false, GroupKey = 6, GroupName = "荒管采购" },
+            new() { Key = "SemiPendingWeight",         Label = "荒管待货(kg)",      SortKey = "SemiPendingWeight",         Width = "80",  Visible = false, GroupKey = 6, GroupName = "荒管采购" },
+            new() { Key = "SemiInStatus",              Label = "荒管到货状态",      SortKey = "SemiInStatus",              FilterType = "enum", EnumOptions = DisplayHelper.GetPlanExecutionStatusOptions(), Width = "100", Visible = false, GroupKey = 6, GroupName = "荒管采购" },
         };
-
-        // G7: 有效流转
+        // G7: 成品采购（默认全隐）
         var g7 = new List<ColumnDef>
         {
-            new() { Key = "FlowOutputRatio",        Label = "流转成品比",     SortKey = "FlowOutputRatio",        Width = "80",                             GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "FlowStatus",             Label = "有效流转状态",    SortKey = "FlowStatus",             FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetFlowStatusOptions(), GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "MainNoFlowOutputRatio",  Label = "主号-流转比",    SortKey = "MainNoFlowOutputRatio",   Width = "80", Visible = false,       GroupKey = 7, GroupName = "有效流转", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoFlowStatus",       Label = "主号-流转状态",  SortKey = "MainNoFlowStatus",       FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetMainNoFlowStatusOptions(), Visible = false, GroupKey = 7, GroupName = "有效流转", Level = ColumnLevel.MainNo },
-            new() { Key = "FlowMaxRemainingWorkDays", Label = "最大剩余工量(天)",SortKey = "FlowMaxRemainingWorkDays", Width = "80",                         GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "FlowTotalBatchCount",        Label = "流转总批次数",   SortKey = "FlowTotalBatchCount",        Width = "80", Visible = false, GroupKey = 7, GroupName = "有效流转" },
-            new() { Key = "FlowIncompleteBatchCount",   Label = "流转未完成批次数",SortKey = "FlowIncompleteBatchCount",   Width = "80", Visible = false, GroupKey = 7, GroupName = "有效流转" },
+            new() { Key = "FinishPlanWeight",          Label = "成品计划量(kg)",    SortKey = "FinishPlanWeight",          Width = "80",  Visible = false, GroupKey = 7, GroupName = "成品采购" },
+            new() { Key = "FinishOrderWeight",         Label = "成品采购量(kg)",    SortKey = "FinishOrderWeight",         Width = "80",  Visible = false, GroupKey = 7, GroupName = "成品采购" },
+            new() { Key = "FinishOrderStatus",         Label = "成品采购状态",      SortKey = "FinishOrderStatus",         FilterType = "enum", EnumOptions = DisplayHelper.GetPlanExecutionStatusOptions(), Width = "100", Visible = false, GroupKey = 7, GroupName = "成品采购" },
+            new() { Key = "FinishInWeight",            Label = "成品到货量(kg)",    SortKey = "FinishInWeight",            Width = "80",  Visible = false, GroupKey = 7, GroupName = "成品采购" },
+            new() { Key = "FinishPendingWeight",       Label = "成品待货(kg)",      SortKey = "FinishPendingWeight",       Width = "80",  Visible = false, GroupKey = 7, GroupName = "成品采购" },
+            new() { Key = "FinishInStatus",            Label = "成品到货状态",      SortKey = "FinishInStatus",            FilterType = "enum", EnumOptions = DisplayHelper.GetPlanExecutionStatusOptions(), Width = "100", Visible = false, GroupKey = 7, GroupName = "成品采购" },
         };
-
-        // G12: 实时关注
-        var g12 = new List<ColumnDef>
+        // G8: 库存使用（默认全隐）
+        var g8 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",           Label = "主号-关注",     SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "TotalRemainingWorkDays",  Label = "剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "CapacityWorkDays",         Label = "产能工量(天)",  SortKey = "CapacityWorkDays",         Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "UrgencyLevel",            Label = "主号-计划性",  SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "EstimatedProcessCompletionDate",Label = "工艺预计完成日",SortKey = "EstimatedProcessCompletionDate", Width = "120",                  GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "DaysDiffFromDelivery",    Label = "交期相差天数",  SortKey = "DaysDiffFromDelivery",    Width = "80",                              GroupKey = 12, GroupName = "实时关注" },
-            new() { Key = "RawMaterialLockRemark",   Label = "原锁备注",     SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 12, GroupName = "实时关注" },
+            new() { Key = "InventoryPlanWeight",       Label = "库存计划量(kg)",    SortKey = "InventoryPlanWeight",       Width = "80",  Visible = false, GroupKey = 8, GroupName = "库存使用" },
+            new() { Key = "InventoryOutWeight",        Label = "库存出库量(kg)",    SortKey = "InventoryOutWeight",        Width = "80",  Visible = false, GroupKey = 8, GroupName = "库存使用" },
+            new() { Key = "InventoryOutStatus",        Label = "库存出库状态",      SortKey = "InventoryOutStatus",        FilterType = "enum", EnumOptions = DisplayHelper.GetPlanExecutionStatusOptions(), Width = "100", Visible = false, GroupKey = 8, GroupName = "库存使用" },
+        };
+        // G9: 库料改制（默认全隐）
+        var g9 = new List<ColumnDef>
+        {
+            new() { Key = "ReworkPlanWeight",          Label = "改制计划量(kg)",    SortKey = "ReworkPlanWeight",          Width = "80",  Visible = false, GroupKey = 9, GroupName = "库料改制" },
+            new() { Key = "ReworkPlanInputWeight",     Label = "改制投料量(kg)",    SortKey = "ReworkPlanInputWeight",     Width = "80",  Visible = false, GroupKey = 9, GroupName = "库料改制" },
+            new() { Key = "ReworkPlanInputStatus",     Label = "改制投料状态",      SortKey = "ReworkPlanInputStatus",     FilterType = "enum", EnumOptions = DisplayHelper.GetPlanExecutionStatusOptions(), Width = "100", Visible = false, GroupKey = 9, GroupName = "库料改制" },
+        };
+        // G10: 在产改制（默认全隐）
+        var g10 = new List<ColumnDef>
+        {
+            new() { Key = "InProcessReworkPlanWeight",      Label = "产改计划量(kg)",  SortKey = "InProcessReworkPlanWeight",      Width = "80",  Visible = false, GroupKey = 10, GroupName = "在产改制" },
+            new() { Key = "InProcessReworkInputWeight",     Label = "产改投料量(kg)",  SortKey = "InProcessReworkInputWeight",     Width = "80",  Visible = false, GroupKey = 10, GroupName = "在产改制" },
+            new() { Key = "InProcessReworkInputStatus",     Label = "产改投料状态",    SortKey = "InProcessReworkInputStatus",     FilterType = "enum", EnumOptions = DisplayHelper.GetPlanExecutionStatusOptions(), Width = "100", Visible = false, GroupKey = 10, GroupName = "在产改制" },
         };
 
-        // G13: 工单需求调整
+        // （旧投料数据组已废弃，由 G4 用料计划及执行实况取代）
+
+        // G7 有效流转组已废弃（由 G4 用料计划执行实况 + 实时关注取代）
+
+        // G3: 实时关注（整体汇整，置于明细之前，整组主号级：主号- 前缀；组顺序与工单执行状况一致）
+        var g3 = new List<ColumnDef>
+        {
+            new() { Key = "ScheduleStage",           Label = "主号-关注",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), Visible = false, GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "UrgencyLevel",            Label = "主号-计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "EstimatedProcessCompletionDate",Label = "主号-预计完成日",SortKey = "EstimatedProcessCompletionDate", Width = "120", Visible = false, GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "DaysDiffFromDelivery",    Label = "主号-交期相差天数",  SortKey = "DaysDiffFromDelivery",  Width = "80", Visible = false, GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "TotalRemainingWorkDays",  Label = "主号-剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  Width = "80", Visible = false, GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "CapacityWorkDays",         Label = "主号-产能工量(天)",  SortKey = "CapacityWorkDays",     Width = "80", Visible = false, GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "RawMaterialLockRemark",   Label = "主号-原锁备注", SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+        };
+
+        // G13: 实际生产总流转（生产执行进度，主号- 前缀列为主号级；列顺序与工单执行状况一致；默认全隐）
         var g13 = new List<ColumnDef>
         {
-            new() { Key = "IsUrging",             Label = "催单",           SortKey = "IsUrging",             FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
-            new() { Key = "IsBatchDelivery",      Label = "分批交货",       SortKey = "IsBatchDelivery",      FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
-            new() { Key = "IsPaused",             Label = "工单暂停",       SortKey = "IsPaused",             FilterType = "boolean", Width = "80",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
-            new() { Key = "AdjustmentRemark",     Label = "调整备注",       SortKey = "AdjustmentRemark",     FilterType = "string",  Width = "200", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "MainNoFlowStatus",         Label = "主号-流转状态",   SortKey = "MainNoFlowStatus",         FilterType = "enum",   Width = "110", EnumOptions = DisplayHelper.GetMainNoFlowStatusOptions(), Visible = false, GroupKey = 13, GroupName = "实际生产总流转", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoFlowOutputRatio",    Label = "主号-流转比",     SortKey = "MainNoFlowOutputRatio",    FilterType = "number", Width = "80",  Visible = false, GroupKey = 13, GroupName = "实际生产总流转", Level = ColumnLevel.MainNo },
+            new() { Key = "FlowStatus",               Label = "工单流转状态",   SortKey = "FlowStatus",               FilterType = "enum",   Width = "110", EnumOptions = DisplayHelper.GetFlowStatusOptions(), Visible = false, GroupKey = 13, GroupName = "实际生产总流转" },
+            new() { Key = "FlowOutputRatio",          Label = "工单流转比",     SortKey = "FlowOutputRatio",          FilterType = "number", Width = "80",  Visible = false, GroupKey = 13, GroupName = "实际生产总流转" },
+            new() { Key = "FlowTotalBatchCount",      Label = "总批次数",        SortKey = "FlowTotalBatchCount",      FilterType = "number", Width = "80",  Visible = false, GroupKey = 13, GroupName = "实际生产总流转" },
+            new() { Key = "FlowIncompleteBatchCount", Label = "未完成批数",      SortKey = "FlowIncompleteBatchCount", FilterType = "number", Width = "80",  Visible = false, GroupKey = 13, GroupName = "实际生产总流转" },
+            new() { Key = "FlowMaxRemainingWorkDays", Label = "最大剩余工量(天)", SortKey = "FlowMaxRemainingWorkDays", FilterType = "number", Width = "90",  Visible = false, GroupKey = 13, GroupName = "实际生产总流转" },
         };
 
-        // G15: 预执行（页面操作标记）
+        // G15: 预执行（页面操作标记）——操作列整列高亮（靛蓝底），与数据列区分
         var g15 = new List<ColumnDef>
         {
-            new() { Key = "IsPreInput",                  Label = "执行",          SortKey = "IsPreInput",                    FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
-            new() { Key = "IsBudgetComplete",            Label = "预算主号齐全",  SortKey = "IsBudgetComplete",              FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
-            new() { Key = "BudgetInputDate",             Label = "预算投料日",    SortKey = "BudgetInputDate",               Width = "130", GroupKey = 15, GroupName = "预执行" },
-            new() { Key = "ExecutionError",              Label = "执行错误",      SortKey = "ExecutionError",                FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
-            new() { Key = "IsMainNoMaterialComplete",    Label = "主号齐全",      SortKey = "IsMainNoMaterialComplete",      FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行" },
+            new() { Key = "IsPreInput",                  Label = "执行",          SortKey = "IsPreInput",                    FilterType = "boolean", Width = "100", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 15, GroupName = "预执行", HighlightCssClass = " col-edit-actions" },
+            new() { Key = "BudgetInputDate",             Label = "预算投料日",    SortKey = "BudgetInputDate",               Width = "130", GroupKey = 15, GroupName = "预执行", HighlightCssClass = " col-edit-actions" },
         };
 
         var all = new List<ColumnDef>();
-        all.AddRange(g1);
-        all.AddRange(g2);
-        all.AddRange(g5);
-        all.AddRange(g3);
-        all.AddRange(g7);
-        all.AddRange(g12);
-        all.AddRange(g13);
-        all.AddRange(g15);
+        // 组顺序与工单执行状况读模型一致：基础数据 → 工单需求调整 → 实时关注 → 用料计划及执行实况 → 圆棒穿孔 → 荒管采购 → 成品采购 → 库存使用 → 库料改制 → 在产改制 → 实际生产总流转 → 预执行（原锁页特有）
+        all.AddRange(g1);   // 1  基础数据
+        all.AddRange(g2);   // 2  工单需求调整
+        all.AddRange(g3);   // 3  实时关注
+        all.AddRange(g4);   // 4  用料计划及执行实况
+        all.AddRange(g5);   // 5  圆棒穿孔
+        all.AddRange(g6);   // 6  荒管采购
+        all.AddRange(g7);   // 7  成品采购
+        all.AddRange(g8);   // 8  库存使用
+        all.AddRange(g9);   // 9  库料改制
+        all.AddRange(g10);  // 10 在产改制
+        all.AddRange(g13);  // 13 实际生产总流转
+        all.AddRange(g15);  // 15 预执行
         return all;
     }
 
@@ -313,44 +355,95 @@ public partial class RawMaterialLockPlanAndExecution
 
     // ========== 汇总计算 ==========
 
+    private void ToggleSummaryCard() => _showSummaryCard = !_showSummaryCard;
+
     private void RecalculateSummary()
     {
         _totalOrderCount = _allItems.Count;
         _totalWeight = _allItems.Sum(x => x.TotalWeight);
-        _outsourceBatchCount = _allItems.Count(x => x.PendingOutsourceFinishWeight > 0);
-        _outsourceWeight = _allItems.Sum(x => x.PendingOutsourceFinishWeight);
 
-        // 成品在购按紧急性分类
-        _outsourceWeight_AJ = _allItems.Where(x => x.UrgencyLevel == UrgencyLevelKeys.APlusUrgent).Sum(x => x.PendingOutsourceFinishWeight);
-        _outsourceWeight_A = _allItems.Where(x => x.UrgencyLevel == UrgencyLevelKeys.AUrgent).Sum(x => x.PendingOutsourceFinishWeight);
-        _outsourceWeight_B = _allItems.Where(x => x.UrgencyLevel == UrgencyLevelKeys.BOrder).Sum(x => x.PendingOutsourceFinishWeight);
-        _outsourceWeight_C = _allItems.Where(x => x.UrgencyLevel == UrgencyLevelKeys.CSlow).Sum(x => x.PendingOutsourceFinishWeight);
-        _outsourceWeight_D = _allItems.Where(x => x.UrgencyLevel == UrgencyLevelKeys.DSlow).Sum(x => x.PendingOutsourceFinishWeight);
+        // 成购（外购成品）：成品计划量 − 成品到货量 = 未到货量（缺口口径，外购由供应商生产、本厂不投料）
+        Func<RawMaterialLockPlanAndExecutionDto, decimal> purchaseCalc = x =>
+            Math.Max(0m, x.FinishPlanWeight - x.FinishInWeight);
+        _purchaseWeight = _allItems.Sum(purchaseCalc);
+        _purchaseCount = _allItems.Count(x => x.FinishPlanWeight > x.FinishInWeight);
 
-        // 待投料 = (工单总重量 - 外购成品) × 1.1 - 已投料，与订单总览 R1 对齐
+        // 待投料分档口径（均扣除外购成品，与订单总览 R1 同口径）：
+        //   A 质量补料：投料已满足但产出不足（质量损失），补料按流转比缺口折算 = (总重−成购)×1.1×(1−流转比/100)
+        //   C 执行计划 / D 完善计划 等：正常缺料 = (总重−成购)×1.1 − 已投料
         Func<RawMaterialLockPlanAndExecutionDto, decimal> pendingCalc = x =>
-            (x.TotalWeight - x.PendingOutsourceFinishWeight) * 1.1m - x.InputWeight;
+            RawMaterialLockRemarkKeys.ToKey(x.RawMaterialLockRemark) == RawMaterialLockRemarkKeys.QualityReplenish
+                ? Math.Max(0m, (x.TotalWeight - purchaseCalc(x)) * 1.1m * (1m - x.FlowOutputRatio / 100m))
+                : Math.Max(0m, (x.TotalWeight - purchaseCalc(x)) * 1.1m - x.InputWeight);
 
-        _pendingWeight = _allItems.Sum(x => Math.Max(0, pendingCalc(x)));
+        _pendingWeight = _allItems.Sum(pendingCalc);
 
-        _pendingWeight_AJ = _allItems.Where(x => x.UrgencyLevel == UrgencyLevelKeys.APlusUrgent).Sum(x => Math.Max(0, pendingCalc(x)));
-        _pendingWeight_A = _allItems.Where(x => x.UrgencyLevel == UrgencyLevelKeys.AUrgent).Sum(x => Math.Max(0, pendingCalc(x)));
-        _pendingWeight_B = _allItems.Where(x => x.UrgencyLevel == UrgencyLevelKeys.BOrder).Sum(x => Math.Max(0, pendingCalc(x)));
-        _pendingWeight_C = _allItems.Where(x => x.UrgencyLevel == UrgencyLevelKeys.CSlow).Sum(x => Math.Max(0, pendingCalc(x)));
-        _pendingWeight_D = _allItems.Where(x => x.UrgencyLevel == UrgencyLevelKeys.DSlow).Sum(x => Math.Max(0, pendingCalc(x)));
-
-        _preInputCount = _allItems.Count(x => x.IsPreInput);
-        _preInputWeight = _allItems.Where(x => x.IsPreInput).Sum(x => x.TotalWeight);
-
-        var preInputItems = _allItems.Where(x => x.IsPreInput).ToList();
-        var outsourceItems = preInputItems.Where(x => x.PendingOutsourceFinishWeight > 0).ToList();
-        var selfItems = preInputItems.Where(x => x.PendingOutsourceFinishWeight == 0).ToList();
-
-        _preInputOutsourceCount = outsourceItems.Count;
-        _preInputOutsourceWeight = outsourceItems.Sum(x => x.TotalWeight);
-        _preInputSelfCount = selfItems.Count;
-        _preInputSelfWeight = selfItems.Sum(x => x.TotalWeight);
+        // 交叉矩阵：原料锁定备注 × 主号计划性（每工单行独立归桶）
+        _summaryMatrix.Clear();
+        foreach (var item in _allItems)
+        {
+            var remarkKey = RawMaterialLockRemarkKeys.ToKey(item.RawMaterialLockRemark) ?? "";
+            var urgencyKey = UrgencyLevelKeys.ToKey(item.UrgencyLevel) ?? "";
+            var key = $"{remarkKey}|{urgencyKey}";
+            var cell = _summaryMatrix.GetValueOrDefault(key);
+            var purchaseWeight = Math.Max(0m, item.FinishPlanWeight - item.FinishInWeight);
+            _summaryMatrix[key] = new MatrixCell(
+                cell.Count + 1,
+                cell.PendingWeight + pendingCalc(item),
+                cell.PurchaseCount + (purchaseWeight > 0 ? 1 : 0),
+                cell.PurchaseWeight + purchaseWeight);
+        }
     }
+
+    private MatrixCell GetMatrixCell(string remarkKey, string urgencyKey)
+        => _summaryMatrix.GetValueOrDefault($"{remarkKey}|{urgencyKey}");
+
+    private MatrixCell GetMatrixRowTotal(string remarkKey)
+    {
+        var cell = new MatrixCell(0, 0m, 0, 0m);
+        foreach (var u in _urgencyColumns)
+        {
+            var c = GetMatrixCell(remarkKey, u);
+            cell = new MatrixCell(
+                cell.Count + c.Count, cell.PendingWeight + c.PendingWeight,
+                cell.PurchaseCount + c.PurchaseCount, cell.PurchaseWeight + c.PurchaseWeight);
+        }
+        return cell;
+    }
+
+    private MatrixCell GetMatrixColumnTotal(string urgencyKey)
+    {
+        var cell = new MatrixCell(0, 0m, 0, 0m);
+        foreach (var r in RawMaterialLockRemarkKeys.All)
+        {
+            var c = GetMatrixCell(r, urgencyKey);
+            cell = new MatrixCell(
+                cell.Count + c.Count, cell.PendingWeight + c.PendingWeight,
+                cell.PurchaseCount + c.PurchaseCount, cell.PurchaseWeight + c.PurchaseWeight);
+        }
+        return cell;
+    }
+
+    private MatrixCell GetMatrixGrandTotal()
+    {
+        var cell = new MatrixCell(0, 0m, 0, 0m);
+        foreach (var r in RawMaterialLockRemarkKeys.All)
+        {
+            var c = GetMatrixRowTotal(r);
+            cell = new MatrixCell(
+                cell.Count + c.Count, cell.PendingWeight + c.PendingWeight,
+                cell.PurchaseCount + c.PurchaseCount, cell.PurchaseWeight + c.PurchaseWeight);
+        }
+        return cell;
+    }
+
+    // 待投料矩阵格：单数 + 待投料重量
+    private static string FormatMatrixCell(MatrixCell cell)
+        => cell.Count > 0 ? $"{cell.Count} 单 / {cell.PendingWeight / 1000m:F1}吨" : "-";
+
+    // 成购矩阵格：仅外购成品未到（PurchaseCount>0）时显示单数 + 成购重量
+    private static string FormatPurchaseCell(MatrixCell cell)
+        => cell.PurchaseCount > 0 ? $"{cell.PurchaseCount} 单 / {cell.PurchaseWeight / 1000m:F1}吨" : "-";
 
     // ========== 筛选上下文构建 ==========
 
@@ -423,12 +516,26 @@ public partial class RawMaterialLockPlanAndExecution
         "ProductionSubNo" => item.ProductionSubNo,
         "PlantGrade" => item.PlantGrade,
         "Specification" => item.Specification,
-        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
+        "SettlementMethod" => item.SettlementMethod.ToString(),
         "MaterialName" => item.MaterialName,
-        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
-        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
-        "MaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText(item.MaterialPlanStatus),
-        "MainNoMaterialPlanStatus" => DisplayHelper.GetMaterialPlanStatusText(item.MainNoMaterialPlanStatus),
+        "DeliveryState" => item.DeliveryState.ToString(),
+        "LengthStatus" => item.LengthStatus.ToString(),
+        "EndCustomer" => item.EndCustomer,
+        // 枚举/档位列：筛选选项 Value 均为档位数字，GetFilterValue 必须返回数字字符串
+        "MaterialPlanStatus" => ((int)item.MaterialPlanStatus).ToString(),
+        "MainNoMaterialPlanStatus" => ((int)item.MainNoMaterialPlanStatus).ToString(),
+        "MainNoPlanExecutionStatus" => item.MainNoPlanExecutionStatus.ToString(),
+        "ActualMainNoInputStatus" => item.ActualMainNoInputStatus.ToString(),
+        "PlanInputConsistency" => item.PlanInputConsistency.ToString(),
+        "PiercingSubStatus" => item.PiercingSubStatus.ToString(),
+        "PiercingReturnStatus" => item.PiercingReturnStatus.ToString(),
+        "SemiOrderStatus" => item.SemiOrderStatus.ToString(),
+        "SemiInStatus" => item.SemiInStatus.ToString(),
+        "FinishOrderStatus" => item.FinishOrderStatus.ToString(),
+        "FinishInStatus" => item.FinishInStatus.ToString(),
+        "InventoryOutStatus" => item.InventoryOutStatus.ToString(),
+        "ReworkPlanInputStatus" => item.ReworkPlanInputStatus.ToString(),
+        "InProcessReworkInputStatus" => item.InProcessReworkInputStatus.ToString(),
         "InputStatus" => item.InputStatus.ToString(),
         "MainNoInputStatus" => item.MainNoInputStatus.ToString(),
         "FlowStatus" => item.FlowStatus.ToString(),
@@ -437,14 +544,17 @@ public partial class RawMaterialLockPlanAndExecution
         "UrgencyLevel" => item.UrgencyLevel,
         "RawMaterialLockRemark" => item.RawMaterialLockRemark,
         "AdjustmentRemark" => item.AdjustmentRemark,
-        "DelayPenalty" => DisplayHelper.GetYesNoText(item.DelayPenalty),
-        "IsUrging" => DisplayHelper.GetYesNoText(item.IsUrging),
-        "IsBatchDelivery" => DisplayHelper.GetYesNoText(item.IsBatchDelivery),
-        "IsPaused" => DisplayHelper.GetYesNoText(item.IsPaused),
-        "IsPreInput" => DisplayHelper.GetYesNoText(item.IsPreInput),
-        "IsBudgetComplete" => DisplayHelper.GetYesNoText(item.IsBudgetComplete),
-        "ExecutionError" => DisplayHelper.GetYesNoText(item.ExecutionError),
-        "IsMainNoMaterialComplete" => DisplayHelper.GetYesNoText(item.IsMainNoMaterialComplete),
+        "DelayPenalty" => item.DelayPenalty ? "True" : "False",
+        "IsUrging" => item.IsUrging ? "True" : "False",
+        "IsBatchDelivery" => item.IsBatchDelivery ? "True" : "False",
+        "IsPaused" => item.IsPaused ? "True" : "False",
+        "IsPreInput" => item.IsPreInput ? "True" : "False",
+        // G13 number 列（非空/空筛选）
+        "MainNoFlowOutputRatio" => item.MainNoFlowOutputRatio.ToString(),
+        "FlowOutputRatio" => item.FlowOutputRatio.ToString(),
+        "FlowTotalBatchCount" => item.FlowTotalBatchCount.ToString(),
+        "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount.ToString(),
+        "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays.ToString(),
         _ => null
     };
 
@@ -463,6 +573,7 @@ public partial class RawMaterialLockPlanAndExecution
                 (x.SalesOrderNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.Salesman?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.CustomerName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.EndCustomer?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.PlantGrade?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.Specification?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.ProductionMainNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
@@ -501,6 +612,17 @@ public partial class RawMaterialLockPlanAndExecution
                     return val != null && kvp.Value.Contains(val, StringComparer.OrdinalIgnoreCase);
                 });
             }
+            else if (col.FilterType == "number")
+            {
+                // number 列仅提供"非空/空"筛选（FilterNotNull/FilterNull 常量）
+                var wantNotNull = kvp.Value.Contains(FilterNotNull);
+                var wantNull = kvp.Value.Contains(FilterNull);
+                query = query.Where(x =>
+                {
+                    var val = GetFilterValue(x, kvp.Key);
+                    return (wantNotNull && val != null) || (wantNull && val == null);
+                });
+            }
         }
 
         // 排序
@@ -527,16 +649,53 @@ public partial class RawMaterialLockPlanAndExecution
             "TotalQuantity" => sortDescending ? query.OrderByDescending(x => x.TotalQuantity) : query.OrderBy(x => x.TotalQuantity),
             "TotalMeters" => sortDescending ? query.OrderByDescending(x => x.TotalMeters) : query.OrderBy(x => x.TotalMeters),
             "TotalWeight" => sortDescending ? query.OrderByDescending(x => x.TotalWeight) : query.OrderBy(x => x.TotalWeight),
+            "EndCustomer" => sortDescending ? query.OrderByDescending(x => x.EndCustomer) : query.OrderBy(x => x.EndCustomer),
             "MaterialPlanStatus" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanStatus) : query.OrderBy(x => x.MaterialPlanStatus),
             "MainNoMaterialPlanRate" => sortDescending ? query.OrderByDescending(x => x.MainNoMaterialPlanRate) : query.OrderBy(x => x.MainNoMaterialPlanRate),
             "MainNoMaterialPlanStatus" => sortDescending ? query.OrderByDescending(x => x.MainNoMaterialPlanStatus) : query.OrderBy(x => x.MainNoMaterialPlanStatus),
+            "MainNoPlanExecutionStatus" => sortDescending ? query.OrderByDescending(x => x.MainNoPlanExecutionStatus) : query.OrderBy(x => x.MainNoPlanExecutionStatus),
+            "MaterialPlanCoveredCount" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanCoveredCount) : query.OrderBy(x => x.MaterialPlanCoveredCount),
             "MaterialPlanProportion" => sortDescending ? query.OrderByDescending(x => x.MaterialPlanProportion) : query.OrderBy(x => x.MaterialPlanProportion),
-            "PendingRoughTubeQty" => sortDescending ? query.OrderByDescending(x => x.PendingRoughTubeQty) : query.OrderBy(x => x.PendingRoughTubeQty),
-            "PendingRoughTubeWeight" => sortDescending ? query.OrderByDescending(x => x.PendingRoughTubeWeight) : query.OrderBy(x => x.PendingRoughTubeWeight),
-            "PendingOutsourceFinishQty" => sortDescending ? query.OrderByDescending(x => x.PendingOutsourceFinishQty) : query.OrderBy(x => x.PendingOutsourceFinishQty),
-            "PendingOutsourceFinishWeight" => sortDescending ? query.OrderByDescending(x => x.PendingOutsourceFinishWeight) : query.OrderBy(x => x.PendingOutsourceFinishWeight),
-            "TheoreticalFinishQty" => sortDescending ? query.OrderByDescending(x => x.TheoreticalFinishQty) : query.OrderBy(x => x.TheoreticalFinishQty),
-            "TheoreticalFinishWeight" => sortDescending ? query.OrderByDescending(x => x.TheoreticalFinishWeight) : query.OrderBy(x => x.TheoreticalFinishWeight),
+            "TheoreticalCutoffDate" => sortDescending ? query.OrderByDescending(x => x.TheoreticalCutoffDate) : query.OrderBy(x => x.TheoreticalCutoffDate),
+            "TotalPlanWeight" => sortDescending ? query.OrderByDescending(x => x.TotalPlanWeight) : query.OrderBy(x => x.TotalPlanWeight),
+            "CutoffArrivalDate" => sortDescending ? query.OrderByDescending(x => x.CutoffArrivalDate) : query.OrderBy(x => x.CutoffArrivalDate),
+            "TotalAvailableWeight" => sortDescending ? query.OrderByDescending(x => x.TotalAvailableWeight) : query.OrderBy(x => x.TotalAvailableWeight),
+            "TotalMissingWeight" => sortDescending ? query.OrderByDescending(x => x.TotalMissingWeight) : query.OrderBy(x => x.TotalMissingWeight),
+            "ActualInputWeight" => sortDescending ? query.OrderByDescending(x => x.InputWeight) : query.OrderBy(x => x.InputWeight),
+            "PlanInputConsistency" => sortDescending ? query.OrderByDescending(x => x.PlanInputConsistency) : query.OrderBy(x => x.PlanInputConsistency),
+            // G5 圆棒穿孔
+            "PiercingPlanWeight" => sortDescending ? query.OrderByDescending(x => x.PiercingPlanWeight) : query.OrderBy(x => x.PiercingPlanWeight),
+            "PiercingSubOutWeight" => sortDescending ? query.OrderByDescending(x => x.PiercingSubOutWeight) : query.OrderBy(x => x.PiercingSubOutWeight),
+            "PiercingSubStatus" => sortDescending ? query.OrderByDescending(x => x.PiercingSubStatus) : query.OrderBy(x => x.PiercingSubStatus),
+            "PiercingSubInWeight" => sortDescending ? query.OrderByDescending(x => x.PiercingSubInWeight) : query.OrderBy(x => x.PiercingSubInWeight),
+            "PiercingSubPendingWeight" => sortDescending ? query.OrderByDescending(x => x.PiercingSubPendingWeight) : query.OrderBy(x => x.PiercingSubPendingWeight),
+            "PiercingReturnStatus" => sortDescending ? query.OrderByDescending(x => x.PiercingReturnStatus) : query.OrderBy(x => x.PiercingReturnStatus),
+            // G6 荒管采购
+            "SemiPlanWeight" => sortDescending ? query.OrderByDescending(x => x.SemiPlanWeight) : query.OrderBy(x => x.SemiPlanWeight),
+            "SemiOrderWeight" => sortDescending ? query.OrderByDescending(x => x.SemiOrderWeight) : query.OrderBy(x => x.SemiOrderWeight),
+            "SemiOrderStatus" => sortDescending ? query.OrderByDescending(x => x.SemiOrderStatus) : query.OrderBy(x => x.SemiOrderStatus),
+            "SemiInWeight" => sortDescending ? query.OrderByDescending(x => x.SemiInWeight) : query.OrderBy(x => x.SemiInWeight),
+            "SemiPendingWeight" => sortDescending ? query.OrderByDescending(x => x.SemiPendingWeight) : query.OrderBy(x => x.SemiPendingWeight),
+            "SemiInStatus" => sortDescending ? query.OrderByDescending(x => x.SemiInStatus) : query.OrderBy(x => x.SemiInStatus),
+            // G7 成品采购
+            "FinishPlanWeight" => sortDescending ? query.OrderByDescending(x => x.FinishPlanWeight) : query.OrderBy(x => x.FinishPlanWeight),
+            "FinishOrderWeight" => sortDescending ? query.OrderByDescending(x => x.FinishOrderWeight) : query.OrderBy(x => x.FinishOrderWeight),
+            "FinishOrderStatus" => sortDescending ? query.OrderByDescending(x => x.FinishOrderStatus) : query.OrderBy(x => x.FinishOrderStatus),
+            "FinishInWeight" => sortDescending ? query.OrderByDescending(x => x.FinishInWeight) : query.OrderBy(x => x.FinishInWeight),
+            "FinishPendingWeight" => sortDescending ? query.OrderByDescending(x => x.FinishPendingWeight) : query.OrderBy(x => x.FinishPendingWeight),
+            "FinishInStatus" => sortDescending ? query.OrderByDescending(x => x.FinishInStatus) : query.OrderBy(x => x.FinishInStatus),
+            // G8 库存使用
+            "InventoryPlanWeight" => sortDescending ? query.OrderByDescending(x => x.InventoryPlanWeight) : query.OrderBy(x => x.InventoryPlanWeight),
+            "InventoryOutWeight" => sortDescending ? query.OrderByDescending(x => x.InventoryOutWeight) : query.OrderBy(x => x.InventoryOutWeight),
+            "InventoryOutStatus" => sortDescending ? query.OrderByDescending(x => x.InventoryOutStatus) : query.OrderBy(x => x.InventoryOutStatus),
+            // G9 库料改制
+            "ReworkPlanWeight" => sortDescending ? query.OrderByDescending(x => x.ReworkPlanWeight) : query.OrderBy(x => x.ReworkPlanWeight),
+            "ReworkPlanInputWeight" => sortDescending ? query.OrderByDescending(x => x.ReworkPlanInputWeight) : query.OrderBy(x => x.ReworkPlanInputWeight),
+            "ReworkPlanInputStatus" => sortDescending ? query.OrderByDescending(x => x.ReworkPlanInputStatus) : query.OrderBy(x => x.ReworkPlanInputStatus),
+            // G10 在产改制
+            "InProcessReworkPlanWeight" => sortDescending ? query.OrderByDescending(x => x.InProcessReworkPlanWeight) : query.OrderBy(x => x.InProcessReworkPlanWeight),
+            "InProcessReworkInputWeight" => sortDescending ? query.OrderByDescending(x => x.InProcessReworkInputWeight) : query.OrderBy(x => x.InProcessReworkInputWeight),
+            "InProcessReworkInputStatus" => sortDescending ? query.OrderByDescending(x => x.InProcessReworkInputStatus) : query.OrderBy(x => x.InProcessReworkInputStatus),
             "InputStartDate" => sortDescending ? query.OrderByDescending(x => x.InputStartDate) : query.OrderBy(x => x.InputStartDate),
             "InputEndDate" => sortDescending ? query.OrderByDescending(x => x.InputEndDate) : query.OrderBy(x => x.InputEndDate),
             "TotalBatchCount" => sortDescending ? query.OrderByDescending(x => x.TotalBatchCount) : query.OrderBy(x => x.TotalBatchCount),
@@ -567,10 +726,7 @@ public partial class RawMaterialLockPlanAndExecution
             "IsPaused" => sortDescending ? query.OrderByDescending(x => x.IsPaused) : query.OrderBy(x => x.IsPaused),
             "AdjustmentRemark" => sortDescending ? query.OrderByDescending(x => x.AdjustmentRemark) : query.OrderBy(x => x.AdjustmentRemark),
             "IsPreInput" => sortDescending ? query.OrderByDescending(x => x.IsPreInput) : query.OrderBy(x => x.IsPreInput),
-            "IsBudgetComplete" => sortDescending ? query.OrderByDescending(x => x.IsBudgetComplete) : query.OrderBy(x => x.IsBudgetComplete),
             "BudgetInputDate" => sortDescending ? query.OrderByDescending(x => x.BudgetInputDate) : query.OrderBy(x => x.BudgetInputDate),
-            "ExecutionError" => sortDescending ? query.OrderByDescending(x => x.ExecutionError) : query.OrderBy(x => x.ExecutionError),
-            "IsMainNoMaterialComplete" => sortDescending ? query.OrderByDescending(x => x.IsMainNoMaterialComplete) : query.OrderBy(x => x.IsMainNoMaterialComplete),
             _ => sortDescending ? query.OrderByDescending(x => x.ScheduleStage) : query.OrderBy(x => x.ScheduleStage)
         };
 
@@ -661,7 +817,7 @@ public partial class RawMaterialLockPlanAndExecution
     private async Task TogglePreInput(RawMaterialLockPlanAndExecutionDto item, bool newValue)
     {
         var ids = new List<int> { item.WorkOrderId };
-        var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, newValue, null);
+        var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, newValue);
         if (result.Success)
         {
             item.IsPreInput = newValue;
@@ -734,8 +890,22 @@ public partial class RawMaterialLockPlanAndExecution
         // G7: 流转状态
         "FlowStatus" => DisplayHelper.GetFlowStatusText(item.FlowStatus),
         "MainNoFlowStatus" => DisplayHelper.GetMainNoFlowStatusText(item.MainNoFlowStatus),
-        // G12: 关注状态
+        // G3: 关注状态
         "ScheduleStage" => item.ScheduleStageText,
+        // G4: 用料计划执行状态
+        "MainNoPlanExecutionStatus" => item.MainNoPlanExecutionStatusText,
+        "ActualMainNoInputStatus" => item.ActualMainNoInputStatusText,
+        "PlanInputConsistency" => item.PlanInputConsistencyText,
+        // G5~G10: 用料执行状态
+        "PiercingSubStatus" => item.PiercingSubStatusText,
+        "PiercingReturnStatus" => item.PiercingReturnStatusText,
+        "SemiOrderStatus" => item.SemiOrderStatusText,
+        "SemiInStatus" => item.SemiInStatusText,
+        "FinishOrderStatus" => item.FinishOrderStatusText,
+        "FinishInStatus" => item.FinishInStatusText,
+        "InventoryOutStatus" => item.InventoryOutStatusText,
+        "ReworkPlanInputStatus" => item.ReworkPlanInputStatusText,
+        "InProcessReworkInputStatus" => item.InProcessReworkInputStatusText,
         // 非枚举字段原样输出（TablePrintHelper 自动处理 bool→"是/否"、DateTime→"yyyy-MM-dd" 等）
         _ => GetRawPropertyValue(item, key)!
     };
@@ -764,12 +934,38 @@ public partial class RawMaterialLockPlanAndExecution
             "TotalWeight" => item.TotalWeight,
             "MainNoMaterialPlanRate" => item.MainNoMaterialPlanRate,
             "MaterialPlanProportion" => item.MaterialPlanProportion ?? "",
-            "PendingRoughTubeQty" => item.PendingRoughTubeQty,
-            "PendingRoughTubeWeight" => item.PendingRoughTubeWeight,
-            "PendingOutsourceFinishQty" => item.PendingOutsourceFinishQty,
-            "PendingOutsourceFinishWeight" => item.PendingOutsourceFinishWeight,
-            "TheoreticalFinishQty" => item.TheoreticalFinishQty,
-            "TheoreticalFinishWeight" => item.TheoreticalFinishWeight,
+            "MaterialPlanCoveredCount" => item.MaterialPlanCoveredCount,
+            "TheoreticalCutoffDate" => item.TheoreticalCutoffDate,
+            "CutoffArrivalDate" => item.CutoffArrivalDate,
+            "TotalPlanWeight" => item.TotalPlanWeight,
+            "TotalAvailableWeight" => item.TotalAvailableWeight,
+            "TotalMissingWeight" => item.TotalMissingWeight,
+            "ActualInputWeight" => item.ActualInputWeight,
+            "EndCustomer" => item.EndCustomer ?? "",
+            // G5 圆棒穿孔
+            "PiercingPlanWeight" => item.PiercingPlanWeight,
+            "PiercingSubOutWeight" => item.PiercingSubOutWeight,
+            "PiercingSubInWeight" => item.PiercingSubInWeight,
+            "PiercingSubPendingWeight" => item.PiercingSubPendingWeight,
+            // G6 荒管采购
+            "SemiPlanWeight" => item.SemiPlanWeight,
+            "SemiOrderWeight" => item.SemiOrderWeight,
+            "SemiInWeight" => item.SemiInWeight,
+            "SemiPendingWeight" => item.SemiPendingWeight,
+            // G7 成品采购
+            "FinishPlanWeight" => item.FinishPlanWeight,
+            "FinishOrderWeight" => item.FinishOrderWeight,
+            "FinishInWeight" => item.FinishInWeight,
+            "FinishPendingWeight" => item.FinishPendingWeight,
+            // G8 库存使用
+            "InventoryPlanWeight" => item.InventoryPlanWeight,
+            "InventoryOutWeight" => item.InventoryOutWeight,
+            // G9 库料改制
+            "ReworkPlanWeight" => item.ReworkPlanWeight,
+            "ReworkPlanInputWeight" => item.ReworkPlanInputWeight,
+            // G10 在产改制
+            "InProcessReworkPlanWeight" => item.InProcessReworkPlanWeight,
+            "InProcessReworkInputWeight" => item.InProcessReworkInputWeight,
             "InputStartDate" => item.InputStartDate,
             "InputEndDate" => item.InputEndDate,
             "TotalBatchCount" => item.TotalBatchCount,
@@ -795,9 +991,6 @@ public partial class RawMaterialLockPlanAndExecution
             "AdjustmentRemark" => item.AdjustmentRemark ?? "",
             "IsPreInput" => item.IsPreInput,
             "BudgetInputDate" => item.BudgetInputDate,
-            "IsBudgetComplete" => item.IsBudgetComplete,
-            "ExecutionError" => item.ExecutionError,
-            "IsMainNoMaterialComplete" => item.IsMainNoMaterialComplete,
             _ => ""
         };
     }
@@ -805,7 +998,7 @@ public partial class RawMaterialLockPlanAndExecution
     private async Task OnBudgetInputDateChanged(RawMaterialLockPlanAndExecutionDto item, DateTime newDate)
     {
         var ids = new List<int> { item.WorkOrderId };
-        var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, null, null, newDate);
+        var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, null, newDate);
         if (result.Success)
         {
             item.BudgetInputDate = newDate;
@@ -818,22 +1011,6 @@ public partial class RawMaterialLockPlanAndExecution
         }
     }
 
-    private async Task ToggleBudgetComplete(RawMaterialLockPlanAndExecutionDto item, bool newValue)
-    {
-        var ids = new List<int> { item.WorkOrderId };
-        var result = await RawMaterialLockPlanService.SetPreExecuteFlagsAsync(ids, null, null, null, newValue);
-        if (result.Success)
-        {
-            // 重新加载数据以反映后端级联更新后的主号齐全状态
-            await LoadDataAsync();
-            await SavePageStateAsync();
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "操作失败", Severity.Error);
-        }
-    }
-
     // ========== 分组 CSS ==========
 
     private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
@@ -842,12 +1019,14 @@ public partial class RawMaterialLockPlanAndExecution
         {
             1 => "col-g1",
             2 => "col-g2",
-            5 => "col-g5",
             3 => "col-g3",
+            4 => "col-g4",
+            5 => "col-g5",
+            6 => "col-g6",
             7 => "col-g7",
+            8 => "col-g8",
+            9 => "col-g9",
             10 => "col-g10",
-            12 => "col-g12",
-            13 => "col-g13",
             15 => "col-g15",
             _ => ""
         };
@@ -861,12 +1040,14 @@ public partial class RawMaterialLockPlanAndExecution
         {
             1 => "col-g1-cell",
             2 => "col-g2-cell",
-            5 => "col-g5-cell",
             3 => "col-g3-cell",
+            4 => "col-g4-cell",
+            5 => "col-g5-cell",
+            6 => "col-g6-cell",
             7 => "col-g7-cell",
+            8 => "col-g8-cell",
+            9 => "col-g9-cell",
             10 => "col-g10-cell",
-            12 => "col-g12-cell",
-            13 => "col-g13-cell",
             15 => "col-g15-cell",
             _ => ""
         };
@@ -1068,7 +1249,10 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddContent(0, item.Specification);
                 break;
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, DisplayHelper.GetWorkOrderLengthStatusText(item.LengthStatus, item.MinLength, item.MaxLength));
+                break;
+            case "EndCustomer":
+                builder.AddContent(0, item.EndCustomer ?? "-");
                 break;
             case "MinLength":
                 builder.AddContent(0, item.MinLength?.ToString("G29") ?? "-");
@@ -1110,25 +1294,88 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetMaterialPlanStatusText(item.MainNoMaterialPlanStatus))));
                 builder.CloseComponent();
                 break;
+            case "MainNoPlanExecutionStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetMainNoPlanExecutionStatusColor(item.MainNoPlanExecutionStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.MainNoPlanExecutionStatusText)));
+                builder.CloseComponent();
+                break;
+            case "ActualMainNoInputStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", DisplayHelper.GetInputStatusColor(item.MainNoInputStatus));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.ActualMainNoInputStatusText)));
+                builder.CloseComponent();
+                break;
+            case "MaterialPlanCoveredCount":
+                builder.AddContent(0, item.MaterialPlanCoveredCount);
+                break;
+            case "TheoreticalCutoffDate":
+                builder.AddContent(0, item.TheoreticalCutoffDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "TotalPlanWeight":
+                builder.AddContent(0, item.TotalPlanWeight > 0 ? ((int)item.TotalPlanWeight).ToString() : "-");
+                break;
+            case "CutoffArrivalDate":
+                builder.AddContent(0, item.CutoffArrivalDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
+            case "TotalAvailableWeight":
+                builder.AddContent(0, item.TotalAvailableWeight > 0 ? ((int)item.TotalAvailableWeight).ToString() : "-");
+                break;
+            case "TotalMissingWeight":
+                builder.AddContent(0, item.TotalMissingWeight > 0 ? ((int)item.TotalMissingWeight).ToString() : "-");
+                break;
+            case "ActualInputWeight":
+                builder.AddContent(0, item.ActualInputWeight > 0 ? ((int)item.ActualInputWeight).ToString() : "-");
+                break;
+            case "PlanInputConsistency":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetPlanInputConsistencyColor(item.PlanInputConsistency));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.PlanInputConsistencyText)));
+                builder.CloseComponent();
+                break;
 
-            // G5
-            case "PendingRoughTubeQty":
-                builder.AddContent(0, item.PendingRoughTubeQty > 0 ? item.PendingRoughTubeQty.ToString() : "-");
+            // G5~G10: 用料计划执行
+            case "PiercingPlanWeight":
+            case "SemiPlanWeight":
+            case "FinishPlanWeight":
+            case "InventoryPlanWeight":
+            case "ReworkPlanWeight":
+            case "InProcessReworkPlanWeight":
+                builder.AddContent(0, GetWeightText(item, col.Key));
                 break;
-            case "PendingRoughTubeWeight":
-                builder.AddContent(0, item.PendingRoughTubeWeight > 0 ? ((int)item.PendingRoughTubeWeight).ToString() : "-");
+            case "PiercingSubOutWeight":
+            case "SemiOrderWeight":
+            case "FinishOrderWeight":
+            case "InventoryOutWeight":
+            case "ReworkPlanInputWeight":
+            case "InProcessReworkInputWeight":
+                builder.AddContent(0, GetWeightText(item, col.Key));
                 break;
-            case "PendingOutsourceFinishQty":
-                builder.AddContent(0, item.PendingOutsourceFinishQty > 0 ? item.PendingOutsourceFinishQty.ToString() : "-");
+            case "PiercingSubInWeight":
+            case "PiercingSubPendingWeight":
+            case "SemiInWeight":
+            case "SemiPendingWeight":
+            case "FinishInWeight":
+            case "FinishPendingWeight":
+                builder.AddContent(0, GetWeightText(item, col.Key));
                 break;
-            case "PendingOutsourceFinishWeight":
-                builder.AddContent(0, item.PendingOutsourceFinishWeight > 0 ? ((int)item.PendingOutsourceFinishWeight).ToString() : "-");
-                break;
-            case "TheoreticalFinishQty":
-                builder.AddContent(0, item.TheoreticalFinishQty > 0 ? ((int)item.TheoreticalFinishQty).ToString() : "-");
-                break;
-            case "TheoreticalFinishWeight":
-                builder.AddContent(0, item.TheoreticalFinishWeight > 0 ? ((int)item.TheoreticalFinishWeight).ToString() : "-");
+            case "PiercingSubStatus":
+            case "PiercingReturnStatus":
+            case "SemiOrderStatus":
+            case "SemiInStatus":
+            case "FinishOrderStatus":
+            case "FinishInStatus":
+            case "InventoryOutStatus":
+            case "ReworkPlanInputStatus":
+            case "InProcessReworkInputStatus":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", GetPlanExecutionStatusColor(GetStatusInt(item, col.Key)));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetPlanExecutionStatusText(item, col.Key))));
+                builder.CloseComponent();
                 break;
 
             // G3
@@ -1220,7 +1467,11 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddContent(0, item.CapacityWorkDays.HasValue ? $"{item.CapacityWorkDays}天" : "-");
                 break;
             case "UrgencyLevel":
-                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "-");
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", DisplayHelper.GetUrgencyColor(item.UrgencyLevel));
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "-")));
+                builder.CloseComponent();
                 break;
             case "EstimatedProcessCompletionDate":
                 builder.AddContent(0, item.EstimatedProcessCompletionDate?.ToString("yyyy-MM-dd") ?? "-");
@@ -1262,21 +1513,6 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddContent(7, item.IsPreInput ? "是" : "否");
                 builder.CloseElement();
                 break;
-            case "IsBudgetComplete":
-                builder.OpenElement(0, "div");
-                builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
-                builder.OpenComponent<MudSwitch<bool>>(2);
-                builder.AddAttribute(3, "Value", item.IsBudgetComplete);
-                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
-                {
-                    await ToggleBudgetComplete(item, v);
-                }));
-                builder.AddAttribute(5, "Color", Color.Secondary);
-                builder.AddAttribute(6, "Dense", true);
-                builder.CloseComponent();
-                builder.AddContent(7, item.IsBudgetComplete ? "是" : "否");
-                builder.CloseElement();
-                break;
             case "BudgetInputDate":
                 if (item.IsPreInput)
                 {
@@ -1297,28 +1533,6 @@ public partial class RawMaterialLockPlanAndExecution
                     builder.AddContent(0, "-");
                 }
                 break;
-            case "ExecutionError":
-                if (item.ExecutionError)
-                {
-                    builder.OpenComponent<MudChip>(0);
-                    builder.AddAttribute(1, "Size", Size.Small);
-                    builder.AddAttribute(2, "Color", Color.Error);
-                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, "是")));
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, "-");
-                }
-                break;
-            case "IsMainNoMaterialComplete":
-                builder.OpenElement(0, "span");
-                var completeColor = item.IsMainNoMaterialComplete ? "color:#1565C0;font-weight:bold" : "color:#999";
-                builder.AddAttribute(1, "style", completeColor);
-                builder.AddAttribute(2, "class", "pl-2");
-                builder.AddContent(3, item.IsMainNoMaterialCompleteText);
-                builder.CloseElement();
-                break;
         }
     };
 
@@ -1336,6 +1550,54 @@ public partial class RawMaterialLockPlanAndExecution
     private static string GetValidMainNoStatusText(int status) =>
         DisplayHelper.GetMainNoFlowStatusText(status);
 
+    // ========== G5~G10 重量/状态渲染辅助 ==========
+
+    private static decimal GetWeightValue(RawMaterialLockPlanAndExecutionDto item, string key) => key switch
+    {
+        "PiercingPlanWeight" => item.PiercingPlanWeight,
+        "PiercingSubOutWeight" => item.PiercingSubOutWeight,
+        "PiercingSubInWeight" => item.PiercingSubInWeight,
+        "PiercingSubPendingWeight" => item.PiercingSubPendingWeight,
+        "SemiPlanWeight" => item.SemiPlanWeight,
+        "SemiOrderWeight" => item.SemiOrderWeight,
+        "SemiInWeight" => item.SemiInWeight,
+        "SemiPendingWeight" => item.SemiPendingWeight,
+        "FinishPlanWeight" => item.FinishPlanWeight,
+        "FinishOrderWeight" => item.FinishOrderWeight,
+        "FinishInWeight" => item.FinishInWeight,
+        "FinishPendingWeight" => item.FinishPendingWeight,
+        "InventoryPlanWeight" => item.InventoryPlanWeight,
+        "InventoryOutWeight" => item.InventoryOutWeight,
+        "ReworkPlanWeight" => item.ReworkPlanWeight,
+        "ReworkPlanInputWeight" => item.ReworkPlanInputWeight,
+        "InProcessReworkPlanWeight" => item.InProcessReworkPlanWeight,
+        "InProcessReworkInputWeight" => item.InProcessReworkInputWeight,
+        _ => 0m
+    };
+
+    private static string GetWeightText(RawMaterialLockPlanAndExecutionDto item, string key)
+    {
+        var v = GetWeightValue(item, key);
+        return v > 0 ? ((int)v).ToString() : "-";
+    }
+
+    private static int GetStatusInt(RawMaterialLockPlanAndExecutionDto item, string key) => key switch
+    {
+        "PiercingSubStatus" => item.PiercingSubStatus,
+        "PiercingReturnStatus" => item.PiercingReturnStatus,
+        "SemiOrderStatus" => item.SemiOrderStatus,
+        "SemiInStatus" => item.SemiInStatus,
+        "FinishOrderStatus" => item.FinishOrderStatus,
+        "FinishInStatus" => item.FinishInStatus,
+        "InventoryOutStatus" => item.InventoryOutStatus,
+        "ReworkPlanInputStatus" => item.ReworkPlanInputStatus,
+        "InProcessReworkInputStatus" => item.InProcessReworkInputStatus,
+        _ => 0
+    };
+
+    private static string GetPlanExecutionStatusText(RawMaterialLockPlanAndExecutionDto item, string key) =>
+        IntStatusDisplayHelper.GetPlanExecutionStatusText(GetStatusInt(item, key));
+
     // ========== 颜色 ==========
 
     private static Color GetPlanStatusColor(MaterialPlanStatus status) => status switch
@@ -1345,6 +1607,39 @@ public partial class RawMaterialLockPlanAndExecution
         MaterialPlanStatus.TheoreticalSatisfied => Color.Info,
         MaterialPlanStatus.Satisfied => Color.Success,
         MaterialPlanStatus.Excess => Color.Default,
+        _ => Color.Default
+    };
+
+    /// <summary>用料计划执行状态颜色（G4~G10 共用：0无计划 1未执行 2部分 3已完成 4异常）</summary>
+    private static Color GetPlanExecutionStatusColor(int status) => status switch
+    {
+        0 => Color.Default,
+        1 => Color.Default,
+        2 => Color.Warning,
+        3 => Color.Success,
+        4 => Color.Error,
+        _ => Color.Default
+    };
+
+    /// <summary>主号计划执行状态颜色（0无计划 1未执行 2执行中 3计划落实）</summary>
+    private static Color GetMainNoPlanExecutionStatusColor(int status) => status switch
+    {
+        0 => Color.Default,
+        1 => Color.Default,
+        2 => Color.Warning,
+        3 => Color.Success,
+        _ => Color.Default
+    };
+
+    /// <summary>到料实投一致性颜色（0一致 1待投 2疑问-到料少投 3疑问-到料超投 4/5错误系 6略）</summary>
+    private static Color GetPlanInputConsistencyColor(int c) => c switch
+    {
+        0 => Color.Success,
+        1 => Color.Info,
+        2 => Color.Warning,
+        3 => Color.Warning,
+        4 => Color.Error,
+        5 => Color.Error,
         _ => Color.Default
     };
 

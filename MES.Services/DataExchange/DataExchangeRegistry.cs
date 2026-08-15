@@ -187,11 +187,35 @@ public static class DataExchangeRegistry
             new("订单号", "OrderNo") { IsFkColumn = true, FkEntityKey = "OrderItem", FkLookupProperty = "Id", FkTargetProperty = "OrderItemId", FkRequiresJoin = true },
             new("项次号", "ItemSequence") { IsFkColumn = true, FkEntityKey = "OrderItem", FkLookupProperty = "Sequence", FkTargetProperty = "OrderItemId", FkRequiresJoin = true },
             new("技术要求类型", "RequirementType", typeof(Core.Enums.RequirementType), isEnum: true),
-            new("化学成分要求", "ChemicalComposition", typeof(string), isRequired: false),
-            new("力学性能要求", "MechanicalProperty", typeof(string), isRequired: false),
-            new("公差要求", "ToleranceRequirement", typeof(string), isRequired: false),
-            new("表面质量要求", "SurfaceQuality", typeof(string), isRequired: false),
-            new("无损检测要求", "NdtRequirement", typeof(string), isRequired: false),
+            new("化学分析(成品)", "ChemicalComposition", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("PMI检验", "PmiInspection", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("表检", "SurfaceInspection", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("尺寸", "Dimension", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("内窥", "Endoscopy", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("液压检验", "HydrostaticTest", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("水下气压", "UnderwaterPressure", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("涡流探伤", "EddyCurrent", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("超声波检验", "UltrasonicTest", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("端口着色", "PortColoring", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("射线探伤", "RadiographicTest", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("硬度(洛氏)", "HardnessRockwell", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("硬度(布氏)", "HardnessBrinell", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("硬度(维氏)", "HardnessVickers", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("拉伸(室温)", "TensileRoomTemp", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("拉伸(高温)", "TensileHighTemp", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("焊接接头拉伸", "WeldJointTensile", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("冲击试验", "ImpactTest", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("焊接接头冲击", "WeldJointImpact", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("压扁试验", "FlatteningTest", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("卷边试验", "FlaringTest", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("扩口试验", "ExpandingTest", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("弯曲试验", "BendTest", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("焊接接头弯曲", "WeldJointBend", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("晶粒度", "GrainSize", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("晶间腐蚀", "IntergranularCorrosion", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("点腐蚀", "PittingCorrosion", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("金相检验", "FerriteContent", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("低倍组织", "Macrostructure", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("其他要求", "OtherRequirement", typeof(string), isRequired: false),
         }, compositeKeyColumns: new[] { "OrderNo", "ItemSequence" }),
 
@@ -1429,6 +1453,40 @@ public static class DataExchangeRegistry
             new("低倍组织", "Macrostructure", typeof(string), isRequired: false),
         }),
 
+        ["FactoryInspectionRequirement"] = new EntityDef("标准-工厂检验项要求", "标准-工厂检验项要求", typeof(MES.Data.Entities.StandardRegister.FactoryInspectionRequirement), 1, "StandardNo", new List<ColumnDef>
+        {
+            new("标准号", "StandardNo"),
+            new("化学分析(成品)", "ChemicalComposition", typeof(string), isRequired: false),
+            new("PMI检验", "PmiInspection", typeof(string), isRequired: false),
+            new("表检", "SurfaceInspection", typeof(string), isRequired: false),
+            new("尺寸", "Dimension", typeof(string), isRequired: false),
+            new("内窥", "Endoscopy", typeof(string), isRequired: false),
+            new("液压检验", "HydrostaticTest", typeof(string), isRequired: false),
+            new("水下气压", "UnderwaterPressure", typeof(string), isRequired: false),
+            new("涡流探伤", "EddyCurrent", typeof(string), isRequired: false),
+            new("超声波检验", "UltrasonicTest", typeof(string), isRequired: false),
+            new("端口着色", "PortColoring", typeof(string), isRequired: false),
+            new("射线探伤", "RadiographicTest", typeof(string), isRequired: false),
+            new("硬度(洛氏)", "HardnessRockwell", typeof(string), isRequired: false),
+            new("硬度(布氏)", "HardnessBrinell", typeof(string), isRequired: false),
+            new("硬度(维氏)", "HardnessVickers", typeof(string), isRequired: false),
+            new("拉伸(室温)", "TensileRoomTemp", typeof(string), isRequired: false),
+            new("拉伸(高温)", "TensileHighTemp", typeof(string), isRequired: false),
+            new("焊接接头拉伸", "WeldJointTensile", typeof(string), isRequired: false),
+            new("冲击试验", "ImpactTest", typeof(string), isRequired: false),
+            new("焊接接头冲击", "WeldJointImpact", typeof(string), isRequired: false),
+            new("压扁试验", "FlatteningTest", typeof(string), isRequired: false),
+            new("卷边试验", "FlaringTest", typeof(string), isRequired: false),
+            new("扩口试验", "ExpandingTest", typeof(string), isRequired: false),
+            new("弯曲试验", "BendTest", typeof(string), isRequired: false),
+            new("焊接接头弯曲", "WeldJointBend", typeof(string), isRequired: false),
+            new("晶粒度", "GrainSize", typeof(string), isRequired: false),
+            new("晶间腐蚀", "IntergranularCorrosion", typeof(string), isRequired: false),
+            new("点腐蚀", "PittingCorrosion", typeof(string), isRequired: false),
+            new("金相检验", "FerriteContent", typeof(string), isRequired: false),
+            new("低倍组织", "Macrostructure", typeof(string), isRequired: false),
+        }),
+
         // === 生产-工段工量天数（独立配置表） ===
         ["StandardWorkDay"] = new EntityDef("生产-工段工量天数", "生产-工段工量天数", typeof(MES.Data.Entities.Configuration.StandardWorkDay), 1, null, new List<ColumnDef>
         {
@@ -1463,26 +1521,35 @@ public static class DataExchangeRegistry
             new("说明", "Remark", typeof(string), isRequired: false),
         }),
 
-        // === 生产-工段日流转量（独立配置表，CategoryCode 唯一） ===
-        ["SectionFlowCategorySetting"] = new EntityDef("生产-工段日流转量", "生产-工段日流转量", typeof(MES.Data.Entities.Configuration.SectionFlowCategorySetting), 1, "CategoryCode", new List<ColumnDef>
+        // === 生产-流转类别日产配置（独立配置表，流转类别唯一；组合明细由组合归类表 CombinationGroups 承载，另行管理） ===
+        ["SectionFlowCategorySetting"] = new EntityDef("生产-流转类别日产配置", "生产-流转类别日产配置", typeof(MES.Data.Entities.Configuration.SectionFlowCategorySetting), 1, "CategoryName", new List<ColumnDef>
         {
-            new("类别编码", "CategoryCode"),
-            new("类别名称", "CategoryName"),
-            new("变异量预算日产", "DailyProductionTarget", typeof(decimal), isRequired: false),
+            new("流转类别", "CategoryName"),
+            new("日产设定", "DailyProductionTarget", typeof(decimal), isRequired: false),
             new("偏少天数值", "LowerLimitDays", typeof(decimal), isRequired: false),
             new("过多天数值", "UpperLimitDays", typeof(decimal), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        // === 生产-工段日流转量子项（依赖 SectionFlowCategorySetting） ===
-        ["SectionFlowCategoryItem"] = new EntityDef("生产-工段日流转量子项", "生产-工段日流转量子项", typeof(MES.Data.Entities.Configuration.SectionFlowCategoryItem), 2, null, new List<ColumnDef>
+        // === 生产-段落日产配置（独立配置表，段落类别唯一；组合明细由组合归类表「归属段落」承载，另行管理） ===
+        ["SectionParagraphConfig"] = new EntityDef("生产-段落日产配置", "生产-段落日产配置", typeof(MES.Data.Entities.Configuration.SectionParagraphConfig), 1, "ParagraphName", new List<ColumnDef>
         {
-            new("类别编码", null!) { IsFkColumn = true, FkEntityKey = "SectionFlowCategorySetting", FkLookupProperty = "CategoryCode", FkTargetProperty = "SettingId" },
-            new("工序组名称", "ProcessGroupName"),
-            new("工段名称", "SectionName"),
-            new("变异量系数", "Coefficient", typeof(decimal)),
-            new("排序号", "DisplayOrder", typeof(int)),
+            new("段落类别", "ParagraphName"),
+            new("日流转设定", "DailyFlowTarget", typeof(decimal), isRequired: false),
+            new("偏少天数值", "LowerLimitDays", typeof(decimal), isRequired: false),
+            new("过多天数值", "UpperLimitDays", typeof(decimal), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
         }),
+
+        // === 生产-组合归类表（工序组×工段×产类三维唯一归属；第4列归属流转类别由用户导出Excel填中文后上传建立FK，第5列归属段落=中文段落名直接存储） ===
+        ["CombinationGroup"] = new EntityDef("生产-组合归类", "生产-组合归类", typeof(MES.Data.Entities.Configuration.CombinationGroup), 1, null, new List<ColumnDef>
+        {
+            new("工序组", "ProcessGroupName"),
+            new("工段", "SectionName"),
+            new("产类", "ProductStatus"),
+            new("归属流转类别", null!) { IsFkColumn = true, FkEntityKey = "SectionFlowCategorySetting", FkLookupProperty = "CategoryName", FkTargetProperty = "FlowCategoryId" },
+            new("归属段落", "ParagraphName", typeof(string), isRequired: false),
+        }, compositeKeyColumns: ["ProcessGroupName", "SectionName", "ProductStatus"]),
     };
 
     public static readonly List<string> EntityOrder = new()
@@ -1500,8 +1567,8 @@ public static class DataExchangeRegistry
         "Workstation", "Employee",
         "ConfigParameter",
         "StandardRegister", "StandardRegisterItem",
-        "GradeChemicalComposition", "GradePhysicalProperty", "StandardInspectionRequirement", "SubStandardQuickView",
-        "StandardWorkDay", "StandardWorkDayDeliveryState", "DailyOutputEstimate", "DailyProductionCapacity", "SectionFlowCategorySetting", "SectionFlowCategoryItem",
+        "GradeChemicalComposition", "GradePhysicalProperty", "StandardInspectionRequirement", "FactoryInspectionRequirement", "SubStandardQuickView",
+        "StandardWorkDay", "StandardWorkDayDeliveryState", "DailyOutputEstimate", "DailyProductionCapacity", "SectionFlowCategorySetting", "SectionParagraphConfig", "CombinationGroup",
     };
 
     public static List<MES.Core.Interfaces.DataExchange.EntityInfo> GetEntities()

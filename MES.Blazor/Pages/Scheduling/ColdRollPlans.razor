@@ -11,7 +11,7 @@
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 页面顶部工具栏 -->
     <div class="d-flex flex-column mb-4">
-        <MudText Typo="Typo.h5" Class="font-weight-bold mb-4">
+        <MudText Typo="Typo.h5" Class="font-weight-bold mb-4 crp-page-title">
             <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
             冷轧计划
         </MudText>
@@ -64,17 +64,30 @@
             <MudText Typo="Typo.body2">
                 <b>总重量(kg)：</b>@(((int)_tabTotalWeight).ToString())
             </MudText>
-            <MudText Typo="Typo.body2" Class="text-error">
-                <b>重点批次：</b>@_tabKeyBatchCount
-            </MudText>
-            <MudText Typo="Typo.body2" Class="text-error">
-                <b>重点批次重量(kg)：</b>@(((int)_tabKeyBatchWeight).ToString())
-            </MudText>
             <MudIconButton Icon="@Icons.Material.Filled.Print"
                            Size="Size.Small"
                            Color="Color.Primary"
                            Title="打印"
                            OnClick="@OnPrint" />
+            <ColumnDisplaySelect Columns="_allColumns"
+                                 OnColumnToggle="OnColumnToggle"
+                                 OnMoveUp="MoveColumnUp"
+                                 OnMoveDown="MoveColumnDown" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       Class="ml-2" OnClick="@EnterSchedulingModeAsync">编辑排程</MudButton>
+            @if (_isSchedulingMode)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                           OnClick="@SaveScheduleAsync">保存排程</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                           OnClick="@CancelSchedule">取消</MudButton>
+            }
+            @if (_scheduleUpdatedTime.HasValue)
+            {
+                <MudText Typo="Typo.body2" Class="ml-4 mr-2">
+                    <b>最后更新：</b>@_scheduleUpdatedTime.Value.ToString("yyyy-MM-dd HH:mm")
+                </MudText>
+            }
             @if (_showScheduleSummary)
             {
                 <MudIconButton Icon="@Icons.Material.Filled.Close"
@@ -94,35 +107,17 @@
                     排程汇总
                 </MudButton>
             }
-            @if (_scheduleUpdatedTime.HasValue)
-            {
-                <MudText Typo="Typo.body2" Class="ml-4 mr-2">
-                    <b>最后更新：</b>@_scheduleUpdatedTime.Value.ToString("yyyy-MM-dd HH:mm")
-                </MudText>
-            }
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                       Class="ml-2" OnClick="@EnterSchedulingModeAsync">编辑排程</MudButton>
-            @if (_isSchedulingMode)
-            {
-                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
-                           OnClick="@SaveScheduleAsync">保存排程</MudButton>
-                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
-                           OnClick="@CancelSchedule">取消</MudButton>
-            }
-            <ColumnDisplaySelect Columns="_allColumns"
-                                 OnColumnToggle="OnColumnToggle"
-                                 OnMoveUp="MoveColumnUp"
-                                 OnMoveDown="MoveColumnDown" />
         </div>
     </div>
 
-    <MudCard>
+    <MudCard Class="crp-plan-section">
         <MudCardContent>
             @{
                 var _groupHeaders = GetGroupHeaders();
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
             }
 
+            <div id="crp-list-table">
             @* 分组标题栏 *@
             <div class="col-group-header-scroll" id="crp-group-header-scroll">
                 <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
@@ -185,6 +180,7 @@
                             <MudTd Class="@_cellClass">
                                 <MudSelect T="string" Value="@_edit.CompletionType"
                                            ValueChanged="@(v => OnCompletionTypeEdit(_edit, v))"
+                                           ToStringFunc="GetCompletionTypeEditDisplay"
                                            Dense="true" Variant="Variant.Outlined" Class="compact-select">
                                     @foreach (var opt in DisplayHelper.GetCompletionTypeOptions())
                                     {
@@ -198,6 +194,7 @@
                             <MudTd Class="@_cellClass">
                                 <MudSelect T="string" Value="@_edit.RollType"
                                            ValueChanged="@(v => OnRollTypeEdit(_edit, v))"
+                                           ToStringFunc="GetRollTypeEditDisplay"
                                            Dense="true" Variant="Variant.Outlined" Class="compact-select">
                                     @foreach (var opt in DisplayHelper.GetRollTypeOptions())
                                     {
@@ -242,6 +239,7 @@
                     <MudTablePager PageSizeOptions="@(new int[]{10, 15, 25, 50, 100})" />
                 </PagerContent>
             </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 
@@ -253,7 +251,7 @@
             .OrderBy(g => g.Key)
             .ToList();
 
-        <div class="mt-4">
+        <div class="mt-4 crp-summary-section">
             <div class="d-flex align-center mb-3" style="gap: 12px;">
                 <MudText Typo="Typo.h6" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.Summarize" Class="mr-1" Color="Color.Primary" />
@@ -271,8 +269,14 @@
                     <MudButton Variant="@(!_summaryMaxDiff.HasValue ? Variant.Filled : Variant.Outlined)"
                                Color="@(!_summaryMaxDiff.HasValue ? Color.Primary : Color.Default)"
                                Size="Size.Small"
-                               OnClick="@(() => OnSummaryMaxDiffChanged(null))">全部(近日)</MudButton>
+                               OnClick="@(() => OnSummaryMaxDiffChanged(null))">近6天</MudButton>
                 </div>
+                <MudIconButton Icon="@Icons.Material.Filled.Print"
+                               Size="Size.Small"
+                               Color="Color.Primary"
+                               Title="打印排程汇总"
+                               Class="ml-2"
+                               OnClick="@OnPrintSummary" />
             </div>
 
             @foreach (var group in _summaryGroups)
@@ -283,10 +287,10 @@
                 <MudCard Class="mb-3" Style="border-left: 4px solid #1976D2;">
                     <MudCardContent Class="pa-3">
                         <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-2" Style="color: #1565C0;">
-                            @group.Key
+                            @ProcessDisplayHelper.GetProcessNameText(group.Key)
                             <span class="ml-4" style="font-size: 0.85rem; color: #555; font-weight: normal;">
-                                流转批次数：<b>@groupItems.Sum(x => x.FlowBatchCount)</b>
-                                &nbsp;|&nbsp;总流转重量(kg)：<b style="color:#2E7D32;">@(((int)grpFlowWeight).ToString())</b>
+                                批次数：<b>@groupItems.Sum(x => x.BatchCount)</b>
+                                &nbsp;|&nbsp;流转总量：<b style="color:#2E7D32;">@(((int)grpFlowWeight).ToString())</b>
                             </span>
                         </MudText>
 
@@ -294,16 +298,18 @@
                             <thead>
                                 <tr>
                                     <th style="width: 140px;">外径跨度</th>
-                                    <th style="width: 80px;">流转批次数</th>
-                                    <th style="width: 110px;">总流转重量(kg)</th>
-                                    <th style="width: 110px;">在轧特急A档</th>
-                                    <th style="width: 110px;">在轧特急B档</th>
-                                    <th style="width: 110px;">在轧非特急</th>
-                                    <th style="width: 120px;">在轧流转汇总(kg)</th>
-                                    <th style="width: 110px;">待轧特急A档</th>
-                                    <th style="width: 110px;">待轧特急B档</th>
-                                    <th style="width: 110px;">待轧非特急</th>
-                                    <th style="width: 110px;">待轧流转汇总(kg)</th>
+                                    <th style="width: 80px;">批次数</th>
+                                    <th style="width: 110px;">流转总量</th>
+                                    <th style="width: 110px;">在轧总量</th>
+                                    <th style="width: 110px;">在轧(急+)</th>
+                                    <th style="width: 110px;">在轧(急)</th>
+                                    <th style="width: 110px;">在轧(急-)</th>
+                                    <th style="width: 110px;">在轧(一般)</th>
+                                    <th style="width: 110px;">待轧总量</th>
+                                    <th style="width: 110px;">待轧(急+)</th>
+                                    <th style="width: 110px;">待轧(急)</th>
+                                    <th style="width: 110px;">待轧(急-)</th>
+                                    <th style="width: 110px;">待轧(一般)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -311,32 +317,36 @@
                                 {
                                     <tr>
                                         <td>@item.ShortDisplay</td>
-                                        <td>@item.FlowBatchCount</td>
+                                        <td>@item.BatchCount</td>
                                         <td>@(((int)item.TotalFlowWeight).ToString())</td>
-                                        <td style="color: #c62828;">@(((int)item.ProdKeyWeight).ToString())</td>
-                                        <td style="color: #E65100;">@(((int)item.ProdLevel1BWeight).ToString())</td>
-                                        <td>@(((int)item.ProdNonKeyWeight).ToString())</td>
-                                        <td style="color: #1565C0; font-weight: 600;">@(((int)item.ProdTotalWeight).ToString())</td>
-                                        <td style="color: #c62828;">@(((int)item.WaitKeyWeight).ToString())</td>
-                                        <td style="color: #E65100;">@(((int)item.WaitLevel1BWeight).ToString())</td>
-                                        <td>@(((int)item.WaitNonKeyWeight).ToString())</td>
-                                        <td style="color: #E65100; font-weight: 600;">@(((int)item.WaitTotalWeight).ToString())</td>
+                                        <td style="color: #1565C0; font-weight: 600;">@WeightText(item.ProdTotalWeight)</td>
+                                        <td style="color: #c62828;">@WeightText(item.ProdUrgentWeight)</td>
+                                        <td style="color: #E65100;">@WeightText(item.ProdUrgentSubWeight)</td>
+                                        <td style="color: #c62828;">@WeightText(item.ProdOtherWeight)</td>
+                                        <td>@WeightText(item.ProdRestWeight)</td>
+                                        <td style="color: #1565C0; font-weight: 600;">@WeightText(item.WaitTotalWeight)</td>
+                                        <td style="color: #c62828;">@WeightText(item.WaitUrgentWeight)</td>
+                                        <td style="color: #E65100;">@WeightText(item.WaitUrgentSubWeight)</td>
+                                        <td style="color: #c62828;">@WeightText(item.WaitOtherWeight)</td>
+                                        <td>@WeightText(item.WaitRestWeight)</td>
                                     </tr>
                                 }
                             </tbody>
                             <tfoot>
                                 <tr>
                                     <td><b>小计</b></td>
-                                    <td><b>@groupItems.Sum(x => x.FlowBatchCount)</b></td>
+                                    <td><b>@groupItems.Sum(x => x.BatchCount)</b></td>
                                     <td><b>@(((int)grpFlowWeight).ToString())</b></td>
-                                    <td><b style="color:#c62828;">@(((int)groupItems.Sum(x => x.ProdKeyWeight)).ToString())</b></td>
-                                    <td><b style="color:#E65100;">@(((int)groupItems.Sum(x => x.ProdLevel1BWeight)).ToString())</b></td>
-                                    <td><b>@(((int)groupItems.Sum(x => x.ProdNonKeyWeight)).ToString())</b></td>
-                                    <td><b style="color:#1565C0;">@(((int)groupItems.Sum(x => x.ProdTotalWeight)).ToString())</b></td>
-                                    <td><b style="color:#c62828;">@(((int)groupItems.Sum(x => x.WaitKeyWeight)).ToString())</b></td>
-                                    <td><b style="color:#E65100;">@(((int)groupItems.Sum(x => x.WaitLevel1BWeight)).ToString())</b></td>
-                                    <td><b>@(((int)groupItems.Sum(x => x.WaitNonKeyWeight)).ToString())</b></td>
-                                    <td><b style="color:#E65100;">@(((int)groupItems.Sum(x => x.WaitTotalWeight)).ToString())</b></td>
+                                    <td><b style="color:#1565C0;">@WeightText(groupItems.Sum(x => x.ProdTotalWeight))</b></td>
+                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.ProdUrgentWeight))</b></td>
+                                    <td><b style="color:#E65100;">@WeightText(groupItems.Sum(x => x.ProdUrgentSubWeight))</b></td>
+                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.ProdOtherWeight))</b></td>
+                                    <td><b>@WeightText(groupItems.Sum(x => x.ProdRestWeight))</b></td>
+                                    <td><b style="color:#1565C0;">@WeightText(groupItems.Sum(x => x.WaitTotalWeight))</b></td>
+                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.WaitUrgentWeight))</b></td>
+                                    <td><b style="color:#E65100;">@WeightText(groupItems.Sum(x => x.WaitUrgentSubWeight))</b></td>
+                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.WaitOtherWeight))</b></td>
+                                    <td><b>@WeightText(groupItems.Sum(x => x.WaitRestWeight))</b></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -351,9 +361,20 @@
     @@media print {
         @@page { size: landscape; margin: 10mm; }
         .crp-print-hide { display: none !important; }
+        /* 打印冷轧排程计划（默认）：隐藏排程汇总区 */
+        .crp-summary-section { display: none !important; }
+        /* 打印排程汇总（body.print-summary）：隐藏主计划区、仅显示汇总 */
+        body.print-summary .crp-plan-section { display: none !important; }
+        body.print-summary .crp-summary-section { display: block !important; }
+        /* 打印排程汇总：不显示页面标题「冷轧计划」 */
+        body.print-summary .crp-page-title { display: none !important; }
         .col-group-header-scroll { overflow: visible !important; }
         .mud-card { box-shadow: none !important; border: none !important; }
         .auto-table { width: 100% !important; font-size: 0.75rem !important; }
+        /* 组标题与字段对齐：打印时表格按固定列宽总宽显示，不被拉伸为 100% */
+        #crp-list-table .mud-table-container { overflow: visible !important; }
+        #crp-list-table table.mud-table { width: auto !important; }
+        #crp-list-table table { table-layout: fixed !important; }
         .mud-drawer { display: none !important; }
         .mud-appbar { display: none !important; }
         .mud-main-content { margin-left: 0 !important; }

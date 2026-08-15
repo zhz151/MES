@@ -85,10 +85,34 @@ public class ProductRequirementService : IProductRequirementService
             // 更新现有技术要求
             existing.RequirementType = request.RequirementType;
             existing.ChemicalComposition = request.ChemicalComposition;
-            existing.MechanicalProperty = request.MechanicalProperty;
-            existing.ToleranceRequirement = request.ToleranceRequirement;
-            existing.SurfaceQuality = request.SurfaceQuality;
-            existing.NdtRequirement = request.NdtRequirement;
+            existing.PmiInspection = request.PmiInspection;
+            existing.SurfaceInspection = request.SurfaceInspection;
+            existing.Dimension = request.Dimension;
+            existing.Endoscopy = request.Endoscopy;
+            existing.HydrostaticTest = request.HydrostaticTest;
+            existing.UnderwaterPressure = request.UnderwaterPressure;
+            existing.EddyCurrent = request.EddyCurrent;
+            existing.UltrasonicTest = request.UltrasonicTest;
+            existing.PortColoring = request.PortColoring;
+            existing.RadiographicTest = request.RadiographicTest;
+            existing.HardnessRockwell = request.HardnessRockwell;
+            existing.HardnessBrinell = request.HardnessBrinell;
+            existing.HardnessVickers = request.HardnessVickers;
+            existing.TensileRoomTemp = request.TensileRoomTemp;
+            existing.TensileHighTemp = request.TensileHighTemp;
+            existing.WeldJointTensile = request.WeldJointTensile;
+            existing.ImpactTest = request.ImpactTest;
+            existing.WeldJointImpact = request.WeldJointImpact;
+            existing.FlatteningTest = request.FlatteningTest;
+            existing.FlaringTest = request.FlaringTest;
+            existing.ExpandingTest = request.ExpandingTest;
+            existing.BendTest = request.BendTest;
+            existing.WeldJointBend = request.WeldJointBend;
+            existing.GrainSize = request.GrainSize;
+            existing.IntergranularCorrosion = request.IntergranularCorrosion;
+            existing.PittingCorrosion = request.PittingCorrosion;
+            existing.FerriteContent = request.FerriteContent;
+            existing.Macrostructure = request.Macrostructure;
             existing.OtherRequirement = request.OtherRequirement;
             existing.OrderNo = orderNo;
             existing.ItemSequence = orderItem.Sequence;
@@ -107,10 +131,34 @@ public class ProductRequirementService : IProductRequirementService
                 ItemSequence = orderItem.Sequence,
                 RequirementType = request.RequirementType,
                 ChemicalComposition = request.ChemicalComposition,
-                MechanicalProperty = request.MechanicalProperty,
-                ToleranceRequirement = request.ToleranceRequirement,
-                SurfaceQuality = request.SurfaceQuality,
-                NdtRequirement = request.NdtRequirement,
+                PmiInspection = request.PmiInspection,
+                SurfaceInspection = request.SurfaceInspection,
+                Dimension = request.Dimension,
+                Endoscopy = request.Endoscopy,
+                HydrostaticTest = request.HydrostaticTest,
+                UnderwaterPressure = request.UnderwaterPressure,
+                EddyCurrent = request.EddyCurrent,
+                UltrasonicTest = request.UltrasonicTest,
+                PortColoring = request.PortColoring,
+                RadiographicTest = request.RadiographicTest,
+                HardnessRockwell = request.HardnessRockwell,
+                HardnessBrinell = request.HardnessBrinell,
+                HardnessVickers = request.HardnessVickers,
+                TensileRoomTemp = request.TensileRoomTemp,
+                TensileHighTemp = request.TensileHighTemp,
+                WeldJointTensile = request.WeldJointTensile,
+                ImpactTest = request.ImpactTest,
+                WeldJointImpact = request.WeldJointImpact,
+                FlatteningTest = request.FlatteningTest,
+                FlaringTest = request.FlaringTest,
+                ExpandingTest = request.ExpandingTest,
+                BendTest = request.BendTest,
+                WeldJointBend = request.WeldJointBend,
+                GrainSize = request.GrainSize,
+                IntergranularCorrosion = request.IntergranularCorrosion,
+                PittingCorrosion = request.PittingCorrosion,
+                FerriteContent = request.FerriteContent,
+                Macrostructure = request.Macrostructure,
                 OtherRequirement = request.OtherRequirement
             };
 
@@ -183,12 +231,190 @@ public class ProductRequirementService : IProductRequirementService
         Sequence = sequence,
         RequirementType = entity.RequirementType,
         ChemicalComposition = entity.ChemicalComposition,
-        MechanicalProperty = entity.MechanicalProperty,
-        ToleranceRequirement = entity.ToleranceRequirement,
-        SurfaceQuality = entity.SurfaceQuality,
-        NdtRequirement = entity.NdtRequirement,
+        PmiInspection = entity.PmiInspection,
+        SurfaceInspection = entity.SurfaceInspection,
+        Dimension = entity.Dimension,
+        Endoscopy = entity.Endoscopy,
+        HydrostaticTest = entity.HydrostaticTest,
+        UnderwaterPressure = entity.UnderwaterPressure,
+        EddyCurrent = entity.EddyCurrent,
+        UltrasonicTest = entity.UltrasonicTest,
+        PortColoring = entity.PortColoring,
+        RadiographicTest = entity.RadiographicTest,
+        HardnessRockwell = entity.HardnessRockwell,
+        HardnessBrinell = entity.HardnessBrinell,
+        HardnessVickers = entity.HardnessVickers,
+        TensileRoomTemp = entity.TensileRoomTemp,
+        TensileHighTemp = entity.TensileHighTemp,
+        WeldJointTensile = entity.WeldJointTensile,
+        ImpactTest = entity.ImpactTest,
+        WeldJointImpact = entity.WeldJointImpact,
+        FlatteningTest = entity.FlatteningTest,
+        FlaringTest = entity.FlaringTest,
+        ExpandingTest = entity.ExpandingTest,
+        BendTest = entity.BendTest,
+        WeldJointBend = entity.WeldJointBend,
+        GrainSize = entity.GrainSize,
+        IntergranularCorrosion = entity.IntergranularCorrosion,
+        PittingCorrosion = entity.PittingCorrosion,
+        FerriteContent = entity.FerriteContent,
+        Macrostructure = entity.Macrostructure,
         OtherRequirement = entity.OtherRequirement,
         CreatedTime = entity.CreatedTime,
         UpdatedTime = entity.UpdatedTime
     };
+
+    public async Task<ProductRequirementDefaultsDto> GetDefaultRequirementsByStandardNoAsync(string? standardNo)
+    {
+        var defaults = new ProductRequirementDefaultsDto();
+        if (string.IsNullOrWhiteSpace(standardNo)) return defaults;
+
+        // 规范化匹配：去空格 + 忽略大小写（SQL Server collation 已忽略大小写，仅需处理空格）
+        // 订单产品标准与工厂检验项要求标准号存在空格书写差异（如 GB/T14976-2025 vs GB/T 14976-2025）
+        var normalized = standardNo.Replace(" ", "");
+        var req = await _context.FactoryInspectionRequirements
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.StandardNo != null && x.StandardNo.Replace(" ", "") == normalized);
+        if (req == null) return defaults;
+
+        defaults.ChemicalComposition = IsMandatory(req.ChemicalComposition);
+        defaults.PmiInspection = IsMandatory(req.PmiInspection);
+        defaults.SurfaceInspection = IsMandatory(req.SurfaceInspection);
+        defaults.Dimension = IsMandatory(req.Dimension);
+        defaults.Endoscopy = IsMandatory(req.Endoscopy);
+        defaults.HydrostaticTest = IsMandatory(req.HydrostaticTest);
+        defaults.UnderwaterPressure = IsMandatory(req.UnderwaterPressure);
+        defaults.EddyCurrent = IsMandatory(req.EddyCurrent);
+        defaults.UltrasonicTest = IsMandatory(req.UltrasonicTest);
+        defaults.PortColoring = IsMandatory(req.PortColoring);
+        defaults.RadiographicTest = IsMandatory(req.RadiographicTest);
+        defaults.HardnessRockwell = IsMandatory(req.HardnessRockwell);
+        defaults.HardnessBrinell = IsMandatory(req.HardnessBrinell);
+        defaults.HardnessVickers = IsMandatory(req.HardnessVickers);
+        defaults.TensileRoomTemp = IsMandatory(req.TensileRoomTemp);
+        defaults.TensileHighTemp = IsMandatory(req.TensileHighTemp);
+        defaults.WeldJointTensile = IsMandatory(req.WeldJointTensile);
+        defaults.ImpactTest = IsMandatory(req.ImpactTest);
+        defaults.WeldJointImpact = IsMandatory(req.WeldJointImpact);
+        defaults.FlatteningTest = IsMandatory(req.FlatteningTest);
+        defaults.FlaringTest = IsMandatory(req.FlaringTest);
+        defaults.ExpandingTest = IsMandatory(req.ExpandingTest);
+        defaults.BendTest = IsMandatory(req.BendTest);
+        defaults.WeldJointBend = IsMandatory(req.WeldJointBend);
+        defaults.GrainSize = IsMandatory(req.GrainSize);
+        defaults.IntergranularCorrosion = IsMandatory(req.IntergranularCorrosion);
+        defaults.PittingCorrosion = IsMandatory(req.PittingCorrosion);
+        defaults.FerriteContent = IsMandatory(req.FerriteContent);
+        defaults.Macrostructure = IsMandatory(req.Macrostructure);
+        return defaults;
+    }
+
+    /// <summary>
+    /// 按工厂检验项要求全面回填所有技术要求：
+    /// 订单项次标准号（去空格规范化）→ 工厂检验项要求匹配，字段含"必检"→true；液压检验仅定尺钢管带出，非定尺→false。
+    /// 匹配不到标准号/标准号为空的项次保持现状不动。
+    /// </summary>
+    public async Task<int> RefreshDefaultsAllAsync()
+    {
+        // 工厂检验项要求：按"去空格标准号"规范化建字典（SQL collation 忽略大小写，内存用 OrdinalIgnoreCase）
+        var factoryList = await _context.FactoryInspectionRequirements.AsNoTracking().ToListAsync();
+        var factoryMap = factoryList
+            .Where(x => !string.IsNullOrWhiteSpace(x.StandardNo))
+            .GroupBy(x => x.StandardNo.Replace(" ", ""), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        // 订单项次：Id → (标准号, 长度状态)
+        var itemMap = (await _context.OrderItems.AsNoTracking()
+                .Select(oi => new { oi.Id, oi.StandardNo, oi.LengthStatus })
+                .ToListAsync())
+            .Where(oi => !string.IsNullOrWhiteSpace(oi.StandardNo))
+            .ToDictionary(oi => oi.Id);
+
+        var requirements = await _context.ProductRequirements.ToListAsync();
+
+        var updated = 0;
+        foreach (var pr in requirements)
+        {
+            if (!itemMap.TryGetValue(pr.OrderItemId, out var item)) continue;
+            if (!factoryMap.TryGetValue(item.StandardNo!.Replace(" ", ""), out var req)) continue;
+
+            ApplyFactoryDefaults(pr, req, item.LengthStatus);
+            updated++;
+        }
+
+        await _context.SaveChangesAsync();
+        return updated;
+    }
+
+    /// <summary>
+    /// 按工单关联订单项次ID列表（逗号分隔）取质量备注：
+    /// 取各项次技术要求的「其他要求」，按项次号排序；多条时换行分隔并带项次前缀，单条时直接返回。
+    /// </summary>
+    public async Task<string> GetQualityRemarkByOrderItemIdsAsync(string? orderItemIds)
+    {
+        if (string.IsNullOrWhiteSpace(orderItemIds)) return string.Empty;
+
+        var ids = orderItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => int.TryParse(s, out _))
+            .Select(int.Parse)
+            .ToList();
+        if (ids.Count == 0) return string.Empty;
+
+        var remarks = await (from oi in _context.OrderItems
+                             join pr in _context.ProductRequirements on oi.Id equals pr.OrderItemId
+                             where ids.Contains(oi.Id)
+                                   && pr.OtherRequirement != null
+                                   && pr.OtherRequirement.Trim() != ""
+                             orderby oi.Sequence
+                             select new { oi.Sequence, OtherRequirement = pr.OtherRequirement! })
+            .AsNoTracking()
+            .ToListAsync();
+
+        if (remarks.Count == 0) return string.Empty;
+        if (remarks.Count == 1) return remarks[0].OtherRequirement;
+
+        return string.Join(Environment.NewLine, remarks.Select(r => $"项次{r.Sequence}：{r.OtherRequirement}"));
+    }
+
+    /// <summary>
+    /// 将工厂检验项要求默认值覆盖写入技术要求实体（含"必检"→true）
+    /// </summary>
+    private static void ApplyFactoryDefaults(ProductRequirement pr, FactoryInspectionRequirement req, LengthStatus lengthStatus)
+    {
+        pr.ChemicalComposition = IsMandatory(req.ChemicalComposition);
+        pr.PmiInspection = IsMandatory(req.PmiInspection);
+        pr.SurfaceInspection = IsMandatory(req.SurfaceInspection);
+        pr.Dimension = IsMandatory(req.Dimension);
+        pr.Endoscopy = IsMandatory(req.Endoscopy);
+        // 液压检验仅定尺钢管按标准号带出；非定尺默认 false（不适用）
+        pr.HydrostaticTest = lengthStatus == LengthStatus.Fixed && IsMandatory(req.HydrostaticTest);
+        pr.UnderwaterPressure = IsMandatory(req.UnderwaterPressure);
+        pr.EddyCurrent = IsMandatory(req.EddyCurrent);
+        pr.UltrasonicTest = IsMandatory(req.UltrasonicTest);
+        pr.PortColoring = IsMandatory(req.PortColoring);
+        pr.RadiographicTest = IsMandatory(req.RadiographicTest);
+        pr.HardnessRockwell = IsMandatory(req.HardnessRockwell);
+        pr.HardnessBrinell = IsMandatory(req.HardnessBrinell);
+        pr.HardnessVickers = IsMandatory(req.HardnessVickers);
+        pr.TensileRoomTemp = IsMandatory(req.TensileRoomTemp);
+        pr.TensileHighTemp = IsMandatory(req.TensileHighTemp);
+        pr.WeldJointTensile = IsMandatory(req.WeldJointTensile);
+        pr.ImpactTest = IsMandatory(req.ImpactTest);
+        pr.WeldJointImpact = IsMandatory(req.WeldJointImpact);
+        pr.FlatteningTest = IsMandatory(req.FlatteningTest);
+        pr.FlaringTest = IsMandatory(req.FlaringTest);
+        pr.ExpandingTest = IsMandatory(req.ExpandingTest);
+        pr.BendTest = IsMandatory(req.BendTest);
+        pr.WeldJointBend = IsMandatory(req.WeldJointBend);
+        pr.GrainSize = IsMandatory(req.GrainSize);
+        pr.IntergranularCorrosion = IsMandatory(req.IntergranularCorrosion);
+        pr.PittingCorrosion = IsMandatory(req.PittingCorrosion);
+        pr.FerriteContent = IsMandatory(req.FerriteContent);
+        pr.Macrostructure = IsMandatory(req.Macrostructure);
+    }
+
+    /// <summary>
+    /// 工厂检验项要求字段是否含"必检"（含"必检"→true，表示需检验；"按需"/"-"/空 → false）
+    /// </summary>
+    private static bool IsMandatory(string? value) => value?.Contains("必检") == true;
 }

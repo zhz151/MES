@@ -77,7 +77,9 @@ public class RepairOrderService : IRepairOrderService
                 x.Order.Priority.Contains(kw) ||
                 x.Order.RepairStatus.Contains(kw) ||
                 (x.Order.RepairContent != null && x.Order.RepairContent.Contains(kw)) ||
-                (x.Order.SparePartUsed != null && x.Order.SparePartUsed.Contains(kw)));
+                (x.Order.SparePartUsed != null && x.Order.SparePartUsed.Contains(kw)) ||
+                (x.Order.RepairCategory != null && x.Order.RepairCategory.Contains(kw)) ||
+                (x.Order.OtherRepairPersons != null && x.Order.OtherRepairPersons.Contains(kw)));
         }
 
         if (query.EquipmentId.HasValue)
@@ -95,27 +97,104 @@ public class RepairOrderService : IRepairOrderService
         if (query.ReportTimeTo.HasValue)
             baseQuery = baseQuery.Where(x => x.Order.ReportTime <= query.ReportTimeTo.Value);
 
-        // 处理 Equipment 关联字段筛选（EquipmentName/EquipmentCode/EquipmentLocation 来自 Equipment 表，
-        // ApplyFilters 通过反射在匿名类型 { Order, Equipment } 上找不到这些属性，需手动处理）
+        // 处理 JOIN 匿名类型 { Order, Equipment } 上的字段筛选：
+        // ApplyFilters 通过反射在匿名类型上找不到业务字段属性（只有 Order/Equipment），
+        // 故 Equipment 关联字段与 RepairOrder 全部字段均需手动处理
         if (query.Filters != null)
         {
+            // Equipment 关联字段（EquipmentName/EquipmentCode/EquipmentLocation 来自 Equipment 表）
             var equipmentFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "EquipmentName", "EquipmentCode", "EquipmentLocation" };
-            foreach (var f in query.Filters.Where(f => equipmentFields.Contains(f.Field)).ToList())
+            // RepairOrder 表自身 string 字段（枚举字段 Priority/RepairStatus 实体存枚举英文名）
+            var repairStringFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
+                "RepairOrderNo", "FaultDescription", "FaultType", "Priority", "RepairStatus",
+                "ReportPerson", "RepairPerson", "RepairCategory", "RepairContent",
+                "SparePartUsed", "OtherRepairPersons"
+            };
+            // RepairOrder 表自身日期字段
+            var repairDateFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "ReportTime", "RepairStartTime", "RepairEndTime" };
+
+            foreach (var f in query.Filters.ToList())
+            {
+                if (string.IsNullOrWhiteSpace(f.Field)) continue;
                 var op = f.Operator?.ToLowerInvariant() ?? "contains";
-                // EquipmentLocation 在匿名类型中对应 Location，需要转换
-                var fieldName = f.Field.Equals("EquipmentLocation", StringComparison.OrdinalIgnoreCase) ? "Location" : f.Field;
-                if (op == "in" && f.Values?.Count > 0)
+                var handled = false;
+
+                if (equipmentFields.Contains(f.Field))
                 {
-                    var values = f.Values;
-                    baseQuery = baseQuery.Where(x => values.Contains(EF.Property<string>(x.Equipment, fieldName)));
+                    // EquipmentLocation 在匿名类型中对应 Location，需要转换
+                    var fieldName = f.Field.Equals("EquipmentLocation", StringComparison.OrdinalIgnoreCase) ? "Location" : f.Field;
+                    if (op == "in" && f.Values?.Count > 0)
+                    {
+                        var values = f.Values;
+                        baseQuery = baseQuery.Where(x => values.Contains(EF.Property<string>(x.Equipment, fieldName)));
+                        handled = true;
+                    }
+                    else if (op == "contains" && !string.IsNullOrEmpty(f.Value))
+                    {
+                        var val = f.Value;
+                        baseQuery = baseQuery.Where(x => EF.Property<string>(x.Equipment, fieldName).Contains(val));
+                        handled = true;
+                    }
+                    else if (op == "equals" && !string.IsNullOrEmpty(f.Value))
+                    {
+                        var val = f.Value;
+                        baseQuery = baseQuery.Where(x => EF.Property<string>(x.Equipment, fieldName) == val);
+                        handled = true;
+                    }
                 }
-                else if (op == "contains" && !string.IsNullOrEmpty(f.Value))
+                else if (repairStringFields.Contains(f.Field))
                 {
-                    var val = f.Value;
-                    baseQuery = baseQuery.Where(x => EF.Property<string>(x.Equipment, fieldName).Contains(val));
+                    if (op == "in" && f.Values?.Count > 0)
+                    {
+                        var values = f.Values;
+                        baseQuery = baseQuery.Where(x => values.Contains(EF.Property<string>(x.Order, f.Field)));
+                        handled = true;
+                    }
+                    else if (op == "contains" && !string.IsNullOrEmpty(f.Value))
+                    {
+                        var val = f.Value;
+                        baseQuery = baseQuery.Where(x => EF.Property<string>(x.Order, f.Field).Contains(val));
+                        handled = true;
+                    }
+                    else if (op == "equals" && !string.IsNullOrEmpty(f.Value))
+                    {
+                        var val = f.Value;
+                        baseQuery = baseQuery.Where(x => EF.Property<string>(x.Order, f.Field) == val);
+                        handled = true;
+                    }
                 }
-                query.Filters.Remove(f);
+                else if (repairDateFields.Contains(f.Field))
+                {
+                    // 日期按「精确到天」匹配（与 QueryableExtensions 的 DateTime in 分支一致）
+                    if (op == "in" && f.Values?.Count > 0)
+                    {
+                        var dates = f.Values
+                            .Select(v => DateTime.TryParse(v, out var dt) ? (DateTime?)dt.Date : null)
+                            .Where(v => v.HasValue)
+                            .Select(v => v!.Value)
+                            .ToList();
+                        if (dates.Count > 0)
+                        {
+                            if (f.Field.Equals("ReportTime", StringComparison.OrdinalIgnoreCase))
+                                baseQuery = baseQuery.Where(x => dates.Contains(EF.Property<DateTime>(x.Order, "ReportTime").Date));
+                            else
+                                baseQuery = baseQuery.Where(x => dates.Contains(EF.Property<DateTime?>(x.Order, f.Field)!.Value.Date));
+                            handled = true;
+                        }
+                    }
+                    else if (op == "equals" && !string.IsNullOrEmpty(f.Value) && DateTime.TryParse(f.Value, out var eqDate))
+                    {
+                        if (f.Field.Equals("ReportTime", StringComparison.OrdinalIgnoreCase))
+                            baseQuery = baseQuery.Where(x => EF.Property<DateTime>(x.Order, "ReportTime").Date == eqDate.Date);
+                        else
+                            baseQuery = baseQuery.Where(x => EF.Property<DateTime?>(x.Order, f.Field)!.Value.Date == eqDate.Date);
+                        handled = true;
+                    }
+                }
+
+                if (handled) query.Filters.Remove(f);
             }
         }
         baseQuery = baseQuery.ApplyFilters(query.Filters);
@@ -157,6 +236,8 @@ public class RepairOrderService : IRepairOrderService
             ("repaircontent", false) => baseQuery.OrderBy(x => x.Order.RepairContent ?? ""),
             ("sparepartused", true) => baseQuery.OrderByDescending(x => x.Order.SparePartUsed ?? ""),
             ("sparepartused", false) => baseQuery.OrderBy(x => x.Order.SparePartUsed ?? ""),
+            ("otherrepairpersons", true) => baseQuery.OrderByDescending(x => x.Order.OtherRepairPersons ?? ""),
+            ("otherrepairpersons", false) => baseQuery.OrderBy(x => x.Order.OtherRepairPersons ?? ""),
             _ when query.IsDescending => baseQuery.OrderByDescending(x => x.Order.ReportTime),
             _ => baseQuery.OrderBy(x => x.Order.ReportTime)
         };
@@ -364,6 +445,7 @@ public class RepairOrderService : IRepairOrderService
                         r.RepairEndTime,
                         r.RepairContent,
                         r.SparePartUsed,
+                        r.OtherRepairPersons,
                         e.EquipmentName,
                         e.EquipmentCode,
                         Location = e.Location
@@ -380,13 +462,14 @@ public class RepairOrderService : IRepairOrderService
             ["FaultDescription"] = all.Select(x => x.FaultDescription).Distinct().OrderBy(x => x).ToList(),
             ["FaultType"] = all.Where(x => x.FaultType != null).Select(x => x.FaultType!).Distinct().OrderBy(x => x).ToList(),
             ["ReportPerson"] = all.Select(x => x.ReportPerson).Distinct().OrderBy(x => x).ToList(),
-            ["ReportTime"] = all.Select(x => x.ReportTime.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
+            ["ReportTime"] = all.Select(x => x.ReportTime.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
             ["RepairPerson"] = all.Where(x => x.RepairPerson != null).Select(x => x.RepairPerson!).Distinct().OrderBy(x => x).ToList(),
             ["RepairCategory"] = all.Where(x => x.RepairCategory != null).Select(x => x.RepairCategory!).Distinct().OrderBy(x => x).ToList(),
-            ["RepairStartTime"] = all.Where(x => x.RepairStartTime != null).Select(x => x.RepairStartTime!.Value.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
-            ["RepairEndTime"] = all.Where(x => x.RepairEndTime != null).Select(x => x.RepairEndTime!.Value.ToString("yyyy-MM-dd HH:mm")).Distinct().OrderBy(x => x).ToList(),
+            ["RepairStartTime"] = all.Where(x => x.RepairStartTime != null).Select(x => x.RepairStartTime!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+            ["RepairEndTime"] = all.Where(x => x.RepairEndTime != null).Select(x => x.RepairEndTime!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
             ["RepairContent"] = all.Where(x => x.RepairContent != null).Select(x => x.RepairContent!).Distinct().OrderBy(x => x).ToList(),
             ["SparePartUsed"] = all.Where(x => x.SparePartUsed != null).Select(x => x.SparePartUsed!).Distinct().OrderBy(x => x).ToList(),
+            ["OtherRepairPersons"] = all.Where(x => x.OtherRepairPersons != null).Select(x => x.OtherRepairPersons!).Distinct().OrderBy(x => x).ToList(),
         };
     }
 

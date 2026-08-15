@@ -210,6 +210,7 @@ public partial class PicklingOutRecords
             _editingIds.Remove(item.Id);
             _editCache.Remove(item.Id);
             if (table != null) await table.ReloadServerData();
+            await LoadFilterContextsAsync();
         }
         else
         {
@@ -812,6 +813,7 @@ public partial class PicklingOutRecords
         {
             Snackbar.Add("删除成功，入缸状态已恢复为浸泡中", Severity.Success);
             if (table != null) await table.ReloadServerData();
+            await LoadFilterContextsAsync();
         }
         else
         {

@@ -37,6 +37,8 @@ public partial class SectionFlowAnalysis
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
         "PendingTotal",
+        "PlanFlowQuantity",
+        "PlanKeyWeight",
     };
     private int _lastSummedPage = -1;
     private int _lastSummedCount = -1;
@@ -55,10 +57,13 @@ public partial class SectionFlowAnalysis
     {
         return new List<ColumnDef>
         {
-            new() { Key = "Category",        Label = "段落类别",   SortKey = "category",        FilterType = "string", IsRequired = true },
-            new() { Key = "PendingTotal",    Label = "段落待产总量", SortKey = "pendingtotal",  FilterType = "number" },
-            new() { Key = "SustainableDays", Label = "可持续天数",  SortKey = "sustainabledays",FilterType = "number" },
-            new() { Key = "StatusJudgment",  Label = "状态判定",   SortKey = "statusjudgment",  FilterType = "string", IsRequired = true },
+            new() { Key = "Category",        Label = "流转类别",   SortKey = "category",        FilterType = "string", IsRequired = true },
+            new() { Key = "PendingTotal",    Label = "待在产重量", SortKey = "pendingtotal",  FilterType = "number" },
+            new() { Key = "SustainableDays", Label = "可持续天数",  SortKey = "sustainabledays",FilterType = "number", Visible = false },
+            new() { Key = "StatusJudgment",  Label = "总况判定",   SortKey = "statusjudgment",  FilterType = "string", IsRequired = true },
+            new() { Key = "PlanFlowQuantity",Label = "计划流转量", SortKey = "planflowquantity", FilterType = "number" },
+            new() { Key = "PlanFlowJudgment",Label = "计划流转判定",SortKey = "planflowjudgment", FilterType = "string" },
+            new() { Key = "PlanKeyWeight",   Label = "重点批重量", SortKey = "plankeyweight",  FilterType = "number" },
         };
     }
 
@@ -196,7 +201,8 @@ public partial class SectionFlowAnalysis
 
     private static string? GetStringValue(SectionFlowAnalysisDto item, string key) => key switch
     {
-        "Category" => $"{item.CategoryCode} {item.CategoryName}".Trim(),
+        "Category" => item.CategoryName,
+        "PlanFlowJudgment" => item.PlanFlowJudgment,
         "StatusJudgment" => item.StatusJudgment,
         _ => null
     };
@@ -204,6 +210,8 @@ public partial class SectionFlowAnalysis
     private static decimal? GetDecimalValue(SectionFlowAnalysisDto item, string key) => key switch
     {
         "PendingTotal" => item.PendingTotal,
+        "PlanFlowQuantity" => item.PlanFlowQuantity,
+        "PlanKeyWeight" => item.PlanKeyWeight,
         "SustainableDays" => item.SustainableDays,
         _ => null
     };
@@ -228,8 +236,8 @@ public partial class SectionFlowAnalysis
         {
             var kw = _searchKeyword.Trim();
             filtered = filtered.Where(x =>
-                (x.CategoryCode?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.CategoryName?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.PlanFlowJudgment?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.StatusJudgment?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true));
         }
 
@@ -265,18 +273,27 @@ public partial class SectionFlowAnalysis
         filtered = sortColumn switch
         {
             "Category" => sortDescending
-                ? filtered.OrderByDescending(x => x.CategoryCode)
-                : filtered.OrderBy(x => x.CategoryCode),
+                ? filtered.OrderByDescending(x => x.DisplayOrder)
+                : filtered.OrderBy(x => x.DisplayOrder),
             "PendingTotal" => sortDescending
                 ? filtered.OrderByDescending(x => x.PendingTotal)
                 : filtered.OrderBy(x => x.PendingTotal),
+            "PlanFlowQuantity" => sortDescending
+                ? filtered.OrderByDescending(x => x.PlanFlowQuantity)
+                : filtered.OrderBy(x => x.PlanFlowQuantity),
+            "PlanFlowJudgment" => sortDescending
+                ? filtered.OrderByDescending(x => x.PlanFlowJudgment)
+                : filtered.OrderBy(x => x.PlanFlowJudgment),
+            "PlanKeyWeight" => sortDescending
+                ? filtered.OrderByDescending(x => x.PlanKeyWeight)
+                : filtered.OrderBy(x => x.PlanKeyWeight),
             "SustainableDays" => sortDescending
                 ? filtered.OrderByDescending(x => x.SustainableDays)
                 : filtered.OrderBy(x => x.SustainableDays),
             "StatusJudgment" => sortDescending
                 ? filtered.OrderByDescending(x => x.StatusJudgment)
                 : filtered.OrderBy(x => x.StatusJudgment),
-            _ => filtered.OrderBy(x => x.CategoryCode)
+            _ => filtered.OrderBy(x => x.DisplayOrder)
         };
 
         _filteredItems = filtered.ToList();
@@ -374,6 +391,8 @@ public partial class SectionFlowAnalysis
         if (pageItems.Count == 0) return;
 
         _pageSums["PendingTotal"] = ((int)pageItems.Sum(x => x.PendingTotal ?? 0m)).ToString();
+        _pageSums["PlanFlowQuantity"] = ((int)pageItems.Sum(x => x.PlanFlowQuantity ?? 0m)).ToString();
+        _pageSums["PlanKeyWeight"] = ((int)pageItems.Sum(x => x.PlanKeyWeight ?? 0m)).ToString();
     }
 
     private string RenderFooterCell(ColumnDef col)
@@ -426,6 +445,11 @@ public partial class SectionFlowAnalysis
         };
     }
 
+    private static Color GetPlanFlowJudgmentColor(string? judgment)
+    {
+        return judgment == "加速" ? Color.Warning : Color.Default;
+    }
+
     // ========== 打印 ==========
 
     private async Task PrintAll()
@@ -459,8 +483,11 @@ public partial class SectionFlowAnalysis
 
     private static object GetRawPropertyValue(SectionFlowAnalysisDto item, string key) => key switch
     {
-        "Category" => $"{item.CategoryCode} {item.CategoryName}".Trim(),
+        "Category" => item.CategoryName,
         "PendingTotal" => item.PendingTotal.HasValue ? ((int)item.PendingTotal.Value).ToString() : "-",
+        "PlanFlowQuantity" => item.PlanFlowQuantity.HasValue ? ((int)item.PlanFlowQuantity.Value).ToString() : "-",
+        "PlanFlowJudgment" => item.PlanFlowJudgment ?? "-",
+        "PlanKeyWeight" => item.PlanKeyWeight.HasValue ? ((int)item.PlanKeyWeight.Value).ToString() : "-",
         "SustainableDays" => item.SustainableDays.HasValue ? item.SustainableDays.Value.ToString("F1") : "-",
         "StatusJudgment" => item.StatusJudgment ?? "-",
         _ => ""

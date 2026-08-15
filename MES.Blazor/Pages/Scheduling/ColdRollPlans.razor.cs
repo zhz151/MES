@@ -38,9 +38,9 @@ public partial class ColdRollPlans
 
     // ========== 排程汇总 ==========
     private bool _showScheduleSummary = false;
-    private List<ColdRollScheduleSummaryDto> _scheduleSummaryData = new();
+    private List<ColdRollPlanSummaryDto> _scheduleSummaryData = new();
     private bool _summaryLoading = false;
-    private int? _summaryMaxDiff = null; // null=全部, n=原工量差<=n（近3天/近5天）
+    private int? _summaryMaxDiff = null; // null=全部(待轧近), 2=近2天, 4=近4天
 
     // ========== 列筛选 ==========
     private readonly Dictionary<string, HashSet<string>> _columnFilters = new();
@@ -63,8 +63,6 @@ public partial class ColdRollPlans
     // ========== Tab 汇总数据 ==========
     private int _tabSpecCount;
     private decimal _tabTotalWeight;
-    private int _tabKeyBatchCount;
-    private decimal _tabKeyBatchWeight;
 
     // ========== 列定义 ==========
     private List<ColumnDef> _allColumns = new();
@@ -111,9 +109,9 @@ public partial class ColdRollPlans
                     IsFinished = g.Key.IsFinished,
                     MergeDisplay = $"{g.Key.ShortDisplay}-{(g.Key.IsFinished ? "成品" : "在制品")}",
                     BatchCount = g.Sum(x => x.BatchCount),
-                    KeyBatchCount = g.Sum(x => x.KeyBatchCount),
                     WeightProd = g.Sum(x => x.WeightProd),
                     WeightProdUrgent = g.Sum(x => x.WeightProdUrgent),
+                    WeightProdUrgentSub = g.Sum(x => x.WeightProdUrgentSub),
                     WeightProdUrgentOther = g.Sum(x => x.WeightProdUrgentOther),
                     WeightWaitNearUrgent = g.Sum(x => x.WeightWaitNearUrgent),
                     WeightWaitNearBackUrgent = g.Sum(x => x.WeightWaitNearBackUrgent),
@@ -138,7 +136,7 @@ public partial class ColdRollPlans
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "WeightProd", "WeightProdUrgent", "WeightProdUrgentOther", "WeightWaitNear", "WeightWaitNearUrgent",
+        "WeightProd", "WeightProdUrgent", "WeightProdUrgentSub", "WeightProdUrgentOther", "WeightWaitNear", "WeightWaitNearUrgent",
         "WeightWaitNearBackUrgent", "WeightWaitNearOtherUrgent",
         "WeightToday", "WeightTomorrow", "WeightDayAfter",
         "WeightExt3", "WeightExt4", "WeightExt5",
@@ -147,7 +145,6 @@ public partial class ColdRollPlans
 
     [Inject] private ColdRollPlanService ColdRollSvc { get; set; } = default!;
     [Inject] private ColdRollSpecScheduleService ScheduleSvc { get; set; } = default!;
-    [Inject] private BatchPlanService BatchPlanSvc { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private PageStateService PageState { get; set; } = default!;
@@ -213,10 +210,26 @@ public partial class ColdRollPlans
             await table.ReloadServerData();
     }
 
+    // 分组标题栏：测量实际列宽 + 同步滚动（每次渲染同步，JS 内部防重复注册）
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JS.InvokeVoidAsync("initGroupHeaders", "#crp-list-table");
+    }
+
     // ========== 打印 ==========
     private async Task OnPrint()
     {
+        // 打印冷轧排程计划：确保非汇总打印模式（隐藏排程汇总区）
+        await JS.InvokeVoidAsync("eval", "document.body.classList.remove('print-summary')");
         await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task OnPrintSummary()
+    {
+        // 打印排程汇总：隐藏主计划区，仅打印汇总
+        await JS.InvokeVoidAsync("eval", "document.body.classList.add('print-summary')");
+        await JS.InvokeVoidAsync("window.print");
+        await JS.InvokeVoidAsync("eval", "document.body.classList.remove('print-summary')");
     }
 
     // ========== 列显隐 ==========
@@ -272,7 +285,7 @@ public partial class ColdRollPlans
         var key = _isSimplifiedView ? GetSimplifiedRowKey(row) : GetRowKey(row);
         if (!_scheduleEdits.TryGetValue(key, out var edit))
         {
-            edit = new ScheduleEditData { MachineNo = row.MachineNo ?? "" };
+            edit = new ScheduleEditData { MachineNo = "" };
             _scheduleEdits[key] = edit;
         }
         return edit;
@@ -309,16 +322,18 @@ public partial class ColdRollPlans
                     {
                         edit = new ScheduleEditData
                         {
-                            MachineNo = sched.MachineNo ?? "",
-                            CompletionType = sched.CompletionType,
-                            RollType = sched.RollType,
+                            MachineNo = item.WeightWaitNear > 0 && !string.IsNullOrEmpty(sched.RollType) && sched.RollType != "None"
+                                ? (sched.MachineNo ?? "")
+                                : "",
+                            CompletionType = item.WeightProd > 0 ? sched.CompletionType : "None",
+                            RollType = item.WeightWaitNear > 0 ? sched.RollType : "None",
                         };
                         break;
                     }
                 }
                 _scheduleEdits[simKey] = edit ?? new ScheduleEditData
                 {
-                    MachineNo = item.MachineNo ?? "",
+                    MachineNo = "",
                 };
             }
         }
@@ -331,16 +346,18 @@ public partial class ColdRollPlans
                 {
                     _scheduleEdits[key] = new ScheduleEditData
                     {
-                        MachineNo = schedule.MachineNo ?? "",
-                        CompletionType = schedule.CompletionType,
-                        RollType = schedule.RollType,
-                    }; ;
+                        MachineNo = item.WeightWaitNear > 0 && !string.IsNullOrEmpty(schedule.RollType) && schedule.RollType != "None"
+                            ? (schedule.MachineNo ?? "")
+                            : "",
+                        CompletionType = item.WeightProd > 0 ? schedule.CompletionType : "None",
+                        RollType = item.WeightWaitNear > 0 ? schedule.RollType : "None",
+                    };
                 }
                 else
                 {
                     _scheduleEdits[key] = new ScheduleEditData
                     {
-                        MachineNo = item.MachineNo ?? "",
+                        MachineNo = "",
                     };
                 }
             }
@@ -454,7 +471,7 @@ public partial class ColdRollPlans
                 await table.ReloadServerData();
             if (_showScheduleSummary)
             {
-                _scheduleSummaryData = await BatchPlanSvc.GetFlowSummaryAsync(_selectedSection, _summaryMaxDiff);
+                _scheduleSummaryData = await ColdRollSvc.GetScheduleSummaryAsync(null, _summaryMaxDiff);
             }
         }
         catch (Exception ex)
@@ -473,6 +490,14 @@ public partial class ColdRollPlans
 
     // ========== 排程编辑 ==========
 
+    /// <summary>在轧要求下拉闭合显示：无计划显示"-"，其余走标准中文</summary>
+    private static string GetCompletionTypeEditDisplay(string v)
+        => v == "None" ? "-" : DisplayHelper.GetCompletionTypeText(v);
+
+    /// <summary>待轧要求下拉闭合显示：无计划显示"-"，其余走标准中文</summary>
+    private static string GetRollTypeEditDisplay(string v)
+        => v == "None" ? "-" : DisplayHelper.GetRollTypeText(v);
+
     private void OnCompletionTypeEdit(ScheduleEditData edit, string value)
     {
         edit.CompletionType = value;
@@ -486,10 +511,13 @@ public partial class ColdRollPlans
     // ========== 排程汇总 ==========
 
     /// <summary>排程汇总始终按全部工段计算，显示时按当前工段过滤</summary>
-    private List<ColdRollScheduleSummaryDto> _displaySummaryData =>
+    private List<ColdRollPlanSummaryDto> _displaySummaryData =>
         string.IsNullOrEmpty(_selectedSection)
             ? _scheduleSummaryData
             : _scheduleSummaryData.Where(x => x.ProcessType == (ProcessKeys.ToKey(_selectedSection) ?? _selectedSection)).ToList();
+
+    /// <summary>排程汇总重量显示：0 不显示（视觉降噪），其余取整</summary>
+    private static string WeightText(decimal v) => v == 0m ? "" : ((int)v).ToString();
 
     private async Task ToggleScheduleSummaryAsync()
     {
@@ -503,7 +531,7 @@ public partial class ColdRollPlans
         {
             _summaryLoading = true;
             // 始终传 null（全部工段），显示时按当前工段过滤
-            _scheduleSummaryData = await BatchPlanSvc.GetFlowSummaryAsync(null, _summaryMaxDiff);
+            _scheduleSummaryData = await ColdRollSvc.GetScheduleSummaryAsync(null, _summaryMaxDiff);
             _showScheduleSummary = true;
         }
         catch (Exception ex)
@@ -524,7 +552,7 @@ public partial class ColdRollPlans
         {
             _summaryLoading = true;
             // 始终传 null（全部工段）
-            _scheduleSummaryData = await BatchPlanSvc.GetFlowSummaryAsync(null, _summaryMaxDiff);
+            _scheduleSummaryData = await ColdRollSvc.GetScheduleSummaryAsync(null, _summaryMaxDiff);
             _summaryLoading = false;
         }
     }
@@ -632,6 +660,9 @@ public partial class ColdRollPlans
             "WeightProdUrgent" => sortDescending
                 ? filtered.OrderByDescending(x => x.WeightProdUrgent)
                 : filtered.OrderBy(x => x.WeightProdUrgent),
+            "WeightProdUrgentSub" => sortDescending
+                ? filtered.OrderByDescending(x => x.WeightProdUrgentSub)
+                : filtered.OrderBy(x => x.WeightProdUrgentSub),
             "WeightWaitNear" => sortDescending
                 ? filtered.OrderByDescending(x => x.WeightWaitNear)
                 : filtered.OrderBy(x => x.WeightWaitNear),
@@ -719,8 +750,6 @@ public partial class ColdRollPlans
             // 统计数据
             _tabSpecCount = _allItems.Count;
             _tabTotalWeight = _allItems.Sum(r => r.WeightTotal);
-            _tabKeyBatchCount = _allItems.Sum(r => r.KeyBatchCount);
-            _tabKeyBatchWeight = _allItems.Sum(r => r.WeightProdUrgent + r.WeightWaitNearUrgent);
 
             // 客户端分页
             _totalCount = _pageItems.Count;
@@ -767,17 +796,18 @@ public partial class ColdRollPlans
         var g2 = new List<ColumnDef>
         {
             new() { Key = "MachineNo",          Label = "在轧设备号",     Width = "120", GroupKey = 2, GroupName = "近日在轧" },
-            new() { Key = "WeightProd",         Label = "近日在轧",        Width = "100", GroupKey = 2, GroupName = "近日在轧" },
-            new() { Key = "WeightProdUrgent",   Label = "近日在轧(特急管)", Width = "120", GroupKey = 2, GroupName = "近日在轧" },
-            new() { Key = "WeightProdUrgentOther", Label = "近日在轧(急管)",   Width = "110", GroupKey = 2, GroupName = "近日在轧" },
+            new() { Key = "WeightProd",         Label = "在轧",        Width = "100", GroupKey = 2, GroupName = "近日在轧" },
+            new() { Key = "WeightProdUrgent",   Label = "在轧(急+)", Width = "120", GroupKey = 2, GroupName = "近日在轧" },
+            new() { Key = "WeightProdUrgentSub",  Label = "在轧(急)", Width = "120", GroupKey = 2, GroupName = "近日在轧" },
+            new() { Key = "WeightProdUrgentOther", Label = "在轧(急-)", Width = "110", GroupKey = 2, GroupName = "近日在轧" },
         };
 
         var g3 = new List<ColumnDef>
         {
             new() { Key = "WeightWaitNear",          Label = "近日待轧",          Width = "100", GroupKey = 3, GroupName = "近日待轧" },
-            new() { Key = "WeightWaitNearUrgent",    Label = "近日待轧(特急管)",   Width = "120", GroupKey = 3, GroupName = "近日待轧" },
-            new() { Key = "WeightWaitNearBackUrgent", Label = "近日待轧(后特急)",   Width = "120", GroupKey = 3, GroupName = "近日待轧" },
-            new() { Key = "WeightWaitNearOtherUrgent", Label = "近日待轧(其它急管)", Width = "130", GroupKey = 3, GroupName = "近日待轧" },
+            new() { Key = "WeightWaitNearUrgent",    Label = "近日待轧(急+)", Width = "120", GroupKey = 3, GroupName = "近日待轧" },
+            new() { Key = "WeightWaitNearBackUrgent", Label = "近日待轧(急)", Width = "120", GroupKey = 3, GroupName = "近日待轧" },
+            new() { Key = "WeightWaitNearOtherUrgent", Label = "近日待轧(急-)", Width = "130", GroupKey = 3, GroupName = "近日待轧" },
         };
 
         var g4 = new List<ColumnDef>
@@ -818,17 +848,18 @@ public partial class ColdRollPlans
         var g2 = new List<ColumnDef>
         {
             new() { Key = "MachineNo",          Label = "在轧设备号",     Width = "120", GroupKey = 2, GroupName = "近日在轧" },
-            new() { Key = "WeightProd",         Label = "近日在轧",        Width = "100", GroupKey = 2, GroupName = "近日在轧" },
-            new() { Key = "WeightProdUrgent",   Label = "近日在轧(特急管)", Width = "120", GroupKey = 2, GroupName = "近日在轧" },
-            new() { Key = "WeightProdUrgentOther", Label = "近日在轧(急管)",   Width = "110", GroupKey = 2, GroupName = "近日在轧" },
+            new() { Key = "WeightProd",         Label = "在轧",        Width = "100", GroupKey = 2, GroupName = "近日在轧" },
+            new() { Key = "WeightProdUrgent",   Label = "在轧(急+)", Width = "120", GroupKey = 2, GroupName = "近日在轧" },
+            new() { Key = "WeightProdUrgentSub",  Label = "在轧(急)", Width = "120", GroupKey = 2, GroupName = "近日在轧" },
+            new() { Key = "WeightProdUrgentOther", Label = "在轧(急-)", Width = "110", GroupKey = 2, GroupName = "近日在轧" },
         };
 
         var g3 = new List<ColumnDef>
         {
             new() { Key = "WeightWaitNear",          Label = "近日待轧",          Width = "100", GroupKey = 3, GroupName = "近日待轧" },
-            new() { Key = "WeightWaitNearUrgent",    Label = "近日待轧(特急管)",   Width = "120", GroupKey = 3, GroupName = "近日待轧" },
-            new() { Key = "WeightWaitNearBackUrgent", Label = "近日待轧(后特急)",   Width = "120", GroupKey = 3, GroupName = "近日待轧" },
-            new() { Key = "WeightWaitNearOtherUrgent", Label = "近日待轧(其它急管)", Width = "130", GroupKey = 3, GroupName = "近日待轧" },
+            new() { Key = "WeightWaitNearUrgent",    Label = "近日待轧(急+)", Width = "120", GroupKey = 3, GroupName = "近日待轧" },
+            new() { Key = "WeightWaitNearBackUrgent", Label = "近日待轧(急)", Width = "120", GroupKey = 3, GroupName = "近日待轧" },
+            new() { Key = "WeightWaitNearOtherUrgent", Label = "近日待轧(急-)", Width = "130", GroupKey = 3, GroupName = "近日待轧" },
         };
 
         var g4 = new List<ColumnDef>
@@ -867,7 +898,7 @@ public partial class ColdRollPlans
         return col.Key switch
         {
             "IsFinished" => item.IsFinished ? "成品" : "在制品",
-            "WeightProd" or "WeightProdUrgent" or "WeightProdUrgentOther" or "WeightWaitNear" or "WeightWaitNearUrgent"
+            "WeightProd" or "WeightProdUrgent" or "WeightProdUrgentSub" or "WeightProdUrgentOther" or "WeightWaitNear" or "WeightWaitNearUrgent"
                 or "WeightWaitNearBackUrgent" or "WeightWaitNearOtherUrgent"
                 or "WeightToday" or "WeightTomorrow" or "WeightDayAfter"
                 or "WeightExt3" or "WeightExt4" or "WeightExt5"
@@ -880,7 +911,7 @@ public partial class ColdRollPlans
     {
         return col.Key switch
         {
-            "WeightProdUrgent" or "WeightProdUrgentOther" or "WeightWaitNearUrgent" or "WeightWaitNearBackUrgent" or "WeightWaitNearOtherUrgent" => "urgent-cell",
+            "WeightProdUrgent" or "WeightProdUrgentSub" or "WeightProdUrgentOther" or "WeightWaitNearUrgent" or "WeightWaitNearBackUrgent" or "WeightWaitNearOtherUrgent" => "urgent-cell",
             _ => "",
         };
     }
@@ -891,6 +922,7 @@ public partial class ColdRollPlans
         {
             "WeightProd" => item.WeightProd,
             "WeightProdUrgent" => item.WeightProdUrgent,
+            "WeightProdUrgentSub" => item.WeightProdUrgentSub,
             "WeightProdUrgentOther" => item.WeightProdUrgentOther,
             "WeightWaitNear" => item.WeightWaitNear,
             "WeightWaitNearUrgent" => item.WeightWaitNearUrgent,
@@ -927,8 +959,7 @@ public partial class ColdRollPlans
     private List<(string GroupName, int TotalWidth, string CssClass)> GetGroupHeaders()
     {
         var groups = new List<(string GroupName, int TotalWidth, string CssClass)>();
-        var currentGroup = (Name: "", Width: 0);
-        var groupIndex = 0;
+        var currentGroup = (Name: "", Width: 0, GroupKey: (int?)null);
 
         foreach (var col in _visibleColumns)
         {
@@ -940,11 +971,9 @@ public partial class ColdRollPlans
             {
                 if (currentGroup.Width > 0)
                 {
-                    var cssClass = groupIndex % 2 == 0 ? "col-group-even" : "col-group-odd";
-                    groups.Add((currentGroup.Name, currentGroup.Width, cssClass));
-                    groupIndex++;
+                    groups.Add((currentGroup.Name, currentGroup.Width, GetHeaderGroupCss(currentGroup.GroupKey, true)));
                 }
-                currentGroup = (groupName, colWidth);
+                currentGroup = (groupName, colWidth, col.GroupKey);
             }
             else
             {
@@ -954,8 +983,7 @@ public partial class ColdRollPlans
 
         if (currentGroup.Width > 0)
         {
-            var cssClass = groupIndex % 2 == 0 ? "col-group-even" : "col-group-odd";
-            groups.Add((currentGroup.Name, currentGroup.Width, cssClass));
+            groups.Add((currentGroup.Name, currentGroup.Width, GetHeaderGroupCss(currentGroup.GroupKey, true)));
         }
 
         return groups;
@@ -963,16 +991,34 @@ public partial class ColdRollPlans
 
     private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
     {
-        var css = isGroupStart ? "col-group-start " : "";
-        var evenOdd = (groupKey ?? 0) % 2 == 0 ? "col-group-even" : "col-group-odd";
-        return css + evenOdd;
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            3 => "col-g3",
+            4 => "col-g4",
+            5 => "col-g5",
+            6 => "col-g6",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
     }
 
     private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
     {
-        var css = isGroupStart ? "col-group-start " : "";
-        var evenOdd = (groupKey ?? 0) % 2 == 0 ? "col-cell-even" : "col-cell-odd";
-        return css + evenOdd;
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            3 => "col-g3-cell",
+            4 => "col-g4-cell",
+            5 => "col-g5-cell",
+            6 => "col-g6-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
     }
 
     // ========== 页脚汇总 ==========
@@ -990,6 +1036,7 @@ public partial class ColdRollPlans
                 {
                     "WeightProd" => item.WeightProd,
                     "WeightProdUrgent" => item.WeightProdUrgent,
+                    "WeightProdUrgentSub" => item.WeightProdUrgentSub,
                     "WeightProdUrgentOther" => item.WeightProdUrgentOther,
                     "WeightWaitNear" => item.WeightWaitNear,
                     "WeightWaitNearUrgent" => item.WeightWaitNearUrgent,

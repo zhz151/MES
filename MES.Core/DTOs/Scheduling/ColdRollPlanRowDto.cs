@@ -15,12 +15,13 @@ public class ColdRollPlanRowDto
 
     // ===== 时间桶重量 (Kg) =====
     public decimal WeightProd { get; set; }               // 近日在轧
-    public decimal WeightProdUrgent { get; set; }         // 近日在轧(急管)
-    public decimal WeightProdUrgentOther { get; set; }    // 近日在轧(急管)
+    public decimal WeightProdUrgent { get; set; }         // 近日在轧(特急) = 正常流转∧关注==当前冷轧
+    public decimal WeightProdUrgentSub { get; set; }      // 近日在轧(特急-) = 正常流转∧关注≠当前冷轧
+    public decimal WeightProdUrgentOther { get; set; }    // 近日在轧(急) = 非正常流转
     public decimal WeightWaitNear { get; set; }           // 近日待轧
-    public decimal WeightWaitNearUrgent { get; set; }     // 近日待轧(特急管)
-    public decimal WeightWaitNearBackUrgent { get; set; } // 近日待轧(后特急)
-    public decimal WeightWaitNearOtherUrgent { get; set; } // 近日待轧(其它急管)
+    public decimal WeightWaitNearUrgent { get; set; }     // 近日待轧(特急)
+    public decimal WeightWaitNearBackUrgent { get; set; } // 近日待轧(特急-)
+    public decimal WeightWaitNearOtherUrgent { get; set; } // 近日待轧(急)
     public decimal WeightToday { get; set; }              // 待轧今日(diff=1)
     public decimal WeightTomorrow { get; set; }           // 待轧明日(diff=2)
     public decimal WeightDayAfter { get; set; }           // 待轧后日(diff=3)
@@ -32,7 +33,6 @@ public class ColdRollPlanRowDto
 
     // ===== 批次统计 =====
     public int BatchCount { get; set; }
-    public int KeyBatchCount { get; set; }
 
     // ===== 冷轧排程 =====
     /// <summary>在轧设备号（从 ProductionBatch 在产设备字段聚合）</summary>

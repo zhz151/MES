@@ -477,7 +477,7 @@ public partial class WorkOrders : IAsyncDisposable
                 builder.AddContent(0, item.Specification);
                 break;
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, DisplayHelper.GetWorkOrderLengthStatusText(item.LengthStatus, item.MinLength, item.MaxLength));
                 break;
             case "MinLength":
                 builder.AddContent(0, item.MinLength?.ToString("G29") ?? "-");

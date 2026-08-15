@@ -1,15 +1,17 @@
 namespace MES.Data.Entities.Configuration;
 
 /// <summary>
-/// 段落分类设置 — 每个段落类别一行，存储用户可编辑的参数
+/// 流转类别日产配置 — 每个流转类别一行，存储用户可编辑的参数。
+/// 类别包含的(工序组,工段,产类)组合由组合归类表 CombinationGroups 承载。
 /// </summary>
 public class SectionFlowCategorySetting : BaseEntity
 {
-    public string CategoryCode { get; set; } = null!;
-
     public string CategoryName { get; set; } = null!;
 
-    /// <summary>变异量预算日产（用户编辑）</summary>
+    /// <summary>展示序号（汇总表显示顺序）</summary>
+    public int DisplayOrder { get; set; }
+
+    /// <summary>日产设定（用户编辑）</summary>
     public decimal? DailyProductionTarget { get; set; }
 
     /// <summary>偏少天数值（用户编辑）</summary>
@@ -19,6 +21,4 @@ public class SectionFlowCategorySetting : BaseEntity
     public decimal? UpperLimitDays { get; set; }
 
     public string? Remark { get; set; }
-
-    public ICollection<SectionFlowCategoryItem> Items { get; set; } = new List<SectionFlowCategoryItem>();
 }

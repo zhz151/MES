@@ -97,7 +97,7 @@ public partial class WorkOrderExecution
             new() { Key = "TotalAvailableWeight",     Label = "现可投料总重",    SortKey = "TotalAvailableWeight",     FilterType = "number", Width = "100",     GroupKey = 4, GroupName = "用料计划及执行实况" },
             new() { Key = "TotalMissingWeight",       Label = "理论缺失总料重",  SortKey = "TotalMissingWeight",       FilterType = "number", Width = "100",     GroupKey = 4, GroupName = "用料计划及执行实况" },
             new() { Key = "ActualInputWeight",        Label = "实际已投料量",    SortKey = "ActualInputWeight",        FilterType = "number", FilterField = "InputWeight", Width = "100", GroupKey = 4, GroupName = "用料计划及执行实况" },
-            new() { Key = "PlanInputConsistency",     Label = "到料实投一致性",  SortKey = "PlanInputConsistency",     FilterType = "enum", EnumOptions = DisplayHelper.GetPlanInputConsistencyOptions(), Width = "140", GroupKey = 4, GroupName = "用料计划及执行实况" },
+            new() { Key = "PlanInputConsistency",     Label = "到料实投一致性",  SortKey = "PlanInputConsistency",     FilterType = "enum", EnumOptions = DisplayHelper.GetPlanInputConsistencyOptions(), Width = "140", GroupKey = 4, GroupName = "用料计划及执行实况", HighlightCssClass = " col-header-consistency" },
         };
 
         // G16: 次品总量（返整执行之后）
@@ -730,13 +730,6 @@ public partial class WorkOrderExecution
                 catch { }
             }
 
-            // 确保新字段始终可见（兼容旧保存状态不包含这些列）
-            foreach (var col in _allColumns)
-            {
-                if (col.Key is "MaxBatchRemainingWorkDays" or "MainNoAttentionProcess")
-                    col.Visible = true;
-            }
-
             // 恢复列筛选
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
@@ -832,7 +825,7 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.Specification);
                 break;
             case "LengthStatus":
-                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
+                builder.AddContent(0, DisplayHelper.GetWorkOrderLengthStatusText(item.LengthStatus, item.MinLength, item.MaxLength));
                 break;
             case "MinLength":
                 builder.AddContent(0, item.MinLength?.ToString("G29") ?? "-");
@@ -1295,7 +1288,7 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.PendingSectionDrawBench.HasValue ? ((int)item.PendingSectionDrawBench.Value).ToString() : "-");
                 break;
             case "DeformedProcessCompleted":
-                builder.AddContent(0, item.DeformedProcessCompleted ? "是" : "否");
+                builder.AddContent(0, item.DeformedProcessCompleted switch { true => "是", false => "否", null => "略" });
                 break;
             case "ProductionAttentionProcess":
                 builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.ProductionAttentionProcess ?? "-"));
@@ -1532,7 +1525,7 @@ public partial class WorkOrderExecution
         _ => Color.Default
     };
 
-    /// <summary>到料实投一致性五态：0=一致(绿) 1=待投(蓝) 2/3=疑问系(橙) 4=错误-无到料已投(红)，一眼可区分</summary>
+    /// <summary>到料实投一致性七档：0=一致(绿) 1=待投(蓝) 2/3=疑问系(橙) 4/5=错误系(红) 6=略(灰)，一眼可区分</summary>
     private static Color GetPlanInputConsistencyColor(int consistency) => consistency switch
     {
         0 => Color.Success,
@@ -1540,6 +1533,7 @@ public partial class WorkOrderExecution
         2 => Color.Warning,
         3 => Color.Warning,
         4 => Color.Error,
+        5 => Color.Error,
         _ => Color.Default
     };
 
@@ -1656,7 +1650,7 @@ public partial class WorkOrderExecution
         "IsUrging" => item.IsUrging ? "是" : "否",
         "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
         "IsPaused" => item.IsPaused ? "是" : "否",
-        "DeformedProcessCompleted" => item.DeformedProcessCompleted ? "是" : "否",
+        "DeformedProcessCompleted" => item.DeformedProcessCompleted switch { true => "是", false => "否", null => "略" },
         // 状态 int→中文
         "MaterialPlanStatus" => item.MaterialPlanStatusText,
         "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatusText,

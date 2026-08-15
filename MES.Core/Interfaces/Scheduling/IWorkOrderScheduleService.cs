@@ -21,9 +21,6 @@ public interface IWorkOrderScheduleService
     /// <summary>批量计划安排：将匹配查询的工单Plan覆盖值设为系统值，删除不匹配的Plan�?/summary>
     Task<bool> PlanScheduleAllAsync(QueryParams query);
 
-    /// <summary>进度保留计划：覆盖工单状�?紧急�?流转性为系统值，保留生产关注工序的手工调�?/summary>
-    Task<bool> PlanScheduleKeepAttentionAsync(QueryParams query);
-
     /// <summary>获取所有工单排程（无分页，供看板使用）</summary>
     Task<List<WorkOrderScheduleDto>> GetAllAsync();
 

@@ -72,43 +72,4 @@ public class SectionFlowAnalysisService
             return ApiResponse.Fail($"网络错误: {ex.Message}");
         }
     }
-
-    public async Task<ApiResponse> CreateItemAsync(int settingId, SectionFlowCategoryItemDto dto)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<SectionFlowCategoryItemDto, ApiResponse>($"{BaseUrl}/settings/{settingId}/items", dto);
-            return response ?? ApiResponse.Fail("新增失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse> SaveItemAsync(int itemId, SectionFlowCategoryItemDto dto)
-    {
-        try
-        {
-            var response = await _http.PutAsJsonAsync<SectionFlowCategoryItemDto, ApiResponse>($"{BaseUrl}/settings/items/{itemId}", dto);
-            return response ?? ApiResponse.Fail("保存失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse> DeleteItemAsync(int itemId)
-    {
-        try
-        {
-            var response = await _http.DeleteFromJsonAsync<ApiResponse>($"{BaseUrl}/settings/items/{itemId}");
-            return response ?? ApiResponse.Fail("删除失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
-        }
-    }
 }

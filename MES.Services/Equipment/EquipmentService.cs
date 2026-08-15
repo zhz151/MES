@@ -347,6 +347,39 @@ public class EquipmentService : IEquipmentService
         contexts["RelatedSection"] = await _context.Equipment
             .AsNoTracking().Where(e => e.RelatedSection != null)
             .Select(e => e.RelatedSection!).Distinct().ToListAsync()!;
+        contexts["TechnicalParams"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.TechnicalParams != null)
+            .Select(e => e.TechnicalParams!).Distinct().ToListAsync()!;
+        contexts["Manufacturer"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.Manufacturer != null)
+            .Select(e => e.Manufacturer!).Distinct().ToListAsync()!;
+        contexts["InspectionPerson"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.InspectionPerson != null)
+            .Select(e => e.InspectionPerson!).Distinct().ToListAsync()!;
+        contexts["MaintPerson"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.MaintPerson != null)
+            .Select(e => e.MaintPerson!).Distinct().ToListAsync()!;
+        contexts["Remark"] = await _context.Equipment
+            .AsNoTracking().Where(e => e.Remark != null)
+            .Select(e => e.Remark!).Distinct().ToListAsync()!;
+
+        // 日期列按「精确到天」提供筛选项（与 ApplyFilters 的 DateTime in 分支匹配）
+        contexts["InstallationDate"] = (await _context.Equipment
+            .AsNoTracking().Where(e => e.InstallationDate != null)
+            .Select(e => e.InstallationDate!.Value.Date).Distinct().OrderBy(d => d).ToListAsync())
+            .Select(d => d.ToString("yyyy-MM-dd")).ToList();
+        contexts["CurrentInspectionStartDate"] = (await _context.Equipment
+            .AsNoTracking().Where(e => e.CurrentInspectionStartDate != null)
+            .Select(e => e.CurrentInspectionStartDate!.Value.Date).Distinct().OrderBy(d => d).ToListAsync())
+            .Select(d => d.ToString("yyyy-MM-dd")).ToList();
+        contexts["CurrentMaintStartDate"] = (await _context.Equipment
+            .AsNoTracking().Where(e => e.CurrentMaintStartDate != null)
+            .Select(e => e.CurrentMaintStartDate!.Value.Date).Distinct().OrderBy(d => d).ToListAsync())
+            .Select(d => d.ToString("yyyy-MM-dd")).ToList();
+        contexts["LastRepairDate"] = (await _context.Equipment
+            .AsNoTracking().Where(e => e.LastRepairDate != null)
+            .Select(e => e.LastRepairDate!.Value.Date).Distinct().OrderBy(d => d).ToListAsync())
+            .Select(d => d.ToString("yyyy-MM-dd")).ToList();
 
         return contexts;
     }

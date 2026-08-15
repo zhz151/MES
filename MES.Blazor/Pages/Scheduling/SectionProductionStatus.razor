@@ -20,7 +20,7 @@
     <!-- 页面标题 -->
     <MudText Typo="Typo.h5" Class="font-weight-bold mb-4">
         <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
-        工段待产量
+        工段待在产量
     </MudText>
 
     <!-- 页面顶部工具栏 -->
@@ -53,7 +53,8 @@
     <MudTable @ref="table" T="SectionProductionStatusDto"
               Items="@_filteredItems"
               Dense="true" Hover="true" Elevation="0" Class="auto-table"
-              RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
+              RowsPerPage="@_pageSize" RowsPerPageChanged="@OnRowsPerPageChanged"
+              RowsPerPageLabel="每页行数:">
         <HeaderContent>
             @foreach (var col in _visibleColumns)
             {
@@ -83,7 +84,7 @@
             @{ var item = context; }
             @foreach (var col in _visibleColumns)
             {
-                <MudTd Class="@(col.Key != "ProcessGroupName" && col.Key != "SectionName" ? "mud-table-cell--right" : "")">
+                <MudTd Class="@(col.Key != "ProcessGroupName" && col.Key != "SectionName" && col.Key != "ProductStatus" ? "mud-table-cell--right" : "")">
                     @RenderCell(item, col)
                 </MudTd>
             }

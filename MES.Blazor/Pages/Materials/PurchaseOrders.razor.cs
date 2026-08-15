@@ -881,7 +881,7 @@ public partial class PurchaseOrders : IAsyncDisposable
             try
             {
                 var result = await PurchaseService.DeleteAsync(item.Id);
-                if (result.Success) { Snackbar.Add("取消成功", Severity.Success); await LoadProcurementStatus(); if (table != null) await table.ReloadServerData(); }
+                if (result.Success) { Snackbar.Add("取消成功", Severity.Success); await LoadProcurementStatus(); if (table != null) await table.ReloadServerData(); await LoadFilterContextsAsync(); }
                 else { Snackbar.Add(result.Message ?? "取消失败", Severity.Error); }
             }
             catch (Exception ex) { Snackbar.Add($"取消失败: {ex.Message}", Severity.Error); }

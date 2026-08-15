@@ -7,7 +7,10 @@ public class BatchPlanScheduleDto
 {
     public int Id { get; set; }
     public int BatchId { get; set; }
+    /// <summary>暂停（控制开关）：=是 时读时覆盖为非流转（保存时保留原流转字段），切回"否"自动恢复</summary>
+    public bool IsPaused { get; set; }
     public bool IsFlow { get; set; }
+    /// <summary>等级（1=特急 2=急 3=一般 4=略）</summary>
     public int FlowLevel { get; set; }
     public string? FlowTarget { get; set; }
     public string? FlowCRType { get; set; }

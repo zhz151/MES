@@ -65,6 +65,9 @@ public class StandardRegisterService : IStandardRegisterService
                 e.StandardNo.Contains(kw) ||
                 e.StandardName.Contains(kw) ||
                 (e.RefSpecification != null && e.RefSpecification.Contains(kw)) ||
+                (e.StandardLevel != null && e.StandardLevel.Contains(kw)) ||
+                (e.ManufactureMethod != null && e.ManufactureMethod.Contains(kw)) ||
+                (e.SteelType != null && e.SteelType.Contains(kw)) ||
                 (e.Remark != null && e.Remark.Contains(kw)));
         }
 
@@ -244,6 +247,24 @@ public class StandardRegisterService : IStandardRegisterService
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         var dict = new Dictionary<string, List<string>>();
+
+        var standardNos = await _context.StandardRegisters.AsNoTracking()
+            .Where(e => e.StandardNo != null)
+            .Select(e => e.StandardNo)
+            .Distinct().ToListAsync();
+        if (standardNos.Any()) dict["StandardNo"] = standardNos;
+
+        var standardNames = await _context.StandardRegisters.AsNoTracking()
+            .Where(e => e.StandardName != null)
+            .Select(e => e.StandardName)
+            .Distinct().ToListAsync();
+        if (standardNames.Any()) dict["StandardName"] = standardNames;
+
+        var refSpecs = await _context.StandardRegisters.AsNoTracking()
+            .Where(e => e.RefSpecification != null)
+            .Select(e => e.RefSpecification!)
+            .Distinct().ToListAsync();
+        if (refSpecs.Any()) dict["RefSpecification"] = refSpecs;
 
         var levels = await _context.StandardRegisters.AsNoTracking()
             .Where(e => e.StandardLevel != null)

@@ -9,10 +9,13 @@ public class BatchPlanSchedule : BaseEntity
     /// <summary>批次ID（唯一，一个批次一条记录）</summary>
     public int BatchId { get; set; }
 
+    /// <summary>暂停（控制开关）：=是 时读时覆盖为"非流转"（流转/等级/流转位等字段按非流转显示），DB 保留原流转数据，切回"否"自动恢复</summary>
+    public bool IsPaused { get; set; }
+
     /// <summary>流转</summary>
     public bool IsFlow { get; set; }
 
-    /// <summary>等级</summary>
+    /// <summary>等级（V5.28 五档：1=急+ 2=急 3=急- 4=一般 5=略，由冷轧排程/工单计划重算生成，特急A/B 手工档已删除）</summary>
     public int FlowLevel { get; set; }
 
     /// <summary>流转目标</summary>

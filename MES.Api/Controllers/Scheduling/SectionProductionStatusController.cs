@@ -29,6 +29,6 @@ public class SectionProductionStatusController : ControllerBase
     public async Task<IActionResult> PrintFile([FromBody] SectionProductionStatusPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
-        return File(pdfBytes, "application/pdf", "工段待产量.pdf");
+        return File(pdfBytes, "application/pdf", "工段待在产量.pdf");
     }
 }

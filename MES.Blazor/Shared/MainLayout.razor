@@ -58,8 +58,6 @@
             <!-- 计划排程 -->
             <MudNavGroup Title="计划排程" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                 <MudNavLink Href="/plan-overview">负载总览</MudNavLink>
-                <MudNavLink Href="/section-production-status">工段待产量</MudNavLink>
-                <MudNavLink Href="/section-flow-analysis">工段流转分析</MudNavLink>
                 <MudNavLink Href="/raw-material-lock-plan">原锁计划</MudNavLink>
                 <MudNavLink Href="/scheduling-plans">排程计划</MudNavLink>
                 <MudNavLink Href="/cold-roll-plans">冷轧计划</MudNavLink>
@@ -149,6 +147,7 @@
                     <MudNavLink Href="/grade-mappings">牌号对照</MudNavLink>
                     <MudNavLink Href="/grade-chemical-compositions">标准牌号化学成分</MudNavLink>
                     <MudNavLink Href="/grade-physical-properties">牌号物理性能</MudNavLink>
+                    <MudNavLink Href="/factory-inspection-requirements">工厂检验项要求</MudNavLink>
                     <MudNavLink Href="/chemical-composition">工厂牌号化学成分</MudNavLink>
                     <MudNavLink Href="/chemical-validate">工厂牌号化分验证</MudNavLink>
                 </MudNavGroup>
@@ -171,7 +170,9 @@
             <!-- 参数表 -->
             <AuthorizeView Roles="@Roles.Policies.ConfigurationRead">
                 <MudNavGroup Title="参数表" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                    <MudNavLink Href="/section-flow-category-settings">生产-工段日流转量</MudNavLink>
+                    <MudNavLink Href="/section-flow-category-settings">生产-流转类别日产配置</MudNavLink>
+                    <MudNavLink Href="/section-paragraph-config-settings">生产-段落日产配置</MudNavLink>
+                    <MudNavLink Href="/combination-groups">生产-组合归类表</MudNavLink>
                     <MudNavLink Href="/daily-production-capacities">生产-重点工段日产</MudNavLink>
                     <MudNavLink Href="/daily-output-estimates">生产-规格日产预估</MudNavLink>
                     <MudNavLink Href="/standard-work-days">生产-工段工量天数</MudNavLink>

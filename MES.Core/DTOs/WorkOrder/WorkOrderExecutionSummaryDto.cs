@@ -220,9 +220,9 @@ public class WorkOrderExecutionSummaryDto
         + InventoryPlanWeight + ReworkPlanWeight
         + InProcessReworkPlanWeight + InMainPlanWeight;
 
-    /// <summary>现可投料总重量(kg)：G4委外下单 + G5采购下单 + G6采购下单 + G7出库量 + G8投料量 + G9投料量 + G10投料量（执行动作量口径）</summary>
+    /// <summary>现可投料总重量(kg)：G4委外到货 + G5采购到货 + G6采购到货 + G7出库量 + G8投料量 + G9投料量 + G10投料量（到货量口径：下单≠到货，未收货的量不视为"现可投料"）</summary>
     public decimal TotalAvailableWeight =>
-        PiercingSubOutWeight + SemiOrderWeight + FinishOrderWeight
+        PiercingSubInWeight + SemiInWeight + FinishInWeight
         + InventoryOutWeight + ReworkPlanInputWeight
         + InProcessReworkInputWeight + InMainInputWeight;
 
@@ -237,19 +237,24 @@ public class WorkOrderExecutionSummaryDto
     public string ActualMainNoInputStatusText => MainNoInputStatusText;
 
     /// <summary>
-    /// 到料实投一致性：0=一致 1=待投 2=疑问-到料未投 3=疑问-到料超投 4=错误-无到料已投。
-    /// 判定基准：实际已投料量(InputWeight) vs 现可投料总重(TotalAvailableWeight，执行动作量口径)。
+    /// 到料实投一致性：0=一致 1=待投 2=疑问-到料少投 3=疑问-到料超投 4=错误-无料已投。
+    /// 判定基准：实际已投料量(InputWeight) vs 现可投料总重(TotalAvailableWeight，到货量口径，下单未到货的量不视为现可)。
     /// 错误(4)=无到料已投（已投&gt;0 且 现可=0，计划外投料，最异常）；
     /// 疑问-到料超投(3)=已投&gt;现可×1.03（超投）；
     /// 投料滞后（已投&lt;现可×0.97）按下料到位时点细分：截止到料日=今天→待投(1)（操作时间差，正常）；
-    /// 早于今天→疑问-到料未投(2)（料已到位需投未投，存在问题）；晚于今天或空→一致(0)（料未到位，投料滞后正常）；
+    /// 早于今天→疑问-到料少投(2)（料已到位需投未投，存在问题）；晚于今天或空→一致(0)（料未到位，投料滞后正常）；
     /// 一致(0)=已投≈现可（±3% 内）或双零。
+    /// 阶段门控（判定顺序最前）：主号关注=生产执行(3)/成品检验(4)/主号完成(1) 已过投料期，不再细看比例——
+    /// 理论缺失总料重&gt;计划投料总重×3% → 5 错误-无需投料（本应无需投料却仍缺料，缺口率&gt;3% 需修正计划残留）；其余（含缺口≤3% 容差内）→ 6 略（降噪不细看）。
     /// </summary>
     public int PlanInputConsistency
     {
         get
         {
-            // 错误-无到料已投(4)：实际已投料量>0 但 现可投料总重=0 —— 无到料/无执行动作却投了料（计划外投料，最异常）
+            // 阶段门控：主号关注=生产执行(3)/成品检验(4)/主号完成(1) → 已过投料期，仅按缺失量判定（缺口率>计划×3% 才标错误，容差内归略）
+            if (ScheduleStage is 1 or 3 or 4)
+                return TotalMissingWeight > TotalPlanWeight * 0.03m ? 5 : 6;
+            // 错误-无料已投(4)：实际已投料量>0 但 现可投料总重=0 —— 无到料/无执行动作却投了料（计划外投料，最异常）
             if (ActualInputWeight > 0 && TotalAvailableWeight <= 0) return 4;
             // 现可=0 且 已投=0 → 一致（无执行、无投料，无矛盾）
             if (TotalAvailableWeight <= 0) return 0;
@@ -260,7 +265,7 @@ public class WorkOrderExecutionSummaryDto
             {
                 if (!CutoffArrivalDate.HasValue) return 0;          // 空 → 一致（料未到位，投料滞后正常）
                 var d = CutoffArrivalDate.Value.Date;
-                if (d < DateTime.Today) return 2;                   // 早于今天 → 疑问-到料未投（料已到位需投未投）
+                if (d < DateTime.Today) return 2;                   // 早于今天 → 疑问-到料少投（料已到位需投未投）
                 if (d == DateTime.Today) return 1;                  // 今天 → 待投（操作时间差，正常）
                 return 0;                                           // 晚于今天 → 一致（料未到位）
             }
@@ -299,7 +304,7 @@ public class WorkOrderExecutionSummaryDto
     public decimal? PendingSection20Roll { get; set; }
     public decimal? PendingSectionThreeRoll { get; set; }
     public decimal? PendingSectionDrawBench { get; set; }
-    public bool DeformedProcessCompleted { get; set; }
+    public bool? DeformedProcessCompleted { get; set; }
     public string? ProductionAttentionProcess { get; set; }
     public int? MaxBatchRemainingWorkDays { get; set; }
     public string? MainNoAttentionProcess { get; set; }

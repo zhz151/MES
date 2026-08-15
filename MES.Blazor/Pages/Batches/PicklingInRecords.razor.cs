@@ -218,6 +218,7 @@ public partial class PicklingInRecords
             _editingIds.Remove(item.Id);
             _editCache.Remove(item.Id);
             if (table != null) await table.ReloadServerData();
+            await LoadFilterContextsAsync();
         }
         else
         {
@@ -275,6 +276,7 @@ public partial class PicklingInRecords
             {
                 Snackbar.Add("删除成功", Severity.Success);
                 if (table != null) await table.ReloadServerData();
+                await LoadFilterContextsAsync();
             }
             else
             {

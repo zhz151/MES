@@ -648,7 +648,7 @@ public partial class SubcontractOrders : IAsyncDisposable
             try
             {
                 var result = await SubcontractService.DeleteAsync(item.Id);
-                if (result.Success) { Snackbar.Add("取消成功", Severity.Success); if (table != null) await table.ReloadServerData(); await LoadProcurementStatus(); }
+                if (result.Success) { Snackbar.Add("取消成功", Severity.Success); if (table != null) await table.ReloadServerData(); await LoadProcurementStatus(); await LoadFilterContextsAsync(); }
                 else { Snackbar.Add(result.Message ?? "取消失败", Severity.Error); }
             }
             catch (Exception ex) { Snackbar.Add($"取消失败: {ex.Message}", Severity.Error); }

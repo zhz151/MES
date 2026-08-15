@@ -71,4 +71,39 @@ public class ProductRequirementController : ControllerBase
         var result = await _service.GetByOrderIdAsync(orderId);
         return Ok(ApiResponse<List<ProductRequirementDto>>.Ok(result, "查询成功"));
     }
+
+    /// <summary>
+    /// 按标准号获取新建技术要求的默认值（工厂检验项要求含"必检"→true）
+    /// </summary>
+    /// <param name="standardNo">标准号</param>
+    [HttpGet("~/api/order/{orderId}/requirements/defaults")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<ProductRequirementDefaultsDto>>> GetDefaults(string? standardNo)
+    {
+        var result = await _service.GetDefaultRequirementsByStandardNoAsync(standardNo);
+        return Ok(ApiResponse<ProductRequirementDefaultsDto>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 按工厂检验项要求全面回填所有技术要求（按订单项次标准号匹配，含"必检"→true；液压检验仅定尺）
+    /// </summary>
+    [HttpPost("~/api/order/requirements/refresh-all-defaults")]
+    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<int>>> RefreshDefaultsAll()
+    {
+        var count = await _service.RefreshDefaultsAllAsync();
+        return Ok(ApiResponse<int>.Ok(count, $"已回填 {count} 条技术要求"));
+    }
+
+    /// <summary>
+    /// 按工单关联订单项次ID列表（逗号分隔）取质量备注（各项次技术要求「其他要求」按项次号拼接）
+    /// </summary>
+    /// <param name="orderItemIds">逗号分隔的订单项次ID列表</param>
+    [HttpGet("~/api/order/requirements/quality-remark")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<string>>> GetQualityRemark(string? orderItemIds)
+    {
+        var result = await _service.GetQualityRemarkByOrderItemIdsAsync(orderItemIds);
+        return Ok(ApiResponse<string>.Ok(result, "查询成功"));
+    }
 }

@@ -39,11 +39,11 @@ public class RawMaterialLockPlanAndExecutionService
         }
     }
 
-    public async Task<ApiResponse<SetPreExecuteFlagsResult>> SetPreExecuteFlagsAsync(List<int> workOrderIds, bool? isPreInput, bool? isMainNoMaterialComplete, DateTime? budgetInputDate = null, bool? isBudgetComplete = null)
+    public async Task<ApiResponse<SetPreExecuteFlagsResult>> SetPreExecuteFlagsAsync(List<int> workOrderIds, bool? isPreInput, DateTime? budgetInputDate = null)
     {
         try
         {
-            var request = new { WorkOrderIds = workOrderIds, IsPreInput = isPreInput, IsMainNoMaterialComplete = isMainNoMaterialComplete, BudgetInputDate = budgetInputDate, IsBudgetComplete = isBudgetComplete };
+            var request = new { WorkOrderIds = workOrderIds, IsPreInput = isPreInput, BudgetInputDate = budgetInputDate };
             var response = await _http.PostAsJsonAsync<object, ApiResponse<SetPreExecuteFlagsResult>>($"{BaseUrl}/set-pre-execute-flags", request);
             return response ?? ApiResponse<SetPreExecuteFlagsResult>.Fail("设置预执行标记失败");
         }

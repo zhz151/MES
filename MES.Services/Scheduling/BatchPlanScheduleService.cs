@@ -74,15 +74,9 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
 
         if (existing != null)
         {
-            // 保存全部 10 个计划字段（手动编辑覆盖自动计算值）
-            existing.IsFlow = dto.IsFlow;
-            existing.FlowLevel = dto.FlowLevel;
-            existing.FlowTarget = dto.FlowTarget;
-            existing.FlowCRType = dto.FlowCRType;
-            existing.PlanOuterDiameterSpan = dto.PlanOuterDiameterSpan;
-            existing.FlowExecSpec = dto.FlowExecSpec;
-            existing.TargetSequence = dto.TargetSequence;
-            existing.ExecutionSequence = dto.ExecutionSequence;
+            // 只持久化手工编辑字段（暂停/抢单/备注）。流转字段（IsFlow/FlowLevel/流转位等）由计划安排 PlanAllAsync 生成维护，
+            // 此处一律不写——前端读时覆盖后传入的流转字段是"覆盖后假值"，若写入会破坏 DB 原流转，导致切回"否"无法复原
+            existing.IsPaused = dto.IsPaused;
             existing.IsGrabOrder = dto.IsGrabOrder;
             existing.PlanRemark = dto.PlanRemark;
         }
@@ -91,6 +85,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             _context.BatchPlanSchedules.Add(new BatchPlanSchedule
             {
                 BatchId = dto.BatchId,
+                IsPaused = dto.IsPaused,
                 IsFlow = dto.IsFlow,
                 FlowLevel = dto.FlowLevel,
                 FlowTarget = dto.FlowTarget,
@@ -114,6 +109,20 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
         if (string.IsNullOrEmpty(sectionTab)) return sectionTab;
         return ProcessKeys.ToKey(sectionTab) ?? SectionKeys.ToKey(sectionTab) ?? sectionTab;
     }
+
+    /// <summary>
+    /// 实时排程档位 → 薄表等级（V5.28 五档映射，与前端 PlanLevelFromScheduleTier 保持一致）：
+    /// 急+→1 急+ / 急→2 急 / 急-→3 急- / 顺·带→4 一般 / 略→5 略
+    /// </summary>
+    private static int MapScheduleTierToPlanLevel(int tier) => tier switch
+    {
+        1 => 1, // 急+
+        2 => 2, // 急
+        3 => 3, // 急-
+        4 => 4, // 顺 → 一般
+        5 => 4, // 带 → 一般
+        _ => 5, // 略
+    };
 
     public async Task<bool> PlanAllAsync(string? sectionTab)
     {
@@ -245,6 +254,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                         : x.s.ScheduleStage)
                     : 0),
             MainNoAttentionProcess = x.plan != null && x.plan.ProductionAttentionProcess != null ? x.plan.ProductionAttentionProcess : (x.s != null ? x.s.MainNoAttentionProcess : null),
+            ProductionFlowProperty = x.plan != null && x.plan.ProductionFlowProperty != null ? x.plan.ProductionFlowProperty : (x.s != null ? x.s.ProductionFlowProperty : null),
             IsUrging = x.s != null && x.s.IsUrging,
             IsBatchDelivery = x.s != null && x.s.IsBatchDelivery,
             x.b.PlantGrade,
@@ -281,219 +291,116 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
             .ToListAsync();
         var existingLookup = existingPlans.ToDictionary(bp => bp.BatchId);
 
-        // 6. 计算并 Upsert
+        // 6. 计算并 Upsert（V5.28 三规则：规则(1) 冷轧排程优先 → 规则(2) 重点生产批次兜底 → 规则(3) 降级）
         foreach (var b in batchData)
         {
-            if (!pgLookup.TryGetValue(b.Id, out var pgs) || pgs.Count == 0)
-                continue;
-
-            var pendingProcess = b.CurrentSectionCompleted == false
-                ? b.CurrentGroupName
-                : b.NextProcess;
-            var pendingSectionName = b.CurrentSectionCompleted == false
-                ? b.CurrentSectionName
-                : b.NextSectionName;
-            var pendingPg = pgs.FirstOrDefault(pg => pg.ProcessName == pendingProcess);
-            if (pendingPg == null) continue;
-
-            var pendingIdx = pgs.IndexOf(pendingPg);
-            var maxSeq = pgs.Max(pg => pg.SequenceNumber);
-            var pendingEquipment = b.CurrentSectionCompleted == false
-                ? b.CurrentEquipmentName ?? b.CurrentOutsource
-                : null;
-
-            // 冷轧维度推导 (简化版，仅用于 IsFlow 判定)
-            string? currentCR_ProcessType = null, currentCR_BilletSpec = null, currentCR_RollingSpec = null;
-            bool currentCR_IsFinished = false;
-            string? nextCR_ProcessType = null, nextCR_BilletSpec = null, nextCR_RollingSpec = null;
-            bool nextCR_IsFinished = false;
-            string? nextNextCR_ProcessType = null, nextNextCR_BilletSpec = null, nextNextCR_RollingSpec = null;
-            bool nextNextCR_IsFinished = false;
-
-            // 匹配结果变量（先声明，下方赋值）
-            string? crCompletionType = null, crRollType = null, crSchedMachineNo = null;
-
-            // 冷轧排程（本层）：仅当执行工段=冷轧拔时才填充（与 GetAllAsync 保持一致）
-            if (!string.IsNullOrEmpty(pendingProcess) && crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess)
-                && !string.IsNullOrEmpty(pendingSectionName) && pendingSectionName == SectionKeys.ColdRollDraw)
+            // 构造 G11 计算属性辅助对象（读实时 IsFlow/ScheduleTier/FlowTarget/FlowCRType/OuterDiameterSpan/FlowExecSpec/TargetSequence）
+            var dto = new BatchPlanDto
             {
-                currentCR_ProcessType = pendingProcess;
-                currentCR_RollingSpec = pendingPg.ManufacturingSpec;
-                if (pendingIdx > 0)
-                    currentCR_BilletSpec = pgs[pendingIdx - 1].ManufacturingSpec;
-                currentCR_IsFinished = pendingPg.SequenceNumber == maxSeq;
+                BatchId = b.Id,
+                CurrentSectionCompleted = b.CurrentSectionCompleted,
+                CurrentGroupName = b.CurrentGroupName,
+                CurrentSectionName = b.CurrentSectionName,
+                CurrentSpec = b.CurrentSpec,
+                CorrespondingSpec = b.CorrespondingSpec,
+                CurrentEquipmentName = b.CurrentEquipmentName,
+                CurrentOutsource = b.CurrentOutsource,
+                NextProcess = b.NextProcess,
+                NextSectionName = b.NextSectionName,
+                UrgencyLevel = b.UrgencyLevel,
+                ProductionFlowProperty = b.ProductionFlowProperty,
+                MainNoAttentionProcess = b.MainNoAttentionProcess,
+            };
 
-                // 在轧要求匹配（工序组匹配冷轧小表）
-                if (!string.IsNullOrEmpty(pendingEquipment))
-                {
-                    var curKey = $"{currentCR_ProcessType}|{currentCR_BilletSpec}|{currentCR_RollingSpec}|{currentCR_IsFinished}";
-                    if (scheduleLookup.TryGetValue(curKey, out var curSched))
-                        crCompletionType = curSched.CompletionType;
-                }
+            // 判定字段（未产/无工序组批次也纳入，执行序由当前工序组推导）
+            List<ProcessGroup>? pgs = null;
+            if (pgLookup.TryGetValue(b.Id, out var pgList) && pgList.Count > 0)
+            {
+                pgs = pgList;
+                var currentPg = pgs.FirstOrDefault(pg => pg.ProcessName == b.CurrentGroupName);
+                dto.ExecutionSequence = currentPg?.GetSectionSequence(b.CurrentSectionName);
+                dto.AttentionProcessSectionSequence = BatchPlanService.ComputeAttentionProcessSectionSequence(pgs, b.MainNoAttentionProcess, crKeys);
+                BatchPlanService.ComputeColdRollDimensions(dto, pgs, scheduleLookup, crKeys);
+            }
+            dto.IsKeyBatch = BatchPlanService.ComputeIsKeyBatch(dto, crKeys);
+
+            // 三规则填充薄表字段
+            bool planIsFlow;
+            int planFlowLevel;
+            string? planFlowTarget, planFlowCRType, planOuterDiameterSpan, planFlowExecSpec;
+            int? planTargetSequence, planExecutionSequence;
+
+            if (dto.IsFlow)   // 规则(1) 冷轧排程优先：按关联冷轧排程值
+            {
+                planIsFlow = true;
+                planFlowLevel = MapScheduleTierToPlanLevel(dto.ScheduleTier);
+                planFlowTarget = dto.FlowTarget;
+                planFlowCRType = dto.FlowCRType;
+                planOuterDiameterSpan = dto.OuterDiameterSpan;
+                planFlowExecSpec = dto.FlowExecSpec;
+                planTargetSequence = dto.TargetSequence;
+                planExecutionSequence = dto.ExecutionSequence;
+            }
+            else if (dto.IsKeyBatch)   // 规则(2) 重点生产批次兜底
+            {
+                planIsFlow = true;
+                planFlowLevel = 2; // 急
+                // 流转目标按冷轧类型补充档位：荒管处理→荒管检 / 在制修检→在制检 / 生产收尾→成品检验 / 空→null / 剩余→冷轧
+                planFlowTarget = MapFlowTargetByCRType(dto.MainNoAttentionProcess);
+                planFlowCRType = dto.MainNoAttentionProcess;
+                planOuterDiameterSpan = null;
+                // 执行规格：生产收尾 → 状态跟踪组执行规格（PendingSpec）；其余 → 主号关注工序对应工序组的规格
+                planFlowExecSpec = dto.MainNoAttentionProcess == ProductionAttentionKeys.Finish
+                    ? dto.PendingSpec
+                    : pgs?.FirstOrDefault(pg => pg.ProcessName == dto.MainNoAttentionProcess)?.ManufacturingSpec;
+                planTargetSequence = dto.AttentionProcessSectionSequence;
+                planExecutionSequence = dto.ExecutionSequence;
+            }
+            else   // 规则(3) 降级（执行序仍按状态跟踪"现执行序"填入，供执行反馈组原/现工量差判定；流转=否）
+            {
+                planIsFlow = false;
+                planFlowLevel = 5; // 略
+                planFlowTarget = null;
+                planFlowCRType = null;
+                planOuterDiameterSpan = null;
+                planFlowExecSpec = null;
+                planTargetSequence = 0;
+                planExecutionSequence = dto.ExecutionSequence;
             }
 
-            if (pendingIdx + 1 < pgs.Count)
-            {
-                var nextPg = pgs[pendingIdx + 1];
-                if (crKeys.Contains(ProcessKeys.ToKey(nextPg.ProcessName) ?? nextPg.ProcessName))
-                {
-                    nextCR_ProcessType = nextPg.ProcessName;
-                    nextCR_RollingSpec = nextPg.ManufacturingSpec;
-                    nextCR_BilletSpec = pendingPg.ManufacturingSpec;
-                    nextCR_IsFinished = nextPg.SequenceNumber == maxSeq;
-                }
-            }
+            // 计划备注默认值 = 关联冷轧排程的待轧设备号（可手工再更改；已有非空备注保留不覆盖）
+            var planRemark = string.IsNullOrEmpty(dto.CR_SchedMachineNo) ? null : dto.CR_SchedMachineNo;
 
-            if (pendingIdx + 2 < pgs.Count)
-            {
-                var nextNextPg = pgs[pendingIdx + 2];
-                if (crKeys.Contains(ProcessKeys.ToKey(nextNextPg.ProcessName) ?? nextNextPg.ProcessName))
-                {
-                    nextNextCR_ProcessType = nextNextPg.ProcessName;
-                    nextNextCR_RollingSpec = nextNextPg.ManufacturingSpec;
-                    nextNextCR_BilletSpec = pgs[pendingIdx + 1].ManufacturingSpec;
-                    nextNextCR_IsFinished = nextNextPg.SequenceNumber == maxSeq;
-                }
-            }
-
-            // 待轧要求匹配（三层 else-if 链：currentCR / nextCR / nextNextCR）
-            if (!string.IsNullOrEmpty(currentCR_ProcessType) && string.IsNullOrEmpty(pendingEquipment))
-            {
-                var curKey = $"{currentCR_ProcessType}|{currentCR_BilletSpec}|{currentCR_RollingSpec}|{currentCR_IsFinished}";
-                if (scheduleLookup.TryGetValue(curKey, out var curSched))
-                { crRollType = curSched.RollType; crSchedMachineNo = curSched.MachineNo; }
-            }
-            else if (!string.IsNullOrEmpty(nextCR_ProcessType) && string.IsNullOrEmpty(pendingEquipment))
-            {
-                var nextKey = $"{nextCR_ProcessType}|{nextCR_BilletSpec}|{nextCR_RollingSpec}|{nextCR_IsFinished}";
-                if (scheduleLookup.TryGetValue(nextKey, out var nextSched))
-                { crRollType = nextSched.RollType; crSchedMachineNo = nextSched.MachineNo; }
-            }
-            else if (!string.IsNullOrEmpty(nextNextCR_ProcessType) && string.IsNullOrEmpty(pendingEquipment))
-            {
-                var nextNextKey = $"{nextNextCR_ProcessType}|{nextNextCR_BilletSpec}|{nextNextCR_RollingSpec}|{nextNextCR_IsFinished}";
-                if (scheduleLookup.TryGetValue(nextNextKey, out var nextNextSched))
-                { crRollType = nextNextSched.RollType; crSchedMachineNo = nextNextSched.MachineNo; }
-            }
-
-            // 计算 IsFlow
-            var isFlow = false;
-            var flowLevel = 5;
-            string? flowTarget = null;
-            string? flowCRType = null;
-            string? flowExecSpec = null;
-            var isUrgent = UrgencyLevelKeys.IsUrgent(b.UrgencyLevel);
-            var isKeyBatch = (b.ScheduleStage == 2 && isUrgent &&
-                              (pendingProcess == ProcessKeys.RoughTubeProcessing ||
-                               (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                                   && (!crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess) || pendingSectionName == SectionKeys.ColdRollDraw)))) ||
-                             (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery) && isUrgent &&
-                              (pendingProcess == ProcessKeys.RoughTubeProcessing ||
-                               (b.MainNoAttentionProcess != null && pendingProcess == b.MainNoAttentionProcess
-                                   && (!crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess) || pendingSectionName == SectionKeys.ColdRollDraw))));
-
-            if (!string.IsNullOrEmpty(crCompletionType) && crCompletionType != "None")
-            {
-                var isPartial1 = isUrgent && (b.ScheduleStage == 2 || (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery)));
-                var isPartial3 = isUrgent || b.UrgencyLevel == UrgencyLevelKeys.BOrder;
-                if (crCompletionType == "All" ||
-                    (crCompletionType == "Urgent" && (isKeyBatch || isPartial1)) ||
-                    (crCompletionType == "Partial2" && isUrgent) ||
-                    (crCompletionType == "Partial3" && isPartial3))
-                {
-                    isFlow = true;
-                    flowTarget = FlowTargetKeys.CompletionColdRoll;
-                    flowCRType = pendingProcess;
-                    flowExecSpec = currentCR_RollingSpec;
-                }
-            }
-
-            if (!isFlow && !string.IsNullOrEmpty(crRollType) && crRollType != "None")
-            {
-                var isPartial1 = isUrgent && (b.ScheduleStage == 2 || (b.ScheduleStage == 1 && (b.IsUrging || b.IsBatchDelivery)));
-                var isPartial3 = isUrgent || b.UrgencyLevel == UrgencyLevelKeys.BOrder;
-                if (crRollType == "All" ||
-                    (crRollType == "Urgent" && (isKeyBatch || isPartial1)) ||
-                    (crRollType == "Partial2" && isUrgent) ||
-                    (crRollType == "Partial3" && isPartial3))
-                {
-                    isFlow = true;
-                    flowTarget = FlowTargetKeys.ColdRoll;
-                    // Determine roll type process type
-                    if (!string.IsNullOrEmpty(currentCR_ProcessType) && string.IsNullOrEmpty(pendingEquipment))
-                    { flowCRType = currentCR_ProcessType; flowExecSpec = currentCR_RollingSpec; }
-                    else if (!string.IsNullOrEmpty(nextCR_ProcessType) && string.IsNullOrEmpty(pendingEquipment))
-                    { flowCRType = nextCR_ProcessType; flowExecSpec = nextCR_RollingSpec; }
-                    else if (!string.IsNullOrEmpty(nextNextCR_ProcessType) && string.IsNullOrEmpty(pendingEquipment))
-                    { flowCRType = nextNextCR_ProcessType; flowExecSpec = nextNextCR_RollingSpec; }
-                }
-            }
-
-            if (isFlow)
-            {
-                if (isKeyBatch)
-                    flowLevel = 1;
-                else if (isUrgent)
-                    flowLevel = 2;
-                else if (b.UrgencyLevel == UrgencyLevelKeys.BOrder)
-                    flowLevel = 3;
-                else
-                    flowLevel = 4;
-            }
-            else
-                flowLevel = 5;
-            var currentPg = pgs.FirstOrDefault(pg => pg.ProcessName == b.CurrentGroupName);
-            var execSeq = currentPg?.GetSectionSequence(b.CurrentSectionName);
-            var targetSeq = BatchPlanService.ComputeTargetSequence(pgs, flowTarget, flowCRType);
-
-            // 外径跨度计算（与 G7 同一逻辑）
-            string? outerDiameterSpan = null;
-            if (!string.IsNullOrEmpty(crCompletionType) && crCompletionType != "None")
-            {
-                outerDiameterSpan = GetShortDisplay(currentCR_BilletSpec, currentCR_RollingSpec);
-            }
-            else if (!string.IsNullOrEmpty(crRollType) && crRollType != "None")
-            {
-                var billetSpec = currentCR_BilletSpec;
-                var rollingSpec = currentCR_RollingSpec;
-                if (string.IsNullOrEmpty(pendingEquipment))
-                {
-                    if (!string.IsNullOrEmpty(nextCR_ProcessType))
-                    { billetSpec = nextCR_BilletSpec; rollingSpec = nextCR_RollingSpec; }
-                    else if (!string.IsNullOrEmpty(nextNextCR_ProcessType))
-                    { billetSpec = nextNextCR_BilletSpec; rollingSpec = nextNextCR_RollingSpec; }
-                }
-                outerDiameterSpan = GetShortDisplay(billetSpec, rollingSpec);
-            }
-
-            // Upsert
+            // Upsert（保留原有 抢单 和 备注）
             if (existingLookup.TryGetValue(b.Id, out var existing))
             {
-                existing.IsFlow = isFlow;
-                existing.FlowLevel = flowLevel;
-                existing.FlowTarget = flowTarget;
-                existing.FlowCRType = flowCRType;
-                existing.PlanOuterDiameterSpan = outerDiameterSpan;
-                existing.FlowExecSpec = flowExecSpec;
-                existing.TargetSequence = targetSeq;
-                existing.ExecutionSequence = execSeq;
-                // 保留原有 抢单 和 备注
+                existing.IsFlow = planIsFlow;
+                existing.FlowLevel = planFlowLevel;
+                existing.FlowTarget = planFlowTarget;
+                existing.FlowCRType = planFlowCRType;
+                existing.PlanOuterDiameterSpan = planOuterDiameterSpan;
+                existing.FlowExecSpec = planFlowExecSpec;
+                existing.TargetSequence = planTargetSequence;
+                existing.ExecutionSequence = planExecutionSequence;
+                // 备注为空时补填默认设备号（手工非空备注不覆盖）
+                if (string.IsNullOrEmpty(existing.PlanRemark))
+                    existing.PlanRemark = planRemark;
             }
             else
             {
                 _context.BatchPlanSchedules.Add(new BatchPlanSchedule
                 {
                     BatchId = b.Id,
-                    IsFlow = isFlow,
-                    FlowLevel = flowLevel,
-                    FlowTarget = flowTarget,
-                    FlowCRType = flowCRType,
-                    PlanOuterDiameterSpan = outerDiameterSpan,
-                    FlowExecSpec = flowExecSpec,
-                    TargetSequence = targetSeq,
-                    ExecutionSequence = execSeq,
+                    IsFlow = planIsFlow,
+                    FlowLevel = planFlowLevel,
+                    FlowTarget = planFlowTarget,
+                    FlowCRType = planFlowCRType,
+                    PlanOuterDiameterSpan = planOuterDiameterSpan,
+                    FlowExecSpec = planFlowExecSpec,
+                    TargetSequence = planTargetSequence,
+                    ExecutionSequence = planExecutionSequence,
                     IsGrabOrder = false,
-                    PlanRemark = null,
+                    PlanRemark = planRemark,
                 });
             }
         }
@@ -502,12 +409,28 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
         return true;
     }
 
+    /// <summary>
+    /// 规则2 流转目标按主号关注工序（冷轧类型）补充档位：
+    /// 荒管处理→荒管检、在制修检→在制检、生产收尾→成品检验、空→null、剩余（冷轧类工序）→冷轧。
+    /// 先归一 ProcessKeys.ToKey（已是英文 Key 幂等、中文反查），生产收尾为特殊值不属工序先判。
+    /// </summary>
+    private static string? MapFlowTargetByCRType(string? crType)
+    {
+        if (string.IsNullOrEmpty(crType)) return null;   // '' → null
+        if (crType == ProductionAttentionKeys.Finish) return FlowTargetKeys.FinalCheck;   // 生产收尾 → 成品检验
+        var key = ProcessKeys.ToKey(crType) ?? crType;
+        if (key == ProcessKeys.RoughTubeProcessing) return FlowTargetKeys.RoughTubeCheck; // 荒管处理 → 荒管检
+        if (key == ProcessKeys.InProcessRepair) return FlowTargetKeys.InProcessCheck;     // 在制修检 → 在制检
+        return FlowTargetKeys.ColdRoll;                                                   // 剩余（冷轧类工序）→ 冷轧
+    }
+
     private static BatchPlanScheduleDto ToDto(BatchPlanSchedule entity)
     {
         return new BatchPlanScheduleDto
         {
             Id = entity.Id,
             BatchId = entity.BatchId,
+            IsPaused = entity.IsPaused,
             IsFlow = entity.IsFlow,
             FlowLevel = entity.FlowLevel,
             FlowTarget = entity.FlowTarget,
@@ -521,13 +444,4 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
         };
     }
 
-    /// <summary>
-    /// 外径跨度计算：坯料规格外径-轧制规格外径，如"110-89"
-    /// </summary>
-    private static string? GetShortDisplay(string? billetSpec, string? rollingSpec)
-    {
-        var outer1 = billetSpec?.Split('*', '×').FirstOrDefault()?.Trim() ?? "";
-        var outer2 = rollingSpec?.Split('*', '×').FirstOrDefault()?.Trim() ?? "";
-        return string.IsNullOrEmpty(outer1) || string.IsNullOrEmpty(outer2) ? null : $"{outer1}-{outer2}";
-    }
 }

@@ -1264,16 +1264,6 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 /* ============================================================
-   批次计划 — 重点生产批次行高亮
-   ============================================================ */
-.key-batch-row {
-    background: #fff0f0 !important;
-}
-.key-batch-row:hover {
-    background: #ffe0e0 !important;
-}
-
-/* ============================================================
    移动端响应式样式 — 叠加在桌面样式之上
    ============================================================ */
 @media (max-width: 960px) {
@@ -1427,3 +1417,13 @@ th.col-level-mainno,
 }
 th.col-level-order,
 #workorder-execution-list-table th.col-level-order { background: #FFE0B2 !important; }
+
+/* ========== 表头高亮（特殊多档判定列，如"到料实投一致性"）========== */
+/* 琥珀底 + 加粗 + 深琥珀粗下边框，与内容 Chip（红/橙/蓝/绿/灰）呼应 */
+th.col-header-consistency,
+#workorder-execution-list-table th.col-header-consistency { background: #FFECB3 !important; font-weight: 700 !important; border-bottom: 3px solid #FFA000 !important; }
+
+/* ========== 操作列整列高亮（G15 执行/预算投料日，原地编辑控件列）========== */
+/* 表头靛蓝深底 + 加粗 + 靛蓝粗下边框；单元格淡靛蓝底，覆盖组色块使整列与数据列区分 */
+th.col-edit-actions { background: #C5CAE9 !important; font-weight: 700 !important; border-bottom: 3px solid #3F51B5 !important; }
+td.col-edit-actions { background: #E8EAF6 !important; }

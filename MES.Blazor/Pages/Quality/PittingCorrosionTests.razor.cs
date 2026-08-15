@@ -407,7 +407,7 @@ public partial class PittingCorrosionTests
             try
             {
                 var result = await PittingCorrosionTestService.DeleteAsync(item.Id);
-                if (result.Success) { Snackbar.Add("删除成功", Severity.Success); if (table != null) await table.ReloadServerData(); }
+                if (result.Success) { Snackbar.Add("删除成功", Severity.Success); if (table != null) await table.ReloadServerData(); await LoadFilterContextsAsync(); }
                 else Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
             }
             catch (Exception ex) { Snackbar.Add($"删除失败: {ex.Message}", Severity.Error); }

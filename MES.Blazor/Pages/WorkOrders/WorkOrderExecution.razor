@@ -155,7 +155,7 @@
                     {
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
                         _prevGk = col.GroupKey;
-                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart) + col.LevelCssClass;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart) + col.LevelCssClass + col.HighlightCssClass;
                         <MudTh Class="@_headerClass" Style="@($"width: {col.Width}px")">
                             <div class="col-header-cell">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>

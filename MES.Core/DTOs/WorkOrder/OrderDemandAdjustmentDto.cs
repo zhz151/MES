@@ -15,6 +15,7 @@ public class OrderDemandAdjustmentDto
     public string WorkOrderNo { get; set; } = null!;
     public string Salesman { get; set; } = null!;
     public string CustomerName { get; set; } = null!;
+    public string? EndCustomer { get; set; }
     public DateTime SignDate { get; set; }
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
@@ -45,28 +46,6 @@ public class OrderDemandAdjustmentDto
     public DateTime? EstimatedProcessCompletionDate { get; set; }
     public int? DaysDiffFromDelivery { get; set; }
     public string? RawMaterialLockRemark { get; set; }
-
-    // ========== G7: 有效流转 ==========
-    /// <summary>流转成品比(%)</summary>
-    public decimal FlowOutputRatio { get; set; }
-
-    /// <summary>有效流转状态(0=未投料 1=部分 2=满足)</summary>
-    public int FlowStatus { get; set; }
-
-    /// <summary>有效主号流转比(%)</summary>
-    public decimal MainNoFlowOutputRatio { get; set; }
-
-    /// <summary>有效主号状态(0=未计划 1=部分 2=满足)</summary>
-    public int MainNoFlowStatus { get; set; }
-
-    /// <summary>总批次数</summary>
-    public int FlowTotalBatchCount { get; set; }
-
-    /// <summary>未完成批数</summary>
-    public int FlowIncompleteBatchCount { get; set; }
-
-    /// <summary>最大剩余工量(天)</summary>
-    public int FlowMaxRemainingWorkDays { get; set; }
 
     // ========== 手工字段（工单需求调整实体） ==========
     /// <summary>催单（手工填写）</summary>

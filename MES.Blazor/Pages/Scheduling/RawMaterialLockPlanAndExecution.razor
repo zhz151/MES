@@ -26,59 +26,114 @@
         </MudText>
     </div>
 
-    <!-- 汇总数据栏 -->
-    <MudPaper Class="pa-4 mb-1" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
-        <MudGrid>
-            <MudItem xs="12">
-                <div class="d-flex flex-wrap" style="gap: 16px; align-items: center;">
-                    <MudText Typo="Typo.body2" Class="font-weight-bold" Style="color: #1565C0; min-width: 140px;">
-                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
-                        工单总数: @_totalOrderCount 批
-                    </MudText>
-                    <MudDivider Vertical="true" />
-                    <MudText Typo="Typo.body2" Style="color: #1565C0; min-width: 120px;">
-                        <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
-                        成品在购: @(_outsourceWeight > 0 ? $"{(_outsourceWeight / 1000m).ToString("F1")}t" : "0t")
-                    </MudText>
-                    <MudDivider Vertical="true" />
-                    <MudText Typo="Typo.body2" Style="color: #E65100; min-width: 120px;">
-                        <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty" Size="Size.Small" Color="Color.Warning" Class="mr-1" />
-                        待投料: @(_pendingWeight > 0 ? $"{(_pendingWeight / 1000m).ToString("F1")}t" : "0t")
-                    </MudText>
-                </div>
-            </MudItem>
-            <MudItem xs="12" Class="mt-1">
-                <div class="d-flex flex-wrap" style="gap: 12px; align-items: center;">
-                    <MudChip Size="Size.Small" Color="Color.Primary">成品在购</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Class="pa-1">A+急 @(_outsourceWeight_AJ > 0 ? $"{(_outsourceWeight_AJ / 1000m).ToString("F1")}t" : "0t")</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Class="pa-1">A急 @(_outsourceWeight_A > 0 ? $"{(_outsourceWeight_A / 1000m).ToString("F1")}t" : "0t")</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="pa-1">B顺 @(_outsourceWeight_B > 0 ? $"{(_outsourceWeight_B / 1000m).ToString("F1")}t" : "0t")</MudChip>
-                    <MudChip Size="Size.Small" Variant="Variant.Outlined" Class="pa-1">C缓 @(_outsourceWeight_C > 0 ? $"{(_outsourceWeight_C / 1000m).ToString("F1")}t" : "0t")</MudChip>
-                    <MudChip Size="Size.Small" Variant="Variant.Outlined" Class="pa-1">D缓 @(_outsourceWeight_D > 0 ? $"{(_outsourceWeight_D / 1000m).ToString("F1")}t" : "0t")</MudChip>
-                    <MudDivider Vertical="true" />
-                    <MudText Typo="Typo.body2" Style="color: #1565C0;">
-                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
-                        预执行(外购): @_preInputOutsourceCount 单 / @(_preInputOutsourceWeight > 0 ? $"{(_preInputOutsourceWeight / 1000m).ToString("F1")}t" : "0t")
-                    </MudText>
-                </div>
-            </MudItem>
-            <MudItem xs="12" Class="mt-1">
-                <div class="d-flex flex-wrap" style="gap: 12px; align-items: center;">
-                    <MudChip Size="Size.Small" Color="Color.Primary">待投料</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Class="pa-1">A+急 @(_pendingWeight_AJ > 0 ? $"{(_pendingWeight_AJ / 1000m).ToString("F1")}t" : "0t")</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Class="pa-1">A急 @(_pendingWeight_A > 0 ? $"{(_pendingWeight_A / 1000m).ToString("F1")}t" : "0t")</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="pa-1">B顺 @(_pendingWeight_B > 0 ? $"{(_pendingWeight_B / 1000m).ToString("F1")}t" : "0t")</MudChip>
-                    <MudChip Size="Size.Small" Variant="Variant.Outlined" Class="pa-1">C缓 @(_pendingWeight_C > 0 ? $"{(_pendingWeight_C / 1000m).ToString("F1")}t" : "0t")</MudChip>
-                    <MudChip Size="Size.Small" Variant="Variant.Outlined" Class="pa-1">D缓 @(_pendingWeight_D > 0 ? $"{(_pendingWeight_D / 1000m).ToString("F1")}t" : "0t")</MudChip>
-                    <MudDivider Vertical="true" />
-                    <MudText Typo="Typo.body2" Style="color: #1565C0;">
-                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
-                        预执行(投料): @_preInputSelfCount 单 / @(_preInputSelfWeight > 0 ? $"{(_preInputSelfWeight / 1000m).ToString("F1")}t" : "0t")
-                    </MudText>
-                </div>
-            </MudItem>
-        </MudGrid>
-    </MudPaper>
+    <!-- 汇总数据卡片（默认折叠，工具栏「汇总」按钮切换显隐） -->
+    @if (_showSummaryCard)
+    {
+        <MudCard Class="mb-2" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <div class="d-flex flex-wrap" style="gap: 16px; align-items: center;">
+                            <MudText Typo="Typo.body2" Class="font-weight-bold" Style="color: #1565C0; min-width: 140px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                                工单总数: @_totalOrderCount 批
+                            </MudText>
+                            <MudDivider Vertical="true" />
+                            <MudText Typo="Typo.body2" Style="color: #E65100; min-width: 120px;">
+                                <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty" Size="Size.Small" Color="Color.Warning" Class="mr-1" />
+                                待投料: @(_pendingWeight > 0 ? $"{(_pendingWeight / 1000m).ToString("F1")}t" : "0t")
+                                @if (_purchaseCount > 0)
+                                {
+                                    <text> + {成购：@((_purchaseWeight / 1000m).ToString("F1"))t}</text>
+                                }
+                            </MudText>
+                        </div>
+                    </MudItem>
+                    <MudItem xs="12" Class="mt-2">
+                        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                            @* 待投料矩阵：行=原料锁定备注，列=主号计划性 *@
+                            <div style="flex:1; min-width:340px;">
+                                <div style="font-weight:600; color:#E65100; margin-bottom:4px;">待投料</div>
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">备注 \ 计划性</th>
+                                            @foreach (var u in _urgencyColumns)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@UrgencyLevelKeys.KeyToChinese[u]</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center;">合计</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in RawMaterialLockRemarkKeys.All)
+                                        {
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">@RawMaterialLockRemarkKeys.KeyToChinese[r]</td>
+                                                @foreach (var u in _urgencyColumns)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatMatrixCell(GetMatrixCell(r, u))</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#f0f7f0; font-weight:600;">@FormatMatrixCell(GetMatrixRowTotal(r))</td>
+                                            </tr>
+                                        }
+                                        <tr>
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; background:#eef3fa;">合计</td>
+                                            @foreach (var u in _urgencyColumns)
+                                            {
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#eef3fa; font-weight:600;">@FormatMatrixCell(GetMatrixColumnTotal(u))</td>
+                                            }
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#e8f0e8; font-weight:700;">@FormatMatrixCell(GetMatrixGrandTotal())</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            @* 成购矩阵：仅当有外购成品未到时显示 *@
+                            @if (_purchaseCount > 0)
+                            {
+                                <div style="flex:1; min-width:340px;">
+                                    <div style="font-weight:600; color:#1565C0; margin-bottom:4px;">成购（外购成品）</div>
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">备注 \ 计划性</th>
+                                                @foreach (var u in _urgencyColumns)
+                                                {
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@UrgencyLevelKeys.KeyToChinese[u]</th>
+                                                }
+                                                <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center;">合计</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var r in RawMaterialLockRemarkKeys.All)
+                                            {
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">@RawMaterialLockRemarkKeys.KeyToChinese[r]</td>
+                                                    @foreach (var u in _urgencyColumns)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatPurchaseCell(GetMatrixCell(r, u))</td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#f0f7f0; font-weight:600;">@FormatPurchaseCell(GetMatrixRowTotal(r))</td>
+                                                </tr>
+                                            }
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; background:#eef3fa;">合计</td>
+                                                @foreach (var u in _urgencyColumns)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#eef3fa; font-weight:600;">@FormatPurchaseCell(GetMatrixColumnTotal(u))</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#e8f0e8; font-weight:700;">@FormatPurchaseCell(GetMatrixGrandTotal())</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    }
 
     <MudCard>
         <MudCardContent Class="py-1">
@@ -120,6 +175,14 @@
                     </MudButton>
                 </div>
                 <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Default"
+                               Class="ml-2"
+                               StartIcon="@(_showSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                               OnClick="ToggleSummaryCard">
+                        汇总
+                    </MudButton>
                     <MudButton Variant="Variant.Filled"
                                Size="Size.Small"
                                Color="Color.Primary"
@@ -169,7 +232,7 @@
                     {
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
                         _prevGk = col.GroupKey;
-                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart) + col.LevelCssClass;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart) + col.LevelCssClass + col.HighlightCssClass;
                         <MudTh Class="@_headerClass" Style="@($"width: {col.Width}px")">
                             <div class="col-header-cell">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
@@ -200,7 +263,7 @@
                     {
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
-                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2) + (col.HighlightCssClass ?? "");
                         <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
                     }
                 </RowTemplate>

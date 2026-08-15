@@ -15,6 +15,7 @@ using MES.Core.Interfaces.Order;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Infrastructure;
 using Microsoft.Extensions.Logging;
+using MES.Data.Entities.Order;
 
 namespace MES.Tests.Services;
 
@@ -90,7 +91,7 @@ public class ProductRequirementServiceTests : TestBase
         var act = () => svc.CreateOrUpdateAsync(999, new CreateProductRequirementRequest
         {
             RequirementType = RequirementType.Normal,
-            ChemicalComposition = "C:0.20, Si:0.30, Mn:1.20"
+            ChemicalComposition = true
         });
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("订单项次不存在");
@@ -106,14 +107,12 @@ public class ProductRequirementServiceTests : TestBase
         var result = await svc.CreateOrUpdateAsync(itemId, new CreateProductRequirementRequest
         {
             RequirementType = RequirementType.Normal,
-            ChemicalComposition = "C:0.20, Si:0.30, Mn:1.20",
-            MechanicalProperty = "抗拉≥410MPa, 屈服≥245MPa",
-            NdtRequirement = "UT 100%"
+            ChemicalComposition = true
         });
 
         result.Should().NotBeNull();
         result.RequirementType.Should().Be(RequirementType.Normal);
-        result.ChemicalComposition.Should().Be("C:0.20, Si:0.30, Mn:1.20");
+        result.ChemicalComposition.Should().BeTrue();
     }
 
     [Fact]
@@ -126,18 +125,18 @@ public class ProductRequirementServiceTests : TestBase
         await svc.CreateOrUpdateAsync(itemId, new CreateProductRequirementRequest
         {
             RequirementType = RequirementType.Normal,
-            ChemicalComposition = "C:0.20"
+            ChemicalComposition = true
         });
 
         // 更新
         var updated = await svc.CreateOrUpdateAsync(itemId, new CreateProductRequirementRequest
         {
             RequirementType = RequirementType.Special,
-            ChemicalComposition = "C:0.25"
+            ChemicalComposition = true
         });
 
         updated.RequirementType.Should().Be(RequirementType.Special);
-        updated.ChemicalComposition.Should().Be("C:0.25");
+        updated.ChemicalComposition.Should().BeTrue();
     }
 
     [Fact]
@@ -150,7 +149,7 @@ public class ProductRequirementServiceTests : TestBase
         await svc.CreateOrUpdateAsync(itemId, new CreateProductRequirementRequest
         {
             RequirementType = RequirementType.Normal,
-            ChemicalComposition = "C:0.20"
+            ChemicalComposition = true
         });
 
         var results = await svc.GetByOrderIdAsync(orderId);
@@ -179,13 +178,13 @@ public class ProductRequirementServiceTests : TestBase
         await svc.CreateOrUpdateAsync(itemId, new CreateProductRequirementRequest
         {
             RequirementType = RequirementType.Normal,
-            ChemicalComposition = "C:0.20"
+            ChemicalComposition = true
         });
 
         var result = await svc.GetByOrderItemIdAsync(itemId);
         result.Should().NotBeNull();
         result!.OrderItemId.Should().Be(itemId);
-        result.ChemicalComposition.Should().Be("C:0.20");
+        result.ChemicalComposition.Should().BeTrue();
     }
 
     [Fact]
@@ -196,5 +195,231 @@ public class ProductRequirementServiceTests : TestBase
 
         var results = await svc.GetByOrderIdAsync(999);
         results.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetDefaultRequirementsByStandardNoAsync_含必检字段_默认true()
+    {
+        var ctx = CreateDbContext();
+        var sr = await SeedRegisterAsync(ctx);
+
+        ctx.FactoryInspectionRequirements.Add(new FactoryInspectionRequirement
+        {
+            StandardNo = sr.StandardNo,
+            ChemicalComposition = "必检",
+            PmiInspection = "按需",
+            SurfaceInspection = "必检",
+            Dimension = "必检",
+            Endoscopy = "按需",
+            GrainSize = null
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var defaults = await svc.GetDefaultRequirementsByStandardNoAsync(sr.StandardNo);
+
+        defaults.Should().NotBeNull();
+        defaults.ChemicalComposition.Should().BeTrue();
+        defaults.PmiInspection.Should().BeFalse();
+        defaults.SurfaceInspection.Should().BeTrue();
+        defaults.Dimension.Should().BeTrue();
+        defaults.Endoscopy.Should().BeFalse();
+        defaults.GrainSize.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetDefaultRequirementsByStandardNoAsync_标准号空格差异_规范化匹配()
+    {
+        var ctx = CreateDbContext();
+
+        ctx.FactoryInspectionRequirements.Add(new FactoryInspectionRequirement
+        {
+            StandardNo = "GB/T 99999-2025",
+            ChemicalComposition = "必检",
+            SurfaceInspection = "必检"
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var defaults = await svc.GetDefaultRequirementsByStandardNoAsync("GB/T99999-2025");
+
+        defaults.ChemicalComposition.Should().BeTrue();
+        defaults.SurfaceInspection.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetDefaultRequirementsByStandardNoAsync_标准号为空或不存在_返回全false()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var nullResult = await svc.GetDefaultRequirementsByStandardNoAsync(null);
+        nullResult.Should().NotBeNull();
+        nullResult.ChemicalComposition.Should().BeFalse();
+        nullResult.PmiInspection.Should().BeFalse();
+
+        var missingResult = await svc.GetDefaultRequirementsByStandardNoAsync("NO-SUCH-STANDARD");
+        missingResult.ChemicalComposition.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RefreshDefaultsAllAsync_按标准号回填_含必检为true非定尺液压为false()
+    {
+        var ctx = CreateDbContext();
+        var sr = await SeedRegisterAsync(ctx);
+
+        // 工厂检验项要求：表检/尺寸/液压=必检；PMI=按需；内窥=空
+        ctx.FactoryInspectionRequirements.Add(new FactoryInspectionRequirement
+        {
+            StandardNo = sr.StandardNo,
+            ChemicalComposition = "必检",
+            PmiInspection = "按需",
+            SurfaceInspection = "必检",
+            Dimension = "必检",
+            Endoscopy = "按需",
+            HydrostaticTest = "必检(3选1)",
+            GrainSize = null
+        });
+        await ctx.SaveChangesAsync();
+
+        // 定尺项次（LengthStatus=Fixed）+ 技术要求（初始全 false）
+        var (orderId, fixedItemId) = await SeedOrderItemAsync(ctx);
+        ctx.ProductRequirements.Add(new ProductRequirement { OrderItemId = fixedItemId, OrderNo = "X", ItemSequence = 1 });
+        await ctx.SaveChangesAsync();
+
+        // 非定尺项次 + 技术要求（初始全 false）
+        var nonFixedItem = new OrderItem
+        {
+            SalesOrderId = orderId,
+            OrderNumber = "X",
+            Sequence = 2,
+            StandardNo = sr.StandardNo,
+            StandardGrade = "304",
+            PlantGrade = "304",
+            Density = 7.93m,
+            Specification = "219*8",
+            OuterDiameter = 219m,
+            WallThickness = 8m,
+            LengthStatus = LengthStatus.NonFixed,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            SettlementMethod = SettlementMethod.Theoretical,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            Quantity = 5,
+            ContractWeight = 100m
+        };
+        ctx.OrderItems.Add(nonFixedItem);
+        await ctx.SaveChangesAsync();
+        ctx.ProductRequirements.Add(new ProductRequirement { OrderItemId = nonFixedItem.Id, OrderNo = "X", ItemSequence = 2 });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var updated = await svc.RefreshDefaultsAllAsync();
+
+        updated.Should().Be(2);
+
+        // 定尺：化学分析/表检/尺寸/液压=true；PMI/内窥=按需=false
+        var fixedReq = await ctx.ProductRequirements.FirstAsync(pr => pr.OrderItemId == fixedItemId);
+        fixedReq.ChemicalComposition.Should().BeTrue();
+        fixedReq.PmiInspection.Should().BeFalse();
+        fixedReq.SurfaceInspection.Should().BeTrue();
+        fixedReq.Dimension.Should().BeTrue();
+        fixedReq.Endoscopy.Should().BeFalse();
+        fixedReq.HydrostaticTest.Should().BeTrue();
+        fixedReq.GrainSize.Should().BeFalse();
+
+        // 非定尺：液压恒 false（不适用），其余照常
+        var nonFixedReq = await ctx.ProductRequirements.FirstAsync(pr => pr.OrderItemId == nonFixedItem.Id);
+        nonFixedReq.SurfaceInspection.Should().BeTrue();
+        nonFixedReq.Dimension.Should().BeTrue();
+        nonFixedReq.HydrostaticTest.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RefreshDefaultsAllAsync_标准号匹配不到_保持现状()
+    {
+        var ctx = CreateDbContext();
+        var (_, itemId) = await SeedOrderItemAsync(ctx);
+        await ctx.SaveChangesAsync();
+
+        // 先写入一条技术要求（ChemicalComposition=true 手工值）
+        ctx.ProductRequirements.Add(new ProductRequirement
+        {
+            OrderItemId = itemId,
+            OrderNo = "X",
+            ItemSequence = 1,
+            ChemicalComposition = true,
+            SurfaceInspection = true
+        });
+        await ctx.SaveChangesAsync();
+
+        // 工厂检验项要求表为空（任何标准号都匹配不到）
+        var svc = CreateService(ctx);
+        var updated = await svc.RefreshDefaultsAllAsync();
+
+        updated.Should().Be(0);
+
+        var req = await ctx.ProductRequirements.FirstAsync(pr => pr.OrderItemId == itemId);
+        req.ChemicalComposition.Should().BeTrue();
+        req.SurfaceInspection.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetQualityRemarkByOrderItemIdsAsync_多项次_按项次号拼接()
+    {
+        var ctx = CreateDbContext();
+        var (orderId, itemId) = await SeedOrderItemAsync(ctx);
+
+        // 项次1 固定 Sequence=1，并加第二个项次 Sequence=2
+        var oi1 = await ctx.OrderItems.FirstAsync(oi => oi.Id == itemId);
+        oi1.Sequence = 1;
+        var item2 = new OrderItem
+        {
+            SalesOrderId = orderId,
+            OrderNumber = "X",
+            Sequence = 2,
+            StandardNo = "GB",
+            StandardGrade = "304",
+            PlantGrade = "304",
+            Density = 7.93m,
+            Specification = "219*8",
+            OuterDiameter = 219m,
+            WallThickness = 8m,
+            LengthStatus = LengthStatus.NonFixed,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            SettlementMethod = SettlementMethod.Theoretical,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            Quantity = 5,
+            ContractWeight = 100m
+        };
+        ctx.OrderItems.Add(item2);
+        await ctx.SaveChangesAsync();
+
+        ctx.ProductRequirements.Add(new ProductRequirement { OrderItemId = oi1.Id, OrderNo = "X", ItemSequence = 1, OtherRequirement = "项次A要求" });
+        ctx.ProductRequirements.Add(new ProductRequirement { OrderItemId = item2.Id, OrderNo = "X", ItemSequence = 2, OtherRequirement = "项次B要求" });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetQualityRemarkByOrderItemIdsAsync($"{oi1.Id},{item2.Id}");
+
+        result.Should().Be(string.Join(Environment.NewLine, "项次1：项次A要求", "项次2：项次B要求"));
+    }
+
+    [Fact]
+    public async Task GetQualityRemarkByOrderItemIdsAsync_无其他要求或id为空_返回空()
+    {
+        var ctx = CreateDbContext();
+        var (_, itemId) = await SeedOrderItemAsync(ctx);
+        await ctx.SaveChangesAsync();
+
+        ctx.ProductRequirements.Add(new ProductRequirement { OrderItemId = itemId, OrderNo = "X", ItemSequence = 1, OtherRequirement = null });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        (await svc.GetQualityRemarkByOrderItemIdsAsync(null)).Should().BeEmpty();
+        (await svc.GetQualityRemarkByOrderItemIdsAsync("")).Should().BeEmpty();
+        (await svc.GetQualityRemarkByOrderItemIdsAsync("abc")).Should().BeEmpty();
+        (await svc.GetQualityRemarkByOrderItemIdsAsync(itemId.ToString())).Should().BeEmpty();
     }
 }

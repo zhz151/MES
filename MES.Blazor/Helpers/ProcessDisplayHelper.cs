@@ -13,10 +13,12 @@ public static class ProcessDisplayHelper
     /// <summary>Key → 显示中文（由配置表加载，全局共享）</summary>
     public static Dictionary<string, string>? OverrideMap { get; set; }
 
-    /// <summary>工序 Key/中文 → 显示中文</summary>
+    /// <summary>工序 Key/中文 → 显示中文；关注工序特殊值（生产收尾）也在此归一</summary>
     public static string GetProcessNameText(string? value)
     {
         if (string.IsNullOrEmpty(value)) return value ?? string.Empty;
+        // 关注工序特殊值（生产收尾）优先于工序映射
+        if (ProductionAttentionKeys.IsKey(value)) return ProductionAttentionKeys.ToChinese(value)!;
         if (OverrideMap != null && OverrideMap.TryGetValue(value, out var cn))
             return cn;
         return ProcessKeys.ToChinese(value) ?? value;

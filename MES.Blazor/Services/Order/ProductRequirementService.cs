@@ -90,4 +90,42 @@ public class ProductRequirementService
             return ApiResponse<List<ProductRequirementDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// 按工单关联订单项次ID列表（逗号分隔）取质量备注（各项次技术要求「其他要求」按项次号拼接）
+    /// </summary>
+    public async Task<ApiResponse<string>> GetQualityRemarkByOrderItemIdsAsync(string? orderItemIds)
+    {
+        try
+        {
+            var url = $"{ApiEndpoints.Order}/requirements/quality-remark";
+            if (!string.IsNullOrWhiteSpace(orderItemIds))
+                url += $"?orderItemIds={Uri.EscapeDataString(orderItemIds)}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<string>>(url);
+            return response ?? ApiResponse<string>.Fail("获取质量备注失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 按标准号获取新建技术要求的默认值（工厂检验项要求含"必检"→true）
+    /// </summary>
+    public async Task<ApiResponse<ProductRequirementDefaultsDto>> GetDefaultsByStandardNoAsync(int orderId, string? standardNo)
+    {
+        try
+        {
+            var url = $"{ApiEndpoints.Order}/{orderId}/requirements/defaults";
+            if (!string.IsNullOrWhiteSpace(standardNo))
+                url += $"?standardNo={Uri.EscapeDataString(standardNo)}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<ProductRequirementDefaultsDto>>(url);
+            return response ?? ApiResponse<ProductRequirementDefaultsDto>.Fail("获取默认值失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<ProductRequirementDefaultsDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }

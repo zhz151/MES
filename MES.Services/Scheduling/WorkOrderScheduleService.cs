@@ -74,6 +74,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     // G1
                     Salesman = e.Salesman,
                     CustomerName = e.CustomerName,
+                    EndCustomer = e.EndCustomer,
                     SignDate = e.SignDate,
                     DeliveryDate = e.DeliveryDate,
                     DelayPenalty = e.DelayPenalty,
@@ -93,7 +94,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     TotalMeters = e.TotalMeters,
                     TotalWeight = e.TotalWeight,
 
-                    // G7
+                    // G13: 实际生产总流转（有效流转）
                     FlowOutputRatio = e.FlowOutputRatio,
                     FlowStatus = e.FlowStatus,
                     MainNoFlowOutputRatio = e.MainNoFlowOutputRatio,
@@ -102,7 +103,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     FlowIncompleteBatchCount = e.FlowIncompleteBatchCount,
                     FlowMaxRemainingWorkDays = e.FlowMaxRemainingWorkDays,
 
-                    // G12
+                    // G3: 实时关注
                     ScheduleStage = e.ScheduleStage,
                     TotalRemainingWorkDays = e.TotalRemainingWorkDays,
                     CapacityWorkDays = e.CapacityWorkDays,
@@ -111,13 +112,13 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     DaysDiffFromDelivery = e.DaysDiffFromDelivery,
                     RawMaterialLockRemark = e.RawMaterialLockRemark,
 
-                    // G13（直接从实体读取，已由 RefreshAllAsync 同步）
+                    // G2（直接从实体读取，已由 RefreshAllAsync 同步）
                     IsUrging = e.IsUrging,
                     IsBatchDelivery = e.IsBatchDelivery,
                     IsPaused = e.IsPaused,
                     AdjustmentRemark = e.AdjustmentRemark,
 
-                    // G14
+                    // G18: 在产节点待量
                     PendingSectionRoughTube = e.PendingSectionRoughTube,
                     PendingSectionWarehouseFix = e.PendingSectionWarehouseFix,
                     PendingSection60Roll = e.PendingSection60Roll,
@@ -202,6 +203,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                     // G1
                     Salesman = e.Salesman,
                     CustomerName = e.CustomerName,
+                    EndCustomer = e.EndCustomer,
                     SignDate = e.SignDate,
                     DeliveryDate = e.DeliveryDate,
                     DelayPenalty = e.DelayPenalty,
@@ -285,6 +287,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                 e.WorkOrderNo,
                 e.Salesman,
                 e.CustomerName,
+                e.EndCustomer,
                 e.SalesOrderNo,
                 e.ProductionMainNo,
                 e.ProductionSubNo,
@@ -304,6 +307,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
             ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
             ["Salesman"] = all.Select(x => x.Salesman).Distinct().OrderBy(x => x).ToList(),
             ["CustomerName"] = all.Select(x => x.CustomerName).Distinct().OrderBy(x => x).ToList(),
+            ["EndCustomer"] = all.Where(x => x.EndCustomer != null).Select(x => x.EndCustomer!).Distinct().OrderBy(x => x).ToList(),
             ["SalesOrderNo"] = all.Select(x => x.SalesOrderNo).Distinct().OrderBy(x => x).ToList(),
             ["ProductionMainNo"] = all.Select(x => x.ProductionMainNo).Distinct().OrderBy(x => x).ToList(),
             ["ProductionSubNo"] = all.Where(x => x.ProductionSubNo != null).Select(x => x.ProductionSubNo!).Distinct().OrderBy(x => x).ToList(),
@@ -419,7 +423,8 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                 plan = new WorkOrderPlan { WorkOrderId = data.WorkOrderId };
                 _context.Set<WorkOrderPlan>().Add(plan);
             }
-            plan.ScheduleStage = data.ScheduleStage;
+            // 关注档位(5档) → 排程覆盖档位(4档)：与手动编辑/前端下拉/一致性判定口径统一
+            plan.ScheduleStage = MapSummaryStageToPlanStage(data.ScheduleStage);
             plan.UrgencyLevel = data.UrgencyLevel;
             plan.ProductionAttentionProcess = data.MainNoAttentionProcess;
             plan.ProductionFlowProperty = data.ProductionFlowProperty;
@@ -435,85 +440,11 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
         return true;
     }
 
-    public async Task<bool> PlanScheduleKeepAttentionAsync(QueryParams query)
-    {
-        var q = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
-            .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != ProductionFlowKeys.Skip);
-
-        if (!string.IsNullOrEmpty(query.Keyword))
-        {
-            var kw = query.Keyword;
-            q = q.Where(e =>
-                e.WorkOrderNo.Contains(kw) ||
-                e.SalesOrderNo.Contains(kw) ||
-                e.Salesman.Contains(kw) ||
-                e.CustomerName.Contains(kw) ||
-                (e.ProductionSubNo != null && e.ProductionSubNo.Contains(kw)) ||
-                e.PlantGrade.Contains(kw) ||
-                e.Specification.Contains(kw) ||
-                e.ProductionMainNo.Contains(kw) ||
-                e.SettlementMethod.Contains(kw) ||
-                e.MaterialName.Contains(kw) ||
-                e.DeliveryState.Contains(kw) ||
-                e.LengthStatus.Contains(kw) ||
-                (e.UrgencyLevel != null && e.UrgencyLevel.Contains(kw)) ||
-                (e.RawMaterialLockRemark != null && e.RawMaterialLockRemark.Contains(kw)) ||
-                (e.AdjustmentRemark != null && e.AdjustmentRemark.Contains(kw)) ||
-                (e.ProductionAttentionProcess != null && e.ProductionAttentionProcess.Contains(kw)));
-        }
-
-        q = q.ApplyFilters(query.Filters);
-
-        var matchingData = await q.Select(e => new
-        {
-            e.WorkOrderId,
-            e.ScheduleStage,
-            e.UrgencyLevel,
-            e.ProductionFlowProperty,
-        }).ToListAsync();
-
-        var matchingIds = matchingData.Select(x => x.WorkOrderId).ToHashSet();
-        var matchingIdList = matchingIds.ToList();
-
-        var existingPlans = new List<WorkOrderPlan>();
-        if (matchingIdList.Count > 0)
-        {
-            existingPlans = await _context.Set<WorkOrderPlan>()
-                .Where(p => matchingIdList.Contains(p.WorkOrderId))
-                .ToListAsync();
-        }
-
-        // Upsert: 只设置工单状态/紧急性/流转性为系统值，保留生产关注的手工调整
-        foreach (var data in matchingData)
-        {
-            var plan = existingPlans.FirstOrDefault(p => p.WorkOrderId == data.WorkOrderId);
-            if (plan == null)
-            {
-                plan = new WorkOrderPlan { WorkOrderId = data.WorkOrderId };
-                _context.Set<WorkOrderPlan>().Add(plan);
-            }
-            plan.ScheduleStage = data.ScheduleStage;
-            plan.UrgencyLevel = data.UrgencyLevel;
-            plan.ProductionFlowProperty = data.ProductionFlowProperty;
-            // ProductionAttentionProcess 保持不变
-        }
-
-        // 删除不匹配查询的 Plan 行
-        var orphanPlans = await _context.Set<WorkOrderPlan>()
-            .Where(p => !matchingIds.Contains(p.WorkOrderId))
-            .ToListAsync();
-        _context.Set<WorkOrderPlan>().RemoveRange(orphanPlans);
-
-        await _context.SaveChangesAsync();
-        return true;
-    }
-
     /// <summary>
-    /// 设置 ConsistencyStatus 四值：
+    /// 设置 ConsistencyStatus 三值：
     /// - "一致"：4 个 Plan 字段均匹配系统值
     /// - "进度调整"：仅 ProductionAttentionProcess 不一致（人为调进度，合理）
-    /// - "值存疑"：工单状态/紧急性/流转性 任一不一致（存在疑问）
-    /// - "错误"：同主号下不同工单的计划值不一致（应保持主号级一致）
+    /// - "错误"：工单状态/紧急性/流转性 任一不一致，或同主号下不同工单的计划值不一致（计划值异常，需核查修正）
     /// </summary>
     private static void ApplyConsistencyStatus(List<WorkOrderScheduleDto> items)
     {
@@ -535,10 +466,15 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
 
             if (stageMatch && urgencyMatch && attentionMatch && flowMatch)
                 item.ConsistencyStatus = "一致";
-            else if (stageMatch && urgencyMatch && flowMatch && !attentionMatch)
+            else if (IsProgressAdjustment(
+                item.PlanScheduleStage, item.ScheduleStage,
+                item.PlanUrgencyLevel, item.UrgencyLevel,
+                item.PlanProductionAttentionProcess, item.MainNoAttentionProcess,
+                item.PlanProductionFlowProperty, item.ProductionFlowProperty))
                 item.ConsistencyStatus = "进度调整";
             else
-                item.ConsistencyStatus = "值存疑";
+                // 工单状态/紧急性/流转性 任一不一致：计划值异常，需核查修正
+                item.ConsistencyStatus = "错误";
         }
 
         // 再检查跨主号一致性：同主号下所有工单的计划值应当一致
@@ -572,7 +508,7 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
         }
     }
 
-    /// <summary>排程计划覆盖档位(4档) → 关注状态档位(5档)：0 工单完成→1 主号完成、1 原料锁定→2、2 生产执行→3、3 成品检验→4</summary>
+    /// <summary>排程计划覆盖档位(4档) → 关注状态档位(5档)：0 主号完成→1 主号完成、1 原料锁定→2、2 生产执行→3、3 成品检验→4</summary>
     private static int MapPlanStageToSummaryStage(int planStage) => planStage switch
     {
         0 => 1,
@@ -580,6 +516,37 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
         2 => 3,
         3 => 4,
         _ => planStage
+    };
+
+    /// <summary>判断单行是否"进度调整"档：仅生产关注工序与系统值不一致，其余 3 对（工单状态/紧急性/流转性）均匹配（排程档位 4→5 映射后比较）</summary>
+    private static bool IsProgressAdjustment(
+        int? planStage, int summaryStage,
+        string? planUrgency, string? summaryUrgency,
+        string? planAttention, string? summaryAttention,
+        string? planFlow, string? summaryFlow)
+    {
+        bool stageMatch = planStage != null
+            && MapPlanStageToSummaryStage(planStage.Value) == summaryStage;
+        bool urgencyMatch = string.IsNullOrEmpty(planUrgency)
+            ? string.IsNullOrEmpty(summaryUrgency)
+            : planUrgency == summaryUrgency;
+        bool attentionMatch = string.IsNullOrEmpty(planAttention)
+            ? string.IsNullOrEmpty(summaryAttention)
+            : planAttention == summaryAttention;
+        bool flowMatch = string.IsNullOrEmpty(planFlow)
+            ? string.IsNullOrEmpty(summaryFlow)
+            : planFlow == summaryFlow;
+        return stageMatch && urgencyMatch && flowMatch && !attentionMatch;
+    }
+
+    /// <summary>关注状态档位(5档) → 排程计划覆盖档位(4档)：1 主号完成→0 主号完成、2 原料锁定→1、3 生产执行→2、4 成品检验→3（主号暂停等其余 → 0）</summary>
+    private static int MapSummaryStageToPlanStage(int summaryStage) => summaryStage switch
+    {
+        1 => 0,   // 主号完成 → 主号完成
+        2 => 1,   // 原料锁定 → 原料锁定
+        3 => 2,   // 生产执行 → 生产执行
+        4 => 3,   // 成品检验 → 成品检验
+        _ => 0    // 主号暂停(0) 等 → 主号完成
     };
 
     private static IQueryable<WorkOrderScheduleDto> ApplySorting(

@@ -554,129 +554,88 @@ public static class DbInitializer
         }
 
         // ========== 11. Initialize Section Flow Analysis Category Settings ==========
+        // 类别表（流转类别日产配置）：仅空表时种子预设 14 类；已有数据（含用户数据工具上传）则跳过
         if (!context.SectionFlowCategorySettings.Any())
         {
             var settings = new List<SectionFlowCategorySetting>
             {
-                new() { CategoryCode = "A", CategoryName = "外抛光" },
-                new() { CategoryCode = "B", CategoryName = "内修磨" },
-                new() { CategoryCode = "C", CategoryName = "外点磨" },
-                new() { CategoryCode = "D", CategoryName = "荒管检" },
-                new() { CategoryCode = "E", CategoryName = "在制检" },
-                new() { CategoryCode = "F", CategoryName = "固溶" },
-                new() { CategoryCode = "G", CategoryName = "矫直" },
-                new() { CategoryCode = "H", CategoryName = "切割" },
-                new() { CategoryCode = "I", CategoryName = "去油" },
-                new() { CategoryCode = "J", CategoryName = "酸洗" },
-                new() { CategoryCode = "K", CategoryName = "大轧" },
-                new() { CategoryCode = "L", CategoryName = "小轧" },
-                new() { CategoryCode = "M", CategoryName = "冷拔" },
-                new() { CategoryCode = "N", CategoryName = "成品待检" },
+                new() { DisplayOrder = 1,  CategoryName = "外抛光" },
+                new() { DisplayOrder = 2,  CategoryName = "内修磨" },
+                new() { DisplayOrder = 3,  CategoryName = "外点磨" },
+                new() { DisplayOrder = 4,  CategoryName = "荒管检" },
+                new() { DisplayOrder = 5,  CategoryName = "在制检" },
+                new() { DisplayOrder = 6,  CategoryName = "固溶" },
+                new() { DisplayOrder = 7,  CategoryName = "矫直" },
+                new() { DisplayOrder = 8,  CategoryName = "切割" },
+                new() { DisplayOrder = 9,  CategoryName = "去油" },
+                new() { DisplayOrder = 10, CategoryName = "酸洗" },
+                new() { DisplayOrder = 11, CategoryName = "大轧" },
+                new() { DisplayOrder = 12, CategoryName = "小轧" },
+                new() { DisplayOrder = 13, CategoryName = "冷拔" },
+                new() { DisplayOrder = 14, CategoryName = "成品待检" },
             };
 
             context.SectionFlowCategorySettings.AddRange(settings);
             await context.SaveChangesAsync();
+        }
 
-            var settingMap = await context.SectionFlowCategorySettings
-                .OrderBy(s => s.CategoryCode)
-                .ToDictionaryAsync(s => s.CategoryCode);
+        // 组合归类表：(工序组, 工段, 产类) 三维全覆盖（启用工序组 × 启用工段 × 3 产类），
+        // 仅空表时生成骨架（归属流转类别留空）；已有数据（含用户下载后上传更新）则跳过，防止重复生成违反唯一索引；
+        // 归属由用户通过数据工具 Excel 下载 → 填写 → 上传建立 FK
+        if (!context.CombinationGroups.Any())
+        {
+            var processes = await context.ProcessDefinitions
+                .Where(x => x.IsEnabled)
+                .Select(x => x.ProcessKey)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync();
+            var sections = await context.StandardWorkDays
+                .Where(x => x.IsEnabled && x.SectionKey != SectionKeys.Warehouse)
+                .Select(x => x.SectionKey)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync();
+            var statuses = new[] { ProductStatuses.RoughTube, ProductStatuses.InProgress, ProductStatuses.Finished };
 
-            var items = new List<SectionFlowCategoryItem>();
+            var combinations = new List<CombinationGroup>(processes.Count * sections.Count * statuses.Length);
 
-            void AddItem(SectionFlowCategorySetting s, string pg, string sn, decimal coeff, int order)
+            foreach (var p in processes)
+                foreach (var s in sections)
+                    foreach (var st in statuses)
+                        combinations.Add(new CombinationGroup
+                        {
+                            ProcessGroupName = p,
+                            SectionName = s ?? "",
+                            ProductStatus = st,
+                            FlowCategoryId = null,
+                        });
+
+            await context.CombinationGroups.AddRangeAsync(combinations);
+            await context.SaveChangesAsync();
+        }
+
+        // ========== 11.5 Initialize Section Paragraph Config ==========
+        // 段落日产配置（生产段落）：仅空表时种子预设 11 段；已有数据（含用户数据工具上传）则跳过。
+        // 段落的(工序组,工段,产类)组合由组合归类表 CombinationGroups 的「归属段落」承载（用户数据工具填写）。
+        if (!context.SectionParagraphConfigs.Any())
+        {
+            var paragraphs = new List<SectionParagraphConfig>
             {
-                items.Add(new SectionFlowCategoryItem
-                {
-                    SettingId = s.Id,
-                    ProcessGroupName = pg,
-                    SectionName = sn,
-                    Coefficient = coeff,
-                    DisplayOrder = order,
-                });
-            }
+                new() { DisplayOrder = 1,  ParagraphName = "荒管抛光", DailyFlowTarget = 14m, LowerLimitDays = 3m,  UpperLimitDays = 5m },
+                new() { DisplayOrder = 2,  ParagraphName = "荒管修检", DailyFlowTarget = 14m, LowerLimitDays = 1m,  UpperLimitDays = 3m },
+                new() { DisplayOrder = 3,  ParagraphName = "在制修检", DailyFlowTarget = 13m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
+                new() { DisplayOrder = 4,  ParagraphName = "固溶",     DailyFlowTarget = 25m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
+                new() { DisplayOrder = 5,  ParagraphName = "矫直",     DailyFlowTarget = 35m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
+                new() { DisplayOrder = 6,  ParagraphName = "切割",     DailyFlowTarget = 50m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
+                new() { DisplayOrder = 7,  ParagraphName = "去油",     DailyFlowTarget = 30m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
+                new() { DisplayOrder = 8,  ParagraphName = "酸洗",     DailyFlowTarget = 40m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
+                new() { DisplayOrder = 9,  ParagraphName = "冷轧5060", DailyFlowTarget = 13m, LowerLimitDays = 3m,  UpperLimitDays = 6m },
+                new() { DisplayOrder = 10, ParagraphName = "冷轧2030", DailyFlowTarget = 12m, LowerLimitDays = 3m,  UpperLimitDays = 6m },
+                new() { DisplayOrder = 11, ParagraphName = "成品待检", DailyFlowTarget = 12m, LowerLimitDays = 0m,  UpperLimitDays = 2m },
+            };
 
-            // A 外抛光
-            AddItem(settingMap["A"], ProcessKeys.RoughTubeProcessing, SectionKeys.OuterPolish, 1m, 1);
-
-            // B 内修磨
-            AddItem(settingMap["B"], ProcessKeys.RoughTubeProcessing, SectionKeys.InnerGrinding, 1m, 1);
-
-            // C 外点磨
-            AddItem(settingMap["C"], ProcessKeys.RoughTubeProcessing, SectionKeys.OuterSpotGrinding, 1m, 1);
-
-            // D 荒管检
-            AddItem(settingMap["D"], ProcessKeys.RoughTubeProcessing, SectionKeys.Inspection, 1m, 1);
-
-            // E 在制检：全部工序组工段=检验的汇总量，后处理减去 D+N
-            AddItem(settingMap["E"], "全部", SectionKeys.Inspection, 1m, 1);
-
-            // F 固溶
-            AddItem(settingMap["F"], ProcessKeys.ColdRoll20, SectionKeys.Solution, 1m, 1);
-            AddItem(settingMap["F"], ProcessKeys.ColdRoll30, SectionKeys.Solution, 1m,2);
-            AddItem(settingMap["F"], ProcessKeys.ColdRoll50, SectionKeys.Solution, 1m,3);
-            AddItem(settingMap["F"], ProcessKeys.ColdRoll60, SectionKeys.Solution, 1m,4);
-            AddItem(settingMap["F"], ProcessKeys.ColdDraw, SectionKeys.Solution, 1m,5);
-            AddItem(settingMap["F"], ProcessKeys.ThreeRollColdRoll, SectionKeys.Solution, 1m,6);
-            AddItem(settingMap["F"], ProcessKeys.InProcessRepair, SectionKeys.Solution, 1m,7);
-
-            // G 矫直
-            AddItem(settingMap["G"], ProcessKeys.ColdRoll20, SectionKeys.Straighten, 1m, 1);
-            AddItem(settingMap["G"], ProcessKeys.ColdRoll30, SectionKeys.Straighten, 1m,2);
-            AddItem(settingMap["G"], ProcessKeys.ColdRoll50, SectionKeys.Straighten, 0.5m,3);
-            AddItem(settingMap["G"], ProcessKeys.ColdRoll60, SectionKeys.Straighten, 0.5m,4);
-            AddItem(settingMap["G"], ProcessKeys.RoughTubeProcessing, SectionKeys.Straighten, 0.25m,5);
-            AddItem(settingMap["G"], ProcessKeys.ColdDraw, SectionKeys.Straighten, 1m,6);
-            AddItem(settingMap["G"], ProcessKeys.ThreeRollColdRoll, SectionKeys.Straighten, 1m,7);
-            AddItem(settingMap["G"], ProcessKeys.InProcessRepair, SectionKeys.Straighten, 1m,8);
-
-            // H 切割
-            AddItem(settingMap["H"], ProcessKeys.ColdRoll20, SectionKeys.Cut, 1m, 1);
-            AddItem(settingMap["H"], ProcessKeys.ColdRoll30, SectionKeys.Cut, 1m,2);
-            AddItem(settingMap["H"], ProcessKeys.ColdRoll50, SectionKeys.Cut, 0.5m,3);
-            AddItem(settingMap["H"], ProcessKeys.ColdRoll60, SectionKeys.Cut, 0.5m,4);
-            AddItem(settingMap["H"], ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, 0.25m,5);
-            AddItem(settingMap["H"], ProcessKeys.ColdDraw, SectionKeys.Cut, 1m,6);
-            AddItem(settingMap["H"], ProcessKeys.ThreeRollColdRoll, SectionKeys.Cut, 1m,7);
-            AddItem(settingMap["H"], ProcessKeys.InProcessRepair, SectionKeys.Cut, 0.25m,8);
-            AddItem(settingMap["H"], ProcessKeys.ColdRoll20, SectionKeys.OilPipeCut, 0.75m,9);
-            AddItem(settingMap["H"], ProcessKeys.ColdRoll30, SectionKeys.OilPipeCut, 0.75m,10);
-            AddItem(settingMap["H"], ProcessKeys.ColdRoll50, SectionKeys.OilPipeCut, 0.5m,11);
-            AddItem(settingMap["H"], ProcessKeys.ColdRoll60, SectionKeys.OilPipeCut, 0.5m,12);
-            AddItem(settingMap["H"], ProcessKeys.ThreeRollColdRoll, SectionKeys.OilPipeCut, 0.75m,13);
-
-            // I 去油
-            AddItem(settingMap["I"], ProcessKeys.ColdRoll20, SectionKeys.Degrease, 1m, 1);
-            AddItem(settingMap["I"], ProcessKeys.ColdRoll30, SectionKeys.Degrease, 1m,2);
-            AddItem(settingMap["I"], ProcessKeys.ColdRoll50, SectionKeys.Degrease, 0.5m,3);
-            AddItem(settingMap["I"], ProcessKeys.ColdRoll60, SectionKeys.Degrease, 0.5m,4);
-            AddItem(settingMap["I"], ProcessKeys.ThreeRollColdRoll, SectionKeys.Degrease, 1m,5);
-
-            // J 酸洗
-            AddItem(settingMap["J"], ProcessKeys.ColdRoll20, SectionKeys.Pickle, 1m, 1);
-            AddItem(settingMap["J"], ProcessKeys.ColdRoll30, SectionKeys.Pickle, 1m,2);
-            AddItem(settingMap["J"], ProcessKeys.ColdRoll50, SectionKeys.Pickle, 0.5m,3);
-            AddItem(settingMap["J"], ProcessKeys.ColdRoll60, SectionKeys.Pickle, 0.5m,4);
-            AddItem(settingMap["J"], ProcessKeys.RoughTubeProcessing, SectionKeys.Pickle, 0.25m,5);
-            AddItem(settingMap["J"], ProcessKeys.ColdDraw, SectionKeys.Pickle, 1m,6);
-            AddItem(settingMap["J"], ProcessKeys.ThreeRollColdRoll, SectionKeys.Pickle, 1m,7);
-            AddItem(settingMap["J"], ProcessKeys.InProcessRepair, SectionKeys.Pickle, 0.25m,8);
-
-            // K 大轧
-            AddItem(settingMap["K"], ProcessKeys.ColdRoll50, SectionKeys.ColdRollDraw, 1m, 1);
-            AddItem(settingMap["K"], ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, 1m,2);
-
-            // L 小轧
-            AddItem(settingMap["L"], ProcessKeys.ColdRoll20, SectionKeys.ColdRollDraw, 1m, 1);
-            AddItem(settingMap["L"], ProcessKeys.ColdRoll30, SectionKeys.ColdRollDraw, 1m,2);
-            AddItem(settingMap["L"], ProcessKeys.ThreeRollColdRoll, SectionKeys.ColdRollDraw, 1m,3);
-
-            // M 冷拔
-            AddItem(settingMap["M"], ProcessKeys.ColdDraw, SectionKeys.ColdRollDraw, 1m, 1);
-
-            // N 成品待检：所有工序组中工段=检验的属成品工序量（FinalProcessTotal）汇总
-            AddItem(settingMap["N"], "全部", SectionKeys.Inspection, 1m, 1);
-
-            await context.SectionFlowCategoryItems.AddRangeAsync(items);
+            context.SectionParagraphConfigs.AddRange(paragraphs);
             await context.SaveChangesAsync();
         }
 

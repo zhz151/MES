@@ -118,6 +118,45 @@ public partial class AppDbContext
             entity.HasIndex(e => e.StandardNo).IsUnique().HasDatabaseName("UK_StandardInspectionRequirement_StandardNo");
         });
     }
+    private static void ConfigureFactoryInspectionRequirement(ModelBuilder builder)
+    {
+        builder.Entity<FactoryInspectionRequirement>(entity =>
+        {
+            entity.ToTable("FactoryInspectionRequirement");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StandardNo).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ChemicalComposition).HasMaxLength(200);
+            entity.Property(e => e.PmiInspection).HasMaxLength(200);
+            entity.Property(e => e.SurfaceInspection).HasMaxLength(200);
+            entity.Property(e => e.Dimension).HasMaxLength(200);
+            entity.Property(e => e.Endoscopy).HasMaxLength(200);
+            entity.Property(e => e.HydrostaticTest).HasMaxLength(200);
+            entity.Property(e => e.UnderwaterPressure).HasMaxLength(200);
+            entity.Property(e => e.EddyCurrent).HasMaxLength(200);
+            entity.Property(e => e.UltrasonicTest).HasMaxLength(200);
+            entity.Property(e => e.PortColoring).HasMaxLength(200);
+            entity.Property(e => e.RadiographicTest).HasMaxLength(200);
+            entity.Property(e => e.HardnessRockwell).HasMaxLength(200);
+            entity.Property(e => e.HardnessBrinell).HasMaxLength(200);
+            entity.Property(e => e.HardnessVickers).HasMaxLength(200);
+            entity.Property(e => e.TensileRoomTemp).HasMaxLength(200);
+            entity.Property(e => e.TensileHighTemp).HasMaxLength(200);
+            entity.Property(e => e.WeldJointTensile).HasMaxLength(200);
+            entity.Property(e => e.ImpactTest).HasMaxLength(200);
+            entity.Property(e => e.WeldJointImpact).HasMaxLength(200);
+            entity.Property(e => e.FlatteningTest).HasMaxLength(200);
+            entity.Property(e => e.FlaringTest).HasMaxLength(200);
+            entity.Property(e => e.ExpandingTest).HasMaxLength(200);
+            entity.Property(e => e.BendTest).HasMaxLength(200);
+            entity.Property(e => e.WeldJointBend).HasMaxLength(200);
+            entity.Property(e => e.GrainSize).HasMaxLength(200);
+            entity.Property(e => e.IntergranularCorrosion).HasMaxLength(200);
+            entity.Property(e => e.PittingCorrosion).HasMaxLength(200);
+            entity.Property(e => e.FerriteContent).HasMaxLength(200);
+            entity.Property(e => e.Macrostructure).HasMaxLength(200);
+            entity.HasIndex(e => e.StandardNo).IsUnique().HasDatabaseName("UK_FactoryInspectionRequirement_StandardNo");
+        });
+    }
     private static void ConfigureGradePhysicalProperty(ModelBuilder builder)
     {
         builder.Entity<GradePhysicalProperty>(entity =>

@@ -269,39 +269,87 @@ public static class SalesOrderPrintHelper
 
             col.Item().PaddingVertical(5);
 
-            // 技术要求表
+            // 技术要求表（A4 横向，33 列）
             col.Item().Table(table =>
             {
                 table.ColumnsDefinition(columns =>
                 {
-                    columns.ConstantColumn(30);   // 项次
-                    columns.ConstantColumn(36);   // 要求类型
-                    columns.RelativeColumn();     // 化学成分
-                    columns.RelativeColumn();     // 机械性能
-                    columns.RelativeColumn();     // 尺寸公差
-                    columns.RelativeColumn();     // 表面质量
-                    columns.RelativeColumn();     // 无损检测
+                    columns.ConstantColumn(28);   // 项次
+                    columns.ConstantColumn(42);   // 要求类型
+                    columns.RelativeColumn();     // 化学分析(成品)
+                    columns.RelativeColumn();     // PMI检验
+                    columns.RelativeColumn();     // 表检
+                    columns.RelativeColumn();     // 尺寸
+                    columns.RelativeColumn();     // 内窥
+                    columns.RelativeColumn();     // 液压检验
+                    columns.RelativeColumn();     // 水下气压
+                    columns.RelativeColumn();     // 涡流探伤
+                    columns.RelativeColumn();     // 超声波检验
+                    columns.RelativeColumn();     // 端口着色
+                    columns.RelativeColumn();     // 射线探伤
+                    columns.RelativeColumn();     // 硬度(洛氏)
+                    columns.RelativeColumn();     // 硬度(布氏)
+                    columns.RelativeColumn();     // 硬度(维氏)
+                    columns.RelativeColumn();     // 拉伸(室温)
+                    columns.RelativeColumn();     // 拉伸(高温)
+                    columns.RelativeColumn();     // 焊接接头拉伸
+                    columns.RelativeColumn();     // 冲击试验
+                    columns.RelativeColumn();     // 焊接接头冲击
+                    columns.RelativeColumn();     // 压扁试验
+                    columns.RelativeColumn();     // 卷边试验
+                    columns.RelativeColumn();     // 扩口试验
+                    columns.RelativeColumn();     // 弯曲试验
+                    columns.RelativeColumn();     // 焊接接头弯曲
+                    columns.RelativeColumn();     // 晶粒度
+                    columns.RelativeColumn();     // 晶间腐蚀
+                    columns.RelativeColumn();     // 点腐蚀
+                    columns.RelativeColumn();     // 金相检验
+                    columns.RelativeColumn();     // 低倍组织
                     columns.RelativeColumn();     // 其他要求
                 });
 
                 // 表头
-                string[] headers = { "项次", "要求类型", "化学成分", "机械性能", "尺寸公差", "表面质量", "无损检测", "其他要求" };
+                string[] headers = { "项次", "要求类型", "化学分析(成品)", "PMI检验", "表检", "尺寸", "内窥", "液压检验", "水下气压", "涡流探伤", "超声波检验", "端口着色", "射线探伤", "硬度(洛氏)", "硬度(布氏)", "硬度(维氏)", "拉伸(室温)", "拉伸(高温)", "焊接接头拉伸", "冲击试验", "焊接接头冲击", "压扁试验", "卷边试验", "扩口试验", "弯曲试验", "焊接接头弯曲", "晶粒度", "晶间腐蚀", "点腐蚀", "金相检验", "低倍组织", "其他要求" };
                 foreach (var header in headers)
                 {
-                    table.Cell().Element(CellHeaderStyle).Text(header).FontSize(8).AlignCenter();
+                    table.Cell().Element(CellHeaderStyle).Text(header).FontSize(6).AlignCenter();
                 }
 
                 // 数据行
                 foreach (var req in requirements.OrderBy(r => r.Sequence))
                 {
-                    table.Cell().Element(CellStyle).Text(req.Sequence.ToString()).FontSize(8).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(req.RequirementType)).FontSize(8).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(req.ChemicalComposition ?? "-").FontSize(8);
-                    table.Cell().Element(CellStyle).Text(req.MechanicalProperty ?? "-").FontSize(8);
-                    table.Cell().Element(CellStyle).Text(req.ToleranceRequirement ?? "-").FontSize(8);
-                    table.Cell().Element(CellStyle).Text(req.SurfaceQuality ?? "-").FontSize(8);
-                    table.Cell().Element(CellStyle).Text(req.NdtRequirement ?? "-").FontSize(8);
-                    table.Cell().Element(CellStyle).Text(req.OtherRequirement ?? "-").FontSize(8);
+                    table.Cell().Element(CellStyle).Text(req.Sequence.ToString()).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(req.RequirementType)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.ChemicalComposition)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.PmiInspection)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.SurfaceInspection)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.Dimension)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.Endoscopy)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.HydrostaticTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.UnderwaterPressure)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.EddyCurrent)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.UltrasonicTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.PortColoring)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.RadiographicTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.HardnessRockwell)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.HardnessBrinell)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.HardnessVickers)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.TensileRoomTemp)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.TensileHighTemp)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.WeldJointTensile)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.ImpactTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.WeldJointImpact)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.FlatteningTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.FlaringTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.ExpandingTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.BendTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.WeldJointBend)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.GrainSize)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.IntergranularCorrosion)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.PittingCorrosion)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.FerriteContent)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(BoolText(req.Macrostructure)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(req.OtherRequirement ?? "-").FontSize(6);
                 }
             });
 
@@ -311,6 +359,8 @@ public static class SalesOrderPrintHelper
             }
         });
     }
+
+    private static string BoolText(bool value) => value ? "是" : "-";
 
     // ========== 表格单元格样式 ==========
 

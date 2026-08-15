@@ -31,4 +31,14 @@ public class ColdRollPlanController : ControllerBase
         return Ok(ApiResponse<List<ColdRollPlanRowDto>>.Ok(data));
     }
 
+    /// <summary>
+    /// 获取冷轧排程汇总（分档与主列表统一：在轧/待轧 各分 总量/特急/急/余量）
+    /// </summary>
+    [HttpGet("summary")]
+    public async Task<IActionResult> GetScheduleSummary([FromQuery] string? sectionFilter, [FromQuery] int? maxDiff)
+    {
+        var data = await _coldRollPlanService.GetScheduleSummaryAsync(sectionFilter, maxDiff);
+        return Ok(ApiResponse<List<ColdRollPlanSummaryDto>>.Ok(data));
+    }
+
 }

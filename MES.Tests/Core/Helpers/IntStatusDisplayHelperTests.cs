@@ -66,7 +66,7 @@ public class IntStatusDisplayHelperTests
     [Fact]
     public void GetPlanScheduleStageText_4档映射()
     {
-        IntStatusDisplayHelper.GetPlanScheduleStageText(0).Should().Be("工单完成");
+        IntStatusDisplayHelper.GetPlanScheduleStageText(0).Should().Be("主号完成");
         IntStatusDisplayHelper.GetPlanScheduleStageText(1).Should().Be("原料锁定");
         IntStatusDisplayHelper.GetPlanScheduleStageText(2).Should().Be("生产执行");
         IntStatusDisplayHelper.GetPlanScheduleStageText(3).Should().Be("成品检验");
@@ -106,13 +106,15 @@ public class IntStatusDisplayHelperTests
     }
 
     [Fact]
-    public void GetPlanInputConsistencyText_5档映射()
+    public void GetPlanInputConsistencyText_7档映射()
     {
         IntStatusDisplayHelper.GetPlanInputConsistencyText(0).Should().Be("一致");
         IntStatusDisplayHelper.GetPlanInputConsistencyText(1).Should().Be("待投");
-        IntStatusDisplayHelper.GetPlanInputConsistencyText(2).Should().Be("疑问-到料未投");
+        IntStatusDisplayHelper.GetPlanInputConsistencyText(2).Should().Be("疑问-到料少投");
         IntStatusDisplayHelper.GetPlanInputConsistencyText(3).Should().Be("疑问-到料超投");
-        IntStatusDisplayHelper.GetPlanInputConsistencyText(4).Should().Be("错误-无到料已投");
+        IntStatusDisplayHelper.GetPlanInputConsistencyText(4).Should().Be("错误-无料已投");
+        IntStatusDisplayHelper.GetPlanInputConsistencyText(5).Should().Be("错误-无需投料");
+        IntStatusDisplayHelper.GetPlanInputConsistencyText(6).Should().Be("略");
         IntStatusDisplayHelper.GetPlanInputConsistencyText(9).Should().Be("未知");
     }
 
@@ -230,7 +232,7 @@ public class IntStatusDisplayHelperTests
     public void GetPlanInputConsistencyOptions_与Text一致()
     {
         var options = IntStatusDisplayHelper.GetPlanInputConsistencyOptions();
-        options.Should().HaveCount(5);
+        options.Should().HaveCount(7);
         for (int i = 0; i < options.Count; i++)
         {
             options[i].Value.Should().Be(i.ToString());

@@ -183,8 +183,8 @@ public partial class Index
         q = _flowSortColumn switch
         {
             "Category" => _flowSortDescending
-                ? q.OrderByDescending(x => x.CategoryCode)
-                : q.OrderBy(x => x.CategoryCode),
+                ? q.OrderByDescending(x => x.DisplayOrder)
+                : q.OrderBy(x => x.DisplayOrder),
             "PendingTotal" => _flowSortDescending
                 ? q.OrderByDescending(x => x.PendingTotal)
                 : q.OrderBy(x => x.PendingTotal),
@@ -194,7 +194,7 @@ public partial class Index
             "StatusJudgment" => _flowSortDescending
                 ? q.OrderByDescending(x => x.StatusJudgment)
                 : q.OrderBy(x => x.StatusJudgment),
-            _ => q.OrderBy(x => x.CategoryCode)
+            _ => q.OrderBy(x => x.DisplayOrder)
         };
 
         _flowItems = BuildMergedView(q.ToList());
@@ -204,55 +204,42 @@ public partial class Index
     private static List<SectionFlowAnalysisDto> BuildMergedView(List<SectionFlowAnalysisDto> sorted)
     {
         var result = new List<SectionFlowAnalysisDto>();
-        var lookup = sorted.ToDictionary(x => x.CategoryCode);
+        var byName = sorted.ToDictionary(x => x.CategoryName, StringComparer.OrdinalIgnoreCase);
 
-        // 合并 A+B+C → 荒管抛修
-        var abcCodes = new[] { "A", "B", "C" };
-        var abc = abcCodes.Select(c => lookup.GetValueOrDefault(c)).Where(x => x != null).ToList()!;
+        // 合并 外抛光+内修磨+外点磨 → 荒管抛修
+        var abcNames = new[] { "外抛光", "内修磨", "外点磨" };
+        var abc = abcNames.Select(n => byName.GetValueOrDefault(n)).Where(x => x != null).Select(x => x!).ToList();
         if (abc.Count > 0)
-        {
-            result.Add(new SectionFlowAnalysisDto
-            {
-                CategoryCode = "M1",
-                CategoryName = "荒管抛修",
-                PendingTotal = abc.Sum(x => x!.PendingTotal),
-                KeyBatchCount = abc.Sum(x => x!.KeyBatchCount),
-                KeyBatchWeight = abc.Sum(x => x!.KeyBatchWeight),
-                StatusJudgment = MergeStatus(abc.Select(x => x!.StatusJudgment)),
-            });
-        }
+            result.Add(MergeRow("荒管抛修", abc));
 
-        // D、E 保持不变
-        foreach (var code in new[] { "D", "E" })
-        {
-            if (lookup.TryGetValue(code, out var item))
-                result.Add(item);
-        }
-
-        // 合并 F+G+H → 固矫切
-        var fghCodes = new[] { "F", "G", "H" };
-        var fgh = fghCodes.Select(c => lookup.GetValueOrDefault(c)).Where(x => x != null).ToList()!;
+        // 合并 固溶+矫直+切割 → 固矫切
+        var fghNames = new[] { "固溶", "矫直", "切割" };
+        var fgh = fghNames.Select(n => byName.GetValueOrDefault(n)).Where(x => x != null).Select(x => x!).ToList();
         if (fgh.Count > 0)
-        {
-            result.Add(new SectionFlowAnalysisDto
-            {
-                CategoryCode = "M2",
-                CategoryName = "固矫切",
-                PendingTotal = fgh.Sum(x => x!.PendingTotal),
-                KeyBatchCount = fgh.Sum(x => x!.KeyBatchCount),
-                KeyBatchWeight = fgh.Sum(x => x!.KeyBatchWeight),
-                StatusJudgment = MergeStatus(fgh.Select(x => x!.StatusJudgment)),
-            });
-        }
+            result.Add(MergeRow("固矫切", fgh));
 
-        // I～N 保持不变
-        foreach (var code in new[] { "I", "J", "K", "L", "M", "N" })
+        // 其余类别按原顺序追加（含检验类：荒管检/在制检/成品待检 现均为普通类别）
+        var mergedNames = new HashSet<string>(
+            abc.Select(x => x!.CategoryName).Concat(fgh.Select(x => x!.CategoryName)),
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var item in sorted.Where(x => !mergedNames.Contains(x.CategoryName)))
         {
-            if (lookup.TryGetValue(code, out var item))
-                result.Add(item);
+            result.Add(item);
         }
 
         return result;
+    }
+
+    private static SectionFlowAnalysisDto MergeRow(string name, List<SectionFlowAnalysisDto> items)
+    {
+        return new SectionFlowAnalysisDto
+        {
+            CategoryName = name,
+            PendingTotal = items.Sum(x => x!.PendingTotal),
+            KeyBatchCount = items.Sum(x => x!.KeyBatchCount),
+            KeyBatchWeight = items.Sum(x => x!.KeyBatchWeight),
+            StatusJudgment = MergeStatus(items.Select(x => x!.StatusJudgment)),
+        };
     }
 
     private static string MergeStatus(IEnumerable<string?> statuses)

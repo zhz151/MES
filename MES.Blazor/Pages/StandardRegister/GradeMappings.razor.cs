@@ -467,6 +467,7 @@ public partial class GradeMappings
                 {
                     Snackbar.Add("删除成功", Severity.Success);
                     if (table != null) await table.ReloadServerData();
+                    await LoadFilterContextsAsync();
                 }
                 else
                 {

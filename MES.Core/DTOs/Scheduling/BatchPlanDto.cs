@@ -24,10 +24,10 @@ public class BatchPlanDto
     public string? Salesman { get; set; }
     public DateTime DeliveryDate { get; set; }
     public DeliveryState? DeliveryState { get; set; }
-    public string? DeliveryStateDisplay => DeliveryState.HasValue ? EnumHelper.GetDisplayName(DeliveryState.Value) : null;
     public string Specification { get; set; } = string.Empty;
+    /// <summary>制造物品（产类判定输入，供荒管检/在制检按产类过滤）</summary>
+    public string? ManufacturingItem { get; set; }
     public LengthStatus? LengthStatus { get; set; }
-    public string? LengthStatusDisplay => LengthStatus.HasValue ? EnumHelper.GetDisplayName(LengthStatus.Value) : null;
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
 
@@ -46,16 +46,13 @@ public class BatchPlanDto
     /// <summary>执行序（实时：待产执行工序对应 ProcessGroup 的组内序号）</summary>
     public int? ExecutionSequence { get; set; }
 
-    // ===== G4：批次关注（COALESCE：工单计划薄表优先，无覆盖则回退系统值） =====
+    // ===== G4：工单计划（COALESCE：工单计划薄表优先，无覆盖则回退系统值） =====
     public string? UrgencyLevel { get; set; }
     public int ScheduleStage { get; set; }
     public string? MainNoAttentionProcess { get; set; }
     /// <summary>相应工段序：根据主号关注工序从 ProcessGroups 推导的工段序号（Inspection 或 ColdRollDraw）</summary>
     public int? AttentionProcessSectionSequence { get; set; }
     public string? ProductionFlowProperty { get; set; }
-
-    /// <summary>最大剩余工量（天）：此工单号下所有批次中 RemainingWorkDays 的最大值</summary>
-    public int? MaxBatchRemainingWorkDays { get; set; }
 
     // ===== 计算字段（仅前端展示用，不参与 SQL 排序） =====
 
@@ -81,13 +78,20 @@ public class BatchPlanDto
             : null;
 
     /// <summary>
-    /// 重点生产批次（Service 计算字段）：
-    /// 条件：UrgencyLevel==A+急/A急 + ProductionFlowProperty==正常 + MainNoAttentionProcess非空
-    ///   + ExecutionSequence 与 AttentionProcessSectionSequence 序号比较：
+    /// 重点生产批次（Service 计算字段，G4 工单计划列显示用，仅工单计划概念，冷轧排程逻辑不再使用）：
+    /// 前置条件：UrgencyLevel==A+急/A急 + ProductionFlowProperty==正常 + MainNoAttentionProcess非空
+    ///   生产收尾（变形工序已完成，与成品检验衔接）→ 直接重点（不要求序号比较）
+    ///   其余：ExecutionSequence 与 AttentionProcessSectionSequence 序号比较（未产批次执行序视为 0）：
     ///   冷轧类(含三辊冷轧/冷拔)：ExecutionSequence &lt; AttentionProcessSectionSequence + 1
     ///   其他(荒管/在制修检/收尾成检)：ExecutionSequence &lt; AttentionProcessSectionSequence
     /// </summary>
     public bool IsKeyBatch { get; set; }
+
+    /// <summary>
+    /// 关注工序==当前冷轧排程行（Service 计算字段，Model B 特急档判定输入）：
+    /// 主号关注工序（MainNoAttentionProcess）与批次命中的冷轧排程行 ProcessType（ProcessKeys 归一）相等
+    /// </summary>
+    public bool AttentionMatchesCurrentCR { get; set; }
 
     // ===== G6：工单需求调整（来自 WorkOrderExecutionSummary 实体） =====
     public bool IsUrging { get; set; }
@@ -95,29 +99,27 @@ public class BatchPlanDto
     public bool IsPaused { get; set; }
     public string? AdjustmentRemark { get; set; }
 
-    // ===== G7：批次流转（计算字段，依赖冷轧排程匹配结果 + 紧急级别） =====
+    // ===== G7：关联冷轧排程（计算字段，依赖冷轧排程匹配结果 + 紧急级别） =====
 
-    private enum FlowTrigger { None, AttentionProcess, CompletionType, RollType }
+    private enum FlowTrigger { None, CompletionType, RollType }
 
-    /// <summary>判定流转触发来源</summary>
+    /// <summary>判定流转触发来源（仅与冷轧排程档位关联；无档位匹配 → 不流转）</summary>
     private FlowTrigger _trigger
     {
         get
         {
-            // 生产关注工序为空（无关注工序，即收尾阶段）→ 始终流转
-            if (string.IsNullOrEmpty(MainNoAttentionProcess))
-                return FlowTrigger.AttentionProcess;
+            var isUrgent = UrgencyLevelKeys.IsUrgent(UrgencyLevel);
+            var isNormal = ProductionFlowProperty == ProductionFlowKeys.Normal;
+            var isPartial3 = isUrgent || UrgencyLevel == UrgencyLevelKeys.BOrder;
 
-            var isUrgent = UrgencyLevel == "A+急" || UrgencyLevel == "A急";
-            var isPartial1 = isUrgent && (ScheduleStage == 2 || (ScheduleStage == 1 && (IsUrging || IsBatchDelivery)));
-            var isPartial3 = isUrgent || UrgencyLevel == "B顺";
-
-            // 在轧要求判定
+            // 在轧要求判定（档位语义与冷轧排程 MatchesScheduleType 一致，Model B）
             if (!string.IsNullOrEmpty(CR_CompletionType) && CR_CompletionType != "None")
             {
                 if (CR_CompletionType == "All")
                     return FlowTrigger.CompletionType;
-                if (CR_CompletionType == "Urgent" && (IsKeyBatch || isPartial1))
+                if (CR_CompletionType == "CrOnly" && isUrgent && isNormal && AttentionMatchesCurrentCR)
+                    return FlowTrigger.CompletionType;
+                if (CR_CompletionType == "Urgent" && isUrgent && isNormal)
                     return FlowTrigger.CompletionType;
                 if (CR_CompletionType == "Partial2" && isUrgent)
                     return FlowTrigger.CompletionType;
@@ -130,7 +132,9 @@ public class BatchPlanDto
             {
                 if (CR_RollType == "All")
                     return FlowTrigger.RollType;
-                if (CR_RollType == "Urgent" && (IsKeyBatch || isPartial1))
+                if (CR_RollType == "CrOnly" && isUrgent && isNormal && AttentionMatchesCurrentCR)
+                    return FlowTrigger.RollType;
+                if (CR_RollType == "Urgent" && isUrgent && isNormal)
                     return FlowTrigger.RollType;
                 if (CR_RollType == "Partial2" && isUrgent)
                     return FlowTrigger.RollType;
@@ -143,59 +147,81 @@ public class BatchPlanDto
     }
 
     /// <summary>
-    /// 流转标注（UrgencyLevel 已由 Service COALESCE）：
-    /// 生产关注工序为空 → true
-    /// 在轧要求=All → true；在轧要求=Urgent → true 仅当 IsKeyBatch
-    /// 在轧要求=Partial1 → true 仅当 A+急/A急 且 (生产执行 或 原料锁定+催单/分批交货)（已合并到 Urgent）
-    /// 在轧要求=Partial2 → true 仅当 A+急/A急
+    /// 流转标注（仅与冷轧排程档位关联，与冷轧计划「排程选中」口径一致，二值 是/否，Model B）：
+    /// 在轧要求=All → true；在轧要求=CrOnly → true 仅当 特急(正常流转∧关注==当前冷轧)
+    /// 在轧要求=Urgent → true 仅当 特急/特急-(正常流转)；在轧要求=Partial2 → true 仅当 A+急/A急
     /// 在轧要求=Partial3 → true 仅当 A+急/A急/B顺
-    /// 待轧要求=All → true；待轧要求=Urgent → true 仅当 IsKeyBatch 或 isPartial1
-    /// 待轧要求=Partial2 → true 仅当 A+急/A急
+    /// 待轧要求=All → true；待轧要求=CrOnly → true 仅当 特急(正常流转∧关注==当前冷轧)
+    /// 待轧要求=Urgent → true 仅当 特急/特急-(正常流转)；待轧要求=Partial2 → true 仅当 A+急/A急
     /// 待轧要求=Partial3 → true 仅当 A+急/A急/B顺
     public bool IsFlow => _trigger != FlowTrigger.None;
 
     /// <summary>
-    /// 流转等级整数值（基于 UrgencyLevel，与 _trigger 分离）：
-    /// IsKeyBatch=true → 1
-    /// A+急/A急 → 2
-    /// B顺 → 3
-    /// 其余流转 → 4
-    /// IsFlow=false → 5
+    /// 流转等级整数值（基于 UrgencyLevel，与 _trigger 分离，3 档）：
+    /// 2=急（A+急/A急 且流转）
+    /// 3=一般（B顺 + 其余流转）
+    /// 4=略（IsFlow=false 非流转）
+    /// 重点批次（IsKeyBatch）不再参与等级判定（仅 G4 工单计划组显示），特急档由薄表 PlanFlowLevel 手工体现
     /// </summary>
     public int FlowLevel
     {
         get
         {
-            if (IsKeyBatch) return 1;
-            if (!IsFlow) return 5;
+            if (!IsFlow) return 4;
 
-            var isUrgent = UrgencyLevel == "A+急" || UrgencyLevel == "A急";
-            var isBShun = UrgencyLevel == "B顺";
+            var isUrgent = UrgencyLevelKeys.IsUrgent(UrgencyLevel);
 
             if (isUrgent) return 2;
-            if (isBShun) return 3;
-            return 4;
+            return 3;
         }
     }
 
-    /// <summary>等级1A：FlowLevel=1 且 主号关注工序 == 冷轧类型（非空匹配）</summary>
+    /// <summary>等级显示文本：急/一般/略（实时等级不含特急，特急由薄表 PlanFlowLevel 手工体现）</summary>
     [JsonIgnore]
-    public bool IsFlowLevel1A => FlowLevel == 1 && FlowCRType != null && FlowCRType == MainNoAttentionProcess;
+    public string FlowLevelDisplay => FlowLevel switch
+    {
+        2 => "急",
+        3 => "一般",
+        4 => "略",
+        _ => FlowLevel.ToString(),
+    };
 
-    /// <summary>等级1B：FlowLevel=1 且 主号关注工序 != 冷轧类型</summary>
+    /// <summary>
+    /// 排程档位（批次实际档位，V5.26 细化，与 _trigger/冷轧排程口径一致，档位序 急+&gt;急&gt;急-&gt;顺&gt;带&gt;略）：
+    /// 1=急+（正常流转∧关注==当前冷轧）、2=急（正常流转∧关注≠当前冷轧）、3=急-（非正常流转）
+    /// 4=顺（非急但流转，B顺）、5=带（All 档下非急非顺的普通批次）、6=略（不在排程内：无排程行/被要求档排除，IsFlow=false）
+    /// </summary>
     [JsonIgnore]
-    public bool IsFlowLevel1B => FlowLevel == 1 && !IsFlowLevel1A;
+    public int ScheduleTier
+    {
+        get
+        {
+            if (!IsFlow) return 6;
+            var isUrgent = UrgencyLevelKeys.IsUrgent(UrgencyLevel);
+            var isNormal = ProductionFlowProperty == ProductionFlowKeys.Normal;
+            if (isUrgent && isNormal && AttentionMatchesCurrentCR) return 1;
+            if (isUrgent && isNormal) return 2;
+            if (isUrgent) return 3;
+            if (UrgencyLevel == UrgencyLevelKeys.BOrder) return 4;
+            return 5;
+        }
+    }
 
-    /// <summary>等级显示文本：1A/1B/2/3/4/5</summary>
+    /// <summary>排程档位显示文本：急+/急/急-/顺/带/略</summary>
     [JsonIgnore]
-    public string FlowLevelDisplay => FlowLevel == 1
-        ? (IsFlowLevel1A ? "1A" : "1B")
-        : FlowLevel.ToString();
+    public string ScheduleTierDisplay => ScheduleTier switch
+    {
+        1 => "急+",
+        2 => "急",
+        3 => "急-",
+        4 => "顺",
+        5 => "带",
+        _ => "略",
+    };
 
     /// <summary>流转目标</summary>
     public string? FlowTarget => _trigger switch
     {
-        FlowTrigger.AttentionProcess => FlowTargetKeys.Inspection,
         FlowTrigger.CompletionType => FlowTargetKeys.CompletionColdRoll,
         FlowTrigger.RollType => FlowTargetKeys.ColdRoll,
         _ => null,
@@ -249,7 +275,6 @@ public class BatchPlanDto
     /// <summary>冷轧类型</summary>
     public string? FlowCRType => _trigger switch
     {
-        FlowTrigger.AttentionProcess => "-",
         FlowTrigger.CompletionType => PendingProcess,
         FlowTrigger.RollType => _rollTypeProcessType,
         _ => null,
@@ -258,7 +283,6 @@ public class BatchPlanDto
     /// <summary>外径跨度 — 坯料外径-轧制外径，如"110-89"</summary>
     public string? OuterDiameterSpan => _trigger switch
     {
-        FlowTrigger.AttentionProcess => null,
         FlowTrigger.CompletionType => GetShortDisplay(CurrentCR_BilletSpec, CurrentCR_RollingSpec),
         FlowTrigger.RollType => GetShortDisplay(_rollTypeBilletSpec, _rollTypeRollingSpec),
         _ => null,
@@ -267,7 +291,6 @@ public class BatchPlanDto
     /// <summary>执行规格</summary>
     public string? FlowExecSpec => _trigger switch
     {
-        FlowTrigger.AttentionProcess => PendingSpec,
         FlowTrigger.CompletionType => CurrentCR_RollingSpec,
         FlowTrigger.RollType => _rollTypeRollingSpec,
         _ => null,
@@ -296,18 +319,28 @@ public class BatchPlanDto
 
     // G5-3：下层排程匹配结果（下层维度匹配冷轧小表）
     public string? CR_RollType { get; set; }             // 待轧要求
-    public int CR_RollOrder { get; set; }                // 顺序
     public string? CR_SchedMachineNo { get; set; }       // 待轧设备号
 
     // ===== 批次计划薄表（来自 BatchPlanSchedule 小表，持久化） =====
+    /// <summary>暂停（控制开关）：=是 时流转字段读时覆盖为非流转（PlanIsFlow=false/PlanFlowLevel=5/流转位等=null），DB 保留原值，切回"否"自动恢复</summary>
+    public bool PlanIsPaused { get; set; }
     public bool PlanIsFlow { get; set; }
     public int PlanFlowLevel { get; set; }
 
-    /// <summary>PlanFlowLevel 显示文本：PlanFlowLevel=1 时按 PlanFlowCRType 与 MainNoAttentionProcess 匹配情况显示 1A/1B</summary>
+    /// <summary>
+    /// PlanFlowLevel 显示文本（V5.28 五档，与实时排程档位映射：急+→急+/急→急/急-→急-/顺·带→一般/略→略）：
+    /// 1=急+ / 2=急 / 3=急- / 4=一般 / 5=略（特急A/B 手工档已删除，急+ 直接透传实时档位）
+    /// </summary>
     [JsonIgnore]
-    public string PlanFlowLevelDisplay => PlanFlowLevel == 1
-        ? (PlanFlowCRType != null && PlanFlowCRType == MainNoAttentionProcess ? "1A" : "1B")
-        : PlanFlowLevel.ToString();
+    public string PlanFlowLevelDisplay => PlanFlowLevel switch
+    {
+        1 => "急+",
+        2 => "急",
+        3 => "急-",
+        4 => "一般",
+        5 => "略",
+        _ => PlanFlowLevel.ToString(),
+    };
     public string? PlanFlowTarget { get; set; }
     public string? PlanFlowCRType { get; set; }
     public string? PlanOuterDiameterSpan { get; set; }
@@ -319,17 +352,13 @@ public class BatchPlanDto
 
     // ===== 执行反馈（实时计算） =====
 
-    /// <summary>原工量差 = 小表目标序 - 小表执行序</summary>
-    public int? OriginalDiff =>
-        PlanTargetSequence.HasValue && PlanExecutionSequence.HasValue
-            ? PlanTargetSequence.Value - PlanExecutionSequence.Value
-            : null;
+    /// <summary>原工量差 = 小表目标序 - 小表执行序（未产执行序视为 0）</summary>
+    public int OriginalDiff =>
+        (PlanTargetSequence ?? 0) - (PlanExecutionSequence ?? 0);
 
-    /// <summary>现工量差 = 小表目标序 - 当前执行序</summary>
-    public int? CurrentDiff =>
-        PlanTargetSequence.HasValue && ExecutionSequence.HasValue
-            ? PlanTargetSequence.Value - ExecutionSequence.Value
-            : null;
+    /// <summary>现工量差 = 小表目标序 - 当前执行序（未产执行序视为 0）</summary>
+    public int CurrentDiff =>
+        (PlanTargetSequence ?? 0) - (ExecutionSequence ?? 0);
 
     /// <summary>G7 实时工量差 = G7 目标序(实时) - 执行序(实时)，仅在 IsFlow=true 时有意义</summary>
     public int? CurrentFlowDiff =>
@@ -337,35 +366,19 @@ public class BatchPlanDto
             ? TargetSequence.Value - ExecutionSequence.Value
             : null;
 
-    /// <summary>是否执行 = 原工量差 ≠ 现工量差</summary>
-    public bool? IsExecuted =>
-        OriginalDiff.HasValue && CurrentDiff.HasValue
-            ? OriginalDiff.Value != CurrentDiff.Value
-            : null;
+    /// <summary>是否执行 = 原工量差 ≠ 现工量差（执行序是否推进，未产视为未执行）</summary>
+    public bool IsExecuted => OriginalDiff != CurrentDiff;
 
     /// <summary>
-    /// 达标状态（与批次计划关联）：
-    /// ExecutionSequence >= PlanTargetSequence 时：
-    ///   FlowTarget=="冷轧" 且 PendingEquipment 为空 → 半达标
-    ///   其他 → 达标
-    /// ExecutionSequence < PlanTargetSequence → 未达标
-    /// 数据不足 → null
+    /// 达标状态（与批次计划关联）：批次计划流转=否 → null("-")；
+    /// 流转=是 → 现工量差 &lt;= 0 即达标，否则未达标（取消"半达标"概念，只有 达标/未达标/-）
     /// </summary>
     public string? IsCompliant
     {
         get
         {
-            if (!ExecutionSequence.HasValue || !PlanTargetSequence.HasValue)
-                return null;
-
-            if (ExecutionSequence.Value >= PlanTargetSequence.Value)
-            {
-                if (FlowTarget == FlowTargetKeys.ColdRoll && string.IsNullOrEmpty(PendingEquipment))
-                    return "半达标";
-                return "达标";
-            }
-
-            return "未达标";
+            if (!PlanIsFlow) return null;
+            return CurrentDiff <= 0 ? "达标" : "未达标";
         }
     }
 
