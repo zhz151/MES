@@ -93,18 +93,19 @@ public partial class AppDbContext
             entity.Property(e => e.OrderNo).HasMaxLength(50);
             entity.Property(e => e.ItemSequence);
             entity.Property(e => e.RequirementType).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(RequirementType.Normal);
-            // 29 个检验项要求列（bit，默认 false 表示"否/-"）
+            // 化学分析(成品)：bit，默认 false
             entity.Property(e => e.ChemicalComposition).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.PmiInspection).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.SurfaceInspection).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.Dimension).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.Endoscopy).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.HydrostaticTest).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.UnderwaterPressure).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.EddyCurrent).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.UltrasonicTest).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.PortColoring).IsRequired().HasDefaultValue(false);
-            entity.Property(e => e.RadiographicTest).IsRequired().HasDefaultValue(false);
+            // 10 个成品检验项（含射线探伤）：枚举字符串存储（终/预/预+终/-），默认「终」=仅正式成检
+            entity.Property(e => e.PmiInspection).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InspectionRequirementStage.FinalOnly);
+            entity.Property(e => e.SurfaceInspection).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InspectionRequirementStage.FinalOnly);
+            entity.Property(e => e.Dimension).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InspectionRequirementStage.FinalOnly);
+            entity.Property(e => e.Endoscopy).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InspectionRequirementStage.FinalOnly);
+            entity.Property(e => e.HydrostaticTest).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InspectionRequirementStage.FinalOnly);
+            entity.Property(e => e.UnderwaterPressure).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InspectionRequirementStage.FinalOnly);
+            entity.Property(e => e.EddyCurrent).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InspectionRequirementStage.FinalOnly);
+            entity.Property(e => e.UltrasonicTest).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InspectionRequirementStage.FinalOnly);
+            entity.Property(e => e.PortColoring).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InspectionRequirementStage.FinalOnly);
+            entity.Property(e => e.RadiographicTest).IsRequired().HasConversion<string>().HasMaxLength(20).HasDefaultValue(InspectionRequirementStage.FinalOnly);
             entity.Property(e => e.HardnessRockwell).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.HardnessBrinell).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.HardnessVickers).IsRequired().HasDefaultValue(false);

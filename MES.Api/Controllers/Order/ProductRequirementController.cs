@@ -96,14 +96,15 @@ public class ProductRequirementController : ControllerBase
     }
 
     /// <summary>
-    /// 按工单关联订单项次ID列表（逗号分隔）取质量备注（各项次技术要求「其他要求」按项次号拼接）
+    /// 按销售订单号 + 工单关联订单项次序号列表（逗号分隔）取质量备注（各项次技术要求「其他要求」按项次号拼接）
     /// </summary>
-    /// <param name="orderItemIds">逗号分隔的订单项次ID列表</param>
+    /// <param name="salesOrderNo">销售订单号（结合项次序号唯一定位订单项次）</param>
+    /// <param name="orderItemIds">逗号分隔的订单项次序号列表（OrderItemIds 存的是 Sequence，非 OrderItem.Id）</param>
     [HttpGet("~/api/order/requirements/quality-remark")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<string>>> GetQualityRemark(string? orderItemIds)
+    public async Task<ActionResult<ApiResponse<string>>> GetQualityRemark(string? salesOrderNo, string? orderItemIds)
     {
-        var result = await _service.GetQualityRemarkByOrderItemIdsAsync(orderItemIds);
+        var result = await _service.GetQualityRemarkByOrderItemIdsAsync(salesOrderNo, orderItemIds);
         return Ok(ApiResponse<string>.Ok(result, "查询成功"));
     }
 }

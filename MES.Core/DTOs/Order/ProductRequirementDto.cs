@@ -15,16 +15,16 @@ public class ProductRequirementDto
     public string RequirementTypeDisplay => EnumHelper.GetDisplayName(RequirementType);
     public string RequirementTypeText => RequirementType.ToString();
     public bool ChemicalComposition { get; set; }
-    public bool PmiInspection { get; set; }
-    public bool SurfaceInspection { get; set; }
-    public bool Dimension { get; set; }
-    public bool Endoscopy { get; set; }
-    public bool HydrostaticTest { get; set; }
-    public bool UnderwaterPressure { get; set; }
-    public bool EddyCurrent { get; set; }
-    public bool UltrasonicTest { get; set; }
-    public bool PortColoring { get; set; }
-    public bool RadiographicTest { get; set; }
+    public InspectionRequirementStage PmiInspection { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage SurfaceInspection { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage Dimension { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage Endoscopy { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage HydrostaticTest { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage UnderwaterPressure { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage EddyCurrent { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage UltrasonicTest { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage PortColoring { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage RadiographicTest { get; set; } = InspectionRequirementStage.FinalOnly;
     public bool HardnessRockwell { get; set; }
     public bool HardnessBrinell { get; set; }
     public bool HardnessVickers { get; set; }
@@ -68,16 +68,16 @@ public class CreateProductRequirementRequest
 {
     public RequirementType RequirementType { get; set; } = RequirementType.Normal;
     public bool ChemicalComposition { get; set; }
-    public bool PmiInspection { get; set; }
-    public bool SurfaceInspection { get; set; }
-    public bool Dimension { get; set; }
-    public bool Endoscopy { get; set; }
-    public bool HydrostaticTest { get; set; }
-    public bool UnderwaterPressure { get; set; }
-    public bool EddyCurrent { get; set; }
-    public bool UltrasonicTest { get; set; }
-    public bool PortColoring { get; set; }
-    public bool RadiographicTest { get; set; }
+    public InspectionRequirementStage PmiInspection { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage SurfaceInspection { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage Dimension { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage Endoscopy { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage HydrostaticTest { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage UnderwaterPressure { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage EddyCurrent { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage UltrasonicTest { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage PortColoring { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage RadiographicTest { get; set; } = InspectionRequirementStage.FinalOnly;
     public bool HardnessRockwell { get; set; }
     public bool HardnessBrinell { get; set; }
     public bool HardnessVickers { get; set; }
@@ -105,16 +105,16 @@ public class CreateProductRequirementRequest
 public class ProductRequirementDefaultsDto
 {
     public bool ChemicalComposition { get; set; }
-    public bool PmiInspection { get; set; }
-    public bool SurfaceInspection { get; set; }
-    public bool Dimension { get; set; }
-    public bool Endoscopy { get; set; }
-    public bool HydrostaticTest { get; set; }
-    public bool UnderwaterPressure { get; set; }
-    public bool EddyCurrent { get; set; }
-    public bool UltrasonicTest { get; set; }
-    public bool PortColoring { get; set; }
-    public bool RadiographicTest { get; set; }
+    public InspectionRequirementStage PmiInspection { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage SurfaceInspection { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage Dimension { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage Endoscopy { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage HydrostaticTest { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage UnderwaterPressure { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage EddyCurrent { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage UltrasonicTest { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage PortColoring { get; set; } = InspectionRequirementStage.FinalOnly;
+    public InspectionRequirementStage RadiographicTest { get; set; } = InspectionRequirementStage.FinalOnly;
     public bool HardnessRockwell { get; set; }
     public bool HardnessBrinell { get; set; }
     public bool HardnessVickers { get; set; }

@@ -28,6 +28,7 @@ public partial class Batches
     private List<PendingPlanBatchDto> _pendingInMainWorkOrderPlans = new();
     private List<NotificationDto>? _workOrderChangedNotices;
     private List<DefectRateBatchDto> _defectRateAlerts = new();
+    private List<ForcedCompletedInspectionBatchDto> _forcedCompletedInspectionBatches = new();
     private CancellationTokenSource? _pollingCts;
     private bool _allSelected;
     private bool allSelected
@@ -588,6 +589,9 @@ public partial class Batches
         // 自动加载缺陷率预警通知
         await LoadDefectRateAlertsAsync();
 
+        // 自动加载成检到料强制完成通知
+        await LoadForcedCompletedInspectionBatchesAsync();
+
         // 启动定时轮询刷新通知
         _ = StartNotificationPollingAsync();
     }
@@ -679,6 +683,24 @@ public partial class Batches
         catch
         {
             _defectRateAlerts.Clear();
+        }
+    }
+
+    // ========== 成检到料强制完成通知 ==========
+
+    private async Task LoadForcedCompletedInspectionBatchesAsync()
+    {
+        try
+        {
+            var result = await BatchService.GetForcedCompletedInspectionBatchesAsync();
+            if (result.Success && result.Data != null)
+                _forcedCompletedInspectionBatches = result.Data;
+            else
+                _forcedCompletedInspectionBatches.Clear();
+        }
+        catch
+        {
+            _forcedCompletedInspectionBatches.Clear();
         }
     }
 
@@ -1213,6 +1235,7 @@ public partial class Batches
                 await CheckWorkOrdersAsync();
                 await CheckWorkOrderChangedNotificationsAsync();
                 await LoadDefectRateAlertsAsync();
+                await LoadForcedCompletedInspectionBatchesAsync();
                 await InvokeAsync(StateHasChanged);
             }
         }

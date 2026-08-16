@@ -28,9 +28,9 @@ public partial class FinalInspectionPlan
     private string sortColumn = "BatchNo";
     private bool sortDescending;
 
-    // 三档 Tab
+    // 四档 Tab
     private string? _selectedTab = "待到料";
-    private static readonly string[] _tabs = { "全部", "待到料", "待检验", "检验中" };
+    private static readonly string[] _tabs = { "全部", "待到料", "待检验", "检验中", "完成检验待入库" };
 
     // Tab 汇总
     private int _tabCount;
@@ -53,7 +53,8 @@ public partial class FinalInspectionPlan
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "CurrentValidWeight",
+        "ProductionCutQuantity",
+        "ProductionWeight",
         "InspectionCount",
         "TotalQuantity",
         "QualifiedQuantity",
@@ -67,6 +68,11 @@ public partial class FinalInspectionPlan
 
     // 选中行
     private HashSet<FinalInspectionPlanDto> _selectedItems = new();
+
+    // ========== 显示类汇总卡片（仿批次计划，工具栏「显示类汇总」按钮切换显隐，懒加载） ==========
+    private bool _showSummaryCard;
+    private bool _isLoadingSummary;
+    private List<FinalInspectionPlanSummaryRowDto> _summaryRows = new();
 
     private void SelectAllItems(bool selected)
     {
@@ -88,39 +94,59 @@ public partial class FinalInspectionPlan
 
     private static List<ColumnDef> GetAllColumnDefs()
     {
-        // G1: 批次信息
+        // G1: 批次信息 + 关联工单（合并，参照成检追踪；成检类型取批次「成检附加」，预成检时是否交付态/制造状态显 "-"）
+        // 列顺序按业务约定：生产编号/成检类型/是否交付态/生产类型/制造物品/制造状态/交货状态/工厂牌号/规格/长度状态/生产支数/生产重量/炉号/来料单位/工单号/订单号/主号/业务员/最终用户
         var g1 = new List<ColumnDef>
         {
             new() { Key = "BatchNo",              Label = "生产编号",   SortKey = "BatchNo",              FilterType = "string", Width = "130", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "TagNo",                Label = "挂牌号",     SortKey = "TagNo",                FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "PlantGrade",            Label = "原料钢号",   SortKey = "PlantGrade",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "CurrentValidWeight",    Label = "重量(kg)",   SortKey = "CurrentValidWeight",    Width = "80",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "InspectionType",       Label = "成检类型",   SortKey = "InspectionType",       FilterType = "enum",   Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionType>(), GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "IsDeliveryStatus",     Label = "是否交付态", SortKey = "IsDeliveryStatus",     FilterType = "string", Width = "90",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ProductionType",       Label = "生产类型",   SortKey = "ProductionType",       FilterType = "enum",   Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<ProductionType>(), DisplayConverter = v => v is ProductionType pt ? DisplayHelper.GetProductionTypeText(pt) : DisplayHelper.GetProductionTypeText(v as string), GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ManufacturingItem",    Label = "制造物品",   SortKey = "ManufacturingItem",    FilterType = "enum",   Width = "90",  EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialType>(), GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ManufacturingStatus",  Label = "制造状态",   SortKey = "ManufacturingStatus",  FilterType = "enum",   Width = "110", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "DeliveryState",        Label = "交货状态",   SortKey = "DeliveryState",        FilterType = "enum",   Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "PlantGrade",           Label = "工厂牌号",   SortKey = "PlantGrade",           FilterType = "string", Width = "100", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "Specification",        Label = "规格",       SortKey = "Specification",        FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "LengthStatus",         Label = "长度状态",   SortKey = "LengthStatus",         FilterType = "enum",   Width = "90",  EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), DisplayConverter = v => v is LengthStatus ls ? DisplayHelper.GetLengthStatusText(ls) : DisplayHelper.GetLengthStatusText(v as string), GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ProductionCutQuantity",Label = "生产支数",   SortKey = "ProductionCutQuantity", Width = "80",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ProductionWeight",     Label = "生产重量(kg)", SortKey = "ProductionWeight",  Width = "90",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "SourceHeatNo",         Label = "炉号",       SortKey = "SourceHeatNo",         FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "SourceName",           Label = "来料单位",   SortKey = "SourceName",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "WorkOrderNo",          Label = "工单号",     SortKey = "WorkOrderNo",          FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "SalesOrderNo",         Label = "订单号",     SortKey = "SalesOrderNo",         FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ProductionMainNo",     Label = "主号",       SortKey = "ProductionMainNo",     FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "Salesman",             Label = "业务员",     SortKey = "Salesman",             FilterType = "string", Width = "90",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "EndCustomer",          Label = "最终用户",   SortKey = "EndCustomer",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次信息" },
         };
 
-        // G2: 关联工单
+        // G2: 排程信息
         var g2 = new List<ColumnDef>
         {
-            new() { Key = "WorkOrderNo",           Label = "工单号",     SortKey = "WorkOrderNo",           FilterType = "string", Width = "130", GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "Salesman",              Label = "业务员",     SortKey = "Salesman",              FilterType = "string", Width = "100", GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "Specification",         Label = "成品规格",   SortKey = "Specification",         FilterType = "string", Width = "130", GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "LengthStatus",          Label = "长度状态",   SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), DisplayConverter = v => v is LengthStatus ls ? DisplayHelper.GetLengthStatusText(ls) : DisplayHelper.GetLengthStatusText(v as string), GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "MinLength",             Label = "最小长度",   SortKey = "MinLength",             Width = "80",  GroupKey = 2, GroupName = "关联工单" },
-            new() { Key = "MaxLength",             Label = "最大长度",   SortKey = "MaxLength",             Width = "80",  GroupKey = 2, GroupName = "关联工单" },
+            new() { Key = "ScheduleStage",         Label = "计划状态",   SortKey = "ScheduleStage",         FilterType = "enum", Width = "110", EnumOptions = new List<EnumOption> { new("-1","无此工单") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList(), DisplayConverter = v => v is int s ? s switch { -1 => "无此工单", _ => IntStatusDisplayHelper.GetScheduleStageText(s) } : null, GroupKey = 2, GroupName = "排程信息" },
+            new() { Key = "UrgencyLevel",          Label = "紧急程度",   SortKey = "UrgencyLevel",          FilterType = "enum", Width = "90",  EnumOptions = _urgencyOptions.Select(o => new EnumOption(o.Value, o.Text)).ToList(), GroupKey = 2, GroupName = "排程信息" },
         };
 
-        // G3: 排程信息
+        // G3: 成检状态
         var g3 = new List<ColumnDef>
         {
-            new() { Key = "ScheduleStage",         Label = "计划状态",   SortKey = "ScheduleStage",         FilterType = "enum", Width = "110", EnumOptions = new List<EnumOption> { new("-1","无此工单") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList(), DisplayConverter = v => v is int s ? s switch { -1 => "无此工单", _ => IntStatusDisplayHelper.GetScheduleStageText(s) } : null, GroupKey = 3, GroupName = "排程信息" },
-            new() { Key = "UrgencyLevel",          Label = "紧急程度",   SortKey = "UrgencyLevel",          FilterType = "enum", Width = "90",  EnumOptions = _urgencyOptions.Select(o => new EnumOption(o.Value, o.Text)).ToList(), GroupKey = 3, GroupName = "排程信息" },
+            new() { Key = "KanbanStage",           Label = "成检阶段",   FilterType = "enum", Width = "100", EnumOptions = new() { new("待到料","待到料"), new("待检验","待检验"), new("检验中","检验中"), new("完成检验待入库","完成检验待入库") }, GroupKey = 3, GroupName = "成检状态" },
+            new() { Key = "ReceiveDate",           Label = "到料日期",   SortKey = "ReceiveDate",           Width = "110", GroupKey = 3, GroupName = "成检状态" },
+            new() { Key = "MaxInspectionDate",     Label = "最晚检验",   SortKey = "MaxInspectionDate",     Width = "110", GroupKey = 3, GroupName = "成检状态" },
         };
 
-        // G4: 成检状态
+        // G4: 技术要求检验项（ProductRequirement 成品检验组；表检+尺寸恒必检；与「完成检验待入库」判定同源）
         var g4 = new List<ColumnDef>
         {
-            new() { Key = "KanbanStage",           Label = "成检阶段",   FilterType = "enum", Width = "100", EnumOptions = new() { new("待到料","待到料"), new("待检验","待检验"), new("检验中","检验中") }, GroupKey = 4, GroupName = "成检状态" },
-            new() { Key = "ReceiveDate",           Label = "到料日期",   SortKey = "ReceiveDate",           Width = "110", GroupKey = 4, GroupName = "成检状态" },
-            new() { Key = "MaxInspectionDate",     Label = "最晚检验",   SortKey = "MaxInspectionDate",     Width = "110", GroupKey = 4, GroupName = "成检状态" },
+            new() { Key = "ReqCount",              Label = "必检项数",   Width = "80",  GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqPmi",                Label = "PMI检验",   FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqVisual",             Label = "表检",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqDimension",          Label = "尺寸",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqEndoscopy",          Label = "内窥",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqHydro",              Label = "水压",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqUnderwater",         Label = "水下气压",  FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqEddy",               Label = "涡流",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqUltrasonic",         Label = "超声波",    FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqPortColoring",       Label = "端口着色",  FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
         };
 
         // G5: 各项检验的日期
@@ -142,7 +168,7 @@ public partial class FinalInspectionPlan
         var g6 = new List<ColumnDef>
         {
             new() { Key = "TotalQuantity",         Label = "检验支数",   SortKey = "TotalQuantity",         Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
-            new() { Key = "QualifiedQuantity",      Label = "合格支数",   SortKey = "QualifiedQuantity",      Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
+            new() { Key = "QualifiedQuantity",      Label = "理论合格支", SortKey = "QualifiedQuantity",      Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
             new() { Key = "DefectReworkQuantity",   Label = "返整支数",   SortKey = "DefectReworkQuantity",   Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
             new() { Key = "DefectWarehouseQuantity",Label = "不合格入库", SortKey = "DefectWarehouseQuantity",Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
             new() { Key = "DefectScrapQuantity",    Label = "报废支数",   SortKey = "DefectScrapQuantity",    Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
@@ -191,6 +217,11 @@ public partial class FinalInspectionPlan
                 else if (type == typeof(int?))
                 {
                     var sum = pageItems.Sum(item => (int?)(prop.GetValue(item)) ?? 0);
+                    _pageSums[col.Key] = sum.ToString();
+                }
+                else if (type == typeof(int))
+                {
+                    var sum = pageItems.Sum(item => (int)(prop.GetValue(item) ?? 0));
                     _pageSums[col.Key] = sum.ToString();
                 }
             }
@@ -347,21 +378,49 @@ public partial class FinalInspectionPlan
                     .ToList();
                 _filterContextOptions[col.Key] = distinct;
             }
+            else if (col.FilterType == "boolean")
+            {
+                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
+                {
+                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
+                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
+                };
+            }
         }
     }
 
     private static string? GetFilterValue(FinalInspectionPlanDto item, string key) => key switch
     {
         "BatchNo" => item.BatchNo,
-        "TagNo" => item.TagNo,
+        "InspectionType" => item.InspectionType?.ToString(),
+        "IsDeliveryStatus" => item.IsDeliveryStatusDisplay,
+        "ProductionType" => item.ProductionType?.ToString(),
+        "ManufacturingItem" => item.ManufacturingItem?.ToString(),
+        "ManufacturingStatus" => item.ManufacturingStatus?.ToString(),
+        "DeliveryState" => item.DeliveryState?.ToString(),
         "PlantGrade" => item.PlantGrade,
-        "WorkOrderNo" => item.WorkOrderNo,
-        "Salesman" => item.Salesman,
         "Specification" => item.Specification,
         "LengthStatus" => item.LengthStatus.HasValue ? item.LengthStatus.Value.ToString() : null,
+        "SourceHeatNo" => item.SourceHeatNo,
+        "SourceName" => item.SourceName,
+        "WorkOrderNo" => item.WorkOrderNo,
+        "SalesOrderNo" => item.SalesOrderNo,
+        "ProductionMainNo" => item.ProductionMainNo,
+        "Salesman" => item.Salesman,
+        "EndCustomer" => item.EndCustomer,
         "ScheduleStage" => item.ScheduleStage.ToString(),
         "UrgencyLevel" => item.UrgencyLevel,
         "KanbanStage" => item.KanbanStage,
+        // G4: 技术要求检验项（boolean 列按约定返回 "True"/"False"）
+        "ReqPmi" => item.ReqPmi ? "True" : "False",
+        "ReqVisual" => item.ReqVisual ? "True" : "False",
+        "ReqDimension" => item.ReqDimension ? "True" : "False",
+        "ReqEndoscopy" => item.ReqEndoscopy ? "True" : "False",
+        "ReqHydro" => item.ReqHydro ? "True" : "False",
+        "ReqUnderwater" => item.ReqUnderwater ? "True" : "False",
+        "ReqEddy" => item.ReqEddy ? "True" : "False",
+        "ReqUltrasonic" => item.ReqUltrasonic ? "True" : "False",
+        "ReqPortColoring" => item.ReqPortColoring ? "True" : "False",
         _ => null
     };
 
@@ -383,11 +442,11 @@ public partial class FinalInspectionPlan
             : _allItems.Where(x => x.KanbanStage == _selectedTab).ToList();
 
         _tabCount = filtered.Count;
-        _tabTotalWeight = filtered.Sum(x => x.CurrentValidWeight ?? 0);
+        _tabTotalWeight = filtered.Sum(x => x.ProductionWeight ?? 0);
         _urgentAPlusCount = filtered.Count(x => x.UrgencyLevel == UrgencyLevelKeys.APlusUrgent);
-        _urgentAPlusWeight = filtered.Where(x => x.UrgencyLevel == UrgencyLevelKeys.APlusUrgent).Sum(x => x.CurrentValidWeight ?? 0);
+        _urgentAPlusWeight = filtered.Where(x => x.UrgencyLevel == UrgencyLevelKeys.APlusUrgent).Sum(x => x.ProductionWeight ?? 0);
         _urgentACount = filtered.Count(x => x.UrgencyLevel == UrgencyLevelKeys.AUrgent);
-        _urgentAWeight = filtered.Where(x => x.UrgencyLevel == UrgencyLevelKeys.AUrgent).Sum(x => x.CurrentValidWeight ?? 0);
+        _urgentAWeight = filtered.Where(x => x.UrgencyLevel == UrgencyLevelKeys.AUrgent).Sum(x => x.ProductionWeight ?? 0);
     }
 
     // ========== ExcelFilter 事件 ==========
@@ -418,11 +477,15 @@ public partial class FinalInspectionPlan
             var kw = _searchKeyword;
             filtered = filtered.Where(x =>
                 (x.BatchNo != null && x.BatchNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.TagNo != null && x.TagNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.PlantGrade != null && x.PlantGrade.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.WorkOrderNo != null && x.WorkOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.Specification != null && x.Specification.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                (x.Salesman != null && x.Salesman.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                (x.SourceHeatNo != null && x.SourceHeatNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.SourceName != null && x.SourceName.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.WorkOrderNo != null && x.WorkOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.SalesOrderNo != null && x.SalesOrderNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.ProductionMainNo != null && x.ProductionMainNo.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Salesman != null && x.Salesman.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.EndCustomer != null && x.EndCustomer.Contains(kw, StringComparison.OrdinalIgnoreCase))
             ).ToList();
         }
 
@@ -451,15 +514,24 @@ public partial class FinalInspectionPlan
         var query = sortBy.ToLower() switch
         {
             "batchno" => items.OrderBy(x => x.BatchNo ?? ""),
-            "tagno" => items.OrderBy(x => x.TagNo ?? ""),
+            "inspectiontype" => items.OrderBy(x => x.InspectionType),
+            "isdeliverystatus" => items.OrderBy(x => x.IsDeliveryStatusDisplay ?? ""),
+            "productiontype" => items.OrderBy(x => x.ProductionType),
+            "manufacturingitem" => items.OrderBy(x => x.ManufacturingItem),
+            "manufacturingstatus" => items.OrderBy(x => x.ManufacturingStatus),
+            "deliverystate" => items.OrderBy(x => x.DeliveryState),
             "plantgrade" => items.OrderBy(x => x.PlantGrade ?? ""),
-            "currentvalidweight" => items.OrderBy(x => x.CurrentValidWeight),
-            "workorderno" => items.OrderBy(x => x.WorkOrderNo ?? ""),
-            "salesman" => items.OrderBy(x => x.Salesman ?? ""),
             "specification" => items.OrderBy(x => x.Specification ?? ""),
             "lengthstatus" => items.OrderBy(x => x.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(x.LengthStatus.Value) : ""),
-            "minlength" => items.OrderBy(x => x.MinLength),
-            "maxlength" => items.OrderBy(x => x.MaxLength),
+            "productioncutquantity" => items.OrderBy(x => x.ProductionCutQuantity),
+            "productionweight" => items.OrderBy(x => x.ProductionWeight),
+            "sourceheatno" => items.OrderBy(x => x.SourceHeatNo ?? ""),
+            "sourcename" => items.OrderBy(x => x.SourceName ?? ""),
+            "workorderno" => items.OrderBy(x => x.WorkOrderNo ?? ""),
+            "salesorderno" => items.OrderBy(x => x.SalesOrderNo ?? ""),
+            "productionmainno" => items.OrderBy(x => x.ProductionMainNo ?? ""),
+            "salesman" => items.OrderBy(x => x.Salesman ?? ""),
+            "endcustomer" => items.OrderBy(x => x.EndCustomer ?? ""),
             "schedulestage" => items.OrderBy(x => x.ScheduleStage),
             "urgencylevel" => items.OrderBy(x => x.UrgencyLevel ?? ""),
             "receivedate" => items.OrderBy(x => x.ReceiveDate),
@@ -473,6 +545,16 @@ public partial class FinalInspectionPlan
             "eddycurrentdate" => items.OrderBy(x => x.EddyCurrentDate),
             "ultrasonicdate" => items.OrderBy(x => x.UltrasonicDate),
             "portcoloringdate" => items.OrderBy(x => x.PortColoringDate),
+            "reqcount" => items.OrderBy(x => x.ReqCount),
+            "reqpmi" => items.OrderBy(x => x.ReqPmi),
+            "reqvisual" => items.OrderBy(x => x.ReqVisual),
+            "reqdimension" => items.OrderBy(x => x.ReqDimension),
+            "reqendoscopy" => items.OrderBy(x => x.ReqEndoscopy),
+            "reqhydro" => items.OrderBy(x => x.ReqHydro),
+            "requnderwater" => items.OrderBy(x => x.ReqUnderwater),
+            "reqeddy" => items.OrderBy(x => x.ReqEddy),
+            "requltrasonic" => items.OrderBy(x => x.ReqUltrasonic),
+            "reqportcoloring" => items.OrderBy(x => x.ReqPortColoring),
             "totalquantity" => items.OrderBy(x => x.TotalQuantity),
             "qualifiedquantity" => items.OrderBy(x => x.QualifiedQuantity),
             "defectreworkquantity" => items.OrderBy(x => x.DefectReworkQuantity),
@@ -655,20 +737,26 @@ public partial class FinalInspectionPlan
             case "BatchNo":
                 builder.AddContent(0, item.BatchNo ?? "-");
                 break;
-            case "TagNo":
-                builder.AddContent(0, item.TagNo ?? "-");
+            case "InspectionType":
+                builder.AddContent(0, item.InspectionTypeDisplay ?? "-");
+                break;
+            case "IsDeliveryStatus":
+                builder.AddContent(0, item.IsDeliveryStatusDisplay ?? "-");
+                break;
+            case "ProductionType":
+                builder.AddContent(0, item.ProductionTypeDisplay ?? "-");
+                break;
+            case "ManufacturingItem":
+                builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.ManufacturingItem?.ToString()));
+                break;
+            case "ManufacturingStatus":
+                builder.AddContent(0, item.ManufacturingStatusDisplay ?? "-");
+                break;
+            case "DeliveryState":
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState?.ToString()));
                 break;
             case "PlantGrade":
                 builder.AddContent(0, item.PlantGrade ?? "-");
-                break;
-            case "CurrentValidWeight":
-                builder.AddContent(0, ((int)(item.CurrentValidWeight ?? 0)).ToString());
-                break;
-            case "WorkOrderNo":
-                builder.AddContent(0, item.WorkOrderNo ?? "-");
-                break;
-            case "Salesman":
-                builder.AddContent(0, item.Salesman ?? "-");
                 break;
             case "Specification":
                 builder.AddContent(0, item.Specification ?? "-");
@@ -676,11 +764,32 @@ public partial class FinalInspectionPlan
             case "LengthStatus":
                 builder.AddContent(0, item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : "-");
                 break;
-            case "MinLength":
-                builder.AddContent(0, item.MinLength?.ToString("G29") ?? "-");
+            case "ProductionCutQuantity":
+                builder.AddContent(0, item.ProductionCutQuantity > 0 ? item.ProductionCutQuantity.ToString() : "-");
                 break;
-            case "MaxLength":
-                builder.AddContent(0, item.MaxLength?.ToString("G29") ?? "-");
+            case "ProductionWeight":
+                builder.AddContent(0, item.ProductionWeight is > 0 ? ((int)item.ProductionWeight.Value).ToString("G29") : "-");
+                break;
+            case "SourceHeatNo":
+                builder.AddContent(0, item.SourceHeatNo ?? "-");
+                break;
+            case "SourceName":
+                builder.AddContent(0, item.SourceName ?? "-");
+                break;
+            case "WorkOrderNo":
+                builder.AddContent(0, item.WorkOrderNo ?? "-");
+                break;
+            case "SalesOrderNo":
+                builder.AddContent(0, item.SalesOrderNo ?? "-");
+                break;
+            case "ProductionMainNo":
+                builder.AddContent(0, item.ProductionMainNo ?? "-");
+                break;
+            case "Salesman":
+                builder.AddContent(0, item.Salesman ?? "-");
+                break;
+            case "EndCustomer":
+                builder.AddContent(0, item.EndCustomer ?? "-");
                 break;
             case "ScheduleStage":
                 var stageColor = item.ScheduleStage switch
@@ -739,7 +848,38 @@ public partial class FinalInspectionPlan
             case "MaxInspectionDate":
                 builder.AddContent(0, item.MaxInspectionDate?.ToString("yyyy-MM-dd") ?? "-");
                 break;
-            // G4: 各项检验的日期
+            // G4: 技术要求检验项
+            case "ReqCount":
+                builder.AddContent(0, item.ReqCount.ToString());
+                break;
+            case "ReqPmi":
+                builder.AddContent(0, item.ReqPmi ? "是" : "-");
+                break;
+            case "ReqVisual":
+                builder.AddContent(0, item.ReqVisual ? "是" : "-");
+                break;
+            case "ReqDimension":
+                builder.AddContent(0, item.ReqDimension ? "是" : "-");
+                break;
+            case "ReqEndoscopy":
+                builder.AddContent(0, item.ReqEndoscopy ? "是" : "-");
+                break;
+            case "ReqHydro":
+                builder.AddContent(0, item.ReqHydro ? "是" : "-");
+                break;
+            case "ReqUnderwater":
+                builder.AddContent(0, item.ReqUnderwater ? "是" : "-");
+                break;
+            case "ReqEddy":
+                builder.AddContent(0, item.ReqEddy ? "是" : "-");
+                break;
+            case "ReqUltrasonic":
+                builder.AddContent(0, item.ReqUltrasonic ? "是" : "-");
+                break;
+            case "ReqPortColoring":
+                builder.AddContent(0, item.ReqPortColoring ? "是" : "-");
+                break;
+            // G5: 各项检验的日期
             case "InspectionCount":
                 builder.AddContent(0, item.InspectionCount.ToString());
                 break;
@@ -770,7 +910,7 @@ public partial class FinalInspectionPlan
             case "PortColoringDate":
                 builder.AddContent(0, item.PortColoringDate?.ToString("yyyy-MM-dd") ?? "-");
                 break;
-            // G5: 检验的数量信息
+            // G6: 检验的数量信息
             case "TotalQuantity":
                 builder.AddContent(0, item.TotalQuantity.ToString());
                 break;
@@ -812,6 +952,57 @@ public partial class FinalInspectionPlan
             Extras = extras
         };
         await PageState.SaveAsync("final-inspection-plan", state);
+    }
+
+    // ========== 显示类汇总卡片 ==========
+
+    private void ToggleSummaryCard()
+    {
+        _showSummaryCard = !_showSummaryCard;
+        if (_showSummaryCard && _summaryRows.Count == 0)
+            _ = LoadSummaryAsync();
+    }
+
+    private async Task LoadSummaryAsync()
+    {
+        try
+        {
+            _isLoadingSummary = true;
+            StateHasChanged();
+            _summaryRows = await KanbanSvc.GetSummaryAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"汇总加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingSummary = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>汇总单元格文本：批次数/生产支数/生产重量(kg) 三合一（如 "5批/1000支/8000kg"）；全 0 显 "-" 防视觉污染</summary>
+    private static string RenderSummaryCell(int count, int quantity, decimal weight)
+        => count == 0 && quantity == 0 && weight == 0
+            ? "-"
+            : $"{count}批/{quantity}支/{weight.ToString("G29")}kg";
+
+    /// <summary>打印「待检批支重汇总」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
+    private async Task PrintSummaryTable()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#final-inspection-plan-summary-table");
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, "成检计划-待检批支重汇总");
+            else
+                Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
     }
 
     // ========== 打印 ==========
@@ -858,21 +1049,39 @@ public partial class FinalInspectionPlan
     private static object? GetRawPropertyValue(FinalInspectionPlanDto item, string key) => key switch
     {
         "BatchNo" => item.BatchNo ?? "",
-        "TagNo" => item.TagNo ?? "",
+        "InspectionType" => item.InspectionTypeDisplay ?? "",
+        "IsDeliveryStatus" => item.IsDeliveryStatusDisplay ?? "",
+        "ProductionType" => item.ProductionTypeDisplay ?? "",
+        "ManufacturingItem" => item.ManufacturingItemDisplay ?? "",
+        "ManufacturingStatus" => item.ManufacturingStatusDisplay ?? "",
+        "DeliveryState" => item.DeliveryStateDisplay ?? "",
         "PlantGrade" => item.PlantGrade ?? "",
-        "CurrentValidWeight" => item.CurrentValidWeight,
-        "WorkOrderNo" => item.WorkOrderNo ?? "",
-        "Salesman" => item.Salesman ?? "",
         "Specification" => item.Specification ?? "",
         "LengthStatus" => item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : "",
-        "MinLength" => item.MinLength,
-        "MaxLength" => item.MaxLength,
+        "ProductionCutQuantity" => item.ProductionCutQuantity,
+        "ProductionWeight" => item.ProductionWeight,
+        "SourceHeatNo" => item.SourceHeatNo ?? "",
+        "SourceName" => item.SourceName ?? "",
+        "WorkOrderNo" => item.WorkOrderNo ?? "",
+        "SalesOrderNo" => item.SalesOrderNo ?? "",
+        "ProductionMainNo" => item.ProductionMainNo ?? "",
+        "Salesman" => item.Salesman ?? "",
+        "EndCustomer" => item.EndCustomer ?? "",
         "ScheduleStage" => item.ScheduleStage,
         "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "",
-        "DeliveryDate" => item.DeliveryDate,
         "KanbanStage" => item.KanbanStage,
         "ReceiveDate" => item.ReceiveDate,
         "MaxInspectionDate" => item.MaxInspectionDate,
+        "ReqCount" => item.ReqCount,
+        "ReqPmi" => item.ReqPmi ? "是" : "-",
+        "ReqVisual" => item.ReqVisual ? "是" : "-",
+        "ReqDimension" => item.ReqDimension ? "是" : "-",
+        "ReqEndoscopy" => item.ReqEndoscopy ? "是" : "-",
+        "ReqHydro" => item.ReqHydro ? "是" : "-",
+        "ReqUnderwater" => item.ReqUnderwater ? "是" : "-",
+        "ReqEddy" => item.ReqEddy ? "是" : "-",
+        "ReqUltrasonic" => item.ReqUltrasonic ? "是" : "-",
+        "ReqPortColoring" => item.ReqPortColoring ? "是" : "-",
         "InspectionCount" => item.InspectionCount,
         "PmiDate" => item.PmiDate,
         "VisualDate" => item.VisualDate,

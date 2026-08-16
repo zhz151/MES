@@ -357,6 +357,29 @@ public partial class RawMaterialLockPlanAndExecution
 
     private void ToggleSummaryCard() => _showSummaryCard = !_showSummaryCard;
 
+    /// <summary>打印「待投料量汇总」卡片（前端 printRawHtml 打印待投料矩阵 + 成购矩阵两个 DOM 表格）</summary>
+    private async Task PrintSummaryTable()
+    {
+        try
+        {
+            var pending = await JS.InvokeAsync<string>("getTableHtml", "#rmlp-summary-pending");
+            var purchase = await JS.InvokeAsync<string>("getTableHtml", "#rmlp-summary-purchase");
+            if (string.IsNullOrEmpty(pending))
+            {
+                Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
+                return;
+            }
+            var html = "<div style=\"font-weight:600; margin-bottom:4px;\">待投料</div>" + pending;
+            if (!string.IsNullOrEmpty(purchase))
+                html += "<div style=\"font-weight:600; margin:10px 0 4px;\">成购（外购成品）</div>" + purchase;
+            await JS.InvokeVoidAsync("printRawHtml", html, "原锁计划-待投料量汇总");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
     private void RecalculateSummary()
     {
         _totalOrderCount = _allItems.Count;

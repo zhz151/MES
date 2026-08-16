@@ -52,12 +52,12 @@ public partial class QualityProcessTracking
         var g1 = new List<ColumnDef>
         {
             new() { Key = "BatchNo",              Label = "生产编号",       SortKey = "batchno",              FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "TagNo",                Label = "挂牌号",         SortKey = "tagno",                FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "TagNo",                Label = "挂牌号",         SortKey = "tagno",                FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "InspectionType",       Label = "成检类型",       SortKey = "inspectiontype",       FilterType = "enum",    Width = "100", GroupKey = 1, GroupName = "批次信息",
                 EnumOptions = new() { new("PreInspection", "预成检"), new("FormalInspection", "正式成检") } },
             new() { Key = "IsDeliveryStatus",     Label = "是否交付态",     SortKey = "isdeliverystatus",     FilterType = "enum",    Width = "90",  GroupKey = 1, GroupName = "批次信息",
                 EnumOptions = new() { new("是", "是"), new("否", "否") } },
-            new() { Key = "ProductionType",       Label = "生产类型",       SortKey = "productiontype",       FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false,
+            new() { Key = "ProductionType",       Label = "生产类型",       SortKey = "productiontype",       FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<ProductionType>() },
             new() { Key = "ManufacturingItem",    Label = "制造物品",       SortKey = "manufacturingitem",    FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",
                 EnumOptions = new() { new("OrderFinished","订单成品"), new("Finished","备料成品"), new("Surplus","余库料"), new("SpecialDeliveryStatus","订成-非交付态") } },
@@ -71,11 +71,11 @@ public partial class QualityProcessTracking
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
             new() { Key = "ProductionCutQuantity",Label = "生产支数",       SortKey = "productioncutquantity",FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "ProductionWeight",     Label = "生产重量(kg)",  SortKey = "productionweight",     FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "FurnaceNo",            Label = "炉号",           SortKey = "furnaceno",            FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
-            new() { Key = "SourceUnit",           Label = "来料单位",       SortKey = "sourceunit",           FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
-            new() { Key = "WorkOrderNo",          Label = "工单号",         SortKey = "workorderno",          FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
-            new() { Key = "SalesOrderNo",         Label = "订单号",         SortKey = "salesorderno",         FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
-            new() { Key = "ProductionMainNo",     Label = "主号",           SortKey = "productionmainno",     FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "FurnaceNo",            Label = "炉号",           SortKey = "furnaceno",            FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "SourceUnit",           Label = "来料单位",       SortKey = "sourceunit",           FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "WorkOrderNo",          Label = "工单号",         SortKey = "workorderno",          FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "SalesOrderNo",         Label = "订单号",         SortKey = "salesorderno",         FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ProductionMainNo",     Label = "主号",           SortKey = "productionmainno",     FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "Salesman",             Label = "业务员",         SortKey = "salesman",             FilterType = "string",  Width = "100", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "EndCustomer",          Label = "最终用户",       SortKey = "endcustomer",          FilterType = "string",  Width = "150", GroupKey = 1, GroupName = "批次信息" },
         };
@@ -103,7 +103,7 @@ public partial class QualityProcessTracking
             new() { Key = "EddyCurrentDate",               Label = "涡流",          SortKey = "eddycurrentdate",         FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
             new() { Key = "UltrasonicDate",                Label = "超声波",        SortKey = "ultrasonicdate",          FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
             new() { Key = "PortColoringDate",              Label = "端口着色",      SortKey = "portcoloringdate",        FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
-            new() { Key = "MaxInspectionDate",             Label = "最晚检验日期",  SortKey = "maxinspectiondate",       FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期", Visible = false },
+            new() { Key = "MaxInspectionDate",             Label = "最晚检验日期",  SortKey = "maxinspectiondate",       FilterType = "date",   Width = "120", GroupKey = 3, GroupName = "各项检验的日期" },
         };
 
         // G4: 检验的数量信息
@@ -128,7 +128,7 @@ public partial class QualityProcessTracking
         var g6 = new List<ColumnDef>
         {
             new() { Key = "QualityStatus", Label = "执行状态", SortKey = "qualitystatus", FilterType = "enum", Width = "120", GroupKey = 6, GroupName = "执行状态",
-                EnumOptions = new() { new(){ Value = "异常完成", Display = "异常完成" }, new(){ Value = "入库存疑", Display = "入库存疑" }, new(){ Value = "待检验", Display = "待检验" }, new(){ Value = "检验中", Display = "检验中" }, new(){ Value = "完成检验", Display = "完成检验" } } },
+                EnumOptions = new() { new(){ Value = "略", Display = "略" }, new(){ Value = "异常完成", Display = "异常完成" }, new(){ Value = "入库存疑", Display = "入库存疑" }, new(){ Value = "待检验", Display = "待检验" }, new(){ Value = "检验中", Display = "检验中" }, new(){ Value = "完成检验", Display = "完成检验" } } },
         new() { Key = "UpdatedTime",   Label = "更新日期",   SortKey = "updatedtime",                                 Width = "120", GroupKey = 6, GroupName = "执行状态" },
         };
 

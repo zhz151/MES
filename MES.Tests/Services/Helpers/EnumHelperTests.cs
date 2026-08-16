@@ -224,6 +224,15 @@ public class EnumHelperTests
         EnumHelper.GetDisplayName(PicklingStatus.Completed).Should().Be("已完工");
     }
 
+    [Fact]
+    public void GetDisplayName_InspectionRequirementStage()
+    {
+        EnumHelper.GetDisplayName(InspectionRequirementStage.None).Should().Be("-");
+        EnumHelper.GetDisplayName(InspectionRequirementStage.FinalOnly).Should().Be("终");
+        EnumHelper.GetDisplayName(InspectionRequirementStage.PreOnly).Should().Be("预");
+        EnumHelper.GetDisplayName(InspectionRequirementStage.PreAndFinal).Should().Be("预+终");
+    }
+
     #endregion
 
     #region GetDisplayName — 非泛型重载
@@ -276,6 +285,16 @@ public class EnumHelperTests
         EnumHelper.Parse<DeliveryState>("光亮").Should().Be(DeliveryState.Bright);
         EnumHelper.Parse<MaterialType>("圆棒").Should().Be(MaterialType.RoundBar);
         EnumHelper.Parse<ProductionType>("荒管生产").Should().Be(ProductionType.RoughTube);
+    }
+
+    [Fact]
+    public void Parse_InspectionRequirementStage_ByChineseName()
+    {
+        // DataExchange 导入反向解析（中文 → 枚举值名）
+        EnumHelper.Parse<InspectionRequirementStage>("终").Should().Be(InspectionRequirementStage.FinalOnly);
+        EnumHelper.Parse<InspectionRequirementStage>("预").Should().Be(InspectionRequirementStage.PreOnly);
+        EnumHelper.Parse<InspectionRequirementStage>("预+终").Should().Be(InspectionRequirementStage.PreAndFinal);
+        EnumHelper.Parse<InspectionRequirementStage>("-").Should().Be(InspectionRequirementStage.None);
     }
 
     [Fact]

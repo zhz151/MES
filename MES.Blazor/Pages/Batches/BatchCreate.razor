@@ -1224,10 +1224,10 @@
                 request.ItemDetails = wo.ItemDetails;
                 request.TechnicalRequirements = string.IsNullOrEmpty(wo.TechnicalRequirements) ? null : Enum.Parse<RequirementType>(wo.TechnicalRequirements);
 
-                // 质量备注：从工单关联订单项次的技术要求「其他要求」带出
-                if (!string.IsNullOrWhiteSpace(wo.OrderItemIds))
+                // 质量备注：从工单关联订单项次的技术要求「其他要求」带出（订单号 + 项次序号，OrderItemIds 存的是 Sequence）
+                if (!string.IsNullOrWhiteSpace(wo.SalesOrderNo) && !string.IsNullOrWhiteSpace(wo.OrderItemIds))
                 {
-                    var qualityResult = await RequirementService.GetQualityRemarkByOrderItemIdsAsync(wo.OrderItemIds);
+                    var qualityResult = await RequirementService.GetQualityRemarkByOrderItemIdsAsync(wo.SalesOrderNo, wo.OrderItemIds);
                     if (qualityResult.Success)
                         request.QualityRemark = qualityResult.Data;
                 }

@@ -92,15 +92,20 @@ public class ProductRequirementService
     }
 
     /// <summary>
-    /// 按工单关联订单项次ID列表（逗号分隔）取质量备注（各项次技术要求「其他要求」按项次号拼接）
+    /// 按销售订单号 + 工单关联订单项次序号列表（逗号分隔）取质量备注（各项次技术要求「其他要求」按项次号拼接）
     /// </summary>
-    public async Task<ApiResponse<string>> GetQualityRemarkByOrderItemIdsAsync(string? orderItemIds)
+    public async Task<ApiResponse<string>> GetQualityRemarkByOrderItemIdsAsync(string? salesOrderNo, string? orderItemIds)
     {
         try
         {
             var url = $"{ApiEndpoints.Order}/requirements/quality-remark";
+            var query = new List<string>();
+            if (!string.IsNullOrWhiteSpace(salesOrderNo))
+                query.Add($"salesOrderNo={Uri.EscapeDataString(salesOrderNo)}");
             if (!string.IsNullOrWhiteSpace(orderItemIds))
-                url += $"?orderItemIds={Uri.EscapeDataString(orderItemIds)}";
+                query.Add($"orderItemIds={Uri.EscapeDataString(orderItemIds)}");
+            if (query.Count > 0)
+                url += "?" + string.Join("&", query);
             var response = await _http.GetFromJsonAsync<ApiResponse<string>>(url);
             return response ?? ApiResponse<string>.Fail("获取质量备注失败");
         }

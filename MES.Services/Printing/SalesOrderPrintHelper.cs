@@ -321,16 +321,16 @@ public static class SalesOrderPrintHelper
                     table.Cell().Element(CellStyle).Text(req.Sequence.ToString()).FontSize(6).AlignCenter();
                     table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(req.RequirementType)).FontSize(6).AlignCenter();
                     table.Cell().Element(CellStyle).Text(BoolText(req.ChemicalComposition)).FontSize(6).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(BoolText(req.PmiInspection)).FontSize(6).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(BoolText(req.SurfaceInspection)).FontSize(6).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(BoolText(req.Dimension)).FontSize(6).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(BoolText(req.Endoscopy)).FontSize(6).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(BoolText(req.HydrostaticTest)).FontSize(6).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(BoolText(req.UnderwaterPressure)).FontSize(6).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(BoolText(req.EddyCurrent)).FontSize(6).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(BoolText(req.UltrasonicTest)).FontSize(6).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(BoolText(req.PortColoring)).FontSize(6).AlignCenter();
-                    table.Cell().Element(CellStyle).Text(BoolText(req.RadiographicTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(StageText(req.PmiInspection)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(StageText(req.SurfaceInspection)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(StageText(req.Dimension)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(StageText(req.Endoscopy)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(StageText(req.HydrostaticTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(StageText(req.UnderwaterPressure)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(StageText(req.EddyCurrent)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(StageText(req.UltrasonicTest)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(StageText(req.PortColoring)).FontSize(6).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(StageText(req.RadiographicTest)).FontSize(6).AlignCenter();
                     table.Cell().Element(CellStyle).Text(BoolText(req.HardnessRockwell)).FontSize(6).AlignCenter();
                     table.Cell().Element(CellStyle).Text(BoolText(req.HardnessBrinell)).FontSize(6).AlignCenter();
                     table.Cell().Element(CellStyle).Text(BoolText(req.HardnessVickers)).FontSize(6).AlignCenter();
@@ -361,6 +361,11 @@ public static class SalesOrderPrintHelper
     }
 
     private static string BoolText(bool value) => value ? "是" : "-";
+
+    /// <summary>
+    /// 检验阶段枚举中文文本（终/预/预+终/-）
+    /// </summary>
+    private static string StageText(InspectionRequirementStage value) => EnumHelper.GetDisplayName(value);
 
     // ========== 表格单元格样式 ==========
 

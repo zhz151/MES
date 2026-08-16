@@ -278,16 +278,16 @@ public class ProductRequirementService : IProductRequirementService
         if (req == null) return defaults;
 
         defaults.ChemicalComposition = IsMandatory(req.ChemicalComposition);
-        defaults.PmiInspection = IsMandatory(req.PmiInspection);
-        defaults.SurfaceInspection = IsMandatory(req.SurfaceInspection);
-        defaults.Dimension = IsMandatory(req.Dimension);
-        defaults.Endoscopy = IsMandatory(req.Endoscopy);
-        defaults.HydrostaticTest = IsMandatory(req.HydrostaticTest);
-        defaults.UnderwaterPressure = IsMandatory(req.UnderwaterPressure);
-        defaults.EddyCurrent = IsMandatory(req.EddyCurrent);
-        defaults.UltrasonicTest = IsMandatory(req.UltrasonicTest);
-        defaults.PortColoring = IsMandatory(req.PortColoring);
-        defaults.RadiographicTest = IsMandatory(req.RadiographicTest);
+        defaults.PmiInspection = MapFactoryRequirement(req.PmiInspection);
+        defaults.SurfaceInspection = MapFactoryRequirement(req.SurfaceInspection);
+        defaults.Dimension = MapFactoryRequirement(req.Dimension);
+        defaults.Endoscopy = MapFactoryRequirement(req.Endoscopy);
+        defaults.HydrostaticTest = MapFactoryRequirement(req.HydrostaticTest);
+        defaults.UnderwaterPressure = MapFactoryRequirement(req.UnderwaterPressure);
+        defaults.EddyCurrent = MapFactoryRequirement(req.EddyCurrent);
+        defaults.UltrasonicTest = MapFactoryRequirement(req.UltrasonicTest);
+        defaults.PortColoring = MapFactoryRequirement(req.PortColoring);
+        defaults.RadiographicTest = MapFactoryRequirement(req.RadiographicTest);
         defaults.HardnessRockwell = IsMandatory(req.HardnessRockwell);
         defaults.HardnessBrinell = IsMandatory(req.HardnessBrinell);
         defaults.HardnessVickers = IsMandatory(req.HardnessVickers);
@@ -347,22 +347,24 @@ public class ProductRequirementService : IProductRequirementService
     }
 
     /// <summary>
-    /// 按工单关联订单项次ID列表（逗号分隔）取质量备注：
+    /// 按销售订单号 + 工单关联订单项次序号列表（逗号分隔）取质量备注：
+    /// ⚠️ OrderItemIds 存的是「项次序号 Sequence」（非 OrderItem.Id），须结合订单号唯一定位 OrderItem；
     /// 取各项次技术要求的「其他要求」，按项次号排序；多条时换行分隔并带项次前缀，单条时直接返回。
     /// </summary>
-    public async Task<string> GetQualityRemarkByOrderItemIdsAsync(string? orderItemIds)
+    public async Task<string> GetQualityRemarkByOrderItemIdsAsync(string? salesOrderNo, string? orderItemIds)
     {
-        if (string.IsNullOrWhiteSpace(orderItemIds)) return string.Empty;
+        if (string.IsNullOrWhiteSpace(salesOrderNo) || string.IsNullOrWhiteSpace(orderItemIds)) return string.Empty;
 
-        var ids = orderItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        var seqs = orderItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(s => int.TryParse(s, out _))
             .Select(int.Parse)
             .ToList();
-        if (ids.Count == 0) return string.Empty;
+        if (seqs.Count == 0) return string.Empty;
 
         var remarks = await (from oi in _context.OrderItems
                              join pr in _context.ProductRequirements on oi.Id equals pr.OrderItemId
-                             where ids.Contains(oi.Id)
+                             where oi.OrderNumber == salesOrderNo
+                                   && seqs.Contains(oi.Sequence)
                                    && pr.OtherRequirement != null
                                    && pr.OtherRequirement.Trim() != ""
                              orderby oi.Sequence
@@ -382,17 +384,19 @@ public class ProductRequirementService : IProductRequirementService
     private static void ApplyFactoryDefaults(ProductRequirement pr, FactoryInspectionRequirement req, LengthStatus lengthStatus)
     {
         pr.ChemicalComposition = IsMandatory(req.ChemicalComposition);
-        pr.PmiInspection = IsMandatory(req.PmiInspection);
-        pr.SurfaceInspection = IsMandatory(req.SurfaceInspection);
-        pr.Dimension = IsMandatory(req.Dimension);
-        pr.Endoscopy = IsMandatory(req.Endoscopy);
-        // 液压检验仅定尺钢管按标准号带出；非定尺默认 false（不适用）
-        pr.HydrostaticTest = lengthStatus == LengthStatus.Fixed && IsMandatory(req.HydrostaticTest);
-        pr.UnderwaterPressure = IsMandatory(req.UnderwaterPressure);
-        pr.EddyCurrent = IsMandatory(req.EddyCurrent);
-        pr.UltrasonicTest = IsMandatory(req.UltrasonicTest);
-        pr.PortColoring = IsMandatory(req.PortColoring);
-        pr.RadiographicTest = IsMandatory(req.RadiographicTest);
+        pr.PmiInspection = MapFactoryRequirement(req.PmiInspection);
+        pr.SurfaceInspection = MapFactoryRequirement(req.SurfaceInspection);
+        pr.Dimension = MapFactoryRequirement(req.Dimension);
+        pr.Endoscopy = MapFactoryRequirement(req.Endoscopy);
+        // 液压检验仅定尺钢管按标准号带出；非定尺默认"-"（不适用）
+        pr.HydrostaticTest = lengthStatus == LengthStatus.Fixed
+            ? MapFactoryRequirement(req.HydrostaticTest)
+            : InspectionRequirementStage.None;
+        pr.UnderwaterPressure = MapFactoryRequirement(req.UnderwaterPressure);
+        pr.EddyCurrent = MapFactoryRequirement(req.EddyCurrent);
+        pr.UltrasonicTest = MapFactoryRequirement(req.UltrasonicTest);
+        pr.PortColoring = MapFactoryRequirement(req.PortColoring);
+        pr.RadiographicTest = MapFactoryRequirement(req.RadiographicTest);
         pr.HardnessRockwell = IsMandatory(req.HardnessRockwell);
         pr.HardnessBrinell = IsMandatory(req.HardnessBrinell);
         pr.HardnessVickers = IsMandatory(req.HardnessVickers);
@@ -415,6 +419,14 @@ public class ProductRequirementService : IProductRequirementService
 
     /// <summary>
     /// 工厂检验项要求字段是否含"必检"（含"必检"→true，表示需检验；"按需"/"-"/空 → false）
+    /// 用于理化检测项（bool 存储）
     /// </summary>
     private static bool IsMandatory(string? value) => value?.Contains("必检") == true;
+
+    /// <summary>
+    /// 工厂检验项要求字段 → 检验阶段枚举（10 个成品检验项）
+    /// 含"必检"→「终」（仅正式成检，默认）；"按需"/"-"/空 →「-」（不要求）
+    /// </summary>
+    private static InspectionRequirementStage MapFactoryRequirement(string? value)
+        => IsMandatory(value) ? InspectionRequirementStage.FinalOnly : InspectionRequirementStage.None;
 }

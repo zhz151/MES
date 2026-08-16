@@ -25,7 +25,9 @@ public interface IProductRequirementService
     Task<int> RefreshDefaultsAllAsync();
 
     /// <summary>
-    /// 按工单关联订单项次ID列表（逗号分隔）取质量备注：各项次技术要求的「其他要求」按项次号拼接（多行时带项次前缀）
+    /// 按销售订单号 + 工单关联订单项次序号列表（逗号分隔）取质量备注：
+    /// OrderItemIds 存的是「项次序号 Sequence」（非 OrderItem.Id），须结合订单号唯一定位 OrderItem；
+    /// 各项次技术要求的「其他要求」按项次号拼接（多行时带项次前缀）
     /// </summary>
-    Task<string> GetQualityRemarkByOrderItemIdsAsync(string? orderItemIds);
+    Task<string> GetQualityRemarkByOrderItemIdsAsync(string? salesOrderNo, string? orderItemIds);
 }

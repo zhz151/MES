@@ -180,6 +180,11 @@ public static class EnumHelper
         Register<InspectionType>(("PreInspection", "预成检"),
                                   ("FormalInspection", "正式成检"));
 
+        Register<InspectionRequirementStage>(("None", "-"),
+                                              ("FinalOnly", "终"),
+                                              ("PreOnly", "预"),
+                                              ("PreAndFinal", "预+终"));
+
         Register<DisposalMethod>(("Rework", "返整"),
                                   ("WarehouseEntry", "入库"),
                                   ("Scrap", "报废"));

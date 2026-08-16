@@ -4,6 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using MES.Core.Constants;
 using MES.Core.Enums;
+using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Quality;
@@ -296,5 +297,97 @@ public class QualityProcessTrackingServiceTests : TestBase
             .SingleAsync(q => q.ProductionBatchId == batch.Id);
         row.ProductionCutQuantity.Should().Be(0);
         row.ProductionWeight.Should().Be(0);
+    }
+
+    // ========== 执行状态筛选 ==========
+
+    [Fact]
+    public async Task GetPagedAsync_执行状态筛选略_仅命中预成检行()
+    {
+        var ctx = CreateDbContext();
+        var batchF = await SeedBatchAsync(ctx, "BATCH-F");
+        SeedMrCheck(ctx, batchF, nameof(InspectionType.FormalInspection));
+        SeedInspection(ctx, batchF, InspectionItem.Dimension, 10, nameof(InspectionType.FormalInspection));
+        var batchP = await SeedBatchAsync(ctx, "BATCH-P");
+        SeedMrCheck(ctx, batchP, nameof(InspectionType.PreInspection));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshByProductionBatchIdAsync(batchF.Id);
+        await svc.RefreshByProductionBatchIdAsync(batchP.Id);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 100,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "QualityStatus", Operator = "in", Values = new List<string> { "略" } }
+            }
+        });
+
+        // 预成检行 QualityStatus 列虽存"待检验"，但单元格恒显"略"→ 筛选"略"按 InspectionType=PreInspection 命中
+        result.Items.Should().HaveCount(1);
+        result.Items.Single().InspectionType.Should().Be(InspectionType.PreInspection);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_执行状态筛选略与其他值_返回并集()
+    {
+        var ctx = CreateDbContext();
+        var batchF = await SeedBatchAsync(ctx, "BATCH-F");
+        SeedMrCheck(ctx, batchF, nameof(InspectionType.FormalInspection));
+        SeedInspection(ctx, batchF, InspectionItem.Dimension, 10, nameof(InspectionType.FormalInspection));
+        var batchP = await SeedBatchAsync(ctx, "BATCH-P");
+        SeedMrCheck(ctx, batchP, nameof(InspectionType.PreInspection));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshByProductionBatchIdAsync(batchF.Id);
+        await svc.RefreshByProductionBatchIdAsync(batchP.Id);
+
+        // 正式成检批次有检验 → "检验中"；预成检批次 → 显示"略"
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 100,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "QualityStatus", Operator = "in", Values = new List<string> { "略", "检验中" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(2);
+        result.Items.Should().ContainSingle(i => i.InspectionType == InspectionType.PreInspection);
+        result.Items.Should().ContainSingle(i => i.InspectionType == InspectionType.FormalInspection);
+    }
+
+    // ========== 筛选上下文 ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回数字列_最终用户_最晚检验日期()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-F");
+        batch.EndCustomer = "测试客户";
+        SeedMrCheck(ctx, batch, nameof(InspectionType.FormalInspection));
+        SeedInspection(ctx, batch, InspectionItem.Dimension, 10, nameof(InspectionType.FormalInspection));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshByProductionBatchIdAsync(batch.Id);
+
+        var contexts = await svc.GetFilterContextsAsync();
+        // 数字列 DISTINCT 选项（供 ExcelFilter 多选筛选）
+        contexts["TotalQuantity"].Should().Contain("10");
+        contexts["QualifiedQuantity"].Should().Contain("10");
+        contexts["InspectionCount"].Should().Contain("1");
+        contexts["ProductionCutQuantity"].Should().Contain("100");
+        contexts["ProductionWeight"].Should().Contain("5000");
+        contexts["InboundQuantity"].Should().Contain("0");
+        // 最终用户（string 列补齐上下文）
+        contexts["EndCustomer"].Should().Contain("测试客户");
+        // 最晚检验日期（date 列补齐上下文）
+        contexts["MaxInspectionDate"].Should().Contain(DateTime.Today.ToString("yyyy-MM-dd"));
     }
 }

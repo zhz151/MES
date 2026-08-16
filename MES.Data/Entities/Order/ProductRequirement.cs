@@ -30,35 +30,35 @@ public class ProductRequirement : BaseEntity
     /// <summary>化学分析(成品)</summary>
     public bool ChemicalComposition { get; set; }
 
-    /// <summary>PMI检验</summary>
-    public bool PmiInspection { get; set; }
+    /// <summary>PMI检验（检验阶段：终/预/预+终/-）</summary>
+    public InspectionRequirementStage PmiInspection { get; set; } = InspectionRequirementStage.FinalOnly;
 
-    /// <summary>表检</summary>
-    public bool SurfaceInspection { get; set; }
+    /// <summary>表检（检验阶段：终/预/预+终/-）</summary>
+    public InspectionRequirementStage SurfaceInspection { get; set; } = InspectionRequirementStage.FinalOnly;
 
-    /// <summary>尺寸</summary>
-    public bool Dimension { get; set; }
+    /// <summary>尺寸（检验阶段：终/预/预+终/-）</summary>
+    public InspectionRequirementStage Dimension { get; set; } = InspectionRequirementStage.FinalOnly;
 
-    /// <summary>内窥</summary>
-    public bool Endoscopy { get; set; }
+    /// <summary>内窥（检验阶段：终/预/预+终/-）</summary>
+    public InspectionRequirementStage Endoscopy { get; set; } = InspectionRequirementStage.FinalOnly;
 
-    /// <summary>液压检验</summary>
-    public bool HydrostaticTest { get; set; }
+    /// <summary>液压检验（检验阶段：终/预/预+终/-）</summary>
+    public InspectionRequirementStage HydrostaticTest { get; set; } = InspectionRequirementStage.FinalOnly;
 
-    /// <summary>水下气压</summary>
-    public bool UnderwaterPressure { get; set; }
+    /// <summary>水下气压（检验阶段：终/预/预+终/-）</summary>
+    public InspectionRequirementStage UnderwaterPressure { get; set; } = InspectionRequirementStage.FinalOnly;
 
-    /// <summary>涡流探伤</summary>
-    public bool EddyCurrent { get; set; }
+    /// <summary>涡流探伤（检验阶段：终/预/预+终/-）</summary>
+    public InspectionRequirementStage EddyCurrent { get; set; } = InspectionRequirementStage.FinalOnly;
 
-    /// <summary>超声波检验</summary>
-    public bool UltrasonicTest { get; set; }
+    /// <summary>超声波检验（检验阶段：终/预/预+终/-）</summary>
+    public InspectionRequirementStage UltrasonicTest { get; set; } = InspectionRequirementStage.FinalOnly;
 
-    /// <summary>端口着色</summary>
-    public bool PortColoring { get; set; }
+    /// <summary>端口着色（检验阶段：终/预/预+终/-）</summary>
+    public InspectionRequirementStage PortColoring { get; set; } = InspectionRequirementStage.FinalOnly;
 
-    /// <summary>射线探伤</summary>
-    public bool RadiographicTest { get; set; }
+    /// <summary>射线探伤（检验阶段：终/预/预+终/-）</summary>
+    public InspectionRequirementStage RadiographicTest { get; set; } = InspectionRequirementStage.FinalOnly;
 
     /// <summary>硬度(洛氏)</summary>
     public bool HardnessRockwell { get; set; }

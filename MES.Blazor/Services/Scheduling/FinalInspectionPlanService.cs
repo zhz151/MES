@@ -1,3 +1,4 @@
+using MES.Core.Models;
 using MES.Shared.Constants;
 using MES.Core.DTOs.Scheduling;
 
@@ -20,6 +21,20 @@ public class FinalInspectionPlanService
         var url = $"{ApiEndpoints.FinalInspectionPlan}/kanban";
         var response = await _http.GetFromJsonAsync<PlanResponse>(url);
         return response?.Data ?? new List<FinalInspectionPlanDto>();
+    }
+
+    public async Task<List<FinalInspectionPlanSummaryRowDto>> GetSummaryAsync()
+    {
+        try
+        {
+            var url = $"{ApiEndpoints.FinalInspectionPlan}/summary";
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<FinalInspectionPlanSummaryRowDto>>>(url);
+            return response?.Data ?? new List<FinalInspectionPlanSummaryRowDto>();
+        }
+        catch
+        {
+            return new List<FinalInspectionPlanSummaryRowDto>();
+        }
     }
 
     private class PlanResponse

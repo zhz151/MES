@@ -89,6 +89,21 @@
         </MudAlert>
     }
 
+    <!-- 成检到料强制完成通知 -->
+    @if (_forcedCompletedInspectionBatches is { Count: > 0 })
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+            <div>
+                @foreach (var fc in _forcedCompletedInspectionBatches)
+                {
+                    <div>
+                        批次 "<MudLink Href="@($"/batches/{fc.BatchId}")" Color="Color.Inherit" Underline="Underline.Always">@fc.BatchNo</MudLink>"（工单 @fc.WorkOrderNo）成检到料已「强制完成」，请到详情页将该批次强制完成为「完成」。
+                    </div>
+                }
+            </div>
+        </MudAlert>
+    }
+
     <MudCard>
         <MudCardHeader>
             <CardHeaderContent>

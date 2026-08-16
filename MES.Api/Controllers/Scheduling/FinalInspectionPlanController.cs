@@ -25,6 +25,13 @@ public class FinalInspectionPlanController : ControllerBase
         return Ok(ApiResponse<List<FinalInspectionPlanDto>>.Ok(result));
     }
 
+    [HttpGet("summary")]
+    public async Task<ActionResult<ApiResponse<List<FinalInspectionPlanSummaryRowDto>>>> GetSummary()
+    {
+        var result = await _service.GetSummaryAsync();
+        return Ok(ApiResponse<List<FinalInspectionPlanSummaryRowDto>>.Ok(result));
+    }
+
     [HttpPost("print-file")]
     public async Task<IActionResult> PrintFile([FromBody] FinalInspectionPlanPrintRequest request)
     {

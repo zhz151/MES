@@ -16,12 +16,24 @@
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <div class="d-flex flex-column mb-4">
-        <MudText Typo="Typo.h5" Class="font-weight-bold mb-4">
-            <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" />
-            成检计划
-        </MudText>
+        <!-- 页面标题 + 右上角「待检批支重汇总」按钮 -->
+        <div class="d-flex align-center mb-4">
+            <MudText Typo="Typo.h5" Class="font-weight-bold">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" />
+                成检计划
+            </MudText>
+            <div style="margin-left:auto;">
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showSummaryCard ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleSummaryCard">
+                    待检批支重汇总
+                </MudButton>
+            </div>
+        </div>
 
-        <!-- 三档 Tab -->
+        <!-- 四档 Tab -->
         <div class="d-flex flex-wrap align-center gap-2 mb-2" style="gap: 4px;">
             @foreach (var tab in _tabs)
             {
@@ -65,6 +77,57 @@
                           AdornmentIcon="@Icons.Material.Filled.Search" />
         </MudItem>
     </MudGrid>
+
+    <!-- 待检批支重汇总卡片（页面右上角按钮切换显隐，懒加载） -->
+    @if (_showSummaryCard)
+    {
+        <MudCard Class="mb-2" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
+            <MudCardContent>
+                @if (_isLoadingSummary)
+                {
+                    <div class="d-flex align-center" style="gap:8px;">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <span>汇总加载中...</span>
+                    </div>
+                }
+                <div class="d-flex justify-space-between align-center mb-2">
+                    <MudText Typo="Typo.subtitle2"><b>待检批支重汇总</b></MudText>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Print" OnClick="PrintSummaryTable">
+                        打印
+                    </MudButton>
+                </div>
+                <div id="final-inspection-plan-summary-table" style="overflow-x:auto;">
+                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">检验项</th>
+                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待到料</th>
+                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待检验+检验中</th>
+                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">汇总数据</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in _summaryRows)
+                            {
+                                <tr>
+                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; white-space:nowrap;">@r.InspectionItemName</td>
+                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@RenderSummaryCell(r.WaitingMaterialCount, r.WaitingMaterialQuantity, r.WaitingMaterialWeight)</td>
+                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@RenderSummaryCell(r.WaitingInspectionCount + r.InspectingCount, r.WaitingInspectionQuantity + r.InspectingQuantity, r.WaitingInspectionWeight + r.InspectingWeight)</td>
+                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap; font-weight:600; background:#eef3fa;">@RenderSummaryCell(r.TotalCount, r.TotalQuantity, r.TotalWeight)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <MudText Typo="Typo.body2" Style="color:#666; margin-top:4px; font-size:0.75rem;">
+                    注：某检验项统计「要求该检验项且尚未完成该检验」的看板批次，按待到料/待检验+检验中分列；
+                    已检完该检验项的批次（含「完成检验待入库」档）不计入；每格=批次数/生产支数/生产重量(kg)；
+                    0 值显示 "-"；预+正式合并、按批次去重；汇总数据=两档之和。
+                </MudText>
+            </MudCardContent>
+        </MudCard>
+    }
 
     <MudCard>
         <MudCardContent>

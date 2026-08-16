@@ -43,6 +43,7 @@ using MES.Data.Entities.Batch;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
+using MES.Data.Entities.Quality;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
@@ -1755,4 +1756,58 @@ public class BatchServiceTests : TestBase
     }
 
     #endregion
+
+    // ========== 成检到料强制完成通知 ==========
+
+    [Fact]
+    public async Task GetForcedCompletedInspectionBatchesAsync_强制完成到料批次_返回且含工单号()
+    {
+        using var ctx = CreateDbContext();
+        var batch = await SeedBatchViaDirectAsync(ctx, batchNo: "B-FC-1", status: BatchStatus.InFinalInspection);
+        ctx.MaterialReceiveChecks.Add(new MaterialReceiveCheck
+        {
+            ProductionBatchId = batch.Id,
+            ReceiveDate = DateTime.Today,
+            ProcessGroupId = 1,
+            ProcessName = "检验",
+            SequenceNumber = 2,
+            IsForceCompleted = true,
+            InspectionType = "FormalInspection"
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetForcedCompletedInspectionBatchesAsync();
+
+        var item = result.Should().ContainSingle().Subject;
+        item.BatchId.Should().Be(batch.Id);
+        item.BatchNo.Should().Be("B-FC-1");
+        item.WorkOrderNo.Should().Be("WO-001");
+        item.InspectionType.Should().Be("FormalInspection");
+        item.InspectionTypeDisplay.Should().Be("正式成检");
+    }
+
+    [Fact]
+    public async Task GetForcedCompletedInspectionBatchesAsync_批次已转完成_通知消失()
+    {
+        using var ctx = CreateDbContext();
+        var batch = await SeedBatchViaDirectAsync(ctx, batchNo: "B-FC-2", status: BatchStatus.Completed);
+        ctx.MaterialReceiveChecks.Add(new MaterialReceiveCheck
+        {
+            ProductionBatchId = batch.Id,
+            ReceiveDate = DateTime.Today,
+            ProcessGroupId = 1,
+            ProcessName = "检验",
+            SequenceNumber = 2,
+            IsForceCompleted = true,
+            InspectionType = "FormalInspection"
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetForcedCompletedInspectionBatchesAsync();
+
+        // 批次已「完成」，不再属于成检阶段 → 通知消失（批次详情页强制完成后的目标状态）
+        result.Should().BeEmpty();
+    }
 }

@@ -2458,6 +2458,44 @@ public class BatchService : IBatchService
         return $"{prefix}-{nextSeq:D4}";
     }
 
+    public async Task<List<ForcedCompletedInspectionBatchDto>> GetForcedCompletedInspectionBatchesAsync()
+    {
+        // 成检到料 IsForceCompleted=true，且批次仍处于「成检」（InFinalInspection）状态
+        // 已转「完成」的批次（状态脱离成检）自然不在结果中，通知自动消失
+        var rows = await _context.MaterialReceiveChecks
+            .AsNoTracking()
+            .Where(rc => rc.IsForceCompleted)
+            .Join(_context.ProductionBatches,
+                  rc => rc.ProductionBatchId,
+                  b => b.Id,
+                  (rc, b) => new { rc, b })
+            .Where(x => x.b.Status == BatchStatus.InFinalInspection)
+            .Select(x => new
+            {
+                x.b.Id,
+                x.b.BatchNo,
+                x.b.WorkOrderNo,
+                x.rc.InspectionType,
+                x.rc.ReceiveDate,
+                x.rc.ProcessName
+            })
+            .OrderBy(x => x.BatchNo)
+            .ToListAsync();
+
+        return rows.Select(x => new ForcedCompletedInspectionBatchDto
+        {
+            BatchId = x.Id,
+            BatchNo = x.BatchNo ?? "-",
+            WorkOrderNo = x.WorkOrderNo ?? "-",
+            InspectionType = x.InspectionType,
+            InspectionTypeDisplay = x.InspectionType != null && Enum.TryParse<InspectionType>(x.InspectionType, out var t)
+                ? EnumHelper.GetDisplayName(t)
+                : null,
+            ReceiveDate = x.ReceiveDate,
+            ProcessName = x.ProcessName
+        }).ToList();
+    }
+
     public async Task<List<DefectRateBatchDto>> GetDefectRateAlertsAsync()
     {
         // 过程检验按批次分组，聚合次品支数和检验支数，取最新检验时间

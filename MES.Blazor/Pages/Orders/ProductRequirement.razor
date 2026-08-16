@@ -176,16 +176,16 @@
         public decimal ContractWeight { get; set; }
         public RequirementType RequirementType { get; set; } = RequirementType.Normal;
         public bool ChemicalComposition { get; set; }
-        public bool PmiInspection { get; set; }
-        public bool SurfaceInspection { get; set; }
-        public bool Dimension { get; set; }
-        public bool Endoscopy { get; set; }
-        public bool HydrostaticTest { get; set; }
-        public bool UnderwaterPressure { get; set; }
-        public bool EddyCurrent { get; set; }
-        public bool UltrasonicTest { get; set; }
-        public bool PortColoring { get; set; }
-        public bool RadiographicTest { get; set; }
+        public InspectionRequirementStage PmiInspection { get; set; } = InspectionRequirementStage.FinalOnly;
+        public InspectionRequirementStage SurfaceInspection { get; set; } = InspectionRequirementStage.FinalOnly;
+        public InspectionRequirementStage Dimension { get; set; } = InspectionRequirementStage.FinalOnly;
+        public InspectionRequirementStage Endoscopy { get; set; } = InspectionRequirementStage.FinalOnly;
+        public InspectionRequirementStage HydrostaticTest { get; set; } = InspectionRequirementStage.FinalOnly;
+        public InspectionRequirementStage UnderwaterPressure { get; set; } = InspectionRequirementStage.FinalOnly;
+        public InspectionRequirementStage EddyCurrent { get; set; } = InspectionRequirementStage.FinalOnly;
+        public InspectionRequirementStage UltrasonicTest { get; set; } = InspectionRequirementStage.FinalOnly;
+        public InspectionRequirementStage PortColoring { get; set; } = InspectionRequirementStage.FinalOnly;
+        public InspectionRequirementStage RadiographicTest { get; set; } = InspectionRequirementStage.FinalOnly;
         public bool HardnessRockwell { get; set; }
         public bool HardnessBrinell { get; set; }
         public bool HardnessVickers { get; set; }
@@ -362,16 +362,16 @@
                     ContractWeight = i.ContractWeight,
                     RequirementType = req?.RequirementType ?? RequirementType.Normal,
                     ChemicalComposition = req?.ChemicalComposition ?? false,
-                    PmiInspection = req?.PmiInspection ?? false,
-                    SurfaceInspection = req?.SurfaceInspection ?? false,
-                    Dimension = req?.Dimension ?? false,
-                    Endoscopy = req?.Endoscopy ?? false,
-                    HydrostaticTest = req?.HydrostaticTest ?? false,
-                    UnderwaterPressure = req?.UnderwaterPressure ?? false,
-                    EddyCurrent = req?.EddyCurrent ?? false,
-                    UltrasonicTest = req?.UltrasonicTest ?? false,
-                    PortColoring = req?.PortColoring ?? false,
-                    RadiographicTest = req?.RadiographicTest ?? false,
+                    PmiInspection = req?.PmiInspection ?? InspectionRequirementStage.FinalOnly,
+                    SurfaceInspection = req?.SurfaceInspection ?? InspectionRequirementStage.FinalOnly,
+                    Dimension = req?.Dimension ?? InspectionRequirementStage.FinalOnly,
+                    Endoscopy = req?.Endoscopy ?? InspectionRequirementStage.FinalOnly,
+                    HydrostaticTest = req?.HydrostaticTest ?? InspectionRequirementStage.FinalOnly,
+                    UnderwaterPressure = req?.UnderwaterPressure ?? InspectionRequirementStage.FinalOnly,
+                    EddyCurrent = req?.EddyCurrent ?? InspectionRequirementStage.FinalOnly,
+                    UltrasonicTest = req?.UltrasonicTest ?? InspectionRequirementStage.FinalOnly,
+                    PortColoring = req?.PortColoring ?? InspectionRequirementStage.FinalOnly,
+                    RadiographicTest = req?.RadiographicTest ?? InspectionRequirementStage.FinalOnly,
                     HardnessRockwell = req?.HardnessRockwell ?? false,
                     HardnessBrinell = req?.HardnessBrinell ?? false,
                     HardnessVickers = req?.HardnessVickers ?? false,
@@ -510,9 +510,9 @@
             return;
         }
 
-        // 新建/未设置项次（29 个检验项均未勾选且无其他要求）：按标准号从工厂检验项要求带出默认值（必检→是，否则 -）
-        // 已保存过真实值（任一项为 true 或有其他要求）的项次不覆盖，保护手工配置
-        var pendingItems = _editItems.Where(x => !HasAnyRequirement(x) && !string.IsNullOrWhiteSpace(x.StandardNo)).ToList();
+        // 尚未保存过技术要求的项次（无 ProductRequirement 记录）：按标准号从工厂检验项要求带出默认值（必检→「终」/「-」，10 个成品检验项 4 值；理化 20 项 bool）
+        // 已保存过真实值的项次不覆盖，保护手工配置
+        var pendingItems = _editItems.Where(x => !x.HasExisting && !string.IsNullOrWhiteSpace(x.StandardNo)).ToList();
         var handledStandardNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in pendingItems)
         {
@@ -520,7 +520,7 @@
             var defaultsResult = await RequirementService.GetDefaultsByStandardNoAsync(orderId, item.StandardNo);
             if (!defaultsResult.Success || defaultsResult.Data == null) continue;
             var d = defaultsResult.Data;
-            foreach (var target in _editItems.Where(x => !HasAnyRequirement(x) && string.Equals(x.StandardNo, item.StandardNo, StringComparison.OrdinalIgnoreCase)))
+            foreach (var target in _editItems.Where(x => !x.HasExisting && string.Equals(x.StandardNo, item.StandardNo, StringComparison.OrdinalIgnoreCase)))
             {
                 target.ChemicalComposition = d.ChemicalComposition;
                 target.PmiInspection = d.PmiInspection;
@@ -528,7 +528,7 @@
                 target.Dimension = d.Dimension;
                 target.Endoscopy = d.Endoscopy;
                 // 液压检验（水压）仅定尺钢管按标准号带出；非定尺默认"-"（不适用）
-                target.HydrostaticTest = target.LengthStatus == LengthStatus.Fixed && d.HydrostaticTest;
+                target.HydrostaticTest = target.LengthStatus == LengthStatus.Fixed ? d.HydrostaticTest : InspectionRequirementStage.None;
                 target.UnderwaterPressure = d.UnderwaterPressure;
                 target.EddyCurrent = d.EddyCurrent;
                 target.UltrasonicTest = d.UltrasonicTest;
@@ -726,18 +726,22 @@
 
     private static string BoolText(bool value) => value ? "是" : "-";
 
+    private static InspectionRequirementStage GetStage(OrderItemRequirement item, string key)
+        => (InspectionRequirementStage)(typeof(OrderItemRequirement).GetProperty(key, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase)?.GetValue(item) ?? InspectionRequirementStage.FinalOnly);
+
+    private static void SetStage(OrderItemRequirement item, string key, InspectionRequirementStage value)
+        => typeof(OrderItemRequirement).GetProperty(key, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase)?.SetValue(item, value);
+
     /// <summary>
-    /// 项次是否已设置任何技术要求值（任一检验项为 true 或有其他要求文本）。
-    /// 用于判定"未设置项次"：点编辑时按标准号从工厂检验项要求带出默认值；已保存真实值的不覆盖。
+    /// 检验阶段中文文本（终/预/预+终/-），与枚举 [Display(Name)] 一致
     /// </summary>
-    private static bool HasAnyRequirement(OrderItemRequirement x)
-        => x.ChemicalComposition || x.PmiInspection || x.SurfaceInspection || x.Dimension || x.Endoscopy
-           || x.HydrostaticTest || x.UnderwaterPressure || x.EddyCurrent || x.UltrasonicTest || x.PortColoring
-           || x.RadiographicTest || x.HardnessRockwell || x.HardnessBrinell || x.HardnessVickers || x.TensileRoomTemp
-           || x.TensileHighTemp || x.WeldJointTensile || x.ImpactTest || x.WeldJointImpact || x.FlatteningTest
-           || x.FlaringTest || x.ExpandingTest || x.BendTest || x.WeldJointBend || x.GrainSize
-           || x.IntergranularCorrosion || x.PittingCorrosion || x.FerriteContent || x.Macrostructure
-           || !string.IsNullOrEmpty(x.OtherRequirement);
+    private static string StageText(InspectionRequirementStage value) => value switch
+    {
+        InspectionRequirementStage.FinalOnly => "终",
+        InspectionRequirementStage.PreOnly => "预",
+        InspectionRequirementStage.PreAndFinal => "预+终",
+        _ => "-"
+    };
 
     // ========== 分组表头 ==========
     private class GroupHeaderInfo
@@ -855,7 +859,6 @@
                 }
                 else { builder.AddContent(0, GetRequirementTypeText(item.RequirementType)); }
                 break;
-            case "chemicalcomposition":
             case "pmiinspection":
             case "surfaceinspection":
             case "dimension":
@@ -866,6 +869,31 @@
             case "ultrasonictest":
             case "portcoloring":
             case "radiographictest":
+                // 10 个成品检验项（含射线探伤）：检验阶段 4 值（终/预/预+终/-）
+                if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)
+                {
+                    builder.OpenComponent<MudSelect<InspectionRequirementStage>>(0);
+                    builder.AddAttribute(1, "Value", GetStage(item, col.Key));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<InspectionRequirementStage>(this, v => SetStage(item, col.Key, v)));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
+                    {
+                        foreach (var opt in DisplayHelper.GetEnumOptions<InspectionRequirementStage>())
+                        {
+                            cb.OpenComponent<MudSelectItem<InspectionRequirementStage>>(0);
+                            cb.AddAttribute(1, "Value", Enum.Parse<InspectionRequirementStage>(opt.Value));
+                            cb.AddAttribute(2, "Text", opt.Display);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.CloseComponent();
+                        }
+                    }));
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, StageText(GetStage(item, col.Key))); }
+                break;
+            case "chemicalcomposition":
             case "hardnessrockwell":
             case "hardnessbrinell":
             case "hardnessvickers":
@@ -884,6 +912,7 @@
             case "pittingcorrosion":
             case "ferritecontent":
             case "macrostructure":
+                // 化学分析(成品) + 理化检测 20 项：bool 开关
                 if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)
                 {
                     builder.OpenComponent<MudSwitch<bool>>(0);

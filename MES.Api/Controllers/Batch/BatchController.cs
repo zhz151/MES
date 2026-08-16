@@ -231,6 +231,16 @@ public class BatchController : ControllerBase
         return Ok(ApiResponse<List<DefectRateBatchDto>>.Ok(result, "查询成功"));
     }
 
+    // ========== 成检到料强制完成通知 ==========
+
+    [HttpGet("forced-completed-inspection-batches")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<ForcedCompletedInspectionBatchDto>>>> GetForcedCompletedInspectionBatches()
+    {
+        var result = await _service.GetForcedCompletedInspectionBatchesAsync();
+        return Ok(ApiResponse<List<ForcedCompletedInspectionBatchDto>>.Ok(result, "查询成功"));
+    }
+
     // ========== 制造状态回填 ==========
 
     [HttpPost("populate-manufacturing-status")]

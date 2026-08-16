@@ -20,7 +20,7 @@
 | 物料 | 物料管理 | MaterialStaff/Director | 11 | 5 |
 | 仓库 | 仓库管理 | WarehouseStaff/Director | 6 | 4 |
 | 设备 | 设备管理 | EquipmentStaff/Director | 8 | 4 |
-| 生产标准 | 生产标准 | StandardRead/StandardWrite | 16 | 8 |
+| 生产标准 | 生产标准 | StandardRead/StandardWrite | 18 | 9 |
 | 报表 | 报表系统 | 所有 | 1 | 1 |
 | 数据工具 | (独立按钮) | 所有 | 2 | 0 |
 | 扫码报工 | (独立按钮) | 所有 | 1 | 0 |
@@ -313,8 +313,8 @@
 ### 2.9 生产标准上下文
 
 ```
-路由前缀: /standard-registers, /grade-mappings, /grade-chemical-compositions, /grade-physical-properties, /sub-standard-quick-views, /standard-inspection-requirements, /chemical-composition, /chemical-validate
-菜单: 生产标准 → [标准号列表, 标准号检验项要求, 牌号对照, 标准牌号化学成分, 工厂牌号化学成分, 工厂牌号化分验证, 牌号物理性能, 子标准速览]
+路由前缀: /standard-registers, /grade-mappings, /grade-chemical-compositions, /grade-physical-properties, /sub-standard-quick-views, /standard-inspection-requirements, /factory-inspection-requirements, /chemical-composition, /chemical-validate
+菜单: 生产标准 → [标准号列表, 标准号检验项要求, 工厂检验项要求, 牌号对照, 标准牌号化学成分, 工厂牌号化学成分, 工厂牌号化分验证, 牌号物理性能, 子标准速览]
 
 ┌─ 生产标准 ───────────────────────────────────────────────┐
 │                                                           │
@@ -337,6 +337,9 @@
 │  StandardInspectionRequirements.razor  /standard-inspection-requirements [列表页]  │
 │  StandardInspectionRequirementCreate.razor /standard-inspection-requirements/create [创建页]│
 │                                                           │
+│  FactoryInspectionRequirements.razor   /factory-inspection-requirements [列表页+内联编辑]│
+│  FactoryInspectionRequirementCreate.razor /factory-inspection-requirements/create [创建页]│
+│                                                           │
 │  ChemicalCompositions.razor       /chemical-composition  [列表页]  │
 │  ChemicalCompositionCreate.razor  /chemical-composition/create [创建页]  │
 │                                                           │
@@ -344,9 +347,10 @@
 │  ChemicalValidationRuleCreate.razor /chemical-validate/create [创建页]  │
 │                                                           │
 │  列表页: StandardRegisters, StandardInspectionRequirements, │
-│          GradeMappings, GradeChemicalCompositions,         │
-│          GradePhysicalProperties, SubStandardQuickViews,   │
-│          ChemicalCompositions, ChemicalValidationRules     │
+│          FactoryInspectionRequirements, GradeMappings,      │
+│          GradeChemicalCompositions, GradePhysicalProperties,│
+│          SubStandardQuickViews, ChemicalCompositions,      │
+│          ChemicalValidationRules                           │
 │  ※ StandardRegisterDetail 双模式：Id=0 创建，Id>0 查看/编辑│
 │  ※ 详情页含子项目内联表格（StandardRegisterItem）           │
 │  ※ StandardRegister Save/SaveItem 返回 int（Id），防子项 SeqNo 重复创建 │
@@ -359,6 +363,8 @@
 │     2026-07-15 全列筛选支持（23 列 ExcelFilter）             │
 │  ※ GradeChemicalCompositions/GradePhysicalProperties         │
 │     2026-07-15 全列筛选支持（17列/12列 ExcelFilter）         │
+│  ※ FactoryInspectionRequirements 2026-08-15 新增，29 检验字段 │
+│     内联编辑 + 打印；作为订单技术要求默认值数据源            │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -457,7 +463,7 @@
 
 ## 3. 列表页完整清单（需检查加载/排序/筛选）
 
-共 **71 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
+共 **72 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
 
 | # | 页面文件 | 路由 | 上下文 | 内联编辑 | 备注 |
 |---|---------|------|-------|---------|------|
@@ -512,26 +518,27 @@
 | 49 | GradePhysicalProperties.razor | /grade-physical-properties | 生产标准 | ✅ | 12物理性能字段内联编辑 + 全列ExcelFilter(12列) + 列显隐 |
 | 50 | SubStandardQuickViews.razor | /sub-standard-quick-views | 生产标准 | | 全列ExcelFilter(23列)，按标准号快速查看24项检验项目引用标准 |
 | 51 | StandardInspectionRequirements.razor | /standard-inspection-requirements | 生产标准 | ✅ | 全列ExcelFilter(23列)，标准号检验项要求+内联编辑 |
-| 52 | ChemicalAnalyses.razor | /quality/chemical-analysis | 质量 | | 理化检测-化学分析 |
-| 53 | HardnessTests.razor | /quality/hardness-test | 质量 | | 理化检测-硬度检验 |
-| 54 | GrainSizeTests.razor | /quality/grain-size-test | 质量 | | 理化检测-晶粒度检验 |
-| 55 | PittingCorrosionTests.razor | /quality/pitting-corrosion-test | 质量 | | 理化检测-点腐蚀检验 |
-| 56 | IntergranularCorrosionTests.razor | /quality/intergranular-corrosion-test | 质量 | | 理化检测-晶间腐蚀检验 |
-| 57 | TensileTests.razor | /quality/tensile-test | 质量 | | 理化检测-室温拉伸检验 |
-| 58 | MetallographicTests.razor | /quality/metallographic-test | 质量 | | 理化检测-金相检验 |
-| 59 | FlatteningTests.razor | /quality/flattening-test | 质量 | | 理化检测-压扁检验 |
-| 60 | FlaringTests.razor | /quality/flaring-test | 质量 | | 理化检测-扩口检验 |
-| 61 | DailyProductionCapacities.razor | /daily-production-capacities | 配置 | ✅ | 查改一体表，仿ConfigParameters模式 |
-| 62 | ProductionOutput.razor | /reports/production-output | 报表 | | 产量报表，服务端数据模式 |
-| 63 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页 |
-| 64 | PendingDelivery.razor | /warehouse/pending-delivery | 仓库 | | 待发货项列表页 |
-| 65 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选 |
-| 66 | FixedLengthWorkOrderView.razor | /fixed-length-work-order-view | 工单 | | 定尺工单联通视图，主号级按长度实时聚合 + 分组标题栏 + 分页汇总（可汇总列：G1需求支数/G3切后支数/G4到料·成切·非成切·次品·合格·合格盈缺/G5入库·入库盈缺，G6主号级聚合不参与求和） |
-| 67 | SectionParagraphConfigSettings.razor | /section-paragraph-config-settings | 配置 | ✅ | 段落日产配置，查改一体表 |
-| 68 | CombinationGroups.razor | /combination-groups | 配置 | ✅ | 组合归类表，查改一体表 |
-| 69 | ProcessDefinitions.razor | /process-definitions | 配置 | ✅ | 工序组定义（含默认工段 DefaultSections） |
-| 70 | EnumDisplayDefinitions.razor | /enum-display-definitions | 配置 | ✅ | 枚举显示配置（display-map/options-map） |
-| 71 | DictValueDefinitions.razor | /dict-value-definitions | 配置 | ✅ | 字典显示配置（display-map/enabled-values） |
+| 52 | FactoryInspectionRequirements.razor | /factory-inspection-requirements | 生产标准 | ✅ | 工厂检验项要求，全列ExcelFilter(30列)，29检验字段内联编辑 + 打印（选中+全部） |
+| 53 | ChemicalAnalyses.razor | /quality/chemical-analysis | 质量 | | 理化检测-化学分析 |
+| 54 | HardnessTests.razor | /quality/hardness-test | 质量 | | 理化检测-硬度检验 |
+| 55 | GrainSizeTests.razor | /quality/grain-size-test | 质量 | | 理化检测-晶粒度检验 |
+| 56 | PittingCorrosionTests.razor | /quality/pitting-corrosion-test | 质量 | | 理化检测-点腐蚀检验 |
+| 57 | IntergranularCorrosionTests.razor | /quality/intergranular-corrosion-test | 质量 | | 理化检测-晶间腐蚀检验 |
+| 58 | TensileTests.razor | /quality/tensile-test | 质量 | | 理化检测-室温拉伸检验 |
+| 59 | MetallographicTests.razor | /quality/metallographic-test | 质量 | | 理化检测-金相检验 |
+| 60 | FlatteningTests.razor | /quality/flattening-test | 质量 | | 理化检测-压扁检验 |
+| 61 | FlaringTests.razor | /quality/flaring-test | 质量 | | 理化检测-扩口检验 |
+| 62 | DailyProductionCapacities.razor | /daily-production-capacities | 配置 | ✅ | 查改一体表，仿ConfigParameters模式 |
+| 63 | ProductionOutput.razor | /reports/production-output | 报表 | | 产量报表，服务端数据模式 |
+| 64 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页 |
+| 65 | PendingDelivery.razor | /warehouse/pending-delivery | 仓库 | | 待发货项列表页 |
+| 66 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选 |
+| 67 | FixedLengthWorkOrderView.razor | /fixed-length-work-order-view | 工单 | | 定尺工单联通视图，主号级按长度实时聚合 + 分组标题栏 + 分页汇总（可汇总列：G1需求支数/G3切后支数/G4到料·成切·非成切·次品·合格·合格盈缺/G5入库·入库盈缺，G6主号级聚合不参与求和） |
+| 68 | SectionParagraphConfigSettings.razor | /section-paragraph-config-settings | 配置 | ✅ | 段落日产配置，查改一体表 |
+| 69 | CombinationGroups.razor | /combination-groups | 配置 | ✅ | 组合归类表，查改一体表 |
+| 70 | ProcessDefinitions.razor | /process-definitions | 配置 | ✅ | 工序组定义（含默认工段 DefaultSections） |
+| 71 | EnumDisplayDefinitions.razor | /enum-display-definitions | 配置 | ✅ | 枚举显示配置（display-map/options-map） |
+| 72 | DictValueDefinitions.razor | /dict-value-definitions | 配置 | ✅ | 字典显示配置（display-map/enabled-values） |
 
 ---
 
@@ -577,6 +584,8 @@
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
 >
 > **最后更新：2026-08-15（V21）** — 文档失效内容清理：§1 计划排程 8→6 页（工段待产量/工段流转分析已从菜单移除，§2.3 同步删菜单项并注明页面/接口保留）；配置上下文 8→13 页（新增生产-段落日产配置/生产-组合归类表/生产-工序组定义/参数-枚举显示配置/参数-字典显示配置）；§2.10 与 §2.12 参数表菜单、路由前缀、列表页清单同步更新；§3 列表页 #37/#38 标注"已从菜单移除"、#45 检验类 Tab 描述更正（过程检/成品检已删）、补入 #67-#71 五个新配置列表页，计数 66→71
+>
+> **最后更新：2026-08-15（V21）** — 生产标准上下文新增工厂检验项要求模块（FactoryInspectionRequirements + FactoryInspectionRequirementCreate，列表页数 8→9，总页数 16→18，清单表 71→72 重编号）；作为订单技术要求默认值数据源
 >
 > **最后更新：2026-08-09（V20）** — 工单上下文子页补入在产主工单计划页（WorkOrderInMainWorkOrderPlanCreate，create+edit 双路由，页面数 16→17）；§3 #66 定尺工单分页汇总描述由「仅 PlannedQuantity 可求和」更正为多列可求和（G1需求支数/G3切后支数/G4成检支数列/G5入库支数列，G6主号级聚合不参与求和）
 >

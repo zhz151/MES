@@ -220,10 +220,10 @@ public class ProductRequirementServiceTests : TestBase
 
         defaults.Should().NotBeNull();
         defaults.ChemicalComposition.Should().BeTrue();
-        defaults.PmiInspection.Should().BeFalse();
-        defaults.SurfaceInspection.Should().BeTrue();
-        defaults.Dimension.Should().BeTrue();
-        defaults.Endoscopy.Should().BeFalse();
+        defaults.PmiInspection.Should().Be(InspectionRequirementStage.None);
+        defaults.SurfaceInspection.Should().Be(InspectionRequirementStage.FinalOnly);
+        defaults.Dimension.Should().Be(InspectionRequirementStage.FinalOnly);
+        defaults.Endoscopy.Should().Be(InspectionRequirementStage.None);
         defaults.GrainSize.Should().BeFalse();
     }
 
@@ -244,19 +244,20 @@ public class ProductRequirementServiceTests : TestBase
         var defaults = await svc.GetDefaultRequirementsByStandardNoAsync("GB/T99999-2025");
 
         defaults.ChemicalComposition.Should().BeTrue();
-        defaults.SurfaceInspection.Should().BeTrue();
+        defaults.SurfaceInspection.Should().Be(InspectionRequirementStage.FinalOnly);
     }
 
     [Fact]
-    public async Task GetDefaultRequirementsByStandardNoAsync_标准号为空或不存在_返回全false()
+    public async Task GetDefaultRequirementsByStandardNoAsync_标准号为空或不存在_返回默认终()
     {
         var ctx = CreateDbContext();
         var svc = CreateService(ctx);
 
+        // 标准号为空/匹配不到：不覆盖，保持 DTO 默认「终」（FinalOnly），前端预填为「终」
         var nullResult = await svc.GetDefaultRequirementsByStandardNoAsync(null);
         nullResult.Should().NotBeNull();
         nullResult.ChemicalComposition.Should().BeFalse();
-        nullResult.PmiInspection.Should().BeFalse();
+        nullResult.PmiInspection.Should().Be(InspectionRequirementStage.FinalOnly);
 
         var missingResult = await svc.GetDefaultRequirementsByStandardNoAsync("NO-SUCH-STANDARD");
         missingResult.ChemicalComposition.Should().BeFalse();
@@ -318,21 +319,21 @@ public class ProductRequirementServiceTests : TestBase
 
         updated.Should().Be(2);
 
-        // 定尺：化学分析/表检/尺寸/液压=true；PMI/内窥=按需=false
+        // 定尺：化学分析=true；表检/尺寸/液压=「终」；PMI/内窥=「-」（按需）
         var fixedReq = await ctx.ProductRequirements.FirstAsync(pr => pr.OrderItemId == fixedItemId);
         fixedReq.ChemicalComposition.Should().BeTrue();
-        fixedReq.PmiInspection.Should().BeFalse();
-        fixedReq.SurfaceInspection.Should().BeTrue();
-        fixedReq.Dimension.Should().BeTrue();
-        fixedReq.Endoscopy.Should().BeFalse();
-        fixedReq.HydrostaticTest.Should().BeTrue();
+        fixedReq.PmiInspection.Should().Be(InspectionRequirementStage.None);
+        fixedReq.SurfaceInspection.Should().Be(InspectionRequirementStage.FinalOnly);
+        fixedReq.Dimension.Should().Be(InspectionRequirementStage.FinalOnly);
+        fixedReq.Endoscopy.Should().Be(InspectionRequirementStage.None);
+        fixedReq.HydrostaticTest.Should().Be(InspectionRequirementStage.FinalOnly);
         fixedReq.GrainSize.Should().BeFalse();
 
-        // 非定尺：液压恒 false（不适用），其余照常
+        // 非定尺：液压恒「-」（不适用），其余照常
         var nonFixedReq = await ctx.ProductRequirements.FirstAsync(pr => pr.OrderItemId == nonFixedItem.Id);
-        nonFixedReq.SurfaceInspection.Should().BeTrue();
-        nonFixedReq.Dimension.Should().BeTrue();
-        nonFixedReq.HydrostaticTest.Should().BeFalse();
+        nonFixedReq.SurfaceInspection.Should().Be(InspectionRequirementStage.FinalOnly);
+        nonFixedReq.Dimension.Should().Be(InspectionRequirementStage.FinalOnly);
+        nonFixedReq.HydrostaticTest.Should().Be(InspectionRequirementStage.None);
     }
 
     [Fact]
@@ -349,7 +350,7 @@ public class ProductRequirementServiceTests : TestBase
             OrderNo = "X",
             ItemSequence = 1,
             ChemicalComposition = true,
-            SurfaceInspection = true
+            SurfaceInspection = InspectionRequirementStage.FinalOnly
         });
         await ctx.SaveChangesAsync();
 
@@ -361,7 +362,7 @@ public class ProductRequirementServiceTests : TestBase
 
         var req = await ctx.ProductRequirements.FirstAsync(pr => pr.OrderItemId == itemId);
         req.ChemicalComposition.Should().BeTrue();
-        req.SurfaceInspection.Should().BeTrue();
+        req.SurfaceInspection.Should().Be(InspectionRequirementStage.FinalOnly);
     }
 
     [Fact]
@@ -370,9 +371,10 @@ public class ProductRequirementServiceTests : TestBase
         var ctx = CreateDbContext();
         var (orderId, itemId) = await SeedOrderItemAsync(ctx);
 
-        // 项次1 固定 Sequence=1，并加第二个项次 Sequence=2
+        // 项次1 固定 Sequence=1 且同订单号 "X"，并加第二个项次 Sequence=2
         var oi1 = await ctx.OrderItems.FirstAsync(oi => oi.Id == itemId);
         oi1.Sequence = 1;
+        oi1.OrderNumber = "X";
         var item2 = new OrderItem
         {
             SalesOrderId = orderId,
@@ -401,25 +403,29 @@ public class ProductRequirementServiceTests : TestBase
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
-        var result = await svc.GetQualityRemarkByOrderItemIdsAsync($"{oi1.Id},{item2.Id}");
+        // OrderItemIds 存的是「项次序号 Sequence」，须结合订单号匹配（非 OrderItem.Id）
+        var result = await svc.GetQualityRemarkByOrderItemIdsAsync("X", "1,2");
 
         result.Should().Be(string.Join(Environment.NewLine, "项次1：项次A要求", "项次2：项次B要求"));
     }
 
     [Fact]
-    public async Task GetQualityRemarkByOrderItemIdsAsync_无其他要求或id为空_返回空()
+    public async Task GetQualityRemarkByOrderItemIdsAsync_无其他要求或参数为空_返回空()
     {
         var ctx = CreateDbContext();
         var (_, itemId) = await SeedOrderItemAsync(ctx);
+        var orderNo = await ctx.OrderItems.Where(oi => oi.Id == itemId).Select(oi => oi.OrderNumber).FirstAsync();
         await ctx.SaveChangesAsync();
 
-        ctx.ProductRequirements.Add(new ProductRequirement { OrderItemId = itemId, OrderNo = "X", ItemSequence = 1, OtherRequirement = null });
+        ctx.ProductRequirements.Add(new ProductRequirement { OrderItemId = itemId, OrderNo = orderNo, ItemSequence = 1, OtherRequirement = null });
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
-        (await svc.GetQualityRemarkByOrderItemIdsAsync(null)).Should().BeEmpty();
-        (await svc.GetQualityRemarkByOrderItemIdsAsync("")).Should().BeEmpty();
-        (await svc.GetQualityRemarkByOrderItemIdsAsync("abc")).Should().BeEmpty();
-        (await svc.GetQualityRemarkByOrderItemIdsAsync(itemId.ToString())).Should().BeEmpty();
+        (await svc.GetQualityRemarkByOrderItemIdsAsync(null, null)).Should().BeEmpty();
+        (await svc.GetQualityRemarkByOrderItemIdsAsync("", "")).Should().BeEmpty();
+        (await svc.GetQualityRemarkByOrderItemIdsAsync("X", "abc")).Should().BeEmpty();
+        (await svc.GetQualityRemarkByOrderItemIdsAsync("X", "999999")).Should().BeEmpty();
+        // ⚠️ 传 OrderItem.Id（非 Sequence）作为项次列表 → 匹配不到 → 空（验证 Sequence 语义）
+        (await svc.GetQualityRemarkByOrderItemIdsAsync(orderNo, itemId.ToString())).Should().BeEmpty();
     }
 }

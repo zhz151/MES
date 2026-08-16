@@ -102,13 +102,13 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             q = q.Where(x => x.ReceiveDate <= query.ReceiveDateTo.Value);
 
         // 列筛选（DB 级）
-        // QualityStatus 筛选预处理："异常完成"是计算字段（IsForceCompleted=true 时优先显示）
-        // 四种情况：
-        //   仅选中"异常完成" → WHERE IsForceCompleted = true
-        //   "异常完成" + 其他值 → WHERE (QualityStatus IN (...) OR IsForceCompleted = true)
-        //   仅其他值（无"异常完成"）→ WHERE QualityStatus IN (...) AND IsForceCompleted = false
+        // QualityStatus 筛选预处理：三种特殊语义 + 普通值，多选时各条件 OR 组合：
+        //   "略"（预成检不参与执行状态跟踪，单元格恒显示"略"）→ InspectionType = PreInspection
+        //   "异常完成"（计算字段，IsForceCompleted=true 时优先显示）→ IsForceCompleted = true
+        //   普通值（待检验/检验中/完成检验/入库存疑）→ QualityStatus IN 普通值 AND IsForceCompleted = false
         //   无 QualityStatus 筛选 → 不处理
         var qsSelectedValues = new List<string>();
+        var hasSkip = false;
         var hasAbnormalComplete = false;
         if (query.Filters is { Count: > 0 })
         {
@@ -117,32 +117,46 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             if (qsFilter?.Values is { Count: > 0 })
             {
                 query.Filters.Remove(qsFilter);
+                hasSkip = qsFilter.Values.Remove("略");
                 hasAbnormalComplete = qsFilter.Values.Remove("异常完成");
                 qsSelectedValues = qsFilter.Values.ToList();
             }
         }
         q = q.ApplyFilters(query.Filters);
-        if (hasAbnormalComplete && qsSelectedValues.Count == 0)
+        if (hasSkip || hasAbnormalComplete || qsSelectedValues.Count > 0)
         {
-            // 仅选中"异常完成" → IsForceCompleted = true
-            q = q.Where(x => x.IsForceCompleted);
-        }
-        else if (hasAbnormalComplete && qsSelectedValues.Count > 0)
-        {
-            // "异常完成" + 其他 QualityStatus 值 → (QualityStatus IN (...) OR IsForceCompleted = true)
             var param = Expression.Parameter(typeof(QualityProcessTracking), "e");
-            var qsMember = Expression.Property(param, "QualityStatus");
-            var qsList = Expression.Constant(qsSelectedValues);
+            Expression? cond = null;
             var containsMethod = typeof(List<string>).GetMethod("Contains", [typeof(string)])!;
-            var qsIn = Expression.Call(qsList, containsMethod, qsMember);
-            var fcCondition = Expression.Equal(Expression.Property(param, "IsForceCompleted"), Expression.Constant(true));
-            var lambda = Expression.Lambda<Func<QualityProcessTracking, bool>>(Expression.OrElse(qsIn, fcCondition), param);
-            q = q.Where(lambda);
-        }
-        else if (qsSelectedValues.Count > 0)
-        {
-            // 仅其他值（无"异常完成"）→ 排除强制完成的记录
-            q = q.Where(x => qsSelectedValues.Contains(x.QualityStatus) && !x.IsForceCompleted);
+            if (hasSkip)
+            {
+                // "略" → 预成检行
+                var skipCond = Expression.Equal(
+                    Expression.Property(param, "InspectionType"),
+                    Expression.Constant(nameof(InspectionType.PreInspection)));
+                cond = skipCond;
+            }
+            if (hasAbnormalComplete)
+            {
+                // "异常完成" → IsForceCompleted = true
+                var fcCond = Expression.Equal(
+                    Expression.Property(param, "IsForceCompleted"), Expression.Constant(true));
+                cond = cond == null ? fcCond : Expression.OrElse(cond, fcCond);
+            }
+            if (qsSelectedValues.Count > 0)
+            {
+                // 普通值 → QualityStatus IN (...) AND IsForceCompleted = false
+                var qsIn = Expression.Call(Expression.Constant(qsSelectedValues), containsMethod,
+                    Expression.Property(param, "QualityStatus"));
+                var notFc = Expression.Not(Expression.Property(param, "IsForceCompleted"));
+                var normalCond = Expression.AndAlso(qsIn, notFc);
+                cond = cond == null ? normalCond : Expression.OrElse(cond, normalCond);
+            }
+            if (cond != null)
+            {
+                var lambda = Expression.Lambda<Func<QualityProcessTracking, bool>>(cond, param);
+                q = q.Where(lambda);
+            }
         }
 
         // 排序（DB 级）
@@ -247,6 +261,12 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
 
+            // 数字列 DISTINCT 选项（供 ExcelFilter 多选筛选）
+            List<string> DistinctInts(IEnumerable<int> vals) =>
+                vals.Select(v => v.ToString()).Distinct().OrderBy(v => v).ToList();
+            List<string> DistinctNullableDecimals(IEnumerable<decimal?> vals) =>
+                vals.Where(v => v.HasValue).Select(v => v!.Value.ToString("G29")).Distinct().OrderBy(v => v).ToList();
+
             // 从物化表查询所有数据，在内存中构建 DISTINCT 字典
             var all = await _context.QualityProcessTrackings
                 .AsNoTracking()
@@ -264,6 +284,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                     e.SourceUnit,
                     e.Salesman,
                     e.TagNo,
+                    e.EndCustomer,
                     e.ReceiveDate,
                     e.PmiDate,
                     e.VisualDate,
@@ -274,7 +295,18 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                     e.EddyCurrentDate,
                     e.UltrasonicDate,
                     e.PortColoringDate,
+                    e.MaxInspectionDate,
+                    e.InspectionCount,
+                    e.ProductionCutQuantity,
+                    e.TotalQuantity,
+                    e.QualifiedQuantity,
+                    e.DefectReworkQuantity,
+                    e.DefectWarehouseQuantity,
+                    e.DefectScrapQuantity,
+                    e.ProductionWeight,
                     e.InboundDate,
+                    e.InboundQuantity,
+                    e.InboundWeight,
                     e.QualityStatus
                 })
                 .ToListAsync();
@@ -307,6 +339,22 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                 ["UltrasonicDate"] = all.Where(x => x.UltrasonicDate.HasValue).Select(x => x.UltrasonicDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
                 ["PortColoringDate"] = all.Where(x => x.PortColoringDate.HasValue).Select(x => x.PortColoringDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
                 ["InboundDate"] = all.Where(x => x.InboundDate.HasValue).Select(x => x.InboundDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+
+                // ===== 最终用户 / 最晚检验日期 =====
+                ["EndCustomer"] = all.Select(x => x.EndCustomer).Where(v => !string.IsNullOrEmpty(v)).Distinct().OrderBy(x => x).Cast<string>().ToList(),
+                ["MaxInspectionDate"] = all.Where(x => x.MaxInspectionDate.HasValue).Select(x => x.MaxInspectionDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+
+                // ===== 数字列（int/decimal? DISTINCT 选项，供多选筛选） =====
+                ["InspectionCount"] = DistinctInts(all.Select(x => x.InspectionCount)),
+                ["ProductionCutQuantity"] = DistinctInts(all.Select(x => x.ProductionCutQuantity)),
+                ["TotalQuantity"] = DistinctInts(all.Select(x => x.TotalQuantity)),
+                ["QualifiedQuantity"] = DistinctInts(all.Select(x => x.QualifiedQuantity)),
+                ["DefectReworkQuantity"] = DistinctInts(all.Select(x => x.DefectReworkQuantity)),
+                ["DefectWarehouseQuantity"] = DistinctInts(all.Select(x => x.DefectWarehouseQuantity)),
+                ["DefectScrapQuantity"] = DistinctInts(all.Select(x => x.DefectScrapQuantity)),
+                ["ProductionWeight"] = DistinctNullableDecimals(all.Select(x => x.ProductionWeight)),
+                ["InboundQuantity"] = DistinctInts(all.Select(x => x.InboundQuantity)),
+                ["InboundWeight"] = DistinctNullableDecimals(all.Select(x => x.InboundWeight)),
             };
         }) ?? new Dictionary<string, List<string>>();
     }

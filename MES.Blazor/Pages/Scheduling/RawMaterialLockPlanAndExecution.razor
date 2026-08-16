@@ -18,12 +18,21 @@
 @attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
-    <!-- 页面顶部工具栏 -->
-    <div class="d-flex justify-space-between align-center mb-4">
+    <!-- 页面标题 + 右上角「待投料量汇总」按钮（与其他排程计划统一） -->
+    <div class="d-flex align-center mb-4">
         <MudText Typo="Typo.h5" Class="font-weight-bold">
             <MudIcon Icon="@Icons.Material.Filled.Lock" Class="mr-2" Color="Color.Warning" />
             原锁计划
         </MudText>
+        <div style="margin-left:auto;">
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       Color="@(_showSummaryCard ? Color.Primary : Color.Default)"
+                       StartIcon="@(_showSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                       OnClick="ToggleSummaryCard">
+                待投料量汇总
+            </MudButton>
+        </div>
     </div>
 
     <!-- 汇总数据卡片（默认折叠，工具栏「汇总」按钮切换显隐） -->
@@ -31,6 +40,13 @@
     {
         <MudCard Class="mb-2" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
             <MudCardContent>
+                <div class="d-flex justify-space-between align-center mb-2">
+                    <MudText Typo="Typo.subtitle2"><b>待投料量汇总</b></MudText>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Print" OnClick="PrintSummaryTable">
+                        打印
+                    </MudButton>
+                </div>
                 <MudGrid>
                     <MudItem xs="12">
                         <div class="d-flex flex-wrap" style="gap: 16px; align-items: center;">
@@ -52,7 +68,7 @@
                     <MudItem xs="12" Class="mt-2">
                         <div style="display:flex; gap:16px; flex-wrap:wrap;">
                             @* 待投料矩阵：行=原料锁定备注，列=主号计划性 *@
-                            <div style="flex:1; min-width:340px;">
+                            <div id="rmlp-summary-pending" style="flex:1; min-width:340px;">
                                 <div style="font-weight:600; color:#E65100; margin-bottom:4px;">待投料</div>
                                 <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
                                     <thead>
@@ -91,7 +107,7 @@
                             @* 成购矩阵：仅当有外购成品未到时显示 *@
                             @if (_purchaseCount > 0)
                             {
-                                <div style="flex:1; min-width:340px;">
+                                <div id="rmlp-summary-purchase" style="flex:1; min-width:340px;">
                                     <div style="font-weight:600; color:#1565C0; margin-bottom:4px;">成购（外购成品）</div>
                                     <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
                                         <thead>
@@ -175,14 +191,6 @@
                     </MudButton>
                 </div>
                 <div class="d-flex align-center" style="margin-left:auto;">
-                    <MudButton Variant="Variant.Text"
-                               Size="Size.Small"
-                               Color="Color.Default"
-                               Class="ml-2"
-                               StartIcon="@(_showSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
-                               OnClick="ToggleSummaryCard">
-                        汇总
-                    </MudButton>
                     <MudButton Variant="Variant.Filled"
                                Size="Size.Small"
                                Color="Color.Primary"

@@ -197,6 +197,18 @@ public class BatchService
         catch (Exception ex) { return ApiResponse<List<CreateProcessGroupRequest>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    // ========== 成检到料强制完成通知 ==========
+
+    public async Task<ApiResponse<List<ForcedCompletedInspectionBatchDto>>> GetForcedCompletedInspectionBatchesAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<ForcedCompletedInspectionBatchDto>>>($"{BaseUrl}/forced-completed-inspection-batches");
+            return response ?? ApiResponse<List<ForcedCompletedInspectionBatchDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<ForcedCompletedInspectionBatchDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     // ========== 缺陷率预警 ==========
 
     public async Task<ApiResponse<List<DefectRateBatchDto>>> GetDefectRateAlertsAsync()
