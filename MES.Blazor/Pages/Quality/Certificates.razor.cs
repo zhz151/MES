@@ -9,6 +9,7 @@ using MES.Core.DTOs.Quality;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
+using MES.Shared.Constants;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Quality;
@@ -26,6 +27,29 @@ public partial class Certificates
     private string _searchKeyword = string.Empty;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+
+    // ========== 打印选择 ==========
+    private HashSet<int> selectedIds = new();
+    private bool _allSelected;
+    private bool allSelected
+    {
+        get => _allSelected;
+        set
+        {
+            if (_allSelected == value) return;
+            _allSelected = value;
+            if (value)
+            {
+                foreach (var item in _pageItems)
+                    selectedIds.Add(item.Id);
+            }
+            else
+            {
+                selectedIds.Clear();
+            }
+            StateHasChanged();
+        }
+    }
 
     private string sortColumn = "issuedate";
     private bool sortDescending = true;
@@ -400,6 +424,53 @@ public partial class Certificates
 
     private void NavigateToCreate() => Navigation.NavigateTo("/quality/certificates/create");
     private void ViewDetail(int id) => Navigation.NavigateTo($"/quality/certificates/{id}");
+
+    // ========== 打印 ==========
+
+    /// <summary>打开「打印设置」对话框（页眉/页脚/字体配置，全局生效）</summary>
+    private async Task OpenPrintSettings()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CertificatePrintSettingsDialog>("打印设置", options);
+        await dialog.Result;
+    }
+
+    private async Task PrintSelected()
+    {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的质量证明书", Severity.Warning);
+            return;
+        }
+        try
+        {
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var request = new CertificatePrintRequest { Ids = selectedIds.ToArray() };
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Certificate}/print-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PrintAll()
+    {
+        try
+        {
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var request = new CertificatePrintRequest { Ids = Array.Empty<int>() };
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Certificate}/print-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
 
     private async Task DeleteItem(CertificateDto item)
     {

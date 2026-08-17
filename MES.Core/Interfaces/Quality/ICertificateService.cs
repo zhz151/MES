@@ -34,4 +34,7 @@ public interface ICertificateService
     /// 自动填充检验数据 — 根据炉号+生产批号查询化学分析/成品检验/拉伸检验的最新记录
     /// </summary>
     Task<List<CertificateItemDto>> AutoFillInspectionDataAsync(List<AutoFillInspectionItem> items);
+
+    /// <summary>打印 PDF：按 Id 集合查质保书（含子项）渲染质量证明书模板，返回 PDF 字节</summary>
+    Task<byte[]> PrintFileAsync(CertificatePrintRequest request);
 }

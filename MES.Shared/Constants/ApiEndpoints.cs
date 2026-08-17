@@ -106,6 +106,8 @@ public static class ApiEndpoints
     public const string ConfigParameter = "api/config-parameter";
     public const string ProcessCardColumnDefinition = "api/process-card-column-definition";
     public const string ProcessCardStyleDefinition = "api/process-card-style-definition";
+    public const string CertificatePrintSetting = "api/certificate-print-setting";
+    public const string CertificatePrintColumnDefinition = "api/certificate-print-column-definition";
     public const string DailyOutputEstimate = "api/daily-output-estimate";
     public const string DailyProductionCapacity = "api/daily-production-capacity";
     public const string SectionFlowCategorySettings = "api/section-flow-category-settings";

@@ -183,6 +183,8 @@ builder.Services.AddScoped<IStandardWorkDayDeliveryStateService, StandardWorkDay
 builder.Services.AddScoped<IConfigParameterService, ConfigParameterService>();
 builder.Services.AddScoped<IProcessCardColumnDefinitionService, ProcessCardColumnDefinitionService>();
 builder.Services.AddScoped<IProcessCardStyleDefinitionService, ProcessCardStyleDefinitionService>();
+builder.Services.AddScoped<ICertificatePrintSettingService, CertificatePrintSettingService>();
+builder.Services.AddScoped<ICertificatePrintColumnDefinitionService, CertificatePrintColumnDefinitionService>();
 builder.Services.AddScoped<IDailyOutputEstimateService, DailyOutputEstimateService>();
 builder.Services.AddScoped<IMaterialPlanProcessGroupService, MaterialPlanProcessGroupService>();
 builder.Services.AddScoped<IProductRequirementService, ProductRequirementService>();

@@ -33,6 +33,12 @@
                     }
                     else
                     {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.Print"
+                                   OnClick="PrintPdf"
+                                   Disabled="@(_dto == null)">
+                            打印PDF
+                        </MudButton>
                         <AuthorizeView Roles="@Roles.Policies.QualityWrite">
                             <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
                         </AuthorizeView>
@@ -365,6 +371,24 @@
     [Inject] private NavigationManager Navigation { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
     [Inject] private IDialogService DialogService { get; set; } = null!;
+    [Inject] private IJSRuntime JS { get; set; } = null!;
+
+    private async Task PrintPdf()
+    {
+        if (_dto == null) return;
+        try
+        {
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var request = new CertificatePrintRequest { Ids = new[] { Id } };
+            var apiUrl = $"{Navigation.BaseUri}{MES.Shared.Constants.ApiEndpoints.Certificate}/print-file";
+            var json = System.Text.Json.JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {

@@ -136,6 +136,8 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ConfigParameter> ConfigParameters { get; set; } = null!;
     public DbSet<ProcessCardColumnDefinition> ProcessCardColumnDefinitions { get; set; } = null!;
     public DbSet<ProcessCardStyleDefinition> ProcessCardStyleDefinitions { get; set; } = null!;
+    public DbSet<CertificatePrintSetting> CertificatePrintSettings { get; set; } = null!;
+    public DbSet<CertificatePrintColumnDefinition> CertificatePrintColumnDefinitions { get; set; } = null!;
     public DbSet<DailyOutputEstimate> DailyOutputEstimates { get; set; } = null!;
     public DbSet<DailyProductionCapacity> DailyProductionCapacities { get; set; } = null!;
     public DbSet<Workstation> Workstations { get; set; } = null!;
@@ -258,6 +260,8 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureConfigParameter(builder);
         ConfigureProcessCardColumnDefinition(builder);
         ConfigureProcessCardStyleDefinition(builder);
+        ConfigureCertificatePrintSetting(builder);
+        ConfigureCertificatePrintColumnDefinition(builder);
         ConfigureDailyOutputEstimate(builder);
         ConfigureDailyProductionCapacity(builder);
         ConfigureEmployee(builder);

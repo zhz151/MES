@@ -144,4 +144,15 @@ public class CertificateController : ControllerBase
         var result = await _service.GetNextCertificateNoAsync(orderNo);
         return Ok(ApiResponse<string>.Ok(result, "查询成功"));
     }
+
+    /// <summary>
+    /// 打印 PDF：按 Id 集合（详情页单张 / 列表页选中或全部）生成质量证明书 PDF
+    /// </summary>
+    [HttpPost("print-file")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<IActionResult> PrintFile([FromBody] CertificatePrintRequest request)
+    {
+        var pdfBytes = await _service.PrintFileAsync(request);
+        return File(pdfBytes, "application/pdf", "质量证明书.pdf");
+    }
 }

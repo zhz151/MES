@@ -159,6 +159,21 @@ public partial class AppDbContext
                 .HasDatabaseName("UK_PCSD_Key");
         });
     }
+    private static void ConfigureCertificatePrintSetting(ModelBuilder builder)
+    {
+        builder.Entity<CertificatePrintSetting>(entity =>
+        {
+            entity.ToTable("CertificatePrintSettings");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Key).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Value).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            entity.HasIndex(e => e.Key)
+                .IsUnique()
+                .HasDatabaseName("UK_CPST_Key");
+        });
+    }
     private static void ConfigureConfigParameter(ModelBuilder builder)
     {
         builder.Entity<ConfigParameter>(entity =>
@@ -214,6 +229,24 @@ public partial class AppDbContext
             entity.HasIndex(e => e.Code)
                 .IsUnique()
                 .HasDatabaseName("UK_Emp_Code");
+        });
+    }
+    private static void ConfigureCertificatePrintColumnDefinition(ModelBuilder builder)
+    {
+        builder.Entity<CertificatePrintColumnDefinition>(entity =>
+        {
+            entity.ToTable("CertificatePrintColumnDefinitions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.BlockKey).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FieldKey).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Label).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.LabelEn).HasMaxLength(50);
+            entity.Property(e => e.Visible).IsRequired();
+            entity.Property(e => e.ColumnIndex).IsRequired();
+            entity.Property(e => e.ColumnWeight).IsRequired();
+            entity.HasIndex(e => new { e.BlockKey, e.FieldKey })
+                .IsUnique()
+                .HasDatabaseName("UK_CPCD_BlockKey_FieldKey");
         });
     }
     private static void ConfigureWorkstation(ModelBuilder builder)

@@ -18,6 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MES.Data\MES.Data.csproj" />
     <ProjectReference Include="..\MES.Core\MES.Core.csproj" />
     <ProjectReference Include="..\MES.Shared\MES.Shared.csproj" />

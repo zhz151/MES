@@ -1,13 +1,18 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
+using MES.Core.DTOs.Quality;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities.Quality;
 using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Warehouse;
+using MES.Services.Printing;
 using System.Text.RegularExpressions;
 
 namespace MES.Services.Quality;
@@ -19,11 +24,20 @@ public class CertificateService : ICertificateService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<CertificateService> _logger;
+    private readonly ICertificatePrintSettingService _printSettingService;
+    private readonly ICertificatePrintColumnDefinitionService _printColumnService;
+    private readonly IWebHostEnvironment _env;
 
-    public CertificateService(AppDbContext context, ILogger<CertificateService> logger)
+    public CertificateService(AppDbContext context, ILogger<CertificateService> logger,
+        ICertificatePrintSettingService printSettingService,
+        ICertificatePrintColumnDefinitionService printColumnService,
+        IWebHostEnvironment env)
     {
         _context = context;
         _logger = logger;
+        _printSettingService = printSettingService;
+        _printColumnService = printColumnService;
+        _env = env;
     }
 
     public async Task<PagedResult<CertificateDto>> GetAllAsync(QueryParams query)
@@ -447,6 +461,87 @@ public class CertificateService : ICertificateService
         }
 
         return $"{prefix}{maxSeq + 1:D2}";
+    }
+
+    public async Task<byte[]> PrintFileAsync(CertificatePrintRequest request)
+    {
+        if (request.Ids == null || request.Ids.Length == 0)
+            throw new BusinessException("请选择要打印的质量证明书");
+
+        // 按 Id 集合查质保书（含子项，按 SeqNo 排序）
+        var certificates = await _context.Certificates
+            .AsNoTracking()
+            .Include(c => c.Items.OrderBy(i => i.SeqNo))
+            .Where(c => request.Ids.Contains(c.Id))
+            .ToListAsync();
+
+        if (certificates.Count == 0)
+            throw new BusinessException("未找到选中的质量证明书");
+
+        // 读取打印配置（页眉/页脚/字体，配置表优先，缺失回退默认）
+        var settings = await _printSettingService.GetSettingMapAsync();
+
+        // 读取 Logo 图片（相对后端 wwwroot），文件不存在或读取异常时优雅降级（不显示 Logo）
+        byte[]? logoBytes = null;
+        var logoPath = settings.TryGetValue(CertificatePrintKeys.CompanyLogoPath, out var lp) && !string.IsNullOrWhiteSpace(lp)
+            ? lp
+            : "images/certificate-logo.png";
+        try
+        {
+            var webRoot = _env.WebRootPath;
+            if (!string.IsNullOrEmpty(webRoot))
+            {
+                var fullPath = Path.Combine(webRoot, logoPath.TrimStart('/'));
+                if (File.Exists(fullPath))
+                    logoBytes = await File.ReadAllBytesAsync(fullPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Logo 缺失/读取失败不阻断打印，仅记日志
+            _logger.LogWarning(ex, "质量证明书 Logo 读取失败，已降级：{Path}", logoPath);
+        }
+
+        // 加载标准上下文小表（全量），用于各表「标准值」行：牌号映射+化学成分（化学成分表）、牌号物理性能+子标准速览（检验检测表）；无数据时对应单元格为空
+        var gradeMappings = await _context.StandardGradeMappings.AsNoTracking().ToListAsync();
+        var chemicalCompositions = await _context.GradeChemicalCompositions.AsNoTracking().ToListAsync();
+        var gradePhysicalProperties = await _context.GradePhysicalProperties.AsNoTracking().ToListAsync();
+        var subStandardQuickViews = await _context.SubStandardQuickViews.AsNoTracking().ToListAsync();
+
+        // 解析明细表列定义：内置默认列 + 数据库配置覆盖（显隐/顺序/权重/显示名），配置表空时全用默认
+        var columnDefs = await ResolvePrintColumnDefsAsync();
+
+        return CertificatePrintHelper.GeneratePdf(certificates, settings, logoBytes,
+            gradeMappings, chemicalCompositions, gradePhysicalProperties, subStandardQuickViews, columnDefs);
+    }
+
+    /// <summary>
+    /// 解析打印明细表列定义：内置默认列 + 数据库配置覆盖（锚点 BlockKey+FieldKey，配置表优先）。
+    /// 配置表为空（尚未种子/无配置）时全用默认列，打印不受影响。
+    /// </summary>
+    private async Task<List<CertificatePrintColumnDef>> ResolvePrintColumnDefsAsync()
+    {
+        var defaults = CertificatePrintHelper.GetDefaultColumnDefs();
+        var configMap = await _printColumnService.GetConfigMapAsync();
+        if (configMap.Count == 0) return defaults;
+
+        return defaults.Select(d =>
+        {
+            if (configMap.TryGetValue($"{d.BlockKey}|{d.Key}", out var cfg))
+            {
+                return new CertificatePrintColumnDef
+                {
+                    BlockKey = d.BlockKey,
+                    Key = d.Key,
+                    Label = cfg.Label,
+                    LabelEn = cfg.LabelEn,
+                    Visible = cfg.Visible,
+                    ColumnIndex = cfg.ColumnIndex,
+                    ColumnWeight = cfg.ColumnWeight
+                };
+            }
+            return d;
+        }).ToList();
     }
 
     public async Task<List<CertificateItemDto>> AutoFillInspectionDataAsync(List<AutoFillInspectionItem> items)

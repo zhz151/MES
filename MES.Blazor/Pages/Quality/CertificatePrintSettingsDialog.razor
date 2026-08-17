@@ -1,0 +1,375 @@
+@using MES.Blazor.Services
+@using MES.Core.DTOs.Configuration
+@using MES.Core.Constants
+@inject CertificatePrintSettingService Svc
+@inject CertificatePrintColumnDefinitionService ColSvc
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.Print" Size="Size.Small" Class="mr-1" />质量证明书打印设置
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            打印版式：页眉企业信息 / 标题 / 页脚说明 / 字体字号；字段布局：基本信息 + 3 张明细表（物料信息/化学成分/检验检测）字段显隐、列顺序、列宽权重、英文列名。保存后全局生效。
+        </MudText>
+
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center ma-4">
+                <MudProgressCircular Indeterminate Size="Size.Small" />
+            </div>
+        }
+        else
+        {
+            <MudTabs>
+                <MudTabPanel Text="打印版式">
+                    @foreach (var item in _items)
+                    {
+                        <div class="mb-2">
+                            <MudText Typo="Typo.body2" Class="font-weight-bold">@item.DisplayName</MudText>
+                            <MudTextField T="string"
+                                          Value="@item.Value"
+                                          ValueChanged="@(v => item.Value = v ?? string.Empty)"
+                                          Variant="Variant.Outlined"
+                                          Dense="true"
+                                          Margin="Margin.Dense"
+                                          Placeholder="@item.Remark" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@item.Remark</MudText>
+                        </div>
+                    }
+                </MudTabPanel>
+                <MudTabPanel Text="字段布局">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                        启用=是否打印该字段；权重=列宽相对比例；上/下箭头调整列顺序（明细表无行概念，# 序号列固定）。保存后全局生效。
+                    </MudText>
+                    @foreach (var blockGroup in FormatBlocks)
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-1 mt-2" Style="color:#37474F;">
+                            <MudIcon Icon="@GetBlockIcon(blockGroup.Key)" Class="mr-1" Size="Size.Small" />
+                            @GetBlockTitle(blockGroup.Key)
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Inline="true">（@(blockGroup.Count()) 个字段）</MudText>
+                        </MudText>
+                        <div class="d-flex flex-wrap" style="gap: 6px 12px; padding-left: 12px;">
+                            @foreach (var col in blockGroup.OrderBy(c => c.ColumnIndex))
+                            {
+                                <div class="d-flex align-center" style="min-width: 600px; border:1px solid #eee; border-radius:6px; padding:4px 8px;">
+                                    <MudSwitch Value="col.Visible"
+                                               ValueChanged="@((bool v) => col.Visible = v)"
+                                               Color="Color.Primary" Dense="true" Size="Size.Small" />
+                                    <MudText Typo="Typo.body2" Class="mr-1" Style="min-width:80px;">@col.Label</MudText>
+                                    <MudTextField T="string" Value="col.LabelEn"
+                                                  ValueChanged="@(v => col.LabelEn = string.IsNullOrWhiteSpace(v) ? null : v)"
+                                                  Label="英文列名" Dense="true" Variant="Variant.Outlined"
+                                                  Style="width:190px; margin-right:6px;" />
+                                    <MudTextField T="int" Value="col.ColumnWeight"
+                                                  ValueChanged="@((int v) => col.ColumnWeight = Math.Max(1, v))"
+                                                  Label="权重" Dense="true" Variant="Variant.Outlined"
+                                                  Style="width:64px; margin-right:6px;" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small"
+                                                   Title="上移" OnClick="() => MoveFormatColumn(col, -1)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small"
+                                                   Title="下移" OnClick="() => MoveFormatColumn(col, 1)" />
+                                </div>
+                            }
+                        </div>
+                    }
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => MudDialog.Close()">关闭</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ResetDefaults" Disabled="@_isLoading">恢复默认</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Loading="@_isSubmitting">保存</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    private List<CertificatePrintSettingDto> _items = new();
+    private List<CertificatePrintColumnDefinitionDto> _columns = new();
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+
+    /// <summary>字段布局面板区块分组（固定区块顺序）</summary>
+    private List<IGrouping<string, CertificatePrintColumnDefinitionDto>> FormatBlocks =>
+        _columns.GroupBy(c => c.BlockKey).OrderBy(g => BlockOrder(g.Key)).ToList();
+
+    /// <summary>固定区块顺序：BasicInfo→Material→Chemistry→Inspection</summary>
+    private static int BlockOrder(string blockKey) => blockKey switch
+    {
+        "BasicInfo" => 0,
+        "Material" => 1,
+        "Chemistry" => 2,
+        "Inspection" => 3,
+        _ => 99
+    };
+
+    private static string GetBlockTitle(string blockKey) => blockKey switch
+    {
+        "BasicInfo" => "基本信息",
+        "Material" => "物料信息",
+        "Chemistry" => "化学成分",
+        "Inspection" => "检验检测",
+        _ => blockKey
+    };
+
+    private static string GetBlockIcon(string blockKey) => blockKey switch
+    {
+        "BasicInfo" => Icons.Material.Filled.Badge,
+        "Material" => Icons.Material.Filled.Inventory2,
+        "Chemistry" => Icons.Material.Filled.Science,
+        "Inspection" => Icons.Material.Filled.FactCheck,
+        _ => Icons.Material.Filled.Settings
+    };
+
+    /// <summary>默认配置：与 CertificatePrintKeys 默认值 + 种子迁移 SeedCertificatePrintSetting 保持一致</summary>
+    private static List<CertificatePrintSettingDto> GetDefaultItems() => new()
+    {
+        new() { Key = CertificatePrintKeys.CompanyName, Value = "", DisplayName = "公司名称", Remark = "页眉左侧企业名称（中文）" },
+        new() { Key = CertificatePrintKeys.CompanyNameEn, Value = "", DisplayName = "公司名称（英文）", Remark = "页眉左侧企业英文名称（中文下方第二行）" },
+        new() { Key = CertificatePrintKeys.CompanyAddress, Value = "", DisplayName = "公司地址", Remark = "页眉右侧地址（中文）" },
+        new() { Key = CertificatePrintKeys.CompanyAddressEn, Value = "", DisplayName = "公司地址（英文）", Remark = "页眉右侧地址英文（中文下方第二行）" },
+        new() { Key = CertificatePrintKeys.CompanyContact, Value = "", DisplayName = "联系方式", Remark = "页眉右侧电话/邮箱" },
+        new() { Key = CertificatePrintKeys.CompanyLogoPath, Value = "images/certificate-logo.png", DisplayName = "Logo图片路径", Remark = "相对后端 wwwroot" },
+        new() { Key = CertificatePrintKeys.HeaderTitle, Value = "产品质量证明书", DisplayName = "页眉标题", Remark = "页眉中部标题（中文）" },
+        new() { Key = CertificatePrintKeys.HeaderTitleEn, Value = "PRODUCT QUALITY CERTIFICATE", DisplayName = "页眉标题（英文）", Remark = "页眉中部标题英文（中文下方第二行）" },
+        new() { Key = CertificatePrintKeys.FooterStatement, Value = "本质量证明书仅对所列产品批次有效，检测数据真实有效。", DisplayName = "页脚说明文字", Remark = "页脚第1行" },
+        new() { Key = CertificatePrintKeys.FooterRemark, Value = "备注：", DisplayName = "页脚备注", Remark = "页脚第2行左（标签前缀）" },
+        new() { Key = CertificatePrintKeys.SealText, Value = "质量检验专用章", DisplayName = "盖章文字（中文）", Remark = "页脚第2行中第1行" },
+        new() { Key = CertificatePrintKeys.SealTextEn, Value = "QUALITY INSPECTION SEAL", DisplayName = "盖章文字（英文）", Remark = "页脚第2行中第2行" },
+        new() { Key = CertificatePrintKeys.InspectorText, Value = "检验员：________________", DisplayName = "检验员签字", Remark = "页脚第2行右第1行" },
+        new() { Key = CertificatePrintKeys.SignerText, Value = "工程师：________________", DisplayName = "签发工程师", Remark = "页脚第2行右第2行" },
+        new() { Key = CertificatePrintKeys.PageFontFamily, Value = "SimSun", DisplayName = "正文字体", Remark = "页面默认字体族" },
+        new() { Key = CertificatePrintKeys.PageFontSize, Value = "9", DisplayName = "正文字号", Remark = "页面默认字号" },
+        new() { Key = CertificatePrintKeys.HeaderFontFamily, Value = "SimSun", DisplayName = "标题字体", Remark = "页眉标题字体族" },
+        new() { Key = CertificatePrintKeys.HeaderFontSize, Value = "18", DisplayName = "标题字号", Remark = "页眉标题字号" },
+        // === 页眉细分子号 ===
+        new() { Key = CertificatePrintKeys.HeaderCompanyNameFontSize, Value = "14", DisplayName = "公司名称字号", Remark = "页眉左侧企业名称" },
+        new() { Key = CertificatePrintKeys.HeaderCompanyNameEnFontSize, Value = "9", DisplayName = "公司名称英文字号", Remark = "页眉企业英文名称" },
+        new() { Key = CertificatePrintKeys.HeaderAddressFontSize, Value = "8", DisplayName = "公司地址字号", Remark = "页眉右侧地址" },
+        new() { Key = CertificatePrintKeys.HeaderAddressEnFontSize, Value = "8", DisplayName = "公司地址英文字号", Remark = "页眉右侧地址英文" },
+        new() { Key = CertificatePrintKeys.HeaderContactFontSize, Value = "8", DisplayName = "联系方式字号", Remark = "页眉右侧电话/邮箱" },
+        new() { Key = CertificatePrintKeys.HeaderTitleEnFontSize, Value = "13", DisplayName = "页眉英文标题字号", Remark = "中文标题下方英文" },
+        // === 内容细分子号 ===
+        new() { Key = CertificatePrintKeys.BasicInfoLabelFontSize, Value = "7", DisplayName = "基本信息标签字号", Remark = "标签小字在值上方" },
+        new() { Key = CertificatePrintKeys.BasicInfoValueFontSize, Value = "9", DisplayName = "基本信息值字号", Remark = "客户/标准/名称/交货状态等值" },
+        new() { Key = CertificatePrintKeys.SectionTitleFontSize, Value = "10", DisplayName = "区块标题字号", Remark = "基本信息+三张明细表标题条" },
+        new() { Key = CertificatePrintKeys.MaterialTableFontSize, Value = "8.5", DisplayName = "物料信息表字号", Remark = "物料信息表内容" },
+        new() { Key = CertificatePrintKeys.ChemistryTableFontSize, Value = "6.5", DisplayName = "化学成分表字号", Remark = "16列宽表内容" },
+        new() { Key = CertificatePrintKeys.InspectionTableFontSize, Value = "5.5", DisplayName = "检验检测表字号", Remark = "21列宽表内容" },
+        new() { Key = CertificatePrintKeys.TableHeaderFontSizeDelta, Value = "0.5", DisplayName = "表头字号增量", Remark = "表头=表内容字号+此增量" },
+        new() { Key = CertificatePrintKeys.SectionSpacing, Value = "6", DisplayName = "区块间距", Remark = "基本信息与三张明细表之间的顶部间距" },
+        // === 页脚细分子号 ===
+        new() { Key = CertificatePrintKeys.FooterStatementFontSize, Value = "8", DisplayName = "页脚说明字号", Remark = "页脚第1行" },
+        new() { Key = CertificatePrintKeys.FooterTextFontSize, Value = "8", DisplayName = "页脚三栏字号", Remark = "备注/盖章/签发人" },
+    };
+
+    /// <summary>默认列定义：与种子迁移 SeedCertificatePrintColumnDefinition（48 行）保持一致</summary>
+    private static List<CertificatePrintColumnDefinitionDto> GetDefaultColumns()
+    {
+        var list = new List<CertificatePrintColumnDefinitionDto>(48);
+        void Add(string block, string key, string label, string labelEn, int idx, int weight)
+            => list.Add(new CertificatePrintColumnDefinitionDto { BlockKey = block, FieldKey = key, Label = label, LabelEn = labelEn, Visible = true, ColumnIndex = idx, ColumnWeight = weight });
+
+        // 基本信息（4）
+        Add("BasicInfo", "CustomerName", "客户名称", "Customer Name", 1, 3);
+        Add("BasicInfo", "ProductStandard", "产品标准", "Product Standard", 2, 3);
+        Add("BasicInfo", "ProductName", "产品名称", "Product Name", 3, 3);
+        Add("BasicInfo", "DeliveryStatus", "交货状态", "Delivery Status", 4, 2);
+
+        // 物料信息（8）
+        Add("Material", "ProductionBatchNo", "生产批号", "Batch No.", 1, 4);
+        Add("Material", "HeatNo", "炉号", "Heat No.", 2, 4);
+        Add("Material", "SteelGrade", "牌号", "Steel Grade", 3, 3);
+        Add("Material", "Specification", "规格", "Specification", 4, 4);
+        Add("Material", "LengthDesc", "长度", "Length", 5, 3);
+        Add("Material", "Quantity", "支数", "Qty", 6, 2);
+        Add("Material", "Meters", "米数", "Meters", 7, 3);
+        Add("Material", "Weight", "重量(kg)", "Weight (kg)", 8, 3);
+
+        // 化学成分（16 = 元素 + C~W 15 元素）
+        Add("Chemistry", "Element", "元素", "Element", 1, 2);
+        var chemKeys = new[] { "C", "Si", "Mn", "P", "S", "Ni", "Cr", "Mo", "Cu", "N", "Nb", "Ti", "Fe", "Al", "W" };
+        var chemEn = new[] { "Carbon", "Silicon", "Manganese", "Phosphorus", "Sulfur", "Nickel", "Chromium", "Molybdenum", "Copper", "Nitrogen", "Niobium", "Titanium", "Iron", "Aluminum", "Tungsten" };
+        for (int i = 0; i < chemKeys.Length; i++)
+            Add("Chemistry", chemKeys[i], chemKeys[i], chemEn[i], i + 2, 2);
+
+        // 检验检测（20 = 成品检验 9 + 理化检测 11）
+        Add("Inspection", "Pmi", "PMI", "PMI", 1, 2);
+        Add("Inspection", "Visual", "表检", "Visual Inspection", 2, 2);
+        Add("Inspection", "Dimension", "尺寸", "Dimension", 3, 2);
+        Add("Inspection", "Endoscopy", "内窥", "Endoscopy", 4, 2);
+        Add("Inspection", "Hydro", "水压", "Hydrostatic Test", 5, 2);
+        Add("Inspection", "UnderwaterPneumatic", "水下气压", "Underwater Pressure", 6, 2);
+        Add("Inspection", "EddyCurrent", "涡流", "Eddy Current", 7, 2);
+        Add("Inspection", "Ultrasonic", "超声波", "Ultrasonic Test", 8, 2);
+        Add("Inspection", "PortDye", "端口着色", "Port Coloring", 9, 2);
+        Add("Inspection", "TensileStrength", "抗拉强度", "Tensile Strength", 10, 3);
+        Add("Inspection", "YieldRp02", "屈服Rp0.2", "Yield Rp0.2", 11, 3);
+        Add("Inspection", "YieldRp10", "屈服Rp1.0", "Yield Rp1.0", 12, 3);
+        Add("Inspection", "Elongation", "伸长率", "Elongation", 13, 3);
+        Add("Inspection", "Hardness", "硬度", "Hardness", 14, 3);
+        Add("Inspection", "GrainSize", "晶粒度", "Grain Size", 15, 3);
+        Add("Inspection", "Ferrite", "铁素体", "Ferrite Content", 16, 3);
+        Add("Inspection", "Expanding", "扩口", "Expanding Test", 17, 3);
+        Add("Inspection", "Flattening", "压扁", "Flattening Test", 18, 3);
+        Add("Inspection", "Intergranular", "晶间腐蚀", "Intergranular Corrosion", 19, 3);
+        Add("Inspection", "Pitting", "点蚀", "Pitting", 20, 3);
+
+        return list;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    /// <summary>从数据库加载：版式配置 DB 权威覆盖默认，缺项保留默认；字段布局 DB 覆盖默认列；失败回退默认</summary>
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var db = await Svc.GetAllAsync();
+            if (db is { Count: > 0 })
+            {
+                var dbMap = db.ToDictionary(x => x.Key, StringComparer.OrdinalIgnoreCase);
+                _items = GetDefaultItems().Select(def =>
+                {
+                    if (dbMap.TryGetValue(def.Key, out var cfg))
+                    {
+                        def.Id = cfg.Id;
+                        def.Value = cfg.Value;
+                        def.DisplayName = cfg.DisplayName;
+                        def.Remark = cfg.Remark;
+                    }
+                    return def;
+                }).ToList();
+            }
+            else
+            {
+                _items = GetDefaultItems();
+            }
+
+            _columns = await LoadColumnsAsync();
+        }
+        catch
+        {
+            _items = GetDefaultItems();
+            _columns = GetDefaultColumns();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>从数据库加载列配置：DB 覆盖默认列，未配置字段保留默认；追加 DB 有但默认缺失的字段；失败兜底默认</summary>
+    private async Task<List<CertificatePrintColumnDefinitionDto>> LoadColumnsAsync()
+    {
+        var defaults = GetDefaultColumns();
+        try
+        {
+            var db = await ColSvc.GetAllAsync();
+            if (db is not { Count: > 0 }) return defaults;
+
+            var dbMap = db.ToDictionary(x => $"{x.BlockKey}|{x.FieldKey}", StringComparer.OrdinalIgnoreCase);
+            var result = new List<CertificatePrintColumnDefinitionDto>();
+            foreach (var def in defaults)
+            {
+                if (dbMap.TryGetValue($"{def.BlockKey}|{def.FieldKey}", out var cfg))
+                {
+                    def.Label = cfg.Label;
+                    def.LabelEn = cfg.LabelEn;
+                    def.Visible = cfg.Visible;
+                    def.ColumnIndex = cfg.ColumnIndex;
+                    def.ColumnWeight = cfg.ColumnWeight;
+                }
+                result.Add(def);
+            }
+
+            // 追加数据库存在但默认列表缺失的字段（极端情况）
+            var known = result.Select(r => $"{r.BlockKey}|{r.FieldKey}").ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var cfg in db.Where(c => !known.Contains($"{c.BlockKey}|{c.FieldKey}")))
+            {
+                result.Add(new CertificatePrintColumnDefinitionDto
+                {
+                    BlockKey = cfg.BlockKey,
+                    FieldKey = cfg.FieldKey,
+                    Label = cfg.Label,
+                    LabelEn = cfg.LabelEn,
+                    Visible = cfg.Visible,
+                    ColumnIndex = cfg.ColumnIndex,
+                    ColumnWeight = cfg.ColumnWeight
+                });
+            }
+
+            return result
+                .OrderBy(c => BlockOrder(c.BlockKey))
+                .ThenBy(c => c.ColumnIndex)
+                .ToList();
+        }
+        catch
+        {
+            return defaults;
+        }
+    }
+
+    /// <summary>区块内上移/下移列顺序（交换 ColumnIndex 后归一化连续）</summary>
+    private void MoveFormatColumn(CertificatePrintColumnDefinitionDto col, int delta)
+    {
+        var blockItems = _columns.Where(c => c.BlockKey == col.BlockKey).OrderBy(c => c.ColumnIndex).ThenBy(c => c.FieldKey).ToList();
+        var idx = blockItems.FindIndex(c => ReferenceEquals(c, col));
+        var target = idx + delta;
+        if (idx < 0 || target < 0 || target >= blockItems.Count) return;
+
+        (col.ColumnIndex, blockItems[target].ColumnIndex) = (blockItems[target].ColumnIndex, col.ColumnIndex);
+        var reordered = _columns.Where(c => c.BlockKey == col.BlockKey).OrderBy(c => c.ColumnIndex).ToList();
+        for (int i = 0; i < reordered.Count; i++)
+            reordered[i].ColumnIndex = i + 1;
+    }
+
+    private async Task Save()
+    {
+        _isSubmitting = true;
+        try
+        {
+            var r = await Svc.SaveAllAsync(_items);
+            if (r.Success)
+            {
+                var c = await ColSvc.SaveAllAsync(_columns);
+                if (c.Success)
+                {
+                    Snackbar.Add($"打印设置已保存（版式 {r.Data} 行 / 字段 {c.Data} 行）", Severity.Success);
+                    MudDialog.Close();
+                }
+                else
+                {
+                    Snackbar.Add($"字段布局保存失败: {c.Message}", Severity.Error);
+                }
+            }
+            else
+            {
+                Snackbar.Add(r.Message ?? "保存失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private async Task ResetDefaults()
+    {
+        _items = GetDefaultItems();
+        _columns = GetDefaultColumns();
+        await Save();
+    }
+}

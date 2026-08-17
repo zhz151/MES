@@ -77,11 +77,36 @@
                         重置
                     </MudButton>
                     <MudSpacer />
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="OpenPrintSettings">
+                        打印设置
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="PrintAll">
+                        打印全部
+                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-auto">
                         共 @_totalCount 条记录
                     </MudText>
                 </ToolBarContent>
                 <HeaderContent>
+                    <MudTh Style="width: 40px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
+                    </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTh>
@@ -102,6 +127,12 @@
                     <MudTh Style="width: 120px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
+                    <MudTd Style="width: 40px;">
+                        <MudCheckBox T="bool"
+                                     Value="@selectedIds.Contains(item.Id)"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTd>@RenderCell(item, col)</MudTd>
@@ -120,6 +151,7 @@
                     </MudTd>
                 </RowTemplate>
                 <FooterContent>
+                    <MudTd Class="col-footer-cell"></MudTd>
                     @foreach (var col in _visibleColumns)
                     {
                         <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>

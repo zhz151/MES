@@ -143,6 +143,8 @@ builder.Services.AddScoped<EnumDisplayDefinitionService>();
 builder.Services.AddScoped<DictValueDefinitionService>();
 builder.Services.AddScoped<ProcessCardColumnDefinitionService>();
 builder.Services.AddScoped<ProcessCardStyleDefinitionService>();
+builder.Services.AddScoped<CertificatePrintSettingService>();
+builder.Services.AddScoped<CertificatePrintColumnDefinitionService>();
 
 // ========== 报表 ==========
 builder.Services.AddScoped<ReportService>();
