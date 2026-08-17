@@ -126,6 +126,39 @@ public partial class AppDbContext
                 .HasDatabaseName("UK_DVD_DictKey_Value");
         });
     }
+    private static void ConfigureProcessCardColumnDefinition(ModelBuilder builder)
+    {
+        builder.Entity<ProcessCardColumnDefinition>(entity =>
+        {
+            entity.ToTable("ProcessCardColumnDefinitions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.BlockKey).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FieldKey).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Label).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Visible).IsRequired();
+            entity.Property(e => e.RowIndex).IsRequired();
+            entity.Property(e => e.ColumnIndex).IsRequired();
+            entity.Property(e => e.ColumnWeight).IsRequired();
+            entity.HasIndex(e => new { e.BlockKey, e.FieldKey })
+                .IsUnique()
+                .HasDatabaseName("UK_PCCD_BlockKey_FieldKey");
+        });
+    }
+    private static void ConfigureProcessCardStyleDefinition(ModelBuilder builder)
+    {
+        builder.Entity<ProcessCardStyleDefinition>(entity =>
+        {
+            entity.ToTable("ProcessCardStyleDefinitions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Key).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Value).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            entity.HasIndex(e => e.Key)
+                .IsUnique()
+                .HasDatabaseName("UK_PCSD_Key");
+        });
+    }
     private static void ConfigureConfigParameter(ModelBuilder builder)
     {
         builder.Entity<ConfigParameter>(entity =>

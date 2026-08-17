@@ -58,7 +58,7 @@ public class BatchServiceTests : TestBase
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    private BatchService CreateService(AppDbContext ctx, Mock<IProductionRecordService>? prodRecordMock = null, Mock<IFinalInspectionService>? finalInspectionMock = null, Mock<IWorkOrderExecutionService>? workOrderExecMock = null)
+    private BatchService CreateService(AppDbContext ctx, Mock<IProductionRecordService>? prodRecordMock = null, Mock<IFinalInspectionService>? finalInspectionMock = null, Mock<IWorkOrderExecutionService>? workOrderExecMock = null, Mock<IProcessCardColumnDefinitionService>? pccMock = null)
     {
         var loggerMock = new Mock<ILogger<BatchService>>();
         prodRecordMock ??= new Mock<IProductionRecordService>();
@@ -69,7 +69,27 @@ public class BatchServiceTests : TestBase
         workOrderExecMock ??= new Mock<IWorkOrderExecutionService>();
         var materialPlanMock = new Mock<IMaterialPlanService>();
         var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, finalInspectionMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new Mock<IOperationLogService>().Object, qptMock.Object, new Mock<INotificationService>().Object, new Mock<ISectionNameDisplayService>().Object, CreateProcessDefinitionServiceMock(), new MemoryCache(new MemoryCacheOptions()));
+        pccMock ??= CreateProcessCardColumnDefinitionServiceMock();
+        var styleMock = CreateProcessCardStyleDefinitionServiceMock();
+        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, finalInspectionMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new Mock<IOperationLogService>().Object, qptMock.Object, new Mock<INotificationService>().Object, new Mock<ISectionNameDisplayService>().Object, CreateProcessDefinitionServiceMock(), pccMock.Object, styleMock.Object, new MemoryCache(new MemoryCacheOptions()));
+    }
+
+    /// <summary>工艺卡列布局配置服务 mock：默认返回空配置映射（打印合并时请求列全部走兜底）</summary>
+    private static Mock<IProcessCardColumnDefinitionService> CreateProcessCardColumnDefinitionServiceMock()
+    {
+        var mock = new Mock<IProcessCardColumnDefinitionService>();
+        mock.Setup(x => x.GetConfigMapAsync())
+            .ReturnsAsync(new Dictionary<string, ProcessCardColumnDefinitionDto>(StringComparer.OrdinalIgnoreCase));
+        return mock;
+    }
+
+    /// <summary>工艺卡版式配置服务 mock：默认返回空样式映射（打印时全部回退硬编码默认值）</summary>
+    private static Mock<IProcessCardStyleDefinitionService> CreateProcessCardStyleDefinitionServiceMock()
+    {
+        var mock = new Mock<IProcessCardStyleDefinitionService>();
+        mock.Setup(x => x.GetStyleMapAsync())
+            .ReturnsAsync(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+        return mock;
     }
 
     // ========== 种子数据辅助方法 ==========
@@ -1328,6 +1348,64 @@ public class BatchServiceTests : TestBase
         pdfBytes.Should().NotBeNull();
         pdfBytes.Should().NotBeEmpty();
         pdfBytes[0].Should().Be((byte)'%');
+    }
+
+    [Fact]
+    public async Task PrintProcessCardAsync_格式设置配置覆盖请求列_成功生成PDF()
+    {
+        var ctx = CreateDbContext();
+        var pccMock = CreateProcessCardColumnDefinitionServiceMock();
+        pccMock.Setup(x => x.GetConfigMapAsync())
+            .ReturnsAsync(new Dictionary<string, ProcessCardColumnDefinitionDto>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["BatchInfo|BatchNo"] = new()
+                {
+                    BlockKey = "BatchInfo",
+                    FieldKey = "BatchNo",
+                    Label = "生产编号",
+                    Visible = true,
+                    RowIndex = 1,
+                    ColumnIndex = 1,
+                    ColumnWeight = 9
+                }
+            });
+        var svc = CreateService(ctx, pccMock: pccMock);
+
+        var created = await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            WorkOrderNo = "非工单",
+            TagNo = "CARD-CONFIG",
+            ProductionType = ProductionType.RoughTube,
+            ManufacturingItem = MaterialType.OrderFinished,
+            PlantGrade = "20#",
+            Specification = "219×8",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
+            MaterialName = PipeManufacturingType.SeamlessPipe,
+            LengthStatus = LengthStatus.NonFixed,
+            TotalWeight = 1000m,
+            ProductionRatio = 1,
+            SourcePlantGrade = "20#",
+            SourceSpecification = "219×8",
+            SourceLengthStatus = LengthStatus.NonFixed,
+            InputWeight = 1200m,
+            InputQuantity = 100
+        });
+
+        var pdfBytes = await svc.PrintProcessCardAsync(new ProcessCardPrintRequest
+        {
+            Ids = new[] { created.Id },
+            Columns = new List<ProcessCardColumnDef>
+            {
+                new() { BlockKey = "BatchInfo", Key = "BatchNo", Label = "生产编号", Visible = true },
+                new() { BlockKey = "BatchInfo", Key = "TagNo", Label = "挂牌号", Visible = true, ColumnWeight = 9 }
+            }
+        });
+
+        pdfBytes.Should().NotBeNull();
+        pdfBytes.Should().NotBeEmpty();
+        // 打印链路必须读取格式设置配置（DB 权威覆盖请求列）
+        pccMock.Verify(x => x.GetConfigMapAsync(), Times.Once);
     }
 
     [Fact]

@@ -535,7 +535,6 @@ public partial class MaterialPlanOverview
         {
             MaterialPlanStatus.NotPlanned => Color.Default,
             MaterialPlanStatus.Partial => Color.Warning,
-            MaterialPlanStatus.TheoreticalSatisfied => Color.Info,
             MaterialPlanStatus.Satisfied => Color.Success,
             MaterialPlanStatus.Excess => Color.Default,
             _ => Color.Default

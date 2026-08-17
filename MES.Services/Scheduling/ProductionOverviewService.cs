@@ -51,18 +51,21 @@ public class ProductionOverviewService : IProductionOverviewService
     private readonly IConfigParameterService _configService;
     private readonly IDailyProductionCapacityService _dailyCapacityService;
     private readonly IProcessDefinitionService _processDefService;
+    private readonly IFinalInspectionPlanService _finalInspectionPlanService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public ProductionOverviewService(
         AppDbContext context,
         IConfigParameterService configService,
         IDailyProductionCapacityService dailyCapacityService,
-        IProcessDefinitionService processDefService)
+        IProcessDefinitionService processDefService,
+        IFinalInspectionPlanService finalInspectionPlanService)
     {
         _context = context;
         _configService = configService;
         _dailyCapacityService = dailyCapacityService;
         _processDefService = processDefService;
+        _finalInspectionPlanService = finalInspectionPlanService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -97,17 +100,19 @@ public class ProductionOverviewService : IProductionOverviewService
             {
                 s.DeliveryDate,
                 s.TotalWeight,
-                s.PendingOutsourceFinishWeight,
-                s.PendingRoughTubeWeight,
+                s.FinishPlanWeight,
+                s.FinishInWeight,
                 s.InputWeight,
+                s.FlowOutputRatio,
+                s.RawMaterialLockRemark,
+                s.PendingRoughTubeWeight,
                 s.ScheduleStage,
                 s.WorkOrderNo
             })
             .ToListAsync();
 
-        var stage1TotalWeight = summaries.Where(s => s.ScheduleStage == 2).Sum(s => (decimal)s.TotalWeight);
-        var stage1OutsourceFinishWeight = summaries.Where(s => s.ScheduleStage == 2).Sum(s => (decimal)s.PendingOutsourceFinishWeight);
-        var stage1InputWeight = summaries.Where(s => s.ScheduleStage == 2).Sum(s => (decimal)s.InputWeight);
+        // ScheduleStage==2（原料锁定）工单：行0 成品在购 / 行1 待投料 与原锁计划同源
+        var stage2Summaries = summaries.Where(s => s.ScheduleStage == 2).ToList();
 
         // ========== 批次数据 ==========
         var batches = await _context.Set<ProductionBatch>()
@@ -148,13 +153,14 @@ public class ProductionOverviewService : IProductionOverviewService
         var groupsByBatch = processGroups.GroupBy(pg => pg.ProductionBatchId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // ========== 行 0: 成品采购在购 ==========
+        // ========== 行 0: 成品在购（与原锁计划「成购」口径对齐） ==========
+        // 成购 = 成品计划量 − 已到货量（缺口口径，外购由供应商生产、本厂不投料）
         var row0BucketTons = new List<decimal>();
         foreach (var bucket in buckets)
         {
-            var tons = summaries
+            var tons = stage2Summaries
                 .Where(s => IsInBucket(s.DeliveryDate, bucket))
-                .Sum(s => s.PendingOutsourceFinishWeight);
+                .Sum(s => Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight));
             row0BucketTons.Add(ConvertToTons(tons));
         }
 
@@ -163,26 +169,27 @@ public class ProductionOverviewService : IProductionOverviewService
             Seq = 0,
             Category = "成品在购",
             Section = "",
-            InProcurementTons = ConvertToTons(summaries.Sum(s => s.PendingOutsourceFinishWeight)),
+            InProcurementTons = ConvertToTons(stage2Summaries.Sum(s => Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight))),
             TotalRemainingTons = null,
             EstDays = null,
             EstDeadline = null,
             DateBucketTons = row0BucketTons
         });
 
-        // ========== 行 1: 待投料[含在购荒管] ==========
-        // 成品重量 → 原料重量按配置倍率换算（TotalWeight/PendingOutsourceFinishWeight 为成品重）
+        // ========== 行 1: 待投料[含在购荒管]（与原锁计划「待投料」口径对齐） ==========
+        // 成品重量 → 原料重量按配置倍率换算（TotalWeight 为成品重）
+        // 成购扣减 = 成品计划量 − 已到货量（缺口口径，外购由供应商生产、本厂不投料）
+        // 质量补料（A）：(总重−成购)×1.1×(1−流转比/100)——投料已满足但产出不足，按流转比缺口折算，不减已投料
+        // 其他：(总重−成购)×1.1 − 已投料；逐工单 Max(0) 后再汇总（与原锁计划待投料矩阵同口径）
         var rawRatio = await GetConfigAsync("ProcessingDiscount", "RawMaterialRatio", 1.1m);
-        var row1Remaining = stage1TotalWeight * rawRatio - stage1OutsourceFinishWeight * rawRatio - stage1InputWeight;
+        var row1Remaining = stage2Summaries.Sum(s => CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
         var row1BucketTons = new List<decimal>();
         foreach (var bucket in buckets)
         {
-            var stage1InBucket = summaries
-                .Where(s => s.ScheduleStage == 2 && IsInBucket(s.DeliveryDate, bucket));
-            var total = stage1InBucket.Sum(s => s.TotalWeight);
-            var outsource = stage1InBucket.Sum(s => s.PendingOutsourceFinishWeight);
-            var input = stage1InBucket.Sum(s => s.InputWeight);
-            row1BucketTons.Add(ConvertToTons(Math.Max(0, total * rawRatio - outsource * rawRatio - input)));
+            var tons = stage2Summaries
+                .Where(s => IsInBucket(s.DeliveryDate, bucket))
+                .Sum(s => CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
+            row1BucketTons.Add(ConvertToTons(tons));
         }
 
         rows.Add(new OverviewRowDto
@@ -229,16 +236,16 @@ public class ProductionOverviewService : IProductionOverviewService
         var dailyDrawBench = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.DrawBench, 3m);
         var sections = new[]
         {
-            (Seq: 3, Section: "荒管抛光", DailyCapacity: dailyPolish),
-            (Seq: 4, Section: "50,60轧机", DailyCapacity: dailyMill50_60),
-            (Seq: 5, Section: "20,30轧机", DailyCapacity: dailyMill20_30),
-            (Seq: 6, Section: "三辊轧机", DailyCapacity: dailyThreeRoll),
-            (Seq: 7, Section: "拉机", DailyCapacity: dailyDrawBench),
+            (Seq: 3, Key: "荒管抛光", Section: "[待]荒管抛光", DailyCapacity: dailyPolish),
+            (Seq: 4, Key: "50,60轧机", Section: "[待]冷轧5060", DailyCapacity: dailyMill50_60),
+            (Seq: 5, Key: "20,30轧机", Section: "[待]冷轧2030", DailyCapacity: dailyMill20_30),
+            (Seq: 6, Key: "三辊轧机", Section: "[待]冷轧三辊", DailyCapacity: dailyThreeRoll),
+            (Seq: 7, Key: "拉机", Section: "[待]冷拔", DailyCapacity: dailyDrawBench),
         };
 
         int maxProdEstDays = 0;
 
-        foreach (var (seq, sectionName, dailyCapacity) in sections)
+        foreach (var (seq, sectionKey, sectionName, dailyCapacity) in sections)
         {
             decimal totalPending = 0;
             var matchedBatchData = new List<(DateTime DeliveryDate, decimal Weight)>();
@@ -253,11 +260,11 @@ public class ProductionOverviewService : IProductionOverviewService
                 {
                     var pg = pgs[i];
 
-                    if (!ClassifySection(pg, sectionName, coldRollKeys)) continue;
+                    if (!ClassifySection(pg, sectionKey, coldRollKeys)) continue;
 
                     // 判断是否尚未到达此工段
                     // 荒管抛光使用工段级比较（不依赖 CurrentSectionCompleted）
-                    bool isNotReached = sectionName == "荒管抛光"
+                    bool isNotReached = sectionKey == "荒管抛光"
                         ? IsNotReachedBySection(
                             batch.CurrentGroupName, batch.CurrentSectionName,
                             pgs, pg, SectionDefs.OuterPolish)
@@ -303,46 +310,16 @@ public class ProductionOverviewService : IProductionOverviewService
             });
         }
 
-        // ========== 行 8: 成品检验（成检计划中 待检验+检验中 的重量汇总） ==========
-        var rcBatchIds = await _context.MaterialReceiveChecks
-            .AsNoTracking()
-            .Where(rc => !rc.IsForceCompleted)
-            .Select(rc => rc.ProductionBatchId)
-            .ToListAsync();
-        var receivedIds = rcBatchIds.ToHashSet();
-
-        var inspectedBatchIds = await _context.FinalInspections
-            .AsNoTracking()
-            .Select(fi => fi.ProductionBatchId)
-            .Distinct()
-            .ToListAsync();
-        var inspectedIds = inspectedBatchIds.ToHashSet();
-
-        var warehouseBatchNos = await _context.InventoryBatches
-            .AsNoTracking()
-            .Where(ib => ib.ProductionBatchNo != null)
-            .Select(ib => ib.ProductionBatchNo!)
-            .Distinct()
-            .ToListAsync();
-        var warehousedNos = warehouseBatchNos.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var fiBatches = await _context.ProductionBatches
-            .AsNoTracking()
-            .Where(b => receivedIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.CurrentValidWeight, b.BatchNo })
-            .ToListAsync();
-
-        decimal fiPendingWeight = 0;
-        foreach (var b in fiBatches)
-        {
-            var isInspected = inspectedIds.Contains(b.Id);
-            var isWarehoused = b.BatchNo != null && warehousedNos.Contains(b.BatchNo);
-            // 待检验：未检验；检验中：已检验但未入库
-            if (!isInspected || (isInspected && !isWarehoused))
-            {
-                fiPendingWeight += (b.CurrentValidWeight ?? 0);
-            }
-        }
+        // ========== 行 8: 成品检验（与成检计划看板口径对齐） ==========
+        // 复用成检计划看板：候选=批次状态 InFinalInspection；档位=待到料/待检验/检验中/完成检验待入库。
+        // 本行汇总「待检验+检验中」两档的生产重量（非定尺=批次理论成品重量；定尺=单支重×生产支数），
+        // 预/正式合并、按批次去重——与成检计划 GetSummaryAsync.SummarizePending 完全同口径。
+        var kanban = await _finalInspectionPlanService.GetKanbanAsync();
+        var fiPendingWeight = kanban
+            .Where(x => x.KanbanStage is "待检验" or "检验中")
+            .GroupBy(x => x.ProductionBatchId)
+            .Select(g => g.First())
+            .Sum(x => x.ProductionWeight ?? 0m);
 
         var row8BucketTons = buckets.Select(_ => 0m).ToList();
         rows.Add(new OverviewRowDto
@@ -555,5 +532,20 @@ public class ProductionOverviewService : IProductionOverviewService
     private static decimal ConvertToTons(decimal kg)
     {
         return Math.Round(kg / 1000m, 0);
+    }
+
+    /// <summary>
+    /// 单工单待投料计算（与原锁计划 RecalculateSummary.pendingCalc 口径一致）：
+    /// 成购缺口 = Max(0, 成品计划量 − 已到货量)；质量补料（A）按流转比缺口折算不减已投料，其余减已投料；逐工单 Max(0)。
+    /// </summary>
+    private static decimal CalcPending(
+        decimal totalWeight, decimal finishPlanWeight, decimal finishInWeight,
+        decimal inputWeight, decimal flowOutputRatio, string? rawMaterialLockRemark, decimal rawRatio)
+    {
+        var purchase = Math.Max(0m, finishPlanWeight - finishInWeight);
+        var baseVal = (totalWeight - purchase) * rawRatio;
+        return RawMaterialLockRemarkKeys.ToKey(rawMaterialLockRemark) == RawMaterialLockRemarkKeys.QualityReplenish
+            ? Math.Max(0m, baseVal * (1m - flowOutputRatio / 100m))
+            : Math.Max(0m, baseVal - inputWeight);
     }
 }

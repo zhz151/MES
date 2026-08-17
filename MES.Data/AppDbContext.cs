@@ -134,6 +134,8 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<EnumDisplayDefinition> EnumDisplayDefinitions { get; set; } = null!;
     public DbSet<DictValueDefinition> DictValueDefinitions { get; set; } = null!;
     public DbSet<ConfigParameter> ConfigParameters { get; set; } = null!;
+    public DbSet<ProcessCardColumnDefinition> ProcessCardColumnDefinitions { get; set; } = null!;
+    public DbSet<ProcessCardStyleDefinition> ProcessCardStyleDefinitions { get; set; } = null!;
     public DbSet<DailyOutputEstimate> DailyOutputEstimates { get; set; } = null!;
     public DbSet<DailyProductionCapacity> DailyProductionCapacities { get; set; } = null!;
     public DbSet<Workstation> Workstations { get; set; } = null!;
@@ -254,6 +256,8 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureEnumDisplayDefinition(builder);
         ConfigureDictValueDefinition(builder);
         ConfigureConfigParameter(builder);
+        ConfigureProcessCardColumnDefinition(builder);
+        ConfigureProcessCardStyleDefinition(builder);
         ConfigureDailyOutputEstimate(builder);
         ConfigureDailyProductionCapacity(builder);
         ConfigureEmployee(builder);

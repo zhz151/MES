@@ -174,15 +174,14 @@ public static class IntStatusDisplayHelper
 
     // ========== 用料计划状态（MaterialPlanStatus，实体存 int，DTO 转枚举显示） ==========
 
-    /// <summary>用料计划状态筛选选项（MaterialPlanStatus 5 档：0=未计划 1=部分 2=理论满足 3=满足 4=超量）。
+    /// <summary>用料计划状态筛选选项（MaterialPlanStatus 4 档：0=未计划 1=部分 2=满足 3=超量）。
     /// 实体存 int，筛选 Value 用档位数字；Display 与 EnumHelper 中 MaterialPlanStatus 中文一致</summary>
     public static List<EnumDisplayOptionDto> GetMaterialPlanStatusOptions() => new()
     {
         new EnumDisplayOptionDto { Value = "0", DisplayName = "未计划" },
         new EnumDisplayOptionDto { Value = "1", DisplayName = "部分" },
-        new EnumDisplayOptionDto { Value = "2", DisplayName = "理论满足" },
-        new EnumDisplayOptionDto { Value = "3", DisplayName = "满足" },
-        new EnumDisplayOptionDto { Value = "4", DisplayName = "超量" }
+        new EnumDisplayOptionDto { Value = "2", DisplayName = "满足" },
+        new EnumDisplayOptionDto { Value = "3", DisplayName = "超量" }
     };
 
     // ========== 用料计划执行 5 档筛选选项（G4~G10 共用） ==========

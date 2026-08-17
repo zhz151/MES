@@ -27,7 +27,7 @@ const REPORT_DIR = path.resolve(__dirname, 'report-enums');
 // ============================================================
 const ENUM_MAP = {
   WorkOrderStatus:         { NotGenerated: '未编制', Confirmed: '已确定', Pending: '待修正' },
-  MaterialPlanStatus:      { NotPlanned: '未计划', Partial: '部分', TheoreticalSatisfied: '理论满足', Satisfied: '满足', Excess: '超量' },
+  MaterialPlanStatus:      { NotPlanned: '未计划', Partial: '部分', Satisfied: '满足', Excess: '超量' },
   InventoryPlanStatus:     { Planned: '已计划', Confirmed: '已确认', Cancelled: '已取消' },
   LengthStatus:            { Fixed: '定尺', Range: '范围尺', NonFixed: '非定尺' },
   DeliveryState:           { SolutionAnnealedAndPickled: '固溶酸洗', SolutionAnnealedAndPickledUTube: '固溶酸洗-U型管', SolutionAnnealedAndPickledExternalPolished: '固溶酸洗-外抛光', SolutionAnnealedAndPickledInternalPolished: '固溶酸洗-内抛光', SolutionAnnealedAndPickledBothPolished: '固溶酸洗-内外抛光', SolutionAnnealedAndPickledCoiled: '固溶酸洗-盘管', Bright: '光亮', BrightUTube: '光亮-U型管', BrightCoiled: '光亮-盘管', Hard: '硬态', SolidSolutionStraightening: '固溶矫直' },

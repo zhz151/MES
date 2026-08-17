@@ -389,7 +389,7 @@ public static class DisplayHelper
                                  .Select(o => new EnumOption(o.Value, o.DisplayName))
                                  .ToList();
 
-    /// <summary>用料计划状态筛选选项（int 字段，MaterialPlanStatus 5 档：0=未计划 1=部分 2=理论满足 3=满足 4=超量）</summary>
+    /// <summary>用料计划状态筛选选项（int 字段，MaterialPlanStatus 4 档：0=未计划 1=部分 2=满足 3=超量）</summary>
     public static List<EnumOption> GetMaterialPlanStatusOptions()
         => IntStatusDisplayHelper.GetMaterialPlanStatusOptions()
                                  .Select(o => new EnumOption(o.Value, o.DisplayName))

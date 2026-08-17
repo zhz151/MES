@@ -3157,9 +3157,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (workOrder == null)
             throw new BusinessException("工单不存在");
 
-        var fixedPartial = await GetConfigAsync("MaterialPlanStatus", "FixedPartial", 102m);
         var fixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "FixedSatisfied", 110m);
-        var nonFixedPartial = await GetConfigAsync("MaterialPlanStatus", "NonFixedPartial", 105m);
         var nonFixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "NonFixedSatisfied", 120m);
 
         var dto = new WorkOrderMaterialPlanDto
@@ -3178,8 +3176,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (semiPlans.Any())
         {
             var status = CalculatePlanStatus(workOrder, semiPlans, isSemi: true,
-                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Semi",
@@ -3198,8 +3195,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (finishPlans.Any())
         {
             var status = CalculatePlanStatus(workOrder, finishPlans, isSemi: false,
-                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Finished",
@@ -3222,8 +3218,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (regularInventory.Any())
         {
             var status = CalculateInventoryPlanStatus(workOrder, regularInventory, isRework: false,
-                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Inventory",
@@ -3238,8 +3233,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (reworkPlans.Any())
         {
             var status = CalculateInventoryPlanStatus(workOrder, reworkPlans, isRework: true,
-                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Rework",
@@ -3258,8 +3252,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (piercingPlans.Any())
         {
             var status = CalculatePlanStatus(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true,
-                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Piercing",
@@ -3279,7 +3272,7 @@ public class MaterialPlanService : IMaterialPlanService
         {
             var inProcessRate = CalculateInProcessReworkPlanRate(workOrder, inProcessReworkPlans);
             var inProcessStatus = CalculateOverallStatus(workOrder, inProcessRate,
-                fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
+                fixedSatisfied, nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "InProcessRework",
@@ -3299,7 +3292,7 @@ public class MaterialPlanService : IMaterialPlanService
         {
             var inMainRate = CalculateInMainWorkOrderPlanRate(workOrder, inMainWorkOrderPlans);
             var inMainStatus = CalculateOverallStatus(workOrder, inMainRate,
-                fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
+                fixedSatisfied, nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "InMainWorkOrder",
@@ -3320,9 +3313,7 @@ public class MaterialPlanService : IMaterialPlanService
         if (workOrder == null)
             return;
 
-        var fixedPartial = await GetConfigAsync("MaterialPlanStatus", "FixedPartial", 102m);
         var fixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "FixedSatisfied", 110m);
-        var nonFixedPartial = await GetConfigAsync("MaterialPlanStatus", "NonFixedPartial", 105m);
         var nonFixedSatisfied = await GetConfigAsync("MaterialPlanStatus", "NonFixedSatisfied", 120m);
 
         var semiPlans = await _context.PurchaseSemiPlans
@@ -3373,8 +3364,7 @@ public class MaterialPlanService : IMaterialPlanService
             if (hasSemi)
             {
                 var s = CalculatePlanStatus(workOrder, semiPlans, isSemi: true,
-                    fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                    fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculatePlanRate(workOrder, semiPlans, isSemi: true));
             }
@@ -3382,8 +3372,7 @@ public class MaterialPlanService : IMaterialPlanService
             if (hasFinish)
             {
                 var s = CalculatePlanStatus(workOrder, finishPlans, isSemi: false,
-                    fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                    fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculatePlanRate(workOrder, finishPlans, isSemi: false));
             }
@@ -3391,8 +3380,7 @@ public class MaterialPlanService : IMaterialPlanService
             if (hasInventory)
             {
                 var s = CalculateInventoryPlanStatus(workOrder, regularInventory, isRework: false,
-                    fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                    fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculateInventoryPlanRate(workOrder, regularInventory));
             }
@@ -3400,8 +3388,7 @@ public class MaterialPlanService : IMaterialPlanService
             if (hasRework)
             {
                 var s = CalculateInventoryPlanStatus(workOrder, reworkPlans, isRework: true,
-                    fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                    fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculateInventoryPlanRate(workOrder, reworkPlans));
             }
@@ -3409,8 +3396,7 @@ public class MaterialPlanService : IMaterialPlanService
             if (hasPiercing)
             {
                 var s = CalculatePlanStatus(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true,
-                    fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                    fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculatePlanRate(workOrder, piercingPlans.Cast<BaseEntity>().ToList(), isSemi: false, isPiercing: true));
             }
@@ -3431,20 +3417,18 @@ public class MaterialPlanService : IMaterialPlanService
             var totalRate = Math.Min(rates.Sum(), 999m);
             workOrder.MaterialPlanRate = totalRate;
             workOrder.MaterialPlanStatus = CalculateOverallStatus(workOrder, totalRate,
-                fixedPartial: fixedPartial, fixedSatisfied: fixedSatisfied,
-                nonFixedPartial: nonFixedPartial, nonFixedSatisfied: nonFixedSatisfied);
+                fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
         }
 
         await _context.SaveChangesAsync();
     }
 
     /// <summary>
-    /// 计算单个计划的状态（工单级，含"理论满足"）
+    /// 计算单个计划的状态（工单级，满足率<100%=部分；100%~上限=满足；超出=超量）
     /// </summary>
     private MaterialPlanStatus CalculatePlanStatus(WoEntity workOrder,
         IReadOnlyCollection<BaseEntity> plans, bool isSemi, bool isPiercing = false,
-        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
-        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
+        decimal fixedSatisfied = 110m, decimal nonFixedSatisfied = 120m)
     {
         var rate = CalculatePlanRate(workOrder, plans, isSemi, isPiercing);
 
@@ -3452,7 +3436,6 @@ public class MaterialPlanService : IMaterialPlanService
         {
             // 定尺：支数模式
             if (rate < 100m) return MaterialPlanStatus.Partial;
-            if (rate < fixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
             if (rate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
@@ -3460,7 +3443,6 @@ public class MaterialPlanService : IMaterialPlanService
         {
             // 范围尺/非定尺：重量模式
             if (rate < 100m) return MaterialPlanStatus.Partial;
-            if (rate < nonFixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
             if (rate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
@@ -3592,51 +3574,45 @@ public class MaterialPlanService : IMaterialPlanService
     }
 
     /// <summary>
-    /// 计算库存使用计划状态（工单级，含"理论满足"）
+    /// 计算库存使用计划状态（工单级，满足率<100%=部分；100%~上限=满足；超出=超量）
     /// </summary>
     private MaterialPlanStatus CalculateInventoryPlanStatus(WoEntity workOrder,
         IReadOnlyCollection<InventoryPlan> plans, bool isRework = false,
-        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
-        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
+        decimal fixedSatisfied = 110m, decimal nonFixedSatisfied = 120m)
     {
         var rate = CalculateInventoryPlanRate(workOrder, plans);
 
         if (workOrder.LengthStatus == LengthStatus.Fixed)
         {
             if (rate < 100m) return MaterialPlanStatus.Partial;
-            if (rate < fixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
             if (rate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
         else
         {
             if (rate < 100m) return MaterialPlanStatus.Partial;
-            if (rate < nonFixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
             if (rate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
     }
 
     /// <summary>
-    /// 基于总满足率计算整体状态
+    /// 基于总满足率计算整体状态（工单级，满足率<100%=部分；100%~上限=满足；超出=超量）
     /// </summary>
     private static MaterialPlanStatus CalculateOverallStatus(WoEntity workOrder, decimal totalRate,
-        decimal fixedPartial = 102m, decimal fixedSatisfied = 110m,
-        decimal nonFixedPartial = 105m, decimal nonFixedSatisfied = 120m)
+        decimal fixedSatisfied = 110m, decimal nonFixedSatisfied = 120m)
     {
         if (totalRate <= 0) return MaterialPlanStatus.NotPlanned;
 
         if (workOrder.LengthStatus == LengthStatus.Fixed)
         {
             if (totalRate < 100m) return MaterialPlanStatus.Partial;
-            if (totalRate < fixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
             if (totalRate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
         else
         {
             if (totalRate < 100m) return MaterialPlanStatus.Partial;
-            if (totalRate < nonFixedPartial) return MaterialPlanStatus.TheoreticalSatisfied;
             if (totalRate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }

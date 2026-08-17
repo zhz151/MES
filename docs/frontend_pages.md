@@ -1,6 +1,6 @@
 # MES 前端页面结构参考
 
-> 生成日期：2026-08-15（V21）
+> 生成日期：2026-08-17（V22）
 > 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
 
 ---
@@ -499,7 +499,7 @@
 | 30 | QualityProcessTracking.razor | /quality/process-tracking | 质量 | | 只读列表 |
 | 31 | Ncrs.razor | /quality/ncr | 质量 | | 列表页+分页汇总 |
 | 32 | OrderDemandAdjustment.razor | /order-demand-adjustment | 工单 | ✅ | 内联编辑催单/分批/暂停开关及调整备注 |
-| 33 | RawMaterialLockPlanAndExecution.razor | /raw-material-lock-plan | 计划排程 | ✅ | 汇总栏（工单总数/成品在购/待投料 + 紧急性5档分解 + 预执行(外购/投料) 区分）+ G15 预执行 MudSwitch 内联编辑 + BudgetInputDate 日期输入 + 主号齐全系统计算（LEFT JOIN 实时查询，无计划安排按钮） |
+| 33 | RawMaterialLockPlanAndExecution.razor | /raw-material-lock-plan | 计划排程 | ✅ | 汇总栏（工单总数/成品在购/待投料 + 紧急性5档分解 + 预执行(外购/投料) 区分）+ G15 预执行 MudSwitch 内联编辑 + BudgetInputDate 日期输入 + 主号齐全系统计算（LEFT JOIN 实时查询，无计划安排按钮）；右上角「待投料量汇总」按钮（2026-08-17 起由原工具栏"汇总"改名并移右上角，展开汇总卡片，内含待投料+成购两矩阵表 + 打印） |
 | 34 | StandardWorkDays.razor | /standard-work-days | 配置 | ✅ | 查改一体表 |
 | 35 | StandardWorkDayDeliveryStates.razor | /standard-work-day-delivery-states | 配置 | ✅ | 查改一体表 |
 | 36 | ConfigParameters.razor | /config-parameters | 配置 | ✅ | 查改一体表 |
@@ -512,7 +512,7 @@
 | 43 | Employees.razor | /employees | 配置 | ✅ | 查改一体表 |
 | 44 | ColdRollPlans.razor | /cold-roll-plans | 计划排程 | | 冷轧按规格维度聚合时间桶分布计划 + 简化/明细视图切换 + 打印功能 + 排程编辑模式（在轧要求/待轧要求/待轧序/待轧设备号）+ 搜索栏+ExcelFilter列筛选 |
 | 45 | BatchPlans.razor | /batch-plans | 计划排程 | | 全量加载 Items 模式 + 17 工段 Tab 筛选（冷轧类前移，检验类为荒管检/在制检，过程检/成品检 Tab 已删除）+ 列分组标题栏 + 列显隐（永久隐藏 22 列：冷轧排程 5 组 + 工单需求调整 + 批次基础信息多余字段）+ 客户端排序/筛选 + 6 项 Tab 汇总（批次数/总重量/计划流转批次/重量/计划重点批次/重量，重点按 PlanFlowLevel==1 急+）+ 汇总重量单位吨(t) + G13 批次计划组只读（仅抢单/计划备注内联编辑） |
-| 46 | FinalInspectionPlan.razor | /final-inspection-plan | 计划排程 | | 全量加载 Items 模式 + 四档Tab(全部/待到料/待检验/检验中) + Tab 汇总 + 客户排序/筛选 + 列分组 G1-G4 + 紧急程度 MudChip 颜色渲染 |
+| 46 | FinalInspectionPlan.razor | /final-inspection-plan | 计划排程 | | 全量加载 Items 模式 + 五档Tab(全部/待到料/待检验/检验中/完成检验待入库) + 待检批支重汇总卡片（行=检验项，列=检验项/待到料/待检验+检验中/汇总数据，0值显"-"，可打印）+ 客户排序/筛选 + 列分组 G1-G6（G1批次/G2排程/G3成检状态/G4技术要求检验项/G5各项检验日期/G6数量）+ 紧急程度 MudChip 颜色渲染 |
 | 47 | StandardRegisters.razor | /standard-registers | 生产标准 | | ExcelFilter 列筛选 + RenderCell 模板 + FooterContent 分页汇总 + 导航至详情页；Save/SaveItem 返回 Id 防 SeqNo 重复 |
 | 48 | GradeChemicalCompositions.razor | /grade-chemical-compositions | 生产标准 | ✅ | 15元素内联编辑 + 全列ExcelFilter(17列) + 列显隐 |
 | 49 | GradePhysicalProperties.razor | /grade-physical-properties | 生产标准 | ✅ | 12物理性能字段内联编辑 + 全列ExcelFilter(12列) + 列显隐 |
@@ -582,6 +582,8 @@
 ---
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
+>
+> **最后更新：2026-08-17（V22）** — 成检计划 #46 描述更新：四档Tab→五档Tab（新增完成检验待入库档）、列分组 G1-G4→G1-G6（含技术要求检验项组）、新增待检批支重汇总卡片说明；原锁计划 #33 汇总按钮改名「待投料量汇总」移右上角 + 展开卡片含待投料/成购两矩阵表 + 打印
 >
 > **最后更新：2026-08-15（V21）** — 文档失效内容清理：§1 计划排程 8→6 页（工段待产量/工段流转分析已从菜单移除，§2.3 同步删菜单项并注明页面/接口保留）；配置上下文 8→13 页（新增生产-段落日产配置/生产-组合归类表/生产-工序组定义/参数-枚举显示配置/参数-字典显示配置）；§2.10 与 §2.12 参数表菜单、路由前缀、列表页清单同步更新；§3 列表页 #37/#38 标注"已从菜单移除"、#45 检验类 Tab 描述更正（过程检/成品检已删）、补入 #67-#71 五个新配置列表页，计数 66→71
 >

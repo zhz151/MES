@@ -44,7 +44,7 @@ namespace MES.Services.Printing;
 /// </summary>
 public static class ProcessCardPrintHelper
 {
-    public static byte[] GeneratePdf(string title, List<ProductionBatch> batches, List<ProcessCardColumnDef> columns, string? companyName = null, IReadOnlyDictionary<string, string>? sectionNameMap = null, IReadOnlyDictionary<string, string>? processNameMap = null)
+    public static byte[] GeneratePdf(string title, List<ProductionBatch> batches, List<ProcessCardColumnDef> columns, string? companyName = null, IReadOnlyDictionary<string, string>? sectionNameMap = null, IReadOnlyDictionary<string, string>? processNameMap = null, IReadOnlyDictionary<string, string>? style = null)
     {
         var visibleCols = columns.Where(c => c.Visible).ToList();
 
@@ -57,12 +57,14 @@ public static class ProcessCardPrintHelper
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4.Landscape());
-                    page.Margin(20);
-                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
+                    page.Margin(12);
+                    page.DefaultTextStyle(x => x
+                        .FontSize(GetStyleFloat(style, ProcessCardStyleKeys.PageFontSize, 9))
+                        .FontFamily(GetStyleString(style, ProcessCardStyleKeys.PageFontFamily, "华文仿宋")));
 
                     var displayTitle = string.IsNullOrEmpty(companyName) ? title : $"{companyName} - {title}";
-                    page.Header().Element(h => ComposeHeader(h, displayTitle, batch));
-                    page.Content().Element(c => ComposeContent(c, batch, groups, visibleCols, sectionNameMap, processNameMap));
+                    page.Header().Element(h => ComposeHeader(h, displayTitle, batch, style));
+                    page.Content().Element(c => ComposeContent(c, batch, groups, visibleCols, style, sectionNameMap, processNameMap));
                 });
             }
         }).GeneratePdf();
@@ -70,7 +72,7 @@ public static class ProcessCardPrintHelper
 
     // ========== 页眉 ==========
 
-    private static void ComposeHeader(IContainer container, string title, ProductionBatch batch)
+    private static void ComposeHeader(IContainer container, string title, ProductionBatch batch, IReadOnlyDictionary<string, string>? style)
     {
         var qrBytes = QRCodeHelper.GeneratePng(batch.BatchNo);
 
@@ -78,15 +80,23 @@ public static class ProcessCardPrintHelper
         {
             col.Item().Row(row =>
             {
-                row.RelativeItem().AlignCenter().Row(inner =>
+                // 左占位：与右侧生产编号列等宽，保证中间内容视觉上整行居中
+                row.RelativeItem();
+                // 中间：二维码在左、主标题在右，二者整体居中
+                row.RelativeItem(2).AlignCenter().Row(inner =>
                 {
-                    inner.AutoItem().Text(title).FontSize(16).Bold();
-                    inner.AutoItem().PaddingLeft(6).Width(80).Height(80).Image(qrBytes);
+                    inner.AutoItem().Width(60).Height(60).Image(qrBytes);
+                    inner.AutoItem().PaddingLeft(6).PaddingRight(6).AlignMiddle().Text(title)
+                        .FontSize(GetStyleFloat(style, ProcessCardStyleKeys.HeaderFontSize, 20))
+                        .Bold().FontFamily(GetStyleString(style, ProcessCardStyleKeys.HeaderFontFamily, "SimSun"));
+                    // 标题右侧对称二维码
+                    inner.AutoItem().Width(60).Height(60).Image(qrBytes);
                 });
-                row.RelativeItem().AlignRight().Text(t =>
+                // 右侧：生产编号（垂直居中显示）
+                row.RelativeItem().AlignRight().AlignMiddle().Text(t =>
                 {
-                    t.Span("生产编号：").Bold().FontSize(12);
-                    t.Span(batch.BatchNo).FontSize(12);
+                    t.Span("生产编号：").Bold().FontSize(GetStyleFloat(style, ProcessCardStyleKeys.BatchNoFontSize, 12));
+                    t.Span(batch.BatchNo).FontSize(GetStyleFloat(style, ProcessCardStyleKeys.BatchNoFontSize, 12));
                 });
             });
 
@@ -97,74 +107,57 @@ public static class ProcessCardPrintHelper
 
     // ========== 内容 ==========
 
-    private static void ComposeContent(IContainer container, ProductionBatch batch, List<ProcessGroup> groups, List<ProcessCardColumnDef> visibleCols, IReadOnlyDictionary<string, string>? sectionNameMap = null, IReadOnlyDictionary<string, string>? processNameMap = null)
+    private static void ComposeContent(IContainer container, ProductionBatch batch, List<ProcessGroup> groups, List<ProcessCardColumnDef> visibleCols, IReadOnlyDictionary<string, string>? style, IReadOnlyDictionary<string, string>? sectionNameMap = null, IReadOnlyDictionary<string, string>? processNameMap = null)
     {
         container.Column(col =>
         {
             bool anyBlockRendered = false;
 
-            // Block 1: 批次基本信息（多列2行）
+            // 各区块行/列顺序/列宽权重全部由列定义（RowIndex/ColumnIndex/ColumnWeight）动态驱动，
+            // 经格式设置（ProcessCardColumnDefinition 配置表）可调，不再硬编码 rows/rowCols/rowColRatios。
+
+            // Block 1: 批次基本信息（多行）
             var batchInfoFields = GetBatchInfoFields(batch, visibleCols, sectionNameMap, processNameMap);
             if (batchInfoFields.Count > 0)
             {
-                col.Item().Element(c => ComposeBlockTable(c, "批次基本信息", batchInfoFields, rows: 2, rowCols: new[] { 9, 11 },
-                    rowColRatios: new[] { new[] { 2, 2, 2, 2, 1, 3, 2, 2, 2 }, Array.Empty<int>() }));
+                col.Item().Element(c => ComposeBlockTable(c, "批次基本信息", batchInfoFields, style));
                 anyBlockRendered = true;
             }
 
-            // Block 2: 质量要求（多列1行）
+            // Block 2: 质量要求
             var qualityFields = GetQualityFields(batch, visibleCols);
             if (qualityFields.Count > 0)
             {
-                if (anyBlockRendered) col.Item().PaddingTop(2);
-                col.Item().Element(c => ComposeBlockTable(c, "质量要求", qualityFields, rows: 1,
-                    rowColRatios: new[] { new[] { 1, 8 } }));
+                if (anyBlockRendered) col.Item().PaddingTop(1);
+                col.Item().Element(c => ComposeBlockTable(c, "质量要求", qualityFields, style));
                 anyBlockRendered = true;
             }
 
-            // Block 3: 投料信息（多列1行）
+            // Block 3: 投料信息
             var warehouseFields = GetWarehouseFields(batch, visibleCols);
             if (warehouseFields.Count > 0)
             {
-                if (anyBlockRendered) col.Item().PaddingTop(2);
-                col.Item().Element(c => ComposeBlockTable(c, "投料信息", warehouseFields, rows: 1,
-                    rowColRatios: new[] { new[] { 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } }));
+                if (anyBlockRendered) col.Item().PaddingTop(1);
+                col.Item().Element(c => ComposeBlockTable(c, "投料信息", warehouseFields, style));
                 anyBlockRendered = true;
             }
 
-            // Block 4: 工单信息（多列3行）
+            // Block 4: 工单信息（多行）
             var workOrderFields = GetWorkOrderFields(batch, visibleCols);
             if (workOrderFields.Count > 0)
             {
-                if (anyBlockRendered) col.Item().PaddingTop(2);
-                col.Item().Element(c => ComposeBlockTable(c, "工单信息", workOrderFields, rows: 3, rowCols: new[] { 14, 11, 2 },
-                    rowColRatios: new[] { new[] { 4, 3, 1, 1, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2 }, Array.Empty<int>(), new[] { 1, 15 } }));
+                if (anyBlockRendered) col.Item().PaddingTop(1);
+                col.Item().Element(c => ComposeBlockTable(c, "工单信息", workOrderFields, style));
                 anyBlockRendered = true;
             }
 
-            // Block 5: 工序组（独立表格）
+            // Block 5: 工序组（独立表格，列顺序/权重按配置动态）
             var pgColumns = GetProcessGroupColumns(visibleCols);
             if (pgColumns.Count > 0 && groups.Count > 0)
             {
-                if (anyBlockRendered) col.Item().PaddingTop(2);
-                col.Item().Element(c => ComposeBlockTitle(c, "工序组"));
-
-                // 列宽比：冷轧拔→入库（状态字段）为 1，其余描述字段为 3
-                var narrowKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    "ColdRollDraw", "OilPipeCut", "Degrease", "EmulsionWash",
-                    "UltrasonicWash", "ClothPolish", "BrightAnnealing", "Solution",
-                    "Straighten", "Cut", "ThicknessMeasure", "Pickle",
-                    "OuterPolish", "InnerPolish", "InnerGrinding", "OuterSpotGrinding",
-                    "SandBlasting", "ShotBlasting", "Inspection", "WeldingHead",
-                    "Welding", "Lubrication", "Packing", "Warehouse", "Extra1", "Extra2"
-                };
-                var ratios = pgColumns.Select(c =>
-                {
-                    if (c.Key.Equals("Remark", StringComparison.OrdinalIgnoreCase)) return 4;
-                    return narrowKeys.Contains(c.Key) ? 1 : 3;
-                }).ToArray();
-                col.Item().Element(c => ComposeProcessGroupTable(c, groups, pgColumns, ratios, processNameMap));
+                if (anyBlockRendered) col.Item().PaddingTop(1);
+                col.Item().Element(c => ComposeBlockTitle(c, "工序组", style));
+                col.Item().Element(c => ComposeProcessGroupTable(c, groups, pgColumns, style, processNameMap));
             }
 
         });
@@ -173,89 +166,58 @@ public static class ProcessCardPrintHelper
     // ========== 区块组件 ==========
 
     /// <summary>独立区块标题（用于工序组）</summary>
-    private static void ComposeBlockTitle(IContainer container, string title)
+    private static void ComposeBlockTitle(IContainer container, string title, IReadOnlyDictionary<string, string>? style)
     {
         container.Background(Colors.Grey.Lighten4)
             .Border(0.3f).BorderColor(Colors.Grey.Lighten2)
-            .PaddingVertical(2).PaddingHorizontal(6)
-            .Text(title).FontSize(11).Bold().FontColor(Colors.Grey.Darken3);
+            .PaddingVertical(1).PaddingHorizontal(6)
+            .Text(title).FontSize(GetStyleFloat(style, ProcessCardStyleKeys.BlockTitleFontSize, 10))
+            .Bold().FontColor(Colors.Grey.Darken3);
     }
 
     /// <summary>
-    /// 区块数据表格：标题行 + 每行独立表头/数据子行（自动适配列数，无空白占位列）
+    /// 区块数据表格：标题行 + 按所属行（RowIndex）分组逐行渲染。
+    /// 每行字段按列顺序（ColumnIndex）升序排列，列宽按列权重（ColumnWeight）比例分配。
     /// </summary>
-    private static void ComposeBlockTable(IContainer container, string blockTitle, List<(string Label, string Value)> fields, int rows, int[]? rowCols = null, int[][]? rowColRatios = null)
+    private static void ComposeBlockTable(IContainer container, string blockTitle, List<FieldEntry> fields, IReadOnlyDictionary<string, string>? style)
     {
         if (fields.Count == 0) return;
-
-        int[] colsPerRow;
-        if (rowCols != null)
-        {
-            colsPerRow = rowCols;
-        }
-        else
-        {
-            int cpr = (int)Math.Ceiling((double)fields.Count / rows);
-            colsPerRow = Enumerable.Repeat(cpr, rows).ToArray();
-        }
 
         container.Column(col =>
         {
             // 标题行
             col.Item().Element(TitleCellStyle)
-                .Text(blockTitle).FontSize(11).Bold();
+                .Text(blockTitle).FontSize(GetStyleFloat(style, ProcessCardStyleKeys.BlockTitleFontSize, 10)).Bold();
 
-            // 每行单独成表，列数按实际字段数动态分配
-            int idx = 0;
-            for (int r = 0; r < rows; r++)
+            // 按所属行分组（RowIndex 升序），每行字段按 ColumnIndex 升序
+            foreach (var rowFields in fields.GroupBy(f => f.RowIndex).OrderBy(g => g.Key))
             {
-                if (idx >= fields.Count) break;
-
-                int cpr = colsPerRow[r];
-                int itemsInRow = Math.Min(cpr, fields.Count - idx);
-                if (itemsInRow <= 0) break;
-
-                int localCols = itemsInRow;
-                int[]? ratios = rowColRatios?.Length > r ? rowColRatios[r] : null;
+                var rowItems = rowFields.OrderBy(f => f.ColumnIndex).ToList();
 
                 col.Item().Table(tb =>
                 {
                     tb.ColumnsDefinition(cd =>
                     {
-                        if (ratios != null && ratios.Length >= localCols)
-                        {
-                            for (int i = 0; i < localCols; i++)
-                                cd.RelativeColumn(ratios[i]);
-                        }
-                        else
-                        {
-                            for (int i = 0; i < localCols; i++)
-                                cd.RelativeColumn();
-                        }
+                        foreach (var f in rowItems)
+                            cd.RelativeColumn(Math.Max(1, f.ColumnWeight));
                     });
 
                     // 表头子行
-                    for (int i = 0; i < localCols; i++)
-                    {
-                        var (label, _) = fields[idx + i];
-                        tb.Cell().Element(HeaderCellStyle).Text(label).FontSize(9).Bold().AlignCenter();
-                    }
+                    foreach (var f in rowItems)
+                        tb.Cell().Element(HeaderCellStyle).Text(f.Label)
+                            .FontSize(GetStyleFloat(style, ProcessCardStyleKeys.TableHeaderFontSize, 8.5f)).Bold().AlignCenter();
 
                     // 数据子行
-                    for (int i = 0; i < localCols; i++)
-                    {
-                        var (_, value) = fields[idx + i];
-                        tb.Cell().Element(DataCellStyle).Text(value).FontSize(9).AlignCenter();
-                    }
+                    foreach (var f in rowItems)
+                        tb.Cell().Element(DataCellStyle).Text(f.Value)
+                            .FontSize(GetStyleFloat(style, ProcessCardStyleKeys.CellFontSize, 8.5f)).AlignCenter();
                 });
-
-                idx += itemsInRow;
             }
         });
     }
 
-    /// <summary>工序组动态列表格</summary>
-    private static void ComposeProcessGroupTable(IContainer container, List<ProcessGroup> groups, List<(string Key, string Label)> columns, int[]? columnRatios = null, IReadOnlyDictionary<string, string>? processNameMap = null)
+    /// <summary>工序组动态列表格（列顺序/权重按配置 ColumnIndex/ColumnWeight 动态）</summary>
+    private static void ComposeProcessGroupTable(IContainer container, List<ProcessGroup> groups, List<(string Key, string Label, int ColumnIndex, int ColumnWeight)> columns, IReadOnlyDictionary<string, string>? style, IReadOnlyDictionary<string, string>? processNameMap = null)
     {
         if (groups.Count == 0 || columns.Count == 0) return;
 
@@ -264,21 +226,18 @@ public static class ProcessCardPrintHelper
             table.ColumnsDefinition(cd =>
             {
                 cd.ConstantColumn(20);
-                for (int i = 0; i < columns.Count; i++)
-                {
-                    if (columnRatios != null && i < columnRatios.Length)
-                        cd.RelativeColumn(columnRatios[i]);
-                    else
-                        cd.RelativeColumn();
-                }
+                foreach (var (_, _, _, weight) in columns)
+                    cd.RelativeColumn(Math.Max(1, weight));
             });
 
             // 表头
             table.Header(header =>
             {
-                header.Cell().Element(CellHeaderStyle).Text("#").FontSize(9).AlignCenter();
-                foreach (var (_, label) in columns)
-                    header.Cell().Element(CellHeaderStyle).Text(label).FontSize(9).AlignCenter();
+                header.Cell().Element(CellHeaderStyle).Text("#")
+                    .FontSize(GetStyleFloat(style, ProcessCardStyleKeys.TableHeaderFontSize, 8.5f)).AlignCenter();
+                foreach (var (_, label, _, _) in columns)
+                    header.Cell().Element(CellHeaderStyle).Text(label)
+                        .FontSize(GetStyleFloat(style, ProcessCardStyleKeys.TableHeaderFontSize, 8.5f)).AlignCenter();
             });
 
             // 数据行
@@ -286,11 +245,13 @@ public static class ProcessCardPrintHelper
             foreach (var g in groups)
             {
                 seq++;
-                table.Cell().Element(CellStyle).Text(seq.ToString()).FontSize(9).AlignCenter();
-                foreach (var (key, _) in columns)
+                table.Cell().Element(CellStyle).Text(seq.ToString())
+                    .FontSize(GetStyleFloat(style, ProcessCardStyleKeys.CellFontSize, 8.5f)).AlignCenter();
+                foreach (var (key, _, _, _) in columns)
                 {
                     var value = GetProcessGroupFieldValue(g, key, processNameMap);
-                    table.Cell().Element(CellStyle).Text(value).FontSize(9).AlignCenter();
+                    table.Cell().Element(CellStyle).Text(value)
+                        .FontSize(GetStyleFloat(style, ProcessCardStyleKeys.CellFontSize, 8.5f)).AlignCenter();
                 }
             }
         });
@@ -302,14 +263,14 @@ public static class ProcessCardPrintHelper
     {
         return container.Background(Colors.Grey.Lighten4)
             .Border(0.3f).BorderColor(Colors.Grey.Lighten2)
-            .PaddingVertical(2).PaddingHorizontal(6)
+            .PaddingVertical(1).PaddingHorizontal(6)
             .AlignMiddle();
     }
 
     private static IContainer DataCellStyle(IContainer container)
     {
         return container.Border(0.3f).BorderColor(Colors.Grey.Lighten2)
-            .PaddingVertical(2).PaddingHorizontal(6)
+            .PaddingVertical(1).PaddingHorizontal(6)
             .AlignMiddle();
     }
 
@@ -317,14 +278,14 @@ public static class ProcessCardPrintHelper
     {
         return container.Border(0.3f).BorderColor(Colors.Grey.Lighten2)
             .Background(Colors.Grey.Lighten4)
-            .PaddingVertical(2).PaddingHorizontal(6)
+            .PaddingVertical(1).PaddingHorizontal(6)
             .AlignMiddle();
     }
 
     private static IContainer CellStyle(IContainer container)
     {
         return container.Border(0.3f).BorderColor(Colors.Grey.Lighten2)
-            .PaddingVertical(2).PaddingHorizontal(4)
+            .PaddingVertical(1).PaddingHorizontal(4)
             .AlignMiddle();
     }
 
@@ -332,13 +293,13 @@ public static class ProcessCardPrintHelper
     {
         return container.Border(0.3f).BorderColor(Colors.Grey.Lighten2)
             .Background(Colors.Grey.Lighten3)
-            .PaddingVertical(2).PaddingHorizontal(3)
+            .PaddingVertical(1).PaddingHorizontal(3)
             .AlignMiddle();
     }
 
     // ========== 字段值提取 ==========
 
-    private static List<(string Label, string Value)> GetBatchInfoFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols, IReadOnlyDictionary<string, string>? sectionNameMap = null, IReadOnlyDictionary<string, string>? processNameMap = null)
+    private static List<FieldEntry> GetBatchInfoFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols, IReadOnlyDictionary<string, string>? sectionNameMap = null, IReadOnlyDictionary<string, string>? processNameMap = null)
     {
         var map = new Dictionary<string, (string Label, Func<string> Value)>
         {
@@ -349,7 +310,7 @@ public static class ProcessCardPrintHelper
             ["ProductionRatio"] = ("制成倍数", () => b.ProductionRatio.ToString()),
             ["IsForceCompleted"] = ("强制完成", () => b.IsForceCompleted ? "是" : "否"),
             ["Remark"] = ("备注", () => b.Remark ?? "-"),
-            ["CurrentExecDate"] = ("截止执行日", () => b.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "-"),
+            ["CurrentExecDate"] = ("截止执行日", () => FormatDate(b.CurrentExecDate)),
             ["ManufacturingItem"] = ("制造物品", () => EnumHelper.GetDisplayName<MaterialType>(b.ManufacturingItem)),
             ["ManufacturingStatus"] = ("制造状态", () => string.IsNullOrEmpty(b.ManufacturingStatus) ? "-" : (Enum.TryParse<DeliveryState>(b.ManufacturingStatus, out var ms) ? EnumHelper.GetDisplayName(ms) : b.ManufacturingStatus)),
             ["CurrentGroupName"] = ("当前工序", () => ProcessDisplayText(b.CurrentGroupName, processNameMap) ?? "-"),
@@ -361,12 +322,12 @@ public static class ProcessCardPrintHelper
             ["CorrespondingSpec"] = ("对应规格", () => b.CorrespondingSpec ?? "-"),
             ["NextProcess"] = ("下一工序", () => ProcessDisplayText(b.NextProcess, processNameMap) ?? "-"),
             ["CreatedBy"] = ("创建人", () => b.CreatedBy ?? "-"),
-            ["CreatedTime"] = ("创建时间", () => b.CreatedTime.ToString("yyyy-MM-dd HH:mm")),
+            ["CreatedTime"] = ("创建时间", () => FormatDate(b.CreatedTime, "yyyy-MM-dd HH:mm")),
         };
         return BuildFieldList(visibleCols, "BatchInfo", map);
     }
 
-    private static List<(string Label, string Value)> GetQualityFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols)
+    private static List<FieldEntry> GetQualityFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols)
     {
         var map = new Dictionary<string, (string Label, Func<string> Value)>
         {
@@ -376,7 +337,7 @@ public static class ProcessCardPrintHelper
         return BuildFieldList(visibleCols, "Quality", map);
     }
 
-    private static List<(string Label, string Value)> GetWarehouseFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols)
+    private static List<FieldEntry> GetWarehouseFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols)
     {
         var map = new Dictionary<string, (string Label, Func<string> Value)>
         {
@@ -399,7 +360,7 @@ public static class ProcessCardPrintHelper
         return BuildFieldList(visibleCols, "Warehouse", map);
     }
 
-    private static List<(string Label, string Value)> GetWorkOrderFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols)
+    private static List<FieldEntry> GetWorkOrderFields(ProductionBatch b, List<ProcessCardColumnDef> visibleCols)
     {
         var map = new Dictionary<string, (string Label, Func<string> Value)>
         {
@@ -408,10 +369,10 @@ public static class ProcessCardPrintHelper
             ["ProductionMainNo"] = ("主号", () => b.ProductionMainNo),
             ["ProductionSubNo"] = ("次号", () => b.ProductionSubNo ?? "-"),
             ["OrderItemIds"] = ("项次ID", () => b.OrderItemIds),
-            ["SignDate"] = ("签订日期", () => b.SignDate.ToString("yyyy-MM-dd")),
+            ["SignDate"] = ("签订日期", () => FormatDate(b.SignDate)),
             ["Salesman"] = ("业务员", () => b.Salesman),
             ["EndCustomer"] = ("最终用户", () => b.EndCustomer ?? "-"),
-            ["DeliveryDate"] = ("交货日期", () => b.DeliveryDate.ToString("yyyy-MM-dd")),
+            ["DeliveryDate"] = ("交货日期", () => FormatDate(b.DeliveryDate)),
             ["DelayPenalty"] = ("延期罚款", () => b.DelayPenalty ? "是" : "否"),
             ["MaterialName"] = ("物料名称", () => Enum.TryParse<PipeManufacturingType>(b.MaterialName, out var pmt) ? EnumHelper.GetDisplayName(pmt) : (b.MaterialName ?? "-")),
             ["SettlementMethod"] = ("结算方式", () => Enum.TryParse<SettlementMethod>(b.SettlementMethod, out var sm) ? EnumHelper.GetDisplayName(sm) : (b.SettlementMethod ?? "-")),
@@ -434,11 +395,12 @@ public static class ProcessCardPrintHelper
         return BuildFieldList(visibleCols, "WorkOrder", map);
     }
 
-    private static List<(string Key, string Label)> GetProcessGroupColumns(List<ProcessCardColumnDef> visibleCols)
+    private static List<(string Key, string Label, int ColumnIndex, int ColumnWeight)> GetProcessGroupColumns(List<ProcessCardColumnDef> visibleCols)
     {
         return visibleCols
             .Where(c => c.BlockKey == "ProcessGroup")
-            .Select(c => (c.Key, c.Label))
+            .OrderBy(c => c.ColumnIndex)
+            .Select(c => (c.Key, c.Label, c.ColumnIndex, c.ColumnWeight))
             .ToList();
     }
 
@@ -485,16 +447,47 @@ public static class ProcessCardPrintHelper
 
     // ========== 辅助 ==========
 
-    private static List<(string Label, string Value)> BuildFieldList(
+    /// <summary>
+    /// 版式配置数字解析：style 中缺项或非法值回退默认（字号非法不阻断打印），
+    /// 配置源为 ProcessCardStyleDefinition 配置表（格式设置面板「打印版式」Tab）。
+    /// </summary>
+    private static float GetStyleFloat(IReadOnlyDictionary<string, string>? style, string key, float defaultValue)
+        => style != null && style.TryGetValue(key, out var v) && float.TryParse(v, out var f) ? f : defaultValue;
+
+    /// <summary>版式配置字符串取值：style 中缺项或空白值回退默认（字体族）</summary>
+    private static string GetStyleString(IReadOnlyDictionary<string, string>? style, string key, string defaultValue)
+        => style != null && style.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v : defaultValue;
+
+    /// <summary>
+    /// 日期格式化：null 或默认值(0001-01-01)显示为空字符串，防止无效日期视觉污染；
+    /// 其余按指定格式输出。
+    /// </summary>
+    private static string FormatDate(DateTime? value, string format = "yyyy-MM-dd")
+        => value == null || value.Value == default(DateTime) ? string.Empty : value.Value.ToString(format);
+
+    /// <summary>同 <see cref="FormatDate(DateTime?, string)"/>，支持 DateTimeOffset（如 CreatedTime）</summary>
+    private static string FormatDate(DateTimeOffset? value, string format = "yyyy-MM-dd")
+        => value == null || value.Value == default(DateTimeOffset) ? string.Empty : value.Value.ToString(format);
+
+    /// <summary>区块字段布局条目：显示名/取值 + 所属行/列顺序/列权重（打印时按配置动态排版）</summary>
+    private readonly record struct FieldEntry(string Label, string Value, int RowIndex, int ColumnIndex, int ColumnWeight);
+
+    /// <summary>
+    /// 按可见列定义构建字段列表：显示名取列定义 Label（配置表可改中文），行/列顺序/权重取列定义，
+    /// 列顺序按 ColumnIndex 升序（稳定排序保留同序原始顺序）。
+    /// </summary>
+    private static List<FieldEntry> BuildFieldList(
         List<ProcessCardColumnDef> visibleCols,
         string blockKey,
         Dictionary<string, (string Label, Func<string> Value)> fieldMap)
     {
-        var result = new List<(string, string)>();
-        foreach (var col in visibleCols.Where(c => c.BlockKey == blockKey))
+        var result = new List<FieldEntry>();
+        foreach (var col in visibleCols
+            .Where(c => c.BlockKey == blockKey)
+            .OrderBy(c => c.ColumnIndex))
         {
             if (fieldMap.TryGetValue(col.Key, out var entry))
-                result.Add((entry.Label, entry.Value()));
+                result.Add(new FieldEntry(col.Label, entry.Value(), col.RowIndex, col.ColumnIndex, col.ColumnWeight));
         }
         return result;
     }

@@ -595,7 +595,8 @@
                                 @if (GetPgCol("ProcessName").Visible)
                                 {
                                     <MudTd>
-                                        <MudSelect T="string" @bind-Value="pg.ProcessName" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                        <MudSelect T="string" @bind-Value="pg.ProcessName" Dense="true" Variant="Variant.Outlined" Size="Size.Small"
+                                                   ToStringFunc="@((string v) => ProcessDisplayHelper.GetProcessNameText(v))">
                                             @foreach (var opt in _processOptions)
                                             {
                                                 <MudSelectItem Value="@opt.ProcessKey">@opt.ProcessName</MudSelectItem>

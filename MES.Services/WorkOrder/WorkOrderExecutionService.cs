@@ -331,9 +331,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var urgencyC = urgencyConfig.GetValueOrDefault("C", -17m);
         var groupDiscountRate = processingDiscountConfig.GetValueOrDefault("GroupDiscountRate", 0.025m);
         var supplySatisfiedRate = materialPlanStatusConfig.GetValueOrDefault("SupplySatisfiedRate", 100m);
-        var fixedPartial = materialPlanStatusConfig.GetValueOrDefault("FixedPartial", 102m);
         var fixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("FixedSatisfied", 110m);
-        var nonFixedPartial = materialPlanStatusConfig.GetValueOrDefault("NonFixedPartial", 105m);
         var nonFixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("NonFixedSatisfied", 120m);
         var qualifiedRate = materialPlanStatusConfig.GetValueOrDefault("QualifiedRate", 98m) / 100m;
         var defaultValueConfig = await _configService.GetConfigMapAsync("DefaultValue");
@@ -1110,9 +1108,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var urgencyC = urgencyConfig.GetValueOrDefault("C", -17m);
         var groupDiscountRate = processingDiscountConfig.GetValueOrDefault("GroupDiscountRate", 0.025m);
         var supplySatisfiedRate = materialPlanStatusConfig.GetValueOrDefault("SupplySatisfiedRate", 100m);
-        var fixedPartial = materialPlanStatusConfig.GetValueOrDefault("FixedPartial", 102m);
         var fixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("FixedSatisfied", 110m);
-        var nonFixedPartial = materialPlanStatusConfig.GetValueOrDefault("NonFixedPartial", 105m);
         var nonFixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("NonFixedSatisfied", 120m);
         var qualifiedRate = materialPlanStatusConfig.GetValueOrDefault("QualifiedRate", 98m) / 100m;
         var defaultValueConfig = await _configService.GetConfigMapAsync("DefaultValue");

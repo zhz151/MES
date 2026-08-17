@@ -141,6 +141,8 @@ builder.Services.AddScoped<EmployeeService>();
 builder.Services.AddScoped<ProcessDefinitionService>();
 builder.Services.AddScoped<EnumDisplayDefinitionService>();
 builder.Services.AddScoped<DictValueDefinitionService>();
+builder.Services.AddScoped<ProcessCardColumnDefinitionService>();
+builder.Services.AddScoped<ProcessCardStyleDefinitionService>();
 
 // ========== 报表 ==========
 builder.Services.AddScoped<ReportService>();

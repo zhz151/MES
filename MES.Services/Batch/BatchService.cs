@@ -66,9 +66,11 @@ public class BatchService : IBatchService
     private readonly INotificationService _notificationService;
     private readonly ISectionNameDisplayService _sectionNameDisplay;
     private readonly IProcessDefinitionService _processDefService;
+    private readonly IProcessCardColumnDefinitionService _processCardColumnDefinitionService;
+    private readonly IProcessCardStyleDefinitionService _processCardStyleDefinitionService;
     private readonly IMemoryCache _cache;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IFinalInspectionService finalInspectionService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, ISectionNameDisplayService sectionNameDisplay, IProcessDefinitionService processDefService, IMemoryCache cache)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IFinalInspectionService finalInspectionService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, ISectionNameDisplayService sectionNameDisplay, IProcessDefinitionService processDefService, IProcessCardColumnDefinitionService processCardColumnDefinitionService, IProcessCardStyleDefinitionService processCardStyleDefinitionService, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
@@ -82,6 +84,8 @@ public class BatchService : IBatchService
         _notificationService = notificationService;
         _sectionNameDisplay = sectionNameDisplay;
         _processDefService = processDefService;
+        _processCardColumnDefinitionService = processCardColumnDefinitionService;
+        _processCardStyleDefinitionService = processCardStyleDefinitionService;
         _cache = cache;
     }
 
@@ -2307,10 +2311,58 @@ public class BatchService : IBatchService
         if (entities.Count == 0)
             throw new BusinessException("未找到批次数据");
 
-        var columns = request.Columns;
+        var columns = await MergeProcessCardColumnsAsync(request.Columns);
+        var style = await _processCardStyleDefinitionService.GetStyleMapAsync();
         return ProcessCardPrintHelper.GeneratePdf("工 艺 流 转 卡", entities, columns,
             sectionNameMap: await _sectionNameDisplay.GetSectionNameMapAsync(),
-            processNameMap: await _processDefService.GetProcessNameMapAsync());
+            processNameMap: await _processDefService.GetProcessNameMapAsync(),
+            style: style);
+    }
+
+    /// <summary>
+    /// 工艺卡列定义与格式设置配置表合并：以数据库配置（ProcessCardColumnDefinition）为权威覆盖请求列定义，
+    /// 使格式设置（是否启用/所属行/列顺序/列权重）保存即生效。未配置的列（如新启用工段）保留请求值并补默认权重。
+    /// </summary>
+    private async Task<List<ProcessCardColumnDef>> MergeProcessCardColumnsAsync(List<ProcessCardColumnDef> requestColumns)
+    {
+        if (requestColumns == null || requestColumns.Count == 0)
+            return requestColumns ?? new List<ProcessCardColumnDef>();
+
+        var configMap = await _processCardColumnDefinitionService.GetConfigMapAsync();
+        var result = new List<ProcessCardColumnDef>(requestColumns.Count);
+        foreach (var col in requestColumns)
+        {
+            if (configMap.TryGetValue($"{col.BlockKey}|{col.Key}", out var cfg))
+            {
+                // 有配置行：以数据库配置为权威（Label/Visible/RowIndex/ColumnIndex/ColumnWeight 全覆盖）
+                result.Add(new ProcessCardColumnDef
+                {
+                    BlockKey = col.BlockKey,
+                    Key = col.Key,
+                    Label = cfg.Label,
+                    Visible = cfg.Visible,
+                    RowIndex = cfg.RowIndex,
+                    ColumnIndex = cfg.ColumnIndex,
+                    ColumnWeight = cfg.ColumnWeight
+                });
+            }
+            else
+            {
+                // 无配置行（如新启用工段）：保留请求值，列宽权重补 ProcessCardLayoutDefaults 兜底
+                var weight = col.ColumnWeight > 0 ? col.ColumnWeight : ProcessCardLayoutDefaults.GetDefaultWeight(col.BlockKey, col.Key);
+                result.Add(new ProcessCardColumnDef
+                {
+                    BlockKey = col.BlockKey,
+                    Key = col.Key,
+                    Label = col.Label,
+                    Visible = col.Visible,
+                    RowIndex = col.RowIndex > 0 ? col.RowIndex : 1,
+                    ColumnIndex = col.ColumnIndex,
+                    ColumnWeight = weight
+                });
+            }
+        }
+        return result;
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()

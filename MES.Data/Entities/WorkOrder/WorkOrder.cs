@@ -178,7 +178,7 @@ public class WorkOrder : BaseEntity
     // ========== 用料计划状态 ==========
 
     /// <summary>
-    /// 用料计划状态（0=未计划 1=部分 2=理论满足 3=满足 4=超量）
+    /// 用料计划状态（0=未计划 1=部分 2=满足 3=超量）
     /// </summary>
     public MaterialPlanStatus MaterialPlanStatus { get; set; } = MaterialPlanStatus.NotPlanned;
 

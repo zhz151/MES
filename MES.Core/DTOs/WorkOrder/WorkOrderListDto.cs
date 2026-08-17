@@ -153,7 +153,7 @@ public class WorkOrderListDto
     public decimal MaterialPlanRate { get; set; }
 
     /// <summary>
-    /// 关联主号用料状态（同一订单+主号下所有工单聚合后的状态，使用原始标准不含"理论满足"）
+    /// 关联主号用料状态（同一订单+主号下所有工单聚合后的状态，4 档：未计划/部分/满足/超量）
     /// </summary>
     public MaterialPlanStatus MainNoMaterialPlanStatus { get; set; }
     public string MainNoMaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MainNoMaterialPlanStatus);

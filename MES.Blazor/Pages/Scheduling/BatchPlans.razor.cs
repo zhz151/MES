@@ -146,7 +146,7 @@ public partial class BatchPlans
         // 工单需求调整
         "IsUrging", "IsBatchDelivery", "IsPaused", "AdjustmentRemark",
         // 批次基础信息多余字段
-        "Salesman", "MinLength", "MaxLength",
+        "MinLength", "MaxLength",
     };
 
     /// <summary>
@@ -164,17 +164,25 @@ public partial class BatchPlans
             new() { Key = "TagNo",                Label = "挂牌号",       SortKey = "TagNo",                FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基础信息" },
             new() { Key = "PlantGrade",            Label = "原料钢号",     SortKey = "PlantGrade",            FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基础信息" },
             new() { Key = "CurrentValidWeight",    Label = "重量(kg)",     SortKey = "CurrentValidWeight",    FilterType = "number", Width = "80",  GroupKey = 1, GroupName = "批次基础信息" },
+            // 新增列（生产类型/制造物品/制造状态）置于"关联工单号"前，默认隐藏
+            new() { Key = "ProductionType",        Label = "生产类型",     SortKey = "ProductionType",        FilterType = "enum", Width = "110", EnumOptions = DisplayHelper.GetEnumFilterOptions<ProductionType>(), GroupKey = 1, GroupName = "批次基础信息", DisplayConverter = v => DisplayHelper.GetProductionTypeText(v?.ToString()), Visible = false },
+            new() { Key = "ManufacturingItem",     Label = "制造物品",     SortKey = "ManufacturingItem",     FilterType = "enum", Width = "110", EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialType>(), GroupKey = 1, GroupName = "批次基础信息", DisplayConverter = v => DisplayHelper.GetMaterialTypeText(v?.ToString()), Visible = false },
+            new() { Key = "ManufacturingStatus",   Label = "制造状态",     SortKey = "ManufacturingStatus",   FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 1, GroupName = "批次基础信息", DisplayConverter = v => DisplayHelper.GetDeliveryStateText(v?.ToString()), Visible = false },
             new() { Key = "WorkOrderNo",           Label = "关联工单号",   SortKey = "WorkOrderNo",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基础信息" },
+            // 新增列（订单号/主号/业务员/最终用户）置于"关联工单号"后，默认隐藏
+            new() { Key = "SalesOrderNo",          Label = "订单号",       SortKey = "SalesOrderNo",          FilterType = "string", Width = "130", GroupKey = 1, GroupName = "批次基础信息", Visible = false },
+            new() { Key = "ProductionMainNo",      Label = "主号",         SortKey = "ProductionMainNo",      FilterType = "string", Width = "100", GroupKey = 1, GroupName = "批次基础信息", Visible = false },
+            new() { Key = "Salesman",              Label = "业务员",       SortKey = "Salesman",              FilterType = "string", Width = "100", GroupKey = 1, GroupName = "批次基础信息", Visible = false },
+            new() { Key = "EndCustomer",           Label = "最终用户",     SortKey = "EndCustomer",           FilterType = "string", Width = "130", GroupKey = 1, GroupName = "批次基础信息", Visible = false },
             new() { Key = "DeliveryState",         Label = "交货状态",     SortKey = "DeliveryState",         FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 1, GroupName = "批次基础信息", DisplayConverter = v => v is DeliveryState dv ? DisplayHelper.GetDeliveryStateText(dv) : DisplayHelper.GetDeliveryStateText(v as string) },
             new() { Key = "DeliveryDate",          Label = "交货日期",     SortKey = "DeliveryDate",          FilterType = "number", Width = "110", GroupKey = 1, GroupName = "批次基础信息" },
             new() { Key = "Specification",         Label = "成品规格",     SortKey = "Specification",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基础信息" },
             new() { Key = "LengthStatus",          Label = "长度状态",     SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), GroupKey = 1, GroupName = "批次基础信息", DisplayConverter = v => v is LengthStatus ls ? DisplayHelper.GetLengthStatusText(ls) : DisplayHelper.GetLengthStatusText(v as string) },
         };
 
-        // G1 多余字段（用户决策：业务员/最小长度/最大长度 不显示，保留定义供搜索/筛选）
+        // G1 多余字段（用户决策：最小长度/最大长度 不显示，保留定义供搜索/筛选）
         var g1Hidden = new List<ColumnDef>
         {
-            new() { Key = "Salesman",              Label = "业务员",     SortKey = "Salesman",              FilterType = "string", Width = "100", GroupKey = 1, GroupName = "批次基础信息" },
             new() { Key = "MinLength",             Label = "最小长度",   SortKey = "MinLength",             FilterType = "number", Width = "80",  GroupKey = 1, GroupName = "批次基础信息" },
             new() { Key = "MaxLength",             Label = "最大长度",   SortKey = "MaxLength",             FilterType = "number", Width = "80",  GroupKey = 1, GroupName = "批次基础信息" },
         };
@@ -278,10 +286,11 @@ public partial class BatchPlans
         all.AddRange(g3);   // 状态跟踪
         all.AddRange(g12);  // 执行反馈
 
-        // 用户决策默认隐藏（列显隐选择器仍可切换打开）：工单计划、关联冷轧排程、批次计划(执行序/目标序)、状态跟踪(现执行序)、执行反馈(原工量差)
+        // 用户决策默认隐藏（列显隐选择器仍可切换打开）：工单计划(工单紧急性/计划状态/生产流转性 默认显示)、关联冷轧排程、批次计划(执行序/目标序)、状态跟踪(现执行序)、执行反馈(原工量差)
         foreach (var c in all)
         {
-            if ((c.GroupName is "工单计划" or "关联冷轧排程") ||
+            if ((c.GroupName is "工单计划" && c.Key is not ("UrgencyLevel" or "ScheduleStage" or "ProductionFlowProperty")) ||
+                (c.GroupName is "关联冷轧排程") ||
                 (c.Key is "PlanExecutionSequence" or "PlanTargetSequence" or "ExecutionSequence" or "OriginalDiff"))
                 c.Visible = false;
         }
@@ -592,8 +601,14 @@ public partial class BatchPlans
         "TagNo" => item.TagNo,
         "PlantGrade" => item.PlantGrade,
         "CurrentValidWeight" => item.CurrentValidWeight?.ToString(),
+        "ProductionType" => item.ProductionType,
+        "ManufacturingItem" => item.ManufacturingItem,
+        "ManufacturingStatus" => item.ManufacturingStatus,
         "WorkOrderNo" => item.WorkOrderNo,
+        "SalesOrderNo" => item.SalesOrderNo,
+        "ProductionMainNo" => item.ProductionMainNo,
         "Salesman" => item.Salesman,
+        "EndCustomer" => item.EndCustomer,
         "DeliveryDate" => item.DeliveryDate == default ? null : item.DeliveryDate.ToString("yyyy-MM-dd"),
         "DeliveryState" => item.DeliveryState.HasValue ? item.DeliveryState.Value.ToString() : null,
         "Specification" => item.Specification,
@@ -1194,11 +1209,29 @@ public partial class BatchPlans
                 break;
 
             // G2
+            case "ProductionType":
+                builder.AddContent(0, string.IsNullOrEmpty(item.ProductionType) ? "-" : DisplayHelper.GetProductionTypeText(item.ProductionType));
+                break;
+            case "ManufacturingItem":
+                builder.AddContent(0, string.IsNullOrEmpty(item.ManufacturingItem) ? "-" : DisplayHelper.GetMaterialTypeText(item.ManufacturingItem));
+                break;
+            case "ManufacturingStatus":
+                builder.AddContent(0, string.IsNullOrEmpty(item.ManufacturingStatus) ? "-" : DisplayHelper.GetDeliveryStateText(item.ManufacturingStatus));
+                break;
             case "WorkOrderNo":
                 builder.AddContent(0, item.WorkOrderNo);
                 break;
+            case "SalesOrderNo":
+                builder.AddContent(0, item.SalesOrderNo ?? "-");
+                break;
+            case "ProductionMainNo":
+                builder.AddContent(0, item.ProductionMainNo ?? "-");
+                break;
             case "Salesman":
                 builder.AddContent(0, item.Salesman ?? "-");
+                break;
+            case "EndCustomer":
+                builder.AddContent(0, item.EndCustomer ?? "-");
                 break;
             case "DeliveryDate":
                 // 0001-01-01（default）按批次首页显示样式显示为空
@@ -1837,13 +1870,19 @@ public partial class BatchPlans
             "TagNo" => item.TagNo ?? "",
             "PlantGrade" => item.PlantGrade ?? "",
             "CurrentValidWeight" => item.CurrentValidWeight,
+            "ProductionType" => string.IsNullOrEmpty(item.ProductionType) ? "" : DisplayHelper.GetProductionTypeText(item.ProductionType),
+            "ManufacturingItem" => string.IsNullOrEmpty(item.ManufacturingItem) ? "" : DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
+            "ManufacturingStatus" => string.IsNullOrEmpty(item.ManufacturingStatus) ? "" : DisplayHelper.GetDeliveryStateText(item.ManufacturingStatus),
             "WorkOrderNo" => item.WorkOrderNo ?? "",
+            "SalesOrderNo" => item.SalesOrderNo ?? "",
+            "ProductionMainNo" => item.ProductionMainNo ?? "",
             "Salesman" => item.Salesman ?? "",
-            "DeliveryDate" => item.DeliveryDate == default ? "" : item.DeliveryDate,
+            "EndCustomer" => item.EndCustomer ?? "",
+            "DeliveryDate" => item.DeliveryDate == default ? "" : item.DeliveryDate.ToString("yyyy-MM-dd"),
             "Specification" => item.Specification ?? "",
             "MinLength" => item.MinLength,
             "MaxLength" => item.MaxLength,
-            "CurrentExecDate" => item.CurrentExecDate,
+            "CurrentExecDate" => item.CurrentExecDate?.ToString("yyyy-MM-dd") ?? "",
             "CurrentSectionName" => SectionDisplayHelper.GetSectionNameText(item.CurrentSectionName),
             "PendingProcess" => ProcessDisplayHelper.GetProcessNameText(item.PendingProcess),
             "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(item.PendingSectionName),

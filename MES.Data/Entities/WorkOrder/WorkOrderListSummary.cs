@@ -114,7 +114,7 @@ public class WorkOrderListSummary : BaseEntity
     /// <summary>工单满足率(%)</summary>
     public decimal MaterialPlanRate { get; set; }
 
-    /// <summary>工单用料计划状态(0=未计划,1=部分,2=理论满足,3=全部满足,4=超量)</summary>
+    /// <summary>工单用料计划状态(0=未计划,1=部分,2=满足,3=超量)</summary>
     public int MaterialPlanStatus { get; set; }
 
     /// <summary>原料采购计划总重量(kg)</summary>

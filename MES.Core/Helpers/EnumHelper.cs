@@ -35,7 +35,6 @@ public static class EnumHelper
 
         Register<MaterialPlanStatus>(("NotPlanned", "未计划"),
                                       ("Partial", "部分"),
-                                      ("TheoreticalSatisfied", "理论满足"),
                                       ("Satisfied", "满足"),
                                       ("Excess", "超量"));
 

@@ -3,6 +3,7 @@
 @using MES.Blazor.Services
 @using MES.Blazor.Helpers
 @using MES.Core.DTOs.Batch
+@using MES.Core.DTOs.Configuration
 @using MES.Core.Constants
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
@@ -14,6 +15,8 @@
 @inject PageStateService PageState
 @inject HttpClient Http
 @inject StandardWorkDayService StandardWorkDayService
+@inject ProcessCardColumnDefinitionService ProcessCardColDefService
+@inject ProcessCardStyleDefinitionService ProcessCardStyleDefService
 @attribute [Authorize(Roles = Roles.Policies.BatchRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -43,9 +46,7 @@
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.Settings" Class="mr-1" Color="Color.Warning" />
                     <MudText Typo="Typo.h6" Class="font-weight-bold">格式设置</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-2">选择需要打印的区块和字段</MudText>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning"
-                               StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetColumnDefaults" Class="ml-4">重置</MudButton>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-2">调整字段的启用、所属行、列顺序与列宽权重，保存后全局生效</MudText>
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -59,24 +60,88 @@
         @if (showSettings)
         {
             <MudCardContent>
-                @foreach (var blockGroup in allColumns.GroupBy(c => c.BlockKey))
-                {
-                    <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-1 mt-2" Style="color:#37474F;">
-                        <MudIcon Icon="@GetBlockIcon(blockGroup.Key)" Class="mr-1" Size="Size.Small" />
-                        @GetBlockTitle(blockGroup.Key)
-                    </MudText>
-                    <div class="d-flex flex-wrap" style="gap: 4px 12px; padding-left: 12px;">
-                        @foreach (var col in blockGroup)
+                <MudTabs>
+                    <MudTabPanel Text="字段布局">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                            启用=是否打印该字段；行=所属行（区块内 1 起，工序组无行概念）；权重=列宽相对比例；上/下箭头调整列顺序。
+                        </MudText>
+                        @foreach (var blockGroup in FormatBlocks)
                         {
-                            <div class="d-flex align-center" style="min-width:120px;">
-                                <MudText Typo="Typo.body2" Class="mr-1">@col.Label</MudText>
-                                <MudSwitch Value="col.Visible"
-                                           ValueChanged="@((bool v) => ToggleColumn(v, col))"
-                                           Color="Color.Primary" Dense="true" Size="Size.Small" />
+                            <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-1 mt-2" Style="color:#37474F;">
+                                <MudIcon Icon="@GetBlockIcon(blockGroup.Key)" Class="mr-1" Size="Size.Small" />
+                                @GetBlockTitle(blockGroup.Key)
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Inline="true">（@(blockGroup.Count()) 个字段）</MudText>
+                            </MudText>
+                            <div class="d-flex flex-wrap" style="gap: 6px 12px; padding-left: 12px;">
+                                @foreach (var col in blockGroup.OrderBy(c => c.ColumnIndex))
+                                {
+                                    <div class="d-flex align-center" style="min-width: 300px; border:1px solid #eee; border-radius:6px; padding:4px 8px;">
+                                        <MudSwitch Value="col.Visible"
+                                                   ValueChanged="@((bool v) => col.Visible = v)"
+                                                   Color="Color.Primary" Dense="true" Size="Size.Small" />
+                                        <MudText Typo="Typo.body2" Class="mr-1" Style="min-width:80px;">@col.Label</MudText>
+                                        @if (col.BlockKey != "ProcessGroup")
+                                        {
+                                            <MudTextField T="int" Value="col.RowIndex"
+                                                          ValueChanged="@((int v) => col.RowIndex = Math.Max(1, v))"
+                                                          Label="行" Dense="true" Variant="Variant.Outlined"
+                                                          Style="width:56px; margin-right:6px;" />
+                                        }
+                                        <MudTextField T="int" Value="col.ColumnWeight"
+                                                      ValueChanged="@((int v) => col.ColumnWeight = Math.Max(1, v))"
+                                                      Label="权重" Dense="true" Variant="Variant.Outlined"
+                                                      Style="width:64px; margin-right:6px;" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small"
+                                                       Title="上移" OnClick="() => MoveFormatColumn(col, -1)" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small"
+                                                       Title="下移" OnClick="() => MoveFormatColumn(col, 1)" />
+                                    </div>
+                                }
                             </div>
                         }
-                    </div>
-                }
+                        <div class="mt-3">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Save" OnClick="SaveFormatSettings">
+                                保存格式设置
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Warning"
+                                       StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetColumnDefaults" Class="ml-2">
+                                恢复默认
+                            </MudButton>
+                        </div>
+                    </MudTabPanel>
+                    <MudTabPanel Text="打印版式">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                            调整工艺卡打印的字样与字体，保存后全局生效；字号非法时自动回退默认。
+                        </MudText>
+                        <div class="d-flex flex-wrap" style="gap: 6px 12px; padding-left: 12px;">
+                            @foreach (var item in styleItems)
+                            {
+                                <div class="d-flex align-center" style="min-width: 300px; border:1px solid #eee; border-radius:6px; padding:4px 8px;">
+                                    <MudText Typo="Typo.body2" Class="mr-1" Style="min-width:100px;">@item.DisplayName</MudText>
+                                    <MudTextField T="string" Value="item.Value"
+                                                  ValueChanged="@((string v) => item.Value = v)"
+                                                  Label="值" Dense="true" Variant="Variant.Outlined"
+                                                  Style="width:150px; margin-right:6px;" />
+                                    @if (!string.IsNullOrEmpty(item.Remark))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@item.Remark</MudText>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="mt-3">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Save" OnClick="SaveStyleSettings">
+                                保存版式设置
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Warning"
+                                       StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetStyleDefaults" Class="ml-2">
+                                恢复默认
+                            </MudButton>
+                        </div>
+                    </MudTabPanel>
+                </MudTabs>
             </MudCardContent>
         }
     </MudCard>
@@ -267,8 +332,6 @@
     private bool sortDescending = true;
     private bool showSettings = false;
 
-    private const string PrefsKey = "process_card_print";
-
     // ========== ExcelFilter 状态 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -345,91 +408,97 @@
 
     private List<ProcessCardColumnDef> GetDefaultColumns()
     {
+        // 各字段 4 维默认值（RowIndex/ColumnIndex/ColumnWeight）与种子迁移 SeedProcessCardColumnDefinition 保持一致：
+        // 数据库有配置行时后端读库为准；无配置行（如新启用工段）时前端兜底用本默认值。
         var cols = new List<ProcessCardColumnDef>
         {
-        // === 批次基本信息 ===
-        new() { BlockKey = "BatchInfo", Key = "BatchNo", Label = "生产编号", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "TagNo", Label = "挂牌号", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "ProductionType", Label = "生产类型", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "ManufacturingItem", Label = "制造物品", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "ManufacturingStatus", Label = "制造状态", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "ProductionRatio", Label = "制成倍数", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "Remark", Label = "备注", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "CreatedBy", Label = "创建人", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "CreatedTime", Label = "创建时间", Visible = true },
-        new() { BlockKey = "BatchInfo", Key = "Status", Label = "状态", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "CurrentExecDate", Label = "截止执行日", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "CurrentGroupName", Label = "当前工序", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "CurrentSectionName", Label = "当前工段", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "CurrentEquipmentName", Label = "当前设备", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "CurrentOutsource", Label = "当前委外", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "CurrentSpec", Label = "当前规格", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "NextProcess", Label = "下一工序", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "NextSectionName", Label = "下一工段", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "CorrespondingSpec", Label = "对应规格", Visible = false },
-        new() { BlockKey = "BatchInfo", Key = "IsForceCompleted", Label = "强制完成", Visible = false },
+        // === 批次基本信息 行1（9 列全启用）===
+        new() { BlockKey = "BatchInfo", Key = "BatchNo", Label = "生产编号", Visible = true, RowIndex = 1, ColumnIndex = 1, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "TagNo", Label = "挂牌号", Visible = true, RowIndex = 1, ColumnIndex = 2, ColumnWeight = 3 },
+        new() { BlockKey = "BatchInfo", Key = "ProductionType", Label = "生产类型", Visible = true, RowIndex = 1, ColumnIndex = 3, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "ManufacturingItem", Label = "制造物品", Visible = true, RowIndex = 1, ColumnIndex = 4, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "ManufacturingStatus", Label = "制造状态", Visible = true, RowIndex = 1, ColumnIndex = 5, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "ProductionRatio", Label = "制成倍数", Visible = true, RowIndex = 1, ColumnIndex = 6, ColumnWeight = 3 },
+        new() { BlockKey = "BatchInfo", Key = "Remark", Label = "备注", Visible = true, RowIndex = 1, ColumnIndex = 7, ColumnWeight = 8 },
+        new() { BlockKey = "BatchInfo", Key = "CreatedBy", Label = "创建人", Visible = true, RowIndex = 1, ColumnIndex = 8, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "CreatedTime", Label = "创建时间", Visible = true, RowIndex = 1, ColumnIndex = 9, ColumnWeight = 4 },
+        // 批次基本信息 行2（11 列全隐藏）
+        new() { BlockKey = "BatchInfo", Key = "Status", Label = "状态", Visible = false, RowIndex = 2, ColumnIndex = 10, ColumnWeight = 3 },
+        new() { BlockKey = "BatchInfo", Key = "CurrentExecDate", Label = "截止执行日", Visible = false, RowIndex = 2, ColumnIndex = 11, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "CurrentGroupName", Label = "当前工序", Visible = false, RowIndex = 2, ColumnIndex = 12, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "CurrentSectionName", Label = "当前工段", Visible = false, RowIndex = 2, ColumnIndex = 13, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "CurrentEquipmentName", Label = "当前设备", Visible = false, RowIndex = 2, ColumnIndex = 14, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "CurrentOutsource", Label = "当前委外", Visible = false, RowIndex = 2, ColumnIndex = 15, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "CurrentSpec", Label = "当前规格", Visible = false, RowIndex = 2, ColumnIndex = 16, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "NextProcess", Label = "下一工序", Visible = false, RowIndex = 2, ColumnIndex = 17, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "NextSectionName", Label = "下一工段", Visible = false, RowIndex = 2, ColumnIndex = 18, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "CorrespondingSpec", Label = "对应规格", Visible = false, RowIndex = 2, ColumnIndex = 19, ColumnWeight = 4 },
+        new() { BlockKey = "BatchInfo", Key = "IsForceCompleted", Label = "强制完成", Visible = false, RowIndex = 2, ColumnIndex = 20, ColumnWeight = 3 },
 
         // === 质量要求 ===
-        new() { BlockKey = "Quality", Key = "SolutionParams", Label = "固溶参数", Visible = true },
-        new() { BlockKey = "Quality", Key = "QualityRemark", Label = "质量备注", Visible = true },
+        new() { BlockKey = "Quality", Key = "SolutionParams", Label = "固溶参数", Visible = true, RowIndex = 1, ColumnIndex = 1, ColumnWeight = 2 },
+        new() { BlockKey = "Quality", Key = "QualityRemark", Label = "质量备注", Visible = true, RowIndex = 1, ColumnIndex = 2, ColumnWeight = 10 },
 
         // === 投料信息 ===
-        new() { BlockKey = "Warehouse", Key = "SourceBatchNo", Label = "仓库批", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourceMaterialType", Label = "原料类型", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourceName", Label = "来料单位", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourceHeatNo", Label = "炉号", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourcePlantGrade", Label = "工厂牌号", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourceSpecification", Label = "名义规格", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourceLengthStatus", Label = "长度状态", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourceUnitWeight", Label = "单支重(kg)", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "InputQuantity", Label = "领料支数", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "InputWeight", Label = "领料重量(kg)", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "InputType", Label = "投料类型", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourceProductionNo", Label = "源生产编号", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "SourceRemark", Label = "原料备注", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "CurrentValidQty", Label = "有效原料支数", Visible = true },
-        new() { BlockKey = "Warehouse", Key = "CurrentValidWeight", Label = "有效原料重量(kg)", Visible = true },
+        new() { BlockKey = "Warehouse", Key = "SourceBatchNo", Label = "仓库批", Visible = true, RowIndex = 1, ColumnIndex = 1, ColumnWeight = 3 },
+        new() { BlockKey = "Warehouse", Key = "SourceMaterialType", Label = "原料类型", Visible = true, RowIndex = 1, ColumnIndex = 2, ColumnWeight = 3 },
+        new() { BlockKey = "Warehouse", Key = "SourceName", Label = "来料单位", Visible = true, RowIndex = 1, ColumnIndex = 3, ColumnWeight = 6 },
+        new() { BlockKey = "Warehouse", Key = "SourceHeatNo", Label = "炉号", Visible = true, RowIndex = 1, ColumnIndex = 4, ColumnWeight = 5 },
+        new() { BlockKey = "Warehouse", Key = "SourcePlantGrade", Label = "工厂牌号", Visible = true, RowIndex = 1, ColumnIndex = 5, ColumnWeight = 4 },
+        new() { BlockKey = "Warehouse", Key = "SourceSpecification", Label = "名义规格", Visible = true, RowIndex = 1, ColumnIndex = 6, ColumnWeight = 4 },
+        new() { BlockKey = "Warehouse", Key = "SourceLengthStatus", Label = "长度状态", Visible = true, RowIndex = 1, ColumnIndex = 7, ColumnWeight = 4 },
+        new() { BlockKey = "Warehouse", Key = "SourceUnitWeight", Label = "单支重(kg)", Visible = true, RowIndex = 1, ColumnIndex = 8, ColumnWeight = 3 },
+        new() { BlockKey = "Warehouse", Key = "InputQuantity", Label = "领料支数", Visible = true, RowIndex = 1, ColumnIndex = 9, ColumnWeight = 3 },
+        new() { BlockKey = "Warehouse", Key = "InputWeight", Label = "领料重量(kg)", Visible = true, RowIndex = 1, ColumnIndex = 10, ColumnWeight = 3 },
+        new() { BlockKey = "Warehouse", Key = "InputType", Label = "投料类型", Visible = true, RowIndex = 1, ColumnIndex = 11, ColumnWeight = 3 },
+        new() { BlockKey = "Warehouse", Key = "SourceProductionNo", Label = "源生产编号", Visible = true, RowIndex = 1, ColumnIndex = 12, ColumnWeight = 4 },
+        new() { BlockKey = "Warehouse", Key = "SourceRemark", Label = "原料备注", Visible = true, RowIndex = 1, ColumnIndex = 13, ColumnWeight = 6 },
+        new() { BlockKey = "Warehouse", Key = "CurrentValidQty", Label = "有效原料支数", Visible = true, RowIndex = 1, ColumnIndex = 14, ColumnWeight = 3 },
+        new() { BlockKey = "Warehouse", Key = "CurrentValidWeight", Label = "有效原料重量(kg)", Visible = true, RowIndex = 1, ColumnIndex = 15, ColumnWeight = 3 },
 
-        // === 工单信息 ===
-        new() { BlockKey = "WorkOrder", Key = "WorkOrderNo", Label = "工单号", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "SalesOrderNo", Label = "源订单号", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "ProductionMainNo", Label = "主号", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "ProductionSubNo", Label = "次号", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "OrderItemIds", Label = "项次ID", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "SignDate", Label = "签订日期", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "Salesman", Label = "业务员", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "EndCustomer", Label = "最终用户", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "DeliveryDate", Label = "交货日期", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "DelayPenalty", Label = "延期罚款", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "MaterialName", Label = "钢管制造", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "SettlementMethod", Label = "结算方式", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "StandardCode", Label = "标准编码", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "TechnicalRequirements", Label = "技术要求", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "PlantGrade", Label = "工厂牌号", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "Specification", Label = "规格", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "OuterDiameterTolerance", Label = "外径公差", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "LengthStatus", Label = "长度状态", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "MinLength", Label = "最小长度(mm)", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "MaxLength", Label = "最大长度(mm)", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "TotalQuantity", Label = "总支数", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "TotalMeters", Label = "总米数(m)", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "TotalWeight", Label = "总重量(kg)", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "DeliveryState", Label = "交货状态", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "TotalItemCount", Label = "总项次数", Visible = true },
-        new() { BlockKey = "WorkOrder", Key = "ItemDetails", Label = "明细", Visible = true },
+        // === 工单信息 行1 ===
+        new() { BlockKey = "WorkOrder", Key = "WorkOrderNo", Label = "工单号", Visible = true, RowIndex = 1, ColumnIndex = 1, ColumnWeight = 5 },
+        new() { BlockKey = "WorkOrder", Key = "SalesOrderNo", Label = "源订单号", Visible = true, RowIndex = 1, ColumnIndex = 2, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "ProductionMainNo", Label = "主号", Visible = true, RowIndex = 1, ColumnIndex = 3, ColumnWeight = 2 },
+        new() { BlockKey = "WorkOrder", Key = "ProductionSubNo", Label = "次号", Visible = true, RowIndex = 1, ColumnIndex = 4, ColumnWeight = 2 },
+        new() { BlockKey = "WorkOrder", Key = "OrderItemIds", Label = "项次ID", Visible = true, RowIndex = 1, ColumnIndex = 5, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "SignDate", Label = "签订日期", Visible = true, RowIndex = 1, ColumnIndex = 6, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "Salesman", Label = "业务员", Visible = true, RowIndex = 1, ColumnIndex = 7, ColumnWeight = 3 },
+        new() { BlockKey = "WorkOrder", Key = "EndCustomer", Label = "最终用户", Visible = true, RowIndex = 1, ColumnIndex = 8, ColumnWeight = 6 },
+        new() { BlockKey = "WorkOrder", Key = "DeliveryDate", Label = "交货日期", Visible = true, RowIndex = 1, ColumnIndex = 9, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "DelayPenalty", Label = "延期罚款", Visible = true, RowIndex = 1, ColumnIndex = 10, ColumnWeight = 2 },
+        new() { BlockKey = "WorkOrder", Key = "MaterialName", Label = "钢管制造", Visible = true, RowIndex = 1, ColumnIndex = 11, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "SettlementMethod", Label = "结算方式", Visible = true, RowIndex = 1, ColumnIndex = 12, ColumnWeight = 3 },
+        new() { BlockKey = "WorkOrder", Key = "StandardCode", Label = "标准编码", Visible = true, RowIndex = 1, ColumnIndex = 13, ColumnWeight = 5 },
+        new() { BlockKey = "WorkOrder", Key = "TechnicalRequirements", Label = "技术要求", Visible = true, RowIndex = 1, ColumnIndex = 14, ColumnWeight = 4 },
+        // 工单信息 行2
+        new() { BlockKey = "WorkOrder", Key = "PlantGrade", Label = "工厂牌号", Visible = true, RowIndex = 2, ColumnIndex = 15, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "Specification", Label = "规格", Visible = true, RowIndex = 2, ColumnIndex = 16, ColumnWeight = 6 },
+        new() { BlockKey = "WorkOrder", Key = "OuterDiameterTolerance", Label = "外径公差", Visible = true, RowIndex = 2, ColumnIndex = 17, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true, RowIndex = 2, ColumnIndex = 18, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "LengthStatus", Label = "长度状态", Visible = true, RowIndex = 2, ColumnIndex = 19, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "MinLength", Label = "最小长度(mm)", Visible = true, RowIndex = 2, ColumnIndex = 20, ColumnWeight = 6 },
+        new() { BlockKey = "WorkOrder", Key = "MaxLength", Label = "最大长度(mm)", Visible = true, RowIndex = 2, ColumnIndex = 21, ColumnWeight = 6 },
+        new() { BlockKey = "WorkOrder", Key = "TotalQuantity", Label = "总支数", Visible = true, RowIndex = 2, ColumnIndex = 22, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "TotalMeters", Label = "总米数(m)", Visible = true, RowIndex = 2, ColumnIndex = 23, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "TotalWeight", Label = "总重量(kg)", Visible = true, RowIndex = 2, ColumnIndex = 24, ColumnWeight = 4 },
+        new() { BlockKey = "WorkOrder", Key = "DeliveryState", Label = "交货状态", Visible = true, RowIndex = 2, ColumnIndex = 25, ColumnWeight = 6 },
+        // 工单信息 行3
+        new() { BlockKey = "WorkOrder", Key = "TotalItemCount", Label = "总项次数", Visible = true, RowIndex = 3, ColumnIndex = 26, ColumnWeight = 1 },
+        new() { BlockKey = "WorkOrder", Key = "ItemDetails", Label = "明细", Visible = true, RowIndex = 3, ColumnIndex = 27, ColumnWeight = 10 },
 
-        // === 工序组 ===
-        new() { BlockKey = "ProcessGroup", Key = "ProcessName", Label = "工序名称", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "ManufacturingSpec", Label = "制造规格", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "OuterDiameterTolerance", Label = "外径公差", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "ManufacturingLength", Label = "制造长度", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "CuttingTreatment", Label = "断切处理", Visible = true },
-        new() { BlockKey = "ProcessGroup", Key = "Remark", Label = "备注", Visible = true },
+        // === 工序组（无行概念，恒行 1）===
+        new() { BlockKey = "ProcessGroup", Key = "ProcessName", Label = "工序名称", Visible = true, RowIndex = 1, ColumnIndex = 1, ColumnWeight = 4 },
+        new() { BlockKey = "ProcessGroup", Key = "ManufacturingSpec", Label = "制造规格", Visible = true, RowIndex = 1, ColumnIndex = 2, ColumnWeight = 4 },
+        new() { BlockKey = "ProcessGroup", Key = "OuterDiameterTolerance", Label = "外径公差", Visible = true, RowIndex = 1, ColumnIndex = 3, ColumnWeight = 3 },
+        new() { BlockKey = "ProcessGroup", Key = "WallThicknessTolerance", Label = "壁厚公差", Visible = true, RowIndex = 1, ColumnIndex = 4, ColumnWeight = 3 },
+        new() { BlockKey = "ProcessGroup", Key = "ManufacturingLength", Label = "制造长度", Visible = true, RowIndex = 1, ColumnIndex = 5, ColumnWeight = 3 },
+        new() { BlockKey = "ProcessGroup", Key = "CuttingTreatment", Label = "断切处理", Visible = true, RowIndex = 1, ColumnIndex = 6, ColumnWeight = 3 },
+        new() { BlockKey = "ProcessGroup", Key = "Remark", Label = "备注", Visible = true, RowIndex = 1, ColumnIndex = 7, ColumnWeight = 4 },
         };
 
-        // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段）
+        // 工段列（从参数表加载启用工段，按 DisplayOrder 排序；失败降级为预置 26 工段），窄列权重 1，ColumnIndex 从 8 起
+        var sectionStart = 8;
         foreach (var sc in _sectionCols)
         {
             cols.Add(new ProcessCardColumnDef
@@ -437,7 +506,10 @@
                 BlockKey = "ProcessGroup",
                 Key = sc.SectionKey,
                 Label = SectionDisplayHelper.GetSectionNameText(sc.SectionKey),
-                Visible = true
+                Visible = true,
+                RowIndex = 1,
+                ColumnIndex = sectionStart++,
+                ColumnWeight = 1
             });
         }
 
@@ -501,82 +573,11 @@
             _allColumns = reordered;
         }
 
-        // 加载格式设置列偏好
-        var defaults = GetDefaultColumns();
-        allColumns = defaults.Select(d => new ProcessCardColumnDef
-        {
-            BlockKey = d.BlockKey, Key = d.Key, Label = d.Label, Visible = d.Visible
-        }).ToList();
-        var saved = await ColumnPrefs.LoadAsync(PrefsKey, null);
-        if (saved.Count > 0)
-        {
-            // 按引用追踪已匹配的 allColumns 条目
-            // 解决同一 Key 跨 Block 重复（如 BatchInfo.Remark + ProcessGroup.Remark）
-            var matchedRefs = new HashSet<ProcessCardColumnDef>();
+        // 加载格式设置（数据库全局配置优先，失败/无配置回退默认 4 维布局）
+        allColumns = await LoadFormatColumnsAsync();
 
-            foreach (var savedCol in saved)
-            {
-                var match = allColumns.FirstOrDefault(c =>
-                    c.Key.Equals(savedCol.Key, StringComparison.OrdinalIgnoreCase) && !matchedRefs.Contains(c));
-                if (match != null)
-                {
-                    matchedRefs.Add(match);
-                    match.Visible = savedCol.Visible;
-                }
-            }
-
-            // 确保新增字段（默认 Visible=true 但不在已保存偏好中）保持可见
-            var savedKeys = new HashSet<string>(saved.Select(s => s.Key), StringComparer.OrdinalIgnoreCase);
-            foreach (var def in defaults)
-            {
-                if (!savedKeys.Contains(def.Key) && def.Visible)
-                {
-                    var match = allColumns.FirstOrDefault(c =>
-                        c.Key.Equals(def.Key, StringComparison.OrdinalIgnoreCase) && !matchedRefs.Contains(c));
-                    if (match != null)
-                    {
-                        matchedRefs.Add(match);
-                        match.Visible = true;
-                    }
-                }
-            }
-
-            // 按保存的顺序重排 allColumns（引用去重，非 Key 去重）
-            var reordered = new List<ProcessCardColumnDef>();
-            foreach (var savedCol in saved)
-            {
-                var match = allColumns.FirstOrDefault(c =>
-                    c.Key.Equals(savedCol.Key, StringComparison.OrdinalIgnoreCase) && !reordered.Contains(c));
-                if (match != null)
-                    reordered.Add(match);
-            }
-            foreach (var col in allColumns)
-            {
-                if (!reordered.Contains(col))
-                    reordered.Add(col);
-            }
-            allColumns = reordered;
-
-            // 将去重后的偏好存回 localStorage（仅用于清除旧脏数据，不影响逻辑）
-            var cleanPrefs = allColumns.Select(c => new ColumnDef
-            {
-                Key = c.Key,
-                Label = c.Label,
-                Visible = c.Visible
-            }).ToList();
-            await ColumnPrefs.SaveAsync(PrefsKey, null, cleanPrefs);
-        }
-        else
-        {
-            // 无保存的偏好时，将默认列可见性写入 localStorage
-            var defaultPrefs = allColumns.Select(c => new ColumnDef
-            {
-                Key = c.Key,
-                Label = c.Label,
-                Visible = c.Visible
-            }).ToList();
-            await ColumnPrefs.SaveAsync(PrefsKey, null, defaultPrefs);
-        }
+        // 加载打印版式配置（字体/字号，数据库全局优先，失败/无配置回退默认）
+        await LoadStyleItemsAsync();
 
         // 恢复排序/筛选状态
         var savedState = await PageState.LoadAsync("processcardprint");
@@ -606,23 +607,189 @@
         await LoadFilterContextsAsync();
     }
 
-    private async Task SaveFormatColumnPrefs()
+    // ========== 格式设置（数据库全局配置） ==========
+
+    /// <summary>格式设置面板区块分组（固定区块顺序）</summary>
+    private List<IGrouping<string, ProcessCardColumnDef>> FormatBlocks =>
+        allColumns.GroupBy(c => c.BlockKey).OrderBy(g => BlockOrder(g.Key)).ToList();
+
+    /// <summary>固定区块顺序：BatchInfo→Quality→Warehouse→WorkOrder→ProcessGroup</summary>
+    private static int BlockOrder(string blockKey) => blockKey switch
     {
-        var prefs = allColumns.Select(c => new ColumnDef { Key = c.Key, Visible = c.Visible }).ToList();
-        await ColumnPrefs.SaveAsync(PrefsKey, null, prefs);
+        "BatchInfo" => 1,
+        "Quality" => 2,
+        "Warehouse" => 3,
+        "WorkOrder" => 4,
+        "ProcessGroup" => 5,
+        _ => 99
+    };
+
+    /// <summary>从数据库加载格式设置：DB 配置覆盖默认列，未配置字段保留默认并兜底权重，按区块顺序+行+列排序</summary>
+    private async Task<List<ProcessCardColumnDef>> LoadFormatColumnsAsync()
+    {
+        var defaults = GetDefaultColumns();
+        List<ProcessCardColumnDefinitionDto>? db;
+        try { db = await ProcessCardColDefService.GetAllAsync(); }
+        catch { db = null; }
+
+        if (db is not { Count: > 0 })
+        {
+            return defaults
+                .OrderBy(c => BlockOrder(c.BlockKey))
+                .ThenBy(c => c.BlockKey == "ProcessGroup" ? 1 : c.RowIndex)
+                .ThenBy(c => c.ColumnIndex)
+                .ToList();
+        }
+
+        var dbMap = db.ToDictionary(x => $"{x.BlockKey}|{x.FieldKey}", StringComparer.OrdinalIgnoreCase);
+        var result = new List<ProcessCardColumnDef>();
+        foreach (var def in defaults)
+        {
+            if (dbMap.TryGetValue($"{def.BlockKey}|{def.Key}", out var cfg))
+            {
+                def.Label = cfg.Label;
+                def.Visible = cfg.Visible;
+                def.RowIndex = cfg.RowIndex;
+                def.ColumnIndex = cfg.ColumnIndex;
+                def.ColumnWeight = cfg.ColumnWeight;
+            }
+            else if (def.ColumnWeight <= 0)
+            {
+                def.ColumnWeight = ProcessCardLayoutDefaults.GetDefaultWeight(def.BlockKey, def.Key);
+            }
+            result.Add(def);
+        }
+        // 追加数据库存在但默认列表缺失的字段（极端情况）
+        var known = result.Select(r => $"{r.BlockKey}|{r.Key}").ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var cfg in db.Where(c => !known.Contains($"{c.BlockKey}|{c.FieldKey}")))
+        {
+            result.Add(new ProcessCardColumnDef
+            {
+                BlockKey = cfg.BlockKey,
+                Key = cfg.FieldKey,
+                Label = cfg.Label,
+                Visible = cfg.Visible,
+                RowIndex = cfg.RowIndex,
+                ColumnIndex = cfg.ColumnIndex,
+                ColumnWeight = cfg.ColumnWeight
+            });
+        }
+        return result
+            .OrderBy(c => BlockOrder(c.BlockKey))
+            .ThenBy(c => c.BlockKey == "ProcessGroup" ? 1 : c.RowIndex)
+            .ThenBy(c => c.ColumnIndex)
+            .ToList();
     }
 
-    private async Task ToggleColumn(bool v, ProcessCardColumnDef col)
+    private void ToggleColumn(bool v, ProcessCardColumnDef col)
     {
         col.Visible = v;
-        await SaveFormatColumnPrefs();
+    }
+
+    /// <summary>区块内上移/下移列顺序（交换 ColumnIndex 后归一化连续）</summary>
+    private void MoveFormatColumn(ProcessCardColumnDef col, int delta)
+    {
+        var blockItems = allColumns.Where(c => c.BlockKey == col.BlockKey).OrderBy(c => c.ColumnIndex).ThenBy(c => c.Key).ToList();
+        var idx = blockItems.FindIndex(c => ReferenceEquals(c, col));
+        var target = idx + delta;
+        if (idx < 0 || target < 0 || target >= blockItems.Count) return;
+
+        (col.ColumnIndex, blockItems[target].ColumnIndex) = (blockItems[target].ColumnIndex, col.ColumnIndex);
+        var reordered = allColumns.Where(c => c.BlockKey == col.BlockKey).OrderBy(c => c.ColumnIndex).ToList();
+        for (int i = 0; i < reordered.Count; i++)
+            reordered[i].ColumnIndex = i + 1;
+    }
+
+    /// <summary>保存格式设置到数据库（全局生效）</summary>
+    private async Task SaveFormatSettings()
+    {
+        var items = allColumns.Select(c => new ProcessCardColumnDefinitionDto
+        {
+            BlockKey = c.BlockKey,
+            FieldKey = c.Key,
+            Label = c.Label,
+            Visible = c.Visible,
+            RowIndex = c.RowIndex,
+            ColumnIndex = c.ColumnIndex,
+            ColumnWeight = c.ColumnWeight
+        }).ToList();
+        var r = await ProcessCardColDefService.SaveAllAsync(items);
+        if (r.Success)
+            Snackbar.Add($"格式设置已保存（写入 {r.Data} 行）", Severity.Success);
+        else
+            Snackbar.Add($"保存失败: {r.Message}", Severity.Error);
     }
 
     private async Task ResetColumnDefaults()
     {
         allColumns = GetDefaultColumns();
-        await SaveFormatColumnPrefs();
-        Snackbar.Add("已重置列显示", Severity.Normal);
+        await SaveFormatSettings();
+        Snackbar.Add("已恢复默认格式设置", Severity.Normal);
+    }
+
+    // ========== 打印版式配置（ProcessCardStyleDefinition 配置表，全局共享） ==========
+
+    private List<ProcessCardStyleDefinitionDto> styleItems = new();
+
+    /// <summary>默认版式配置：与 ProcessCardPrintHelper 打印模板硬编码默认值 + 种子迁移 SeedProcessCardStyleDefinition 保持一致</summary>
+    private static List<ProcessCardStyleDefinitionDto> GetDefaultStyleItems() => new()
+    {
+        new() { Key = ProcessCardStyleKeys.PageFontFamily, Value = "华文仿宋", DisplayName = "正文字体", Remark = "页面默认字体族" },
+        new() { Key = ProcessCardStyleKeys.PageFontSize, Value = "9", DisplayName = "正文字号", Remark = "页面默认字号" },
+        new() { Key = ProcessCardStyleKeys.HeaderFontFamily, Value = "SimSun", DisplayName = "主标题字体", Remark = "主标题字体族" },
+        new() { Key = ProcessCardStyleKeys.HeaderFontSize, Value = "20", DisplayName = "主标题字号", Remark = "工艺流转卡标题" },
+        new() { Key = ProcessCardStyleKeys.BatchNoFontSize, Value = "12", DisplayName = "生产编号字号", Remark = "页眉生产编号" },
+        new() { Key = ProcessCardStyleKeys.BlockTitleFontSize, Value = "10", DisplayName = "区块标题字号", Remark = "区块标题" },
+        new() { Key = ProcessCardStyleKeys.TableHeaderFontSize, Value = "8.5", DisplayName = "表头字号", Remark = "表格表头" },
+        new() { Key = ProcessCardStyleKeys.CellFontSize, Value = "8.5", DisplayName = "数据字号", Remark = "数据单元格" },
+    };
+
+    /// <summary>从数据库加载版式配置：DB 权威覆盖默认，缺项保留默认；失败/无配置回退默认</summary>
+    private async Task LoadStyleItemsAsync()
+    {
+        try
+        {
+            var db = await ProcessCardStyleDefService.GetAllAsync();
+            if (db is { Count: > 0 })
+            {
+                var dbMap = db.ToDictionary(x => x.Key, StringComparer.OrdinalIgnoreCase);
+                styleItems = GetDefaultStyleItems().Select(def =>
+                {
+                    if (dbMap.TryGetValue(def.Key, out var cfg))
+                    {
+                        def.Id = cfg.Id;
+                        def.Value = cfg.Value;
+                        def.DisplayName = cfg.DisplayName;
+                        def.Remark = cfg.Remark;
+                    }
+                    return def;
+                }).ToList();
+            }
+            else
+            {
+                styleItems = GetDefaultStyleItems();
+            }
+        }
+        catch
+        {
+            styleItems = GetDefaultStyleItems();
+        }
+    }
+
+    private async Task SaveStyleSettings()
+    {
+        var r = await ProcessCardStyleDefService.SaveAllAsync(styleItems);
+        if (r.Success)
+            Snackbar.Add($"版式设置已保存（写入 {r.Data} 行）", Severity.Success);
+        else
+            Snackbar.Add($"保存失败: {r.Message}", Severity.Error);
+    }
+
+    private async Task ResetStyleDefaults()
+    {
+        styleItems = GetDefaultStyleItems();
+        await SaveStyleSettings();
+        Snackbar.Add("已恢复默认版式设置", Severity.Normal);
     }
 
     // ========== 服务端数据加载 ==========

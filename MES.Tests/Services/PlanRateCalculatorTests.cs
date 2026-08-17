@@ -76,7 +76,7 @@ public class PlanRateCalculatorTests
 
         // (80 + 20) / 100 * 100 = 100
         rate.Should().Be(100);
-        status.Should().Be((int)MaterialPlanStatus.TheoreticalSatisfied);
+        status.Should().Be((int)MaterialPlanStatus.Satisfied);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class PlanRateCalculatorTests
         (decimal rate, int status) = PlanRateCalculator.ComputeWorkOrderRate(wo, [], [], invPlans, []);
 
         rate.Should().Be(100);
-        status.Should().Be((int)MaterialPlanStatus.TheoreticalSatisfied);
+        status.Should().Be((int)MaterialPlanStatus.Satisfied);
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public class PlanRateCalculatorTests
 
         // (5000 + 3000) / 8000 * 100 = 100
         rate.Should().Be(100);
-        status.Should().Be((int)MaterialPlanStatus.TheoreticalSatisfied);
+        status.Should().Be((int)MaterialPlanStatus.Satisfied);
     }
 
     // ========== 多种计划叠加 ==========
@@ -205,10 +205,10 @@ public class PlanRateCalculatorTests
     [Theory]
     [InlineData(0, MaterialPlanStatus.NotPlanned)]     // =0
     [InlineData(99, MaterialPlanStatus.Partial)]        // <100
-    [InlineData(100, MaterialPlanStatus.TheoreticalSatisfied)] // 100-101
-    [InlineData(101, MaterialPlanStatus.TheoreticalSatisfied)] // 100-101
-    [InlineData(102, MaterialPlanStatus.Satisfied)]     // 102-110
-    [InlineData(110, MaterialPlanStatus.Satisfied)]     // 102-110
+    [InlineData(100, MaterialPlanStatus.Satisfied)]     // 100-110
+    [InlineData(101, MaterialPlanStatus.Satisfied)]     // 100-110
+    [InlineData(102, MaterialPlanStatus.Satisfied)]     // 100-110
+    [InlineData(110, MaterialPlanStatus.Satisfied)]     // 100-110
     [InlineData(111, MaterialPlanStatus.Excess)]        // >110
     public void CalculateOverallStatus_Fixed边界值(int totalRate, MaterialPlanStatus expected)
     {
@@ -230,10 +230,10 @@ public class PlanRateCalculatorTests
     [Theory]
     [InlineData(0, MaterialPlanStatus.NotPlanned)]     // =0
     [InlineData(99, MaterialPlanStatus.Partial)]        // <100
-    [InlineData(100, MaterialPlanStatus.TheoreticalSatisfied)] // 100-104
-    [InlineData(104, MaterialPlanStatus.TheoreticalSatisfied)] // 100-104
-    [InlineData(105, MaterialPlanStatus.Satisfied)]     // 105-120
-    [InlineData(120, MaterialPlanStatus.Satisfied)]     // 105-120
+    [InlineData(100, MaterialPlanStatus.Satisfied)]     // 100-120
+    [InlineData(104, MaterialPlanStatus.Satisfied)]     // 100-120
+    [InlineData(105, MaterialPlanStatus.Satisfied)]     // 100-120
+    [InlineData(120, MaterialPlanStatus.Satisfied)]     // 100-120
     [InlineData(121, MaterialPlanStatus.Excess)]        // >120
     public void CalculateOverallStatus_非Fixed边界值(int totalRate, MaterialPlanStatus expected)
     {

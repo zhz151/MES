@@ -27,7 +27,6 @@ public class EnumHelperTests
     {
         EnumHelper.GetDisplayName(MaterialPlanStatus.NotPlanned).Should().Be("未计划");
         EnumHelper.GetDisplayName(MaterialPlanStatus.Partial).Should().Be("部分");
-        EnumHelper.GetDisplayName(MaterialPlanStatus.TheoreticalSatisfied).Should().Be("理论满足");
         EnumHelper.GetDisplayName(MaterialPlanStatus.Satisfied).Should().Be("满足");
         EnumHelper.GetDisplayName(MaterialPlanStatus.Excess).Should().Be("超量");
     }

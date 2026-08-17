@@ -39,7 +39,7 @@ public class WorkOrderExecutionSummary : BaseEntity
     public decimal TotalWeight { get; set; }
 
     // ========== Group 3: 用料计划及执行实况（G4~G11 的汇整） ==========
-    /// <summary>工单用料计划状态(0=未计划 1=部分 2=理论满足 3=满足 4=超量)</summary>
+    /// <summary>工单用料计划状态(0=未计划 1=部分 2=满足 3=超量)</summary>
     public int MaterialPlanStatus { get; set; }
 
     /// <summary>主号满足率(%)</summary>

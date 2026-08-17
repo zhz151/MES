@@ -208,7 +208,7 @@ public class IntStatusDisplayHelperTests
     public void GetMaterialPlanStatusOptions_与EnumHelper中文一致()
     {
         var options = IntStatusDisplayHelper.GetMaterialPlanStatusOptions();
-        options.Should().HaveCount(5);
+        options.Should().HaveCount(4);
         foreach (var opt in options)
         {
             var value = int.Parse(opt.Value);

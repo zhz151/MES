@@ -181,6 +181,8 @@ builder.Services.AddScoped<IEnumDisplayDefinitionService, EnumDisplayDefinitionS
 builder.Services.AddScoped<IDictValueDefinitionService, DictValueDefinitionService>();
 builder.Services.AddScoped<IStandardWorkDayDeliveryStateService, StandardWorkDayDeliveryStateService>();
 builder.Services.AddScoped<IConfigParameterService, ConfigParameterService>();
+builder.Services.AddScoped<IProcessCardColumnDefinitionService, ProcessCardColumnDefinitionService>();
+builder.Services.AddScoped<IProcessCardStyleDefinitionService, ProcessCardStyleDefinitionService>();
 builder.Services.AddScoped<IDailyOutputEstimateService, DailyOutputEstimateService>();
 builder.Services.AddScoped<IMaterialPlanProcessGroupService, MaterialPlanProcessGroupService>();
 builder.Services.AddScoped<IProductRequirementService, ProductRequirementService>();

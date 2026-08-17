@@ -189,8 +189,8 @@ public class MaterialPlanOverviewTests : IDisposable
             r.Items = new List<WorkOrderListDto>
             {
                 new() { Id = 1, WorkOrderNo = "WO-TEST-001", SalesOrderNo = "SO-001",
-                    ProductionMainNo = "M-001", ProductionSubNo = "001", MaterialPlanStatus = (MaterialPlanStatus)3,
-                    MaterialPlanRate = 100, MainNoMaterialPlanStatus = (MaterialPlanStatus)3, OrderMaterialPlanStatus = (MaterialPlanStatus)3 }
+                    ProductionMainNo = "M-001", ProductionSubNo = "001", MaterialPlanStatus = (MaterialPlanStatus)2,
+                    MaterialPlanRate = 100, MainNoMaterialPlanStatus = (MaterialPlanStatus)2, OrderMaterialPlanStatus = (MaterialPlanStatus)2 }
             };
             r.TotalCount = 1;
         });
@@ -211,9 +211,8 @@ public class MaterialPlanOverviewTests : IDisposable
     [Theory]
     [InlineData(0, "未计划")]
     [InlineData(1, "部分")]
-    [InlineData(2, "理论满足")]
-    [InlineData(3, "满足")]
-    [InlineData(4, "超量")]
+    [InlineData(2, "满足")]
+    [InlineData(3, "超量")]
     public void StatusText_ShowsCorrectLabel(int status, string expected)
     {
         ConfigureResponse(r =>
@@ -234,7 +233,7 @@ public class MaterialPlanOverviewTests : IDisposable
     [Theory]
     [InlineData(0, "未计划")]
     [InlineData(1, "部分")]
-    [InlineData(3, "满足")]
+    [InlineData(2, "满足")]
     public void OrderStatusText_ShowsCorrectLabel(int status, string expected)
     {
         // OrderMaterialPlanStatus 默认隐藏，模拟列偏好将其显示

@@ -21,12 +21,19 @@ public class BatchPlanDto
 
     // ===== G2：关联工单信息 =====
     public string WorkOrderNo { get; set; } = string.Empty;
+    public string? SalesOrderNo { get; set; }
+    public string? ProductionMainNo { get; set; }
+    public string? EndCustomer { get; set; }
     public string? Salesman { get; set; }
     public DateTime DeliveryDate { get; set; }
     public DeliveryState? DeliveryState { get; set; }
     public string Specification { get; set; } = string.Empty;
     /// <summary>制造物品（产类判定输入，供荒管检/在制检按产类过滤）</summary>
     public string? ManufacturingItem { get; set; }
+    /// <summary>生产类型（荒管生产/在制生产/库存/外购/返整/委外生产/对外加工）</summary>
+    public string? ProductionType { get; set; }
+    /// <summary>制造状态（批次实际制造状态，与交货状态同枚举）</summary>
+    public string? ManufacturingStatus { get; set; }
     public LengthStatus? LengthStatus { get; set; }
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }

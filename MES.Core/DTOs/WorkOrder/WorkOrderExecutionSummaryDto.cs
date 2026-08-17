@@ -44,7 +44,7 @@ public class WorkOrderExecutionSummaryDto
     public decimal TotalWeight { get; set; }
 
     // ========== Group 3: 用料计划及执行实况（G4~G11 的汇整，来自用料计划总览 WorkOrderListSummary） ==========
-    /// <summary>工单计划状态(0=未计划 1=部分 2=理论满足 3=满足 4=超量)</summary>
+    /// <summary>工单计划状态(0=未计划 1=部分 2=满足 3=超量)</summary>
     public MaterialPlanStatus MaterialPlanStatus { get; set; }
     public string MaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MaterialPlanStatus);
 

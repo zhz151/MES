@@ -87,6 +87,7 @@ public class BatchPlanService : IBatchPlanService
 
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
         var planQuery = _context.Set<WorkOrderPlan>().AsNoTracking();
+        var workOrderQuery = _context.Set<MES.Data.Entities.WorkOrder.WorkOrder>().AsNoTracking();
 
         // ========== 提取并移除工段筛选（__SectionTab），在实体层应用特殊逻辑 ==========
         string? sectionTab = null;
@@ -103,11 +104,13 @@ public class BatchPlanService : IBatchPlanService
         sectionTab = NormalizeSectionTab(sectionTab);
 
         var joined = from b in batchQuery
+                     join wo in workOrderQuery on b.WorkOrderNo equals wo.WorkOrderNo into woj
+                     from wo in woj.DefaultIfEmpty()
                      join s in summaryQuery on b.WorkOrderNo equals s.WorkOrderNo into sj
                      from s in sj.DefaultIfEmpty()
                      join plan in planQuery on s.WorkOrderId equals plan.WorkOrderId into planj
                      from plan in planj.DefaultIfEmpty()
-                     select new { b, s, plan };
+                     select new { b, wo, s, plan };
 
         // 主号暂停（IsPaused）批次排除，不参与批次计划
         joined = joined.Where(x => x.s == null || !x.s.IsPaused);
@@ -123,6 +126,12 @@ public class BatchPlanService : IBatchPlanService
                 x.b.WorkOrderNo.Contains(kw) ||
                 (x.b.Salesman != null && x.b.Salesman.Contains(kw)) ||
                 x.b.Specification.Contains(kw) ||
+                (x.b.ProductionType != null && x.b.ProductionType.Contains(kw)) ||
+                (x.b.ManufacturingItem != null && x.b.ManufacturingItem.Contains(kw)) ||
+                (x.b.ManufacturingStatus != null && x.b.ManufacturingStatus.Contains(kw)) ||
+                (x.wo != null && x.wo.SalesOrderNo != null && x.wo.SalesOrderNo.Contains(kw)) ||
+                (x.wo != null && x.wo.ProductionMainNo != null && x.wo.ProductionMainNo.Contains(kw)) ||
+                (x.wo != null && x.wo.EndCustomer != null && x.wo.EndCustomer.Contains(kw)) ||
                 (x.b.CurrentGroupName != null && x.b.CurrentGroupName.Contains(kw)) ||
                 (x.b.CurrentSectionName != null && x.b.CurrentSectionName.Contains(kw)) ||
                 (x.b.NextProcess != null && x.b.NextProcess.Contains(kw)) ||
@@ -190,11 +199,16 @@ public class BatchPlanService : IBatchPlanService
 
             // G2
             WorkOrderNo = x.b.WorkOrderNo,
+            SalesOrderNo = x.wo != null ? x.wo.SalesOrderNo : null,
+            ProductionMainNo = x.wo != null ? x.wo.ProductionMainNo : null,
+            EndCustomer = x.wo != null ? x.wo.EndCustomer : null,
             Salesman = x.b.Salesman,
             DeliveryDate = x.b.DeliveryDate,
             DeliveryState = string.IsNullOrEmpty(x.b.DeliveryState) ? null : Enum.Parse<DeliveryState>(x.b.DeliveryState),
             Specification = x.b.Specification,
             ManufacturingItem = x.b.ManufacturingItem,
+            ProductionType = x.b.ProductionType,
+            ManufacturingStatus = x.b.ManufacturingStatus,
             LengthStatus = string.IsNullOrEmpty(x.b.LengthStatus) ? null : Enum.Parse<LengthStatus>(x.b.LengthStatus),
             MinLength = x.b.MinLength,
             MaxLength = x.b.MaxLength,
@@ -383,15 +397,18 @@ public class BatchPlanService : IBatchPlanService
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
         var planQuery = _context.Set<WorkOrderPlan>().AsNoTracking();
         var batchPlanQuery = _context.Set<BatchPlanSchedule>().AsNoTracking();
+        var workOrderQuery = _context.Set<MES.Data.Entities.WorkOrder.WorkOrder>().AsNoTracking();
 
         var joined = from b in batchQuery
+                     join wo in workOrderQuery on b.WorkOrderNo equals wo.WorkOrderNo into woj
+                     from wo in woj.DefaultIfEmpty()
                      join s in summaryQuery on b.WorkOrderNo equals s.WorkOrderNo into sj
                      from s in sj.DefaultIfEmpty()
                      join plan in planQuery on s.WorkOrderId equals plan.WorkOrderId into planj
                      from plan in planj.DefaultIfEmpty()
                      join bp in batchPlanQuery on b.Id equals bp.BatchId into bpj
                      from bp in bpj.DefaultIfEmpty()
-                     select new { b, s, plan, bp };
+                     select new { b, wo, s, plan, bp };
 
         // 主号暂停（IsPaused）批次排除，不参与批次计划
         joined = joined.Where(x => x.s == null || !x.s.IsPaused);
@@ -450,11 +467,16 @@ public class BatchPlanService : IBatchPlanService
             PlantGrade = x.b.PlantGrade,
             CurrentValidWeight = x.b.CurrentValidWeight,
             WorkOrderNo = x.b.WorkOrderNo,
+            SalesOrderNo = x.wo != null ? x.wo.SalesOrderNo : null,
+            ProductionMainNo = x.wo != null ? x.wo.ProductionMainNo : null,
+            EndCustomer = x.wo != null ? x.wo.EndCustomer : null,
             Salesman = x.b.Salesman,
             DeliveryDate = x.b.DeliveryDate,
             DeliveryState = string.IsNullOrEmpty(x.b.DeliveryState) ? null : Enum.Parse<DeliveryState>(x.b.DeliveryState),
             Specification = x.b.Specification,
             ManufacturingItem = x.b.ManufacturingItem,
+            ProductionType = x.b.ProductionType,
+            ManufacturingStatus = x.b.ManufacturingStatus,
             LengthStatus = string.IsNullOrEmpty(x.b.LengthStatus) ? null : Enum.Parse<LengthStatus>(x.b.LengthStatus),
             MinLength = x.b.MinLength,
             MaxLength = x.b.MaxLength,
@@ -910,8 +932,11 @@ public class BatchPlanService : IBatchPlanService
             .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress);
 
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
+        var workOrderQuery = _context.Set<MES.Data.Entities.WorkOrder.WorkOrder>().AsNoTracking();
 
         var q = from b in batchQuery
+                join wo in workOrderQuery on b.WorkOrderNo equals wo.WorkOrderNo into woj
+                from wo in woj.DefaultIfEmpty()
                 join s in summaryQuery on b.WorkOrderNo equals s.WorkOrderNo into sj
                 from s in sj.DefaultIfEmpty()
                 where s == null || !s.IsPaused // 主号暂停（IsPaused）批次排除，与主列表口径一致
@@ -925,6 +950,12 @@ public class BatchPlanService : IBatchPlanService
                     b.DeliveryState,
                     b.Specification,
                     b.LengthStatus,
+                    b.ProductionType,
+                    b.ManufacturingItem,
+                    b.ManufacturingStatus,
+                    SalesOrderNo = wo != null ? wo.SalesOrderNo : null,
+                    ProductionMainNo = wo != null ? wo.ProductionMainNo : null,
+                    EndCustomer = wo != null ? wo.EndCustomer : null,
                     b.CurrentGroupName,
                     b.CurrentSectionName,
                     b.NextProcess,
@@ -950,10 +981,16 @@ public class BatchPlanService : IBatchPlanService
             ["TagNo"] = all.Where(x => x.TagNo != null).Select(x => x.TagNo!).Distinct().OrderBy(x => x).ToList(),
             ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
             ["WorkOrderNo"] = all.Select(x => x.WorkOrderNo).Distinct().OrderBy(x => x).ToList(),
+            ["SalesOrderNo"] = all.Where(x => x.SalesOrderNo != null).Select(x => x.SalesOrderNo!).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionMainNo"] = all.Where(x => x.ProductionMainNo != null).Select(x => x.ProductionMainNo!).Distinct().OrderBy(x => x).ToList(),
+            ["EndCustomer"] = all.Where(x => x.EndCustomer != null).Select(x => x.EndCustomer!).Distinct().OrderBy(x => x).ToList(),
             ["Salesman"] = all.Where(x => x.Salesman != null).Select(x => x.Salesman!).Distinct().OrderBy(x => x).ToList(),
             ["DeliveryState"] = all.Where(x => x.DeliveryState != null).Select(x => x.DeliveryState!).Distinct().OrderBy(x => x).ToList(),
             ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),
             ["LengthStatus"] = all.Where(x => x.LengthStatus != null).Select(x => x.LengthStatus!).Distinct().OrderBy(x => x).ToList(),
+            ["ProductionType"] = all.Where(x => x.ProductionType != null).Select(x => x.ProductionType!).Distinct().OrderBy(x => x).ToList(),
+            ["ManufacturingItem"] = all.Where(x => x.ManufacturingItem != null).Select(x => x.ManufacturingItem!).Distinct().OrderBy(x => x).ToList(),
+            ["ManufacturingStatus"] = all.Where(x => x.ManufacturingStatus != null).Select(x => x.ManufacturingStatus!).Distinct().OrderBy(x => x).ToList(),
             ["CurrentGroupName"] = all.Where(x => x.CurrentGroupName != null).Select(x => x.CurrentGroupName!).Distinct().OrderBy(x => x).ToList(),
             ["CurrentSectionName"] = all.Where(x => x.CurrentSectionName != null).Select(x => x.CurrentSectionName!).Distinct().OrderBy(x => x).ToList(),
             ["NextProcess"] = all.Where(x => x.NextProcess != null).Select(x => x.NextProcess!).Distinct().OrderBy(x => x).ToList(),

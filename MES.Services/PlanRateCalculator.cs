@@ -29,8 +29,8 @@ internal static class PlanRateCalculator
         List<RoundBarPiercingPlan> piercingPlans,
         List<InProcessReworkPlan>? inProcessReworkPlans = null,
         List<InMainWorkOrderPlan>? inMainWorkOrderPlans = null,
-        decimal fixedTheoretical = 102m, decimal fixedSatisfied = 110m,
-        decimal nonFixedTheoretical = 105m, decimal nonFixedSatisfied = 120m)
+        decimal fixedSatisfied = 110m,
+        decimal nonFixedSatisfied = 120m)
     {
         var rates = new List<decimal>();
 
@@ -61,8 +61,7 @@ internal static class PlanRateCalculator
             return (0, 0);
 
         var totalRate = Math.Min(rates.Sum(), 999m);
-        var status = CalculateOverallStatus(wo.LengthStatus, totalRate,
-            fixedTheoretical, fixedSatisfied, nonFixedTheoretical, nonFixedSatisfied);
+        var status = CalculateOverallStatus(wo.LengthStatus, totalRate, fixedSatisfied, nonFixedSatisfied);
         return (totalRate, (int)status);
     }
 
@@ -166,22 +165,20 @@ internal static class PlanRateCalculator
 
     private static MaterialPlanStatus CalculateOverallStatus(
         LengthStatus lengthStatus, decimal totalRate,
-        decimal fixedTheoretical, decimal fixedSatisfied,
-        decimal nonFixedTheoretical, decimal nonFixedSatisfied)
+        decimal fixedSatisfied, decimal nonFixedSatisfied)
     {
         if (totalRate <= 0) return MaterialPlanStatus.NotPlanned;
 
+        // 工单级口径：满足率<100%=部分；100%~上限=满足（原"理论满足"并入满足）；超出=超量
         if (lengthStatus == LengthStatus.Fixed)
         {
             if (totalRate < 100m) return MaterialPlanStatus.Partial;
-            if (totalRate < fixedTheoretical) return MaterialPlanStatus.TheoreticalSatisfied;
             if (totalRate <= fixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }
         else
         {
             if (totalRate < 100m) return MaterialPlanStatus.Partial;
-            if (totalRate < nonFixedTheoretical) return MaterialPlanStatus.TheoreticalSatisfied;
             if (totalRate <= nonFixedSatisfied) return MaterialPlanStatus.Satisfied;
             return MaterialPlanStatus.Excess;
         }

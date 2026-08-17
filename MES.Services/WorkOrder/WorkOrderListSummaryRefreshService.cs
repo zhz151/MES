@@ -207,7 +207,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
 
                 // 计算工单级满足率/状态
                 var (rate, status) = PlanRateCalculator.ComputeWorkOrderRate(wo, semi, finish, inv, pierce, inProcess, inMain,
-                    fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
+                    fixedSatisfied, nonFixedSatisfied);
 
                 // 计算 MaxStandardCycle
                 var allCycles = semi.Select(ps => ps.StandardCycle)
