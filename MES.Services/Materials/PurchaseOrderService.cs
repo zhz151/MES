@@ -90,6 +90,47 @@ public class PurchaseOrderService : IPurchaseOrderService
         return map.GetValueOrDefault(key, defaultValue);
     }
 
+    /// <summary>
+    /// 按采购单号汇总退货量（仅统计退货出库 ReturnOut 的出库支数/重量）。
+    /// 关联链：采购单号 → 仓库批（InventoryBatch.SourceOrderNo）→ 退货出库记录（OutboundRecord.InventoryBatchId）。
+    /// </summary>
+    private async Task<Dictionary<string, (int Quantity, decimal Weight)>> BuildReturnSummaryAsync(IReadOnlyCollection<string> orderNos)
+    {
+        var result = new Dictionary<string, (int, decimal)>(StringComparer.OrdinalIgnoreCase);
+        if (orderNos.Count == 0) return result;
+        foreach (var no in orderNos.Distinct(StringComparer.OrdinalIgnoreCase))
+            result[no] = (0, 0m);
+
+        // 按采购单号查其采购入库的仓库批，建立「原仓库批批次号 → 采购单号」映射
+        var batches = await _context.InventoryBatches.AsNoTracking()
+            .Where(b => b.SourceOrderNo != null && orderNos.Contains(b.SourceOrderNo))
+            .Select(b => new { b.BatchNo, b.SourceOrderNo })
+            .ToListAsync();
+
+        var batchNoToOrderNo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var b in batches.Where(b => !string.IsNullOrEmpty(b.BatchNo) && !string.IsNullOrEmpty(b.SourceOrderNo)))
+            batchNoToOrderNo[b.BatchNo!] = b.SourceOrderNo!;
+        if (batchNoToOrderNo.Count == 0) return result;
+
+        // 退货出库以「退货-原仓库批（ReturnSourceBatchNo=原仓库批批次号）」反查原仓库批再关联采购单
+        var batchNos = batchNoToOrderNo.Keys.ToList();
+        foreach (var chunk in batchNos.Chunk(1000))
+        {
+            var outbounds = await _context.OutboundRecords.AsNoTracking()
+                .Where(o => o.OutboundType == OutboundType.ReturnOut
+                         && o.ReturnSourceBatchNo != null
+                         && chunk.Contains(o.ReturnSourceBatchNo))
+                .ToListAsync();
+            foreach (var o in outbounds)
+            {
+                if (!batchNoToOrderNo.TryGetValue(o.ReturnSourceBatchNo!, out var orderNo)) continue;
+                var (q, w) = result[orderNo];
+                result[orderNo] = (q + o.OutboundQuantity, w + o.OutboundWeight);
+            }
+        }
+        return result;
+    }
+
     public async Task<PagedResult<PurchaseOrderDto>> GetPagedAsync(PurchaseOrderQueryParams query)
     {
         // 实体级查询（MaterialCategory 为字符串，用于 DB 端筛选和排序）
@@ -190,6 +231,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             ("orderdate", true) => dtoQuery.OrderByDescending(x => x.OrderDate),
             ("materialcategory", false) => dtoQuery.OrderBy(x => x.MaterialCategory),
             ("materialcategory", true) => dtoQuery.OrderByDescending(x => x.MaterialCategory),
+            ("lastarrivaldate", false) => dtoQuery.OrderBy(x => x.LastArrivalDate),
+            ("lastarrivaldate", true) => dtoQuery.OrderByDescending(x => x.LastArrivalDate),
             _ => query.IsDescending
                 ? dtoQuery.OrderByDescending(x => x.CreatedTime)
                 : dtoQuery.OrderBy(x => x.CreatedTime)
@@ -244,6 +287,15 @@ public class PurchaseOrderService : IPurchaseOrderService
             WoTotalItemCount = x.WoTotalItemCount,
         }).ToList();
 
+        // 退货量（内存补充：按采购单号汇总退货出库 ReturnOut 支数/重量）
+        var returnMap = await BuildReturnSummaryAsync(dtos.Select(d => d.OrderNo).ToList());
+        foreach (var d in dtos)
+        {
+            var (rq, rw) = returnMap[d.OrderNo];
+            d.ReturnQuantity = rq;
+            d.ReturnWeight = rw;
+        }
+
         return new PagedResult<PurchaseOrderDto>
         {
             Items = dtos,
@@ -264,7 +316,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                                p, w, MaterialCategory = p.MaterialCategory
                            }).ToListAsync();
 
-        return items.Select(x => new PurchaseOrderDto
+        var dtos = items.Select(x => new PurchaseOrderDto
         {
             Id = x.p.Id,
             OrderNo = x.p.OrderNo,
@@ -307,6 +359,16 @@ public class PurchaseOrderService : IPurchaseOrderService
             WoDeliveryState = x.w != null ? (DeliveryState?)x.w.DeliveryState : null,
             WoTotalItemCount = x.w != null ? (int?)x.w.TotalItemCount : null,
         }).ToList();
+
+        // 退货量（内存补充）
+        var returnMap = await BuildReturnSummaryAsync(dtos.Select(d => d.OrderNo).ToList());
+        foreach (var d in dtos)
+        {
+            var (rq, rw) = returnMap[d.OrderNo];
+            d.ReturnQuantity = rq;
+            d.ReturnWeight = rw;
+        }
+        return dtos;
     }
 
     public async Task<PurchaseOrderDto> GetByIdAsync(int id)
@@ -319,7 +381,7 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         if (item == null) throw new BusinessException("采购单不存在");
 
-        return new PurchaseOrderDto
+        var dto = new PurchaseOrderDto
         {
             Id = item.p.Id,
             OrderNo = item.p.OrderNo,
@@ -362,6 +424,12 @@ public class PurchaseOrderService : IPurchaseOrderService
             WoDeliveryState = item.w != null ? (DeliveryState?)item.w.DeliveryState : null,
             WoTotalItemCount = (int?)item.w?.TotalItemCount,
         };
+
+        var returnMap = await BuildReturnSummaryAsync(new[] { dto.OrderNo });
+        var (rq, rw) = returnMap[dto.OrderNo];
+        dto.ReturnQuantity = rq;
+        dto.ReturnWeight = rw;
+        return dto;
     }
 
     public async Task<PurchaseOrderDto> CreateAsync(CreatePurchaseOrderRequest request)
@@ -550,7 +618,9 @@ public class PurchaseOrderService : IPurchaseOrderService
             {
                 var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
                 var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
-                RecalcPurchaseStatus(entity, ratio, deviation);
+                var overRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
+                var overDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseOverDeviation", 100m);
+                RecalcPurchaseStatus(entity, ratio, deviation, overRatio, overDeviation);
             }
         }
 
@@ -607,7 +677,9 @@ public class PurchaseOrderService : IPurchaseOrderService
             {
                 var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
                 var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
-                RecalcPurchaseStatus(order, ratio, deviation);
+                var overRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
+                var overDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseOverDeviation", 100m);
+                RecalcPurchaseStatus(order, ratio, deviation, overRatio, overDeviation);
             }
         }
 
@@ -639,7 +711,9 @@ public class PurchaseOrderService : IPurchaseOrderService
         {
             var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
             var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
-            RecalcPurchaseStatus(order, ratio, deviation);
+            var overRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
+            var overDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseOverDeviation", 100m);
+            RecalcPurchaseStatus(order, ratio, deviation, overRatio, overDeviation);
         }
 
         await _context.SaveChangesAsync();
@@ -660,7 +734,9 @@ public class PurchaseOrderService : IPurchaseOrderService
         {
             var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
             var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
-            RecalcPurchaseStatus(entity, ratio, deviation);
+            var overRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
+            var overDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseOverDeviation", 100m);
+            RecalcPurchaseStatus(entity, ratio, deviation, overRatio, overDeviation);
         }
 
         await _context.SaveChangesAsync();
@@ -685,10 +761,13 @@ public class PurchaseOrderService : IPurchaseOrderService
         await TryRefreshExecutionSummaryAsync(deletedWoNo);
     }
 
-    private static void RecalcPurchaseStatus(PurchaseOrder order, decimal purchaseCompleteRatio, decimal purchaseCompleteDeviation)
+    private static void RecalcPurchaseStatus(PurchaseOrder order, decimal purchaseCompleteRatio, decimal purchaseCompleteDeviation, decimal purchaseOverRatio, decimal purchaseOverDeviation)
     {
         if (order.ReceivedWeight == 0)
             order.Status = PurchaseOrderStatus.Open;
+        else if (order.ReceivedWeight > order.Weight * purchaseOverRatio
+                 && order.ReceivedWeight - order.Weight > purchaseOverDeviation)
+            order.Status = PurchaseOrderStatus.OverReceived;
         else if (IsThresholdMet(order.ReceivedWeight, order.Weight, purchaseCompleteRatio, purchaseCompleteDeviation))
             order.Status = PurchaseOrderStatus.Completed;
         else
@@ -1141,7 +1220,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                            where ids.Contains(p.Id)
                            select new { p, w, MaterialCategory = p.MaterialCategory }).ToListAsync();
 
-        return items.Select(x => new PurchaseOrderDto
+        var dtos = items.Select(x => new PurchaseOrderDto
         {
             Id = x.p.Id,
             OrderNo = x.p.OrderNo,
@@ -1184,6 +1263,16 @@ public class PurchaseOrderService : IPurchaseOrderService
             WoDeliveryState = x.w != null ? (DeliveryState?)x.w.DeliveryState : null,
             WoTotalItemCount = x.w != null ? (int?)x.w.TotalItemCount : null,
         }).ToList();
+
+        // 退货量（内存补充）
+        var returnMap = await BuildReturnSummaryAsync(dtos.Select(d => d.OrderNo).ToList());
+        foreach (var d in dtos)
+        {
+            var (rq, rw) = returnMap[d.OrderNo];
+            d.ReturnQuantity = rq;
+            d.ReturnWeight = rw;
+        }
+        return dtos;
     }
 
     public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null, List<PrintColumnDef>? columns = null)
@@ -1217,7 +1306,15 @@ public class PurchaseOrderService : IPurchaseOrderService
         ["RequiredDate"] = dto.RequiredDate,
         ["SupplierName"] = dto.SupplierName,
         ["Status"] = dto.Status,
-        ["Received"] = $"{dto.ReceivedQuantity}支/{dto.ReceivedWeight:G29}kg",
+        ["ArrivalDate"] = dto.LastArrivalDate?.ToString("yyyy-MM-dd") ?? "",
+        ["Received"] = dto.ReceivedQuantity == 0 && dto.ReceivedWeight == 0m
+            ? "-"
+            : $"{dto.ReceivedQuantity}支/{dto.ReceivedWeight:G29}kg",
+        ["Returned"] = dto.ReturnQuantity == 0 && dto.ReturnWeight == 0m
+            ? "-"
+            : $"{dto.ReturnQuantity}支/{dto.ReturnWeight:G29}kg",
+        ["IsForceCompleted"] = dto.IsForceCompleted ? "是" : "-",
+        ["Remark"] = (object?)dto.Remark ?? "",
         // 来源销售订单字段
         ["WoSalesOrderNo"] = (object?)dto.WoSalesOrderNo ?? "",
         ["WoProductionMainNo"] = (object?)dto.WoProductionMainNo ?? "",

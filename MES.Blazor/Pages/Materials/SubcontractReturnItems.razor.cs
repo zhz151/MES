@@ -32,6 +32,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
         "RequiredQuantity", "RequiredWeight", "ReturnedQuantity", "ReturnedWeight",
+        "ReturnQuantity", "ReturnWeight",
     };
 
     // ========== 选中行 ==========
@@ -69,22 +70,40 @@ public partial class SubcontractReturnItems : IAsyncDisposable
 
     private static List<ColumnDef> GetAllColumnDefs()
     {
-        return new List<ColumnDef>
+        // G1: 委外信息
+        var g1 = new List<ColumnDef>
         {
-            new() { Key = "OrderNo",             Label = "委外单号",       SortKey = "orderno",           FilterType = "string", Width = "130" },
-            new() { Key = "SupplierName",        Label = "供应商",         SortKey = "suppliername",       FilterType = "string", Width = "120" },
-            new() { Key = "SourceWorkOrderNo",   Label = "来源工单号",     SortKey = "sourceworkorderno",  FilterType = "string", Width = "130" },
-            new() { Key = "PlantGrade",          Label = "牌号",           SortKey = "plantgrade",         FilterType = "string", Width = "100" },
-            new() { Key = "ProcessSpecification", Label = "规格",          SortKey = "processspecification", FilterType = "string", Width = "120" },
-            new() { Key = "UnitWeight",          Label = "单重(kg)",       SortKey = "unitweight",                             Width = "80" },
-            new() { Key = "RequiredQuantity",    Label = "需求支数",       SortKey = "requiredquantity",                       Width = "80" },
-            new() { Key = "RequiredWeight",      Label = "需求重量(kg)",   SortKey = "requiredweight",                         Width = "100" },
-            new() { Key = "ReturnDeadline",      Label = "截止回收日",     SortKey = "returndeadline",     FilterType = "date",  Width = "110" },
-            new() { Key = "ReturnedQuantity",    Label = "回收支数",       SortKey = "returnedquantity",                       Width = "80" },
-            new() { Key = "ReturnedWeight",      Label = "回收重量(kg)",   SortKey = "returnedweight",                         Width = "100" },
-            new() { Key = "ProcessStatus",       Label = "执行状态",       SortKey = "processstatus",      FilterType = "enum",  Width = "100",
-                EnumOptions = DisplayHelper.GetEnumFilterOptions<SubcontractOrderStatus>() },
+            new() { Key = "#",                   Label = "#",                                                    Width = "40",  GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "OrderNo",             Label = "委外单号",       SortKey = "orderno",           FilterType = "string", Width = "130", GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "SupplierName",        Label = "供应商",         SortKey = "suppliername",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "OrderDate",           Label = "下单日期",       SortKey = "orderdate",           FilterType = "date",  Width = "110", GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "SourceWorkOrderNo",   Label = "来源工单号",     SortKey = "sourceworkorderno",  FilterType = "string", Width = "130", GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "PlantGrade",          Label = "牌号",           SortKey = "plantgrade",         FilterType = "string", Width = "100", GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "ProcessSpecification", Label = "规格",          SortKey = "processspecification", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "UnitWeight",          Label = "单重(kg)",       SortKey = "unitweight",                             Width = "80",  GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "RequiredQuantity",    Label = "需求支数",       SortKey = "requiredquantity",                       Width = "80",  GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "RequiredWeight",      Label = "需求重量(kg)",   SortKey = "requiredweight",                         Width = "100", GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "RequiredArrivalDate", Label = "要求到货日",     SortKey = "requiredarrivaldate", FilterType = "date", Width = "110", GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "Remark",              Label = "委外备注",       SortKey = "remark",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息", Visible = false },
         };
+
+        // G2: 执行状态
+        var g2 = new List<ColumnDef>
+        {
+            new() { Key = "ProcessStatus",       Label = "执行状态",       SortKey = "processstatus",      FilterType = "enum",  Width = "100", GroupKey = 2, GroupName = "执行状态",
+                EnumOptions = DisplayHelper.GetEnumFilterOptions<SubcontractOrderStatus>() },
+            new() { Key = "ReturnDeadline",      Label = "截止回收日",     SortKey = "returndeadline",     FilterType = "date",  Width = "110", GroupKey = 2, GroupName = "执行状态" },
+            new() { Key = "ReturnedQuantity",    Label = "回收支数",       SortKey = "returnedquantity",                       Width = "80",  GroupKey = 2, GroupName = "执行状态" },
+            new() { Key = "ReturnedWeight",      Label = "回收重量(kg)",   SortKey = "returnedweight",                         Width = "100", GroupKey = 2, GroupName = "执行状态" },
+            new() { Key = "ReturnQuantity",      Label = "退货量",                                                   Width = "100", GroupKey = 2, GroupName = "执行状态" },
+            new() { Key = "IsForceCompleted",    Label = "属强制完成",     SortKey = "isforcecompleted",   FilterType = "enum",  Width = "100", GroupKey = 2, GroupName = "执行状态",
+                EnumOptions = new() { new("True", "是"), new("False", "否") } },
+        };
+
+        var all = new List<ColumnDef>();
+        all.AddRange(g1);
+        all.AddRange(g2);
+        return all;
     }
 
     protected override async Task OnInitializedAsync()
@@ -344,6 +363,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
 
     private void ToggleSort(string colKey)
     {
+        if (colKey == "#") return; // # 行号仅展示，不做排序
         if (sortColumn == colKey)
             sortDescending = !sortDescending;
         else
@@ -406,11 +426,18 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     {
         switch (col.Key)
         {
+            case "#":
+                var rowNo = _pageItems.IndexOf(item) + 1 + ((_currentPage - 1) * _pageSize);
+                builder.AddContent(0, rowNo);
+                break;
             case "OrderNo":
                 builder.AddContent(0, item.OrderNo);
                 break;
             case "SupplierName":
                 builder.AddContent(0, item.SupplierName);
+                break;
+            case "OrderDate":
+                builder.AddContent(0, item.OrderDate.ToString("yyyy-MM-dd"));
                 break;
             case "SourceWorkOrderNo":
                 builder.AddContent(0, item.SourceWorkOrderNo);
@@ -430,6 +457,12 @@ public partial class SubcontractReturnItems : IAsyncDisposable
             case "RequiredWeight":
                 builder.AddContent(0, item.RequiredWeight?.ToString("G29"));
                 break;
+            case "RequiredArrivalDate":
+                builder.AddContent(0, item.RequiredArrivalDate?.ToString("yyyy-MM-dd"));
+                break;
+            case "Remark":
+                builder.AddContent(0, item.Remark ?? "-");
+                break;
             case "ReturnDeadline":
                 builder.AddContent(0, item.ReturnDeadline?.ToString("yyyy-MM-dd"));
                 break;
@@ -438,6 +471,14 @@ public partial class SubcontractReturnItems : IAsyncDisposable
                 break;
             case "ReturnedWeight":
                 builder.AddContent(0, item.ReturnedWeight.ToString("G29"));
+                break;
+            case "ReturnQuantity":
+                builder.AddContent(0, item.ReturnQuantity == 0 && item.ReturnWeight == 0m
+                    ? "-"
+                    : $"{item.ReturnQuantity}支/{item.ReturnWeight.ToString("G29")}kg");
+                break;
+            case "IsForceCompleted":
+                builder.AddContent(0, item.IsForceCompleted ? "是" : "-");
                 break;
             case "ProcessStatus":
                 var ps = item.ProcessStatus;
@@ -453,6 +494,101 @@ public partial class SubcontractReturnItems : IAsyncDisposable
                 break;
         }
     };
+
+    // ========== 分组渲染 ==========
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px），对齐表格最左侧的 checkbox 列
+        result.Add(new GroupHeaderInfo
+        {
+            GroupKey = 0,
+            GroupName = "",
+            TotalWidth = 40,
+            ColumnCount = 0,
+            CssClass = ""
+        });
+
+        int? lastKey = null;
+        int totalWidth = 0;
+        var groupKey = 0;
+        var groupName = "";
+        var count = 0;
+
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (lastKey.HasValue && gk != lastKey.Value)
+            {
+                if (count > 0)
+                {
+                    result.Add(new GroupHeaderInfo
+                    {
+                        GroupKey = groupKey,
+                        GroupName = groupName,
+                        TotalWidth = totalWidth,
+                        ColumnCount = count,
+                        CssClass = GetHeaderGroupCss(groupKey, true)
+                    });
+                }
+                totalWidth = 0;
+                count = 0;
+            }
+            groupKey = gk;
+            groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++;
+            lastKey = gk;
+        }
+        if (count > 0)
+        {
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+        }
+
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1",
+            2 => "col-g2",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch
+        {
+            1 => "col-g1-cell",
+            2 => "col-g2-cell",
+            _ => ""
+        };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
 
     public async ValueTask DisposeAsync()
     {

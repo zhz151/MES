@@ -26,6 +26,7 @@ public class OutboundWriteService : IOutboundWriteService
         BatchNo = r.BatchNo,
         OutboundType = r.OutboundType,
         WorkOrderNo = r.WorkOrderNo,
+        ReturnSourceBatchNo = r.ReturnSourceBatchNo,
         SourceOrderNo = r.SourceOrderNo,
         TargetCompany = r.TargetCompany,
         OutboundQuantity = r.OutboundQuantity,
@@ -94,6 +95,7 @@ public class OutboundWriteService : IOutboundWriteService
                 BatchNo = batch.BatchNo,
                 OutboundType = request.OutboundType,
                 WorkOrderNo = request.WorkOrderNo ?? batch.WorkOrderNo,
+                ReturnSourceBatchNo = request.ReturnSourceBatchNo,
                 SourceOrderNo = request.SourceOrderNo,
                 TargetCompany = request.TargetCompany,
                 OutboundQuantity = request.OutboundQuantity,
@@ -137,19 +139,19 @@ public class OutboundWriteService : IOutboundWriteService
                 if (!batches.TryGetValue(item.InventoryBatchId, out var batch))
                     throw new BusinessException($"批次ID={item.InventoryBatchId}不存在");
 
-                // 委外穿孔号验证：委外出库+圆棒时必须填写有效的委外单号
+                // 委外-穿孔号验证：委外出库+圆棒时必须填写有效的委外单号
                 var resolvedOutboundType = item.OutboundType ?? request.OutboundType;
                 var resolvedSourceOrderNo = item.SourceOrderNo ?? request.SourceOrderNo;
                 if (resolvedOutboundType == OutboundType.SubcontractOut
                     && string.Equals(batch.MaterialType, nameof(MaterialType.RoundBar), StringComparison.OrdinalIgnoreCase)
                     && string.IsNullOrWhiteSpace(resolvedSourceOrderNo))
-                    throw new BusinessException($"批次{batch.BatchNo}：出库类型为委外出库且物料为圆棒时，委外穿孔号必填");
+                    throw new BusinessException($"批次{batch.BatchNo}：出库类型为委外出库且物料为圆棒时，委外-穿孔号必填");
 
                 if (!string.IsNullOrWhiteSpace(resolvedSourceOrderNo))
                 {
                     var orderExists = await _context.SubcontractOrders.AnyAsync(o => o.OrderNo == resolvedSourceOrderNo);
                     if (!orderExists)
-                        throw new BusinessException($"委外穿孔号「{resolvedSourceOrderNo}」不存在");
+                        throw new BusinessException($"委外-穿孔号「{resolvedSourceOrderNo}」不存在");
                 }
 
                 if (batch.RemainingQuantity < item.OutboundQuantity)
@@ -173,6 +175,7 @@ public class OutboundWriteService : IOutboundWriteService
                     BatchNo = batch.BatchNo,
                     OutboundType = item.OutboundType ?? request.OutboundType,
                     WorkOrderNo = item.WorkOrderNo ?? request.WorkOrderNo ?? batch.WorkOrderNo,
+                    ReturnSourceBatchNo = item.ReturnSourceBatchNo ?? request.ReturnSourceBatchNo,
                     SourceOrderNo = item.SourceOrderNo ?? request.SourceOrderNo,
                     TargetCompany = item.TargetCompany ?? request.TargetCompany,
                     OutboundQuantity = item.OutboundQuantity,
@@ -232,6 +235,7 @@ public class OutboundWriteService : IOutboundWriteService
 
             entity.OutboundType = request.OutboundType ?? entity.OutboundType;
             entity.WorkOrderNo = request.WorkOrderNo ?? entity.WorkOrderNo;
+            entity.ReturnSourceBatchNo = request.ReturnSourceBatchNo ?? entity.ReturnSourceBatchNo;
             entity.TargetCompany = request.TargetCompany ?? entity.TargetCompany;
             if (request.OutboundQuantity.HasValue) entity.OutboundQuantity = request.OutboundQuantity.Value;
             if (request.OutboundWeight.HasValue) entity.OutboundWeight = request.OutboundWeight.Value;

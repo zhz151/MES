@@ -112,6 +112,7 @@ public partial class AppDbContext
             entity.Property(e => e.InventoryBatchId).IsRequired();
             entity.Property(e => e.OutboundType).IsRequired().HasConversion<string>().HasMaxLength(30);
             entity.Property(e => e.WorkOrderNo).HasMaxLength(50);
+            entity.Property(e => e.ReturnSourceBatchNo).HasMaxLength(100);
             entity.Property(e => e.SourceOrderNo).HasMaxLength(50);
             entity.Property(e => e.TargetCompany).HasMaxLength(200);
             entity.Property(e => e.OutboundQuantity).IsRequired().HasDefaultValue(0);

@@ -455,6 +455,9 @@ public static class DbInitializer
                 new() { Category = "WarehouseThreshold", CategoryDisplay = "采购-完工比率", Context = "物料", ParamKey = "PurchaseCompleteRatio", ParamValue = 0.965m, Remark = "采购完工比率阈值" },
                 new() { Category = "WarehouseThreshold", CategoryDisplay = "采购-完工偏差", Context = "物料", ParamKey = "PurchaseCompleteDeviation", ParamValue = 200m, Remark = "采购完工绝对偏差(kg)" },
                 new() { Category = "WarehouseThreshold", CategoryDisplay = "采购-超额比率", Context = "物料", ParamKey = "PurchaseOverRatio", ParamValue = 1.05m, Remark = "采购超额比率阈值(实际采购/委外量>计划量×此比率判定超额采购/超额穿孔)" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "采购-超额偏差", Context = "物料", ParamKey = "PurchaseOverDeviation", ParamValue = 100m, Remark = "采购超额绝对偏差(kg)：到料重量>计划×超额比率且超出量>此阈值判定超量到货" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "委外-超额比率", Context = "物料", ParamKey = "SubcontractOverRatio", ParamValue = 1.05m, Remark = "委外超额回收比率阈值(回收重量>需求重量×此比率判定超量回收)" },
+                new() { Category = "WarehouseThreshold", CategoryDisplay = "委外-超额偏差", Context = "物料", ParamKey = "SubcontractOverDeviation", ParamValue = 100m, Remark = "委外超额回收绝对偏差(kg)：回收重量>需求×超额比率且超出量>此阈值判定超量到货" },
                 new() { Category = "WarehouseThreshold", CategoryDisplay = "仓库-完工阈值", Context = "批次", ParamKey = "OutsourceRecoveryRatio", ParamValue = 0.99m, Remark = "委外回收比率阈值" },
 
                 // ===== ProductionThreshold 生产阈值 =====

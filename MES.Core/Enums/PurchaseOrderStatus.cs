@@ -18,5 +18,10 @@ public enum PurchaseOrderStatus
     /// <summary>
     /// 已完成
     /// </summary>
-    Completed
+    Completed,
+
+    /// <summary>
+    /// 超量到货（到料重量 &gt; 采购重量×超额比率 且 超出量 &gt; 超额偏差阈值）
+    /// </summary>
+    OverReceived
 }

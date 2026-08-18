@@ -99,7 +99,8 @@ public partial class OutboundHistory
         new() { Key = "OutboundType",     Label = "出库类型", SortKey = "outboundtype",     IsRequired = true, FilterType = "enum", Width = "120",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<OutboundType>() },
         new() { Key = "WorkOrderNo",      Label = "出库工单号", SortKey = "workorderno", FilterType = "string", Width = "120" },
-        new() { Key = "SourceOrderNo",    Label = "委外穿孔号", SortKey = "sourceorderno", FilterType = "string", Width = "120" },
+        new() { Key = "ReturnSourceBatchNo", Label = "退货-原仓库批", SortKey = "returnsourcebatchno", FilterType = "string", Width = "120" },
+        new() { Key = "SourceOrderNo",    Label = "委外-穿孔号", SortKey = "sourceorderno", FilterType = "string", Width = "120" },
         new() { Key = "TargetCompany",    Label = "目标单位", SortKey = "targetcompany", FilterType = "string", Width = "120" },
         new() { Key = "OutboundQuantity", Label = "出库支数", SortKey = "outboundquantity", IsRequired = true, Width = "80" },
         new() { Key = "OutboundWeight",   Label = "出库重量", SortKey = "outboundweight",   IsRequired = true, Width = "80" },
@@ -367,13 +368,11 @@ public partial class OutboundHistory
 
     private readonly List<(string Value, string Text)> _outboundTypeOptions = new()
     {
-        ("SalesOut", "销售出库"),
-        ("SubcontractOut", "委外出库"),
-        ("ReturnOut", "退货出库"),
         ("ProductionPick", "生产领用"),
-        ("InspectionPick", "检验领用"),
-        ("TransferOut", "移库出库"),
-        ("OtherOut", "其他出库"),
+        ("SalesOut", "销售出库"),
+        ("ReturnOut", "退货出库"),
+        ("SubcontractOut", "委外出库"),
+        ("OtherOut", "其它出库"),
     };
 
     // ========== 只读单元格渲染 ==========
@@ -401,6 +400,10 @@ public partial class OutboundHistory
                 builder.AddAttribute(2, "style", "color:#000!important;font-weight:600;");
                 builder.AddContent(3, item.WorkOrderNo);
                 builder.CloseElement();
+                break;
+            case "ReturnSourceBatchNo":
+                if (!string.IsNullOrEmpty(item.ReturnSourceBatchNo))
+                    builder.AddContent(0, item.ReturnSourceBatchNo);
                 break;
             case "SourceOrderNo":
                 if (!string.IsNullOrEmpty(item.SourceOrderNo))
@@ -521,6 +524,7 @@ public partial class OutboundHistory
                 {
                     "TargetCompany" => item.TargetCompany,
                     "WorkOrderNo" => item.WorkOrderNo,
+                    "ReturnSourceBatchNo" => item.ReturnSourceBatchNo,
                     "Remark" => item.Remark,
                     _ => ""
                 };
@@ -543,6 +547,7 @@ public partial class OutboundHistory
                     {
                         case "TargetCompany": item.TargetCompany = v; break;
                         case "WorkOrderNo": item.WorkOrderNo = v; break;
+                        case "ReturnSourceBatchNo": item.ReturnSourceBatchNo = v; break;
                         case "Remark": item.Remark = v; break;
                     }
                 }));
@@ -704,6 +709,7 @@ public partial class OutboundHistory
         "OutboundDate" => item.OutboundDate.ToString("yyyy-MM-dd"),
         "OutboundType" => DisplayHelper.GetOutboundTypeText(item.OutboundType),
         "WorkOrderNo" => item.WorkOrderNo,
+        "ReturnSourceBatchNo" => item.ReturnSourceBatchNo,
         "SourceOrderNo" => item.SourceOrderNo,
         "TargetCompany" => item.TargetCompany,
         "OutboundQuantity" => item.OutboundQuantity.ToString("G29"),
@@ -753,6 +759,7 @@ public partial class OutboundHistory
                 OutboundDate = parsedDate,
                 TargetCompany = string.IsNullOrEmpty(item.TargetCompany) ? null : item.TargetCompany,
                 WorkOrderNo = string.IsNullOrEmpty(item.WorkOrderNo) ? null : item.WorkOrderNo,
+                ReturnSourceBatchNo = string.IsNullOrEmpty(item.ReturnSourceBatchNo) ? null : item.ReturnSourceBatchNo,
                 OutboundQuantity = item.OutboundQuantity,
                 OutboundWeight = item.OutboundWeight,
                 OutboundMeters = item.OutboundMeters,

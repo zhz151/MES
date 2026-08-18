@@ -431,6 +431,68 @@ public class PurchaseOrderServiceTests : TestBase
     }
 
     [Fact]
+    public async Task SyncSingleAsync_到料超采购量105且超出量超100_状态变为OverReceived()
+    {
+        // 配置默认值：超额比率 1.05、超额偏差 100kg；采购 1000kg，到料 1200kg
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid, quantity: 100);
+
+        ctx.InventoryBatches.Add(new InventoryBatch
+        {
+            BatchNo = "BATCH001",
+            InboundSource = "采购",
+            SourceName = "测试供应商",
+            SourceOrderNo = order.OrderNo,
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 120,
+            InitialWeight = 1200m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.SyncSingleAsync(order.Id);
+
+        var updated = await ctx.PurchaseOrders.FindAsync(order.Id);
+        updated!.Status.Should().Be(PurchaseOrderStatus.OverReceived);
+    }
+
+    [Fact]
+    public async Task SyncSingleAsync_超量比率达但绝对偏差未超阈值_状态仍为Completed()
+    {
+        // 采购 1000kg，到料 1080kg：>1050（比率超）但 1080-1000=80≤100（偏差不足）→ 不判超量，仍完成
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid, quantity: 100);
+
+        ctx.InventoryBatches.Add(new InventoryBatch
+        {
+            BatchNo = "BATCH001",
+            InboundSource = "采购",
+            SourceName = "测试供应商",
+            SourceOrderNo = order.OrderNo,
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 108,
+            InitialWeight = 1080m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.SyncSingleAsync(order.Id);
+
+        var updated = await ctx.PurchaseOrders.FindAsync(order.Id);
+        updated!.Status.Should().Be(PurchaseOrderStatus.Completed);
+    }
+
+    [Fact]
     public async Task SyncSingleAsync_无批次_状态保持Open()
     {
         var ctx = CreateDbContext();
@@ -788,5 +850,131 @@ public class PurchaseOrderServiceTests : TestBase
 
         contexts.Should().ContainKey("SupplierName");
         contexts["SupplierName"].Should().Contain("大明钢铁");
+    }
+
+    // ========== 退货量汇总（ReturnOut） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_退货量_仅统计退货出库()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid);
+
+        // 采购入库的原仓库批（SourceOrderNo=采购单号）
+        var batch = new InventoryBatch
+        {
+            BatchNo = "BATCH001",
+            InboundSource = "采购",
+            SourceName = "测试供应商",
+            SourceOrderNo = order.OrderNo,
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 100,
+            InitialWeight = 1000m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        };
+        // 退货出库当前关联的仓库批（来源其它，无采购单号，仅用于验证不按 InventoryBatchId 关联）
+        var current = new InventoryBatch
+        {
+            BatchNo = "CUR001",
+            InboundSource = "其它",
+            SourceName = "测试供应商",
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 100,
+            InitialWeight = 1000m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        };
+        ctx.InventoryBatches.AddRange(batch, current);
+        await ctx.SaveChangesAsync();
+
+        // 退货出库：ReturnSourceBatchNo=原仓库批批次号 BATCH001，按「退货-原仓库批」归集 + 生产领用（不应计入）
+        ctx.OutboundRecords.AddRange(
+            new OutboundRecord { InventoryBatchId = current.Id, BatchNo = current.BatchNo, OutboundType = OutboundType.ReturnOut, ReturnSourceBatchNo = "BATCH001", OutboundQuantity = 5, OutboundWeight = 50m, OutboundDate = DateTime.Today },
+            new OutboundRecord { InventoryBatchId = current.Id, BatchNo = current.BatchNo, OutboundType = OutboundType.ReturnOut, ReturnSourceBatchNo = "BATCH001", OutboundQuantity = 3, OutboundWeight = 30m, OutboundDate = DateTime.Today },
+            new OutboundRecord { InventoryBatchId = current.Id, BatchNo = current.BatchNo, OutboundType = OutboundType.ProductionPick, ReturnSourceBatchNo = "BATCH001", OutboundQuantity = 10, OutboundWeight = 100m, OutboundDate = DateTime.Today }
+        );
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams { PageIndex = 1, PageSize = 20 });
+
+        result.Items[0].ReturnQuantity.Should().Be(8);
+        result.Items[0].ReturnWeight.Should().Be(80m);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_退货量_无退货出库为0()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid);
+
+        var batch = new InventoryBatch
+        {
+            BatchNo = "BATCH001",
+            InboundSource = "采购",
+            SourceName = "测试供应商",
+            SourceOrderNo = order.OrderNo,
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 100,
+            InitialWeight = 1000m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        };
+        ctx.InventoryBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+
+        // 仅生产领用，无退货出库
+        ctx.OutboundRecords.Add(new OutboundRecord { InventoryBatchId = batch.Id, BatchNo = batch.BatchNo, OutboundType = OutboundType.ProductionPick, OutboundQuantity = 10, OutboundWeight = 100m, OutboundDate = DateTime.Today });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams { PageIndex = 1, PageSize = 20 });
+
+        result.Items[0].ReturnQuantity.Should().Be(0);
+        result.Items[0].ReturnWeight.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_退货量_单条带出()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid);
+
+        var batch = new InventoryBatch
+        {
+            BatchNo = "BATCH001",
+            InboundSource = "采购",
+            SourceName = "测试供应商",
+            SourceOrderNo = order.OrderNo,
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 100,
+            InitialWeight = 1000m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        };
+        ctx.InventoryBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+
+        ctx.OutboundRecords.Add(new OutboundRecord { InventoryBatchId = batch.Id, BatchNo = batch.BatchNo, OutboundType = OutboundType.ReturnOut, ReturnSourceBatchNo = "BATCH001", OutboundQuantity = 2, OutboundWeight = 20m, OutboundDate = DateTime.Today });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetByIdAsync(order.Id);
+
+        result.ReturnQuantity.Should().Be(2);
+        result.ReturnWeight.Should().Be(20m);
+        result.IsForceCompleted.Should().BeFalse();
     }
 }

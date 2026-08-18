@@ -34,6 +34,7 @@
 
             <div id="return-item-list-table">
             @{
+                var _groupHeaders = GetGroupHeaders();
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
             }
             @* 工具栏 *@
@@ -56,15 +57,32 @@
                 </div>
             </div>
 
+            @* 分组标题栏 *@
+            <div class="col-group-header-scroll" id="ri-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
+
             <MudTable @ref="table" T="SubcontractReturnItemListDto" ServerData="@LoadDataFromServer" Dense="true" Hover="true" Class="mt-0 auto-table compact-table" Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
                 <HeaderContent>
+                    @{
+                        int? _prevGk = null;
+                    }
                     <MudTh Class="col-selection-th" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
-                    <MudTh Style="width:40px;padding:0 4px;">#</MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh Style="@($"width:{col.Width}px")">
+                        var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                        _prevGk = col.GroupKey;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        <MudTh Class="@_headerClass" Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
@@ -81,25 +99,24 @@
                     }
                 </HeaderContent>
                 <RowTemplate Context="item">
+                    @{
+                        int? _prevGk2 = null;
+                    }
                     <MudTd Class="col-selection-td" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedIds.Contains(item.Id)"
                                      ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
-                    <MudTd Style="width:40px;padding:0 4px;">
-                        @{
-                            var _rowIndex = _pageItems.IndexOf(item) + 1 + ((_currentPage - 1) * _pageSize);
-                        }
-                        @_rowIndex
-                    </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                        _prevGk2 = col.GroupKey;
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
                     }
                 </RowTemplate>
                 <FooterContent>
-                    <MudTd Class="col-footer-cell" Style="width:40px;padding:0 4px;"> </MudTd>
                     <MudTd Class="col-footer-cell" Style="width:40px;padding:0 4px;"> </MudTd>
                     @foreach (var col in _visibleColumns)
                     {

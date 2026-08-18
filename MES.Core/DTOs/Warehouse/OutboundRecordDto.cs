@@ -13,6 +13,7 @@ public class OutboundRecordDto
     public OutboundType OutboundType { get; set; }
     public string OutboundTypeDisplay => EnumHelper.GetDisplayName(OutboundType);
     public string? WorkOrderNo { get; set; }
+    public string? ReturnSourceBatchNo { get; set; }
     public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
     public int OutboundQuantity { get; set; }

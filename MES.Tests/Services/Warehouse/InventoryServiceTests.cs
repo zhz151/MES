@@ -1409,7 +1409,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 3,
             OutboundWeight = 300m,
-            OutboundType = OutboundType.TransferOut,
+            OutboundType = OutboundType.OtherOut,
             TargetCompany = "客户B",
             OutboundDate = DateTime.Today
         });
@@ -1607,7 +1607,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 2,
             OutboundWeight = 200m,
-            OutboundType = OutboundType.TransferOut,
+            OutboundType = OutboundType.OtherOut,
             TargetCompany = "客户Y",
             OutboundDate = DateTime.Today
         });
@@ -1658,7 +1658,7 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 2,
             OutboundWeight = 200m,
-            OutboundType = OutboundType.TransferOut,
+            OutboundType = OutboundType.OtherOut,
             TargetCompany = "客户Y",
             OutboundDate = DateTime.Today
         });
@@ -1708,16 +1708,98 @@ public class InventoryServiceTests : TestBase
             InventoryBatchId = batch.Id,
             OutboundQuantity = 2,
             OutboundWeight = 200m,
-            OutboundType = OutboundType.TransferOut,
+            OutboundType = OutboundType.OtherOut,
             TargetCompany = "客户Y",
             OutboundDate = DateTime.Today
         });
 
         var result = await svc.GetOutboundRecordsAsync(new OutboundQueryParams
-        { PageIndex = 0, PageSize = 20, Keyword = "TransferOut" });
+        { PageIndex = 0, PageSize = 20, Keyword = "OtherOut" });
 
         result.Items.Should().HaveCount(1);
-        result.Items[0].OutboundType.Should().Be(OutboundType.TransferOut);
+        result.Items[0].OutboundType.Should().Be(OutboundType.OtherOut);
+    }
+
+    [Fact]
+    public async Task GetOutboundRecordsAsync_创建带退货原批次号_列表回显且关键词命中()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
+        });
+
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 1,
+            OutboundWeight = 100m,
+            OutboundType = OutboundType.ReturnOut,
+            WorkOrderNo = "WO001",
+            ReturnSourceBatchNo = "TH-ORIG-001",
+            OutboundDate = DateTime.Today
+        });
+
+        var result = await svc.GetOutboundRecordsAsync(new OutboundQueryParams
+        { PageIndex = 0, PageSize = 20, Keyword = "TH-ORIG-001" });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ReturnSourceBatchNo.Should().Be("TH-ORIG-001");
+    }
+
+    [Fact]
+    public async Task GetOutboundRecordsAsync_按退货原批次号排序_成功()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m
+        });
+
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 1,
+            OutboundWeight = 100m,
+            OutboundType = OutboundType.ReturnOut,
+            ReturnSourceBatchNo = "B-ORIG",
+            OutboundDate = DateTime.Today
+        });
+        await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 2,
+            OutboundWeight = 200m,
+            OutboundType = OutboundType.ReturnOut,
+            ReturnSourceBatchNo = "A-ORIG",
+            OutboundDate = DateTime.Today
+        });
+
+        var result = await svc.GetOutboundRecordsAsync(new OutboundQueryParams
+        { PageIndex = 0, PageSize = 20, SortBy = "returnsourcebatchno", IsDescending = false });
+
+        result.Items[0].ReturnSourceBatchNo.Should().Be("A-ORIG");
+        result.Items[1].ReturnSourceBatchNo.Should().Be("B-ORIG");
     }
 
     // ========== 库存筛选上下文 ==========
@@ -1772,7 +1854,7 @@ public class InventoryServiceTests : TestBase
         await ctx.SaveChangesAsync();
         ctx.OutboundRecords.AddRange(
             new OutboundRecord { InventoryBatchId = batch.Id, BatchNo = batch.BatchNo, OutboundType = Core.Enums.OutboundType.SalesOut, SourceOrderNo = "SO001", TargetCompany = "客户A", OutboundQuantity = 2, OutboundWeight = 200m, OutboundDate = DateTime.Today, CreatedBy = "user1" },
-            new OutboundRecord { InventoryBatchId = batch.Id, BatchNo = batch.BatchNo, OutboundType = Core.Enums.OutboundType.TransferOut, SourceOrderNo = null, TargetCompany = null, OutboundQuantity = 3, OutboundWeight = 300m, OutboundDate = DateTime.Today, CreatedBy = "user2", Remark = "调拨" }
+            new OutboundRecord { InventoryBatchId = batch.Id, BatchNo = batch.BatchNo, OutboundType = Core.Enums.OutboundType.OtherOut, SourceOrderNo = null, TargetCompany = null, OutboundQuantity = 3, OutboundWeight = 300m, OutboundDate = DateTime.Today, CreatedBy = "user2", Remark = "调拨" }
         );
         await ctx.SaveChangesAsync();
         var svc = CreateService(ctx);
@@ -1781,7 +1863,7 @@ public class InventoryServiceTests : TestBase
 
         result.Should().ContainKeys("BatchNo", "OutboundType", "SourceOrderNo", "TargetCompany", "Remark", "CreatedBy");
         result["BatchNo"].Should().Contain("CK001");
-        result["OutboundType"].Should().Contain("SalesOut").And.Contain("TransferOut");
+        result["OutboundType"].Should().Contain("SalesOut").And.Contain("OtherOut");
         result["SourceOrderNo"].Should().HaveCount(1).And.Contain("SO001");
         result["TargetCompany"].Should().HaveCount(1).And.Contain("客户A");
         result["Remark"].Should().HaveCount(1).And.Contain("调拨");

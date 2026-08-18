@@ -353,6 +353,8 @@ public class InventorySyncService : IInventorySyncService
         if (subcontractOrders.Count > 0)
         {
             var subcontractCompleteRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractCompleteRatio", 0.95m);
+            var subcontractOverRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractOverRatio", 1.05m);
+            var subcontractOverDeviation = await GetConfigAsync("WarehouseThreshold", "SubcontractOverDeviation", 100m);
             var allBatches = await _context.InventoryBatches
                 .AsNoTracking()
                 .Where(b => b.SourceOrderNo != null && sourceOrderNos.Contains(b.SourceOrderNo))
@@ -365,7 +367,7 @@ public class InventorySyncService : IInventorySyncService
                 order.InWeight = orderBatches.Sum(b => b.InitialWeight);
 
                 foreach (var item in order.ReturnItems)
-                    SubcontractHelper.SyncReturnItemFromBatches(item, orderBatches);
+                    SubcontractHelper.SyncReturnItemFromBatches(item, orderBatches, subcontractOverRatio, subcontractOverDeviation);
 
                 if (order.IsForceCompleted)
                 {

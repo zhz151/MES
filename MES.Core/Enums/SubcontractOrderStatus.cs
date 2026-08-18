@@ -18,5 +18,10 @@ public enum SubcontractOrderStatus
     /// <summary>
     /// 已完成
     /// </summary>
-    Completed
+    Completed,
+
+    /// <summary>
+    /// 超量回收
+    /// </summary>
+    OverReceived
 }

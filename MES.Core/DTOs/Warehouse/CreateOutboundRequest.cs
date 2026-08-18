@@ -15,6 +15,7 @@ public class CreateOutboundRequest
     public OutboundType OutboundType { get; set; }
 
     public string? WorkOrderNo { get; set; }
+    public string? ReturnSourceBatchNo { get; set; }
     public string? SourceOrderNo { get; set; }
     public string? TargetCompany { get; set; }
 

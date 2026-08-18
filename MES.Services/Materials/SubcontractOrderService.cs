@@ -506,6 +506,10 @@ public class SubcontractOrderService : ISubcontractOrderService
             .Where(b => b.SourceOrderNo != null && orderNos.Contains(b.SourceOrderNo))
             .ToListAsync();
 
+        // 委外超量回收配置（仿采购订单超量到货判定）
+        var overRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractOverRatio", 1.05m);
+        var overDeviation = await GetConfigAsync("WarehouseThreshold", "SubcontractOverDeviation", 100m);
+
         foreach (var order in orders)
         {
             var orderBatches = batches.Where(b => b.SourceOrderNo == order.OrderNo).ToList();
@@ -516,7 +520,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             // 同步每个 ReturnItem 的回收数据
             foreach (var item in order.ReturnItems)
             {
-                SubcontractHelper.SyncReturnItemFromBatches(item, orderBatches);
+                SubcontractHelper.SyncReturnItemFromBatches(item, orderBatches, overRatio, overDeviation);
             }
 
             // 主表强制完成 → 子表全部强制完成
@@ -548,10 +552,14 @@ public class SubcontractOrderService : ISubcontractOrderService
         order.InQuantity = batches.Sum(b => b.InitialQuantity);
         order.InWeight = batches.Sum(b => b.InitialWeight);
 
+        // 委外超量回收配置（仿采购订单超量到货判定）
+        var overRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractOverRatio", 1.05m);
+        var overDeviation = await GetConfigAsync("WarehouseThreshold", "SubcontractOverDeviation", 100m);
+
         // 同步每个 ReturnItem 的回收数据
         foreach (var item in order.ReturnItems)
         {
-            SubcontractHelper.SyncReturnItemFromBatches(item, batches);
+            SubcontractHelper.SyncReturnItemFromBatches(item, batches, overRatio, overDeviation);
         }
 
         // 主表强制完成 → 子表全部强制完成
@@ -583,12 +591,16 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
         }
         else
         {
+            // 委外超量回收配置（仿采购订单超量到货判定）
+            var overRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractOverRatio", 1.05m);
+            var overDeviation = await GetConfigAsync("WarehouseThreshold", "SubcontractOverDeviation", 100m);
+
             await RecalcSubcontractStatusAsync(entity);
             // 取消级联：每个子表按实际回收数据重新计算
             foreach (var item in entity.ReturnItems)
             {
                 item.IsForceCompleted = false;
-                SubcontractHelper.RecalcReturnItemStatus(item);
+                SubcontractHelper.RecalcReturnItemStatus(item, overRatio, overDeviation);
             }
         }
 
@@ -761,6 +773,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 SubcontractOrderId = i.SubcontractOrderId,
                 OrderNo = i.OrderNo ?? i.SubcontractOrder.OrderNo,
                 SupplierName = i.SubcontractOrder.SupplierName,
+                OrderDate = i.SubcontractOrder.OrderDate,
                 SourceWorkOrderNo = i.SourceWorkOrderNo,
                 PlantGrade = i.PlantGrade,
                 ProcessSpecification = i.ProcessSpecification,
@@ -768,8 +781,10 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 RequiredQuantity = i.RequiredQuantity,
                 RequiredWeight = i.RequiredWeight,
                 ReturnDeadline = i.SubcontractOrder.ReturnDeadline,
+                Remark = i.Remark,
                 ReturnedQuantity = i.ReturnedQuantity,
                 ReturnedWeight = i.ReturnedWeight,
+                IsForceCompleted = i.IsForceCompleted,
                 ProcessStatus = i.ProcessStatus
             })
             .ToListAsync();
@@ -780,17 +795,40 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             SubcontractOrderId = i.SubcontractOrderId,
             OrderNo = i.OrderNo,
             SupplierName = i.SupplierName,
+            OrderDate = i.OrderDate,
             SourceWorkOrderNo = i.SourceWorkOrderNo,
             PlantGrade = i.PlantGrade,
             ProcessSpecification = i.ProcessSpecification,
             UnitWeight = i.UnitWeight,
             RequiredQuantity = i.RequiredQuantity,
             RequiredWeight = i.RequiredWeight,
+            RequiredArrivalDate = i.ReturnDeadline,
+            Remark = i.Remark,
             ReturnDeadline = i.ReturnDeadline,
             ReturnedQuantity = i.ReturnedQuantity,
             ReturnedWeight = i.ReturnedWeight,
+            IsForceCompleted = i.IsForceCompleted,
             ProcessStatus = EnumHelper.TryParse<SubcontractOrderStatus>(i.ProcessStatus)
         }).ToList();
+
+        // 退货量补充（退货出库 ReturnSourceBatchNo → 原仓库批 → SourceOrderNo==委外单号）
+        var orderNos = allItems.Select(x => x.OrderNo)
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (orderNos.Count > 0)
+        {
+            var returnSummary = await BuildReturnSummaryAsync(orderNos);
+            foreach (var item in allItems)
+            {
+                if (item.OrderNo != null && returnSummary.TryGetValue(item.OrderNo, out var rs))
+                {
+                    item.ReturnQuantity = rs.Quantity;
+                    item.ReturnWeight = rs.Weight;
+                }
+            }
+        }
 
         // 内存筛选 — 支持所有 DTO 属性（包括跨表字段如 OrderNo、ReturnDeadline）
         if (query.Filters?.Count > 0)
@@ -855,22 +893,36 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             ("orderno", false) => allItems.OrderBy(i => i.OrderNo ?? ""),
             ("suppliername", true) => allItems.OrderByDescending(i => i.SupplierName ?? ""),
             ("suppliername", false) => allItems.OrderBy(i => i.SupplierName ?? ""),
+            ("orderdate", true) => allItems.OrderByDescending(i => i.OrderDate),
+            ("orderdate", false) => allItems.OrderBy(i => i.OrderDate),
             ("sourceworkorderno", true) => allItems.OrderByDescending(i => i.SourceWorkOrderNo ?? ""),
             ("sourceworkorderno", false) => allItems.OrderBy(i => i.SourceWorkOrderNo ?? ""),
             ("plantgrade", true) => allItems.OrderByDescending(i => i.PlantGrade ?? ""),
             ("plantgrade", false) => allItems.OrderBy(i => i.PlantGrade ?? ""),
             ("processspecification", true) => allItems.OrderByDescending(i => i.ProcessSpecification),
             ("processspecification", false) => allItems.OrderBy(i => i.ProcessSpecification),
+            ("unitweight", true) => allItems.OrderByDescending(i => i.UnitWeight),
+            ("unitweight", false) => allItems.OrderBy(i => i.UnitWeight),
             ("requiredquantity", true) => allItems.OrderByDescending(i => i.RequiredQuantity),
             ("requiredquantity", false) => allItems.OrderBy(i => i.RequiredQuantity),
             ("requiredweight", true) => allItems.OrderByDescending(i => i.RequiredWeight),
             ("requiredweight", false) => allItems.OrderBy(i => i.RequiredWeight),
+            ("requiredarrivaldate", true) => allItems.OrderByDescending(i => i.RequiredArrivalDate),
+            ("requiredarrivaldate", false) => allItems.OrderBy(i => i.RequiredArrivalDate),
+            ("remark", true) => allItems.OrderByDescending(i => i.Remark ?? ""),
+            ("remark", false) => allItems.OrderBy(i => i.Remark ?? ""),
             ("returndeadline", true) => allItems.OrderByDescending(i => i.ReturnDeadline),
             ("returndeadline", false) => allItems.OrderBy(i => i.ReturnDeadline),
             ("returnedquantity", true) => allItems.OrderByDescending(i => i.ReturnedQuantity),
             ("returnedquantity", false) => allItems.OrderBy(i => i.ReturnedQuantity),
             ("returnedweight", true) => allItems.OrderByDescending(i => i.ReturnedWeight),
             ("returnedweight", false) => allItems.OrderBy(i => i.ReturnedWeight),
+            ("returnquantity", true) => allItems.OrderByDescending(i => i.ReturnQuantity),
+            ("returnquantity", false) => allItems.OrderBy(i => i.ReturnQuantity),
+            ("returnweight", true) => allItems.OrderByDescending(i => i.ReturnWeight),
+            ("returnweight", false) => allItems.OrderBy(i => i.ReturnWeight),
+            ("isforcecompleted", true) => allItems.OrderByDescending(i => i.IsForceCompleted),
+            ("isforcecompleted", false) => allItems.OrderBy(i => i.IsForceCompleted),
             ("processstatus", true) => allItems.OrderByDescending(i => i.ProcessStatus),
             ("processstatus", false) => allItems.OrderBy(i => i.ProcessStatus),
             _ => allItems.OrderByDescending(i => i.Id)
@@ -915,7 +967,10 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                     i.ProcessStatus,
                     SupplierName = i.SubcontractOrder.SupplierName,
                     ParentOrderNo = i.SubcontractOrder.OrderNo,
-                    ReturnDeadline = i.SubcontractOrder.ReturnDeadline
+                    OrderDate = i.SubcontractOrder.OrderDate,
+                    ReturnDeadline = i.SubcontractOrder.ReturnDeadline,
+                    i.Remark,
+                    i.IsForceCompleted
                 })
                 .ToListAsync();
 
@@ -928,11 +983,60 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 ["PlantGrade"] = all.Where(x => x.PlantGrade != null).Select(x => x.PlantGrade!).Distinct().OrderBy(x => x).ToList(),
                 ["ProcessSpecification"] = all.Select(x => x.ProcessSpecification).Distinct().OrderBy(x => x).ToList(),
                 ["ProcessStatus"] = all.Select(x => x.ProcessStatus).Distinct().OrderBy(x => x).ToList(),
+                ["OrderDate"] = all.Select(x => x.OrderDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["RequiredArrivalDate"] = all.Where(x => x.ReturnDeadline != null)
+                    .Select(x => x.ReturnDeadline!.Value.ToString("yyyy-MM-dd"))
+                    .Distinct().OrderBy(x => x).ToList(),
                 ["ReturnDeadline"] = all.Where(x => x.ReturnDeadline != null)
                     .Select(x => x.ReturnDeadline!.Value.ToString("yyyy-MM-dd"))
                     .Distinct().OrderBy(x => x).ToList(),
+                ["Remark"] = all.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList(),
+                ["IsForceCompleted"] = all.Select(x => x.IsForceCompleted ? "True" : "False").Distinct().OrderBy(x => x).ToList(),
             };
         }) ?? new Dictionary<string, List<string>>();
+    }
+
+    /// <summary>
+    /// 按委外单号汇总其退货量：退货出库 ReturnSourceBatchNo（原仓库批批次号）→ 反查 InventoryBatch.BatchNo → 其 SourceOrderNo == 委外单号。
+    /// </summary>
+    private async Task<Dictionary<string, (int Quantity, decimal Weight)>> BuildReturnSummaryAsync(IReadOnlyCollection<string> orderNos)
+    {
+        var result = new Dictionary<string, (int, decimal)>(StringComparer.OrdinalIgnoreCase);
+        if (orderNos.Count == 0) return result;
+
+        foreach (var no in orderNos.Distinct(StringComparer.OrdinalIgnoreCase))
+            result[no] = (0, 0m);
+
+        // 按委外单号查其回收入库的仓库批，建立「原仓库批批次号 → 委外单号」映射
+        var batches = await _context.InventoryBatches.AsNoTracking()
+            .Where(b => b.SourceOrderNo != null && orderNos.Contains(b.SourceOrderNo))
+            .Select(b => new { b.BatchNo, b.SourceOrderNo })
+            .ToListAsync();
+
+        var batchNoToOrderNo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var b in batches.Where(b => !string.IsNullOrEmpty(b.BatchNo) && !string.IsNullOrEmpty(b.SourceOrderNo)))
+            batchNoToOrderNo[b.BatchNo!] = b.SourceOrderNo!;
+
+        if (batchNoToOrderNo.Count == 0) return result;
+
+        var batchNos = batchNoToOrderNo.Keys.ToList();
+        foreach (var chunk in batchNos.Chunk(1000))
+        {
+            var outbounds = await _context.OutboundRecords.AsNoTracking()
+                .Where(o => o.OutboundType == OutboundType.ReturnOut
+                         && o.ReturnSourceBatchNo != null
+                         && chunk.Contains(o.ReturnSourceBatchNo))
+                .ToListAsync();
+
+            foreach (var o in outbounds)
+            {
+                if (!batchNoToOrderNo.TryGetValue(o.ReturnSourceBatchNo!, out var orderNo)) continue;
+                var (q, w) = result[orderNo];
+                result[orderNo] = (q + o.OutboundQuantity, w + o.OutboundWeight);
+            }
+        }
+
+        return result;
     }
 
     public async Task<byte[]> PrintReturnItemListAsync(string? keyword, string? sortBy, bool isDescending, string? status, string? filters, List<PrintColumnDef>? columns)
@@ -974,6 +1078,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 SubcontractOrderId = i.SubcontractOrderId,
                 OrderNo = i.OrderNo ?? i.SubcontractOrder.OrderNo,
                 SupplierName = i.SubcontractOrder.SupplierName,
+                OrderDate = i.SubcontractOrder.OrderDate,
                 SourceWorkOrderNo = i.SourceWorkOrderNo,
                 PlantGrade = i.PlantGrade,
                 ProcessSpecification = i.ProcessSpecification,
@@ -981,8 +1086,10 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 RequiredQuantity = i.RequiredQuantity,
                 RequiredWeight = i.RequiredWeight,
                 ReturnDeadline = i.SubcontractOrder.ReturnDeadline,
+                Remark = i.Remark,
                 ReturnedQuantity = i.ReturnedQuantity,
                 ReturnedWeight = i.ReturnedWeight,
+                IsForceCompleted = i.IsForceCompleted,
                 ProcessStatus = i.ProcessStatus
             })
             .ToListAsync();
@@ -993,17 +1100,40 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             SubcontractOrderId = i.SubcontractOrderId,
             OrderNo = i.OrderNo,
             SupplierName = i.SupplierName,
+            OrderDate = i.OrderDate,
             SourceWorkOrderNo = i.SourceWorkOrderNo,
             PlantGrade = i.PlantGrade,
             ProcessSpecification = i.ProcessSpecification,
             UnitWeight = i.UnitWeight,
             RequiredQuantity = i.RequiredQuantity,
             RequiredWeight = i.RequiredWeight,
+            RequiredArrivalDate = i.ReturnDeadline,
+            Remark = i.Remark,
             ReturnDeadline = i.ReturnDeadline,
             ReturnedQuantity = i.ReturnedQuantity,
             ReturnedWeight = i.ReturnedWeight,
+            IsForceCompleted = i.IsForceCompleted,
             ProcessStatus = EnumHelper.TryParse<SubcontractOrderStatus>(i.ProcessStatus)
         }).ToList();
+
+        // 退货量补充
+        var orderNos = items.Select(x => x.OrderNo)
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (orderNos.Count > 0)
+        {
+            var returnSummary = await BuildReturnSummaryAsync(orderNos);
+            foreach (var item in items)
+            {
+                if (item.OrderNo != null && returnSummary.TryGetValue(item.OrderNo, out var rs))
+                {
+                    item.ReturnQuantity = rs.Quantity;
+                    item.ReturnWeight = rs.Weight;
+                }
+            }
+        }
 
         var resolvers = new Dictionary<string, Func<object?, string>>
         {

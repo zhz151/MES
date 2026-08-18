@@ -90,55 +90,65 @@ public partial class PurchaseOrders : IAsyncDisposable
 
     private static List<ColumnDef> GetAllColumnDefs()
     {
-        // G1: 采购核心信息
+        // G1: 采购信息
         var g1 = new List<ColumnDef>
         {
-            new() { Key = "OrderNo",             Label = "采购单号",     SortKey = "orderno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "Status",              Label = "状态",         SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "采购核心信息",
-                EnumOptions = DisplayHelper.GetEnumFilterOptions<PurchaseOrderStatus>() },
-            new() { Key = "SupplierName",        Label = "供应商",       SortKey = "suppliername", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "OrderDate",           Label = "下单日期",     SortKey = "orderdate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "RequiredDate",        Label = "要求到货日",   SortKey = "requireddate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "Received",            Label = "已到货",       Width = "80", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "MaterialCategory",    Label = "物料分类",     SortKey = "materialcategory", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "采购核心信息", EnumOptions = GetMaterialCategoryOptions() },
-            new() { Key = "PlantGrade",          Label = "厂内钢种",     SortKey = "plantgrade", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "Specification",       Label = "规格",         SortKey = "specification", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "UnitWeight",          Label = "单支重量",     SortKey = "unitweight", Width = "80", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "Quantity",            Label = "支数",         SortKey = "quantity", Width = "80", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "Weight",              Label = "采购重量",     SortKey = "weight", Width = "80", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "InputMultiple",       Label = "投料制成倍",     SortKey = "inputmultiple", Width = "80", GroupKey = 1, GroupName = "采购核心信息" },
-            new() { Key = "SourceWorkOrderNo",   Label = "来源工单号",   SortKey = "sourceworkorderno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购核心信息" },
+            new() { Key = "OrderNo",             Label = "采购单号",     SortKey = "orderno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "SupplierName",        Label = "供应商",       SortKey = "suppliername", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "OrderDate",           Label = "下单日期",     SortKey = "orderdate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "SourceWorkOrderNo",   Label = "来源工单号",   SortKey = "sourceworkorderno", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "MaterialCategory",    Label = "物料分类",     SortKey = "materialcategory", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "采购信息", EnumOptions = GetMaterialCategoryOptions() },
+            new() { Key = "PlantGrade",          Label = "厂内钢种",     SortKey = "plantgrade", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "Specification",       Label = "规格",         SortKey = "specification", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "UnitWeight",          Label = "单支重量",     SortKey = "unitweight", Width = "80", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "Quantity",            Label = "支数",         SortKey = "quantity", Width = "80", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "Weight",              Label = "采购重量",     SortKey = "weight", Width = "80", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "RequiredDate",        Label = "要求到货日",   SortKey = "requireddate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "InputMultiple",       Label = "投料制成倍",   SortKey = "inputmultiple", Width = "80", GroupKey = 1, GroupName = "采购信息", Visible = false },
+            new() { Key = "Remark",              Label = "采购备注",     SortKey = "remark", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购信息", Visible = false },
         };
 
-        // G2: 来源销售订单等
+        // G2: 执行状态
         var g2 = new List<ColumnDef>
         {
-            new() { Key = "WoSalesOrderNo",      Label = "订单号",       SortKey = "wosalesorderno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoProductionMainNo",  Label = "主号",         SortKey = "woproductionmainno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoProductionSubNo",   Label = "次号",         SortKey = "woproductionsubno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoSignDate",          Label = "签订日期",     SortKey = "wosigndate", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoSalesman",          Label = "业务员",       SortKey = "wosalesman", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoEndCustomer",       Label = "最终用户",     SortKey = "woendcustomer", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoDeliveryDate",      Label = "交货日期",     SortKey = "wodeliverydate", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoDelayPenalty",      Label = "延期罚款",     SortKey = "wodelaypenalty", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "来源销售订单等",
+            new() { Key = "Status",              Label = "状态",         SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "执行状态",
+                EnumOptions = DisplayHelper.GetEnumFilterOptions<PurchaseOrderStatus>() },
+            new() { Key = "ArrivalDate",         Label = "到货截止日",   SortKey = "lastarrivaldate", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "执行状态" },
+            new() { Key = "Received",            Label = "已到货量",     Width = "100", GroupKey = 2, GroupName = "执行状态" },
+            new() { Key = "Returned",            Label = "退货量",       Width = "100", GroupKey = 2, GroupName = "执行状态" },
+            new() { Key = "IsForceCompleted",    Label = "属强制完成",   Width = "100", GroupKey = 2, GroupName = "执行状态" },
+        };
+
+        // G3: 来源销售订单（默认隐藏）
+        var g3 = new List<ColumnDef>
+        {
+            new() { Key = "WoSalesOrderNo",      Label = "订单号",       SortKey = "wosalesorderno", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoProductionMainNo",  Label = "主号",         SortKey = "woproductionmainno", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoProductionSubNo",   Label = "次号",         SortKey = "woproductionsubno", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoSignDate",          Label = "签订日期",     SortKey = "wosigndate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoSalesman",          Label = "业务员",       SortKey = "wosalesman", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoEndCustomer",       Label = "最终用户",     SortKey = "woendcustomer", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoDeliveryDate",      Label = "交货日期",     SortKey = "wodeliverydate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoDelayPenalty",      Label = "延期罚款",     SortKey = "wodelaypenalty", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false,
                 EnumOptions = new() { new("True", "是"), new("False", "否") } },
-            new() { Key = "WoSettlementMethod",  Label = "结算方式",     SortKey = "wosettlementmethod", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "来源销售订单等",
+            new() { Key = "WoSettlementMethod",  Label = "结算方式",     SortKey = "wosettlementmethod", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false,
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
-            new() { Key = "WoPlantGrade",        Label = "工厂牌号",     SortKey = "woplantgrade", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoSpecification",     Label = "成品规格",     SortKey = "wospecification", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoLengthStatus",      Label = "长度状态",     SortKey = "wolengthstatus", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "来源销售订单等",
+            new() { Key = "WoPlantGrade",        Label = "工厂牌号",     SortKey = "woplantgrade", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoSpecification",     Label = "成品规格",     SortKey = "wospecification", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoLengthStatus",      Label = "长度状态",     SortKey = "wolengthstatus", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false,
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
-            new() { Key = "WoMaxLength",         Label = "最大长度",     SortKey = "womaxlength", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoTotalQuantity",     Label = "总支数",       SortKey = "wototalquantity", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoTotalWeight",       Label = "总重量",       SortKey = "wototalweight", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
-            new() { Key = "WoDeliveryState",     Label = "交货状态",     SortKey = "wodeliverystate", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "来源销售订单等",
+            new() { Key = "WoMaxLength",         Label = "最大长度",     SortKey = "womaxlength", Width = "80", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoTotalQuantity",     Label = "总支数",       SortKey = "wototalquantity", Width = "80", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoTotalWeight",       Label = "总重量",       SortKey = "wototalweight", Width = "80", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoDeliveryState",     Label = "交货状态",     SortKey = "wodeliverystate", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false,
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
-            new() { Key = "WoTotalItemCount",    Label = "含项次数",     SortKey = "wototalitemcount", Width = "80", GroupKey = 2, GroupName = "来源销售订单等" },
+            new() { Key = "WoTotalItemCount",    Label = "含项次数",     SortKey = "wototalitemcount", Width = "80", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
         };
 
         var all = new List<ColumnDef>();
         all.AddRange(g1);
         all.AddRange(g2);
+        all.AddRange(g3);
         return all;
     }
 
@@ -314,6 +324,7 @@ public partial class PurchaseOrders : IAsyncDisposable
                     "Open" => "已下单",
                     "Partial" => "部分到货",
                     "Completed" => "已完成",
+                    "OverReceived" => "超量到货",
                     _ => opt.Value
                 };
             }
@@ -538,11 +549,7 @@ public partial class PurchaseOrders : IAsyncDisposable
                 builder.AddContent(0, item.WoTotalItemCount);
                 break;
             case "OrderDate":
-                builder.OpenComponent<MudChip>(0);
-                builder.AddAttribute(1, "Size", Size.Small);
-                builder.AddAttribute(2, "Color", Color.Info);
-                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, item.OrderDate.ToString("yyyy-MM-dd"))));
-                builder.CloseComponent();
+                builder.AddContent(0, item.OrderDate.ToString("yyyy-MM-dd"));
                 break;
             case "MaterialCategory":
                 builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.MaterialCategory));
@@ -562,6 +569,9 @@ public partial class PurchaseOrders : IAsyncDisposable
             case "InputMultiple":
                 builder.AddContent(0, item.InputMultiple?.ToString() ?? "-");
                 break;
+            case "Remark":
+                builder.AddContent(0, item.Remark ?? "-");
+                break;
             case "Weight":
                 builder.AddContent(0, ((int)item.Weight).ToString());
                 break;
@@ -578,8 +588,21 @@ public partial class PurchaseOrders : IAsyncDisposable
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, GetStatusText(item.Status))));
                 builder.CloseComponent();
                 break;
+            case "ArrivalDate":
+                builder.AddContent(0, item.LastArrivalDate?.ToString("yyyy-MM-dd") ?? "-");
+                break;
             case "Received":
-                builder.AddContent(0, $"{item.ReceivedQuantity}支/{((int)item.ReceivedWeight).ToString()}kg");
+                builder.AddContent(0, item.ReceivedQuantity == 0 && item.ReceivedWeight == 0m
+                    ? "-"
+                    : $"{item.ReceivedQuantity}支/{item.ReceivedWeight.ToString("G29")}kg");
+                break;
+            case "Returned":
+                builder.AddContent(0, item.ReturnQuantity == 0 && item.ReturnWeight == 0m
+                    ? "-"
+                    : $"{item.ReturnQuantity}支/{item.ReturnWeight.ToString("G29")}kg");
+                break;
+            case "IsForceCompleted":
+                builder.AddContent(0, item.IsForceCompleted ? "是" : "-");
                 break;
         }
     };
@@ -671,6 +694,7 @@ public partial class PurchaseOrders : IAsyncDisposable
         {
             1 => "col-g1",
             2 => "col-g2",
+            3 => "col-g3",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start";
@@ -683,6 +707,7 @@ public partial class PurchaseOrders : IAsyncDisposable
         {
             1 => "col-g1-cell",
             2 => "col-g2-cell",
+            3 => "col-g3-cell",
             _ => ""
         };
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";

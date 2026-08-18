@@ -704,4 +704,199 @@ public class SubcontractOrderServiceTests : TestBase
         contexts["OrderNo"].Should().HaveCount(1);
         contexts["ReturnDeadline"].Should().BeEmpty();
     }
+
+    // ========== 子项执行查询（GetReturnItemListAsync / 超量回收） ==========
+
+    private async Task<SubcontractOrder> SeedOrderWithDateAsync(AppDbContext ctx, int supplierId, string orderNo, DateTime orderDate,
+        int reqQty = 100, decimal reqWt = 1000m)
+    {
+        var order = new SubcontractOrder
+        {
+            OrderNo = orderNo,
+            SupplierId = supplierId,
+            SupplierName = "委外供应商",
+            OrderDate = orderDate,
+            Status = SubcontractOrderStatus.Sent,
+            ProcessType = "Piercing",
+            OutMaterialCategory = "RoughTube",
+            OutPlantGrade = "20#",
+            OutSpecification = "219*8",
+            OutQuantity = 100,
+            OutWeight = 1000m,
+            ReturnDeadline = DateTime.Today.AddDays(60)
+        };
+        order.ReturnItems.Add(new SubcontractReturnItem
+        {
+            Sequence = 1,
+            MaterialCategory = "RoughTube",
+            ProcessSpecification = "219*8",
+            RequiredQuantity = reqQty,
+            RequiredWeight = reqWt
+        });
+        ctx.SubcontractOrders.Add(order);
+        await ctx.SaveChangesAsync();
+        return order;
+    }
+
+    [Fact]
+    public async Task SyncSingleAsync_子项超量回收_状态OverReceived()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}011", DateTime.Today, reqQty: 50, reqWt: 500m);
+
+        // 回收入库仓库批：回收 650kg > 需求 500×1.05=525 且 超出 150>100 → 超量到货
+        ctx.InventoryBatches.Add(new InventoryBatch
+        {
+            BatchNo = "SRI001",
+            InboundSource = "委外",
+            SourceName = "委外供应商",
+            SourceOrderNo = order.OrderNo,
+            SourceOrderSequence = 1,
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 60,
+            InitialWeight = 650m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.SyncSingleAsync(order.Id);
+
+        var item = await ctx.SubcontractReturnItems.SingleAsync(i => i.SubcontractOrderId == order.Id);
+        item.ReturnedQuantity.Should().Be(60);
+        item.ReturnedWeight.Should().Be(650m);
+        item.ProcessStatus.Should().Be(SubcontractOrderStatus.OverReceived.ToString());
+    }
+
+    [Fact]
+    public async Task SyncSingleAsync_子项回收未超量_状态Completed()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}012", DateTime.Today);
+
+        // 回收 1010kg：≥需求 1000 完成，且未超量（1010<1050，超出10≤100）→ Completed
+        ctx.InventoryBatches.Add(new InventoryBatch
+        {
+            BatchNo = "SRI002",
+            InboundSource = "委外",
+            SourceName = "委外供应商",
+            SourceOrderNo = order.OrderNo,
+            SourceOrderSequence = 1,
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 101,
+            InitialWeight = 1010m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.SyncSingleAsync(order.Id);
+
+        var item = await ctx.SubcontractReturnItems.SingleAsync(i => i.SubcontractOrderId == order.Id);
+        item.ProcessStatus.Should().Be(SubcontractOrderStatus.Completed.ToString());
+    }
+
+    [Fact]
+    public async Task GetReturnItemListAsync_退货量_仅统计退货出库()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}013", DateTime.Today);
+
+        // 委外回收入库的原仓库批（SourceOrderNo=委外单号）
+        var batch = new InventoryBatch
+        {
+            BatchNo = "SRI001",
+            InboundSource = "委外",
+            SourceName = "委外供应商",
+            SourceOrderNo = order.OrderNo,
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 100,
+            InitialWeight = 1000m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        };
+        // 退货出库当前关联的仓库批（来源其它，无委外单号，仅用于验证不按 InventoryBatchId 关联）
+        var current = new InventoryBatch
+        {
+            BatchNo = "CUR001",
+            InboundSource = "其它",
+            SourceName = "委外供应商",
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 100,
+            InitialWeight = 1000m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        };
+        ctx.InventoryBatches.AddRange(batch, current);
+        await ctx.SaveChangesAsync();
+
+        // 退货出库：ReturnSourceBatchNo=原仓库批 SRI001 + 生产领用（不应计入）
+        ctx.OutboundRecords.AddRange(
+            new OutboundRecord { InventoryBatchId = current.Id, BatchNo = current.BatchNo, OutboundType = OutboundType.ReturnOut, ReturnSourceBatchNo = "SRI001", OutboundQuantity = 5, OutboundWeight = 50m, OutboundDate = DateTime.Today },
+            new OutboundRecord { InventoryBatchId = current.Id, BatchNo = current.BatchNo, OutboundType = OutboundType.ReturnOut, ReturnSourceBatchNo = "SRI001", OutboundQuantity = 3, OutboundWeight = 30m, OutboundDate = DateTime.Today },
+            new OutboundRecord { InventoryBatchId = current.Id, BatchNo = current.BatchNo, OutboundType = OutboundType.ProductionPick, ReturnSourceBatchNo = "SRI001", OutboundQuantity = 10, OutboundWeight = 100m, OutboundDate = DateTime.Today }
+        );
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetReturnItemListAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ReturnQuantity.Should().Be(8);
+        result.Items[0].ReturnWeight.Should().Be(80m);
+        result.Items[0].OrderDate.Should().Be(DateTime.Today);
+    }
+
+    [Fact]
+    public async Task GetReturnItemListAsync_按下单日期排序()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderWithDateAsync(ctx, sid, "WW20260101001", new DateTime(2026, 1, 5));
+        await SeedOrderWithDateAsync(ctx, sid, "WW20260101002", new DateTime(2026, 2, 5));
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetReturnItemListAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "orderdate", IsDescending = false });
+
+        result.Items.Should().HaveCount(2);
+        result.Items[0].OrderNo.Should().Be("WW20260101001");
+        result.Items[0].OrderDate.Should().Be(new DateTime(2026, 1, 5));
+        result.Items[1].OrderNo.Should().Be("WW20260101002");
+    }
+
+    [Fact]
+    public async Task GetReturnItemListAsync_按下单日期筛选()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderWithDateAsync(ctx, sid, "WW20260101001", new DateTime(2026, 1, 5));
+        await SeedOrderWithDateAsync(ctx, sid, "WW20260101002", new DateTime(2026, 2, 5));
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetReturnItemListAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "OrderDate", Operator = "in", Values = new List<string> { "2026-01-05" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].OrderNo.Should().Be("WW20260101001");
+    }
 }

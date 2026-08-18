@@ -26,22 +26,7 @@ public enum OutboundType
     SubcontractOut,
 
     /// <summary>
-    /// 报废出库
-    /// </summary>
-    ScrapOut,
-
-    /// <summary>
-    /// 检验领用
-    /// </summary>
-    InspectionPick,
-
-    /// <summary>
-    /// 移库出库
-    /// </summary>
-    TransferOut,
-
-    /// <summary>
-    /// 其他出库
+    /// 其它出库
     /// </summary>
     OtherOut
 }

@@ -41,7 +41,12 @@ public class OutboundRecord : IAuditableEntity
     public string? WorkOrderNo { get; set; }
 
     /// <summary>
-    /// 委外穿孔号（委外出库+圆棒时关联委外单号）
+    /// 退货-原仓库批（退货出库时记录原仓库批号）
+    /// </summary>
+    public string? ReturnSourceBatchNo { get; set; }
+
+    /// <summary>
+    /// 委外-穿孔号（委外出库+圆棒时关联委外单号）
     /// </summary>
     public string? SourceOrderNo { get; set; }
 

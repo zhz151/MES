@@ -76,6 +76,7 @@ public class InventoryService : IInventoryService
         BatchNo = r.BatchNo,
         OutboundType = r.OutboundType,
         WorkOrderNo = r.WorkOrderNo,
+        ReturnSourceBatchNo = r.ReturnSourceBatchNo,
         SourceOrderNo = r.SourceOrderNo,
         TargetCompany = r.TargetCompany,
         OutboundQuantity = r.OutboundQuantity,
@@ -447,6 +448,7 @@ public class InventoryService : IInventoryService
                         (r.TargetCompany != null && r.TargetCompany.Contains(keyword)) ||
                         (r.CreatedBy != null && r.CreatedBy.Contains(keyword)) ||
                         (r.WorkOrderNo != null && r.WorkOrderNo.Contains(keyword)) ||
+                        (r.ReturnSourceBatchNo != null && r.ReturnSourceBatchNo.Contains(keyword)) ||
                         (r.SourceOrderNo != null && r.SourceOrderNo.Contains(keyword)) ||
                         (r.Remark != null && r.Remark.Contains(keyword)) ||
                         (r.BatchNo != null && r.BatchNo.Contains(keyword)) ||
@@ -458,6 +460,7 @@ public class InventoryService : IInventoryService
                         (r.TargetCompany != null && r.TargetCompany.Contains(keyword)) ||
                         (r.CreatedBy != null && r.CreatedBy.Contains(keyword)) ||
                         (r.WorkOrderNo != null && r.WorkOrderNo.Contains(keyword)) ||
+                        (r.ReturnSourceBatchNo != null && r.ReturnSourceBatchNo.Contains(keyword)) ||
                         (r.SourceOrderNo != null && r.SourceOrderNo.Contains(keyword)) ||
                         (r.Remark != null && r.Remark.Contains(keyword)) ||
                         (r.BatchNo != null && r.BatchNo.Contains(keyword)));
@@ -496,6 +499,9 @@ public class InventoryService : IInventoryService
             "sourceorderno" => query.IsDescending
                 ? queryable.OrderByDescending(r => r.SourceOrderNo ?? "")
                 : queryable.OrderBy(r => r.SourceOrderNo ?? ""),
+            "returnsourcebatchno" => query.IsDescending
+                ? queryable.OrderByDescending(r => r.ReturnSourceBatchNo ?? "")
+                : queryable.OrderBy(r => r.ReturnSourceBatchNo ?? ""),
             "remark" => query.IsDescending
                 ? queryable.OrderByDescending(r => r.Remark ?? "")
                 : queryable.OrderBy(r => r.Remark ?? ""),
@@ -711,6 +717,7 @@ public class InventoryService : IInventoryService
                 ["BatchNo"] = await records.Where(r => r.BatchNo != null).Select(r => r.BatchNo!).Distinct().OrderBy(x => x).ToListAsync(),
                 ["OutboundType"] = (await records.Select(r => r.OutboundType).Distinct().ToListAsync()).Select(e => e.ToString()).OrderBy(x => x).ToList(),
                 ["WorkOrderNo"] = await records.Where(r => r.WorkOrderNo != null).Select(r => r.WorkOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
+                ["ReturnSourceBatchNo"] = await records.Where(r => r.ReturnSourceBatchNo != null).Select(r => r.ReturnSourceBatchNo!).Distinct().OrderBy(x => x).ToListAsync(),
                 ["SourceOrderNo"] = await records.Where(r => r.SourceOrderNo != null).Select(r => r.SourceOrderNo!).Distinct().OrderBy(x => x).ToListAsync(),
                 ["TargetCompany"] = await records.Where(r => r.TargetCompany != null).Select(r => r.TargetCompany!).Distinct().OrderBy(x => x).ToListAsync(),
                 ["Remark"] = await records.Where(r => r.Remark != null).Select(r => r.Remark!).Distinct().OrderBy(x => x).ToListAsync(),

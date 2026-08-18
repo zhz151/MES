@@ -26,6 +26,8 @@ public class PurchaseOrderDto
     public DateTime? LastArrivalDate { get; set; }
     public int ReceivedQuantity { get; set; }
     public decimal ReceivedWeight { get; set; }
+    public int ReturnQuantity { get; set; }
+    public decimal ReturnWeight { get; set; }
     public int? InputMultiple { get; set; }
     public string? SourceWorkOrderNo { get; set; }
     public string? Remark { get; set; }

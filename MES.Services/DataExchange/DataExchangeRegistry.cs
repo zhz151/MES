@@ -882,7 +882,8 @@ public static class DataExchangeRegistry
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "InventoryBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "InventoryBatchId" },
             new("出库类型", "OutboundType", typeof(MES.Core.Enums.OutboundType), isEnum: true),
-            new("物料单号", "SourceOrderNo", typeof(string), isRequired: false),
+            new("退货-原仓库批", "ReturnSourceBatchNo", typeof(string), isRequired: false),
+            new("委外-穿孔号", "SourceOrderNo", typeof(string), isRequired: false),
             new("目标单位", "TargetCompany", typeof(string), isRequired: false),
             new("出库支数", "OutboundQuantity", typeof(int)),
             new("出库重量(kg)", "OutboundWeight", typeof(decimal)),

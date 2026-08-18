@@ -162,10 +162,8 @@ public partial class InboundHistory
     {
         ("Purchase", "外购"),
         ("Subcontract", "委外"),
-        ("ReturnIn", "退货入库"),
         ("ProductionInbound", "生产入库"),
         ("InspectionInbound", "检验入库"),
-        ("TransferIn", "移库入库"),
         ("Other", "其它"),
     };
 

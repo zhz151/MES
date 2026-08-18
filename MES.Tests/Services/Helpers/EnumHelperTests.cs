@@ -140,10 +140,7 @@ public class EnumHelperTests
         EnumHelper.GetDisplayName(OutboundType.SalesOut).Should().Be("销售出库");
         EnumHelper.GetDisplayName(OutboundType.ReturnOut).Should().Be("退货出库");
         EnumHelper.GetDisplayName(OutboundType.SubcontractOut).Should().Be("委外出库");
-        EnumHelper.GetDisplayName(OutboundType.ScrapOut).Should().Be("报废出库");
-        EnumHelper.GetDisplayName(OutboundType.InspectionPick).Should().Be("检验领用");
-        EnumHelper.GetDisplayName(OutboundType.TransferOut).Should().Be("移库出库");
-        EnumHelper.GetDisplayName(OutboundType.OtherOut).Should().Be("其他出库");
+        EnumHelper.GetDisplayName(OutboundType.OtherOut).Should().Be("其它出库");
     }
 
     [Fact]
@@ -169,6 +166,7 @@ public class EnumHelperTests
         EnumHelper.GetDisplayName(SubcontractOrderStatus.Sent).Should().Be("已发出");
         EnumHelper.GetDisplayName(SubcontractOrderStatus.PartialReturned).Should().Be("部分收回");
         EnumHelper.GetDisplayName(SubcontractOrderStatus.Completed).Should().Be("已完成");
+        EnumHelper.GetDisplayName(SubcontractOrderStatus.OverReceived).Should().Be("超量到货");
     }
 
     [Fact]

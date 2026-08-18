@@ -501,6 +501,7 @@ public static class DisplayHelper
             PurchaseOrderStatus.Open => Color.Info,
             PurchaseOrderStatus.Partial => Color.Warning,
             PurchaseOrderStatus.Completed => Color.Success,
+            PurchaseOrderStatus.OverReceived => Color.Error,
             _ => Color.Default
         };
     }
@@ -734,6 +735,7 @@ public static class DisplayHelper
             SubcontractOrderStatus.Sent => Color.Info,
             SubcontractOrderStatus.PartialReturned => Color.Warning,
             SubcontractOrderStatus.Completed => Color.Success,
+            SubcontractOrderStatus.OverReceived => Color.Error,
             _ => Color.Default
         };
     }

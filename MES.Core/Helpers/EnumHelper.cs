@@ -90,17 +90,12 @@ public static class EnumHelper
                                 ("SalesOut", "销售出库"),
                                 ("ReturnOut", "退货出库"),
                                 ("SubcontractOut", "委外出库"),
-                                ("ScrapOut", "报废出库"),
-                                ("InspectionPick", "检验领用"),
-                                ("TransferOut", "移库出库"),
-                                ("OtherOut", "其他出库"));
+                                ("OtherOut", "其它出库"));
 
         Register<InboundSource>(("Purchase", "外购"),
                                  ("Subcontract", "委外"),
-                                 ("ReturnIn", "退货入库"),
                                  ("ProductionInbound", "生产入库"),
                                  ("InspectionInbound", "检验入库"),
-                                 ("TransferIn", "移库入库"),
                                  ("Other", "其它"));
 
         Register<CustomerStatus>(("Active", "启用"),
@@ -127,11 +122,13 @@ public static class EnumHelper
 
         Register<PurchaseOrderStatus>(("Open", "已下单"),
                                        ("Partial", "部分到货"),
-                                       ("Completed", "已完成"));
+                                       ("Completed", "已完成"),
+                                       ("OverReceived", "超量到货"));
 
         Register<SubcontractOrderStatus>(("Sent", "已发出"),
                                           ("PartialReturned", "部分收回"),
-                                          ("Completed", "已完成"));
+                                          ("Completed", "已完成"),
+                                          ("OverReceived", "超量到货"));
 
         Register<SectionOutsourceStatus>(("PendingRecovery", "待回收"),
                                           ("Recovered", "已回收"),
