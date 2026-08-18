@@ -167,6 +167,10 @@ public partial class AppDbContext
             entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
             entity.Property(e => e.RowVersion).IsRowVersion().IsRequired(false);
             entity.Property(e => e.LastChangeDate).HasColumnType("datetime2");
+            entity.Property(e => e.FinishedInboundWeight).IsRequired().HasDefaultValue(0m).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.FinishedOutboundWeight).IsRequired().HasDefaultValue(0m).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.FinishedStockWeight).IsRequired().HasDefaultValue(0m).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.BusinessCompleted).IsRequired().HasDefaultValue(false);
 
             // 索引
             entity.HasIndex(e => e.OrderId).IsUnique().HasDatabaseName("UK_OLS_OrderId");
@@ -187,6 +191,7 @@ public partial class AppDbContext
             entity.Property(e => e.IsUrging).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.IsBatchDelivery).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.IsPaused).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.IsForceCompleted).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.AdjustmentRemark).HasMaxLength(500);
             entity.HasIndex(e => e.WorkOrderId).IsUnique().HasDatabaseName("UK_ODA_WorkOrderId");
         });

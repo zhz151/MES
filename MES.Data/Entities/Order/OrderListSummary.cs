@@ -66,4 +66,18 @@ public class OrderListSummary : BaseEntity
 
     /// <summary>预计完成日期（取工单中最大预计完成日）</summary>
     public DateTime? EstimatedCompletionDate { get; set; }
+
+    // ========== 业务完结 / 成品库存聚合字段（从 InventoryBatch + OutboundRecord 聚合） ==========
+
+    /// <summary>成品入库量（订单成品入库重量聚合，仅 MaterialType=OrderFinished，订成-非交付态不计入）</summary>
+    public decimal FinishedInboundWeight { get; set; }
+
+    /// <summary>成品出库量（订单成品销售出库 SalesOut 出库重量聚合）</summary>
+    public decimal FinishedOutboundWeight { get; set; }
+
+    /// <summary>成品库存量（订单成品当前剩余重量聚合）</summary>
+    public decimal FinishedStockWeight { get; set; }
+
+    /// <summary>业务完结（主号完成 且 有成品入库 且 库存清零）</summary>
+    public bool BusinessCompleted { get; set; }
 }

@@ -225,6 +225,18 @@ public class OrderService : IOrderService
                 case "estimatedcompletiondate":
                     queryable = query.IsDescending ? queryable.OrderByDescending(s => s.EstimatedCompletionDate) : queryable.OrderBy(s => s.EstimatedCompletionDate);
                     break;
+                case "finishedinboundweight":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.FinishedInboundWeight) : queryable.OrderBy(s => s.FinishedInboundWeight);
+                    break;
+                case "finishedoutboundweight":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.FinishedOutboundWeight) : queryable.OrderBy(s => s.FinishedOutboundWeight);
+                    break;
+                case "finishedstockweight":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.FinishedStockWeight) : queryable.OrderBy(s => s.FinishedStockWeight);
+                    break;
+                case "businesscompleted":
+                    queryable = query.IsDescending ? queryable.OrderByDescending(s => s.BusinessCompleted) : queryable.OrderBy(s => s.BusinessCompleted);
+                    break;
                 case "hastechnicalrequirement":
                     queryable = query.IsDescending ? queryable.OrderByDescending(s => s.ItemCount > 0 && s.HasTechReqCount == s.ItemCount) : queryable.OrderBy(s => s.ItemCount > 0 && s.HasTechReqCount == s.ItemCount);
                     break;
@@ -270,7 +282,11 @@ public class OrderService : IOrderService
             LastChangeDate = s.LastChangeDate,
             ScheduleStage = s.ScheduleStage,
             UrgencyLevel = s.UrgencyLevel,
-            EstimatedCompletionDate = s.EstimatedCompletionDate
+            EstimatedCompletionDate = s.EstimatedCompletionDate,
+            FinishedInboundWeight = s.FinishedInboundWeight,
+            FinishedOutboundWeight = s.FinishedOutboundWeight,
+            FinishedStockWeight = s.FinishedStockWeight,
+            BusinessCompleted = s.BusinessCompleted
         }).ToList();
 
         return new PagedResult<SalesOrderListDto>
@@ -1136,7 +1152,11 @@ public class OrderService : IOrderService
             LastChangeDate = s.LastChangeDate,
             ScheduleStage = s.ScheduleStage,
             UrgencyLevel = s.UrgencyLevel,
-            EstimatedCompletionDate = s.EstimatedCompletionDate
+            EstimatedCompletionDate = s.EstimatedCompletionDate,
+            FinishedInboundWeight = s.FinishedInboundWeight,
+            FinishedOutboundWeight = s.FinishedOutboundWeight,
+            FinishedStockWeight = s.FinishedStockWeight,
+            BusinessCompleted = s.BusinessCompleted
         }).ToList();
     }
 
@@ -1248,6 +1268,36 @@ public class OrderService : IOrderService
             }
         }
 
+        // ========== 成品数据聚合（入库/出库/库存） ==========
+        // 成品批次 = 订单下工单关联的 InventoryBatch，仅 MaterialType=OrderFinished（"订单成品"）：
+        // BatchService 强制约束「制造物品≠订成-非交付态时，制造状态必须==交货状态」，
+        // 故 OrderFinished 天然是符合交货状态的可交付成品；SpecialDeliveryStatus（订成-非交付态，
+        // 制造状态≠交货状态）不满足交货要求，不属于可交付成品，不计入
+        var finishedBatches = await (
+            from ib in _context.InventoryBatches
+            join w in _context.WorkOrders on ib.WorkOrderNo equals w.WorkOrderNo
+            where w.SalesOrderNo == salesOrder.OrderNumber
+                && ib.MaterialType == InventoryMaterialTypes.OrderFinished
+            select new { ib.Id, ib.InitialWeight, ib.RemainingWeight })
+            .ToListAsync();
+
+        var finishedInboundWeight = finishedBatches.Sum(x => x.InitialWeight);
+        var finishedStockWeight = finishedBatches.Sum(x => x.RemainingWeight);
+
+        // 成品出库量：仅销售出库（SalesOut）
+        var finishedOutboundWeight = 0m;
+        if (finishedBatches.Count > 0)
+        {
+            var finishedBatchIds = finishedBatches.Select(x => x.Id).ToList();
+            finishedOutboundWeight = await _context.OutboundRecords
+                .Where(r => r.OutboundType == OutboundType.SalesOut
+                    && finishedBatchIds.Contains(r.InventoryBatchId))
+                .SumAsync(r => r.OutboundWeight);
+        }
+
+        // 业务完结：主号完成(1) 且 有成品入库 且 库存清零
+        var businessCompleted = scheduleStage == 1 && finishedInboundWeight > 0m && finishedStockWeight == 0m;
+
         var existingSummary = await _context.Set<OrderListSummary>()
             .FirstOrDefaultAsync(s => s.OrderId == orderId);
 
@@ -1270,6 +1320,10 @@ public class OrderService : IOrderService
             existingSummary.ScheduleStage = scheduleStage;
             existingSummary.UrgencyLevel = urgencyLevel;
             existingSummary.EstimatedCompletionDate = estimatedCompletionDate;
+            existingSummary.FinishedInboundWeight = finishedInboundWeight;
+            existingSummary.FinishedOutboundWeight = finishedOutboundWeight;
+            existingSummary.FinishedStockWeight = finishedStockWeight;
+            existingSummary.BusinessCompleted = businessCompleted;
         }
         else
         {
@@ -1292,7 +1346,11 @@ public class OrderService : IOrderService
                 FirstOrderItemId = items.MinBy(oi => oi.Id)?.Id,
                 ScheduleStage = scheduleStage,
                 UrgencyLevel = urgencyLevel,
-                EstimatedCompletionDate = estimatedCompletionDate
+                EstimatedCompletionDate = estimatedCompletionDate,
+                FinishedInboundWeight = finishedInboundWeight,
+                FinishedOutboundWeight = finishedOutboundWeight,
+                FinishedStockWeight = finishedStockWeight,
+                BusinessCompleted = businessCompleted
             });
         }
 
@@ -1895,6 +1953,15 @@ public class OrderService : IOrderService
                         else if (parsedStages.Count > 0)
                             queryable = queryable.Where(s => s.ScheduleStage != null && parsedStages.Contains(s.ScheduleStage.Value));
                     }
+                    break;
+
+                case "businesscompleted":
+                    if (bool.TryParse(filter.Value, out var bcVal))
+                        queryable = queryable.Where(s => s.BusinessCompleted == bcVal);
+                    else if (filter.Value == "完结")
+                        queryable = queryable.Where(s => s.BusinessCompleted);
+                    else if (filter.Value == "否")
+                        queryable = queryable.Where(s => !s.BusinessCompleted);
                     break;
             }
         }

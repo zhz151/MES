@@ -21,7 +21,7 @@ public partial class Orders
     private MudTable<SalesOrderListDto>? table;
     private List<SalesOrderListDto> _pageItems = new();
     private Dictionary<string, string> _pageSums = new();
-    private static readonly HashSet<string> _summableColumnKeys = new() { "TotalContractWeight", "ItemCount" };
+    private static readonly HashSet<string> _summableColumnKeys = new() { "TotalContractWeight", "ItemCount", "FinishedInboundWeight", "FinishedOutboundWeight", "FinishedStockWeight" };
     private int _totalCount;
     private HashSet<int> selectedOrderIds = new();
     private bool _isArrowNavSetup;
@@ -161,6 +161,13 @@ public partial class Orders
                DisplayConverter = v => v is SalesOrderListDto d ? d.ScheduleStageText : "-" },
         new() { Key = "urgencylevel",      Label = "紧急性",   SortKey = "urgencylevel",      FilterType = "string", Width = "80", GroupKey = 4, GroupName = "④ 订单执行" },
         new() { Key = "estimatedcompletiondate", Label = "预计完成", SortKey = "estimatedcompletiondate", FilterType = "date", Width = "100", GroupKey = 4, GroupName = "④ 订单执行" },
+        new() { Key = "FinishedInboundWeight",  Label = "成品入库量", SortKey = "finishedinboundweight",  Width = "100", GroupKey = 4, GroupName = "④ 订单执行",
+               DisplayConverter = v => v is SalesOrderListDto d ? d.FinishedInboundWeight.ToString("G29") : "-" },
+        new() { Key = "FinishedOutboundWeight", Label = "成品出库量", SortKey = "finishedoutboundweight", Width = "100", GroupKey = 4, GroupName = "④ 订单执行",
+               DisplayConverter = v => v is SalesOrderListDto d ? d.FinishedOutboundWeight.ToString("G29") : "-" },
+        new() { Key = "FinishedStockWeight",   Label = "成品库存量", SortKey = "finishedstockweight",   Width = "100", GroupKey = 4, GroupName = "④ 订单执行",
+               DisplayConverter = v => v is SalesOrderListDto d ? d.FinishedStockWeight.ToString("G29") : "-" },
+        new() { Key = "businesscompleted",     Label = "业务完结",   SortKey = "businesscompleted",     FilterType = "boolean", BoolTrueLabel = "完结", BoolFalseLabel = "否", Width = "90", GroupKey = 4, GroupName = "④ 订单执行" },
     };
 
     // ========== 分页汇总 ==========
@@ -655,6 +662,22 @@ public partial class Orders
                     builder.AddContent(0, order.EstimatedCompletionDate?.ToString("yyyy-MM-dd") ?? "-");
                 }
                 break;
+            case "FinishedInboundWeight":
+                builder.AddContent(0, order.FinishedInboundWeight.ToString("G29"));
+                break;
+            case "FinishedOutboundWeight":
+                builder.AddContent(0, order.FinishedOutboundWeight.ToString("G29"));
+                break;
+            case "FinishedStockWeight":
+                builder.AddContent(0, order.FinishedStockWeight.ToString("G29"));
+                break;
+            case "businesscompleted":
+                builder.OpenComponent<MudChip>(0);
+                builder.AddAttribute(1, "Size", Size.Small);
+                builder.AddAttribute(2, "Color", order.BusinessCompleted ? Color.Success : Color.Default);
+                builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, order.BusinessCompletedText)));
+                builder.CloseComponent();
+                break;
         }
     };
 
@@ -678,6 +701,10 @@ public partial class Orders
         "schedulestage" => item.ScheduleStage?.ToString(),
         "urgencylevel" => item.UrgencyLevel,
         "estimatedcompletiondate" => item.EstimatedCompletionDate?.ToString("yyyy-MM-dd"),
+        "FinishedInboundWeight" => item.FinishedInboundWeight.ToString("G29"),
+        "FinishedOutboundWeight" => item.FinishedOutboundWeight.ToString("G29"),
+        "FinishedStockWeight" => item.FinishedStockWeight.ToString("G29"),
+        "businesscompleted" => item.BusinessCompleted.ToString(),
         _ => null
     };
 
@@ -688,6 +715,7 @@ public partial class Orders
         "status" => GetStatusText(item.Status),
         "schedulestage" => item.ScheduleStageText,
         "urgencylevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel),
+        "businesscompleted" => item.BusinessCompletedText,
         _ => GetCellRawValue(item, key)
     };
 

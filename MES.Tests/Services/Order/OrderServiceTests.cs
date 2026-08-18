@@ -9,7 +9,11 @@ using MES.Tests.Tests;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Order;
+using MES.Data.Entities.Warehouse;
 using MES.Core.DTOs.Order;
+using MES.Core.Constants;
+using WorkOrderEntity = MES.Data.Entities.WorkOrder.WorkOrder;
+using WorkOrderExecutionSummaryEntity = MES.Data.Entities.WorkOrder.WorkOrderExecutionSummary;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Infrastructure;
@@ -577,6 +581,205 @@ public class OrderServiceTests : TestBase
                 }
             }
         };
+    }
+
+    /// <summary>
+    /// 种子一个工单（直接构造实体，仅用于成品聚合测试）
+    /// </summary>
+    private async Task<WorkOrderEntity> SeedWorkOrderForFinishedAsync(AppDbContext ctx,
+        string salesOrderNo, string workOrderNo, string mainNo = "X01", string subNo = "01")
+    {
+        var wo = new WorkOrderEntity
+        {
+            WorkOrderNo = workOrderNo,
+            SalesOrderNo = salesOrderNo,
+            ProductionMainNo = mainNo,
+            ProductionSubNo = subNo,
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "测试业务员",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = "TEST-STD-NO",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            LengthStatus = LengthStatus.Fixed,
+            MinLength = 6000m,
+            MaxLength = 6000m,
+            TotalQuantity = 10,
+            TotalMeters = 0m,
+            TotalWeight = 2500m,
+            TotalItemCount = 1,
+            Status = WorkOrderStatus.Pending,
+            MaterialPlanStatus = MaterialPlanStatus.NotPlanned
+        };
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+        return wo;
+    }
+
+    /// <summary>
+    /// 种子一个成品库存批次
+    /// </summary>
+    private async Task<InventoryBatch> SeedFinishedInventoryBatchAsync(AppDbContext ctx,
+        string workOrderNo, string materialType, decimal initialWeight, decimal remainingWeight,
+        string manufacturingStatus = "SolutionAnnealedAndPickled")
+    {
+        var batch = new InventoryBatch
+        {
+            BatchNo = $"FG-{Guid.NewGuid():N}"[..20],
+            WarehouseId = 1,
+            MaterialType = materialType,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "Production",
+            SourceName = "生产入库",
+            InboundDate = DateTime.Today,
+            LengthStatus = "Fixed",
+            InitialQuantity = (int)(initialWeight / 100m),
+            InitialWeight = initialWeight,
+            UnitWeight = 100m,
+            RemainingQuantity = (int)(remainingWeight / 100m),
+            RemainingWeight = remainingWeight,
+            WorkOrderNo = workOrderNo,
+            ManufacturingStatus = manufacturingStatus
+        };
+        ctx.InventoryBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+        return batch;
+    }
+
+    /// <summary>
+    /// 种子一个出库记录
+    /// </summary>
+    private async Task SeedOutboundRecordAsync(AppDbContext ctx, int inventoryBatchId,
+        OutboundType outboundType, decimal outboundWeight)
+    {
+        ctx.OutboundRecords.Add(new OutboundRecord
+        {
+            InventoryBatchId = inventoryBatchId,
+            BatchNo = $"FG-OUT-{Guid.NewGuid():N}"[..16],
+            OutboundType = outboundType,
+            WorkOrderNo = "WO-FG",
+            OutboundQuantity = (int)(outboundWeight / 100m),
+            OutboundWeight = outboundWeight,
+            OutboundDate = DateTime.Today,
+            CreatedTime = DateTimeOffset.Now,
+            UpdatedTime = DateTimeOffset.Now
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// 种子一个工单执行状况摘要（成品聚合测试指定 ScheduleStage）
+    /// </summary>
+    private async Task SeedExecutionSummaryAsync(AppDbContext ctx, int workOrderId,
+        string workOrderNo, string salesOrderNo, int scheduleStage)
+    {
+        ctx.Set<WorkOrderExecutionSummaryEntity>().Add(new WorkOrderExecutionSummaryEntity
+        {
+            WorkOrderId = workOrderId,
+            WorkOrderNo = workOrderNo,
+            Salesman = "测试业务员",
+            CustomerName = "测试客户",
+            SignDate = DateTime.Today,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            SettlementMethod = SettlementMethod.Theoretical.ToString(),
+            SalesOrderNo = salesOrderNo,
+            ProductionMainNo = "X01",
+            MaterialName = "无缝管",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled.ToString(),
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            LengthStatus = LengthStatus.Fixed.ToString(),
+            ScheduleStage = scheduleStage
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    // ========== 成品数据聚合（业务完结/入库/出库/库存） ==========
+
+    [Fact]
+    public async Task RefreshByOrderIdAsync_聚合成品入库出库库存()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
+
+        var wo = await SeedWorkOrderForFinishedAsync(ctx, order.OrderNumber, "WO-FG-001", "X01", "01");
+        var batch1 = await SeedFinishedInventoryBatchAsync(ctx, wo.WorkOrderNo, InventoryMaterialTypes.OrderFinished, 1000m, 400m);
+        // 订成-非交付态（SpecialDeliveryStatus，制造状态≠交货状态）不计入成品
+        var batch2 = await SeedFinishedInventoryBatchAsync(ctx, wo.WorkOrderNo, InventoryMaterialTypes.SpecialDeliveryStatus, 2000m, 0m);
+        // 非成品批次（在制 Finished）不计入
+        await SeedFinishedInventoryBatchAsync(ctx, wo.WorkOrderNo, InventoryMaterialTypes.Finished, 5000m, 5000m);
+        // 其他订单的工单成品批次不计入
+        await SeedWorkOrderForFinishedAsync(ctx, "OTHER-ORDER", "WO-FG-002", "X01", "02");
+        await SeedFinishedInventoryBatchAsync(ctx, "WO-FG-002", InventoryMaterialTypes.OrderFinished, 8000m, 8000m);
+
+        // OrderFinished 批次销售出库 600kg 计入；SpecialDeliveryStatus 批次销售出库 500kg 不计入（批次被排除）
+        await SeedOutboundRecordAsync(ctx, batch1.Id, OutboundType.SalesOut, 600m);
+        await SeedOutboundRecordAsync(ctx, batch2.Id, OutboundType.SalesOut, 500m);
+        // 执行关注=生产执行(3)，业务完结为否
+        await SeedExecutionSummaryAsync(ctx, wo.Id, wo.WorkOrderNo, order.OrderNumber, 3);
+
+        await svc.RefreshByOrderIdAsync(order.Id);
+
+        var summary = await ctx.Set<OrderListSummaryEntity>().FirstAsync(s => s.OrderId == order.Id);
+        summary.FinishedInboundWeight.Should().Be(1000m);
+        summary.FinishedOutboundWeight.Should().Be(600m);
+        summary.FinishedStockWeight.Should().Be(400m);
+        summary.BusinessCompleted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RefreshByOrderIdAsync_主号完成且库存清零_业务完结()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
+
+        var wo = await SeedWorkOrderForFinishedAsync(ctx, order.OrderNumber, "WO-FG-003", "X02", "01");
+        await SeedFinishedInventoryBatchAsync(ctx, wo.WorkOrderNo, InventoryMaterialTypes.OrderFinished, 1000m, 0m);
+        await SeedExecutionSummaryAsync(ctx, wo.Id, wo.WorkOrderNo, order.OrderNumber, 1);
+
+        await svc.RefreshByOrderIdAsync(order.Id);
+
+        var summary = await ctx.Set<OrderListSummaryEntity>().FirstAsync(s => s.OrderId == order.Id);
+        summary.FinishedInboundWeight.Should().Be(1000m);
+        summary.FinishedStockWeight.Should().Be(0m);
+        summary.BusinessCompleted.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RefreshByOrderIdAsync_无成品入库_业务完结为否()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
+
+        var wo = await SeedWorkOrderForFinishedAsync(ctx, order.OrderNumber, "WO-FG-004", "X03", "01");
+        await SeedExecutionSummaryAsync(ctx, wo.Id, wo.WorkOrderNo, order.OrderNumber, 1);
+
+        await svc.RefreshByOrderIdAsync(order.Id);
+
+        var summary = await ctx.Set<OrderListSummaryEntity>().FirstAsync(s => s.OrderId == order.Id);
+        summary.FinishedInboundWeight.Should().Be(0m);
+        summary.FinishedStockWeight.Should().Be(0m);
+        summary.BusinessCompleted.Should().BeFalse();
     }
 
     // ========== 筛选上下文 ==========
