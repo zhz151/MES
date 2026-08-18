@@ -40,11 +40,11 @@ public class OrderDemandAdjustmentService
         }
     }
 
-    public async Task<ApiResponse<bool>> SaveUrgingAsync(int workOrderId, bool isUrging, bool isBatchDelivery, bool isPaused, string? adjustmentRemark)
+    public async Task<ApiResponse<bool>> SaveUrgingAsync(int workOrderId, bool isUrging, bool isBatchDelivery, bool isPaused, bool isForceCompleted, string? adjustmentRemark)
     {
         try
         {
-            var payload = new { WorkOrderId = workOrderId, IsUrging = isUrging, IsBatchDelivery = isBatchDelivery, IsPaused = isPaused, AdjustmentRemark = adjustmentRemark };
+            var payload = new { WorkOrderId = workOrderId, IsUrging = isUrging, IsBatchDelivery = isBatchDelivery, IsPaused = isPaused, IsForceCompleted = isForceCompleted, AdjustmentRemark = adjustmentRemark };
             var response = await _http.PostAsJsonAsync<object, ApiResponse<bool>>($"{BaseUrl}/save", payload);
             return response ?? ApiResponse<bool>.Fail("保存失败");
         }

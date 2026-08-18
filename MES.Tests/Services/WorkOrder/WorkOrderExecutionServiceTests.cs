@@ -2650,6 +2650,29 @@ public class WorkOrderExecutionServiceTests : TestBase
     }
 
     [Fact]
+    public async Task RefreshAllAsync_ScheduleStage_强制完成档1()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        var so = new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" };
+        ctx.SalesOrders.Add(so);
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", lengthStatus: LengthStatus.Fixed, totalQty: 100, totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        // 批次在产：无强制完成时应判档3生产执行，强制完成 → 档1主号完成
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress));
+        // 工单需求调整：强制完成（主号级，与暂停互斥）
+        ctx.Set<OrderDemandAdjustment>().Add(new OrderDemandAdjustment { WorkOrderId = wo.Id, IsForceCompleted = true });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.IsForceCompleted.Should().BeTrue();
+        s.ScheduleStage.Should().Be(1);    // 强制完成 → 主号完成
+    }
+
+    [Fact]
     public async Task RefreshAllAsync_ScheduleStage五档_原料锁定档2()
     {
         using var ctx = CreateDbContext();

@@ -57,6 +57,9 @@ public class OrderDemandAdjustmentDto
     /// <summary>工单暂停（手工填写）</summary>
     public bool IsPaused { get; set; }
 
+    /// <summary>强制完成（手工填写，主号级联动，与暂停互斥；置是后主号-关注=主号完成）</summary>
+    public bool IsForceCompleted { get; set; }
+
     /// <summary>调整备注（手工填写）</summary>
     public string? AdjustmentRemark { get; set; }
 

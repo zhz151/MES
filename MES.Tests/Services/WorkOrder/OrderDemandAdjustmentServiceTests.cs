@@ -225,7 +225,7 @@ public class OrderDemandAdjustmentServiceTests : TestBase
         woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
         var svc = CreateService(ctx, woMock);
 
-        var result = await svc.SaveUrgingAsync(1, true, false, false, "催单备注");
+        var result = await svc.SaveUrgingAsync(1, true, false, false, false, "催单备注");
 
         result.Should().BeTrue();
         var saved = await ctx.Set<OrderDemandAdjustment>().FirstOrDefaultAsync(u => u.WorkOrderId == 1);
@@ -233,6 +233,7 @@ public class OrderDemandAdjustmentServiceTests : TestBase
         saved!.IsUrging.Should().BeTrue();
         saved.IsBatchDelivery.Should().BeFalse();
         saved.IsPaused.Should().BeFalse();
+        saved.IsForceCompleted.Should().BeFalse();
         saved.AdjustmentRemark.Should().Be("催单备注");
         woMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>()), Times.Once);
     }
@@ -256,13 +257,14 @@ public class OrderDemandAdjustmentServiceTests : TestBase
         woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
         var svc = CreateService(ctx, woMock);
 
-        var result = await svc.SaveUrgingAsync(1, true, true, true, "新备注");
+        var result = await svc.SaveUrgingAsync(1, true, true, true, false, "新备注");
 
         result.Should().BeTrue();
         var updated = await ctx.Set<OrderDemandAdjustment>().FirstAsync(u => u.WorkOrderId == 1);
         updated.IsUrging.Should().BeTrue();
         updated.IsBatchDelivery.Should().BeTrue();
         updated.IsPaused.Should().BeTrue();
+        updated.IsForceCompleted.Should().BeFalse();
         updated.AdjustmentRemark.Should().Be("新备注");
         woMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>()), Times.Once);
     }
@@ -283,7 +285,7 @@ public class OrderDemandAdjustmentServiceTests : TestBase
         var svc = CreateService(ctx, woMock);
 
         // 暂停 WO001 → 主号暂停联动，WO002 一并暂停
-        var result = await svc.SaveUrgingAsync(1, true, false, true, "主号暂停备注");
+        var result = await svc.SaveUrgingAsync(1, true, false, true, false, "主号暂停备注");
 
         result.Should().BeTrue();
         var adjustments = await ctx.Set<OrderDemandAdjustment>().ToListAsync();
@@ -318,7 +320,7 @@ public class OrderDemandAdjustmentServiceTests : TestBase
         woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
         var svc = CreateService(ctx, woMock);
 
-        var result = await svc.SaveUrgingAsync(1, true, false, true, "主号暂停备注");
+        var result = await svc.SaveUrgingAsync(1, true, false, true, false, "主号暂停备注");
 
         result.Should().BeTrue();
         // 只有当前工单被写入，已完结工单不被牵连
@@ -329,6 +331,83 @@ public class OrderDemandAdjustmentServiceTests : TestBase
 
         woMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(n =>
             n.Contains("WO001", StringComparer.OrdinalIgnoreCase) && !n.Contains("WO002", StringComparer.OrdinalIgnoreCase))), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveUrgingAsync_强制完成主号联动_同主号未完结工单同步强制完成()
+    {
+        using var ctx = CreateDbContext();
+        SeedWorkOrder(ctx, 1, "WO001");
+        SeedWorkOrder(ctx, 2, "WO002");
+        SeedSummary(ctx, "WO001", 1, woWarehousingStatus: 1);
+        SeedSummary(ctx, "WO002", 2, woWarehousingStatus: 1);
+        await ctx.SaveChangesAsync();
+
+        var woMock = new Mock<IWorkOrderExecutionService>();
+        woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
+        var svc = CreateService(ctx, woMock);
+
+        // 强制完成 WO001 → 主号联动，WO002 一并强制完成
+        var result = await svc.SaveUrgingAsync(1, false, false, false, true, "强制完成备注");
+
+        result.Should().BeTrue();
+        var adjustments = await ctx.Set<OrderDemandAdjustment>().ToListAsync();
+        adjustments.Should().HaveCount(2);
+
+        var w1 = adjustments.Single(u => u.WorkOrderId == 1);
+        w1.IsForceCompleted.Should().BeTrue();
+        w1.IsPaused.Should().BeFalse();
+        w1.AdjustmentRemark.Should().Be("强制完成备注");
+
+        var w2 = adjustments.Single(u => u.WorkOrderId == 2);
+        w2.IsForceCompleted.Should().BeTrue();
+        w2.IsPaused.Should().BeFalse();
+        w2.AdjustmentRemark.Should().BeNull();
+
+        woMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(n =>
+            n.Contains("WO001", StringComparer.OrdinalIgnoreCase) && n.Contains("WO002", StringComparer.OrdinalIgnoreCase))), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveUrgingAsync_互斥_强制完成清除暂停()
+    {
+        using var ctx = CreateDbContext();
+        SeedWorkOrder(ctx, 1, "WO001");
+        SeedSummary(ctx, "WO001", 1, woWarehousingStatus: 1);
+        await ctx.SaveChangesAsync();
+
+        var woMock = new Mock<IWorkOrderExecutionService>();
+        woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
+        var svc = CreateService(ctx, woMock);
+
+        // 先暂停，再强制完成 → 暂停被互斥清除
+        await svc.SaveUrgingAsync(1, false, false, true, false, null);
+        await svc.SaveUrgingAsync(1, false, false, true, true, null);
+
+        var saved = await ctx.Set<OrderDemandAdjustment>().FirstAsync(u => u.WorkOrderId == 1);
+        saved.IsForceCompleted.Should().BeTrue();
+        saved.IsPaused.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SaveUrgingAsync_互斥_暂停清除强制完成()
+    {
+        using var ctx = CreateDbContext();
+        SeedWorkOrder(ctx, 1, "WO001");
+        SeedSummary(ctx, "WO001", 1, woWarehousingStatus: 1);
+        await ctx.SaveChangesAsync();
+
+        var woMock = new Mock<IWorkOrderExecutionService>();
+        woMock.Setup(x => x.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>())).Returns(Task.CompletedTask);
+        var svc = CreateService(ctx, woMock);
+
+        // 先强制完成，再暂停 → 强制完成被互斥清除
+        await svc.SaveUrgingAsync(1, false, false, false, true, null);
+        await svc.SaveUrgingAsync(1, false, false, true, false, null);
+
+        var saved = await ctx.Set<OrderDemandAdjustment>().FirstAsync(u => u.WorkOrderId == 1);
+        saved.IsPaused.Should().BeTrue();
+        saved.IsForceCompleted.Should().BeFalse();
     }
 
     // ==================== GetFilterContextsAsync 测试 ====================

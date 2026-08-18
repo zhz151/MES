@@ -17,6 +17,9 @@ public class OrderDemandAdjustment : BaseEntity
     /// <summary>工单暂停（标记为 E停，不纳入排程计算）</summary>
     public bool IsPaused { get; set; }
 
+    /// <summary>强制完成（主号级联动，与 IsPaused 互斥；置是后 ScheduleStage=主号完成(1)）</summary>
+    public bool IsForceCompleted { get; set; }
+
     /// <summary>调整备注</summary>
     public string? AdjustmentRemark { get; set; }
 }

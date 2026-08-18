@@ -126,6 +126,7 @@ public partial class OrderDemandAdjustment
             new() { Key = "IsUrging",              Label = "催单",          SortKey = "IsUrging",              FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
             new() { Key = "IsBatchDelivery",       Label = "分批交货",      SortKey = "IsBatchDelivery",       FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
             new() { Key = "IsPaused",               Label = "暂停",          SortKey = "IsPaused",               FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "IsForceCompleted",       Label = "强制完成",      SortKey = "IsForceCompleted",       FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
             new() { Key = "AdjustmentRemark",       Label = "调整备注",      SortKey = "AdjustmentRemark",       FilterType = "string", Width = "120", GroupKey = 13, GroupName = "工单需求调整" },
         };
 
@@ -378,7 +379,7 @@ public partial class OrderDemandAdjustment
     {
         try
         {
-            var result = await DemandAdjustmentService.SaveUrgingAsync(item.WorkOrderId, item.IsUrging, item.IsBatchDelivery, item.IsPaused, item.AdjustmentRemark);
+            var result = await DemandAdjustmentService.SaveUrgingAsync(item.WorkOrderId, item.IsUrging, item.IsBatchDelivery, item.IsPaused, item.IsForceCompleted, item.AdjustmentRemark);
             if (result.Success)
             {
                 Snackbar.Add("保存成功", Severity.Success);
@@ -710,7 +711,7 @@ public partial class OrderDemandAdjustment
                 builder.CloseElement();
                 break;
             case "IsPaused":
-                // 内联编辑：Switch 切换暂停状态
+                // 内联编辑：Switch 切换暂停状态（与强制完成互斥）
                 builder.OpenElement(0, "div");
                 builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
                 builder.OpenComponent<MudSwitch<bool>>(2);
@@ -718,12 +719,31 @@ public partial class OrderDemandAdjustment
                 builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
                 {
                     item.IsPaused = v;
+                    if (v) item.IsForceCompleted = false;
                     await SaveUrgingAsync(item);
                 }));
                 builder.AddAttribute(5, "Color", Color.Error);
                 builder.AddAttribute(6, "Dense", true);
                 builder.CloseComponent();
                 builder.AddContent(7, item.IsPaused ? "是" : "否");
+                builder.CloseElement();
+                break;
+            case "IsForceCompleted":
+                // 内联编辑：Switch 切换强制完成状态（与暂停互斥，置是后主号-关注=主号完成）
+                builder.OpenElement(0, "div");
+                builder.AddAttribute(1, "style", "display:flex; align-items:center; gap:4px;");
+                builder.OpenComponent<MudSwitch<bool>>(2);
+                builder.AddAttribute(3, "Value", item.IsForceCompleted);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
+                {
+                    item.IsForceCompleted = v;
+                    if (v) item.IsPaused = false;
+                    await SaveUrgingAsync(item);
+                }));
+                builder.AddAttribute(5, "Color", Color.Primary);
+                builder.AddAttribute(6, "Dense", true);
+                builder.CloseComponent();
+                builder.AddContent(7, item.IsForceCompleted ? "是" : "否");
                 builder.CloseElement();
                 break;
             case "AdjustmentRemark":
@@ -835,6 +855,7 @@ public partial class OrderDemandAdjustment
         "IsUrging" => item.IsUrging ? "是" : "否",
         "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
         "IsPaused" => item.IsPaused ? "是" : "否",
+        "IsForceCompleted" => item.IsForceCompleted ? "是" : "否",
         "AdjustmentRemark" => item.AdjustmentRemark ?? "",
         _ => GetRawPropertyValue(item, key)
     };

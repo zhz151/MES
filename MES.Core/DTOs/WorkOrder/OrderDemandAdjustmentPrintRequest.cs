@@ -49,5 +49,6 @@ public class SaveUrgingRequest
     public bool IsUrging { get; set; }
     public bool IsBatchDelivery { get; set; }
     public bool IsPaused { get; set; }
+    public bool IsForceCompleted { get; set; }
     public string? AdjustmentRemark { get; set; }
 }

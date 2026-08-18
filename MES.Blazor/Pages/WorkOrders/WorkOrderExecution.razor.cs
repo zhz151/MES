@@ -199,6 +199,7 @@ public partial class WorkOrderExecution
             new() { Key = "IsUrging",              Label = "催单",             SortKey = "IsUrging", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 2, GroupName = "工单需求调整" },
             new() { Key = "IsBatchDelivery",       Label = "分批交货",         SortKey = "IsBatchDelivery", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 2, GroupName = "工单需求调整" },
             new() { Key = "IsPaused",               Label = "暂停",             SortKey = "IsPaused", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 2, GroupName = "工单需求调整" },
+            new() { Key = "IsForceCompleted",       Label = "强制完成",         SortKey = "IsForceCompleted", FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 2, GroupName = "工单需求调整" },
             new() { Key = "AdjustmentRemark",       Label = "调整备注",         SortKey = "AdjustmentRemark", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单需求调整" },
         };
 
@@ -1310,6 +1311,9 @@ public partial class WorkOrderExecution
             case "IsPaused":
                 builder.AddContent(0, item.IsPaused ? "是" : "否");
                 break;
+            case "IsForceCompleted":
+                builder.AddContent(0, item.IsForceCompleted ? "是" : "否");
+                break;
             case "AdjustmentRemark":
                 builder.AddContent(0, item.AdjustmentRemark ?? "-");
                 break;
@@ -1649,6 +1653,7 @@ public partial class WorkOrderExecution
         "IsUrging" => item.IsUrging ? "是" : "否",
         "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
         "IsPaused" => item.IsPaused ? "是" : "否",
+        "IsForceCompleted" => item.IsForceCompleted ? "是" : "否",
         "DeformedProcessCompleted" => item.DeformedProcessCompleted switch { true => "是", false => "否", null => "略" },
         // 状态 int→中文
         "MaterialPlanStatus" => item.MaterialPlanStatusText,

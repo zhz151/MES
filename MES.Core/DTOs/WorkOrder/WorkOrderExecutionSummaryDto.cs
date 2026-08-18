@@ -313,6 +313,7 @@ public class WorkOrderExecutionSummaryDto
     public bool IsUrging { get; set; }
     public bool IsBatchDelivery { get; set; }
     public bool IsPaused { get; set; }
+    public bool IsForceCompleted { get; set; }
     public string? AdjustmentRemark { get; set; }
 
     // ========== 生产流转性（实体字段，RefreshAllAsync 时计算填入） ==========

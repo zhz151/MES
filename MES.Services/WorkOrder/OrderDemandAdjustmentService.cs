@@ -104,6 +104,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     IsUrging = u != null && u.IsUrging,
                     IsBatchDelivery = u != null && u.IsBatchDelivery,
                     IsPaused = u != null && u.IsPaused,
+                    IsForceCompleted = u != null && u.IsForceCompleted,
                     AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
                 };
 
@@ -154,11 +155,18 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         };
     }
 
-    public async Task<bool> SaveUrgingAsync(int workOrderId, bool isUrging, bool isBatchDelivery, bool isPaused, string? adjustmentRemark)
+    public async Task<bool> SaveUrgingAsync(int workOrderId, bool isUrging, bool isBatchDelivery, bool isPaused, bool isForceCompleted, string? adjustmentRemark)
     {
         // 联动连带：不允许"工单暂停"，只能"主号暂停"。
         // 联动范围 = 同主号（SalesOrderNo + ProductionMainNo）下未入库完结的工单（WoWarehousingStatus != 2），
         // 已闭环（入库完结/超额）的工单不被暂停/恢复牵连。
+        // 强制完成同暂停：主号级联动，置是后同主号未完结工单保持一致（ScheduleStage=主号完成）。
+        // 互斥：暂停与强制完成不能同时为真（前端 Switch 互斥，此处后端兜底保留强制完成、解除暂停）。
+        if (isPaused && isForceCompleted)
+        {
+            isPaused = false;
+        }
+
         var currentSummary = await _context.Set<WorkOrderExecutionSummary>()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.WorkOrderId == workOrderId);
@@ -193,8 +201,9 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     adj.IsBatchDelivery = isBatchDelivery;
                     adj.AdjustmentRemark = adjustmentRemark;
                 }
-                // 暂停状态联动同步：同主号下未完结工单保持一致
+                // 暂停/强制完成联动同步：同主号下未完结工单保持一致（两者互斥）
                 adj.IsPaused = isPaused;
+                adj.IsForceCompleted = isForceCompleted;
                 _context.Entry(adj).State = EntityState.Modified;
             }
             else
@@ -205,6 +214,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     IsUrging = isCurrent ? isUrging : false,
                     IsBatchDelivery = isCurrent ? isBatchDelivery : false,
                     IsPaused = isPaused,
+                    IsForceCompleted = isForceCompleted,
                     AdjustmentRemark = isCurrent ? adjustmentRemark : null,
                 });
             }
@@ -339,6 +349,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     IsUrging = u != null && u.IsUrging,
                     IsBatchDelivery = u != null && u.IsBatchDelivery,
                     IsPaused = u != null && u.IsPaused,
+                    IsForceCompleted = u != null && u.IsForceCompleted,
                     AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
                 };
 
@@ -394,6 +405,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         "IsUrging" => item.IsUrging ? "是" : "否",
         "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
         "IsPaused" => item.IsPaused ? "是" : "否",
+        "IsForceCompleted" => item.IsForceCompleted ? "是" : "否",
         "AdjustmentRemark" => item.AdjustmentRemark ?? "",
         "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
         "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),

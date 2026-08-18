@@ -45,7 +45,7 @@ public class OrderDemandAdjustmentController : ControllerBase
     public async Task<ActionResult<ApiResponse<bool>>> SaveUrging(
         [FromBody] SaveUrgingRequest request)
     {
-        var result = await _service.SaveUrgingAsync(request.WorkOrderId, request.IsUrging, request.IsBatchDelivery, request.IsPaused, request.AdjustmentRemark);
+        var result = await _service.SaveUrgingAsync(request.WorkOrderId, request.IsUrging, request.IsBatchDelivery, request.IsPaused, request.IsForceCompleted, request.AdjustmentRemark);
         return Ok(ApiResponse<bool>.Ok(result));
     }
 

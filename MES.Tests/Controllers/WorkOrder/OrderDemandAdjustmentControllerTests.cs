@@ -41,7 +41,7 @@ public class OrderDemandAdjustmentControllerTests : ControllerTestBase
     [Fact]
     public async Task SaveUrging_ReturnsOk()
     {
-        _serviceMock.Setup(x => x.SaveUrgingAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<string?>()))
+        _serviceMock.Setup(x => x.SaveUrgingAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<string?>()))
             .ReturnsAsync(true);
 
         var request = new SaveUrgingRequest
@@ -50,6 +50,7 @@ public class OrderDemandAdjustmentControllerTests : ControllerTestBase
             IsUrging = true,
             IsBatchDelivery = false,
             IsPaused = false,
+            IsForceCompleted = false,
             AdjustmentRemark = "测试"
         };
         var result = await _controller.SaveUrging(request);
@@ -62,13 +63,13 @@ public class OrderDemandAdjustmentControllerTests : ControllerTestBase
     [Fact]
     public async Task SaveUrging_PassesParams_ToService()
     {
-        _serviceMock.Setup(x => x.SaveUrgingAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<string?>()))
+        _serviceMock.Setup(x => x.SaveUrgingAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<string?>()))
             .ReturnsAsync(true);
 
-        var request = new SaveUrgingRequest { WorkOrderId = 5, IsUrging = true, IsBatchDelivery = true, IsPaused = true, AdjustmentRemark = "紧急" };
+        var request = new SaveUrgingRequest { WorkOrderId = 5, IsUrging = true, IsBatchDelivery = true, IsPaused = true, IsForceCompleted = true, AdjustmentRemark = "紧急" };
         await _controller.SaveUrging(request);
 
-        _serviceMock.Verify(x => x.SaveUrgingAsync(5, true, true, true, "紧急"), Times.Once);
+        _serviceMock.Verify(x => x.SaveUrgingAsync(5, true, true, true, true, "紧急"), Times.Once);
     }
 
     [Fact]

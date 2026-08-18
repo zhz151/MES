@@ -295,6 +295,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 IsUrging = e.IsUrging,
                 IsBatchDelivery = e.IsBatchDelivery,
                 IsPaused = e.IsPaused,
+                IsForceCompleted = e.IsForceCompleted,
                 AdjustmentRemark = e.AdjustmentRemark,
                 ProductionFlowProperty = e.ProductionFlowProperty,
             })
@@ -826,6 +827,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.IsUrging = adj.IsUrging;
                 summary.IsBatchDelivery = adj.IsBatchDelivery;
                 summary.IsPaused = adj.IsPaused;
+                summary.IsForceCompleted = adj.IsForceCompleted;
                 summary.AdjustmentRemark = adj.AdjustmentRemark;
             }
         }
@@ -845,6 +847,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         {
             var hasProducingBatch = producingByMainNo.TryGetValue(new { summary.SalesOrderNo, summary.ProductionMainNo }, out var pb) && pb;
             summary.ScheduleStage = summary.IsPaused ? 0
+                : summary.IsForceCompleted ? 1
                 : summary.MainNoWarehousingStatus >= 2 ? 1
                 : summary.MainNoFlowStatus is 0 or 1 ? 2
                 : hasProducingBatch ? 3
@@ -1538,13 +1541,14 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.IsUrging = adj.IsUrging;
                 summary.IsBatchDelivery = adj.IsBatchDelivery;
                 summary.IsPaused = adj.IsPaused;
+                summary.IsForceCompleted = adj.IsForceCompleted;
                 summary.AdjustmentRemark = adj.AdjustmentRemark;
             }
         }
 
         // G16: 主号关注（0=主号暂停/1=主号完成/2=原料锁定/3=生产执行/4=成品检验，全部主号级）
         // 主号暂停：该工单 IsPaused（工单需求调整，联动连带保证同主号未入库完结工单一致）
-        // 主号完成：主号入库=完结/超额（真正闭环）
+        // 主号完成：主号入库=完结/超额（真正闭环），或该工单 IsForceCompleted（强制完成，与暂停互斥）
         // 档3/4 主号级判定：主号下任一工单有活动批次（未产/在产/临时暂停 Suspended）→ 3 生产执行；主号下全部工单仅成检/已完成批次 → 4 成品检验
         var producingByWo = batchesByWo.ToDictionary(
             kv => kv.Key,
@@ -1559,6 +1563,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         {
             var hasProducingBatch = producingByMainNo.TryGetValue(new { summary.SalesOrderNo, summary.ProductionMainNo }, out var pb) && pb;
             summary.ScheduleStage = summary.IsPaused ? 0
+                : summary.IsForceCompleted ? 1
                 : summary.MainNoWarehousingStatus >= 2 ? 1
                 : summary.MainNoFlowStatus is 0 or 1 ? 2
                 : hasProducingBatch ? 3
@@ -2759,6 +2764,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.IsUrging = source.IsUrging;
         target.IsBatchDelivery = source.IsBatchDelivery;
         target.IsPaused = source.IsPaused;
+        target.IsForceCompleted = source.IsForceCompleted;
         target.AdjustmentRemark = source.AdjustmentRemark;
         target.ProductionFlowProperty = source.ProductionFlowProperty;
 
@@ -3605,6 +3611,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("isbatchdelivery", true) => query.OrderByDescending(x => x.IsBatchDelivery),
             ("ispaused", false) => query.OrderBy(x => x.IsPaused),
             ("ispaused", true) => query.OrderByDescending(x => x.IsPaused),
+            ("isforcecompleted", false) => query.OrderBy(x => x.IsForceCompleted),
+            ("isforcecompleted", true) => query.OrderByDescending(x => x.IsForceCompleted),
             ("adjustmentremark", false) => query.OrderBy(x => x.AdjustmentRemark ?? ""),
             ("adjustmentremark", true) => query.OrderByDescending(x => x.AdjustmentRemark ?? ""),
             ("productionflowproperty", false) => query.OrderBy(x => x.ProductionFlowProperty ?? ""),
@@ -3929,6 +3937,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             IsUrging = e.IsUrging,
             IsBatchDelivery = e.IsBatchDelivery,
             IsPaused = e.IsPaused,
+            IsForceCompleted = e.IsForceCompleted,
             AdjustmentRemark = e.AdjustmentRemark,
             ProductionFlowProperty = e.ProductionFlowProperty,
         }).ToList();
@@ -3958,6 +3967,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         "IsUrging" => item.IsUrging ? "是" : "否",
         "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
         "IsPaused" => item.IsPaused ? "是" : "否",
+        "IsForceCompleted" => item.IsForceCompleted ? "是" : "否",
         "DeformedProcessCompleted" => item.DeformedProcessCompleted switch { true => "是", false => "否", null => "略" },
         // 状态 int→中文
         "MaterialPlanStatus" => item.MaterialPlanStatusText,
