@@ -16,7 +16,8 @@ namespace MES.Services.Printing;
 /// 页眉（左 Logo+公司名称 / 中标题 / 右地址+联系方式）+
 /// 基本信息（置顶「证明书编号/签发日期」行 → 「基本信息」标题条 → 客户名称/产品标准/产品名称/交货状态 4 字段行）+
 /// 3 张横向明细表（物料信息/化学成分/检验检测，行=子项、列=字段，白底黑字、表头跨页重复）+
-/// 每页固定 4 行数据（不足补占位空行，化学/检验「标准值」参照行每页重复，>4 行时按页拆分）+
+/// 每页固定 4 行数据（不足补占位空行，化学/检验「标准值」参照行每页重复，>4 行时按页拆分；
+/// 基本信息组每页均重复，保证多页证书每页都含证明书编号/客户名称等基本内容）+
 /// 页脚约整页 1/5 行高（上部说明文字、下部左备注/中盖章/右签发人三栏）。
 /// 页眉/页脚/字体内容由 CertificatePrintSetting 配置表驱动，明细表字段显隐/顺序/权重由
 /// CertificatePrintColumnDefinition 配置表驱动（columnDefs 为空时回退内置默认列），配置为空时回退默认值。
@@ -228,7 +229,7 @@ public static class CertificatePrintHelper
         var inspStdRow = BuildInspectionStdRow(cert, subStandardQuickViews);
 
         // 每页固定 RowsPerPage 行数据：按 4 个 Item 一组分页，不足补占位空行；
-        // 化学/检验表「标准值」参照行每页重复；第一页含基本信息，续页从明细表开始
+        // 化学/检验表「标准值」参照行每页重复；基本信息组每页均重复（每页内容量一致 = 原第一页密度，已验证可放一页）
         var itemCount = cert.Items.Count;
         var pageCount = Math.Max(1, (int)Math.Ceiling(itemCount / (double)RowsPerPage));
 
@@ -238,9 +239,8 @@ public static class CertificatePrintHelper
             {
                 var pageItems = cert.Items.Skip(page * RowsPerPage).Take(RowsPerPage).ToList();
 
-                // 仅第一页显示基本信息，续页从明细表开始
-                if (page == 0)
-                    col.Item().Element(c => ComposeBasicInfo(c, cert, settings, basicDefs));
+                // 基本信息组每页均显示（证明书编号/签发日期/客户名称/产品标准/产品名称/交货状态随每页重复）
+                col.Item().Element(c => ComposeBasicInfo(c, cert, settings, basicDefs));
 
                 col.Item().PaddingTop(GetFloat(settings, CertificatePrintKeys.SectionSpacing, 6))
                     .Element(c => ComposeDetailTable(c, "物料信息", "Material Information", materialDefs, BuildWarehouseRows(pageItems),

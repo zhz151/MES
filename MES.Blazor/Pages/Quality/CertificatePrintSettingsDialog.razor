@@ -80,7 +80,6 @@
     </DialogContent>
     <DialogActions>
         <MudButton Variant="Variant.Text" OnClick="() => MudDialog.Close()">关闭</MudButton>
-        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ResetDefaults" Disabled="@_isLoading">恢复默认</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Loading="@_isSubmitting">保存</MudButton>
     </DialogActions>
 </MudDialog>
@@ -125,25 +124,25 @@
         _ => Icons.Material.Filled.Settings
     };
 
-    /// <summary>默认配置：与 CertificatePrintKeys 默认值 + 种子迁移 SeedCertificatePrintSetting 保持一致</summary>
+    /// <summary>默认配置：与真库实际值 + 种子迁移 20260818150000_SeedCertificatePrintSettingsActualValues 保持一致</summary>
     private static List<CertificatePrintSettingDto> GetDefaultItems() => new()
     {
-        new() { Key = CertificatePrintKeys.CompanyName, Value = "", DisplayName = "公司名称", Remark = "页眉左侧企业名称（中文）" },
-        new() { Key = CertificatePrintKeys.CompanyNameEn, Value = "", DisplayName = "公司名称（英文）", Remark = "页眉左侧企业英文名称（中文下方第二行）" },
-        new() { Key = CertificatePrintKeys.CompanyAddress, Value = "", DisplayName = "公司地址", Remark = "页眉右侧地址（中文）" },
-        new() { Key = CertificatePrintKeys.CompanyAddressEn, Value = "", DisplayName = "公司地址（英文）", Remark = "页眉右侧地址英文（中文下方第二行）" },
-        new() { Key = CertificatePrintKeys.CompanyContact, Value = "", DisplayName = "联系方式", Remark = "页眉右侧电话/邮箱" },
+        new() { Key = CertificatePrintKeys.CompanyName, Value = "XXX市XXX不锈钢管有限公司", DisplayName = "公司名称", Remark = "页眉左侧企业名称" },
+        new() { Key = CertificatePrintKeys.CompanyNameEn, Value = "XXX XXX Stainless Steel Pipe Co.,Ltd", DisplayName = "公司名称（英文）", Remark = "页眉左侧企业英文名称（中文下方第二行）" },
+        new() { Key = CertificatePrintKeys.CompanyAddress, Value = "地址：XXX市XXXXXX路 12 号", DisplayName = "公司地址", Remark = "页眉右侧地址" },
+        new() { Key = CertificatePrintKeys.CompanyAddressEn, Value = "Add：XXXXXXXX", DisplayName = "公司地址（英文）", Remark = "页眉右侧地址英文（中文下方第二行）" },
+        new() { Key = CertificatePrintKeys.CompanyContact, Value = "电话/Tel: 86-111-1111111111", DisplayName = "联系方式", Remark = "页眉右侧电话/邮箱" },
         new() { Key = CertificatePrintKeys.CompanyLogoPath, Value = "images/certificate-logo.png", DisplayName = "Logo图片路径", Remark = "相对后端 wwwroot" },
-        new() { Key = CertificatePrintKeys.HeaderTitle, Value = "产品质量证明书", DisplayName = "页眉标题", Remark = "页眉中部标题（中文）" },
+        new() { Key = CertificatePrintKeys.HeaderTitle, Value = "产品质量证明书", DisplayName = "页眉标题", Remark = "页眉中部标题" },
         new() { Key = CertificatePrintKeys.HeaderTitleEn, Value = "PRODUCT QUALITY CERTIFICATE", DisplayName = "页眉标题（英文）", Remark = "页眉中部标题英文（中文下方第二行）" },
-        new() { Key = CertificatePrintKeys.FooterStatement, Value = "本质量证明书仅对所列产品批次有效，检测数据真实有效。", DisplayName = "页脚说明文字", Remark = "页脚第1行" },
-        new() { Key = CertificatePrintKeys.FooterRemark, Value = "备注：", DisplayName = "页脚备注", Remark = "页脚第2行左（标签前缀）" },
-        new() { Key = CertificatePrintKeys.SealText, Value = "质量检验专用章", DisplayName = "盖章文字（中文）", Remark = "页脚第2行中第1行" },
+        new() { Key = CertificatePrintKeys.FooterStatement, Value = "1. 特此证明，我所生产的材料已按照规范要求和产品标准等级要求进行了检验和试验，结果合格。We hereby certify that the materials produced have been inspected and tested in accordance with the association's regulations and standard grade requirements, and the results are satisfactory.  2. 本“产品质量证明书”须盖有“产品质量专用章”有效，除非有本公司的书面批准，否则证书不允许复制。This \"Product Quality Certificate\" shall be issued with a \"Product Quality Seal\" valid, the certificate is not allowed to be reproduced unless approved in writing by the Company.", DisplayName = "页脚说明文字", Remark = "页脚第1行" },
+        new() { Key = CertificatePrintKeys.FooterRemark, Value = "备注Note：", DisplayName = "页脚备注", Remark = "页脚第2行左" },
+        new() { Key = CertificatePrintKeys.SealText, Value = "质量检验专用章", DisplayName = "盖章文字", Remark = "页脚第2行中" },
         new() { Key = CertificatePrintKeys.SealTextEn, Value = "QUALITY INSPECTION SEAL", DisplayName = "盖章文字（英文）", Remark = "页脚第2行中第2行" },
         new() { Key = CertificatePrintKeys.InspectorText, Value = "检验员：________________", DisplayName = "检验员签字", Remark = "页脚第2行右第1行" },
-        new() { Key = CertificatePrintKeys.SignerText, Value = "工程师：________________", DisplayName = "签发工程师", Remark = "页脚第2行右第2行" },
+        new() { Key = CertificatePrintKeys.SignerText, Value = "工程师：", DisplayName = "签发工程师", Remark = "页脚第2行右第2行" },
         new() { Key = CertificatePrintKeys.PageFontFamily, Value = "SimSun", DisplayName = "正文字体", Remark = "页面默认字体族" },
-        new() { Key = CertificatePrintKeys.PageFontSize, Value = "9", DisplayName = "正文字号", Remark = "页面默认字号" },
+        new() { Key = CertificatePrintKeys.PageFontSize, Value = "12", DisplayName = "正文字号", Remark = "页面默认字号" },
         new() { Key = CertificatePrintKeys.HeaderFontFamily, Value = "SimSun", DisplayName = "标题字体", Remark = "页眉标题字体族" },
         new() { Key = CertificatePrintKeys.HeaderFontSize, Value = "18", DisplayName = "标题字号", Remark = "页眉标题字号" },
         // === 页眉细分子号 ===
@@ -154,14 +153,14 @@
         new() { Key = CertificatePrintKeys.HeaderContactFontSize, Value = "8", DisplayName = "联系方式字号", Remark = "页眉右侧电话/邮箱" },
         new() { Key = CertificatePrintKeys.HeaderTitleEnFontSize, Value = "13", DisplayName = "页眉英文标题字号", Remark = "中文标题下方英文" },
         // === 内容细分子号 ===
-        new() { Key = CertificatePrintKeys.BasicInfoLabelFontSize, Value = "7", DisplayName = "基本信息标签字号", Remark = "标签小字在值上方" },
+        new() { Key = CertificatePrintKeys.BasicInfoLabelFontSize, Value = "9", DisplayName = "基本信息标签字号", Remark = "标签小字在值上方" },
         new() { Key = CertificatePrintKeys.BasicInfoValueFontSize, Value = "9", DisplayName = "基本信息值字号", Remark = "客户/标准/名称/交货状态等值" },
-        new() { Key = CertificatePrintKeys.SectionTitleFontSize, Value = "10", DisplayName = "区块标题字号", Remark = "基本信息+三张明细表标题条" },
-        new() { Key = CertificatePrintKeys.MaterialTableFontSize, Value = "8.5", DisplayName = "物料信息表字号", Remark = "物料信息表内容" },
-        new() { Key = CertificatePrintKeys.ChemistryTableFontSize, Value = "6.5", DisplayName = "化学成分表字号", Remark = "16列宽表内容" },
-        new() { Key = CertificatePrintKeys.InspectionTableFontSize, Value = "5.5", DisplayName = "检验检测表字号", Remark = "21列宽表内容" },
+        new() { Key = CertificatePrintKeys.SectionTitleFontSize, Value = "9", DisplayName = "区块标题字号", Remark = "基本信息+三张明细表标题条" },
+        new() { Key = CertificatePrintKeys.MaterialTableFontSize, Value = "9", DisplayName = "物料信息表字号", Remark = "物料信息表内容" },
+        new() { Key = CertificatePrintKeys.ChemistryTableFontSize, Value = "9", DisplayName = "化学成分表字号", Remark = "16列宽表内容" },
+        new() { Key = CertificatePrintKeys.InspectionTableFontSize, Value = "9", DisplayName = "检验检测表字号", Remark = "21列宽表内容" },
         new() { Key = CertificatePrintKeys.TableHeaderFontSizeDelta, Value = "0.5", DisplayName = "表头字号增量", Remark = "表头=表内容字号+此增量" },
-        new() { Key = CertificatePrintKeys.SectionSpacing, Value = "6", DisplayName = "区块间距", Remark = "基本信息与三张明细表之间的顶部间距" },
+        new() { Key = CertificatePrintKeys.SectionSpacing, Value = "5", DisplayName = "区块间距", Remark = "基本信息与三张明细表之间的顶部间距" },
         // === 页脚细分子号 ===
         new() { Key = CertificatePrintKeys.FooterStatementFontSize, Value = "8", DisplayName = "页脚说明字号", Remark = "页脚第1行" },
         new() { Key = CertificatePrintKeys.FooterTextFontSize, Value = "8", DisplayName = "页脚三栏字号", Remark = "备注/盖章/签发人" },
@@ -364,12 +363,5 @@
         {
             _isSubmitting = false;
         }
-    }
-
-    private async Task ResetDefaults()
-    {
-        _items = GetDefaultItems();
-        _columns = GetDefaultColumns();
-        await Save();
     }
 }
