@@ -17,7 +17,7 @@
 | 计划排程 | 计划排程 | 所有 | 6 | 5 |
 | 批次 | 批次管理 | BatchStaff/Director | 14 | 6 |
 | 质量 | 质量管理 | QualityStaff/Director | 32 | 16 |
-| 物料 | 物料管理 | MaterialStaff/Director | 11 | 5 |
+| 物料 | 物料管理 | MaterialStaff/Director | 9 | 4 |
 | 仓库 | 仓库管理 | WarehouseStaff/Director | 6 | 4 |
 | 设备 | 设备管理 | EquipmentStaff/Director | 8 | 4 |
 | 生产标准 | 生产标准 | StandardRead/StandardWrite | 18 | 9 |
@@ -228,8 +228,8 @@
 ### 2.6 物料上下文
 
 ```
-路由前缀: /purchase-orders, /subcontract-orders, /suppliers, /materials
-菜单: 物料管理 → [采购订单, 圆棒穿孔, 供应商管理, 物料档案]
+路由前缀: /purchase-orders, /subcontract-orders, /subcontract-return-items, /suppliers
+菜单: 物料管理 → [采购订单, 圆棒穿孔(子项), 子项查询, 供应商管理]
 
 ┌─ 物料管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -246,13 +246,11 @@
 │  Suppliers.razor             /suppliers           [列表页]   │
 │  SupplierCreate.razor        /suppliers/create    [创建页]   │
 │                                                           │
-│  Materials.razor             /materials           [列表页]   │
-│  MaterialCreate.razor        /materials/create    [创建页]   │
-│                                                           │
 │  列表页: PurchaseOrders, SubcontractOrders, SubcontractReturnItems,│
-│          Suppliers, Materials                               │
+│          Suppliers                                        │
 └───────────────────────────────────────────────────────────┘
 ```
+（物料档案 /materials 主档已删除，2026-08-18）
 
 ### 2.7 仓库上下文
 
@@ -492,8 +490,7 @@
 | 22 | PurchaseOrders.razor | /purchase-orders | 物料 | ✅ | |
 | 23 | SubcontractOrders.razor | /subcontract-orders | 物料 | ✅ | |
 | 24 | Suppliers.razor | /suppliers | 物料 | | |
-| 25 | Materials.razor | /materials | 物料 | | |
-| 26 | WarehouseInventory.razor | /warehouse | 仓库 | | Code复用 |
+| 25 | WarehouseInventory.razor | /warehouse | 仓库 | | Code复用 |
 | 27 | InboundHistory.razor | /warehouse/inbound-history | 仓库 | | Code复用 |
 | 28 | OutboundHistory.razor | /warehouse/outbound-history | 仓库 | | Code复用 |
 | 29 | WorkOrderExecution.razor | /workorder-execution | 工单 | | ✅ 已过规范检查。列分组14组(G1-G14) + 复选框选择列 + 打印选中+打印全部 + 分组标题栏 + 底部聚合行 |
