@@ -3,13 +3,11 @@
 @using MES.Blazor.Shared
 @using MES.Blazor.Helpers
 @using MES.Core.Enums
-@using MES.Core.DTOs.Batch
 @using MES.Core.DTOs.Materials
 @using MES.Core.DTOs.WorkOrder
 @using Microsoft.AspNetCore.Authorization
 @inject PurchaseOrderService PurchaseService
 @inject SupplierService SupplierService
-@inject MaterialService MaterialService
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -419,53 +417,6 @@
         }
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
-        // 物料匹配检测（单次批量查询替代 N 次串行 HTTP）
-        var unmatched = new List<(int Index, string Category, string Grade, string Spec)>();
-        var matchItems = rows
-            .Select((r, i) => (Row: r, Index: i + 1))
-            .Where(x => !string.IsNullOrWhiteSpace(x.Row.PlantGrade) &&
-                        !string.IsNullOrWhiteSpace(x.Row.Specification))
-            .ToList();
-
-        if (matchItems.Any())
-        {
-            var batchResult = await MaterialService.BatchMatchAsync(
-                matchItems.Select(x => new BatchMaterialMatchItem
-                {
-                    Category = x.Row.MaterialCategory,
-                    Grade = x.Row.PlantGrade,
-                    Spec = x.Row.Specification
-                }).ToList());
-
-            if (batchResult?.Data != null && batchResult.Data.Count > 0)
-            {
-                var unmatchedSet = batchResult.Data
-                    .Select(m => $"{m.Category}|{m.Grade}|{m.Spec}")
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var x in matchItems)
-                {
-                    var catDisplay = DisplayHelper.GetMaterialTypeText(x.Row.MaterialCategory);
-                    var key = $"{catDisplay}|{x.Row.PlantGrade}|{x.Row.Specification}";
-                    if (unmatchedSet.Contains(key))
-                        unmatched.Add((x.Index, catDisplay, x.Row.PlantGrade, x.Row.Specification));
-                }
-            }
-        }
-
-        if (unmatched.Any())
-        {
-            var lines = string.Join("\n", unmatched.Select(m => $"行{m.Index}: {m.Category}/{m.Grade}/{m.Spec}"));
-            var dialog = DialogService.Show<ConfirmDialog>("物料档案匹配", new DialogParameters
-            {
-                { "ContentText", $"以下物料未匹配到物料档案：\n{lines}\n\n是否继续保存并自动添加到物料档案？" },
-                { "ConfirmText", "继续保存" },
-                { "Color", Color.Warning }
-            });
-            var result = await dialog.Result;
-            if (result.Canceled) { Snackbar.Add("已取消保存", Severity.Normal); return; }
-        }
-
         // 构建供应商(名称+物料分类)→ID 查询（同名不同分类视为不同供应商）
         var supplierLookup = allSuppliers
             .Where(s => !string.IsNullOrWhiteSpace(s.SupplierName))
@@ -541,25 +492,6 @@
                 {
                     failMessages.Add($"行{i + 1}: 创建供应商失败 - {ex.Message}");
                     continue;
-                }
-            }
-
-            // 自动添加物料档案
-            if (unmatched.Any(m => m.Index == i + 1))
-            {
-                try
-                {
-                    await MaterialService.CreateAsync(new CreateMaterialRequest
-                    {
-                        MaterialCategory = r.MaterialCategory,
-                        PlantGrade = r.PlantGrade,
-                        Specification = r.Specification,
-                        IsActive = true
-                    });
-                }
-                catch (Exception ex)
-                {
-                    failMessages.Add($"行{i + 1}: 自动添加物料档案失败 - {ex.Message}");
                 }
             }
 

@@ -54,7 +54,6 @@ public static class ApiEndpoints
     public const string RepairOrder = "api/repair-order";
 
     // ===== Material 物料 =====
-    public const string Material = "api/material";
     public const string PurchaseOrder = "api/purchase-order";
     public const string Subcontract = "api/subcontract";
     public const string SubcontractReturnItem = "api/subcontract/return-items";

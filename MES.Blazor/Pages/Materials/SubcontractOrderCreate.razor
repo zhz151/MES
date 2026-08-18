@@ -9,7 +9,6 @@
 @inject SubcontractOrderService SubcontractService
 @inject PurchaseOrderService PurchaseService
 @inject SupplierService SupplierService
-@inject MaterialService MaterialService
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -420,26 +419,7 @@
 
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
-        // ========== 物料匹配检测 ==========
-        var unmatched = false;
         var outCatDisplay = DisplayHelper.GetMaterialTypeText(outMaterialCategory);
-        if (!string.IsNullOrWhiteSpace(outPlantGrade) &&
-            !string.IsNullOrWhiteSpace(outSpecification))
-        {
-            var matchResult = await MaterialService.MatchAsync(outCatDisplay, outPlantGrade, outSpecification);
-            if (matchResult?.Data == null)
-            {
-                var dialog = DialogService.Show<ConfirmDialog>("物料档案匹配", new DialogParameters
-                {
-                    { "ContentText", $"发出物料（{outCatDisplay}/{outPlantGrade}/{outSpecification}）未匹配到物料档案。\n\n是否继续保存并自动添加到物料档案？" },
-                    { "ConfirmText", "继续保存" },
-                    { "Color", Color.Warning }
-                });
-                var result = await dialog.Result;
-                if (result.Canceled) { Snackbar.Add("已取消保存", Severity.Normal); return; }
-                unmatched = true;
-            }
-        }
 
         // ========== 供应商解析 ==========
         int supplierId;
@@ -482,26 +462,6 @@
                     Snackbar.Add($"创建供应商失败: {ex.Message}", Severity.Error);
                     return;
                 }
-            }
-        }
-
-        // ========== 自动添加物料档案 ==========
-        if (unmatched)
-        {
-            try
-            {
-                await MaterialService.CreateAsync(new CreateMaterialRequest
-                {
-                    MaterialCategory = outMaterialCategory,
-                    PlantGrade = outPlantGrade,
-                    Specification = outSpecification,
-                    IsActive = true
-                });
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"自动添加物料档案失败: {ex.Message}", Severity.Error);
-                return;
             }
         }
 

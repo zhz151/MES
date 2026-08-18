@@ -50,9 +50,9 @@ public class DataExchangeServiceTests : TestBase
     // ========== Registry 验证 ==========
 
     [Fact]
-    public void Registry_包含所有69个实体()
+    public void Registry_包含所有68个实体()
     {
-        DataExchangeRegistry.Registry.Should().HaveCount(69);
+        DataExchangeRegistry.Registry.Should().HaveCount(68);
     }
 
     [Fact]
@@ -544,24 +544,6 @@ public class DataExchangeServiceTests : TestBase
         result.SuccessCount.Should().Be(1);
         var saved = await ctx.SupplierProfiles.FirstAsync(s => s.SupplierName == "新供应商");
         saved.SupplierCode.Should().Be("SU0002");
-    }
-
-    [Fact]
-    public async Task ImportAsync_物料_复合键_不填备注()
-    {
-        var ctx = CreateDbContext();
-        var svc = CreateTestableService(ctx);
-
-        var bytes = CreateTestExcel("物料", new() { "物料分类", "厂内钢种", "名义规格", "是否启用" },
-            new() { new() { "管坯", "304", "Φ65", "是" } });
-
-        var result = await svc.ImportAsync("Material", bytes, "test");
-
-        result.SuccessCount.Should().Be(1);
-        var saved = await ctx.Materials.FirstAsync(m => m.MaterialCategory == "管坯");
-        saved.PlantGrade.Should().Be("304");
-        saved.Specification.Should().Be("Φ65");
-        saved.IsActive.Should().BeTrue();
     }
 
     [Fact]

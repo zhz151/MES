@@ -88,7 +88,6 @@ builder.Services.AddScoped<MaterialReceiveCheckService>();
 builder.Services.AddScoped<CertificateService>();
 
 // ========== 物料上下文 ==========
-builder.Services.AddScoped<MaterialService>();
 builder.Services.AddScoped<SupplierService>();
 builder.Services.AddScoped<PurchaseOrderService>();
 builder.Services.AddScoped<SubcontractOrderService>();

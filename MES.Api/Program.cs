@@ -224,7 +224,6 @@ builder.Services.AddScoped<IPicklingService, PicklingService>();
 builder.Services.AddScoped<IMaterialReceiveCheckService, MaterialReceiveCheckService>();
 
 // Register material context services
-builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
 builder.Services.AddScoped<ISubcontractOrderService, SubcontractOrderService>();

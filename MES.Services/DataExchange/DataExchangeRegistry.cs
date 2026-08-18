@@ -21,7 +21,6 @@ public static class DataExchangeRegistry
     public static readonly Dictionary<string, string> CodePrefixMap = new()
     {
         ["SupplierCode"] = "SU",
-        ["MaterialCode"] = "MA",
     };
 
     /// <summary>
@@ -264,19 +263,9 @@ public static class DataExchangeRegistry
             new("催单", "IsUrging", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("分批交货", "IsBatchDelivery", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("暂停", "IsPaused", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("强制完成", "IsForceCompleted", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("调整备注", "AdjustmentRemark", typeof(string), isRequired: false),
         }),
-
-        // === 第6批：物料 ===
-        ["Material"] = new EntityDef("物料-物料", "物料-物料", typeof(MES.Data.Entities.Materials.Material), 6, null, new List<ColumnDef>
-        {
-            new("物料编码", "MaterialCode", isSystem: true),
-            new("物料分类", "MaterialCategory"),
-            new("厂内钢种", "PlantGrade"),
-            new("名义规格", "Specification"),
-            new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
-            new("备注", "Remark", typeof(string), isRequired: false),
-        }, compositeKeyColumns: new[] { "MaterialCategory", "PlantGrade", "Specification" }),
 
         // === 第7批：采购订单、委外订单、生产批次（依赖供应商/工单） ===
         ["ProductionBatch"] = new EntityDef("批次-生产批次", "批次-生产批次", typeof(MES.Data.Entities.Batch.ProductionBatch), 7, "BatchNo", new List<ColumnDef>
@@ -1558,7 +1547,7 @@ public static class DataExchangeRegistry
         "FurnaceRegistration", "ChemicalComposition", "ChemicalValidationRule", "Ncr",
         "SalesOrder",
         "OrderItem", "ProductRequirement",
-        "WorkOrder", "OrderDemandAdjustment", "Material",
+        "WorkOrder", "OrderDemandAdjustment",
         "PurchaseOrder", "SubcontractOrder", "SubcontractReturnItem", "ProductionBatch",
         "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "ChemicalAnalysis", "HardnessTest", "GrainSizeTest", "PittingCorrosionTest", "IntergranularCorrosionTest", "TensileTest", "MetallographicTest", "FlatteningTest", "FlaringTest", "PicklingInRecord", "PicklingOutRecord", "OperationLog", "InventoryBatch", "OutboundRecord",
         "Equipment", "RepairOrder", "MaintenanceOrder", "InspectionRecord",

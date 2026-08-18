@@ -7,26 +7,6 @@ namespace MES.Data;
 
 public partial class AppDbContext
 {
-    private static void ConfigureMaterial(ModelBuilder builder)
-    {
-        builder.Entity<Material>(entity =>
-        {
-            entity.ToTable("Material");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.MaterialCode).IsRequired().HasMaxLength(6);
-            entity.Property(e => e.MaterialCategory).IsRequired().HasMaxLength(30);
-            entity.Property(e => e.PlantGrade).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
-            entity.Property(e => e.Remark).HasMaxLength(500);
-            entity.HasIndex(e => e.MaterialCode).IsUnique().HasDatabaseName("UK_Material_Code");
-            entity.HasIndex(e => new { e.MaterialCategory, e.PlantGrade, e.Specification })
-                .IsUnique()
-                .HasDatabaseName("UK_Material_Combo");
-            entity.HasIndex(e => e.MaterialCategory).HasDatabaseName("IX_Material_Category");
-            entity.HasIndex(e => e.IsActive).HasDatabaseName("IX_Material_IsActive");
-        });
-    }
     private static void ConfigureSupplierProfile(ModelBuilder builder)
     {
         builder.Entity<SupplierProfile>(entity =>

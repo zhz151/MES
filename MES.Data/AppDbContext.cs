@@ -74,7 +74,6 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
 
     // ========== 物料上下文 ==========
 
-    public DbSet<Material> Materials { get; set; } = null!;
     public DbSet<SupplierProfile> SupplierProfiles { get; set; } = null!;
     public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
     public DbSet<SubcontractOrder> SubcontractOrders { get; set; } = null!;
@@ -195,7 +194,6 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureFixedLengthWorkOrder(builder);
 
         // ========== 物料上下文 ==========
-        ConfigureMaterial(builder);
         ConfigureSupplierProfile(builder);
         ConfigurePurchaseOrder(builder);
         ConfigureSubcontractOrder(builder);
