@@ -298,6 +298,69 @@ public class OrderService : IOrderService
         };
     }
 
+    /// <summary>
+    /// 获取订单接单·出库及现负荷汇总（本年按月：接单量/出库量；当前存量：成品库存(完工/未完工)/订单负荷量(实时)）
+    /// 口径：
+    /// 1. 接单量 = 本年签订、排除已取消订单的合同重量，按签订月份分布 12 列
+    /// 2. 出库量 = 本年成品销售出库（OutboundType=SalesOut 且批次 MaterialType=OrderFinished）重量，按出库月份分布 12 列
+    /// 3. 成品库存(完工/未完工) = 所有年份、排除已取消订单的成品库存量（FinishedStockWeight），按执行关注 ScheduleStage==1（主号完成）分档，为当前存量，非月度累计
+    /// 4. 订单负荷量(实时) = 执行关注&lt;&gt;主号完成 的订单合同重量 − 成品库存(未完工)，为当前存量，非月度累计
+    /// </summary>
+    public async Task<OrderInOutSummaryDto> GetOrderInOutSummaryAsync(int year)
+    {
+        var yearStart = new DateTime(year, 1, 1);
+        var nextYearStart = new DateTime(year + 1, 1, 1);
+
+        // 订单数据：所有年份、排除已取消（接单量仅取本年签订部分）
+        var orders = await _context.Set<OrderListSummary>()
+            .Where(s => s.Status != SalesOrderStatus.Cancelled)
+            .Select(s => new { s.SignDate, s.TotalContractWeight, s.ScheduleStage, s.FinishedStockWeight })
+            .ToListAsync();
+
+        var orderWeightByMonth = new decimal[12];
+        var finishedStockCompleted = 0m;
+        var finishedStockUncompleted = 0m;
+        var uncompletedOrderWeight = 0m;
+        foreach (var o in orders)
+        {
+            if (o.SignDate >= yearStart && o.SignDate < nextYearStart)
+                orderWeightByMonth[o.SignDate.Month - 1] += o.TotalContractWeight;
+
+            if (o.ScheduleStage == 1)
+                finishedStockCompleted += o.FinishedStockWeight;
+            else
+            {
+                finishedStockUncompleted += o.FinishedStockWeight;
+                uncompletedOrderWeight += o.TotalContractWeight;
+            }
+        }
+
+        // 出库量：本年成品销售出库（SalesOut + OrderFinished 批次）
+        var outbound = await (
+            from r in _context.OutboundRecords
+            join ib in _context.InventoryBatches on r.InventoryBatchId equals ib.Id
+            where r.OutboundType == OutboundType.SalesOut
+                && ib.MaterialType == InventoryMaterialTypes.OrderFinished
+                && r.OutboundDate >= yearStart && r.OutboundDate < nextYearStart
+            select new { Month = r.OutboundDate.Month, r.OutboundWeight })
+            .ToListAsync();
+
+        var outboundWeightByMonth = new decimal[12];
+        foreach (var o in outbound)
+            outboundWeightByMonth[o.Month - 1] += o.OutboundWeight;
+
+        return new OrderInOutSummaryDto
+        {
+            Year = year,
+            MonthLabels = Enumerable.Range(1, 12).Select(m => $"{year}年{m}月").ToArray(),
+            OrderWeightByMonth = orderWeightByMonth,
+            OutboundWeightByMonth = outboundWeightByMonth,
+            FinishedStockCompleted = finishedStockCompleted,
+            FinishedStockUncompleted = finishedStockUncompleted,
+            TurnoverTotal = uncompletedOrderWeight - finishedStockUncompleted
+        };
+    }
+
     public async Task<SalesOrderDetailDto> GetByIdAsync(int id)
     {
         // 1. 查订单头（无 Include，避免 LEFT JOIN 数据重复）

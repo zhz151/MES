@@ -831,4 +831,149 @@ public class OrderServiceTests : TestBase
         foreach (var kvp in result)
             kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
     }
+
+    // ========== 订单接单·出库及现负荷汇总 ==========
+
+    private static OrderListSummaryEntity SeedSummary(int orderId, string orderNo, DateTime signDate, SalesOrderStatus status, int weight = 0, int? scheduleStage = null, decimal stock = 0m)
+        => new()
+        {
+            OrderId = orderId,
+            OrderNumber = orderNo,
+            SignDate = signDate,
+            CustomerName = "客户A",
+            Salesman = "张三",
+            Status = status,
+            TotalContractWeight = weight,
+            ScheduleStage = scheduleStage,
+            FinishedStockWeight = stock,
+            CreatedTime = DateTimeOffset.Now,
+            UpdatedTime = DateTimeOffset.Now
+        };
+
+    [Fact]
+    public async Task GetOrderInOutSummaryAsync_接单量按签订月份汇总_排除取消订单()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            SeedSummary(1, "SO-01", new DateTime(year, 1, 15), SalesOrderStatus.Confirmed, weight: 1000),
+            SeedSummary(2, "SO-02", new DateTime(year, 5, 10), SalesOrderStatus.Confirmed, weight: 2000),
+            SeedSummary(3, "SO-03", new DateTime(year, 3, 5), SalesOrderStatus.Cancelled, weight: 500),
+            SeedSummary(4, "SO-04", new DateTime(year - 1, 12, 20), SalesOrderStatus.Confirmed, weight: 3000));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOrderInOutSummaryAsync(year);
+
+        result.OrderWeightByMonth[0].Should().Be(1000m);    // 1月
+        result.OrderWeightByMonth[4].Should().Be(2000m);    // 5月
+        result.OrderWeightByMonth[2].Should().Be(0m);       // 3月 取消订单不计
+        result.OrderWeightByMonth.Sum().Should().Be(3000m); // 上年12月签订不在本年范围
+    }
+
+    [Fact]
+    public async Task GetOrderInOutSummaryAsync_出库量按出库月份汇总_仅成品销售出库()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+
+        var finished = new InventoryBatch
+        {
+            BatchNo = "CK-FG-001",
+            WarehouseId = 1,
+            MaterialType = InventoryMaterialTypes.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "成检入库",
+            SourceName = "测试",
+            InboundDate = new DateTime(year, 1, 1),
+            InitialQuantity = 100,
+            InitialWeight = 10000m,
+            RemainingQuantity = 100,
+            RemainingWeight = 10000m
+        };
+        var nonFinished = new InventoryBatch
+        {
+            BatchNo = "CK-HT-001",
+            WarehouseId = 1,
+            MaterialType = InventoryMaterialTypes.RoughTube,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = "荒管入库",
+            SourceName = "测试",
+            InboundDate = new DateTime(year, 1, 1),
+            InitialQuantity = 100,
+            InitialWeight = 10000m,
+            RemainingQuantity = 100,
+            RemainingWeight = 10000m
+        };
+        ctx.InventoryBatches.AddRange(finished, nonFinished);
+        await ctx.SaveChangesAsync();
+
+        ctx.OutboundRecords.AddRange(
+            new OutboundRecord
+            {
+                InventoryBatchId = finished.Id,
+                BatchNo = finished.BatchNo,
+                OutboundType = OutboundType.SalesOut,
+                OutboundDate = new DateTime(year, 2, 10),
+                OutboundQuantity = 1,
+                OutboundWeight = 100m,
+                CreatedTime = DateTimeOffset.Now,
+                UpdatedTime = DateTimeOffset.Now
+            },
+            new OutboundRecord
+            {
+                InventoryBatchId = finished.Id,
+                BatchNo = finished.BatchNo,
+                OutboundType = OutboundType.SalesOut,
+                OutboundDate = new DateTime(year, 8, 20),
+                OutboundQuantity = 2,
+                OutboundWeight = 250m,
+                CreatedTime = DateTimeOffset.Now,
+                UpdatedTime = DateTimeOffset.Now
+            },
+            new OutboundRecord
+            {
+                InventoryBatchId = nonFinished.Id,
+                BatchNo = nonFinished.BatchNo,
+                OutboundType = OutboundType.SalesOut,
+                OutboundDate = new DateTime(year, 3, 15),
+                OutboundQuantity = 1,
+                OutboundWeight = 999m,
+                CreatedTime = DateTimeOffset.Now,
+                UpdatedTime = DateTimeOffset.Now
+            });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOrderInOutSummaryAsync(year);
+
+        result.OutboundWeightByMonth[1].Should().Be(100m);   // 2月
+        result.OutboundWeightByMonth[7].Should().Be(250m);   // 8月
+        result.OutboundWeightByMonth[2].Should().Be(0m);     // 3月 非成品批次不计
+        result.OutboundWeightByMonth.Sum().Should().Be(350m);
+    }
+
+    [Fact]
+    public async Task GetOrderInOutSummaryAsync_库存按执行关注分档_所有年份_并算周转总量()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            SeedSummary(1, "SO-01", new DateTime(year, 2, 1), SalesOrderStatus.Confirmed, weight: 8000, scheduleStage: 1, stock: 300m),      // 完工：库存300
+            SeedSummary(2, "SO-02", new DateTime(year, 3, 1), SalesOrderStatus.Confirmed, weight: 6000, scheduleStage: 3, stock: 500m),      // 未完工
+            SeedSummary(3, "SO-03", new DateTime(year, 4, 1), SalesOrderStatus.Confirmed, weight: 2000, scheduleStage: null, stock: 200m),   // 未完工（未排产）
+            SeedSummary(4, "SO-04", new DateTime(year - 1, 11, 1), SalesOrderStatus.Confirmed, weight: 3000, scheduleStage: 3, stock: 100m), // 上年未完工：全年份计入
+            SeedSummary(5, "SO-05", new DateTime(year, 5, 1), SalesOrderStatus.Cancelled, weight: 999, scheduleStage: 3, stock: 999m));      // 已取消：不计入
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOrderInOutSummaryAsync(year);
+
+        result.FinishedStockCompleted.Should().Be(300m);      // 完工库存仅 SO-01
+        result.FinishedStockUncompleted.Should().Be(800m);    // 500 + 200 + 100（含上年，全年份口径）
+        // 周转总量 = 未完工订单合同重量(6000+2000+3000) − 未完工库存(800)
+        result.TurnoverTotal.Should().Be(10200m);
+    }
 }

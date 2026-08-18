@@ -228,6 +228,22 @@ public class OrderService
         }
     }
 
+    /// <summary>
+    /// 获取订单接单·出库及现负荷汇总（本年按月：接单量/出库量/库存完工/库存未完工）
+    /// </summary>
+    public async Task<ApiResponse<OrderInOutSummaryDto>> GetInOutSummaryAsync(int year)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<OrderInOutSummaryDto>>($"{BaseUrl}/in-out-summary?year={year}");
+            return response ?? ApiResponse<OrderInOutSummaryDto>.Fail("获取订单接单·出库及现负荷汇总失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<OrderInOutSummaryDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     public async Task<ApiResponse<List<OperationLogDto>>> GetOperationLogsAsync(int id)
     {
         try

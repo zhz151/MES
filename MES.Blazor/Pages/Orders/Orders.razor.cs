@@ -35,6 +35,11 @@ public partial class Orders
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
 
+    // ========== 订单接单·出库及现负荷汇总 ==========
+    private bool _showInOutSummaryCard;
+    private OrderInOutSummaryDto? _inOutSummary;
+    private int _currentMonthIndex => DateTime.Today.Month - 1;
+
     private string sortColumn = "signdate";
     private bool sortDescending = true;
 
@@ -797,6 +802,49 @@ public partial class Orders
 
     private Color GetStatusColor(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusColor(status);
     private string GetStatusText(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusText(status);
+
+    // ========== 订单接单·出库及现负荷汇总 ==========
+
+    private async Task ToggleInOutSummaryCard()
+    {
+        _showInOutSummaryCard = !_showInOutSummaryCard;
+        if (_showInOutSummaryCard && _inOutSummary == null)
+        {
+            try
+            {
+                var result = await OrderService.GetInOutSummaryAsync(DateTime.Today.Year);
+                if (result.Success && result.Data != null)
+                    _inOutSummary = result.Data;
+                else
+                    Snackbar.Add(result.Message ?? "加载汇总失败", Severity.Warning);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"加载汇总失败: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private static string FormatInOutWeight(decimal kg) => kg == 0m ? "-" : $"{kg / 1000m:F1}";
+
+    /// <summary>打印「订单接单·出库及现负荷汇总」卡片（前端 printRawHtml 打印汇总表）</summary>
+    private async Task PrintInOutSummary()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#order-inout-summary-table");
+            if (string.IsNullOrEmpty(html))
+            {
+                Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
+                return;
+            }
+            await JS.InvokeVoidAsync("printRawHtml", html, "订单接单·出库及现负荷汇总");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
 
     // ========== 打印方法 ==========
 

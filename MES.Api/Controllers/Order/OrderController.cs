@@ -62,6 +62,19 @@ public class OrderController : ControllerBase
         return Ok(ApiResponse<List<SalesOrderListDto>>.Ok(result, "查询成功"));
     }
 
+    /// <summary>
+    /// 订单接单·出库及现负荷汇总（本年按月：接单量/出库量/库存完工/库存未完工）
+    /// </summary>
+    [HttpGet("in-out-summary")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<OrderInOutSummaryDto>>> GetInOutSummary([FromQuery] int year)
+    {
+        if (year < 2000 || year > 2100)
+            return BadRequest(ApiResponse<OrderInOutSummaryDto>.Fail("年份参数无效"));
+        var result = await _orderService.GetOrderInOutSummaryAsync(year);
+        return Ok(ApiResponse<OrderInOutSummaryDto>.Ok(result, "查询成功"));
+    }
+
     [HttpGet("{id}")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<SalesOrderDetailDto>>> GetById(int id)

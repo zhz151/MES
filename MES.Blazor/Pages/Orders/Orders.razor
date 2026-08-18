@@ -30,6 +30,13 @@
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showInOutSummaryCard ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showInOutSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleInOutSummaryCard">
+                    订单接单·出库及现负荷汇总
+                </MudButton>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
@@ -40,6 +47,82 @@
         </MudCardHeader>
 
         <MudCardContent>
+            <!-- 订单接单·出库及现负荷汇总卡片（默认折叠，标题栏按钮切换显隐） -->
+            @if (_showInOutSummaryCard)
+            {
+                <MudCard Class="mb-2" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
+                    <MudCardContent>
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <div class="d-flex align-center" style="gap: 8px;">
+                                <MudText Typo="Typo.subtitle2"><b>订单接单·出库及现负荷汇总</b></MudText>
+                                <MudText Typo="Typo.caption" Style="color: #757575;">单位：吨(t)（源数据 kg）｜成品库存(完工/未完工)与订单负荷量(实时)为当前存量，仅显示本月</MudText>
+                            </div>
+                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Print" OnClick="PrintInOutSummary" Disabled="@(_inOutSummary == null)">
+                                打印
+                            </MudButton>
+                        </div>
+                        @if (_inOutSummary == null)
+                        {
+                            <MudText Typo="Typo.body2" Style="color: #757575;">正在加载...</MudText>
+                        }
+                        else
+                        {
+                            <div id="order-inout-summary-table">
+                            <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">指标</th>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@_inOutSummary.MonthLabels[m]</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">接单量</td>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatInOutWeight(_inOutSummary.OrderWeightByMonth[m])</td>
+                                        }
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">出库量</td>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatInOutWeight(_inOutSummary.OutboundWeightByMonth[m])</td>
+                                        }
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">成品库存(完工)</td>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(m == _currentMonthIndex ? FormatInOutWeight(_inOutSummary.FinishedStockCompleted) : "-")</td>
+                                        }
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">成品库存(未完工)</td>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(m == _currentMonthIndex ? FormatInOutWeight(_inOutSummary.FinishedStockUncompleted) : "-")</td>
+                                        }
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">订单负荷量(实时)</td>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(m == _currentMonthIndex ? FormatInOutWeight(_inOutSummary.TurnoverTotal) : "-")</td>
+                                        }
+                                    </tr>
+                                </tbody>
+                            </table>
+                            </div>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
             <!-- 筛选栏 -->
             <MudGrid>
                 <MudItem xs="12" md="4">

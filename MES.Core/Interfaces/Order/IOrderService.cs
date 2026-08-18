@@ -106,6 +106,14 @@ public interface IOrderService
 
     /// <summary>
     /// 刷新全部订单读模型（从源表重新聚�?OrderListSummary�?    /// </summary>
+    /// <summary>
+    /// 获取订单接单·出库及现负荷汇总（本年按月：接单量/出库量/库存完工/库存未完工）
+    /// </summary>
+    Task<OrderInOutSummaryDto> GetOrderInOutSummaryAsync(int year);
+
+    /// <summary>
+    /// 刷新全部订单读模型（从源表重新聚合 OrderListSummary）
+    /// </summary>
     Task RefreshAllAsync();
 
     /// <summary>
