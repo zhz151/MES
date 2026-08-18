@@ -213,6 +213,7 @@
 │  Certificates.razor              /quality/certificates        [列表页]      │
 │  CertificateCreate.razor         /quality/certificates/create [创建页]      │
 │  CertificateDetail.razor         /quality/certificates/{Id:int} [详情页]    │
+│  CertificatePrintSettingsDialog.razor  [打印设置对话框，无路由]│
 │                                                           │
 │  列表页: FurnaceRegistrations, ProcessInspections,           │
 │          MaterialReceiveChecks, FinalInspections,            │
@@ -530,7 +531,7 @@
 | 61 | FlaringTests.razor | /quality/flaring-test | 质量 | | 理化检测-扩口检验 |
 | 62 | DailyProductionCapacities.razor | /daily-production-capacities | 配置 | ✅ | 查改一体表，仿ConfigParameters模式 |
 | 63 | ProductionOutput.razor | /reports/production-output | 报表 | | 产量报表，服务端数据模式 |
-| 64 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页 |
+| 64 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页（打印选中/打印全部 + 打印设置对话框：打印版式/字段布局） |
 | 65 | PendingDelivery.razor | /warehouse/pending-delivery | 仓库 | | 待发货项列表页 |
 | 66 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选 |
 | 67 | FixedLengthWorkOrderView.razor | /fixed-length-work-order-view | 工单 | | 定尺工单联通视图，主号级按长度实时聚合 + 分组标题栏 + 分页汇总（可汇总列：G1需求支数/G3切后支数/G4到料·成切·非成切·次品·合格·合格盈缺/G5入库·入库盈缺，G6主号级聚合不参与求和） |
@@ -588,6 +589,8 @@
 > **最后更新：2026-08-15（V21）** — 文档失效内容清理：§1 计划排程 8→6 页（工段待产量/工段流转分析已从菜单移除，§2.3 同步删菜单项并注明页面/接口保留）；配置上下文 8→13 页（新增生产-段落日产配置/生产-组合归类表/生产-工序组定义/参数-枚举显示配置/参数-字典显示配置）；§2.10 与 §2.12 参数表菜单、路由前缀、列表页清单同步更新；§3 列表页 #37/#38 标注"已从菜单移除"、#45 检验类 Tab 描述更正（过程检/成品检已删）、补入 #67-#71 五个新配置列表页，计数 66→71
 >
 > **最后更新：2026-08-15（V21）** — 生产标准上下文新增工厂检验项要求模块（FactoryInspectionRequirements + FactoryInspectionRequirementCreate，列表页数 8→9，总页数 16→18，清单表 71→72 重编号）；作为订单技术要求默认值数据源
+>
+> **最后更新：2026-08-18（V21）** — 质量证明书模块补打印设置对话框（CertificatePrintSettingsDialog，无路由，MudDialog 弹层：打印版式 Tab + 字段布局 Tab）；#64 Certificates 描述补打印能力；模块清单同步
 >
 > **最后更新：2026-08-09（V20）** — 工单上下文子页补入在产主工单计划页（WorkOrderInMainWorkOrderPlanCreate，create+edit 双路由，页面数 16→17）；§3 #66 定尺工单分页汇总描述由「仅 PlannedQuantity 可求和」更正为多列可求和（G1需求支数/G3切后支数/G4成检支数列/G5入库支数列，G6主号级聚合不参与求和）
 >
