@@ -1,4 +1,14 @@
 
+<style>
+    #workorder-load-overview-list-table .col-g100 .col-group-badge { color: #1565C0; background: #BBDEFB; }
+    #workorder-load-overview-list-table .col-g101 .col-group-badge { color: #2E7D32; background: #C8E6C9; }
+
+    /* 类别汇总行：加粗 + 分类底色（原料浅蓝/生产浅绿/成检浅橙） */
+    #workorder-load-overview-list-table .summary-cell { font-weight: 600; }
+    #workorder-load-overview-list-table .summary-raw { background: #E3F2FD; }
+    #workorder-load-overview-list-table .summary-prod { background: #E8F5E9; }
+    #workorder-load-overview-list-table .summary-fi { background: #FFF3E0; }
+</style>
 <MudContainer MaxWidth="MaxWidth.False">
     <div class="d-flex align-center mt-4 mb-4">
         <MudText Typo="Typo.h5">@Title</MudText>
@@ -21,46 +31,56 @@
     }
     else if (_data != null)
     {
-        <div id="workorder-overview-table">
-        <MudTable Items="@_data.Rows"
-                 Dense="true"
-                 Hover="true"
-                 Bordered="true"
-                 Striped="false"
-                 Class="auto-table mt-2">
-            <HeaderContent>
-                <MudTh Class="text-center" Style="min-width:40px;width:40px;">序号</MudTh>
-                <MudTh>类别</MudTh>
-                <MudTh>工段</MudTh>
-                <MudTh Class="text-right">在购量(吨)</MudTh>
-                <MudTh Class="text-right">待产量(吨)</MudTh>
-                <MudTh Class="text-right">预计天数</MudTh>
-                <MudTh Class="text-center">预计完成</MudTh>
-                @foreach (var bucket in _data.DateBuckets)
-                {
-                    <MudTh Class="text-right" Style="min-width:70px;">
-                        <div>@bucket.Label</div>
-                        <div Style="font-size:0.75em;color:#888;">
-                            @bucket.StartDate.ToString("M/d")-@bucket.EndDate.ToString("M/d")
-                        </div>
-                    </MudTh>
-                }
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd Class="text-center">@context.Seq</MudTd>
-                <MudTd>@context.Category</MudTd>
-                <MudTd>@context.Section</MudTd>
-                <MudTd Class="text-right">@FormatTons(context.InProcurementTons)</MudTd>
-                <MudTd Class="text-right">@FormatTons(context.TotalRemainingTons)</MudTd>
-                <MudTd Class="text-right">@FormatDays(context.EstDays)</MudTd>
-                <MudTd Class="text-center">@FormatDate(context.EstDeadline)</MudTd>
-                @for (int i = 0; i < _data.DateBuckets.Count; i++)
-                {
-                    var tons = context.DateBucketTons.Count > i ? context.DateBucketTons[i] : 0;
-                    <MudTd Class="text-right">@FormatBucketTons(tons)</MudTd>
-                }
-            </RowTemplate>
-        </MudTable>
+        <div id="workorder-load-overview-list-table">
+            @* 分组标题栏：负荷总况（负荷节点~预计完成）/ 交期截止负荷量（日期桶） *@
+            <div class="col-group-header-scroll">
+                <div class="col-group-header-bar">
+                    <div class="col-group-header-item"><span class="col-group-badge"></span></div>
+                    <div class="col-group-header-item col-g100"><span class="col-group-badge">负荷总况</span></div>
+                    <div class="col-group-header-item col-g101"><span class="col-group-badge">交期截止负荷量</span></div>
+                </div>
+            </div>
+            <div id="workorder-overview-table">
+            <MudTable Items="@_data.Rows"
+                     Dense="true"
+                     Hover="true"
+                     Bordered="true"
+                     Striped="false"
+                     Class="auto-table mt-0">
+                <HeaderContent>
+                    <MudTh Class="text-center" Style="min-width:40px;width:40px;">序号</MudTh>
+                    <MudTh>类别</MudTh>
+                    <MudTh Class="col-g100">负荷节点</MudTh>
+                    <MudTh Class="text-right col-g100">待计划量(吨)</MudTh>
+                    <MudTh Class="text-right col-g100">在购量(等)(吨)</MudTh>
+                    <MudTh Class="text-right col-g100">待产量(吨)</MudTh>
+                    <MudTh Class="text-right col-g100">预计天数</MudTh>
+                    <MudTh Class="text-center col-g100">预计完成</MudTh>
+                    @foreach (var bucket in _data.DateBuckets)
+                    {
+                        <MudTh Class="text-center col-g101" Style="min-width:46px;">
+                            <div Style="font-size:0.75em;line-height:1.2;white-space:nowrap;">@bucket.Label</div>
+                        </MudTh>
+                    }
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd Class="@CellClass(context, "text-center")">@DisplaySeq(context)</MudTd>
+                    <MudTd Class="@CellClass(context, "")">@context.Category</MudTd>
+                    <MudTd Class="@CellClass(context, "")">@context.Section</MudTd>
+                    <MudTd Class="@CellClass(context, "text-right")">@FormatTons(context.PendingPlanTons)</MudTd>
+                    <MudTd Class="@CellClass(context, "text-right")">@FormatTons(context.InProcurementTons)</MudTd>
+                    <MudTd Class="@CellClass(context, "text-right")">@FormatRemainingTons(context, context.TotalRemainingTons)</MudTd>
+                    <MudTd Class="@CellClass(context, "text-right")">@FormatDays(context.EstDays)</MudTd>
+                    <MudTd Class="@CellClass(context, "text-center")">@FormatDate(context.EstDeadline)</MudTd>
+                    @for (int i = 0; i < _data.DateBuckets.Count; i++)
+                    {
+                        var tons = context.DateBucketTons.Count > i ? context.DateBucketTons[i] : 0;
+                        var sub = context.DateBucketSubTons.Count > i ? context.DateBucketSubTons[i] : (decimal?)null;
+                        <MudTd Class="@CellClass(context, "text-right")">@(new MarkupString(context.IsSummary ? "-" : FormatBucketTons(tons, sub, context.SubValuePrefix, context.SubValueParenFormat)))</MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
+            </div>
         </div>
     }
 </MudContainer>

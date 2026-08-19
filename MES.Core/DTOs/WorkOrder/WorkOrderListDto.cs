@@ -266,9 +266,9 @@ public class WorkOrderListDto
     public int MainNoMaxStandardCycle { get; set; }
 
     /// <summary>
-    /// 产能工量（天）
+    /// 产能工量（天）：主号完成时为 null（显示「-」），其余无剩余产能时为 0
     /// </summary>
-    public int CapacityWorkDays { get; set; }
+    public int? CapacityWorkDays { get; set; }
 
     /// <summary>
     /// 理论截止投料日

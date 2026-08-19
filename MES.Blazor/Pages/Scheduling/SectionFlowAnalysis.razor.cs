@@ -422,6 +422,14 @@ public partial class SectionFlowAnalysis
         await Task.CompletedTask;
     }
 
+    private void OnCurrentPageChanged()
+    {
+        ComputePageSums();
+        _lastSummedPage = table?.CurrentPage ?? 0;
+        _lastSummedCount = _filteredItems.Count;
+        _lastSummedPageSize = table?.RowsPerPage ?? _pageSize;
+    }
+
     // ========== 显示辅助 ==========
 
     private static string RenderInt(decimal? val)

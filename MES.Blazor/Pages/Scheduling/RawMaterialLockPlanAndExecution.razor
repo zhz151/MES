@@ -73,10 +73,10 @@
                                 <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
                                     <thead>
                                         <tr>
-                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">备注 \ 计划性</th>
+                                            <th style="text-align:left; padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0;">备注 \ 计划性</th>
                                             @foreach (var u in _urgencyColumns)
                                             {
-                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@UrgencyLevelKeys.KeyToChinese[u]</th>
+                                                <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@UrgencyLevelKeys.KeyToChinese[u]</th>
                                             }
                                             <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center;">合计</th>
                                         </tr>
@@ -112,10 +112,10 @@
                                     <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
                                         <thead>
                                             <tr>
-                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">备注 \ 计划性</th>
+                                                <th style="text-align:left; padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0;">备注 \ 计划性</th>
                                                 @foreach (var u in _urgencyColumns)
                                                 {
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@UrgencyLevelKeys.KeyToChinese[u]</th>
+                                                    <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@UrgencyLevelKeys.KeyToChinese[u]</th>
                                                 }
                                                 <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center;">合计</th>
                                             </tr>
@@ -144,6 +144,39 @@
                                     </table>
                                 </div>
                             }
+                        </div>
+                    </MudItem>
+
+                    @* 理论待投料截日汇总：原锁类别 × 日期桶（按理论截止投料日归桶，空→远日量） *@
+                    <MudItem xs="12" Class="mt-4">
+                        <div style="font-weight:600; color:#1565C0; margin-bottom:4px;">理论待投料截日</div>
+                        <div id="rmlp-summary-cutoff">
+                            <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left; padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0;">原锁类别</th>
+                                        <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待投料总量</th>
+                                        @foreach (var b in _cutoffBuckets)
+                                        {
+                                            <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@b.Label</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var r in _cutoffSummaryRows)
+                                    {
+                                        var isTotal = r.Category == "合计";
+                                        <tr>
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; @(isTotal ? "background:#e8f0e8;" : "")">@r.Category</td>
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#e8f0e8;" : "")">@FormatCutoffCell(r.Total)</td>
+                                            @foreach (var v in r.Buckets)
+                                            {
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#e8f0e8;" : "")">@FormatCutoffCell(v)</td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
                         </div>
                     </MudItem>
                 </MudGrid>
@@ -224,6 +257,7 @@
                       Class="mt-0 auto-table compact-table"
                       Elevation="0"
                       RowsPerPage="@_pageSize"
+                      CurrentPageChanged="@(() => OnCurrentPageChanged())"
                       RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     @{

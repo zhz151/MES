@@ -591,6 +591,82 @@ public class WorkOrderServiceTests : TestBase
     }
 
     [Fact]
+    public async Task GetPagedWithPlansAsync_关键字匹配用料占比()
+    {
+        var ctx = CreateDbContext();
+        var (_, _, woIdsA) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        var (_, _, woIdsB) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+
+        var woA = await ctx.WorkOrders.FindAsync(woIdsA[0]);
+        var woB = await ctx.WorkOrders.FindAsync(woIdsB[0]);
+
+        ctx.Set<WorkOrderListSummary>().Add(new WorkOrderListSummary
+        {
+            WorkOrderId = woA!.Id,
+            WorkOrderNo = woA.WorkOrderNo,
+            SalesOrderNo = woA.SalesOrderNo,
+            ProductionMainNo = woA.ProductionMainNo,
+            ProductionSubNo = woA.ProductionSubNo,
+            SignDate = woA.SignDate,
+            Salesman = woA.Salesman,
+            DeliveryDate = woA.DeliveryDate,
+            SettlementMethod = woA.SettlementMethod.ToString(),
+            MaterialName = woA.PipeManufacturingType.ToString(),
+            PlantGrade = woA.PlantGrade,
+            Specification = woA.Specification,
+            LengthStatus = woA.LengthStatus.ToString(),
+            MinLength = woA.MinLength,
+            MaxLength = woA.MaxLength,
+            TotalQuantity = woA.TotalQuantity,
+            TotalWeight = woA.TotalWeight,
+            TotalItemCount = 1,
+            TechnicalRequirements = "Normal",
+            Status = (int)woA.Status,
+            CreatedTime = DateTimeOffset.UtcNow,
+            DeliveryState = woA.DeliveryState.ToString(),
+            MaterialPlanProportion = "穿105% 荒60% 成20% 库40%"
+        });
+        ctx.Set<WorkOrderListSummary>().Add(new WorkOrderListSummary
+        {
+            WorkOrderId = woB!.Id,
+            WorkOrderNo = woB.WorkOrderNo,
+            SalesOrderNo = woB.SalesOrderNo,
+            ProductionMainNo = woB.ProductionMainNo,
+            ProductionSubNo = woB.ProductionSubNo,
+            SignDate = woB.SignDate,
+            Salesman = woB.Salesman,
+            DeliveryDate = woB.DeliveryDate,
+            SettlementMethod = woB.SettlementMethod.ToString(),
+            MaterialName = woB.PipeManufacturingType.ToString(),
+            PlantGrade = woB.PlantGrade,
+            Specification = woB.Specification,
+            LengthStatus = woB.LengthStatus.ToString(),
+            MinLength = woB.MinLength,
+            MaxLength = woB.MaxLength,
+            TotalQuantity = woB.TotalQuantity,
+            TotalWeight = woB.TotalWeight,
+            TotalItemCount = 1,
+            TechnicalRequirements = "Normal",
+            Status = (int)woB.Status,
+            CreatedTime = DateTimeOffset.UtcNow,
+            DeliveryState = woB.DeliveryState.ToString(),
+            MaterialPlanProportion = "穿0% 荒0% 库100%"
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedWithPlansAsync(new WorkOrderQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Keyword = "成20"
+        });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().Id.Should().Be(woA.Id);
+    }
+
+    [Fact]
     public async Task GetOrderWorkOrderRelationAsync_成功返回关系()
     {
         var ctx = CreateDbContext();

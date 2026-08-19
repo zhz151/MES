@@ -804,14 +804,13 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             RequiredWeight = i.RequiredWeight,
             RequiredArrivalDate = i.ReturnDeadline,
             Remark = i.Remark,
-            ReturnDeadline = i.ReturnDeadline,
             ReturnedQuantity = i.ReturnedQuantity,
             ReturnedWeight = i.ReturnedWeight,
             IsForceCompleted = i.IsForceCompleted,
             ProcessStatus = EnumHelper.TryParse<SubcontractOrderStatus>(i.ProcessStatus)
         }).ToList();
 
-        // 退货量补充（退货出库 ReturnSourceBatchNo → 原仓库批 → SourceOrderNo==委外单号）
+        // 退货量 + 截止回收日补充（退货出库 ReturnSourceBatchNo → 原仓库批 → SourceOrderNo==委外单号；截止回收日=仓库批 InboundDate 最大值）
         var orderNos = allItems.Select(x => x.OrderNo)
             .Where(x => !string.IsNullOrEmpty(x))
             .Select(x => x!)
@@ -826,6 +825,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 {
                     item.ReturnQuantity = rs.Quantity;
                     item.ReturnWeight = rs.Weight;
+                    item.ReturnDeadline = rs.LastDate;
                 }
             }
         }
@@ -974,6 +974,24 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 })
                 .ToListAsync();
 
+            // 委外单号集合（子项 OrderNo 优先，回退主表 OrderNo）
+            var subOrderNos = all
+                .Select(x => x.OrderNo ?? x.ParentOrderNo)
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Select(x => x!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            // 截止回收日下拉：按委外单号反查仓库批实际入库日期 InboundDate
+            var returnDeadlineDates = subOrderNos.Count > 0
+                ? await _context.InventoryBatches.AsNoTracking()
+                    .Where(b => b.SourceOrderNo != null && subOrderNos.Contains(b.SourceOrderNo))
+                    .Select(b => b.InboundDate.ToString("yyyy-MM-dd"))
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToListAsync()
+                : new List<string>();
+
             return new Dictionary<string, List<string>>
             {
                 ["OrderNo"] = all.Where(x => x.OrderNo != null || x.ParentOrderNo != null)
@@ -987,9 +1005,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 ["RequiredArrivalDate"] = all.Where(x => x.ReturnDeadline != null)
                     .Select(x => x.ReturnDeadline!.Value.ToString("yyyy-MM-dd"))
                     .Distinct().OrderBy(x => x).ToList(),
-                ["ReturnDeadline"] = all.Where(x => x.ReturnDeadline != null)
-                    .Select(x => x.ReturnDeadline!.Value.ToString("yyyy-MM-dd"))
-                    .Distinct().OrderBy(x => x).ToList(),
+                ["ReturnDeadline"] = returnDeadlineDates,
                 ["Remark"] = all.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList(),
                 ["IsForceCompleted"] = all.Select(x => x.IsForceCompleted ? "True" : "False").Distinct().OrderBy(x => x).ToList(),
             };
@@ -998,24 +1014,41 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
 
     /// <summary>
     /// 按委外单号汇总其退货量：退货出库 ReturnSourceBatchNo（原仓库批批次号）→ 反查 InventoryBatch.BatchNo → 其 SourceOrderNo == 委外单号。
+    /// 同时返回「截止回收日」= 该委外单号回收入库仓库批 InboundDate 的最大值（实际收回入库日期）。
     /// </summary>
-    private async Task<Dictionary<string, (int Quantity, decimal Weight)>> BuildReturnSummaryAsync(IReadOnlyCollection<string> orderNos)
+    private async Task<Dictionary<string, (int Quantity, decimal Weight, DateTime? LastDate)>> BuildReturnSummaryAsync(IReadOnlyCollection<string> orderNos)
     {
-        var result = new Dictionary<string, (int, decimal)>(StringComparer.OrdinalIgnoreCase);
+        var result = new Dictionary<string, (int, decimal, DateTime?)>(StringComparer.OrdinalIgnoreCase);
         if (orderNos.Count == 0) return result;
 
         foreach (var no in orderNos.Distinct(StringComparer.OrdinalIgnoreCase))
-            result[no] = (0, 0m);
+            result[no] = (0, 0m, null);
 
-        // 按委外单号查其回收入库的仓库批，建立「原仓库批批次号 → 委外单号」映射
+        // 按委外单号查其回收入库的仓库批，建立「原仓库批批次号 → 委外单号」映射 + 「委外单号 → 最近入库日期」
         var batches = await _context.InventoryBatches.AsNoTracking()
             .Where(b => b.SourceOrderNo != null && orderNos.Contains(b.SourceOrderNo))
-            .Select(b => new { b.BatchNo, b.SourceOrderNo })
+            .Select(b => new { b.BatchNo, b.SourceOrderNo, b.InboundDate })
             .ToListAsync();
 
         var batchNoToOrderNo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var b in batches.Where(b => !string.IsNullOrEmpty(b.BatchNo) && !string.IsNullOrEmpty(b.SourceOrderNo)))
             batchNoToOrderNo[b.BatchNo!] = b.SourceOrderNo!;
+
+        // 截止回收日：按委外单号取 InboundDate 最大值（无回收入库 → 保持 null）
+        var lastDateByOrderNo = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        foreach (var b in batches.Where(b => !string.IsNullOrEmpty(b.SourceOrderNo)))
+        {
+            if (lastDateByOrderNo.TryGetValue(b.SourceOrderNo!, out var cur) && cur >= b.InboundDate) continue;
+            lastDateByOrderNo[b.SourceOrderNo!] = b.InboundDate;
+        }
+        foreach (var no in result.Keys.ToList())
+        {
+            if (lastDateByOrderNo.TryGetValue(no, out var d))
+            {
+                var (q, w, _) = result[no];
+                result[no] = (q, w, d);
+            }
+        }
 
         if (batchNoToOrderNo.Count == 0) return result;
 
@@ -1031,8 +1064,8 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             foreach (var o in outbounds)
             {
                 if (!batchNoToOrderNo.TryGetValue(o.ReturnSourceBatchNo!, out var orderNo)) continue;
-                var (q, w) = result[orderNo];
-                result[orderNo] = (q + o.OutboundQuantity, w + o.OutboundWeight);
+                var (q, w, d) = result[orderNo];
+                result[orderNo] = (q + o.OutboundQuantity, w + o.OutboundWeight, d);
             }
         }
 
@@ -1109,14 +1142,13 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             RequiredWeight = i.RequiredWeight,
             RequiredArrivalDate = i.ReturnDeadline,
             Remark = i.Remark,
-            ReturnDeadline = i.ReturnDeadline,
             ReturnedQuantity = i.ReturnedQuantity,
             ReturnedWeight = i.ReturnedWeight,
             IsForceCompleted = i.IsForceCompleted,
             ProcessStatus = EnumHelper.TryParse<SubcontractOrderStatus>(i.ProcessStatus)
         }).ToList();
 
-        // 退货量补充
+        // 退货量 + 截止回收日补充（同 GetReturnItemListAsync）
         var orderNos = items.Select(x => x.OrderNo)
             .Where(x => !string.IsNullOrEmpty(x))
             .Select(x => x!)
@@ -1131,6 +1163,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 {
                     item.ReturnQuantity = rs.Quantity;
                     item.ReturnWeight = rs.Weight;
+                    item.ReturnDeadline = rs.LastDate;
                 }
             }
         }

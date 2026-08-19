@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
@@ -36,10 +37,12 @@ namespace MES.Services.Scheduling;
 public class ColdRollSpecScheduleService : IColdRollSpecScheduleService
 {
     private readonly AppDbContext _context;
+    private readonly IMemoryCache _cache;
 
-    public ColdRollSpecScheduleService(AppDbContext context)
+    public ColdRollSpecScheduleService(AppDbContext context, IMemoryCache cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<List<ColdRollSpecScheduleDto>> GetAllAsync()
@@ -70,6 +73,7 @@ public class ColdRollSpecScheduleService : IColdRollSpecScheduleService
             {
                 // 覆盖
                 existing.MachineNo = dto.MachineNo;
+                existing.DailyOutput = dto.DailyOutput;
                 existing.CompletionType = string.IsNullOrEmpty(dto.CompletionType) ? "None" : dto.CompletionType;
                 existing.RollType = dto.RollType;
                 existing.MergeDisplay = dto.MergeDisplay;
@@ -85,6 +89,7 @@ public class ColdRollSpecScheduleService : IColdRollSpecScheduleService
                     RollingSpec = dto.RollingSpec,
                     IsFinished = dto.IsFinished,
                     MachineNo = dto.MachineNo,
+                    DailyOutput = dto.DailyOutput,
                     CompletionType = string.IsNullOrEmpty(dto.CompletionType) ? "None" : dto.CompletionType,
                     RollType = string.IsNullOrEmpty(dto.RollType) ? "None" : dto.RollType,
                     MergeDisplay = dto.MergeDisplay,
@@ -99,6 +104,9 @@ public class ColdRollSpecScheduleService : IColdRollSpecScheduleService
         _context.ColdRollSpecSchedules.RemoveRange(toDelete);
 
         await _context.SaveChangesAsync();
+
+        // 排程变更 → 失效排机估算缓存（排机估算依赖排程档位/单机单日量）
+        _cache.Remove(ColdRollPlanService.MachineEstimateCacheKey);
     }
 
     private static ColdRollSpecScheduleDto ToDto(ColdRollSpecSchedule entity)
@@ -111,6 +119,7 @@ public class ColdRollSpecScheduleService : IColdRollSpecScheduleService
             RollingSpec = entity.RollingSpec,
             IsFinished = entity.IsFinished,
             MachineNo = entity.MachineNo,
+            DailyOutput = entity.DailyOutput,
             CompletionType = entity.CompletionType,
             RollType = entity.RollType,
             MergeDisplay = entity.MergeDisplay,

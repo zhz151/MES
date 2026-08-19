@@ -10,7 +10,7 @@ namespace MES.Core.Interfaces.WorkOrder;
 public interface IOrderDemandAdjustmentService
 {
     /// <summary>分页查询（G1+G12 + LEFT JOIN OrderDemandAdjustment）</summary>
-    Task<PagedResult<OrderDemandAdjustmentDto>> GetPagedAsync(QueryParams query, DateTime? signDateFrom = null, DateTime? signDateTo = null);
+    Task<PagedResult<OrderDemandAdjustmentDto>> GetPagedAsync(QueryParams query, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateStart = null, DateTime? deliveryDateEnd = null);
 
     /// <summary>保存工单需求调整（upsert，暂停与强制完成互斥）</summary>
     Task<bool> SaveUrgingAsync(int workOrderId, bool isUrging, bool isBatchDelivery, bool isPaused, bool isForceCompleted, string? adjustmentRemark);
@@ -19,7 +19,7 @@ public interface IOrderDemandAdjustmentService
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     /// <summary>按筛选条件打印全部数据</summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, List<PrintColumnDef> columns);
+    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, DateTime? deliveryDateStart, DateTime? deliveryDateEnd, List<PrintColumnDef> columns);
 
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);

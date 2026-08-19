@@ -1114,6 +1114,19 @@ public partial class BatchPlans
         _ = SavePageStateAsync();
     }
 
+    /// <summary>
+    /// 翻页后重算当前页汇总。⚠️ 翻页只触发 MudTable（子组件）渲染，不触发父组件 OnAfterRenderAsync，
+    /// 故必须用 CurrentPageChanged 事件驱动（非泛型 EventCallback，不传参，页号内部经 table.CurrentPage 读取）；
+    /// EventCallback 完成后自动 StateHasChanged 刷新页脚。
+    /// </summary>
+    private void OnCurrentPageChanged()
+    {
+        ComputePageSums();
+        _lastSummedPage = table?.CurrentPage ?? 0;
+        _lastSummedCount = _filteredItems.Count;
+        _lastSummedPageSize = table?.RowsPerPage ?? _pageSize;
+    }
+
     private static List<BatchPlanDto> ApplySorting(List<BatchPlanDto> items, string sortBy, bool desc)
     {
         var query = sortBy.ToLower() switch

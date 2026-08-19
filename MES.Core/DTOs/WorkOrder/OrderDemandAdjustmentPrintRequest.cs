@@ -30,11 +30,17 @@ public class DemandAdjustmentPrintAllRequest
     /// <summary>是否降序</summary>
     public bool IsDescending { get; set; }
 
-    /// <summary>订单日期从</summary>
+    /// <summary>签订日期从</summary>
     public DateTime? SignDateFrom { get; set; }
 
-    /// <summary>订单日期至</summary>
+    /// <summary>签订日期至</summary>
     public DateTime? SignDateTo { get; set; }
+
+    /// <summary>交货日期从</summary>
+    public DateTime? DeliveryDateStart { get; set; }
+
+    /// <summary>交货日期至</summary>
+    public DateTime? DeliveryDateEnd { get; set; }
 
     /// <summary>打印列定义</summary>
     public List<PrintColumnDef> Columns { get; set; } = new();

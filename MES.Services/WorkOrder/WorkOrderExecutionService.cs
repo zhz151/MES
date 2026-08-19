@@ -86,7 +86,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         return map.GetValueOrDefault(key, defaultValue);
     }
 
-    public async Task<PagedResult<WorkOrderExecutionSummaryDto>> GetPagedAsync(QueryParams query, DateTime? signDateFrom = null, DateTime? signDateTo = null)
+    public async Task<PagedResult<WorkOrderExecutionSummaryDto>> GetPagedAsync(QueryParams query, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateStart = null, DateTime? deliveryDateEnd = null)
     {
         var q = _context.Set<WorkOrderExecutionSummary>().AsQueryable();
 
@@ -95,6 +95,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             q = q.Where(x => x.SignDate >= signDateFrom.Value);
         if (signDateTo.HasValue)
             q = q.Where(x => x.SignDate < signDateTo.Value.AddDays(1));
+
+        // 交货日期范围筛选
+        if (deliveryDateStart.HasValue)
+            q = q.Where(x => x.DeliveryDate >= deliveryDateStart.Value);
+        if (deliveryDateEnd.HasValue)
+            q = q.Where(x => x.DeliveryDate < deliveryDateEnd.Value.AddDays(1));
 
         // 关键字搜索（匹配工单号/订单号/业务员/客户/规格等）
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -119,7 +125,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 (x.ProductionAttentionProcess != null && x.ProductionAttentionProcess.Contains(kw)) ||
                 (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)) ||
                 (x.ProductionFlowProperty != null && x.ProductionFlowProperty.Contains(kw)) ||
-                (x.MainNoAttentionProcess != null && x.MainNoAttentionProcess.Contains(kw)));
+                (x.MainNoAttentionProcess != null && x.MainNoAttentionProcess.Contains(kw)) ||
+                (x.MaterialPlanProportion != null && x.MaterialPlanProportion.Contains(kw)));
         }
 
         // 排序
@@ -905,7 +912,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 {
                     MaxProcessCycle = g.Max(s => s.ProcessCycle),
                     MaxRemainingDays = g.Max(s => s.FlowMaxRemainingWorkDays),
-                    MainNoTotalWeight = g.Sum(s => s.TotalWeight)
+                    MainNoTotalWeight = g.Sum(s => s.TotalWeight),
+                    MainNoFinishWeight = g.Sum(s => s.FinishPlanWeight),
+                    MainNoInventoryWeight = g.Sum(s => s.InventoryPlanWeight)
                 });
 
         // 加载日产估算配置
@@ -917,6 +926,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .SelectMany(b => b)
             .Where(b => b.Status == BatchStatus.Completed
                      && b.ProductionType != "Rework"
+                     && !IsExternalOrStockBatch(b)
                      && (b.ManufacturingItem == "OrderFinished" || b.ManufacturingItem == "SpecialDeliveryStatus"))
             .GroupBy(b => new { b.SalesOrderNo, b.ProductionMainNo })
             .ToDictionary(
@@ -961,11 +971,11 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             };
 
             // 产能工量 = 剩余成品重量(kg) / 1000 / 日产估算(吨/天)
-            // 剩余成品重量 = 主号计划成品总量 - 已完成批次的有效成品重量
+            // 剩余成品重量 = 主号计划成品总量 - 成品采购重量 - 库存使用重量 - 已完成批次的有效成品重量
             if (summary.TotalRemainingWorkDays.HasValue && agg!.MainNoTotalWeight > 0)
             {
                 var completedOutput = completedBatchOutputByMainNo.TryGetValue(key, out var co) ? co : 0m;
-                var remainingWeight = agg.MainNoTotalWeight - completedOutput;
+                var remainingWeight = agg.MainNoTotalWeight - agg.MainNoFinishWeight - agg.MainNoInventoryWeight - completedOutput;
                 if (remainingWeight <= 0)
                 {
                     summary.CapacityWorkDays = 0;
@@ -1610,7 +1620,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var dailyEstimates = await _dailyOutputService.GetAllAsync();
         var completedBatchOutputByMainNo = batchesByWo.Values
             .SelectMany(b => b)
-            .Where(b => b.Status == BatchStatus.Completed && b.ProductionType != "Rework" && (b.ManufacturingItem == "OrderFinished" || b.ManufacturingItem == "SpecialDeliveryStatus"))
+            .Where(b => b.Status == BatchStatus.Completed && b.ProductionType != "Rework" && !IsExternalOrStockBatch(b) && (b.ManufacturingItem == "OrderFinished" || b.ManufacturingItem == "SpecialDeliveryStatus"))
             .GroupBy(b => new { b.SalesOrderNo, b.ProductionMainNo })
             .ToDictionary(g => g.Key, g =>
             {
@@ -1634,7 +1644,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var agg = summaries
                 .GroupBy(s => new { s.SalesOrderNo, s.ProductionMainNo })
                 .Where(g => g.Key.Equals(key))
-                .Select(g => new { MaxProcessCycle = g.Max(s => s.ProcessCycle), MaxRemainingDays = g.Max(s => s.FlowMaxRemainingWorkDays), MainNoTotalWeight = g.Sum(s => s.TotalWeight) })
+                .Select(g => new { MaxProcessCycle = g.Max(s => s.ProcessCycle), MaxRemainingDays = g.Max(s => s.FlowMaxRemainingWorkDays), MainNoTotalWeight = g.Sum(s => s.TotalWeight), MainNoFinishWeight = g.Sum(s => s.FinishPlanWeight), MainNoInventoryWeight = g.Sum(s => s.InventoryPlanWeight) })
                 .FirstOrDefault();
 
             summary.TotalRemainingWorkDays = summary.ScheduleStage switch
@@ -1649,7 +1659,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             if (summary.TotalRemainingWorkDays.HasValue && agg?.MainNoTotalWeight > 0)
             {
                 var completedOutput = completedBatchOutputByMainNo.TryGetValue(key, out var co) ? co : 0m;
-                var remainingWeight = agg.MainNoTotalWeight - completedOutput;
+                var remainingWeight = agg.MainNoTotalWeight - agg.MainNoFinishWeight - agg.MainNoInventoryWeight - completedOutput;
                 if (remainingWeight > 0)
                 {
                     var od = ParseOuterDiameter(summary.Specification);
@@ -2247,6 +2257,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         }
         return entries;
     }
+
+    /// <summary>
+    /// 是否为外购/库存投料批次：其重量已由成品采购/库存使用计划扣减（产能工量主公式），
+    /// 批次投料完成后不再经 completedOutput 重复扣减，否则外购/库存重量被扣除两次造成负值低估。
+    /// </summary>
+    private static bool IsExternalOrStockBatch(ProductionBatch b)
+        => b.ProductionType == "OutsourcedPurchased" || b.ProductionType == "Inventory";
 
     private static bool HasAnySection(ProcessGroup pg)
     {
@@ -3769,7 +3786,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
     // ========== 打印 ==========
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, List<PrintColumnDef> columns)
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, DateTime? deliveryDateStart, DateTime? deliveryDateEnd, List<PrintColumnDef> columns)
     {
         var q = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
 
@@ -3778,6 +3795,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             q = q.Where(x => x.SignDate >= signDateFrom.Value);
         if (signDateTo.HasValue)
             q = q.Where(x => x.SignDate < signDateTo.Value.AddDays(1));
+
+        // 交货日期范围筛选
+        if (deliveryDateStart.HasValue)
+            q = q.Where(x => x.DeliveryDate >= deliveryDateStart.Value);
+        if (deliveryDateEnd.HasValue)
+            q = q.Where(x => x.DeliveryDate < deliveryDateEnd.Value.AddDays(1));
 
         // 关键字搜索
         if (!string.IsNullOrEmpty(keyword))
@@ -3802,7 +3825,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 (x.ProductionAttentionProcess != null && x.ProductionAttentionProcess.Contains(kw)) ||
                 (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)) ||
                 (x.ProductionFlowProperty != null && x.ProductionFlowProperty.Contains(kw)) ||
-                (x.MainNoAttentionProcess != null && x.MainNoAttentionProcess.Contains(kw)));
+                (x.MainNoAttentionProcess != null && x.MainNoAttentionProcess.Contains(kw)) ||
+                (x.MaterialPlanProportion != null && x.MaterialPlanProportion.Contains(kw)));
         }
 
         // 排序

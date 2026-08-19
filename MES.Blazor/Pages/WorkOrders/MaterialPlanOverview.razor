@@ -38,7 +38,7 @@
 
             <!-- 筛选栏 -->
             <MudGrid>
-                <MudItem xs="12" md="6">
+                <MudItem xs="12" md="4">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 工单号/订单号/主号/次号/业务员/最终用户/牌号/规格"
                                   Value="@_searchKeyword"
@@ -50,23 +50,45 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField T="string"
-                                  Label="签订日期从"
-                                  Value="@_dateFrom"
-                                  ValueChanged="@OnDateFromChanged"
-                                  Placeholder="yyyy-MM-dd"
-                                  Clearable="true"
-                                  ClearButton="true" />
+                <MudItem xs="12" md="4">
+                    <div style="display:flex; gap:8px;">
+                        <MudTextField T="string"
+                                      Label="签订日期从"
+                                      Value="@_dateFrom"
+                                      ValueChanged="@OnDateFromChanged"
+                                      Placeholder="yyyy-MM-dd"
+                                      Clearable="true"
+                                      ClearButton="true"
+                                      Style="flex:1;min-width:0" />
+                        <MudTextField T="string"
+                                      Label="签订日期至"
+                                      Value="@_dateTo"
+                                      ValueChanged="@OnDateToChanged"
+                                      Placeholder="yyyy-MM-dd"
+                                      Clearable="true"
+                                      ClearButton="true"
+                                      Style="flex:1;min-width:0" />
+                    </div>
                 </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField T="string"
-                                  Label="签订日期至"
-                                  Value="@_dateTo"
-                                  ValueChanged="@OnDateToChanged"
-                                  Placeholder="yyyy-MM-dd"
-                                  Clearable="true"
-                                  ClearButton="true" />
+                <MudItem xs="12" md="4">
+                    <div style="display:flex; gap:8px;">
+                        <MudTextField T="string"
+                                      Label="交货日期从"
+                                      Value="@_deliveryDateFrom"
+                                      ValueChanged="@OnDeliveryDateFromChanged"
+                                      Placeholder="yyyy-MM-dd"
+                                      Clearable="true"
+                                      ClearButton="true"
+                                      Style="flex:1;min-width:0" />
+                        <MudTextField T="string"
+                                      Label="交货日期至"
+                                      Value="@_deliveryDateTo"
+                                      ValueChanged="@OnDeliveryDateToChanged"
+                                      Placeholder="yyyy-MM-dd"
+                                      Clearable="true"
+                                      ClearButton="true"
+                                      Style="flex:1;min-width:0" />
+                    </div>
                 </MudItem>
             </MudGrid>
 

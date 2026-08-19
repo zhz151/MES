@@ -27,6 +27,8 @@ public partial class WorkOrders : IAsyncDisposable
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
+    private string _deliveryDateFrom = string.Empty;
+    private string _deliveryDateTo = string.Empty;
     private bool _isArrowNavSetup;
     private int _currentPage = 1;
     private int _pageSize = 10;
@@ -174,7 +176,9 @@ public partial class WorkOrders : IAsyncDisposable
                 isDescending: sortDescending,
                 filters: filtersJson,
                 dateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
-                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null);
+                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null,
+                deliveryDateFrom: DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf : null,
+                deliveryDateTo: DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt : null);
 
             if (result.Success && result.Data != null)
             {
@@ -394,6 +398,20 @@ public partial class WorkOrders : IAsyncDisposable
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnDeliveryDateFromChanged(string value)
+    {
+        _deliveryDateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDeliveryDateToChanged(string value)
+    {
+        _deliveryDateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 列选择操作 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -546,6 +564,8 @@ public partial class WorkOrders : IAsyncDisposable
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _dateFrom = savedState.Extras?.ContainsKey("dateFrom") == true ? savedState.Extras["dateFrom"] ?? string.Empty : string.Empty;
             _dateTo = savedState.Extras?.ContainsKey("dateTo") == true ? savedState.Extras["dateTo"] ?? string.Empty : string.Empty;
+            _deliveryDateFrom = savedState.Extras?.ContainsKey("deliveryDateFrom") == true ? savedState.Extras["deliveryDateFrom"] ?? string.Empty : string.Empty;
+            _deliveryDateTo = savedState.Extras?.ContainsKey("deliveryDateTo") == true ? savedState.Extras["deliveryDateTo"] ?? string.Empty : string.Empty;
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
                 try
@@ -799,6 +819,8 @@ public partial class WorkOrders : IAsyncDisposable
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SignDateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : (DateTime?)null,
                 SignDateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo : (DateTime?)null,
+                DeliveryDateStart = DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf : (DateTime?)null,
+                DeliveryDateEnd = DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt : (DateTime?)null,
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-all-file";
@@ -873,6 +895,8 @@ public partial class WorkOrders : IAsyncDisposable
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         if (!string.IsNullOrWhiteSpace(_dateFrom)) extras["dateFrom"] = _dateFrom;
         if (!string.IsNullOrWhiteSpace(_dateTo)) extras["dateTo"] = _dateTo;
+        if (!string.IsNullOrWhiteSpace(_deliveryDateFrom)) extras["deliveryDateFrom"] = _deliveryDateFrom;
+        if (!string.IsNullOrWhiteSpace(_deliveryDateTo)) extras["deliveryDateTo"] = _deliveryDateTo;
         var state = new PageState
         {
             SortBy = sortColumn,

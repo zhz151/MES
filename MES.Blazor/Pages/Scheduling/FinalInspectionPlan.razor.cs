@@ -333,6 +333,14 @@ public partial class FinalInspectionPlan
         }
     }
 
+    private void OnCurrentPageChanged()
+    {
+        ComputePageSums();
+        _lastSummedPage = table?.CurrentPage ?? 0;
+        _lastSummedCount = _filteredItems.Count;
+        _lastSummedPageSize = table?.RowsPerPage ?? _pageSize;
+    }
+
     private async Task LoadDataAsync()
     {
         try

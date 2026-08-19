@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Auth;
@@ -50,11 +51,19 @@ public class ColdRollPlanService : IColdRollPlanService
 {
     private readonly AppDbContext _context;
     private readonly IProcessDefinitionService _processDefService;
+    private readonly IMemoryCache _cache;
 
-    public ColdRollPlanService(AppDbContext context, IProcessDefinitionService processDefService)
+    /// <summary>
+    /// 排机估算缓存键。排程保存（ColdRollSpecScheduleService.SaveAllAsync）时主动失效；
+    /// 批次/生产数据无统一失效入口，采用短 TTL（60 秒）保证新鲜度，兼顾重复展开时的加载性能。
+    /// </summary>
+    public const string MachineEstimateCacheKey = "ColdRollPlanService:MachineEstimate";
+
+    public ColdRollPlanService(AppDbContext context, IProcessDefinitionService processDefService, IMemoryCache cache)
     {
         _context = context;
         _processDefService = processDefService;
+        _cache = cache;
     }
 
     /// <summary>
@@ -449,6 +458,90 @@ public class ColdRollPlanService : IColdRollPlanService
             .OrderBy(r => r.ProcessType)
             .ThenBy(r => r.ShortDisplay)
             .ToList();
+
+        return result;
+    }
+
+    /// <summary>
+    /// 获取冷轧排程排机估算：按轧机类型聚合 4 行（冷轧5060/冷轧2030/冷轧三辊/冷拔）
+    /// 口径与排程汇总一致：仅已排程且匹配档位的批次，近6天（在轧+待轧，PositionDiff≤6，不含远日）
+    /// 在制品/成品按排程产出形态拆分（IsFinished=最后工序组为成品），成品+在制=流转总量
+    /// 机台需求数 = Σ(规格流转量 ÷ 单机单日量) ÷ 6天，对总数四舍五入（AwayFromZero）得每日台数；单机单日量为空/≤0 的规格不计入
+    /// </summary>
+    public async Task<List<ColdRollMachineEstimateDto>> GetMachineEstimateAsync()
+    {
+        // 缓存 60 秒：排程保存会主动失效（见 ColdRollSpecScheduleService.SaveAllAsync），批次/生产数据靠短 TTL 保新鲜
+        return await _cache.GetOrCreateAsync(MachineEstimateCacheKey, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+            return await GetMachineEstimateCoreAsync();
+        }) ?? new List<ColdRollMachineEstimateDto>();
+    }
+
+    private async Task<List<ColdRollMachineEstimateDto>> GetMachineEstimateCoreAsync()
+    {
+        var allocations = await BuildAllocationsAsync(null);
+
+        // 加载排程设置（含单机单日量），键 = ProcessType|BilletSpec|RollingSpec|IsFinished
+        var scheduleDict = await _context.ColdRollSpecSchedules
+            .AsNoTracking()
+            .Select(s => new { s.ProcessType, s.BilletSpec, s.RollingSpec, s.IsFinished, s.CompletionType, s.RollType, s.DailyOutput })
+            .ToDictionaryAsync(
+                s => $"{s.ProcessType}|{s.BilletSpec}|{s.RollingSpec}|{s.IsFinished}",
+                s => new { s.CompletionType, s.RollType, s.DailyOutput },
+                StringComparer.OrdinalIgnoreCase);
+
+        // 档位过滤 + 固定近6天（在轧0恒包含，待轧1~6，不含远日）——与排程汇总 GetScheduleSummaryAsync 一致
+        var scheduled = allocations
+            .Where(a =>
+            {
+                if (!scheduleDict.TryGetValue($"{a.ProcessType}|{a.BilletSpec}|{a.RollingSpec}|{a.IsFinished}", out var sched))
+                    return false;
+                return a.PositionDiff == 0
+                    ? MatchesScheduleType(sched.CompletionType, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel)
+                    : MatchesScheduleType(sched.RollType, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel);
+            })
+            .Where(a => a.PositionDiff <= 6)
+            .ToList();
+
+        // 轧机类型归并（ProcessType 英文 Key）
+        var machineTypeGroups = new[]
+        {
+            (Display: "冷轧5060", Keys: new[] { ProcessKeys.ColdRoll50, ProcessKeys.ColdRoll60 }),
+            (Display: "冷轧2030", Keys: new[] { ProcessKeys.ColdRoll20, ProcessKeys.ColdRoll30 }),
+            (Display: "冷轧三辊", Keys: new[] { ProcessKeys.ThreeRollColdRoll }),
+            (Display: "冷拔", Keys: new[] { ProcessKeys.ColdDraw }),
+        };
+
+        var result = new List<ColdRollMachineEstimateDto>();
+        foreach (var group in machineTypeGroups)
+        {
+            var groupAlloc = scheduled.Where(a => group.Keys.Contains(a.ProcessType)).ToList();
+
+            decimal flowTotal = groupAlloc.Sum(a => a.Weight);
+            decimal finished = groupAlloc.Where(a => a.IsFinished).Sum(a => a.Weight);
+            decimal inProcess = flowTotal - finished;
+
+            // 机台需求：Σ(规格流转量 ÷ 单机单日量) ÷ 6天，四舍五入；单机单日量为空/≤0 的规格贡献 0
+            decimal machineDays = 0m;
+            foreach (var a in groupAlloc)
+            {
+                if (scheduleDict.TryGetValue($"{a.ProcessType}|{a.BilletSpec}|{a.RollingSpec}|{a.IsFinished}", out var sched)
+                    && sched.DailyOutput.HasValue && sched.DailyOutput.Value > 0)
+                {
+                    machineDays += a.Weight / (sched.DailyOutput.Value * 6m);
+                }
+            }
+
+            result.Add(new ColdRollMachineEstimateDto
+            {
+                MachineType = group.Display,
+                FlowTotalWeight = flowTotal,
+                InProcessWeight = inProcess,
+                FinishedWeight = finished,
+                MachineCount = (int)Math.Round(machineDays, MidpointRounding.AwayFromZero),
+            });
+        }
 
         return result;
     }

@@ -36,6 +36,8 @@ public class WorkOrderExecutionController : ControllerBase
         [FromQuery] bool isDescending = true,
         [FromQuery] DateTime? signDateFrom = null,
         [FromQuery] DateTime? signDateTo = null,
+        [FromQuery] DateTime? deliveryDateStart = null,
+        [FromQuery] DateTime? deliveryDateEnd = null,
         [FromQuery] string? filters = null)
     {
         if (pageSize > 5000) pageSize = 5000;
@@ -49,7 +51,7 @@ public class WorkOrderExecutionController : ControllerBase
             }
             catch { }
         }
-        var result = await _service.GetPagedAsync(query, signDateFrom, signDateTo);
+        var result = await _service.GetPagedAsync(query, signDateFrom, signDateTo, deliveryDateStart, deliveryDateEnd);
         return Ok(ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>.Ok(result));
     }
 
@@ -115,7 +117,7 @@ public class WorkOrderExecutionController : ControllerBase
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<IActionResult> PrintAllFile([FromBody] WorkOrderExecutionPrintAllRequest request)
     {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.SignDateFrom, request.SignDateTo, request.Columns);
+        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.SignDateFrom, request.SignDateTo, request.DeliveryDateStart, request.DeliveryDateEnd, request.Columns);
         return File(pdfBytes, "application/pdf", "工单执行状况-全部.pdf");
     }
 }

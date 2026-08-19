@@ -11,10 +11,22 @@
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 页面顶部工具栏 -->
     <div class="d-flex flex-column mb-4">
-        <MudText Typo="Typo.h5" Class="font-weight-bold mb-4 crp-page-title">
-            <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
-            冷轧计划
-        </MudText>
+        <div class="d-flex align-center mb-4 crp-page-title">
+            <MudText Typo="Typo.h5" Class="font-weight-bold">
+                <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
+                冷轧计划
+            </MudText>
+            <div style="margin-left:auto;">
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showMachineEstimate ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showMachineEstimate ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           Class="crp-print-hide"
+                           OnClick="ToggleMachineEstimate">
+                    排机估算
+                </MudButton>
+            </div>
+        </div>
 
         <!-- 工段筛选 Tab -->
         <div class="d-flex flex-wrap align-center gap-2 mb-2 crp-print-hide" style="gap: 4px;">
@@ -109,6 +121,53 @@
             }
         </div>
     </div>
+
+    @* 冷轧排程排机估算 — 折叠汇总卡片（标题行右上角按钮展开） *@
+    @if (_showMachineEstimate)
+    {
+        <MudCard Class="mb-3 crp-print-hide" Elevation="0"
+                 Style="background:#FAFBFC; border:1px solid #E0E0E0; border-radius:8px;">
+            <MudCardContent>
+                <div class="d-flex justify-space-between align-center mb-2">
+                    <MudText Typo="Typo.subtitle2"><b>冷轧排程排机估算</b></MudText>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Print" OnClick="PrintMachineEstimate">打印</MudButton>
+                </div>
+                @if (_estimateLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                }
+                else
+                {
+                    <div id="crp-machine-estimate-table">
+                    <table class="summary-flow-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 120px;">轧机类型</th>
+                                <th>流转总量(kg)</th>
+                                <th>在制品(kg)</th>
+                                <th>成品(kg)</th>
+                                <th>机台需求数</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in _estimateRows)
+                            {
+                                <tr>
+                                    <td><b>@r.MachineType</b></td>
+                                    <td>@WeightText(r.FlowTotalWeight)</td>
+                                    <td>@WeightText(r.InProcessWeight)</td>
+                                    <td>@WeightText(r.FinishedWeight)</td>
+                                    <td><b>@r.MachineCount</b></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    </div>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
 
     <MudCard Class="crp-plan-section">
         <MudCardContent>
@@ -206,10 +265,19 @@
                         else if (_isSchedulingMode && col.Key == "SchedMachineNo")
                         {
                             <MudTd Class="@_cellClass">
-                                <MudTextField T="string" Value="@_edit.MachineNo"
-                                              ValueChanged="@(v => { _edit.MachineNo = v ?? ""; })"
+                                <MudTextField T="string" @bind-Value="_edit.MachineNo"
                                               Dense="true" Variant="Variant.Outlined"
                                               Class="compact-input" />
+                            </MudTd>
+                        }
+                        else if (_isSchedulingMode && col.Key == "DailyOutput")
+                        {
+                            <MudTd Class="@_cellClass">
+                                <MudNumericField T="decimal?" @bind-Value="_edit.DailyOutput"
+                                                 HideSpinButtons="true"
+                                                 Format="G29"
+                                                 Dense="true" Variant="Variant.Outlined"
+                                                 Class="compact-input" />
                             </MudTd>
                         }
                         else
@@ -353,6 +421,19 @@
                     </MudCardContent>
                 </MudCard>
             }
+
+            <div class="mt-3 crp-summary-note" style="padding: 8px 14px; background: #F5F5F5; border-radius: 4px; border-left: 3px solid #9E9E9E;">
+                <MudText Typo="Typo.caption" Class="text-secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+                    <b>档位说明</b>：急+ / 急 / 急- 均为工单紧急性为「A+急」「A急」的特急工单（其余工单归入「一般」，即各档余量）。
+                    <br />
+                    急+：投料齐全（或投料未齐但销售催单，视同齐全），关注点 = 当前冷轧工序；
+                    <br />
+                    急：投料齐全（或投料未齐但销售催单，视同齐全），关注点 ≠ 当前冷轧工序；
+                    <br />
+                    急-：投料未齐（等待原料等非正常流转）。
+                </MudText>
+            </div>
         </div>
     }
 </MudContainer>

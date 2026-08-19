@@ -515,12 +515,12 @@ public static class DbInitializer
                 new() { Category = "UrgencyThreshold", CategoryDisplay = "工单-紧急度阈值", Context = "工单", ParamKey = "B", ParamValue = -10m, Remark = "B顺阈值(天)" },
                 new() { Category = "UrgencyThreshold", CategoryDisplay = "工单-紧急度阈值", Context = "工单", ParamKey = "C", ParamValue = -17m, Remark = "C缓阈值(天)" },
 
-                // ===== DateBucket 日期桶边界 =====
-                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket1", ParamValue = 15m, Remark = "日期桶1(天)" },
-                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket2", ParamValue = 30m, Remark = "日期桶2(天)" },
-                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket3", ParamValue = 45m, Remark = "日期桶3(天)" },
-                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket4", ParamValue = 60m, Remark = "日期桶4(天)" },
-                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket5", ParamValue = 90m, Remark = "日期桶5(天)" },
+                // ===== DateBucket 日期桶边界（2026-08-19 改为 +7/+15/+30/+45/+60 七桶） =====
+                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket1", ParamValue = 7m, Remark = "日期桶1(天)" },
+                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket2", ParamValue = 15m, Remark = "日期桶2(天)" },
+                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket3", ParamValue = 30m, Remark = "日期桶3(天)" },
+                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket4", ParamValue = 45m, Remark = "日期桶4(天)" },
+                new() { Category = "DateBucket", CategoryDisplay = "排程-日期桶", Context = "排程", ParamKey = "Bucket5", ParamValue = 60m, Remark = "日期桶5(天)" },
 
                 // ===== SequenceJump 序号跳跃 =====
                 new() { Category = "SequenceJump", CategoryDisplay = "批次-工序跳号", Context = "批次", ParamKey = "MaxJump", ParamValue = 7m, Remark = "最大序号跳跃值" },

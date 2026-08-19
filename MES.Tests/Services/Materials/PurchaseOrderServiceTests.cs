@@ -977,4 +977,52 @@ public class PurchaseOrderServiceTests : TestBase
         result.ReturnWeight.Should().Be(20m);
         result.IsForceCompleted.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task GetPagedAsync_属强制完成_排序生效()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        ctx.PurchaseOrders.AddRange(
+            new PurchaseOrder { OrderNo = "CG20260101998", SupplierId = sid, OrderDate = DateTime.Today.AddDays(-2), Status = PurchaseOrderStatus.Open, MaterialCategory = "RoughTube", PlantGrade = "20#", Specification = "219*8", Quantity = 100, Weight = 1000m, RequiredDate = DateTime.Today.AddDays(30), IsForceCompleted = true },
+            new PurchaseOrder { OrderNo = "CG20260101999", SupplierId = sid, OrderDate = DateTime.Today.AddDays(-1), Status = PurchaseOrderStatus.Open, MaterialCategory = "RoughTube", PlantGrade = "20#", Specification = "219*8", Quantity = 100, Weight = 1000m, RequiredDate = DateTime.Today.AddDays(30), IsForceCompleted = false });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        // 升序：false 在前，true 在后
+        var asc = await svc.GetPagedAsync(new PurchaseOrderQueryParams { PageIndex = 1, PageSize = 20, SortBy = "isforcecompleted", IsDescending = false });
+        asc.Items[0].IsForceCompleted.Should().BeFalse();
+        asc.Items[1].IsForceCompleted.Should().BeTrue();
+
+        // 降序：true 在前
+        var desc = await svc.GetPagedAsync(new PurchaseOrderQueryParams { PageIndex = 1, PageSize = 20, SortBy = "isforcecompleted", IsDescending = true });
+        desc.Items[0].IsForceCompleted.Should().BeTrue();
+        desc.Items[1].IsForceCompleted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_属强制完成_筛选生效()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        ctx.PurchaseOrders.AddRange(
+            new PurchaseOrder { OrderNo = "CG20260101998", SupplierId = sid, OrderDate = DateTime.Today, Status = PurchaseOrderStatus.Open, MaterialCategory = "RoughTube", PlantGrade = "20#", Specification = "219*8", Quantity = 100, Weight = 1000m, RequiredDate = DateTime.Today.AddDays(30), IsForceCompleted = true },
+            new PurchaseOrder { OrderNo = "CG20260101999", SupplierId = sid, OrderDate = DateTime.Today, Status = PurchaseOrderStatus.Open, MaterialCategory = "RoughTube", PlantGrade = "20#", Specification = "219*8", Quantity = 100, Weight = 1000m, RequiredDate = DateTime.Today.AddDays(30), IsForceCompleted = false });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "IsForceCompleted", Operator = "in", Values = new List<string> { "True" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].IsForceCompleted.Should().BeTrue();
+    }
 }

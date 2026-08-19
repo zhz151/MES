@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
@@ -306,7 +307,47 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
                 fixedPartial, fixedSatisfied, nonFixedPartial, nonFixedSatisfied);
 
             // 6.5 计算主号级字段：主号最大工艺周期、理论工量、理论截止投料日
-            await ComputeMainNoLevelFieldsAsync(summaryRows, allFinishPlans);
+            // 先加载已完成批次的有效产出（产能工量扣减 = 总重 - 成品采购 - 库存使用 - 已完成批次有效产出）
+            var workOrderNos = workOrders.Select(wo => wo.WorkOrderNo).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var batches = await _context.ProductionBatches
+                .AsNoTracking()
+                .Include(b => b.ProcessGroups)
+                .Where(b => workOrderNos.Contains(b.WorkOrderNo))
+                .ToListAsync();
+            // 加载执行读模型的排程档位：主号完成（ScheduleStage=1，入库完结/强制完成）时产能工量置 0，与执行表一致
+            // （主号级判断：同主号工单 ScheduleStage 一致，取 Min 兼容异常数据；主号完成时同主号应全部完成）
+            var executionRows = await _context.WorkOrderExecutionSummaries
+                .AsNoTracking()
+                .Where(s => workOrderNos.Contains(s.WorkOrderNo))
+                .ToListAsync();
+            var scheduleStageByMainNo = executionRows
+                .GroupBy(s => (s.SalesOrderNo.ToUpperInvariant(), s.ProductionMainNo.ToUpperInvariant()))
+                .ToDictionary(g => g.Key, g => g.Min(s => s.ScheduleStage));
+            var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
+            var completedOutputByMainNo = batches
+                .Where(b => b.Status == BatchStatus.Completed
+                         && b.ProductionType != "Rework"
+                         && !IsExternalOrStockBatch(b)
+                         && (b.ManufacturingItem == "OrderFinished" || b.ManufacturingItem == "SpecialDeliveryStatus"))
+                .GroupBy(b => (b.SalesOrderNo, b.ProductionMainNo))
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        decimal total = 0;
+                        foreach (var batch in g)
+                        {
+                            var inputWeight = batch.CurrentValidWeight ?? 0m;
+                            var effectiveGroups = batch.ProcessGroups?
+                                .Count(pg => HasAnySection(pg)) ?? 0;
+                            var discount = 1.0m - effectiveGroups * groupDiscountRate;
+                            if (discount < 0) discount = 0;
+                            total += Math.Round(inputWeight * discount, 3);
+                        }
+                        return Math.Round(total, 3);
+                    });
+
+            await ComputeMainNoLevelFieldsAsync(summaryRows, allFinishPlans, completedOutputByMainNo, scheduleStageByMainNo);
 
             // 7. 全量刷新：删除该订单的所有已有行，重新插入（避免 SetValues 修改主键的 EF Core 异常）
             var existingRows = await _context.Set<WorkOrderListSummary>()
@@ -637,7 +678,9 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
     /// </summary>
     private async Task ComputeMainNoLevelFieldsAsync(
         List<WorkOrderListSummary> rows,
-        List<PurchaseFinishedPlan> allFinishPlans)
+        List<PurchaseFinishedPlan> allFinishPlans,
+        Dictionary<(string SalesOrderNo, string ProductionMainNo), decimal> completedOutputByMainNo,
+        Dictionary<(string SalesOrderNo, string ProductionMainNo), int> scheduleStageByMainNo)
     {
         // 加载默认工艺周期配置
         var defaultProcessCycle = (int)await GetConfigAsync("DefaultValue", "DefaultProcessCycle", 22m);
@@ -671,14 +714,28 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
                 mainNoMaxCycle = defaultProcessCycle; // 未满足时使用默认工艺周期
             }
 
-            // === 2. 产能工量 = Ceiling((主号总重量 - 成品采购重量 - 库存使用重量) / 日产估算) ===
+            // === 2. 产能工量 = Ceiling((主号总重量 - 成品采购重量 - 库存使用重量 - 已完成批次有效产出) / 日产估算) ===
             var mainNoTotalWeight = group.Sum(r => r.TotalWeight);
             var mainNoFinishWeight = group.Sum(r => r.FinishedPlanTotalWeight ?? 0);
             var mainNoInventoryWeight = group.Sum(r => r.InventoryPlanTotalWeight ?? 0);
-            var capacityWeight = mainNoTotalWeight - mainNoFinishWeight - mainNoInventoryWeight;
+            var completedOutput = completedOutputByMainNo.TryGetValue((group.Key.SalesOrderNo, group.Key.MainNo), out var co) ? co : 0m;
+            var capacityWeight = mainNoTotalWeight - mainNoFinishWeight - mainNoInventoryWeight - completedOutput;
 
+            // 主号完成（执行读模型 ScheduleStage=1：入库完结/强制完成）：无需内部产能，产能工量置 null（显示「-」），与执行表一致
+            // 非档1 且剩余重量≤0：无剩余产能，为 0（显示「0天」），与执行表一致
             int? capacityDays = null;
-            if (capacityWeight > 0)
+            var isMainNoCompleted = scheduleStageByMainNo.TryGetValue(
+                (group.Key.SalesOrderNo.ToUpperInvariant(), group.Key.MainNo.ToUpperInvariant()),
+                out var stage) && stage == 1;
+            if (isMainNoCompleted)
+            {
+                capacityDays = null;
+            }
+            else if (capacityWeight <= 0)
+            {
+                capacityDays = 0;
+            }
+            else
             {
                 var spec = group.First().Specification;
                 var od = ParseOuterDiameter(spec);
@@ -709,7 +766,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             foreach (var row in group)
             {
                 row.MainNoMaxStandardCycle = mainNoMaxCycle;
-                row.CapacityWorkDays = capacityDays ?? 0;
+                row.CapacityWorkDays = capacityDays;
                 row.TheoreticalCutoffDate = cutoffDate;
             }
         }
@@ -743,6 +800,49 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
         }
 
         _logger.LogInformation("全量刷新用料计划总览读模型完成");
+    }
+
+    /// <summary>
+    /// 是否为外购/库存投料批次：其重量已由成品采购/库存使用计划扣减（产能工量主公式），
+    /// 批次投料完成后不再经 completedOutput 重复扣减，否则外购/库存重量被扣除两次造成负值低估。
+    /// </summary>
+    private static bool IsExternalOrStockBatch(ProductionBatch b)
+        => b.ProductionType == "OutsourcedPurchased" || b.ProductionType == "Inventory";
+
+    /// <summary>
+    /// 判断工序组是否含有效工段（"在制修检"和"附加成检"不计入有效工序组）
+    /// </summary>
+    private static bool HasAnySection(ProcessGroup pg)
+    {
+        if (pg.ProcessName == ProcessKeys.InProcessRepair || pg.ProcessName == ProcessKeys.AdditionalFinalInspection)
+            return false;
+
+        return pg.ColdRollDraw.HasValue
+            || pg.OilPipeCut.HasValue
+            || pg.Degrease.HasValue
+            || pg.EmulsionWash.HasValue
+            || pg.UltrasonicWash.HasValue
+            || pg.ClothPolish.HasValue
+            || pg.BrightAnnealing.HasValue
+            || pg.Solution.HasValue
+            || pg.Straighten.HasValue
+            || pg.Cut.HasValue
+            || pg.ThicknessMeasure.HasValue
+            || pg.Pickle.HasValue
+            || pg.OuterPolish.HasValue
+            || pg.InnerPolish.HasValue
+            || pg.InnerGrinding.HasValue
+            || pg.OuterSpotGrinding.HasValue
+            || pg.SandBlasting.HasValue
+            || pg.ShotBlasting.HasValue
+            || pg.Inspection.HasValue
+            || pg.WeldingHead.HasValue
+            || pg.Welding.HasValue
+            || pg.Lubrication.HasValue
+            || pg.Packing.HasValue
+            || pg.Warehouse.HasValue
+            || pg.Extra1.HasValue
+            || pg.Extra2.HasValue;
     }
 
     /// <summary>从规格中解析外径（如 "25*2.5" → 25）</summary>

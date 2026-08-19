@@ -113,10 +113,11 @@ public partial class PurchaseOrders : IAsyncDisposable
         {
             new() { Key = "Status",              Label = "状态",         SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "执行状态",
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<PurchaseOrderStatus>() },
-            new() { Key = "ArrivalDate",         Label = "到货截止日",   SortKey = "lastarrivaldate", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "执行状态" },
+            new() { Key = "ArrivalDate",         Label = "到货截止日",   SortKey = "lastarrivaldate", FilterField = "LastArrivalDate", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "执行状态" },
             new() { Key = "Received",            Label = "已到货量",     Width = "100", GroupKey = 2, GroupName = "执行状态" },
             new() { Key = "Returned",            Label = "退货量",       Width = "100", GroupKey = 2, GroupName = "执行状态" },
-            new() { Key = "IsForceCompleted",    Label = "属强制完成",   Width = "100", GroupKey = 2, GroupName = "执行状态" },
+            new() { Key = "IsForceCompleted",    Label = "属强制完成",   SortKey = "isforcecompleted", FilterType = "enum", Width = "100", GroupKey = 2, GroupName = "执行状态",
+                EnumOptions = new() { new("True", "是"), new("False", "否") } },
         };
 
         // G3: 来源销售订单（默认隐藏）
@@ -270,12 +271,15 @@ public partial class PurchaseOrders : IAsyncDisposable
     {
         if (_columnFilters.Count == 0) return null;
         var descriptors = new List<FilterDescriptor>();
+        var colByKey = _allColumns.ToDictionary(c => c.Key, c => c);
         foreach (var kvp in _columnFilters)
         {
             if (kvp.Value.Count == 0) continue;
+            // 别名列（显示 Key ≠ 后端字段名）经 FilterField 映射发后端
+            var field = colByKey.TryGetValue(kvp.Key, out var col) && !string.IsNullOrEmpty(col.FilterField) ? col.FilterField! : kvp.Key;
             descriptors.Add(new FilterDescriptor
             {
-                Field = kvp.Key,
+                Field = field,
                 Operator = "in",
                 Values = kvp.Value.ToList()
             });
@@ -396,6 +400,17 @@ public partial class PurchaseOrders : IAsyncDisposable
                     Display = e.Display,
                     Count = 0
                 }).ToList();
+            }
+        }
+
+        // 别名列（FilterField）选项回填到列 Key：如 ArrivalDate ← LastArrivalDate
+        foreach (var col in _allColumns)
+        {
+            if (!string.IsNullOrEmpty(col.FilterField)
+                && _filterContextOptions.TryGetValue(col.FilterField, out var aliasOpts)
+                && !_filterContextOptions.ContainsKey(col.Key))
+            {
+                _filterContextOptions[col.Key] = aliasOpts;
             }
         }
     }

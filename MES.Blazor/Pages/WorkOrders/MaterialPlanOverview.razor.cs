@@ -54,6 +54,8 @@ public partial class MaterialPlanOverview
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
+    private string _deliveryDateFrom = string.Empty;
+    private string _deliveryDateTo = string.Empty;
 
     private string sortColumn = "CreatedTime";
     private bool sortDescending = true;
@@ -209,8 +211,10 @@ public partial class MaterialPlanOverview
                 isDescending: sortDescending,
                 filters: filtersJson,
                 planTypeFilter: planTypeFilter,
-                dateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
-                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null
+                signDateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
+                signDateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null,
+                deliveryDateStart: DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf : null,
+                deliveryDateEnd: DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt : null
             );
 
             if (result.Success && result.Data != null)
@@ -380,6 +384,20 @@ public partial class MaterialPlanOverview
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnDeliveryDateFromChanged(string value)
+    {
+        _deliveryDateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDeliveryDateToChanged(string value)
+    {
+        _deliveryDateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 计划类型筛选 ==========
 
     private async Task OnPlanTypeFilterChangedAsync(bool value, int planType)
@@ -457,6 +475,8 @@ public partial class MaterialPlanOverview
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _dateFrom = savedState.Extras?.ContainsKey("dateFrom") == true ? savedState.Extras["dateFrom"] ?? string.Empty : string.Empty;
             _dateTo = savedState.Extras?.ContainsKey("dateTo") == true ? savedState.Extras["dateTo"] ?? string.Empty : string.Empty;
+            _deliveryDateFrom = savedState.Extras?.ContainsKey("deliveryDateFrom") == true ? savedState.Extras["deliveryDateFrom"] ?? string.Empty : string.Empty;
+            _deliveryDateTo = savedState.Extras?.ContainsKey("deliveryDateTo") == true ? savedState.Extras["deliveryDateTo"] ?? string.Empty : string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
@@ -579,7 +599,7 @@ public partial class MaterialPlanOverview
         "MaterialPlanCoveredCount" => item.MaterialPlanCoveredCount.ToString(),
         "LatestRequiredDate" => item.LatestRequiredDate?.ToString("yyyy-MM-dd"),
         "MainNoMaxStandardCycle" => item.MainNoMaxStandardCycle.ToString(),
-        "CapacityWorkDays" => item.CapacityWorkDays.ToString(),
+        "CapacityWorkDays" => item.CapacityWorkDays?.ToString() ?? "-",
         "TheoreticalCutoffDate" => item.TheoreticalCutoffDate?.ToString("yyyy-MM-dd"),
         _ => null
     };
@@ -853,7 +873,7 @@ public partial class MaterialPlanOverview
                 builder.AddContent(0, wo.MainNoMaxStandardCycle > 0 ? $"{wo.MainNoMaxStandardCycle}天" : "-");
                 break;
             case "CapacityWorkDays":
-                builder.AddContent(0, wo.CapacityWorkDays > 0 ? $"{wo.CapacityWorkDays}天" : "-");
+                builder.AddContent(0, wo.CapacityWorkDays.HasValue ? $"{wo.CapacityWorkDays}天" : "-");
                 break;
             case "TheoreticalCutoffDate":
                 if (wo.TheoreticalCutoffDate.HasValue)
@@ -921,6 +941,8 @@ public partial class MaterialPlanOverview
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         if (!string.IsNullOrWhiteSpace(_dateFrom)) extras["dateFrom"] = _dateFrom;
         if (!string.IsNullOrWhiteSpace(_dateTo)) extras["dateTo"] = _dateTo;
+        if (!string.IsNullOrWhiteSpace(_deliveryDateFrom)) extras["deliveryDateFrom"] = _deliveryDateFrom;
+        if (!string.IsNullOrWhiteSpace(_deliveryDateTo)) extras["deliveryDateTo"] = _deliveryDateTo;
         extras["includePiercing"] = includePiercing.ToString();
         extras["includeSemi"] = includeSemi.ToString();
         extras["includeFinish"] = includeFinish.ToString();

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Caching.Memory;
 using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Data;
@@ -16,7 +17,7 @@ namespace MES.Tests.Services.Scheduling;
 /// </summary>
 public class ColdRollPlanServiceTests : TestBase
 {
-    private ColdRollPlanService CreateService(AppDbContext ctx) => new(ctx, CreateProcessDefinitionServiceMock());
+    private ColdRollPlanService CreateService(AppDbContext ctx) => new(ctx, CreateProcessDefinitionServiceMock(), new MemoryCache(new MemoryCacheOptions()));
 
     private ProductionBatch CreateBatch(AppDbContext ctx, string batchNo, string workOrderNo,
         string processName, int seqNumber, bool isFinished,
@@ -108,7 +109,7 @@ public class ColdRollPlanServiceTests : TestBase
 
     /// <summary>排程设置：按 (ProcessType, BilletSpec, RollingSpec, IsFinished) 键记录，CompletionType/RollType 任一非 None 即视为已排程</summary>
     private void SeedSchedule(AppDbContext ctx, string processType, string billetSpec, string rollingSpec, bool isFinished,
-        string? completionType = "All", string? rollType = "All")
+        string? completionType = "All", string? rollType = "All", decimal? dailyOutput = null)
     {
         ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
         {
@@ -118,6 +119,7 @@ public class ColdRollPlanServiceTests : TestBase
             IsFinished = isFinished,
             CompletionType = string.IsNullOrEmpty(completionType) ? "None" : completionType,
             RollType = string.IsNullOrEmpty(rollType) ? "None" : rollType,
+            DailyOutput = dailyOutput,
         });
     }
 
@@ -666,5 +668,110 @@ public class ColdRollPlanServiceTests : TestBase
         var result = await svc.GetScheduleSummaryAsync(null, null);
 
         result.Should().BeEmpty();
+    }
+
+    // ==================== GetMachineEstimateAsync 测试 ====================
+
+    [Fact]
+    public async Task GetMachineEstimateAsync_按轧机类型归并_在制与成品拆分()
+    {
+        using var ctx = CreateDbContext();
+        // 同一批次含 60冷轧(seq2,非最后=在制) + 50冷轧(seq5,最后=成品)，两工序组均归入「冷轧5060」
+        var batch = new ProductionBatch
+        {
+            BatchNo = "B001",
+            Status = BatchStatus.InProgress,
+            WorkOrderNo = "WO001",
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "业务员",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = "无缝管",
+            SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163",
+            DeliveryState = "SolutionAnnealedAndPickled",
+            LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished",
+            PlantGrade = "304",
+            Specification = "219*8",
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = 1000m,
+            TotalItemCount = 1,
+            TechnicalRequirements = "NORMAL",
+            CurrentValidWeight = 1000,
+            RowVersion = new byte[8],
+            ProcessGroups = new List<ProcessGroup>
+            {
+                new() { ProcessName = ProcessKeys.ColdRoll60, SequenceNumber = 2, ColdRollDraw = 1, ManufacturingSpec = "219*8" },
+                new() { ProcessName = ProcessKeys.ColdRoll50, SequenceNumber = 5, ColdRollDraw = 1, ManufacturingSpec = "219*8" },
+            }
+        };
+        ctx.ProductionBatches.Add(batch);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll50, "219*8", "219*8", isFinished: true);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMachineEstimateAsync();
+
+        result.Should().HaveCount(4); // 固定返回 4 行
+        var row = result.Single(r => r.MachineType == "冷轧5060");
+        row.FlowTotalWeight.Should().Be(2000m);   // 60在制 + 50成品 归并
+        row.FinishedWeight.Should().Be(1000m);    // 50冷轧=最后工序组=成品
+        row.InProcessWeight.Should().Be(1000m);   // 60冷轧=中间工序组=在制
+    }
+
+    [Fact]
+    public async Task GetMachineEstimateAsync_机台需求_每日台数四舍五入()
+    {
+        using var ctx = CreateDbContext();
+        // 15000kg / (5000×6) = 0.5；3000kg / (5000×6) = 0.1；合计 0.6 → AwayFromZero 四舍五入 = 1
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 15000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll50, 1, isFinished: false, weight: 3000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll50, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMachineEstimateAsync();
+
+        var row = result.Single(r => r.MachineType == "冷轧5060");
+        row.MachineCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetMachineEstimateAsync_未排程规格不计入()
+    {
+        using var ctx = CreateDbContext();
+        // 批次无排程设置记录 → 各轧机类型行均为 0
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 3000);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMachineEstimateAsync();
+
+        result.Should().HaveCount(4);
+        result.Should().OnlyContain(r => r.FlowTotalWeight == 0m && r.FinishedWeight == 0m
+            && r.InProcessWeight == 0m && r.MachineCount == 0);
+    }
+
+    [Fact]
+    public async Task GetMachineEstimateAsync_DailyOutput为空_机台数不计入该量()
+    {
+        using var ctx = CreateDbContext();
+        // 有排程记录但单机单日量为空 → 流转量计入，但机台需求不计入该规格
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 12000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMachineEstimateAsync();
+
+        var row = result.Single(r => r.MachineType == "冷轧5060");
+        row.FlowTotalWeight.Should().Be(12000m);
+        row.MachineCount.Should().Be(0);
     }
 }

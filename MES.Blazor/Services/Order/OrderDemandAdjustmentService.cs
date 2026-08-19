@@ -18,7 +18,7 @@ public class OrderDemandAdjustmentService
         _http = http;
     }
 
-    public async Task<ApiResponse<PagedResult<OrderDemandAdjustmentDto>>> GetPagedAsync(QueryParams query, DateTime? dateFrom = null, DateTime? dateTo = null)
+    public async Task<ApiResponse<PagedResult<OrderDemandAdjustmentDto>>> GetPagedAsync(QueryParams query, DateTime? dateFrom = null, DateTime? dateTo = null, DateTime? deliveryDateFrom = null, DateTime? deliveryDateTo = null)
     {
         try
         {
@@ -28,6 +28,8 @@ public class OrderDemandAdjustmentService
 
             if (dateFrom.HasValue) url += $"&signDateFrom={dateFrom.Value:yyyy-MM-dd}";
             if (dateTo.HasValue) url += $"&signDateTo={dateTo.Value:yyyy-MM-dd}";
+            if (deliveryDateFrom.HasValue) url += $"&deliveryDateStart={deliveryDateFrom.Value:yyyy-MM-dd}";
+            if (deliveryDateTo.HasValue) url += $"&deliveryDateEnd={deliveryDateTo.Value:yyyy-MM-dd}";
 
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
 

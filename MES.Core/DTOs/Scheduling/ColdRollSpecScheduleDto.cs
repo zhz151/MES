@@ -11,6 +11,7 @@ public class ColdRollSpecScheduleDto
     public string RollingSpec { get; set; } = "";
     public bool IsFinished { get; set; }
     public string? MachineNo { get; set; }
+    public decimal? DailyOutput { get; set; }
     public string CompletionType { get; set; } = "None";
     public string RollType { get; set; } = "None";
     public string? MergeDisplay { get; set; }

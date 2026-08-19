@@ -53,13 +53,18 @@ public class WorkOrderExecutionServiceTests : TestBase
 {
     private WorkOrderExecutionService CreateService(AppDbContext ctx)
     {
+        return CreateService(ctx, new List<DailyOutputEstimateDto>());
+    }
+
+    private WorkOrderExecutionService CreateService(AppDbContext ctx, List<DailyOutputEstimateDto> dailyEstimates)
+    {
         var loggerMock = new Mock<ILogger<WorkOrderExecutionService>>();
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
         var dailyOutputMock = new Mock<IDailyOutputEstimateService>();
         dailyOutputMock.Setup(x => x.GetAllAsync())
-            .ReturnsAsync(new List<DailyOutputEstimateDto>());
+            .ReturnsAsync(dailyEstimates);
         // 配置 IServiceScopeFactory：CreateScope 返回可解析 IOrderService 的 scope（全量刷新末尾会刷新订单读模型）
         var orderServiceMock = new Mock<IOrderService>();
         orderServiceMock.Setup(x => x.RefreshByOrderIdAsync(It.IsAny<int>()))
@@ -176,6 +181,26 @@ public class WorkOrderExecutionServiceTests : TestBase
 
         result.TotalCount.Should().Be(1);
         result.Items.Single().ProductionSubNo.Should().Be("C01");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_关键字匹配用料占比()
+    {
+        using var ctx = CreateDbContext();
+        SeedSummary(ctx, "WO001", "SO001", "D01", materialPlanProportion: "穿105% 荒60% 成20% 库40%");
+        SeedSummary(ctx, "WO002", "SO002", "D02");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Keyword = "成20"
+        });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().WorkOrderNo.Should().Be("WO001");
     }
 
     [Fact]
@@ -1919,7 +1944,8 @@ public class WorkOrderExecutionServiceTests : TestBase
         string materialName = "",
         string deliveryState = "",
         string plantGrade = "",
-        string lengthStatus = "Fixed")
+        string lengthStatus = "Fixed",
+        string materialPlanProportion = "")
     {
         ctx.Set<WorkOrderExecutionSummary>().Add(new WorkOrderExecutionSummary
         {
@@ -1941,7 +1967,8 @@ public class WorkOrderExecutionServiceTests : TestBase
             TotalQuantity = 100,
             TotalMeters = 600,
             TotalWeight = totalWeight,
-            InputOutputRatio = ratio
+            InputOutputRatio = ratio,
+            MaterialPlanProportion = string.IsNullOrEmpty(materialPlanProportion) ? null : materialPlanProportion
         });
     }
 
@@ -3019,6 +3046,310 @@ public class WorkOrderExecutionServiceTests : TestBase
         // 主号关注工序取剩余工量最大所在工单（WO001）→ 生产收尾，两个工单都上卷为生产收尾
         s1.MainNoAttentionProcess.Should().Be(ProductionAttentionKeys.Finish);
         s2.MainNoAttentionProcess.Should().Be(ProductionAttentionKeys.Finish);
+    }
+
+    // ==================== 产能工量（外购/库存剔除） ====================
+
+    [Fact]
+    public async Task RefreshAllAsync_产能工量_外购成品采购覆盖全部重量_为0()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        ctx.SalesOrders.Add(new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" });
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        // 外购：成品采购计划覆盖全部重量
+        ctx.PurchaseFinishedPlans.Add(new PurchaseFinishedPlan
+        {
+            WorkOrderId = wo.Id,
+            PlanDate = DateTime.Today,
+            PlantGrade = "304",
+            Specification = "219*8",
+            LengthStatus = LengthStatus.Fixed,
+            ProductType = FinishedProductType.Order,
+            RequiredWeight = 2500m
+        });
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, new List<DailyOutputEstimateDto>
+        {
+            new() { MinOuterDiameter = 18, DailyOutputTons = 4m }
+        });
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.FinishPlanWeight.Should().Be(2500m);
+        s.CapacityWorkDays.Should().Be(0);   // 外购覆盖全部重量 → 内部剩余产能=0
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_产能工量_非外购按内部剩余计算()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        ctx.SalesOrders.Add(new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" });
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        // 内部生产：荒管采购计划
+        ctx.PurchaseSemiPlans.Add(new PurchaseSemiPlan
+        {
+            WorkOrderId = wo.Id,
+            PlanDate = DateTime.Today,
+            RequiredPieces = 100,
+            RequiredWeight = 2500m,
+            InputMultiple = 1,
+            PlantGrade = "304",
+            RawMaterialSpec = "219*8",
+            RequiredDate = DateTime.Today
+        });
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, new List<DailyOutputEstimateDto>
+        {
+            new() { MinOuterDiameter = 18, DailyOutputTons = 4m }
+        });
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.SemiPlanWeight.Should().Be(2500m);
+        s.CapacityWorkDays.Should().Be(1);   // ceil(2500kg/1000 / 4吨每天) = ceil(0.625) = 1
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_产能工量_库存使用覆盖部分_剔除库存()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        ctx.SalesOrders.Add(new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" });
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        // 库存使用计划覆盖 2000kg，剩余 500kg 需内部生产
+        ctx.InventoryPlans.Add(new InventoryPlan
+        {
+            WorkOrderId = wo.Id,
+            PlanDate = DateTime.Today,
+            InventoryBatchNo = "CK001",
+            BatchNo = "CK001",
+            MaterialType = "OrderFinished",
+            PlantGrade = "304",
+            Specification = "219*8",
+            UsedWeight = 2000m
+        });
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, new List<DailyOutputEstimateDto>
+        {
+            new() { MinOuterDiameter = 18, DailyOutputTons = 4m }
+        });
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.InventoryPlanWeight.Should().Be(2000m);
+        s.CapacityWorkDays.Should().Be(1);   // ceil((2500-2000)/1000 / 4) = ceil(0.125) = 1
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_产能工量_外购批次完成_不重复扣减()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        ctx.SalesOrders.Add(new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" });
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        // 外购成品采购计划覆盖一半重量，剩余一半需内部生产
+        ctx.PurchaseFinishedPlans.Add(new PurchaseFinishedPlan
+        {
+            WorkOrderId = wo.Id,
+            PlanDate = DateTime.Today,
+            PlantGrade = "304",
+            Specification = "219*8",
+            LengthStatus = LengthStatus.Fixed,
+            ProductType = FinishedProductType.Order,
+            RequiredWeight = 1250m
+        });
+        // 内部在制批次（未完成，不计入 completedOutput，仅保证主号有活动批次）
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress));
+        // 外购批次已完成（OutsourcedPurchased）：其重量已由成品采购计划覆盖，不得再经 completedOutput 重复扣减
+        var outsourced = CreateSatisfiedBatch("B002", "WO001", "SO001", "D01", BatchStatus.Completed);
+        outsourced.ProductionType = "OutsourcedPurchased";
+        outsourced.CurrentValidWeight = 1500;
+        outsourced.InputWeight = 1500;
+        outsourced.ProcessGroups = new List<ProcessGroup>();
+        ctx.ProductionBatches.Add(outsourced);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, new List<DailyOutputEstimateDto>
+        {
+            new() { MinOuterDiameter = 18, DailyOutputTons = 4m }
+        });
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.FinishPlanWeight.Should().Be(1250m);
+        // 外购批次不得重复扣减：capacityWeight = 2500 - 1250(外购) - 0(库存) - 0(completedOutput 排除外购批次) = 1250 → ceil(1250/1000/4) = 1
+        // 若不排除外购批次：2500 - 1250 - 1500(外购批次被重复扣) = -250 → 被钳为 0（错误低估）
+        s.CapacityWorkDays.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_产能工量_库存批次完成_不重复扣减()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        ctx.SalesOrders.Add(new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" });
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        // 库存使用计划覆盖一半重量，剩余一半需内部生产
+        ctx.InventoryPlans.Add(new InventoryPlan
+        {
+            WorkOrderId = wo.Id,
+            PlanDate = DateTime.Today,
+            InventoryBatchNo = "CK001",
+            BatchNo = "CK001",
+            MaterialType = "OrderFinished",
+            PlantGrade = "304",
+            Specification = "219*8",
+            UsedWeight = 1250m
+        });
+        // 内部在制批次（未完成，不计入 completedOutput，仅保证主号有活动批次）
+        ctx.ProductionBatches.Add(CreateSatisfiedBatch("B001", "WO001", "SO001", "D01", BatchStatus.InProgress));
+        // 库存投料批次已完成（Inventory）：其重量已由库存使用计划覆盖，不得再经 completedOutput 重复扣减
+        var stock = CreateSatisfiedBatch("B002", "WO001", "SO001", "D01", BatchStatus.Completed);
+        stock.ProductionType = "Inventory";
+        stock.CurrentValidWeight = 1500;
+        stock.InputWeight = 1500;
+        stock.ProcessGroups = new List<ProcessGroup>();
+        ctx.ProductionBatches.Add(stock);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx, new List<DailyOutputEstimateDto>
+        {
+            new() { MinOuterDiameter = 18, DailyOutputTons = 4m }
+        });
+        await svc.RefreshAllAsync();
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().FirstAsync();
+        s.InventoryPlanWeight.Should().Be(1250m);
+        // 库存批次不得重复扣减：capacityWeight = 2500 - 0(外购) - 1250(库存) - 0(completedOutput 排除库存批次) = 1250 → ceil(1250/1000/4) = 1
+        // 若不排除库存批次：2500 - 1250 - 1500(库存批次被重复扣) = -250 → 被钳为 0（错误低估）
+        s.CapacityWorkDays.Should().Be(1);
+    }
+
+    private WorkOrderListSummaryRefreshService CreateListSummaryService(AppDbContext ctx, List<DailyOutputEstimateDto> dailyEstimates)
+    {
+        var loggerMock = new Mock<ILogger<WorkOrderListSummaryRefreshService>>();
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        var dailyOutputMock = new Mock<IDailyOutputEstimateService>();
+        dailyOutputMock.Setup(x => x.GetAllAsync()).ReturnsAsync(dailyEstimates);
+        return new WorkOrderListSummaryRefreshService(ctx, loggerMock.Object, configMock.Object, dailyOutputMock.Object);
+    }
+
+    [Fact]
+    public async Task RefreshListSummary_产能工量_主号完成档1_置null()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        ctx.SalesOrders.Add(new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" });
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        // 库存投料批次（Inventory 已完成）：被排除不计 completedOutput → 剩余重量=主号总重量=2500（本应高估 1 天）
+        var stock = CreateSatisfiedBatch("B002", "WO001", "SO001", "D01", BatchStatus.Completed);
+        stock.ProductionType = "Inventory";
+        stock.CurrentValidWeight = 1500;
+        stock.InputWeight = 1500;
+        stock.ProcessGroups = new List<ProcessGroup>();
+        ctx.ProductionBatches.Add(stock);
+        // 执行读模型标记该主号「主号完成」（ScheduleStage=1）
+        SeedSummary(ctx, "WO001", "SO001", "D01", specification: "219*8", totalWeight: 2500m);
+        await ctx.SaveChangesAsync();
+        var es = ctx.Set<WorkOrderExecutionSummary>().Single();
+        es.ScheduleStage = 1;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateListSummaryService(ctx, new List<DailyOutputEstimateDto>
+        {
+            new() { MinOuterDiameter = 18, DailyOutputTons = 4m }
+        });
+        await svc.RefreshBySalesOrderAsync("SO001");
+
+        var row = await ctx.Set<WorkOrderListSummary>().FirstAsync();
+        // 主号完成 → 无需内部产能 → 产能工量置 null（显示「-」），与执行表 ScheduleStage=1 一致，避免两页不一致
+        row.CapacityWorkDays.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RefreshListSummary_产能工量_生产执行档3_按公式计算()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        ctx.SalesOrders.Add(new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" });
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        // 库存投料批次（Inventory 已完成）：排除后剩余重量=2500
+        var stock = CreateSatisfiedBatch("B002", "WO001", "SO001", "D01", BatchStatus.Completed);
+        stock.ProductionType = "Inventory";
+        stock.CurrentValidWeight = 1500;
+        stock.InputWeight = 1500;
+        stock.ProcessGroups = new List<ProcessGroup>();
+        ctx.ProductionBatches.Add(stock);
+        // 执行读模型标记该主号「生产执行」（ScheduleStage=3）→ 不影响产能工量公式
+        SeedSummary(ctx, "WO001", "SO001", "D01", specification: "219*8", totalWeight: 2500m);
+        await ctx.SaveChangesAsync();
+        var es = ctx.Set<WorkOrderExecutionSummary>().Single();
+        es.ScheduleStage = 3;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateListSummaryService(ctx, new List<DailyOutputEstimateDto>
+        {
+            new() { MinOuterDiameter = 18, DailyOutputTons = 4m }
+        });
+        await svc.RefreshBySalesOrderAsync("SO001");
+
+        var row = await ctx.Set<WorkOrderListSummary>().FirstAsync();
+        // 生产执行 → 按公式：ceil(2500/1000 / 4) = ceil(0.625) = 1
+        row.CapacityWorkDays.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task RefreshListSummary_产能工量_非档1剩余零_为0()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        ctx.SalesOrders.Add(new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" });
+        var wo = CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01", totalWeight: 2500m);
+        ctx.WorkOrders.Add(wo);
+        // 成品采购计划覆盖全部重量 → 剩余重量=0
+        ctx.PurchaseFinishedPlans.Add(new PurchaseFinishedPlan
+        {
+            WorkOrderId = wo.Id,
+            PlanDate = DateTime.Today,
+            PlantGrade = "304",
+            Specification = "219*8",
+            LengthStatus = LengthStatus.Fixed,
+            ProductType = FinishedProductType.Order,
+            RequiredWeight = 2500m
+        });
+        // 执行读模型标记该主号「生产执行」（ScheduleStage=3）→ 非档1，剩余≤0 时产能工量=0（显示「0天」）
+        SeedSummary(ctx, "WO001", "SO001", "D01", specification: "219*8", totalWeight: 2500m);
+        await ctx.SaveChangesAsync();
+        var es = ctx.Set<WorkOrderExecutionSummary>().Single();
+        es.ScheduleStage = 3;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateListSummaryService(ctx, new List<DailyOutputEstimateDto>
+        {
+            new() { MinOuterDiameter = 18, DailyOutputTons = 4m }
+        });
+        await svc.RefreshBySalesOrderAsync("SO001");
+
+        var row = await ctx.Set<WorkOrderListSummary>().FirstAsync();
+        // 生产执行且剩余重量≤0 → 产能工量 0（非档1 显示「0天」，与执行表一致）
+        row.CapacityWorkDays.Should().Be(0);
     }
 
     private ProductionBatch CreateDeformedBatch(string batchNo, string workOrderNo, string mainNo, BatchStatus status,

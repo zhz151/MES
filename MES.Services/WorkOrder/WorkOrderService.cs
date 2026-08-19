@@ -1831,7 +1831,8 @@ public class WorkOrderService : IWorkOrderService
                 s.Specification.Contains(keyword) ||
                 s.ProductionMainNo.Contains(keyword) ||
                 (s.ProductionSubNo != null && s.ProductionSubNo.Contains(keyword)) ||
-                (s.EndCustomer != null && s.EndCustomer.Contains(keyword))
+                (s.EndCustomer != null && s.EndCustomer.Contains(keyword)) ||
+                (s.MaterialPlanProportion != null && s.MaterialPlanProportion.Contains(keyword))
             );
         }
 
@@ -2527,6 +2528,12 @@ public class WorkOrderService : IWorkOrderService
             resultWorkOrders = resultWorkOrders.Where(wo => wo.SignDate >= query.SignDateFrom.Value).ToList();
         if (query.SignDateTo.HasValue)
             resultWorkOrders = resultWorkOrders.Where(wo => wo.SignDate < query.SignDateTo.Value.AddDays(1)).ToList();
+
+        // 交货日期筛选
+        if (query.DeliveryDateStart.HasValue)
+            resultWorkOrders = resultWorkOrders.Where(wo => wo.DeliveryDate >= query.DeliveryDateStart.Value).ToList();
+        if (query.DeliveryDateEnd.HasValue)
+            resultWorkOrders = resultWorkOrders.Where(wo => wo.DeliveryDate <= query.DeliveryDateEnd.Value).ToList();
 
         if (resultWorkOrders.Count == 0)
             throw new BusinessException("没有可打印的工单");

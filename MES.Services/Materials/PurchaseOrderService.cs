@@ -224,19 +224,8 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         var totalCount = await dtoQuery.CountAsync();
 
-        // 排序（基于 DTO 字段名）
-        dtoQuery = (query.SortBy?.ToLower(), query.IsDescending) switch
-        {
-            ("orderdate", false) => dtoQuery.OrderBy(x => x.OrderDate),
-            ("orderdate", true) => dtoQuery.OrderByDescending(x => x.OrderDate),
-            ("materialcategory", false) => dtoQuery.OrderBy(x => x.MaterialCategory),
-            ("materialcategory", true) => dtoQuery.OrderByDescending(x => x.MaterialCategory),
-            ("lastarrivaldate", false) => dtoQuery.OrderBy(x => x.LastArrivalDate),
-            ("lastarrivaldate", true) => dtoQuery.OrderByDescending(x => x.LastArrivalDate),
-            _ => query.IsDescending
-                ? dtoQuery.OrderByDescending(x => x.CreatedTime)
-                : dtoQuery.OrderBy(x => x.CreatedTime)
-        };
+        // 排序：按 SortKey 反射属性名排序，覆盖全部列（含来源销售订单 G3 隐藏列）
+        dtoQuery = dtoQuery.ApplySort(query.SortBy ?? "orderdate", query.IsDescending);
 
         var items = await dtoQuery
             .Skip(query.Skip)
@@ -1156,6 +1145,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                             p.OrderNo,
                             p.OrderDate,
                             p.RequiredDate,
+                            p.LastArrivalDate,
                             p.MaterialCategory,
                             p.PlantGrade,
                             p.Specification,
@@ -1180,6 +1170,9 @@ public class PurchaseOrderService : IPurchaseOrderService
                 ["SourceWorkOrderNo"] = all.Where(x => x.SourceWorkOrderNo != null).Select(x => x.SourceWorkOrderNo!).Distinct().OrderBy(x => x).ToList(),
                 ["OrderDate"] = all.Select(x => x.OrderDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
                 ["RequiredDate"] = all.Select(x => x.RequiredDate.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
+                ["LastArrivalDate"] = all.Where(x => x.LastArrivalDate != null)
+                    .Select(x => x.LastArrivalDate!.Value.ToString("yyyy-MM-dd"))
+                    .Distinct().OrderBy(x => x).ToList(),
                 ["MaterialCategory"] = all.Select(x => x.MaterialCategory).Distinct().OrderBy(x => x).ToList(),
                 ["PlantGrade"] = all.Select(x => x.PlantGrade).Distinct().OrderBy(x => x).ToList(),
                 ["Specification"] = all.Select(x => x.Specification).Distinct().OrderBy(x => x).ToList(),

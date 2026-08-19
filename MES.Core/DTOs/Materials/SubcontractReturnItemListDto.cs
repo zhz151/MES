@@ -36,7 +36,7 @@ public class SubcontractReturnItemListDto
     public string? Remark { get; set; }
 
     /// <summary>
-    /// 截止回收日（主表 ReturnDeadline）
+    /// 截止回收日（实际收回入库日期：按委外单号反查仓库批 InventoryBatch.InboundDate 最大值）
     /// </summary>
     public DateTime? ReturnDeadline { get; set; }
 

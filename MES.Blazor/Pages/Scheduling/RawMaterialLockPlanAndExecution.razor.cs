@@ -6,11 +6,13 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.Constants;
+using MES.Shared.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Scheduling;
@@ -46,9 +48,23 @@ public partial class RawMaterialLockPlanAndExecution
     private int _purchaseCount;             // 成购（外购成品）单数：成品计划量>成品到货量 的行数
     private decimal _purchaseWeight;        // 成购重量 = Σ(成品计划量 − 成品到货量)
 
+    // 理论待投料截日汇总（原锁类别 × 日期桶）行数据
+    private List<CutoffRowData> _cutoffSummaryRows = new();
+
+    // 理论待投料截日日期桶（与订单负荷总量页同源：DateBucket 配置表 Bucket1-5 边界，默认 7/15/30/45/60，改配置即两页面同步生效）
+    private List<(DateTime Start, DateTime End, string Label)> _cutoffBuckets = BuildDateBuckets(DateTime.Today, 7, 15, 30, 45, 60);
+
     // 汇总交叉矩阵（原料锁定备注 × 主号计划性）：单数 + 待投料重量 + 成购单数/重量
     private readonly record struct MatrixCell(int Count, decimal PendingWeight, int PurchaseCount, decimal PurchaseWeight);
     private readonly Dictionary<string, MatrixCell> _summaryMatrix = new();
+
+    // 理论待投料截日汇总行数据（原锁类别 × 日期桶；桶数随配置动态）
+    private sealed class CutoffRowData
+    {
+        public string Category { get; init; } = "";
+        public decimal Total { get; set; }
+        public decimal[] Buckets { get; set; } = Array.Empty<decimal>();
+    }
 
     // 矩阵列：主号计划性五档（不含 EPaused 暂停档）
     private static readonly string[] _urgencyColumns =
@@ -321,6 +337,7 @@ public partial class RawMaterialLockPlanAndExecution
 
     private async Task LoadDataAsync()
     {
+        await LoadCutoffBucketsAsync();
         try
         {
             var query = new QueryParams
@@ -364,6 +381,7 @@ public partial class RawMaterialLockPlanAndExecution
         {
             var pending = await JS.InvokeAsync<string>("getTableHtml", "#rmlp-summary-pending");
             var purchase = await JS.InvokeAsync<string>("getTableHtml", "#rmlp-summary-purchase");
+            var cutoff = await JS.InvokeAsync<string>("getTableHtml", "#rmlp-summary-cutoff");
             if (string.IsNullOrEmpty(pending))
             {
                 Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
@@ -372,6 +390,8 @@ public partial class RawMaterialLockPlanAndExecution
             var html = "<div style=\"font-weight:600; margin-bottom:4px;\">待投料</div>" + pending;
             if (!string.IsNullOrEmpty(purchase))
                 html += "<div style=\"font-weight:600; margin:10px 0 4px;\">成购（外购成品）</div>" + purchase;
+            if (!string.IsNullOrEmpty(cutoff))
+                html += "<div style=\"font-weight:600; margin:10px 0 4px;\">理论待投料截日</div>" + cutoff;
             await JS.InvokeVoidAsync("printRawHtml", html, "原锁计划-待投料量汇总");
         }
         catch (Exception ex)
@@ -386,20 +406,13 @@ public partial class RawMaterialLockPlanAndExecution
         _totalWeight = _allItems.Sum(x => x.TotalWeight);
 
         // 成购（外购成品）：成品计划量 − 成品到货量 = 未到货量（缺口口径，外购由供应商生产、本厂不投料）
-        Func<RawMaterialLockPlanAndExecutionDto, decimal> purchaseCalc = x =>
-            Math.Max(0m, x.FinishPlanWeight - x.FinishInWeight);
-        _purchaseWeight = _allItems.Sum(purchaseCalc);
+        _purchaseWeight = _allItems.Sum(PurchaseCalc);
         _purchaseCount = _allItems.Count(x => x.FinishPlanWeight > x.FinishInWeight);
 
         // 待投料分档口径（均扣除外购成品，与订单总览 R1 同口径）：
         //   A 质量补料：投料已满足但产出不足（质量损失），补料按流转比缺口折算 = (总重−成购)×1.1×(1−流转比/100)
         //   C 执行计划 / D 完善计划 等：正常缺料 = (总重−成购)×1.1 − 已投料
-        Func<RawMaterialLockPlanAndExecutionDto, decimal> pendingCalc = x =>
-            RawMaterialLockRemarkKeys.ToKey(x.RawMaterialLockRemark) == RawMaterialLockRemarkKeys.QualityReplenish
-                ? Math.Max(0m, (x.TotalWeight - purchaseCalc(x)) * 1.1m * (1m - x.FlowOutputRatio / 100m))
-                : Math.Max(0m, (x.TotalWeight - purchaseCalc(x)) * 1.1m - x.InputWeight);
-
-        _pendingWeight = _allItems.Sum(pendingCalc);
+        _pendingWeight = _allItems.Sum(PendingCalc);
 
         // 交叉矩阵：原料锁定备注 × 主号计划性（每工单行独立归桶）
         _summaryMatrix.Clear();
@@ -409,14 +422,116 @@ public partial class RawMaterialLockPlanAndExecution
             var urgencyKey = UrgencyLevelKeys.ToKey(item.UrgencyLevel) ?? "";
             var key = $"{remarkKey}|{urgencyKey}";
             var cell = _summaryMatrix.GetValueOrDefault(key);
-            var purchaseWeight = Math.Max(0m, item.FinishPlanWeight - item.FinishInWeight);
+            var purchaseWeight = PurchaseCalc(item);
             _summaryMatrix[key] = new MatrixCell(
                 cell.Count + 1,
-                cell.PendingWeight + pendingCalc(item),
+                cell.PendingWeight + PendingCalc(item),
                 cell.PurchaseCount + (purchaseWeight > 0 ? 1 : 0),
                 cell.PurchaseWeight + purchaseWeight);
         }
+
+        // 理论待投料截日汇总
+        RecalculateCutoffSummary();
     }
+
+    private static decimal PurchaseCalc(RawMaterialLockPlanAndExecutionDto x)
+        => Math.Max(0m, x.FinishPlanWeight - x.FinishInWeight);
+
+    private static decimal PendingCalc(RawMaterialLockPlanAndExecutionDto x)
+        => RawMaterialLockRemarkKeys.ToKey(x.RawMaterialLockRemark) == RawMaterialLockRemarkKeys.QualityReplenish
+            ? Math.Max(0m, (x.TotalWeight - PurchaseCalc(x)) * 1.1m * (1m - x.FlowOutputRatio / 100m))
+            : Math.Max(0m, (x.TotalWeight - PurchaseCalc(x)) * 1.1m - x.InputWeight);
+
+    /// <summary>理论待投料截日汇总：原锁类别（完善计划/执行计划/外购成品）× 日期桶（按理论截止投料日归桶，空→远日量；桶边界与订单负荷总量页同源）</summary>
+    private void RecalculateCutoffSummary()
+    {
+        var bucketCount = _cutoffBuckets.Count;
+        var rows = new List<CutoffRowData>
+        {
+            new() { Category = "完善计划", Buckets = new decimal[bucketCount] },
+            new() { Category = "执行计划", Buckets = new decimal[bucketCount] },
+            new() { Category = "外购成品", Buckets = new decimal[bucketCount] },
+        };
+
+        foreach (var item in _allItems)
+        {
+            var remarkKey = RawMaterialLockRemarkKeys.ToKey(item.RawMaterialLockRemark);
+            var bucket = GetCutoffBucket(item.TheoreticalCutoffDate, _cutoffBuckets);
+            if (remarkKey == RawMaterialLockRemarkKeys.ImprovePlan)
+                AddCutoffWeight(rows[0], PendingCalc(item), bucket);
+            else if (remarkKey == RawMaterialLockRemarkKeys.ExecutePlan)
+                AddCutoffWeight(rows[1], PendingCalc(item), bucket);
+            // 外购成品 = 全部工单成购缺口（与待投料量汇总 _purchaseWeight 同口径）
+            AddCutoffWeight(rows[2], PurchaseCalc(item), bucket);
+        }
+
+        var total = new CutoffRowData { Category = "合计", Buckets = new decimal[bucketCount] };
+        foreach (var r in rows)
+        {
+            total.Total += r.Total;
+            for (int i = 0; i < r.Buckets.Length; i++) total.Buckets[i] += r.Buckets[i];
+        }
+        rows.Add(total);
+
+        _cutoffSummaryRows = rows;
+    }
+
+    private static void AddCutoffWeight(CutoffRowData row, decimal weight, int bucket)
+    {
+        row.Total += weight;
+        row.Buckets[bucket] += weight;
+    }
+
+    /// <summary>按理论截止投料日归桶（桶边界与订单负荷总量页同源，2026-08-19 配置化）：投料截止-今日/+7/+15/+30/+45/+60/远日量（空→末桶远日量）</summary>
+    private static int GetCutoffBucket(DateTime? cutoff, List<(DateTime Start, DateTime End, string Label)> buckets)
+    {
+        if (!cutoff.HasValue) return buckets.Count - 1;
+        var d = cutoff.Value.Date;
+        for (int i = 0; i < buckets.Count; i++)
+        {
+            if (d >= buckets[i].Start && d <= buckets[i].End) return i;
+        }
+        return buckets.Count - 1;
+    }
+
+    /// <summary>从 DateBucket 配置表读取桶边界并生成日期桶（与 ProductionOverviewService.GenerateDateBuckets 同源同公式，失败回退默认 7/15/30/45/60）</summary>
+    private async Task LoadCutoffBucketsAsync()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<ApiResponse<Dictionary<string, decimal>>>(
+                $"{ApiEndpoints.ConfigParameter}/config-map?category=DateBucket");
+            var map = response?.Data ?? new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+            var b1 = (int)map.GetValueOrDefault("Bucket1", 7m);
+            var b2 = (int)map.GetValueOrDefault("Bucket2", 15m);
+            var b3 = (int)map.GetValueOrDefault("Bucket3", 30m);
+            var b4 = (int)map.GetValueOrDefault("Bucket4", 45m);
+            var b5 = (int)map.GetValueOrDefault("Bucket5", 60m);
+            _cutoffBuckets = BuildDateBuckets(DateTime.Today, b1, b2, b3, b4, b5);
+        }
+        catch
+        {
+            _cutoffBuckets = BuildDateBuckets(DateTime.Today, 7, 15, 30, 45, 60);
+        }
+    }
+
+    /// <summary>生成 7 日期桶（区间互斥：桶1=[今日+1,今日+b1]、…、末桶=(今日+b5,∞)），首桶「投料截止-今日」按投料截止日语义命名，其余标签与订单负荷总量页一致</summary>
+    private static List<(DateTime Start, DateTime End, string Label)> BuildDateBuckets(DateTime today, int b1, int b2, int b3, int b4, int b5)
+    {
+        return new List<(DateTime, DateTime, string)>
+        {
+            (DateTime.MinValue, today, "投料截止-今日"),
+            (today.AddDays(1), today.AddDays(b1), $"今日+{b1}"),
+            (today.AddDays(b1 + 1), today.AddDays(b2), $"今日+{b2}"),
+            (today.AddDays(b2 + 1), today.AddDays(b3), $"今日+{b3}"),
+            (today.AddDays(b3 + 1), today.AddDays(b4), $"今日+{b4}"),
+            (today.AddDays(b4 + 1), today.AddDays(b5), $"今日+{b5}"),
+            (today.AddDays(b5 + 1), DateTime.MaxValue, "远日量"),
+        };
+    }
+
+    private static string FormatCutoffCell(decimal kg)
+        => kg > 0 ? $"{(kg / 1000m).ToString("F1")}吨" : "-";
 
     private MatrixCell GetMatrixCell(string remarkKey, string urgencyKey)
         => _summaryMatrix.GetValueOrDefault($"{remarkKey}|{urgencyKey}");
@@ -1221,6 +1336,14 @@ public partial class RawMaterialLockPlanAndExecution
                 StateHasChanged();
             }
         }
+    }
+
+    private void OnCurrentPageChanged()
+    {
+        ComputePageSums();
+        _lastSummedPage = table?.CurrentPage ?? 0;
+        _lastSummedCount = _filteredItems.Count;
+        _lastSummedPageSize = table?.RowsPerPage ?? _pageSize;
     }
 
     // ========== 单元格渲染 ==========

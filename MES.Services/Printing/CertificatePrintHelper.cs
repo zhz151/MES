@@ -772,6 +772,10 @@ public static class CertificatePrintHelper
                     sc.Item().PaddingTop(14).Text(GetString(settings, CertificatePrintKeys.SignerText, "工程师：________________")).FontSize(footerTextFont);
                 });
             });
+
+            // 末行：打印日期（右下角，灰色小字）
+            col.Item().PaddingTop(6).AlignRight().Text($"打印日期：{DateTime.Now:yyyy-MM-dd}")
+                .FontSize(footerTextFont - 1).FontColor(Colors.Grey.Darken1);
         });
     }
 

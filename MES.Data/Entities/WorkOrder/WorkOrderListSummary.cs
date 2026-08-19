@@ -165,8 +165,9 @@ public class WorkOrderListSummary : BaseEntity
     /// <summary>主号最大工艺周期（天）：同主号下所有工单 MaxStandardCycle 的最大值</summary>
     public int MainNoMaxStandardCycle { get; set; }
 
-    /// <summary>产能工量（天）：(主号总重量 - 成品采购重量) / 1000 / 日产估算(吨/天)，向上取整</summary>
-    public int CapacityWorkDays { get; set; }
+    /// <summary>产能工量（天）：(主号总重量 - 成品采购 - 库存使用 - 已完成批次有效产出) / 1000 / 日产估算(吨/天)，向上取整。
+    /// 主号完成（执行读模型 ScheduleStage=1）时置 null（显示「-」），其余无剩余产能（剩余重量≤0）时为 0（显示「0天」），与执行表口径一致</summary>
+    public int? CapacityWorkDays { get; set; }
 
     /// <summary>理论截止投料日：交货日期 - 主号最大工艺周期 - 产能工量。仅含需要产能的用料计划时计算</summary>
     public DateTime? TheoreticalCutoffDate { get; set; }

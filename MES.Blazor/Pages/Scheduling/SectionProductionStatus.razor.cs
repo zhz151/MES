@@ -481,6 +481,14 @@ public partial class SectionProductionStatus
         await Task.CompletedTask;
     }
 
+    private void OnCurrentPageChanged()
+    {
+        ComputePageSums();
+        _lastSummedPage = table?.CurrentPage ?? 0;
+        _lastSummedCount = _filteredItems.Count;
+        _lastSummedPageSize = table?.RowsPerPage ?? _pageSize;
+    }
+
     // ========== 打印 ==========
 
     private async Task PrintAll()

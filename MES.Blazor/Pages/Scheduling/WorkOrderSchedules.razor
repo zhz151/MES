@@ -103,6 +103,7 @@
                       Class="mt-0 auto-table compact-table"
                       Elevation="0"
                       RowsPerPage="@_pageSize"
+                      CurrentPageChanged="@(() => OnCurrentPageChanged())"
                       RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     @{

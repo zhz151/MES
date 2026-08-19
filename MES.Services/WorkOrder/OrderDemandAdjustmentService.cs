@@ -59,7 +59,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         _cache = cache;
     }
 
-    public async Task<PagedResult<OrderDemandAdjustmentDto>> GetPagedAsync(QueryParams query, DateTime? signDateFrom = null, DateTime? signDateTo = null)
+    public async Task<PagedResult<OrderDemandAdjustmentDto>> GetPagedAsync(QueryParams query, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateStart = null, DateTime? deliveryDateEnd = null)
     {
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
         var urgingQuery = _context.Set<OrderDemandAdjustment>().AsNoTracking();
@@ -108,11 +108,17 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
                 };
 
-        // 订单日期范围筛选
+        // 订单日期范围筛选（签订日期）
         if (signDateFrom.HasValue)
             q = q.Where(x => x.SignDate >= signDateFrom.Value);
         if (signDateTo.HasValue)
             q = q.Where(x => x.SignDate <= signDateTo.Value);
+
+        // 交货日期范围筛选
+        if (deliveryDateStart.HasValue)
+            q = q.Where(x => x.DeliveryDate >= deliveryDateStart.Value);
+        if (deliveryDateEnd.HasValue)
+            q = q.Where(x => x.DeliveryDate <= deliveryDateEnd.Value);
 
         // 关键词搜索
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -305,7 +311,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
             : query.ApplySort(sortBy, isDescending);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, List<PrintColumnDef> columns)
+    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, DateTime? deliveryDateStart, DateTime? deliveryDateEnd, List<PrintColumnDef> columns)
     {
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
         var urgingQuery = _context.Set<OrderDemandAdjustment>().AsNoTracking();
@@ -357,6 +363,11 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
             q = q.Where(x => x.SignDate >= signDateFrom.Value);
         if (signDateTo.HasValue)
             q = q.Where(x => x.SignDate <= signDateTo.Value);
+
+        if (deliveryDateStart.HasValue)
+            q = q.Where(x => x.DeliveryDate >= deliveryDateStart.Value);
+        if (deliveryDateEnd.HasValue)
+            q = q.Where(x => x.DeliveryDate <= deliveryDateEnd.Value);
 
         if (!string.IsNullOrEmpty(keyword))
         {

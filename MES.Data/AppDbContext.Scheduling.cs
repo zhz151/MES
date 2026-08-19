@@ -47,6 +47,7 @@ public partial class AppDbContext
             entity.Property(e => e.BilletSpec).IsRequired().HasMaxLength(100);
             entity.Property(e => e.RollingSpec).IsRequired().HasMaxLength(100);
             entity.Property(e => e.MachineNo).HasMaxLength(200);
+            entity.Property(e => e.DailyOutput).HasPrecision(18, 3);
             entity.Property(e => e.CompletionType).IsRequired().HasMaxLength(20).HasDefaultValue("None");
             entity.Property(e => e.RollType).IsRequired().HasMaxLength(20).HasDefaultValue("None");
             entity.Property(e => e.MergeDisplay).HasMaxLength(300);

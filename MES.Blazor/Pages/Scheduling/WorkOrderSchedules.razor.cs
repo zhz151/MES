@@ -826,6 +826,14 @@ public partial class WorkOrderSchedules
         }
     }
 
+    private void OnCurrentPageChanged()
+    {
+        ComputePageSums();
+        _lastSummedPage = table?.CurrentPage ?? 0;
+        _lastSummedCount = _filteredItems.Count;
+        _lastSummedPageSize = table?.RowsPerPage ?? _pageSize;
+    }
+
     // ========== 单元格渲染 ==========
 
     private RenderFragment RenderCell(WorkOrderScheduleDto item, ColumnDef col) => builder =>

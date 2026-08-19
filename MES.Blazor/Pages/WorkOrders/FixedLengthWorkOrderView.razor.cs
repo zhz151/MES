@@ -51,6 +51,10 @@ public partial class FixedLengthWorkOrderView
 
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
+    private string _dateFrom = string.Empty;
+    private string _dateTo = string.Empty;
+    private string _deliveryDateFrom = string.Empty;
+    private string _deliveryDateTo = string.Empty;
 
     // 排序状态
     private string sortColumn = "WorkOrderNo";
@@ -320,6 +324,18 @@ public partial class FixedLengthWorkOrderView
                 (x.InboundDoubt.Contains(kw, StringComparison.OrdinalIgnoreCase)));
         }
 
+        // 签订日期范围筛选
+        if (DateTime.TryParse(_dateFrom, out var sdFrom))
+            query = query.Where(x => x.SignDate.Date >= sdFrom.Date);
+        if (DateTime.TryParse(_dateTo, out var sdTo))
+            query = query.Where(x => x.SignDate.Date <= sdTo.Date);
+
+        // 交货日期范围筛选
+        if (DateTime.TryParse(_deliveryDateFrom, out var ddFrom))
+            query = query.Where(x => x.DeliveryDate.Date >= ddFrom.Date);
+        if (DateTime.TryParse(_deliveryDateTo, out var ddTo))
+            query = query.Where(x => x.DeliveryDate.Date <= ddTo.Date);
+
         // 列筛选
         foreach (var kvp in _columnFilters)
         {
@@ -471,6 +487,34 @@ public partial class FixedLengthWorkOrderView
         await SavePageStateAsync();
     }
 
+    private async Task OnDateFromChanged(string value)
+    {
+        _dateFrom = value ?? string.Empty;
+        ApplyFiltersAndSort();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnDateToChanged(string value)
+    {
+        _dateTo = value ?? string.Empty;
+        ApplyFiltersAndSort();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnDeliveryDateFromChanged(string value)
+    {
+        _deliveryDateFrom = value ?? string.Empty;
+        ApplyFiltersAndSort();
+        await SavePageStateAsync();
+    }
+
+    private async Task OnDeliveryDateToChanged(string value)
+    {
+        _deliveryDateTo = value ?? string.Empty;
+        ApplyFiltersAndSort();
+        await SavePageStateAsync();
+    }
+
     // ========== 分组 CSS ==========
 
     private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
@@ -610,6 +654,10 @@ public partial class FixedLengthWorkOrderView
             sortColumn = savedState.SortBy ?? "WorkOrderNo";
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
+            _dateFrom = savedState.Extras?.ContainsKey("dateFrom") == true ? savedState.Extras["dateFrom"] ?? string.Empty : string.Empty;
+            _dateTo = savedState.Extras?.ContainsKey("dateTo") == true ? savedState.Extras["dateTo"] ?? string.Empty : string.Empty;
+            _deliveryDateFrom = savedState.Extras?.ContainsKey("deliveryDateFrom") == true ? savedState.Extras["deliveryDateFrom"] ?? string.Empty : string.Empty;
+            _deliveryDateTo = savedState.Extras?.ContainsKey("deliveryDateTo") == true ? savedState.Extras["deliveryDateTo"] ?? string.Empty : string.Empty;
 
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
             {
@@ -648,6 +696,14 @@ public partial class FixedLengthWorkOrderView
                 StateHasChanged();
             }
         }
+    }
+
+    private void OnCurrentPageChanged()
+    {
+        ComputePageSums();
+        _lastSummedPage = table?.CurrentPage ?? 0;
+        _lastSummedCount = _filteredItems.Count;
+        _lastSummedPageSize = table?.RowsPerPage ?? _pageSize;
     }
 
     // ========== 单元格渲染 ==========
@@ -1024,6 +1080,10 @@ public partial class FixedLengthWorkOrderView
         var extras = new Dictionary<string, string>();
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+        if (!string.IsNullOrWhiteSpace(_dateFrom)) extras["dateFrom"] = _dateFrom;
+        if (!string.IsNullOrWhiteSpace(_dateTo)) extras["dateTo"] = _dateTo;
+        if (!string.IsNullOrWhiteSpace(_deliveryDateFrom)) extras["deliveryDateFrom"] = _deliveryDateFrom;
+        if (!string.IsNullOrWhiteSpace(_deliveryDateTo)) extras["deliveryDateTo"] = _deliveryDateTo;
 
         var state = new PageState
         {

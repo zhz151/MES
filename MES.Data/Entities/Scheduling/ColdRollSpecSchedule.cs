@@ -21,6 +21,9 @@ public class ColdRollSpecSchedule : BaseEntity
     /// <summary>轧机设备号（多台用分号分隔，如"60-1#；60-2#"）</summary>
     public string? MachineNo { get; set; }
 
+    /// <summary>单机单日量（kg/天，单台设备每日可轧制重量）</summary>
+    public decimal? DailyOutput { get; set; }
+
     /// <summary>完工要求（None=无计划/All=全量完工/Urgent=急单完工/Partial1=部分完工1/Partial2=部分完工2/Partial3=部分完工3）针对"在产"维度</summary>
     public string CompletionType { get; set; } = null!;
 

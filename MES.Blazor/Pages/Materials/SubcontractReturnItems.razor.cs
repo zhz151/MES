@@ -159,6 +159,16 @@ public partial class SubcontractReturnItems : IAsyncDisposable
         await LoadFilterContextsAsync();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // 分组标题栏：测量 MudTable 实际列宽 + 同步滚动对齐（列显隐/排序/滚动条变化时 ResizeObserver 自动重同步）
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#return-item-list-table");
+        }
+        catch { }
+    }
+
     private async Task LoadFilterContextsAsync()
     {
         if (_filterContextOptions.Count > 0) return;

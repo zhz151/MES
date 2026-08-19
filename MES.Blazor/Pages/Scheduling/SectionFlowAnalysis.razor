@@ -29,7 +29,8 @@
     <MudTable @ref="table" T="SectionFlowAnalysisDto"
               Items="@_filteredItems"
               Dense="true" Hover="true" Elevation="0" Class="auto-table"
-              RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
+              RowsPerPage="@_pageSize" CurrentPageChanged="@(() => OnCurrentPageChanged())"
+              RowsPerPageLabel="每页行数:">
         <ToolBarContent>
             <ColumnDisplaySelect Columns="_allColumns"
                                  OnColumnToggle="OnColumnToggle"

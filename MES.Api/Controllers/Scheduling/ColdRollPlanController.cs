@@ -41,4 +41,14 @@ public class ColdRollPlanController : ControllerBase
         return Ok(ApiResponse<List<ColdRollPlanSummaryDto>>.Ok(data));
     }
 
+    /// <summary>
+    /// 获取冷轧排程排机估算（按轧机类型聚合：冷轧5060/冷轧2030/冷轧三辊/冷拔）
+    /// </summary>
+    [HttpGet("machine-estimate")]
+    public async Task<IActionResult> GetMachineEstimate()
+    {
+        var data = await _coldRollPlanService.GetMachineEstimateAsync();
+        return Ok(ApiResponse<List<ColdRollMachineEstimateDto>>.Ok(data));
+    }
+
 }

@@ -19,6 +19,13 @@ public class ConfigParameterController : ControllerBase
         _service = service;
     }
 
+    [HttpGet("config-map")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, decimal>>>> GetConfigMap([FromQuery] string category)
+    {
+        var result = await _service.GetConfigMapAsync(category);
+        return Ok(ApiResponse<Dictionary<string, decimal>>.Ok(result));
+    }
+
     [HttpGet("list")]
     public async Task<ActionResult<ApiResponse<PagedResult<ConfigParameterDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,

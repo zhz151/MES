@@ -858,6 +858,94 @@ public class SubcontractOrderServiceTests : TestBase
         result.Items[0].ReturnQuantity.Should().Be(8);
         result.Items[0].ReturnWeight.Should().Be(80m);
         result.Items[0].OrderDate.Should().Be(DateTime.Today);
+        // 截止回收日 = 仓库批 InboundDate 最大值（非主表收回期限）
+        result.Items[0].ReturnDeadline.Should().Be(DateTime.Today);
+    }
+
+    [Fact]
+    public async Task GetReturnItemListAsync_截止回收日为仓库入库日期_要求到货日为主表收回期限()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}014", DateTime.Today);
+
+        // 主表收回期限 = 今天+60天 → 要求到货日
+        var plannedDeadline = order.ReturnDeadline!.Value;
+
+        // 回收入库仓库批：InboundDate 今天-5 / 今天 → 截止回收日 = Max = 今天
+        ctx.InventoryBatches.AddRange(
+            new InventoryBatch
+            {
+                BatchNo = "SRD001",
+                InboundSource = "委外",
+                SourceName = "委外供应商",
+                SourceOrderNo = order.OrderNo,
+                SourceOrderSequence = 1,
+                MaterialType = "RoughTube",
+                PlantGrade = "20#",
+                Specification = "219*8",
+                InitialQuantity = 10,
+                InitialWeight = 100m,
+                WarehouseId = 1,
+                InboundDate = DateTime.Today.AddDays(-5)
+            },
+            new InventoryBatch
+            {
+                BatchNo = "SRD002",
+                InboundSource = "委外",
+                SourceName = "委外供应商",
+                SourceOrderNo = order.OrderNo,
+                SourceOrderSequence = 2,
+                MaterialType = "RoughTube",
+                PlantGrade = "20#",
+                Specification = "219*8",
+                InitialQuantity = 20,
+                InitialWeight = 200m,
+                WarehouseId = 1,
+                InboundDate = DateTime.Today
+            });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetReturnItemListAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        result.Items.Should().HaveCount(1);
+        // 截止回收日 = 实际收回入库日期 Max(InboundDate)
+        result.Items[0].ReturnDeadline.Should().Be(DateTime.Today);
+        // 要求到货日 = 主表收回期限
+        result.Items[0].RequiredArrivalDate.Should().Be(plannedDeadline);
+    }
+
+    [Fact]
+    public async Task GetReturnItemFilterContextsAsync_截止回收日按仓库入库日期()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}015", DateTime.Today);
+
+        // 回收入库：InboundDate=今天-3 → 截止回收日下拉含该日期（非主表收回期限）
+        ctx.InventoryBatches.Add(new InventoryBatch
+        {
+            BatchNo = "SRE001",
+            InboundSource = "委外",
+            SourceName = "委外供应商",
+            SourceOrderNo = order.OrderNo,
+            SourceOrderSequence = 1,
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 10,
+            InitialWeight = 100m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today.AddDays(-3)
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var contexts = await svc.GetReturnItemFilterContextsAsync();
+
+        contexts["ReturnDeadline"].Should().Contain(DateTime.Today.AddDays(-3).ToString("yyyy-MM-dd"));
+        contexts["RequiredArrivalDate"].Should().Contain(order.ReturnDeadline!.Value.ToString("yyyy-MM-dd"));
     }
 
     [Fact]
@@ -898,5 +986,42 @@ public class SubcontractOrderServiceTests : TestBase
 
         result.Items.Should().HaveCount(1);
         result.Items[0].OrderNo.Should().Be("WW20260101001");
+    }
+
+    [Fact]
+    public async Task GetReturnItemListAsync_属强制完成_排序筛选生效()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderWithDateAsync(ctx, sid, "WW20260101020", new DateTime(2026, 3, 5));
+        await SeedOrderWithDateAsync(ctx, sid, "WW20260101021", new DateTime(2026, 3, 6));
+
+        // 第 1 单的子项设为强制完成 → 升序 false 在前、降序 true 在前
+        var item1 = await ctx.SubcontractReturnItems.SingleAsync(i => i.SubcontractOrder.OrderNo == "WW20260101020");
+        item1.IsForceCompleted = true;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        var asc = await svc.GetReturnItemListAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "IsForceCompleted", IsDescending = false });
+        asc.Items.Should().HaveCount(2);
+        asc.Items[0].IsForceCompleted.Should().BeFalse();
+        asc.Items[1].IsForceCompleted.Should().BeTrue();
+
+        var desc = await svc.GetReturnItemListAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "IsForceCompleted", IsDescending = true });
+        desc.Items[0].IsForceCompleted.Should().BeTrue();
+        desc.Items[1].IsForceCompleted.Should().BeFalse();
+
+        var filtered = await svc.GetReturnItemListAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "IsForceCompleted", Operator = "in", Values = new List<string> { "True" } }
+            }
+        });
+        filtered.Items.Should().HaveCount(1);
+        filtered.Items[0].IsForceCompleted.Should().BeTrue();
     }
 }

@@ -46,6 +46,16 @@ public class ColdRollPlanService
         return response?.Data ?? new List<ColdRollPlanSummaryDto>();
     }
 
+    /// <summary>
+    /// 获取冷轧排程排机估算（按轧机类型聚合：冷轧5060/冷轧2030/冷轧三辊/冷拔）
+    /// </summary>
+    public async Task<List<ColdRollMachineEstimateDto>> GetMachineEstimateAsync()
+    {
+        var url = $"{ApiEndpoints.ColdRollPlan}/machine-estimate";
+        var response = await _http.GetFromJsonAsync<MachineEstimateResponse>(url);
+        return response?.Data ?? new List<ColdRollMachineEstimateDto>();
+    }
+
     private class PlanResponse
     {
         public bool Success { get; set; }
@@ -56,5 +66,11 @@ public class ColdRollPlanService
     {
         public bool Success { get; set; }
         public List<ColdRollPlanSummaryDto> Data { get; set; } = new();
+    }
+
+    private class MachineEstimateResponse
+    {
+        public bool Success { get; set; }
+        public List<ColdRollMachineEstimateDto> Data { get; set; } = new();
     }
 }

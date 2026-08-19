@@ -42,6 +42,11 @@ public partial class ColdRollPlans
     private bool _summaryLoading = false;
     private int? _summaryMaxDiff = null; // null=全部(待轧近), 2=近2天, 4=近4天
 
+    // ========== 排机估算 ==========
+    private bool _showMachineEstimate = false;
+    private bool _estimateLoading = false;
+    private List<ColdRollMachineEstimateDto> _estimateRows = new();
+
     // ========== 列筛选 ==========
     private readonly Dictionary<string, HashSet<string>> _columnFilters = new();
     private readonly Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -49,6 +54,7 @@ public partial class ColdRollPlans
     private class ScheduleEditData
     {
         public string MachineNo { get; set; } = "";
+        public decimal? DailyOutput { get; set; }
         public string CompletionType { get; set; } = "None";
         public string RollType { get; set; } = "None";
     }
@@ -232,6 +238,44 @@ public partial class ColdRollPlans
         await JS.InvokeVoidAsync("eval", "document.body.classList.remove('print-summary')");
     }
 
+    // ========== 排机估算 ==========
+
+    private async Task ToggleMachineEstimate()
+    {
+        _showMachineEstimate = !_showMachineEstimate;
+        if (_showMachineEstimate)
+        {
+            // 展开时总是重载（后端 60 秒缓存命中则快速返回，避免折叠再展开仍显示旧数据）
+            // ⚠️ 必须 await：async 事件处理器每次 await 恢复后自动 StateHasChanged，
+            // 否则 fire-and-forget 加载完成后数据不渲染，需等下一次交互才显示（曾误以为依赖排程汇总）
+            await LoadMachineEstimateAsync();
+        }
+    }
+
+    private async Task LoadMachineEstimateAsync()
+    {
+        try
+        {
+            _estimateLoading = true;
+            _estimateRows = await ColdRollSvc.GetMachineEstimateAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载排机估算失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _estimateLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PrintMachineEstimate()
+    {
+        var html = await JS.InvokeAsync<string>("getTableHtml", "#crp-machine-estimate-table");
+        await JS.InvokeVoidAsync("printRawHtml", html, "冷轧排程排机估算");
+    }
+
     // ========== 列显隐 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -325,6 +369,7 @@ public partial class ColdRollPlans
                             MachineNo = item.WeightWaitNear > 0 && !string.IsNullOrEmpty(sched.RollType) && sched.RollType != "None"
                                 ? (sched.MachineNo ?? "")
                                 : "",
+                            DailyOutput = sched.DailyOutput,
                             CompletionType = item.WeightProd > 0 ? sched.CompletionType : "None",
                             RollType = item.WeightWaitNear > 0 ? sched.RollType : "None",
                         };
@@ -349,6 +394,7 @@ public partial class ColdRollPlans
                         MachineNo = item.WeightWaitNear > 0 && !string.IsNullOrEmpty(schedule.RollType) && schedule.RollType != "None"
                             ? (schedule.MachineNo ?? "")
                             : "",
+                        DailyOutput = schedule.DailyOutput,
                         CompletionType = item.WeightProd > 0 ? schedule.CompletionType : "None",
                         RollType = item.WeightWaitNear > 0 ? schedule.RollType : "None",
                     };
@@ -375,6 +421,7 @@ public partial class ColdRollPlans
                 item.CompletionType = edit.CompletionType;
                 item.RollType = edit.RollType;
                 item.SchedMachineNo = edit.MachineNo;
+                item.DailyOutput = edit.DailyOutput;
             }
         }
     }
@@ -447,6 +494,7 @@ public partial class ColdRollPlans
                     RollingSpec = parts[2],
                     IsFinished = bool.Parse(parts[3]),
                     MachineNo = string.IsNullOrWhiteSpace(kvp.Value.MachineNo) ? null : kvp.Value.MachineNo,
+                    DailyOutput = kvp.Value.DailyOutput,
                     CompletionType = kvp.Value.CompletionType,
                     RollType = kvp.Value.RollType,
                 });
@@ -472,6 +520,11 @@ public partial class ColdRollPlans
             if (_showScheduleSummary)
             {
                 _scheduleSummaryData = await ColdRollSvc.GetScheduleSummaryAsync(null, _summaryMaxDiff);
+            }
+            // 排程变更会失效后端排机估算缓存，展开状态下同步刷新
+            if (_showMachineEstimate)
+            {
+                await LoadMachineEstimateAsync();
             }
         }
         catch (Exception ex)
@@ -622,7 +675,8 @@ public partial class ColdRollPlans
                 (x.MachineNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.CompletionType?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
                 (x.RollType?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
-                (x.SchedMachineNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true));
+                (x.SchedMachineNo?.Contains(kw, StringComparison.OrdinalIgnoreCase) == true) ||
+                (x.DailyOutput?.ToString("G29").Contains(kw, StringComparison.OrdinalIgnoreCase) == true));
         }
 
         // ExcelFilter 列筛选
@@ -705,6 +759,9 @@ public partial class ColdRollPlans
             "SchedMachineNo" => sortDescending
                 ? filtered.OrderByDescending(x => x.SchedMachineNo ?? "")
                 : filtered.OrderBy(x => x.SchedMachineNo ?? ""),
+            "DailyOutput" => sortDescending
+                ? filtered.OrderByDescending(x => x.DailyOutput)
+                : filtered.OrderBy(x => x.DailyOutput),
             _ => filtered.OrderBy(x => x.ProcessType)
         };
 
@@ -831,6 +888,7 @@ public partial class ColdRollPlans
             new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetCompletionTypeOptions() },
             new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetRollTypeOptions() },
             new() { Key = "SchedMachineNo", Label = "待轧设备号", Width = "100", GroupKey = 6, GroupName = "排程设置", FilterType = "string" },
+            new() { Key = "DailyOutput",    Label = "单机单日量(kg/天)", Width = "130", GroupKey = 6, GroupName = "排程设置" },
         };
 
         return g1.Concat(g2).Concat(g3).Concat(g4).Concat(g5).Concat(g6).ToList();
@@ -883,6 +941,7 @@ public partial class ColdRollPlans
             new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetCompletionTypeOptions() },
             new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetRollTypeOptions() },
             new() { Key = "SchedMachineNo", Label = "待轧设备号", Width = "100", GroupKey = 6, GroupName = "排程设置", FilterType = "string" },
+            new() { Key = "DailyOutput",    Label = "单机单日量(kg/天)", Width = "130", GroupKey = 6, GroupName = "排程设置" },
         };
 
         return g1.Concat(g2).Concat(g3).Concat(g4).Concat(g5).Concat(g6).ToList();
@@ -894,6 +953,7 @@ public partial class ColdRollPlans
         if (col.Key == "CompletionType") return GetCompletionTypeText(item.CompletionType);
         if (col.Key == "RollType") return GetRollTypeText(item.RollType);
         if (col.Key == "SchedMachineNo") return item.SchedMachineNo ?? "";
+        if (col.Key == "DailyOutput") return item.DailyOutput?.ToString("G29") ?? "";
 
         return col.Key switch
         {
@@ -1128,6 +1188,7 @@ public partial class ColdRollPlans
             "CompletionType" => item.CompletionType ?? "",
             "RollType" => item.RollType ?? "",
             "SchedMachineNo" => item.SchedMachineNo ?? "",
+            "DailyOutput" => item.DailyOutput?.ToString("G29") ?? "",
             _ => "",
         };
     }

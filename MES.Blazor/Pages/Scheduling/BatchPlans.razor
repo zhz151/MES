@@ -353,6 +353,7 @@
                       Elevation="0"
                       RowsPerPage="@_pageSize"
                       RowsPerPageChanged="@OnRowsPerPageChanged"
+                      CurrentPageChanged="@(() => OnCurrentPageChanged())"
                       RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     @{

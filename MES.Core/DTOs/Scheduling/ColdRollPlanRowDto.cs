@@ -47,4 +47,7 @@ public class ColdRollPlanRowDto
     /// <summary>待轧设备号（排程数据，仅供客户端排序/筛选）</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string? SchedMachineNo { get; set; }
+    /// <summary>单机单日量（kg/天，排程数据，仅供客户端排序/筛选）</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public decimal? DailyOutput { get; set; }
 }

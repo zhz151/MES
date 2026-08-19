@@ -42,6 +42,8 @@ public partial class OrderDemandAdjustment
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
+    private string _deliveryDateFrom = string.Empty;
+    private string _deliveryDateTo = string.Empty;
 
     // 排序状态
     private string sortColumn = "ScheduleStage";
@@ -172,7 +174,9 @@ public partial class OrderDemandAdjustment
             var result = await DemandAdjustmentService.GetPagedAsync(
                 query,
                 dateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
-                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null);
+                dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null,
+                deliveryDateFrom: DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf : null,
+                deliveryDateTo: DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt : null);
 
             if (result.Success && result.Data != null)
             {
@@ -361,6 +365,20 @@ public partial class OrderDemandAdjustment
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnDeliveryDateFromChanged(string value)
+    {
+        _deliveryDateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnDeliveryDateToChanged(string value)
+    {
+        _deliveryDateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 内联编辑 ==========
 
     private async Task ToggleUrging(OrderDemandAdjustmentDto item)
@@ -527,6 +545,8 @@ public partial class OrderDemandAdjustment
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _dateFrom = savedState.Extras?.ContainsKey("dateFrom") == true ? savedState.Extras["dateFrom"] ?? string.Empty : string.Empty;
             _dateTo = savedState.Extras?.ContainsKey("dateTo") == true ? savedState.Extras["dateTo"] ?? string.Empty : string.Empty;
+            _deliveryDateFrom = savedState.Extras?.ContainsKey("deliveryDateFrom") == true ? savedState.Extras["deliveryDateFrom"] ?? string.Empty : string.Empty;
+            _deliveryDateTo = savedState.Extras?.ContainsKey("deliveryDateTo") == true ? savedState.Extras["deliveryDateTo"] ?? string.Empty : string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
 
             // 恢复列显隐
@@ -784,6 +804,8 @@ public partial class OrderDemandAdjustment
                 isDescending = sortDescending,
                 signDateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom.ToString("yyyy-MM-dd") : null,
                 signDateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo.ToString("yyyy-MM-dd") : null,
+                deliveryDateStart = DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf.ToString("yyyy-MM-dd") : null,
+                deliveryDateEnd = DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt.ToString("yyyy-MM-dd") : null,
                 columns = printColumns
             };
 
@@ -895,6 +917,8 @@ public partial class OrderDemandAdjustment
         var extras = new Dictionary<string, string>();
         if (!string.IsNullOrWhiteSpace(_dateFrom)) extras["dateFrom"] = _dateFrom;
         if (!string.IsNullOrWhiteSpace(_dateTo)) extras["dateTo"] = _dateTo;
+        if (!string.IsNullOrWhiteSpace(_deliveryDateFrom)) extras["deliveryDateFrom"] = _deliveryDateFrom;
+        if (!string.IsNullOrWhiteSpace(_deliveryDateTo)) extras["deliveryDateTo"] = _deliveryDateTo;
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
 

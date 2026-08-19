@@ -21,6 +21,14 @@ window.downloadFile = function (base64, fileName) {
     }
 };
 
+// 格式化打印日期（yyyy-MM-dd，与后端 PDF 页脚一致）
+function formatPrintDate(d) {
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth() + 1)).slice(-2);
+    var day = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + day;
+}
+
 // 打印设备二维码标签
 window.MES = window.MES || {};
 window.MES.printQrCodes = function (codes) {
@@ -40,6 +48,7 @@ window.MES.printQrCodes = function (codes) {
         'body{text-align:center;font-family:sans-serif;}' +
         '</style></head><body>' +
         '<h2 style="font-size:16px;margin-bottom:20px;">设备二维码标签</h2>' +
+        '<div style="font-size:12px;margin-bottom:10px;">打印日期：' + formatPrintDate(new Date()) + '</div>' +
         '<div>' + rows + '</div>' +
         '<script>window.onload=function(){window.print();}<' + '/script>' +
         '</body></html>';
@@ -60,11 +69,11 @@ function openPrintWindow(html, title, pageOrientation) {
         '<style>' +
         '@page{size:' + orientation + ';margin:' + margin + ';}' +
         'body{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;padding:0;margin:0;}' +
-        'h2{text-align:center;margin:6px 0 12px;font-size:16px;}' +
-        'table{width:100%;border-collapse:collapse;font-size:11px;table-layout:auto;}' +
-        'th,td{border:1px solid #333;padding:3px 5px;text-align:left;word-break:break-all;}' +
+        'h2{text-align:center;margin:6px 0 12px;font-size:22px;}' +
+        'table{width:100%;border-collapse:collapse;font-size:17px;table-layout:auto;}' +
+        'th,td{border:1px solid #333;padding:4px 6px;text-align:left;white-space:nowrap;word-break:normal;}' +
         'th{background-color:#e0e0e0;font-weight:600;}' +
-        '.mud-table-cell{border:1px solid #333;padding:3px 5px;}' +
+        '.mud-table-cell{border:1px solid #333;padding:4px 6px;}' +
         '.mud-table-cell--right{text-align:right;}' +
         '.col-header-cell .mud-icon-root,.col-header-cell .th-label svg{display:none;}' +
         'tr{page-break-inside:avoid;}' +
@@ -73,6 +82,7 @@ function openPrintWindow(html, title, pageOrientation) {
         '</style></head><body>' +
         '<h2>' + (title || '') + '</h2>' +
         html +
+        '<div style="margin-top:10px;padding-top:6px;border-top:1px solid #999;text-align:left;font-size:14px;">打印日期：' + formatPrintDate(new Date()) + '</div>' +
         '<script>window.print();window.close();<' + '/script>' +
         '</body></html>'
     );

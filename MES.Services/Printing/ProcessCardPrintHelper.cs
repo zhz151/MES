@@ -65,6 +65,7 @@ public static class ProcessCardPrintHelper
                     var displayTitle = string.IsNullOrEmpty(companyName) ? title : $"{companyName} - {title}";
                     page.Header().Element(h => ComposeHeader(h, displayTitle, batch, style));
                     page.Content().Element(c => ComposeContent(c, batch, groups, visibleCols, style, sectionNameMap, processNameMap));
+                    page.Footer().Element(ComposeFooter);
                 });
             }
         }).GeneratePdf();
@@ -102,6 +103,16 @@ public static class ProcessCardPrintHelper
 
             col.Item().PaddingVertical(2)
                 .LineHorizontal(1).LineColor(Colors.Black);
+        });
+    }
+
+    // ========== 页脚 ==========
+
+    private static void ComposeFooter(IContainer container)
+    {
+        container.Row(row =>
+        {
+            row.RelativeItem().Text($"打印日期：{DateTime.Now:yyyy-MM-dd}").FontSize(8);
         });
     }
 

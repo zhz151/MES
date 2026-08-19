@@ -11,7 +11,7 @@ public interface IWorkOrderExecutionService
     /// <summary>
     /// 分页查询工单执行状况
     /// </summary>
-    Task<PagedResult<WorkOrderExecutionSummaryDto>> GetPagedAsync(QueryParams query, DateTime? signDateFrom = null, DateTime? signDateTo = null);
+    Task<PagedResult<WorkOrderExecutionSummaryDto>> GetPagedAsync(QueryParams query, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateStart = null, DateTime? deliveryDateEnd = null);
 
     /// <summary>
     /// 全量刷新所有工单的执行状况汇总数�?    /// </summary>
@@ -30,7 +30,7 @@ public interface IWorkOrderExecutionService
     Task RefreshByWorkOrderNosAsync(List<string> workOrderNos);
 
     /// <summary>按筛选条件打印全部数据</summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, List<PrintColumnDef> columns);
+    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, DateTime? deliveryDateStart, DateTime? deliveryDateEnd, List<PrintColumnDef> columns);
 
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
