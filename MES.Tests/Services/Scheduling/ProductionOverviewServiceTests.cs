@@ -114,7 +114,7 @@ public class ProductionOverviewServiceTests : TestBase
         return batch;
     }
 
-    private static void SeedProcessGroup(AppDbContext ctx, ProductionBatch batch, int seq, string processName, int? outerPolish = null, string? manufacturingSpec = null)
+    private static void SeedProcessGroup(AppDbContext ctx, ProductionBatch batch, int seq, string processName, int? outerPolish = null, string? manufacturingSpec = null, int? coldRollDraw = null)
     {
         ctx.ProcessGroups.Add(new ProcessGroup
         {
@@ -123,7 +123,8 @@ public class ProductionOverviewServiceTests : TestBase
             SequenceNumber = seq,
             ProcessName = processName,
             OuterPolish = outerPolish,
-            ManufacturingSpec = manufacturingSpec
+            ManufacturingSpec = manufacturingSpec,
+            ColdRollDraw = coldRollDraw
         });
     }
 
@@ -352,6 +353,131 @@ public class ProductionOverviewServiceTests : TestBase
         // 桶内合计校验：桶1（交期截止-今日）= 完善 8 + 外购 2 = 10；桶4（今日+16~+30）= 完善 5 + 执行 6 = 11
         raw.DateBucketTons[0].Should().Be(10m);
         raw.DateBucketTons[3].Should().Be(11m);
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_冷轧5060_同批次50与60两道次未到达_各计一次构成合重量()
+    {
+        using var ctx = CreateDbContext();
+        // 批次流转 1000kg：工序 荒管处理(1)→冷轧60(2)→冷轧50(3)，未开始生产（CurrentGroupName 空）：
+        // 「冷轧5060」= 50+60 合重量，两道次均未到达 → 各计入 1000kg → 2000kg（非只计第一道次的 1000kg）
+        var batch = SeedBatch(ctx, "B1", BatchStatus.InProgress, 1000, DateTime.Today);
+        await ctx.SaveChangesAsync();
+        SeedProcessGroup(ctx, batch, 1, ProcessKeys.RoughTubeProcessing, outerPolish: 1);
+        SeedProcessGroup(ctx, batch, 2, ProcessKeys.ColdRoll60, manufacturingSpec: "180*6");
+        SeedProcessGroup(ctx, batch, 3, ProcessKeys.ColdRoll50, manufacturingSpec: "219*8");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOverviewAsync();
+
+        // 冷轧5060 行（Rows[12]）：60+50 两道次各 1 吨 → 合重量 2 吨
+        var cr50_60 = result.Rows[12];
+        cr50_60.TotalRemainingTons.Should().Be(2m);
+        // 冷轧2030/三辊/冷拔行无匹配工序组 → 0
+        result.Rows[13].TotalRemainingTons.Should().Be(0m);
+        result.Rows[14].TotalRemainingTons.Should().Be(0m);
+        result.Rows[15].TotalRemainingTons.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_冷轧5060_同批次多次60多次50各道次各计待产量()
+    {
+        using var ctx = CreateDbContext();
+        // 批次流转 1000kg：工序 荒管(1)→60(2,180*6)→50(3,159*6)→60(4,114*4)→50(5,89*3)，未开始生产：
+        // 多次60、多次50 与多次冷拔同语义：每道未到达的 60/50 各计一次 → 冷轧5060 = 4×1000 = 4000kg
+        var batch = SeedBatch(ctx, "B1", BatchStatus.InProgress, 1000, DateTime.Today);
+        await ctx.SaveChangesAsync();
+        SeedProcessGroup(ctx, batch, 1, ProcessKeys.RoughTubeProcessing, outerPolish: 1);
+        SeedProcessGroup(ctx, batch, 2, ProcessKeys.ColdRoll60, manufacturingSpec: "180*6");
+        SeedProcessGroup(ctx, batch, 3, ProcessKeys.ColdRoll50, manufacturingSpec: "159*6");
+        SeedProcessGroup(ctx, batch, 4, ProcessKeys.ColdRoll60, manufacturingSpec: "114*4");
+        SeedProcessGroup(ctx, batch, 5, ProcessKeys.ColdRoll50, manufacturingSpec: "89*3");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOverviewAsync();
+
+        // 冷轧5060 行（Rows[12]）：4 道次各 1 吨 → 4 吨
+        result.Rows[12].TotalRemainingTons.Should().Be(4m);
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_拉机行_同批次多次冷拔规格不同_各计一次待产量()
+    {
+        using var ctx = CreateDbContext();
+        // 批次流转 1000kg：工序 荒管(1)→冷拔(2,规格180*6)→冷轧30(3)→冷拔(4,规格219*8)，未开始生产：
+        // 多次冷拔每次规格不同，属独立加工道次 → 拉机行两道次各计入 1000kg → 2000kg
+        var batch = SeedBatch(ctx, "B1", BatchStatus.InProgress, 1000, DateTime.Today);
+        await ctx.SaveChangesAsync();
+        SeedProcessGroup(ctx, batch, 1, ProcessKeys.RoughTubeProcessing, outerPolish: 1);
+        SeedProcessGroup(ctx, batch, 2, ProcessKeys.ColdDraw, coldRollDraw: 1, manufacturingSpec: "180*6");
+        SeedProcessGroup(ctx, batch, 3, ProcessKeys.ColdRoll30, manufacturingSpec: "159*6");
+        SeedProcessGroup(ctx, batch, 4, ProcessKeys.ColdDraw, coldRollDraw: 1, manufacturingSpec: "219*8");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOverviewAsync();
+
+        // 拉机行（Rows[15]）：两次冷拔各计 1 吨 → 2 吨
+        result.Rows[15].TotalRemainingTons.Should().Be(2m);
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_冷轧5060_当前工序组内已过冷轧拔做脱脂未完工_不计入待产()
+    {
+        using var ctx = CreateDbContext();
+        // 批次流转 1000kg，工序组 冷轧50(2)：冷轧拔=序号6、脱脂=序号8；当前在 ColdRoll50 组内脱脂工段未完工。
+        // 冷轧拔(第一道工段)已完成 → 已轧完、不再占用 50/60 机台 → 不计入 5060 行待产
+        var batch = SeedBatch(ctx, "B1", BatchStatus.InProgress, 1000, DateTime.Today);
+        await ctx.SaveChangesAsync();
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            BatchNo = batch.BatchNo,
+            SequenceNumber = 2,
+            ProcessName = ProcessKeys.ColdRoll50,
+            ColdRollDraw = 6,
+            Degrease = 8
+        });
+        batch.CurrentGroupName = ProcessKeys.ColdRoll50;
+        batch.CurrentSectionName = SectionKeys.Degrease;
+        batch.CurrentSectionCompleted = false;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOverviewAsync();
+
+        // 冷轧5060 行（Rows[12]）：已轧完 → 不计入
+        result.Rows[12].TotalRemainingTons.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_冷轧5060_当前工序组内冷轧拔生产中_计入待产()
+    {
+        using var ctx = CreateDbContext();
+        // 批次流转 1000kg，当前在 ColdRoll50 组内冷轧拔(序号6)工段未完工（正在轧制）→ 计入 5060 行待产
+        var batch = SeedBatch(ctx, "B1", BatchStatus.InProgress, 1000, DateTime.Today);
+        await ctx.SaveChangesAsync();
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            BatchNo = batch.BatchNo,
+            SequenceNumber = 2,
+            ProcessName = ProcessKeys.ColdRoll50,
+            ColdRollDraw = 6,
+            Degrease = 8
+        });
+        batch.CurrentGroupName = ProcessKeys.ColdRoll50;
+        batch.CurrentSectionName = SectionKeys.ColdRollDraw;
+        batch.CurrentSectionCompleted = false;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOverviewAsync();
+
+        // 冷轧5060 行（Rows[12]）：冷轧拔生产中 → 计入 1 吨
+        result.Rows[12].TotalRemainingTons.Should().Be(1m);
     }
 
     [Fact]

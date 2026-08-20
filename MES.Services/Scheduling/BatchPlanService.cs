@@ -771,13 +771,21 @@ public class BatchPlanService : IBatchPlanService
             ? item.CurrentGroupName
             : item.NextProcess;
         var pendingPg = pgs.FirstOrDefault(pg => pg.ProcessName == pendingProcess);
-        if (pendingPg == null) return;
+        if (pendingPg == null)
+        {
+            // 未产批次（无待产工序组）：无排程匹配（_trigger=None），重点兜底仍须填充（与薄表规则(2) 一致）
+            ApplyKeyBatchFallback(item, pgs, crKeys);
+            return;
+        }
 
         var pendingIdx = pgs.IndexOf(pendingPg);
         var maxSeq = pgs.Max(pg => pg.SequenceNumber);
 
         // 命中冷轧排程行 ProcessType（AttentionMatchesCurrentCR 判定输入）
         string? matchedCRType = null;
+
+        // 本层冷轧拔工段是否已轧过（V5.35 在轧对齐：本层冷轧拔已完工 → 本层排程要求已完成，转待轧匹配下一冷轧拔层）
+        bool curCrPassDone = false;
 
         // 本层 — 是否冷轧
         if (!string.IsNullOrEmpty(pendingProcess) && crKeys.Contains(ProcessKeys.ToKey(pendingProcess) ?? pendingProcess))
@@ -788,8 +796,20 @@ public class BatchPlanService : IBatchPlanService
                 item.CurrentCR_BilletSpec = pgs[pendingIdx - 1].ManufacturingSpec;
             item.CurrentCR_IsFinished = pendingPg.SequenceNumber == maxSeq;
 
-            // 在轧要求：仅在批次实际在轧（在轧设备不为空）时匹配
-            if (!string.IsNullOrEmpty(item.PendingEquipment))
+            // 变形序完成（本层冷轧拔工段是否已轧过，V5.32 用户决策）：与 V5.31 IsColdRollPassDone 同口径，
+            // 该层无冷轧拔工段 → 默认完成（IsColdRollPassDone 内部返回 true）
+            item.CurrentCR_DeformedSeqCompleted = IsColdRollPassDone(pendingPg, pgs, item);
+
+            // 本层冷轧拔工段是否已轧过（V5.35 在轧对齐：本层冷轧拔已完工 → 本层冷轧排程要求已完成，
+            // 不在轧匹配本层 CompletionType，转下一冷轧拔层走待轧匹配——与排程侧 BuildAllocationsAsync 本层 diff<0 跳过一致）
+            if (!string.IsNullOrEmpty(item.CurrentCR_ProcessType))
+            {
+                var curPgForPass = pgs.FirstOrDefault(pg => pg.ProcessName == item.CurrentCR_ProcessType);
+                curCrPassDone = curPgForPass != null && IsColdRollPassDone(curPgForPass, pgs, item);
+            }
+
+            // 在轧要求：仅在批次实际在轧（在轧设备不为空）且本层冷轧拔未完工时匹配本层
+            if (!string.IsNullOrEmpty(item.PendingEquipment) && !curCrPassDone)
             {
                 var curKey = $"{item.CurrentCR_ProcessType}|{item.CurrentCR_BilletSpec}|{item.CurrentCR_RollingSpec}|{item.CurrentCR_IsFinished}";
                 if (scheduleLookup.TryGetValue(curKey, out var curSched))
@@ -826,40 +846,84 @@ public class BatchPlanService : IBatchPlanService
             }
         }
 
-        // 待轧要求（场景1）：本层冷轧 + 在轧设备为空 → 匹配本层维度
+        // 待轧要求：在轧设备为空 或 本层冷轧拔已完工（V5.35 在轧对齐）时，逐层尝试匹配（本层→下层→下下层）。
+        // ⚠️ 规则（V5.34 与冷轧排程 BuildAllocationsAsync 逐层独立一致）：逐层前先判断该层冷轧拔工段是否已轧过——
+        //   本层冷轧拔已轧过（当前工段序 > 冷轧拔序，或正处冷轧拔工段且已完工，如本层仅剩检验/酸洗等工段）→
+        //   本层不是批次的「下一个冷轧拔层」，跳过；找到的第一个「下一个冷轧拔层」档位对该批次生效 → 停止逐层尝试。
+        //   （V5.34 去锁定，用户决策）该层有档位记录但档位不生效（如 Waiting 急-批次本层设 Urgent 需正常流转）→
+        //   不锁定、继续尝试下层——与排程侧每层独立匹配一致（排程侧本层行不匹配、仍会流到下层生效层）。
+        // 原因：批次计划侧「本层」=待产工序（下一工序组），但批次的下一冷轧拔由冷轧拔工段位置决定，二者可能不一致
+        //   （实证批次366：ColdRoll50 组冷轧拔序6已轧完、剩余仅检验，下一冷轧拔在 ColdRoll30 序14）。
+        //   锁定已轧过层会误判"本层档位不生效即不流转"，而排程侧按冷轧拔全局工作序把批次计入 ColdRoll30 → 两侧不一致。
+        //   V5.35：本层冷轧拔已完工时即使本层检验/酸洗在轧（PendingEquipment 非空）也走待轧匹配（curCrPassDone=true），
+        //   与排程侧一致——本层冷轧排程要求已完成，不在轧匹配本层 CompletionType。
+        bool rollMatched = false;
+        var rollUrgencyLevel = item.UrgencyLevel;
+        var rollIsUrgent = UrgencyLevelKeys.IsUrgent(rollUrgencyLevel);
+        var rollIsNormal = item.ProductionFlowProperty == ProductionFlowKeys.Normal;
+
         if (!string.IsNullOrEmpty(item.CurrentCR_ProcessType)
-            && string.IsNullOrEmpty(item.PendingEquipment))
+            && (string.IsNullOrEmpty(item.PendingEquipment) || curCrPassDone))
         {
-            var curKey = $"{item.CurrentCR_ProcessType}|{item.CurrentCR_BilletSpec}|{item.CurrentCR_RollingSpec}|{item.CurrentCR_IsFinished}";
-            if (scheduleLookup.TryGetValue(curKey, out var curSched))
+            // 本层冷轧拔已轧过 → 本层不是下一个冷轧拔层，跳过（待轧看下一冷轧拔层，与排程侧对齐）
+            var curPg = pgs.FirstOrDefault(pg => pg.ProcessName == item.CurrentCR_ProcessType);
+            if (curPg == null || !IsColdRollPassDone(curPg, pgs, item))
             {
-                item.CR_RollType = curSched.RollType;
-                item.CR_SchedMachineNo = curSched.MachineNo;
-                matchedCRType = item.CurrentCR_ProcessType;
+                var curKey = $"{item.CurrentCR_ProcessType}|{item.CurrentCR_BilletSpec}|{item.CurrentCR_RollingSpec}|{item.CurrentCR_IsFinished}";
+                if (scheduleLookup.TryGetValue(curKey, out var curSched))
+                {
+                    item.CR_RollType = curSched.RollType;
+                    item.CR_SchedMachineNo = curSched.MachineNo;
+                    // 本层（=下一个冷轧拔层）档位对该批次生效 → 停止逐层尝试（V5.34 去锁定：不生效→继续下层）
+                    if (RollTypeMatchesBatch(curSched.RollType, rollUrgencyLevel, rollIsUrgent, rollIsNormal,
+                        item.MainNoAttentionProcess, item.CurrentCR_ProcessType))
+                    {
+                        matchedCRType = item.CurrentCR_ProcessType;
+                        rollMatched = true;
+                    }
+                }
             }
         }
-        // 待轧要求（场景2）：下层冷轧 + 在轧设备为空（未被场景1覆盖时）→ 匹配下层维度
-        else if (!string.IsNullOrEmpty(item.NextCR_ProcessType)
-            && string.IsNullOrEmpty(item.PendingEquipment))
+        if (!rollMatched && !string.IsNullOrEmpty(item.NextCR_ProcessType)
+            && (string.IsNullOrEmpty(item.PendingEquipment) || curCrPassDone))
         {
-            var nextKey = $"{item.NextCR_ProcessType}|{item.NextCR_BilletSpec}|{item.NextCR_RollingSpec}|{item.NextCR_IsFinished}";
-            if (scheduleLookup.TryGetValue(nextKey, out var nextSched))
+            var nextPg = pgs.FirstOrDefault(pg => pg.ProcessName == item.NextCR_ProcessType);
+            if (nextPg == null || !IsColdRollPassDone(nextPg, pgs, item))
             {
-                item.CR_RollType = nextSched.RollType;
-                item.CR_SchedMachineNo = nextSched.MachineNo;
-                matchedCRType = item.NextCR_ProcessType;
+                var nextKey = $"{item.NextCR_ProcessType}|{item.NextCR_BilletSpec}|{item.NextCR_RollingSpec}|{item.NextCR_IsFinished}";
+                if (scheduleLookup.TryGetValue(nextKey, out var nextSched))
+                {
+                    item.CR_RollType = nextSched.RollType;
+                    item.CR_SchedMachineNo = nextSched.MachineNo;
+                    // 下层档位对该批次生效 → 停止逐层尝试（V5.34 去锁定：不生效→继续下下层）
+                    if (RollTypeMatchesBatch(nextSched.RollType, rollUrgencyLevel, rollIsUrgent, rollIsNormal,
+                        item.MainNoAttentionProcess, item.NextCR_ProcessType))
+                    {
+                        matchedCRType = item.NextCR_ProcessType;
+                        rollMatched = true;
+                    }
+                }
             }
         }
-        // 待轧要求（场景3）：下下层冷轧 + 在轧设备为空（未被场景1/2覆盖时）→ 匹配下下层维度
-        else if (!string.IsNullOrEmpty(item.NextNextCR_ProcessType)
-            && string.IsNullOrEmpty(item.PendingEquipment))
+        if (!rollMatched && !string.IsNullOrEmpty(item.NextNextCR_ProcessType)
+            && (string.IsNullOrEmpty(item.PendingEquipment) || curCrPassDone))
         {
-            var nextNextKey = $"{item.NextNextCR_ProcessType}|{item.NextNextCR_BilletSpec}|{item.NextNextCR_RollingSpec}|{item.NextNextCR_IsFinished}";
-            if (scheduleLookup.TryGetValue(nextNextKey, out var nextNextSched))
+            var nextNextPg = pgs.FirstOrDefault(pg => pg.ProcessName == item.NextNextCR_ProcessType);
+            if (nextNextPg == null || !IsColdRollPassDone(nextNextPg, pgs, item))
             {
-                item.CR_RollType = nextNextSched.RollType;
-                item.CR_SchedMachineNo = nextNextSched.MachineNo;
-                matchedCRType = item.NextNextCR_ProcessType;
+                var nextNextKey = $"{item.NextNextCR_ProcessType}|{item.NextNextCR_BilletSpec}|{item.NextNextCR_RollingSpec}|{item.NextNextCR_IsFinished}";
+                if (scheduleLookup.TryGetValue(nextNextKey, out var nextNextSched))
+                {
+                    item.CR_RollType = nextNextSched.RollType;
+                    item.CR_SchedMachineNo = nextNextSched.MachineNo;
+                    // 下下层档位对该批次生效 → 停止逐层尝试（V5.34 去锁定：最后一层不生效则整体不流转）
+                    if (RollTypeMatchesBatch(nextNextSched.RollType, rollUrgencyLevel, rollIsUrgent, rollIsNormal,
+                        item.MainNoAttentionProcess, item.NextNextCR_ProcessType))
+                    {
+                        matchedCRType = item.NextNextCR_ProcessType;
+                        rollMatched = true;
+                    }
+                }
             }
         }
 
@@ -871,11 +935,126 @@ public class BatchPlanService : IBatchPlanService
             item.AttentionMatchesCurrentCR = string.Equals(attnKey, matchedKey, StringComparison.OrdinalIgnoreCase);
         }
 
+        // ====== 冷轧排程(实时)：批次的「下一个冷轧拔层」规格信息（V5.32 用户决策） ======
+        // 取值：本层变形序未完成（null=本层非冷轧/无冷轧拔，按"完成"处理）→ 取本层；
+        //   本层已完成 → 下层（有数据取下层，否则下下层）。
+        // 与待轧分支「找到第一个冷轧拔未完成的层」口径一致（本层完成时下层/下下层冷轧拔必然未开始）。
+        if (item.CurrentCR_DeformedSeqCompleted != false)
+        {
+            if (!string.IsNullOrEmpty(item.NextCR_ProcessType))
+            {
+                item.RealTimeCR_ProcessType = item.NextCR_ProcessType;
+                item.RealTimeCR_BilletSpec = item.NextCR_BilletSpec;
+                item.RealTimeCR_RollingSpec = item.NextCR_RollingSpec;
+                item.RealTimeCR_IsFinished = item.NextCR_IsFinished;
+            }
+            else if (!string.IsNullOrEmpty(item.NextNextCR_ProcessType))
+            {
+                item.RealTimeCR_ProcessType = item.NextNextCR_ProcessType;
+                item.RealTimeCR_BilletSpec = item.NextNextCR_BilletSpec;
+                item.RealTimeCR_RollingSpec = item.NextNextCR_RollingSpec;
+                item.RealTimeCR_IsFinished = item.NextNextCR_IsFinished;
+            }
+        }
+        else
+        {
+            item.RealTimeCR_ProcessType = item.CurrentCR_ProcessType;
+            item.RealTimeCR_BilletSpec = item.CurrentCR_BilletSpec;
+            item.RealTimeCR_RollingSpec = item.CurrentCR_RollingSpec;
+            item.RealTimeCR_IsFinished = item.CurrentCR_IsFinished;
+        }
+
         // ====== 目标序（必须在 AttentionMatchesCurrentCR 之后，因为 FlowTarget 的 _trigger 依赖它） ======
         item.TargetSequence = ComputeTargetSequence(pgs, item.FlowTarget, item.FlowCRType);
+
+        // ====== 实时重点兜底（V5.35 用户决策：实时也加重点兜底，与薄表规则(2) 一致） ======
+        ApplyKeyBatchFallback(item, pgs, crKeys);
     }
 
     /// <summary>
+    /// 实时重点兜底（V5.35 用户决策，与薄表规则(2) 一致）：重点生产批次且冷轧排程未命中（KeyBatchFallback）→
+    /// 实时 G11 按主号关注工序兜底流转：执行规格=收尾→待产规格、其余→主号关注工序对应工序组规格；
+    /// 目标序=相应工段序（与薄表 planTargetSequence 一致）。
+    /// 须在排程匹配完成后调用（KeyBatchFallback 依赖 _trigger，即 CR_CompletionType/CR_RollType 的排程命中结果）；
+    /// 未产批次（pendingPg==null）在 ComputeColdRollDimensions 提前 return 前也调用（此时无排程匹配、_trigger=None）。
+    /// </summary>
+    private static void ApplyKeyBatchFallback(BatchPlanDto item, List<ProcessGroup> pgs, HashSet<string> crKeys)
+    {
+        item.IsKeyBatch = ComputeIsKeyBatch(item, crKeys);
+        if (item.KeyBatchFallback)
+        {
+            item.KeyBatchFallbackExecSpec = item.MainNoAttentionProcess == ProductionAttentionKeys.Finish
+                ? item.PendingSpec
+                : pgs.FirstOrDefault(pg => pg.ProcessName == item.MainNoAttentionProcess)?.ManufacturingSpec;
+            item.TargetSequence = item.AttentionProcessSectionSequence;
+        }
+    }
+
+    /// <summary>
+    /// 待轧要求档位是否对批次生效（与冷轧排程 MatchesScheduleType / BatchPlanDto._trigger 档位语义一致，Model B）：
+    /// All/Subsequent=全量；CrOnly=特急(正常流转∧关注==该冷轧层)；Urgent/Partial1=特急/特急-(正常流转)；
+    /// Partial2=A+急/A急(IsUrgent)；Partial3=A+急/A急 或 B顺；None/未知/无排程记录=不生效。
+    /// </summary>
+    private static bool RollTypeMatchesBatch(
+        string? rollType, string? urgencyLevel, bool isUrgent, bool isNormal,
+        string? attentionProcess, string? layerProcessType)
+    {
+        bool attentionMatchesThisLayer = false;
+        if (!string.IsNullOrEmpty(attentionProcess) && !string.IsNullOrEmpty(layerProcessType))
+        {
+            var attnKey = ProcessKeys.ToKey(attentionProcess) ?? attentionProcess;
+            var layerKey = ProcessKeys.ToKey(layerProcessType) ?? layerProcessType;
+            attentionMatchesThisLayer = string.Equals(attnKey, layerKey, StringComparison.OrdinalIgnoreCase);
+        }
+        return rollType switch
+        {
+            "All" or "Subsequent" => true,
+            "CrOnly" => isUrgent && isNormal && attentionMatchesThisLayer,
+            "Urgent" or "Partial1" => isUrgent && isNormal,
+            "Partial2" => isUrgent,
+            "Partial3" => isUrgent || urgencyLevel == UrgencyLevelKeys.BOrder,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// 批次是否已轧过某冷轧层的冷轧拔工段（与冷轧排程 BuildAllocationsAsync「工作序对比」口径一致，V5.31）：
+    /// 该层无冷轧拔工段 / 层在当前工序组之前 / 当前组内已越过冷轧拔工段（当前工段序 &gt; 冷轧拔序，
+    /// 或正处冷轧拔工段且已完工）/ 当前工序组无工段（组已整体完成）→ 已轧过。
+    /// 已轧过的层不是批次的「下一个冷轧拔层」，待轧不应锁定它（待轧应看下一冷轧拔层）。
+    /// </summary>
+    private static bool IsColdRollPassDone(ProcessGroup layerPg, List<ProcessGroup> pgs, BatchPlanDto item)
+    {
+        if (!layerPg.ColdRollDraw.HasValue)
+            return true; // 该层无冷轧拔工段 → 排程侧 targetGlobalExecSeq&lt;=0 continue，视为已过
+
+        var currentPg = pgs.FirstOrDefault(pg => pg.ProcessName == item.CurrentGroupName);
+        if (currentPg == null)
+            return false; // 未投产（无当前工序组）→ 尚未轧任何冷轧层
+
+        if (layerPg.SequenceNumber < currentPg.SequenceNumber)
+            return true; // 层在当前工序组之前 → 本组已整体完成，冷轧拔已轧过
+
+        if (layerPg.SequenceNumber > currentPg.SequenceNumber)
+            return false; // 层在当前工序组之后 → 未到
+
+        // 层 == 当前工序组：比较当前工段在组内执行序与冷轧拔工段序
+        if (string.IsNullOrEmpty(item.CurrentSectionName))
+            return true; // 当前组无工段 → 本组已全部完成，冷轧拔已轧过
+
+        var currentSeq = layerPg.GetSectionSequence(item.CurrentSectionName);
+        if (!currentSeq.HasValue)
+            return false; // 找不到当前工段序 → 保守视为未轧过（不跳过该层）
+
+        if (currentSeq.Value > layerPg.ColdRollDraw.Value)
+            return true; // 当前工段在冷轧拔之后（如酸洗/检验）→ 冷轧拔已轧过
+
+        if (currentSeq.Value == layerPg.ColdRollDraw.Value)
+            return item.CurrentSectionCompleted == true; // 正处冷轧拔工段：完工=已轧过，未完工=在轧（未轧过）
+
+        return false; // 当前工段在冷轧拔之前 → 冷轧拔未轧过
+    }
+
     /// <summary>
     /// 计算批次待执行工序对应的产类（荒管/在制/成品，英文 Key）。
     /// 参照 SectionProductionStatusService：待执行工序名 → 组内首工序制造规格 → ProductStatusHelper.Calculate。

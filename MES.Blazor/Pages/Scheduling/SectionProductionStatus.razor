@@ -54,7 +54,6 @@
               Items="@_filteredItems"
               Dense="true" Hover="true" Elevation="0" Class="auto-table"
               RowsPerPage="@_pageSize" RowsPerPageChanged="@OnRowsPerPageChanged"
-              CurrentPageChanged="@(() => OnCurrentPageChanged())"
               RowsPerPageLabel="每页行数:">
         <HeaderContent>
             @foreach (var col in _visibleColumns)
@@ -91,6 +90,7 @@
             }
         </RowTemplate>
         <FooterContent>
+            @{ EnsurePageSumsComputed(); }
             @foreach (var col in _visibleColumns)
             {
                 <MudTd Class="col-footer-cell">

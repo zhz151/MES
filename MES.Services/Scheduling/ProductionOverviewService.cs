@@ -350,7 +350,8 @@ public class ProductionOverviewService : IProductionOverviewService
                                 inProgressPending += weight;
                         }
                         matchedBatchData.Add((batch.DeliveryDate, weight));
-                        break;
+                        // ⚠️ 不 break：同一批次可含多个匹配本工段行的工序组（如冷轧50+冷轧60 两道次），
+                        // 每道未到达的工序组各计一次构成「合重量」（5060 行 = 50 机待产 + 60 机待产）
                     }
                 }
             }
@@ -842,6 +843,16 @@ public class ProductionOverviewService : IProductionOverviewService
 
         if (currentPg.SequenceNumber == targetPg.SequenceNumber)
         {
+            // 冷轧/冷拔类工序组以「冷轧拔」为机台加工点（冷轧拔是本组第一道工段）。
+            // 当前工段已越过冷轧拔（如脱脂/酸洗/检验等后工段）→ 该机台已轧完、不再占用机台产能，不应计入待产。
+            // 2026-08-20 修复：实证 12 批次 ColdRoll50 组内冷轧拔(序号6)已完成、正处脱脂(序号8)未完工，原逻辑误计 5060 行待产。
+            if (targetPg.ColdRollDraw.HasValue && currentSectionName != null)
+            {
+                var currentSeq = targetPg.GetSectionSequence(currentSectionName);
+                if (currentSeq.HasValue && currentSeq.Value > targetPg.ColdRollDraw.Value)
+                    return false;
+            }
+
             // 同工序，但工段尚未完成
             if (currentSectionName != null
                 && (currentSectionCompleted == null || currentSectionCompleted == false))

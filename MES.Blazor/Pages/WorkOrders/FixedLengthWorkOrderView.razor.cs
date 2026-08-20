@@ -155,6 +155,26 @@ public partial class FixedLengthWorkOrderView
 
     // ========== 分页汇总 ==========
 
+    /// <summary>
+    /// 渲染期惰性重算当前页汇总。⚠️ MudBlazor 6.19.1 没有 CurrentPageChanged 事件（旧绑定被
+    /// CaptureUnmatchedValues 静默吞掉、永不触发）；翻页只触发 MudTable 自身 StateHasChanged，
+    /// 不触发父组件 OnAfterRenderAsync。故在 FooterContent 渲染时按「页码/每页行数/数据量」签名惰性重算，
+    /// 保证页脚汇总与实际显示行一致。
+    /// </summary>
+    private void EnsurePageSumsComputed()
+    {
+        var page = table?.CurrentPage ?? 0;
+        var rowsPerPage = table?.RowsPerPage ?? _pageSize;
+        if (rowsPerPage <= 0) rowsPerPage = _pageSize;
+        var count = _filteredItems.Count;
+        if (page == _lastSummedPage && count == _lastSummedCount && rowsPerPage == _lastSummedPageSize)
+            return;
+        _lastSummedPage = page;
+        _lastSummedCount = count;
+        _lastSummedPageSize = rowsPerPage;
+        ComputePageSums();
+    }
+
     private void ComputePageSums()
     {
         _pageSums.Clear();
@@ -696,14 +716,6 @@ public partial class FixedLengthWorkOrderView
                 StateHasChanged();
             }
         }
-    }
-
-    private void OnCurrentPageChanged()
-    {
-        ComputePageSums();
-        _lastSummedPage = table?.CurrentPage ?? 0;
-        _lastSummedCount = _filteredItems.Count;
-        _lastSummedPageSize = table?.RowsPerPage ?? _pageSize;
     }
 
     // ========== 单元格渲染 ==========

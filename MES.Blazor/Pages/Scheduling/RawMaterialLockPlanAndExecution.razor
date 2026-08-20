@@ -257,7 +257,6 @@
                       Class="mt-0 auto-table compact-table"
                       Elevation="0"
                       RowsPerPage="@_pageSize"
-                      CurrentPageChanged="@(() => OnCurrentPageChanged())"
                       RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     @{
@@ -313,6 +312,7 @@
                     <MudTd Style="width:40px;min-width:40px;max-width:40px;"></MudTd>
                     @{
                         int? _prevGk3 = null;
+                        EnsurePageSumsComputed();
                     }
                     @foreach (var col in _visibleColumns)
                     {

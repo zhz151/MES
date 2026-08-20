@@ -353,7 +353,6 @@
                       Elevation="0"
                       RowsPerPage="@_pageSize"
                       RowsPerPageChanged="@OnRowsPerPageChanged"
-                      CurrentPageChanged="@(() => OnCurrentPageChanged())"
                       RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     @{
@@ -408,6 +407,7 @@
                 <FooterContent>
                     @{
                         int? _prevGk3 = null;
+                        EnsurePageSumsComputed();
                     }
                     <MudTd Style="width:40px;min-width:40px;max-width:40px;"></MudTd>
                     @foreach (var col in _visibleColumns)

@@ -368,7 +368,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                 planExecutionSequence = dto.ExecutionSequence;
             }
 
-            // 计划备注默认值 = 关联冷轧排程的待轧设备号（可手工再更改；已有非空备注保留不覆盖）
+            // 计划备注 = 关联冷轧排程的待轧设备号（计划安排=重置：先清空再填充；不点计划安排时前端可手工内联更改）
             var planRemark = string.IsNullOrEmpty(dto.CR_SchedMachineNo) ? null : dto.CR_SchedMachineNo;
 
             // Upsert（保留原有 抢单 和 备注）
@@ -382,9 +382,8 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                 existing.FlowExecSpec = planFlowExecSpec;
                 existing.TargetSequence = planTargetSequence;
                 existing.ExecutionSequence = planExecutionSequence;
-                // 备注为空时补填默认设备号（手工非空备注不覆盖）
-                if (string.IsNullOrEmpty(existing.PlanRemark))
-                    existing.PlanRemark = planRemark;
+                // 计划安排=重置备注：先清空再填充冷轧计划的待轧设备号（用户原意，手工更改仅在未点计划安排时保留）
+                existing.PlanRemark = planRemark;
             }
             else
             {

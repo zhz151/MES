@@ -359,10 +359,10 @@ public class BatchPlanServiceTests : TestBase
         BatchPlanService.ComputeTargetSequence(pgs, null, null).Should().BeNull();
     }
 
-    // ==================== FlowLevel / 流转判定测试（英文紧急性 Key） ====================
+    // ==================== ScheduleTier / 流转判定测试（英文紧急性 Key） ====================
 
     [Fact]
-    public void BatchPlanDto_FlowLevel_英文紧急性分级()
+    public void BatchPlanDto_ScheduleTier_英文紧急性分级()
     {
         // A急 + 在轧要求=Partial2 → 流转，目标=完工冷轧，等级2
         var dto = new BatchPlanDto
@@ -374,7 +374,7 @@ public class BatchPlanServiceTests : TestBase
         };
         dto.IsFlow.Should().BeTrue();
         dto.FlowTarget.Should().Be(FlowTargetKeys.CompletionColdRoll);
-        dto.FlowLevel.Should().Be(2);
+        dto.ScheduleTier.Should().Be(3); // A急 + 非正常流转（无 ProductionFlowProperty）→ 急-
 
         // B顺 + 在轧要求=Partial3 → 流转，等级3
         dto = new BatchPlanDto
@@ -385,7 +385,7 @@ public class BatchPlanServiceTests : TestBase
             CR_CompletionType = "Partial3",
         };
         dto.IsFlow.Should().BeTrue();
-        dto.FlowLevel.Should().Be(3);
+        dto.ScheduleTier.Should().Be(4); // B顺 + Partial3 → 顺
 
         // C缓 + 在轧要求=Partial3 → 不满足 isPartial3 → 不流转，等级4(略)
         dto = new BatchPlanDto
@@ -396,9 +396,9 @@ public class BatchPlanServiceTests : TestBase
             CR_CompletionType = "Partial3",
         };
         dto.IsFlow.Should().BeFalse();
-        dto.FlowLevel.Should().Be(4);
+        dto.ScheduleTier.Should().Be(6); // 不流转 → 略
 
-        // 重点批次（IsKeyBatch）不再参与等级判定：非流转 → 等级4(略)
+        // V5.35 实时重点兜底：重点生产批次（IsKeyBatch）且冷轧排程未命中 → 按主号关注工序兜底流转，等级2(急)
         dto = new BatchPlanDto
         {
             MainNoAttentionProcess = ProcessKeys.ColdRoll60,
@@ -406,14 +406,16 @@ public class BatchPlanServiceTests : TestBase
             ScheduleStage = 2,
             IsKeyBatch = true,
         };
-        dto.IsFlow.Should().BeFalse();
-        dto.FlowLevel.Should().Be(4);
+        dto.IsFlow.Should().BeTrue();
+        dto.ScheduleTier.Should().Be(2); // V5.35 重点兜底 → 急
+        dto.FlowCRType.Should().Be(ProcessKeys.ColdRoll60);
+        dto.FlowTarget.Should().Be(FlowTargetKeys.ColdRoll);
     }
 
     [Fact]
-    public void BatchPlanDto_FlowLevel_四档合并与中文显示()
+    public void BatchPlanDto_ScheduleTier_四档合并与中文显示()
     {
-        // B顺 + All 档 → 流转，等级3(一般)
+        // B顺 + All 档 → 流转，档位顺(4)
         var dto = new BatchPlanDto
         {
             MainNoAttentionProcess = ProcessKeys.ColdRoll60,
@@ -422,10 +424,10 @@ public class BatchPlanServiceTests : TestBase
             CR_CompletionType = "All",
         };
         dto.IsFlow.Should().BeTrue();
-        dto.FlowLevel.Should().Be(3);
-        dto.FlowLevelDisplay.Should().Be("一般");
+        dto.ScheduleTier.Should().Be(4); // B顺 → 顺
+        dto.ScheduleTierDisplay.Should().Be("顺");
 
-        // C缓 + All 档 → 流转，原等级4(其余流转) 合并为 等级3(一般)
+        // C缓 + All 档 → 流转，档位带(5)
         dto = new BatchPlanDto
         {
             MainNoAttentionProcess = ProcessKeys.ColdRoll60,
@@ -434,10 +436,10 @@ public class BatchPlanServiceTests : TestBase
             CR_CompletionType = "All",
         };
         dto.IsFlow.Should().BeTrue();
-        dto.FlowLevel.Should().Be(3);
-        dto.FlowLevelDisplay.Should().Be("一般");
+        dto.ScheduleTier.Should().Be(5); // C缓 + All → 带
+        dto.ScheduleTierDisplay.Should().Be("带");
 
-        // A急 + All 档 → 等级2(急)
+        // A急 + All 档 → 档位急-(3)（非正常流转，无 ProductionFlowProperty）
         dto = new BatchPlanDto
         {
             MainNoAttentionProcess = ProcessKeys.ColdRoll60,
@@ -445,8 +447,8 @@ public class BatchPlanServiceTests : TestBase
             ScheduleStage = 2,
             CR_CompletionType = "All",
         };
-        dto.FlowLevel.Should().Be(2);
-        dto.FlowLevelDisplay.Should().Be("急");
+        dto.ScheduleTier.Should().Be(3); // 急-（非正常流转）
+        dto.ScheduleTierDisplay.Should().Be("急-");
 
         // 非流转 → 等级4(略)
         dto = new BatchPlanDto
@@ -456,10 +458,10 @@ public class BatchPlanServiceTests : TestBase
             ScheduleStage = 2,
             CR_CompletionType = null,
         };
-        dto.FlowLevel.Should().Be(4);
-        dto.FlowLevelDisplay.Should().Be("略");
+        dto.ScheduleTier.Should().Be(6); // 不流转 → 略
+        dto.ScheduleTierDisplay.Should().Be("略");
 
-        // 重点批次（IsKeyBatch）+ 流转 + 非急单 → 等级3(一般)，IsKeyBatch 不再把等级拉高到特急
+        // 重点批次（IsKeyBatch）+ 流转 + 非急单 → 档位带(5)，IsKeyBatch 不把档位拉高
         dto = new BatchPlanDto
         {
             MainNoAttentionProcess = ProcessKeys.ColdRoll60,
@@ -471,8 +473,8 @@ public class BatchPlanServiceTests : TestBase
             CurrentGroupName = ProcessKeys.ColdRoll60,
         };
         dto.IsFlow.Should().BeTrue();
-        dto.FlowLevel.Should().Be(3);
-        dto.FlowLevelDisplay.Should().Be("一般");
+        dto.ScheduleTier.Should().Be(5); // C缓 + All → 带
+        dto.ScheduleTierDisplay.Should().Be("带");
 
         dto = new BatchPlanDto
         {
@@ -485,10 +487,10 @@ public class BatchPlanServiceTests : TestBase
             CurrentGroupName = ProcessKeys.ColdDraw,
         };
         dto.IsFlow.Should().BeTrue();
-        dto.FlowLevel.Should().Be(3);
-        dto.FlowLevelDisplay.Should().Be("一般");
+        dto.ScheduleTier.Should().Be(5); // C缓 + All → 带
+        dto.ScheduleTierDisplay.Should().Be("带");
 
-        // 重点批次 + 流转 + 急单 → 等级2(急)，IsKeyBatch 不影响急档
+        // 重点批次 + 流转 + 急单 → 档位急-(3)，IsKeyBatch 不影响急档（非正常流转）
         dto = new BatchPlanDto
         {
             MainNoAttentionProcess = ProcessKeys.ColdRoll60,
@@ -498,8 +500,8 @@ public class BatchPlanServiceTests : TestBase
             CR_CompletionType = "All",
         };
         dto.IsFlow.Should().BeTrue();
-        dto.FlowLevel.Should().Be(2);
-        dto.FlowLevelDisplay.Should().Be("急");
+        dto.ScheduleTier.Should().Be(3); // 急-（非正常流转）
+        dto.ScheduleTierDisplay.Should().Be("急-");
     }
 
     [Fact]
@@ -551,7 +553,7 @@ public class BatchPlanServiceTests : TestBase
             CR_CompletionType = "Partial2",
         };
         dto.IsFlow.Should().BeFalse();
-        dto.FlowLevel.Should().Be(4);
+        dto.ScheduleTier.Should().Be(6); // 不流转 → 略
     }
 
     [Fact]
@@ -569,7 +571,7 @@ public class BatchPlanServiceTests : TestBase
         };
         dto.IsFlow.Should().BeFalse();
         dto.FlowTarget.Should().BeNull();
-        dto.FlowLevel.Should().Be(4);
+        dto.ScheduleTier.Should().Be(6); // 不流转 → 略
 
         // 有排程档位（在轧要求=All）→ 仍按档位流转，目标=完工冷轧
         dto = new BatchPlanDto
@@ -597,9 +599,10 @@ public class BatchPlanServiceTests : TestBase
             CR_CompletionType = "Urgent",
         };
         dto.IsFlow.Should().BeFalse();
-        dto.FlowLevel.Should().Be(4);
+        dto.ScheduleTier.Should().Be(6); // 不流转 → 略
 
-        // 即使催单/分批交货为真，也不再触发流转（与冷轧计划排程选中口径一致）
+        // 即使催单/分批交货为真，排程档位仍不触发（与冷轧计划排程选中口径一致）；但 V5.35 重点兜底：
+        // 重点生产批次（IsKeyBatch）且排程档位未命中（Urgent 因非正常流转不生效）→ 实时按重点兜底流转
         dto = new BatchPlanDto
         {
             MainNoAttentionProcess = ProcessKeys.ColdRoll60,
@@ -611,8 +614,10 @@ public class BatchPlanServiceTests : TestBase
             IsKeyBatch = true,
             CR_CompletionType = "Urgent",
         };
-        dto.IsFlow.Should().BeFalse();
-        dto.FlowLevel.Should().Be(4);
+        dto.IsFlow.Should().BeTrue();
+        dto.ScheduleTier.Should().Be(2); // V5.35 重点兜底 → 急
+        dto.FlowCRType.Should().Be(ProcessKeys.ColdRoll60);
+        dto.FlowTarget.Should().Be(FlowTargetKeys.ColdRoll);
 
         // 在轧侧 Urgent 档：A+急 + 正常流转 → 流转（不论 IsKeyBatch），等级2急
         dto = new BatchPlanDto
@@ -625,7 +630,7 @@ public class BatchPlanServiceTests : TestBase
         };
         dto.IsFlow.Should().BeTrue();
         dto.FlowTarget.Should().Be(FlowTargetKeys.CompletionColdRoll);
-        dto.FlowLevel.Should().Be(2);
+        dto.ScheduleTier.Should().Be(2); // A急 + 正常流转 → 急
 
         // 待轧侧 Urgent 档：A+急 + 正常流转 → 流转（不论 IsGeneralKeyBatch，非冷轧关注也流转）
         dto = new BatchPlanDto
@@ -637,7 +642,7 @@ public class BatchPlanServiceTests : TestBase
         };
         dto.IsFlow.Should().BeTrue();
         dto.FlowTarget.Should().Be(FlowTargetKeys.ColdRoll);
-        dto.FlowLevel.Should().Be(2);
+        dto.ScheduleTier.Should().Be(2); // A急 + 正常流转 → 急（非冷轧关注）
     }
 
     [Fact]
@@ -655,7 +660,7 @@ public class BatchPlanServiceTests : TestBase
         };
         dto.IsFlow.Should().BeTrue();
         dto.FlowTarget.Should().Be(FlowTargetKeys.CompletionColdRoll);
-        dto.FlowLevel.Should().Be(2);
+        dto.ScheduleTier.Should().Be(1); // CrOnly + 关注匹配 → 急+
 
         // 在轧侧：关注工序 != 当前冷轧行 → 不流转
         dto = new BatchPlanDto
@@ -667,7 +672,7 @@ public class BatchPlanServiceTests : TestBase
             CR_CompletionType = "CrOnly",
         };
         dto.IsFlow.Should().BeFalse();
-        dto.FlowLevel.Should().Be(4);
+        dto.ScheduleTier.Should().Be(6); // 不流转 → 略
 
         // 待轧侧 CrOnly 同理：关注 == 当前冷轧 → 流转
         dto = new BatchPlanDto
@@ -680,7 +685,7 @@ public class BatchPlanServiceTests : TestBase
         };
         dto.IsFlow.Should().BeTrue();
         dto.FlowTarget.Should().Be(FlowTargetKeys.ColdRoll);
-        dto.FlowLevel.Should().Be(2);
+        dto.ScheduleTier.Should().Be(1); // CrOnly + 关注匹配 → 急+
 
         // 待轧侧 CrOnly：关注 != 当前冷轧 → 不流转
         dto = new BatchPlanDto
@@ -692,7 +697,7 @@ public class BatchPlanServiceTests : TestBase
             CR_RollType = "CrOnly",
         };
         dto.IsFlow.Should().BeFalse();
-        dto.FlowLevel.Should().Be(4);
+        dto.ScheduleTier.Should().Be(6); // 不流转 → 略
     }
 
     [Fact]
@@ -814,6 +819,496 @@ public class BatchPlanServiceTests : TestBase
         item.FlowTarget.Should().Be(FlowTargetKeys.ColdRoll);
         item.FlowCRType.Should().Be(ProcessKeys.ColdRoll60);
         item.TargetSequence.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_本层冷轧无排程档位_下层有档位_在下层匹配流转()
+    {
+        using var ctx = CreateDbContext();
+        // 工序组：RoughTubeProcessing(67*5.5) → ColdRoll50(38*3.2) → ColdRoll30(25*2.5)
+        // 当前已过 ColdRoll50 工段（CurrentSectionCompleted=true）→ 待轧工序=NextProcess=ColdRoll50（本层冷轧）
+        var batch = CreateBatch(ctx, "B001", "WO001",
+            currentGroupName: ProcessKeys.ColdRoll50,
+            currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: true,
+            nextProcess: ProcessKeys.ColdRoll50,
+            nextSectionName: SectionKeys.ColdRollDraw);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.RoughTubeProcessing,
+            SequenceNumber = 1,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "67*5.5",
+        });
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll50,
+            SequenceNumber = 2,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "38*3.2",
+        });
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll30,
+            SequenceNumber = 3,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "25*2.5",
+        });
+        // A+急 + 非正常流转（Waiting）→ 急-档；Partial2 档只需 isUrgent → 流转
+        SeedSummary(ctx, "WO001", scheduleStage: 3, urgencyLevel: UrgencyLevelKeys.APlusUrgent);
+        await ctx.SaveChangesAsync();
+        var summary = ctx.Set<WorkOrderExecutionSummary>().First(s => s.WorkOrderNo == "WO001");
+        summary.MainNoAttentionProcess = ProcessKeys.ColdRoll50;
+        summary.ProductionFlowProperty = ProductionFlowKeys.Waiting;
+        await ctx.SaveChangesAsync();
+
+        // 排程表：本层 ColdRoll50(67*5.5→38*3.2) 无档位；下层 ColdRoll30(38*3.2→25*2.5) 有待轧要求=Partial2
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "38*3.2",
+            RollingSpec = "25*2.5",
+            IsFinished = true,
+            CompletionType = "None",
+            RollType = "Partial2",
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        // 本层无档位不锁死 → 在下层 ColdRoll30 匹配 Partial2 → 急-批次正确流转
+        var item = result.Items.Single();
+        item.CurrentCR_ProcessType.Should().Be(ProcessKeys.ColdRoll50);
+        item.NextCR_ProcessType.Should().Be(ProcessKeys.ColdRoll30);
+        item.CR_RollType.Should().Be("Partial2");
+        item.IsFlow.Should().BeTrue();
+        // 流转显示应指向实际匹配层（下层），而非本层
+        item.FlowCRType.Should().Be(ProcessKeys.ColdRoll30);
+        item.FlowExecSpec.Should().Be("25*2.5");
+        item.OuterDiameterSpan.Should().Be("38-25");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_本层档位生效_停在生效层()
+    {
+        using var ctx = CreateDbContext();
+        var batch = CreateBatch(ctx, "B001", "WO001",
+            currentGroupName: ProcessKeys.ColdRoll50,
+            currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll50,
+            SequenceNumber = 1,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "38*3.2",
+        });
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll30,
+            SequenceNumber = 2,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "25*2.5",
+        });
+        SeedSummary(ctx, "WO001", scheduleStage: 3, urgencyLevel: UrgencyLevelKeys.APlusUrgent);
+        await ctx.SaveChangesAsync();
+        var summary = ctx.Set<WorkOrderExecutionSummary>().First(s => s.WorkOrderNo == "WO001");
+        summary.ProductionFlowProperty = ProductionFlowKeys.Waiting;
+        await ctx.SaveChangesAsync();
+
+        // 本层与下层都有 Partial2 档位 → 本层档位对该批次生效即停（V5.34 去锁定：生效才停，不回退下层）
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll50,
+            BilletSpec = "",
+            RollingSpec = "38*3.2",
+            IsFinished = false,
+            CompletionType = "None",
+            RollType = "Partial2",
+        });
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "38*3.2",
+            RollingSpec = "25*2.5",
+            IsFinished = true,
+            CompletionType = "None",
+            RollType = "Partial2",
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var item = result.Items.Single();
+        item.CR_RollType.Should().Be("Partial2");
+        item.IsFlow.Should().BeTrue();
+        item.FlowCRType.Should().Be(ProcessKeys.ColdRoll50);
+        item.FlowExecSpec.Should().Be("38*3.2");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_本层冷轧拔已轧过_待轧跳下层_下层档位生效流转()
+    {
+        using var ctx = CreateDbContext();
+        // 工序组：RoughTubeProcessing(67*5.5) → ColdRoll50(38*3.2) → ColdRoll30(25*2.5)
+        // 当前已过 ColdRoll50 冷轧拔工段（当前工段=冷轧拔已完工）→ 本层 ColdRoll50 不是下一个冷轧拔层
+        var batch = CreateBatch(ctx, "B001", "WO001",
+            currentGroupName: ProcessKeys.ColdRoll50,
+            currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: true,
+            nextProcess: ProcessKeys.ColdRoll50,
+            nextSectionName: SectionKeys.ColdRollDraw);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.RoughTubeProcessing,
+            SequenceNumber = 1,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "67*5.5",
+        });
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll50,
+            SequenceNumber = 2,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "38*3.2",
+        });
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll30,
+            SequenceNumber = 3,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "25*2.5",
+        });
+        // 非急批次（CSlow）+ 正常流转 → Partial2/All 均不区分，All 全量命中
+        SeedSummary(ctx, "WO001", scheduleStage: 3, urgencyLevel: UrgencyLevelKeys.CSlow);
+        await ctx.SaveChangesAsync();
+        var summary = ctx.Set<WorkOrderExecutionSummary>().First(s => s.WorkOrderNo == "WO001");
+        summary.MainNoAttentionProcess = ProcessKeys.ColdRoll50;
+        summary.ProductionFlowProperty = ProductionFlowKeys.Normal;
+        await ctx.SaveChangesAsync();
+
+        // 排程表：本层 ColdRoll50(67*5.5→38*3.2) 有档位 Partial2——但本层冷轧拔已轧过，不是下一个冷轧拔层 → 跳过；
+        // 下层 ColdRoll30(38*3.2→25*2.5) 有档位 All（全量）→ 在下层流转
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll50,
+            BilletSpec = "67*5.5",
+            RollingSpec = "38*3.2",
+            IsFinished = false,
+            CompletionType = "None",
+            RollType = "Partial2",
+        });
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "38*3.2",
+            RollingSpec = "25*2.5",
+            IsFinished = true,
+            CompletionType = "None",
+            RollType = "All",
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        // 本层冷轧拔已轧过 → 本层档位（Partial2）不参与；待轧跳下层 ColdRoll30 → All 全量 → 流转
+        var item = result.Items.Single();
+        item.CurrentCR_ProcessType.Should().Be(ProcessKeys.ColdRoll50); // 本层显示仍=当前工序组
+        item.NextCR_ProcessType.Should().Be(ProcessKeys.ColdRoll30);
+        item.CR_RollType.Should().Be("All");
+        item.IsFlow.Should().BeTrue();
+        // 流转显示指向实际匹配层（下层），而非本层
+        item.FlowCRType.Should().Be(ProcessKeys.ColdRoll30);
+        item.FlowExecSpec.Should().Be("25*2.5");
+        // 变形序完成=完成（本层冷轧拔已轧过）→ 冷轧排程(实时)取下层的规格信息
+        item.CurrentCR_DeformedSeqCompleted.Should().BeTrue();
+        item.RealTimeCR_ProcessType.Should().Be(ProcessKeys.ColdRoll30);
+        item.RealTimeCR_RollingSpec.Should().Be("25*2.5");
+        item.RealTimeCR_BilletSpec.Should().Be("38*3.2");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_本层冷轧拔已完工_本层在轧_不在轧匹配本层_转待轧下一冷轧拔层流转()
+    {
+        using var ctx = CreateDbContext();
+        // 工序组：ColdRoll50(38*3.2, 冷轧拔=1, 酸洗=2) → ColdRoll30(25*2.5, 冷轧拔=2)
+        // 当前在 ColdRoll50 组内酸洗在轧（酸洗在冷轧拔之后）→ 本层冷轧拔已完工但本层仍在轧（PendingEquipment=M1）
+        var batch = CreateBatch(ctx, "B001", "WO001",
+            currentGroupName: ProcessKeys.ColdRoll50,
+            currentSectionName: SectionKeys.Pickle,
+            currentSectionCompleted: false);
+        batch.CurrentEquipmentName = "M1";
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll50,
+            SequenceNumber = 1,
+            ColdRollDraw = 1,
+            Pickle = 2,
+            ManufacturingSpec = "38*3.2",
+        });
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll30,
+            SequenceNumber = 2,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "25*2.5",
+        });
+        // 非急批次（CSlow）+ 正常流转 → Partial2 不生效、All 全量生效
+        SeedSummary(ctx, "WO001", scheduleStage: 3, urgencyLevel: UrgencyLevelKeys.CSlow);
+        await ctx.SaveChangesAsync();
+        var summary = ctx.Set<WorkOrderExecutionSummary>().First(s => s.WorkOrderNo == "WO001");
+        summary.MainNoAttentionProcess = ProcessKeys.ColdRoll50;
+        summary.ProductionFlowProperty = ProductionFlowKeys.Normal;
+        await ctx.SaveChangesAsync();
+
+        // 排程表：本层 ColdRoll50 有在轧要求 Partial2——但本层冷轧拔已完工（V5.35 在轧对齐），
+        // 不在轧匹配本层 CompletionType，转待轧逐层 → 本层 IsColdRollPassDone=true 跳过 → 下层 ColdRoll30 All → 流转
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll50,
+            BilletSpec = "76*6.5",
+            RollingSpec = "38*3.2",
+            IsFinished = false,
+            CompletionType = "Partial2",
+            RollType = "None",
+        });
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "38*3.2",
+            RollingSpec = "25*2.5",
+            IsFinished = true,
+            CompletionType = "None",
+            RollType = "All",
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var item = result.Items.Single();
+        item.CurrentCR_ProcessType.Should().Be(ProcessKeys.ColdRoll50);
+        // 本层冷轧拔已完工且本层在轧 → 不在轧匹配本层 CompletionType（V5.35）
+        item.CR_CompletionType.Should().BeNull();
+        // 转待轧逐层 → 本层跳过、下层 ColdRoll30 All → 流转
+        item.CR_RollType.Should().Be("All");
+        item.IsFlow.Should().BeTrue();
+        item.FlowCRType.Should().Be(ProcessKeys.ColdRoll30);
+        item.FlowExecSpec.Should().Be("25*2.5");
+        item.CurrentCR_DeformedSeqCompleted.Should().BeTrue();
+        item.RealTimeCR_ProcessType.Should().Be(ProcessKeys.ColdRoll30);
+        item.RealTimeCR_RollingSpec.Should().Be("25*2.5");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_本层档位不生效_去锁定跳下层_下层生效流转()
+    {
+        using var ctx = CreateDbContext();
+        // 工序组：ColdRoll50(38*3.2, 酸洗=1, 冷轧拔=2) → ColdRoll30(25*2.5, 冷轧拔=2)
+        // 当前在 ColdRoll50 组内酸洗（冷轧拔之前）→ 本层 ColdRoll50 就是批次的「下一个冷轧拔层」（未轧过）
+        var batch = CreateBatch(ctx, "B001", "WO001",
+            currentGroupName: ProcessKeys.ColdRoll50,
+            currentSectionName: SectionKeys.Pickle,
+            currentSectionCompleted: false);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll50,
+            SequenceNumber = 1,
+            Pickle = 1,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "38*3.2",
+        });
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll30,
+            SequenceNumber = 2,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "25*2.5",
+        });
+        // 急-批次（A+急 + Waiting）→ Urgent 档需正常流转，不生效
+        SeedSummary(ctx, "WO001", scheduleStage: 3, urgencyLevel: UrgencyLevelKeys.APlusUrgent);
+        await ctx.SaveChangesAsync();
+        var summary = ctx.Set<WorkOrderExecutionSummary>().First(s => s.WorkOrderNo == "WO001");
+        summary.MainNoAttentionProcess = ProcessKeys.ColdRoll50;
+        summary.ProductionFlowProperty = ProductionFlowKeys.Waiting;
+        await ctx.SaveChangesAsync();
+
+        // 排程表：本层 ColdRoll50 有档位 Urgent（对急-不生效）；下层 ColdRoll30 有档位 All（全量）——
+        // V5.34 去锁定：本层档位不生效 → 不锁定、继续下层 → All 全量命中 → 流转（与排程侧每层独立一致）
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll50,
+            BilletSpec = "",
+            RollingSpec = "38*3.2",
+            IsFinished = false,
+            CompletionType = "None",
+            RollType = "Urgent",
+        });
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "38*3.2",
+            RollingSpec = "25*2.5",
+            IsFinished = true,
+            CompletionType = "None",
+            RollType = "All",
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        // 本层档位(Urgent)不生效 → 跳下层 ColdRoll30 → All 全量命中 → 流转
+        var item = result.Items.Single();
+        item.CR_RollType.Should().Be("All");                  // 匹配层=下层（本层 Urgent 不生效被覆盖）
+        item.IsFlow.Should().BeTrue();
+        item.FlowCRType.Should().Be(ProcessKeys.ColdRoll50);  // 显示层=物理本层（V5.33，与实时组一致）
+        item.FlowExecSpec.Should().Be("38*3.2");
+        item.OuterDiameterSpan.Should().BeNull();             // 本层为第一道冷轧（无来料规格），跨度空
+        item.FlowTarget.Should().Be(FlowTargetKeys.ColdRoll);
+        item.TargetSequence.Should().Be(2);                   // 本层冷轧拔工段序
+        // 变形序完成=否（当前在酸洗、冷轧拔之前）→ 冷轧排程(实时)取本层的规格信息
+        item.CurrentCR_DeformedSeqCompleted.Should().BeFalse();
+        item.RealTimeCR_ProcessType.Should().Be(ProcessKeys.ColdRoll50);
+        item.RealTimeCR_RollingSpec.Should().Be("38*3.2");
+        item.RealTimeCR_BilletSpec.Should().BeNull(); // 本层为第一道冷轧（无前序工序），无来料规格
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_本层未轧过无档位_下层有档位_流转显示物理本层()
+    {
+        using var ctx = CreateDbContext();
+        // 工序组：ColdRoll50(38*3.2, 酸洗=1, 冷轧拔=2) → ColdRoll30(25*2.5, 冷轧拔=2)
+        // 当前在 ColdRoll50 组内酸洗（冷轧拔之前）→ 本层 ColdRoll50 是「下一个冷轧拔层」（未轧过）
+        var batch = CreateBatch(ctx, "B001", "WO001",
+            currentGroupName: ProcessKeys.ColdRoll50,
+            currentSectionName: SectionKeys.Pickle,
+            currentSectionCompleted: false);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll50,
+            SequenceNumber = 1,
+            Pickle = 1,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "38*3.2",
+        });
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll30,
+            SequenceNumber = 2,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "25*2.5",
+        });
+        // 非急批次（CSlow）+ 正常流转 → All 全量命中
+        SeedSummary(ctx, "WO001", scheduleStage: 3, urgencyLevel: UrgencyLevelKeys.CSlow);
+        await ctx.SaveChangesAsync();
+        var summary = ctx.Set<WorkOrderExecutionSummary>().First(s => s.WorkOrderNo == "WO001");
+        summary.MainNoAttentionProcess = ProcessKeys.ColdRoll50;
+        summary.ProductionFlowProperty = ProductionFlowKeys.Normal;
+        await ctx.SaveChangesAsync();
+
+        // 排程表：本层 ColdRoll50(38*3.2) 无档位记录；下层 ColdRoll30(25*2.5) 有待轧要求=All（全量）
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "38*3.2",
+            RollingSpec = "25*2.5",
+            IsFinished = true,
+            CompletionType = "None",
+            RollType = "All",
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        // 本层无档位 → 待轧跳下层 ColdRoll30 匹配 All → 流转；但显示层=「冷轧排程(实时)」物理本层（V5.33）
+        var item = result.Items.Single();
+        item.CurrentCR_ProcessType.Should().Be(ProcessKeys.ColdRoll50);
+        item.NextCR_ProcessType.Should().Be(ProcessKeys.ColdRoll30);
+        item.CR_RollType.Should().Be("All");                  // 匹配层=下层（IsFlow/机台依据）
+        item.IsFlow.Should().BeTrue();
+        item.FlowCRType.Should().Be(ProcessKeys.ColdRoll50);  // 显示层=物理本层（与实时组一致）
+        item.FlowExecSpec.Should().Be("38*3.2");
+        item.OuterDiameterSpan.Should().BeNull();             // 本层为第一道冷轧（无来料规格），跨度空
+        item.FlowTarget.Should().Be(FlowTargetKeys.ColdRoll);
+        item.TargetSequence.Should().Be(2);                   // 本层冷轧拔工段序
+        // 变形序完成=否（当前在酸洗、冷轧拔之前）→ 冷轧排程(实时)取本层的规格信息
+        item.CurrentCR_DeformedSeqCompleted.Should().BeFalse();
+        item.RealTimeCR_ProcessType.Should().Be(ProcessKeys.ColdRoll50);
+        item.RealTimeCR_RollingSpec.Should().Be("38*3.2");
+        item.RealTimeCR_BilletSpec.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_本层非冷轧_变形序完成默认完成_实时取下层的规格()
+    {
+        using var ctx = CreateDbContext();
+        // 工序组：RoughTubeProcessing(67*5.5, 检验=2) → ColdRoll50(38*3.2) → ColdRoll30(25*2.5)
+        // 当前在荒管组检验（非冷轧）→ 本层 CurrentCR 为空（无冷轧拔）→ 变形序完成默认完成 → 实时取下层 ColdRoll50
+        var batch = CreateBatch(ctx, "B001", "WO001",
+            currentGroupName: ProcessKeys.RoughTubeProcessing,
+            currentSectionName: SectionKeys.Inspection,
+            currentSectionCompleted: false);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.RoughTubeProcessing,
+            SequenceNumber = 1,
+            Inspection = 2,
+            ManufacturingSpec = "67*5.5",
+        });
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll50,
+            SequenceNumber = 2,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "38*3.2",
+        });
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.ColdRoll30,
+            SequenceNumber = 3,
+            ColdRollDraw = 2,
+            ManufacturingSpec = "25*2.5",
+        });
+        SeedSummary(ctx, "WO001", scheduleStage: 3, urgencyLevel: UrgencyLevelKeys.CSlow);
+        await ctx.SaveChangesAsync();
+        var summary = ctx.Set<WorkOrderExecutionSummary>().First(s => s.WorkOrderNo == "WO001");
+        summary.ProductionFlowProperty = ProductionFlowKeys.Normal;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var item = result.Items.Single();
+        item.CurrentCR_ProcessType.Should().BeNull(); // 本层（待产工序=荒管）非冷轧
+        item.NextCR_ProcessType.Should().Be(ProcessKeys.ColdRoll50);
+        // 无本层冷轧拔 → 变形序完成默认完成 → 实时组取下层（下一个冷轧拔层）规格
+        item.CurrentCR_DeformedSeqCompleted.Should().BeNull();
+        item.RealTimeCR_ProcessType.Should().Be(ProcessKeys.ColdRoll50);
+        item.RealTimeCR_BilletSpec.Should().Be("67*5.5");
+        item.RealTimeCR_RollingSpec.Should().Be("38*3.2");
+        item.RealTimeCR_IsFinished.Should().BeFalse();
     }
 
     // ==================== 重点生产批次（IsKeyBatch）判定测试 ====================
@@ -970,6 +1465,41 @@ public class BatchPlanServiceTests : TestBase
         item.ExecutionSequence.Should().Be(2);
         item.AttentionProcessSectionSequence.Should().Be(1);
         item.IsKeyBatch.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_重点批次排程未命中_实时重点兜底流转()
+    {
+        using var ctx = CreateDbContext();
+        // 未产荒管批次（无当前工序组，执行序视为 0）：0 < 相应工段序(2) → 重点
+        var batch = CreateBatch(ctx, "B001", "WO001", BatchStatus.InProgress);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = ProcessKeys.RoughTubeProcessing,
+            SequenceNumber = 1,
+            Inspection = 2,
+            ManufacturingSpec = "219*8",
+        });
+        SeedSummary(ctx, "WO001", scheduleStage: 3, urgencyLevel: UrgencyLevelKeys.AUrgent);
+        await ctx.SaveChangesAsync();
+        var summary = ctx.Set<WorkOrderExecutionSummary>().First(s => s.WorkOrderNo == "WO001");
+        summary.MainNoAttentionProcess = ProcessKeys.RoughTubeProcessing;
+        summary.ProductionFlowProperty = ProductionFlowKeys.Normal;
+        await ctx.SaveChangesAsync();
+
+        // 无冷轧排程记录 → 排程未命中（_trigger=None）→ V5.35 实时重点兜底
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var item = result.Items.Single();
+        item.IsKeyBatch.Should().BeTrue();
+        item.IsFlow.Should().BeTrue();                    // 重点兜底流转
+        item.ScheduleTier.Should().Be(2);                 // 急
+        item.FlowCRType.Should().Be(ProcessKeys.RoughTubeProcessing);   // 冷轧类型=主号关注工序
+        item.FlowTarget.Should().Be(FlowTargetKeys.RoughTubeCheck);     // 荒管处理 → 荒管检
+        item.FlowExecSpec.Should().Be("219*8");           // 关注工序对应工序组规格
+        item.TargetSequence.Should().Be(2);               // 相应工段序（检验工段序）
     }
 
     // ==================== ComputeAttentionProcessSectionSequence 相应工段序测试 ====================

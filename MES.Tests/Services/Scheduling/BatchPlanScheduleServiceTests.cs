@@ -426,7 +426,7 @@ public class BatchPlanScheduleServiceTests : TestBase
     // ==================== 已有计划记录：保留抢单/备注，字段被覆盖 ====================
 
     [Fact]
-    public async Task PlanAllAsync_已有计划记录_覆盖自动字段_保留抢单备注()
+    public async Task PlanAllAsync_已有计划记录_覆盖自动字段_保留抢单_重置备注()
     {
         using var ctx = CreateDbContext();
         var batch = CreateBatch(ctx, "B001", "WO001", BatchStatus.InProgress);
@@ -460,13 +460,13 @@ public class BatchPlanScheduleServiceTests : TestBase
         plan.FlowLevel.Should().Be(5);
         plan.TargetSequence.Should().Be(0);
         plan.ExecutionSequence.Should().BeNull();
-        // 保留 抢单 和 备注
+        // 保留 抢单；备注被计划安排重置（本测试批次无排程匹配 → 待轧设备号空 → 清空）
         plan.IsGrabOrder.Should().BeTrue();
-        plan.PlanRemark.Should().Be("手工备注");
+        plan.PlanRemark.Should().BeNull();
     }
 
     [Fact]
-    public async Task PlanAllAsync_已有计划记录_空备注补填设备号_非空备注保留()
+    public async Task PlanAllAsync_已有计划记录_计划安排重置备注为设备号()
     {
         using var ctx = CreateDbContext();
         // 批次 A：已有非空备注；批次 B：已有空备注；两者均待轧（在轧设备为空）命中冷轧排程设备号
@@ -521,10 +521,11 @@ public class BatchPlanScheduleServiceTests : TestBase
         var svc = CreateService(ctx);
         await svc.PlanAllAsync(null);
 
+        // 计划安排=重置备注：先清空再填充冷轧计划的待轧设备号（手工更改仅在未点计划安排时保留）
         var planA = ctx.BatchPlanSchedules.AsNoTracking().Single(x => x.BatchId == batchA.Id);
-        planA.PlanRemark.Should().Be("手工备注");   // 非空备注保留不覆盖
+        planA.PlanRemark.Should().Be("60-1#；60-2#");   // 原有"手工备注"被重置为设备号
         var planB = ctx.BatchPlanSchedules.AsNoTracking().Single(x => x.BatchId == batchB.Id);
-        planB.PlanRemark.Should().Be("60-1#；60-2#");   // 空备注补填默认设备号
+        planB.PlanRemark.Should().Be("60-1#；60-2#");   // 空备注同样填充设备号
     }
 
     [Fact]

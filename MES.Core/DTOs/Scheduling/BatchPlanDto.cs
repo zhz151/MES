@@ -119,14 +119,15 @@ public class BatchPlanDto
             var isNormal = ProductionFlowProperty == ProductionFlowKeys.Normal;
             var isPartial3 = isUrgent || UrgencyLevel == UrgencyLevelKeys.BOrder;
 
-            // 在轧要求判定（档位语义与冷轧排程 MatchesScheduleType 一致，Model B）
+            // 在轧要求判定（档位语义与冷轧排程 MatchesScheduleType 一致，Model B；
+            // ⚠️ Subsequent=All 全量、Partial1=Urgent 为 V5.25 历史档位，存量数据可能存有，须兼容）
             if (!string.IsNullOrEmpty(CR_CompletionType) && CR_CompletionType != "None")
             {
-                if (CR_CompletionType == "All")
+                if (CR_CompletionType == "All" || CR_CompletionType == "Subsequent")
                     return FlowTrigger.CompletionType;
                 if (CR_CompletionType == "CrOnly" && isUrgent && isNormal && AttentionMatchesCurrentCR)
                     return FlowTrigger.CompletionType;
-                if (CR_CompletionType == "Urgent" && isUrgent && isNormal)
+                if ((CR_CompletionType == "Urgent" || CR_CompletionType == "Partial1") && isUrgent && isNormal)
                     return FlowTrigger.CompletionType;
                 if (CR_CompletionType == "Partial2" && isUrgent)
                     return FlowTrigger.CompletionType;
@@ -137,11 +138,11 @@ public class BatchPlanDto
             // 待轧要求判定
             if (!string.IsNullOrEmpty(CR_RollType) && CR_RollType != "None")
             {
-                if (CR_RollType == "All")
+                if (CR_RollType == "All" || CR_RollType == "Subsequent")
                     return FlowTrigger.RollType;
                 if (CR_RollType == "CrOnly" && isUrgent && isNormal && AttentionMatchesCurrentCR)
                     return FlowTrigger.RollType;
-                if (CR_RollType == "Urgent" && isUrgent && isNormal)
+                if ((CR_RollType == "Urgent" || CR_RollType == "Partial1") && isUrgent && isNormal)
                     return FlowTrigger.RollType;
                 if (CR_RollType == "Partial2" && isUrgent)
                     return FlowTrigger.RollType;
@@ -161,37 +162,18 @@ public class BatchPlanDto
     /// 待轧要求=All → true；待轧要求=CrOnly → true 仅当 特急(正常流转∧关注==当前冷轧)
     /// 待轧要求=Urgent → true 仅当 特急/特急-(正常流转)；待轧要求=Partial2 → true 仅当 A+急/A急
     /// 待轧要求=Partial3 → true 仅当 A+急/A急/B顺
-    public bool IsFlow => _trigger != FlowTrigger.None;
-
-    /// <summary>
-    /// 流转等级整数值（基于 UrgencyLevel，与 _trigger 分离，3 档）：
-    /// 2=急（A+急/A急 且流转）
-    /// 3=一般（B顺 + 其余流转）
-    /// 4=略（IsFlow=false 非流转）
-    /// 重点批次（IsKeyBatch）不再参与等级判定（仅 G4 工单计划组显示），特急档由薄表 PlanFlowLevel 手工体现
+    /// 重点兜底（V5.35）：重点生产批次且冷轧排程未命中 → 按主号关注工序兜底流转（IsFlow=true）
     /// </summary>
-    public int FlowLevel
-    {
-        get
-        {
-            if (!IsFlow) return 4;
-
-            var isUrgent = UrgencyLevelKeys.IsUrgent(UrgencyLevel);
-
-            if (isUrgent) return 2;
-            return 3;
-        }
-    }
-
-    /// <summary>等级显示文本：急/一般/略（实时等级不含特急，特急由薄表 PlanFlowLevel 手工体现）</summary>
     [JsonIgnore]
-    public string FlowLevelDisplay => FlowLevel switch
-    {
-        2 => "急",
-        3 => "一般",
-        4 => "略",
-        _ => FlowLevel.ToString(),
-    };
+    public bool IsFlow => _trigger != FlowTrigger.None || KeyBatchFallback;
+
+    /// <summary>重点兜底判定（V5.35 用户决策：实时也加重点兜底，与薄表规则(2) 一致）：重点生产批次且冷轧排程未命中 → 按主号关注工序兜底流转</summary>
+    [JsonIgnore]
+    public bool KeyBatchFallback => IsKeyBatch && _trigger == FlowTrigger.None;
+
+    /// <summary>重点兜底执行规格（V5.35 Service 填充：收尾→待产规格、其余→主号关注工序对应工序组规格；仅 KeyBatchFallback 时消费）</summary>
+    [JsonIgnore]
+    public string? KeyBatchFallbackExecSpec { get; set; }
 
     /// <summary>
     /// 排程档位（批次实际档位，V5.26 细化，与 _trigger/冷轧排程口径一致，档位序 急+&gt;急&gt;急-&gt;顺&gt;带&gt;略）：
@@ -204,6 +186,7 @@ public class BatchPlanDto
         get
         {
             if (!IsFlow) return 6;
+            if (KeyBatchFallback) return 2; // V5.35 重点兜底 → 急（与薄表 MapScheduleTierToPlanLevel(2)=2 一致）
             var isUrgent = UrgencyLevelKeys.IsUrgent(UrgencyLevel);
             var isNormal = ProductionFlowProperty == ProductionFlowKeys.Normal;
             if (isUrgent && isNormal && AttentionMatchesCurrentCR) return 1;
@@ -231,49 +214,61 @@ public class BatchPlanDto
     {
         FlowTrigger.CompletionType => FlowTargetKeys.CompletionColdRoll,
         FlowTrigger.RollType => FlowTargetKeys.ColdRoll,
-        _ => null,
+        _ => KeyBatchFallback ? MapFlowTargetByCRType(MainNoAttentionProcess) : null, // V5.35 重点兜底（与薄表规则(2) 一致）
     };
 
-    /// <summary>待轧要求场景对应的层级冷轧工序类型</summary>
+    /// <summary>
+    /// 待轧要求场景对应的层级冷轧工序类型（V5.33 用户决策：优先=「冷轧排程(实时)」物理下一冷轧拔层，
+    /// 回退=本层→下层→下下层）。排程匹配层不再作为显示层，仅用于 IsFlow/机台判断（匹配层可通过 CR_RollType/CR_SchedMachineNo 识别）。
+    /// V5.35 在轧对齐：本层冷轧拔已完工且本层检验/酸洗在轧时也走待轧匹配（_trigger=RollType）——不再以 PendingEquipment 判断，
+    /// 因 FlowCRType 的 _trigger switch 已保证仅在 RollType 分支调用本属性（在轧匹配走 CompletionType 分支、不调用）。
+    /// </summary>
     private string? _rollTypeProcessType
     {
         get
         {
-            if (!string.IsNullOrEmpty(CurrentCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+            if (!string.IsNullOrEmpty(RealTimeCR_ProcessType))
+                return RealTimeCR_ProcessType;
+            // 回退（防御）：实时组未计算的边界场景，回退本层→下层→下下层
+            if (!string.IsNullOrEmpty(CurrentCR_ProcessType))
                 return CurrentCR_ProcessType;
-            if (!string.IsNullOrEmpty(NextCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+            if (!string.IsNullOrEmpty(NextCR_ProcessType))
                 return NextCR_ProcessType;
-            if (!string.IsNullOrEmpty(NextNextCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+            if (!string.IsNullOrEmpty(NextNextCR_ProcessType))
                 return NextNextCR_ProcessType;
             return null;
         }
     }
 
-    /// <summary>待轧要求场景对应的层级轧制规格</summary>
+    /// <summary>待轧要求场景对应的层级轧制规格（优先=「冷轧排程(实时)」物理下一冷轧拔层，回退=本层→下层→下下层）</summary>
     private string? _rollTypeRollingSpec
     {
         get
         {
-            if (!string.IsNullOrEmpty(CurrentCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+            if (!string.IsNullOrEmpty(RealTimeCR_RollingSpec))
+                return RealTimeCR_RollingSpec;
+            if (!string.IsNullOrEmpty(CurrentCR_ProcessType))
                 return CurrentCR_RollingSpec;
-            if (!string.IsNullOrEmpty(NextCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+            if (!string.IsNullOrEmpty(NextCR_ProcessType))
                 return NextCR_RollingSpec;
-            if (!string.IsNullOrEmpty(NextNextCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+            if (!string.IsNullOrEmpty(NextNextCR_ProcessType))
                 return NextNextCR_RollingSpec;
             return null;
         }
     }
 
-    /// <summary>待轧要求场景对应的层级坯料规格</summary>
+    /// <summary>待轧要求场景对应的层级坯料规格（优先=「冷轧排程(实时)」物理下一冷轧拔层，回退=本层→下层→下下层）</summary>
     private string? _rollTypeBilletSpec
     {
         get
         {
-            if (!string.IsNullOrEmpty(CurrentCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+            if (!string.IsNullOrEmpty(RealTimeCR_BilletSpec))
+                return RealTimeCR_BilletSpec;
+            if (!string.IsNullOrEmpty(CurrentCR_ProcessType))
                 return CurrentCR_BilletSpec;
-            if (!string.IsNullOrEmpty(NextCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+            if (!string.IsNullOrEmpty(NextCR_ProcessType))
                 return NextCR_BilletSpec;
-            if (!string.IsNullOrEmpty(NextNextCR_ProcessType) && string.IsNullOrEmpty(PendingEquipment))
+            if (!string.IsNullOrEmpty(NextNextCR_ProcessType))
                 return NextNextCR_BilletSpec;
             return null;
         }
@@ -284,10 +279,10 @@ public class BatchPlanDto
     {
         FlowTrigger.CompletionType => PendingProcess,
         FlowTrigger.RollType => _rollTypeProcessType,
-        _ => null,
+        _ => KeyBatchFallback ? MainNoAttentionProcess : null, // V5.35 重点兜底（与薄表规则(2) planFlowCRType 一致）
     };
 
-    /// <summary>外径跨度 — 坯料外径-轧制外径，如"110-89"</summary>
+    /// <summary>外径跨度 — 坯料外径-轧制外径，如"110-89"（重点兜底无外径跨度，与薄表规则(2) planOuterDiameterSpan=null 一致）</summary>
     public string? OuterDiameterSpan => _trigger switch
     {
         FlowTrigger.CompletionType => GetShortDisplay(CurrentCR_BilletSpec, CurrentCR_RollingSpec),
@@ -300,7 +295,7 @@ public class BatchPlanDto
     {
         FlowTrigger.CompletionType => CurrentCR_RollingSpec,
         FlowTrigger.RollType => _rollTypeRollingSpec,
-        _ => null,
+        _ => KeyBatchFallback ? KeyBatchFallbackExecSpec : null, // V5.35 重点兜底（Service 填充）
     };
 
     /// <summary>目标序（实时：根据 FlowTarget 从 ProcessGroups 推导）</summary>
@@ -312,6 +307,12 @@ public class BatchPlanDto
     public string? CurrentCR_BilletSpec { get; set; }    // 本层冷轧坯料规格
     public string? CurrentCR_RollingSpec { get; set; }   // 本层冷轧轧制规格
     public bool CurrentCR_IsFinished { get; set; }       // 本层冷轧是否成品
+    /// <summary>
+    /// 变形序完成（本层冷轧拔工段是否已轧过，V5.32 用户决策）：
+    /// true=完成（本层冷轧拔已轧过/本层无冷轧拔默认完成）、false=否（未轧过）、null=本层非冷轧（视为完成）。
+    /// 与 V5.31 IsColdRollPassDone / 排程侧 BuildAllocationsAsync 同口径（跨组：层在当前工序组之前=已过，之后=未到）。
+    /// </summary>
+    public bool? CurrentCR_DeformedSeqCompleted { get; set; }
     public string? NextCR_ProcessType { get; set; }      // 下层冷轧工序类型
     public string? NextCR_BilletSpec { get; set; }       // 下层冷轧坯料规格
     public string? NextCR_RollingSpec { get; set; }      // 下层冷轧轧制规格
@@ -320,6 +321,14 @@ public class BatchPlanDto
     public string? NextNextCR_BilletSpec { get; set; }   // 下下层冷轧坯料规格
     public string? NextNextCR_RollingSpec { get; set; }  // 下下层冷轧轧制规格
     public bool NextNextCR_IsFinished { get; set; }      // 下下层冷轧是否成品
+
+    // G5-4：冷轧排程(实时)（批次的「下一个冷轧拔层」规格信息，V5.32 用户决策）
+    // 取值：本层变形序未完成（或本层非冷轧/无冷轧拔=默认完成）→ 本层；已完成 → 下层（有数据）→ 否则下下层。
+    // 与 V5.31 待轧分支「找到第一个冷轧拔未完成的层」/ 排程侧 BuildAllocationsAsync 口径一致。
+    public string? RealTimeCR_ProcessType { get; set; }  // 实时冷轧工序
+    public string? RealTimeCR_BilletSpec { get; set; }   // 实时来料规格
+    public string? RealTimeCR_RollingSpec { get; set; }  // 实时在轧规格
+    public bool RealTimeCR_IsFinished { get; set; }      // 实时末道
 
     // G5-2：本层排程匹配结果（本层维度匹配冷轧小表）
     public string? CR_CompletionType { get; set; }       // 在轧要求
@@ -367,12 +376,6 @@ public class BatchPlanDto
     public int CurrentDiff =>
         (PlanTargetSequence ?? 0) - (ExecutionSequence ?? 0);
 
-    /// <summary>G7 实时工量差 = G7 目标序(实时) - 执行序(实时)，仅在 IsFlow=true 时有意义</summary>
-    public int? CurrentFlowDiff =>
-        TargetSequence.HasValue && ExecutionSequence.HasValue
-            ? TargetSequence.Value - ExecutionSequence.Value
-            : null;
-
     /// <summary>是否执行 = 原工量差 ≠ 现工量差（执行序是否推进，未产视为未执行）</summary>
     public bool IsExecuted => OriginalDiff != CurrentDiff;
 
@@ -397,5 +400,17 @@ public class BatchPlanDto
         var outer1 = billetSpec?.Split('*', '×').FirstOrDefault()?.Trim() ?? "";
         var outer2 = rollingSpec?.Split('*', '×').FirstOrDefault()?.Trim() ?? "";
         return string.IsNullOrEmpty(outer1) || string.IsNullOrEmpty(outer2) ? null : $"{outer1}-{outer2}";
+    }
+
+    /// <summary>重点兜底流转目标（V5.35，与薄表 BatchPlanScheduleService.MapFlowTargetByCRType 同源）：
+    /// 荒管处理→荒管检、在制修检→在制检、生产收尾→成品检验、空→null、剩余（冷轧类工序）→冷轧</summary>
+    private static string? MapFlowTargetByCRType(string? crType)
+    {
+        if (string.IsNullOrEmpty(crType)) return null;
+        if (crType == ProductionAttentionKeys.Finish) return FlowTargetKeys.FinalCheck;
+        var key = ProcessKeys.ToKey(crType) ?? crType;
+        if (key == ProcessKeys.RoughTubeProcessing) return FlowTargetKeys.RoughTubeCheck;
+        if (key == ProcessKeys.InProcessRepair) return FlowTargetKeys.InProcessCheck;
+        return FlowTargetKeys.ColdRoll;
     }
 }

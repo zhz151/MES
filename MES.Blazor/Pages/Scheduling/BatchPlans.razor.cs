@@ -130,15 +130,17 @@ public partial class BatchPlans
             _flowTargetOptions = flowTarget.Data.Select(t => (t.Value, t.DisplayName)).ToList();
     }
 
-    /// <summary>永久隐藏列：冷轧排程 5 组 + 工单需求调整（用户决策，不在列显隐选择器显示，始终不显示）</summary>
+    /// <summary>
+    /// 永久隐藏列：冷轧排程维度列（本层/下层/下下层/实时）+ 匹配结果 + 工单需求调整 + 批次基础多余字段
+    /// （不在列显隐选择器显示，始终不显示；冷轧维度展示统一走 G11 判定结果 + G13 批次计划，2026-08-20 用户决策）
+    /// </summary>
     private static readonly HashSet<string> _permanentlyHiddenColumnKeys = new()
     {
-        // 冷轧排程(本层)
-        "CurrentCR_ProcessType", "CurrentCR_BilletSpec", "CurrentCR_RollingSpec", "CurrentCR_IsFinished",
-        // 冷轧排程(下层)
+        // 冷轧排程(本层/下层/下下层/实时) 维度列
+        "CurrentCR_ProcessType", "CurrentCR_BilletSpec", "CurrentCR_RollingSpec", "CurrentCR_IsFinished", "CurrentCR_DeformedSeqCompleted",
         "NextCR_ProcessType", "NextCR_BilletSpec", "NextCR_RollingSpec", "NextCR_IsFinished",
-        // 冷轧排程(下下层)
         "NextNextCR_ProcessType", "NextNextCR_BilletSpec", "NextNextCR_RollingSpec", "NextNextCR_IsFinished",
+        "RealTimeCR_ProcessType", "RealTimeCR_BilletSpec", "RealTimeCR_RollingSpec", "RealTimeCR_IsFinished",
         // 冷轧排程(本层匹配)
         "CR_CompletionType",
         // 冷轧排程(下层匹配)
@@ -198,13 +200,14 @@ public partial class BatchPlans
             new() { Key = "ExecutionSequence",      Label = "现执行序",      FilterType = "number", Width = "70", GroupKey = 3, GroupName = "状态跟踪" },
         };
 
-        // G5: 冷轧排程（维度明细+匹配结果，均可列显隐切换）
+        // G5: 冷轧排程（本层/下层/下下层维度明细可列显隐切换；匹配结果 CR_* 永久隐藏）
         var g5 = new List<ColumnDef>
         {
             new() { Key = "CurrentCR_ProcessType",  Label = "本层冷轧工序", FilterType = "string",  Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)" },
             new() { Key = "CurrentCR_BilletSpec",   Label = "本层来料规格", FilterType = "string",  Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)" },
             new() { Key = "CurrentCR_RollingSpec",  Label = "本层在轧规格", FilterType = "string",  Width = "110", GroupKey = 5, GroupName = "冷轧排程(本层)" },
             new() { Key = "CurrentCR_IsFinished",   Label = "本层末道",    FilterType = "boolean", Width = "80",  GroupKey = 5, GroupName = "冷轧排程(本层)" },
+            new() { Key = "CurrentCR_DeformedSeqCompleted", Label = "变形序完成", FilterType = "boolean", Width = "90", BoolTrueLabel = "完成", BoolFalseLabel = "否", GroupKey = 5, GroupName = "冷轧排程(本层)" },
             new() { Key = "NextCR_ProcessType",     Label = "下层冷轧工序", FilterType = "string",  Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)" },
             new() { Key = "NextCR_BilletSpec",      Label = "下层来料规格", FilterType = "string",  Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)" },
             new() { Key = "NextCR_RollingSpec",     Label = "下层在轧规格", FilterType = "string",  Width = "110", GroupKey = 6, GroupName = "冷轧排程(下层)" },
@@ -213,6 +216,10 @@ public partial class BatchPlans
             new() { Key = "NextNextCR_BilletSpec",  Label = "下下层来料规格", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)" },
             new() { Key = "NextNextCR_RollingSpec", Label = "下下层在轧规格", FilterType = "string", Width = "110", GroupKey = 9, GroupName = "冷轧排程(下下层)" },
             new() { Key = "NextNextCR_IsFinished",  Label = "下下层末道",    FilterType = "boolean", Width = "80",  GroupKey = 9, GroupName = "冷轧排程(下下层)" },
+            new() { Key = "RealTimeCR_ProcessType", Label = "冷轧工序",     FilterType = "string",  Width = "110", GroupKey = 12, GroupName = "冷轧排程(实时)" },
+            new() { Key = "RealTimeCR_BilletSpec",  Label = "来料规格",     FilterType = "string",  Width = "110", GroupKey = 12, GroupName = "冷轧排程(实时)" },
+            new() { Key = "RealTimeCR_RollingSpec", Label = "在轧规格",     FilterType = "string",  Width = "110", GroupKey = 12, GroupName = "冷轧排程(实时)" },
+            new() { Key = "RealTimeCR_IsFinished",  Label = "末道",         FilterType = "boolean", Width = "80",  GroupKey = 12, GroupName = "冷轧排程(实时)" },
             new() { Key = "CR_CompletionType",      Label = "在轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 7, GroupName = "冷轧排程(本层匹配)", EnumOptions = DisplayHelper.GetCompletionTypeOptions(), DisplayConverter = v => DisplayHelper.GetCompletionTypeText(v as string) },
             new() { Key = "CR_RollType",            Label = "待轧要求",    FilterType = "enum",   Width = "90",  GroupKey = 8, GroupName = "冷轧排程(下层匹配)", EnumOptions = DisplayHelper.GetRollTypeOptions(), DisplayConverter = v => DisplayHelper.GetRollTypeText(v as string) },
             new() { Key = "CR_SchedMachineNo",      Label = "待轧设备号",   FilterType = "string", Width = "100", GroupKey = 8, GroupName = "冷轧排程(下层匹配)" },
@@ -298,6 +305,26 @@ public partial class BatchPlans
     }
 
     // ========== 分页汇总 ==========
+
+    /// <summary>
+    /// 渲染期惰性重算当前页汇总。⚠️ MudBlazor 6.19.1 没有 CurrentPageChanged 事件（旧绑定被
+    /// CaptureUnmatchedValues 静默吞掉、永不触发）；翻页只触发 MudTable 自身 StateHasChanged，
+    /// 不触发父组件 OnAfterRenderAsync。故在 FooterContent 渲染时按「页码/每页行数/数据量」签名惰性重算，
+    /// 保证页脚汇总与实际显示行一致。
+    /// </summary>
+    private void EnsurePageSumsComputed()
+    {
+        var page = table?.CurrentPage ?? 0;
+        var rowsPerPage = table?.RowsPerPage ?? _pageSize;
+        if (rowsPerPage <= 0) rowsPerPage = _pageSize;
+        var count = _filteredItems.Count;
+        if (page == _lastSummedPage && count == _lastSummedCount && rowsPerPage == _lastSummedPageSize)
+            return;
+        _lastSummedPage = page;
+        _lastSummedCount = count;
+        _lastSummedPageSize = rowsPerPage;
+        ComputePageSums();
+    }
 
     private void ComputePageSums()
     {
@@ -654,6 +681,7 @@ public partial class BatchPlans
         "CurrentCR_BilletSpec" => item.CurrentCR_BilletSpec,
         "CurrentCR_RollingSpec" => item.CurrentCR_RollingSpec,
         "CurrentCR_IsFinished" => item.CurrentCR_IsFinished ? "True" : "False",
+        "CurrentCR_DeformedSeqCompleted" => item.CurrentCR_DeformedSeqCompleted != false ? "True" : "False",
         "NextCR_ProcessType" => item.NextCR_ProcessType,
         "NextCR_BilletSpec" => item.NextCR_BilletSpec,
         "NextCR_RollingSpec" => item.NextCR_RollingSpec,
@@ -662,6 +690,10 @@ public partial class BatchPlans
         "NextNextCR_BilletSpec" => item.NextNextCR_BilletSpec,
         "NextNextCR_RollingSpec" => item.NextNextCR_RollingSpec,
         "NextNextCR_IsFinished" => item.NextNextCR_IsFinished ? "True" : "False",
+        "RealTimeCR_ProcessType" => item.RealTimeCR_ProcessType,
+        "RealTimeCR_BilletSpec" => item.RealTimeCR_BilletSpec,
+        "RealTimeCR_RollingSpec" => item.RealTimeCR_RollingSpec,
+        "RealTimeCR_IsFinished" => item.RealTimeCR_IsFinished ? "True" : "False",
         "CR_CompletionType" => item.CR_CompletionType,
         "CR_RollType" => item.CR_RollType,
         "CR_SchedMachineNo" => item.CR_SchedMachineNo,
@@ -968,22 +1000,7 @@ public partial class BatchPlans
             await JS.InvokeVoidAsync("initGroupHeaders", "#batch-plan-list-table");
         }
         catch { }
-
-        // 分页导航/页大小切换后重算当前页汇总（pager 操作只改 CurrentPage/RowsPerPage，不触发 ApplyFiltersAndSort）
-        if (table != null && _filteredItems.Count > 0)
-        {
-            var page = table.CurrentPage;
-            var count = _filteredItems.Count;
-            var rowsPerPage = table.RowsPerPage;
-            if (page != _lastSummedPage || count != _lastSummedCount || rowsPerPage != _lastSummedPageSize)
-            {
-                _lastSummedPage = page;
-                _lastSummedCount = count;
-                _lastSummedPageSize = rowsPerPage;
-                ComputePageSums();
-                StateHasChanged();
-            }
-        }
+        // 分页汇总改由 FooterContent 渲染期 EnsurePageSumsComputed 惰性重算（见该方法的注释说明）
     }
 
     // ========== Tab 汇总辅助方法 ==========
@@ -1048,6 +1065,10 @@ public partial class BatchPlans
                 (x.NextNextCR_ProcessType != null && x.NextNextCR_ProcessType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.NextNextCR_BilletSpec != null && x.NextNextCR_BilletSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.NextNextCR_RollingSpec != null && x.NextNextCR_RollingSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.RealTimeCR_ProcessType != null && x.RealTimeCR_ProcessType.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.RealTimeCR_BilletSpec != null && x.RealTimeCR_BilletSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.RealTimeCR_RollingSpec != null && x.RealTimeCR_RollingSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.CurrentCR_DeformedSeqCompleted != false ? "完成" : "否").Contains(kw, StringComparison.OrdinalIgnoreCase) ||
                 (x.IsCompliant != null && x.IsCompliant.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 // 中文显示文本列（enum/int/bool 档位）：计划状态/等级/布尔是·否
                 (x.ScheduleStage switch { -1 => "无此工单", 4 => "非工单", _ => IntStatusDisplayHelper.GetPlanScheduleStageText(x.ScheduleStage) }).Contains(kw, StringComparison.OrdinalIgnoreCase) ||
@@ -1114,19 +1135,6 @@ public partial class BatchPlans
         _ = SavePageStateAsync();
     }
 
-    /// <summary>
-    /// 翻页后重算当前页汇总。⚠️ 翻页只触发 MudTable（子组件）渲染，不触发父组件 OnAfterRenderAsync，
-    /// 故必须用 CurrentPageChanged 事件驱动（非泛型 EventCallback，不传参，页号内部经 table.CurrentPage 读取）；
-    /// EventCallback 完成后自动 StateHasChanged 刷新页脚。
-    /// </summary>
-    private void OnCurrentPageChanged()
-    {
-        ComputePageSums();
-        _lastSummedPage = table?.CurrentPage ?? 0;
-        _lastSummedCount = _filteredItems.Count;
-        _lastSummedPageSize = table?.RowsPerPage ?? _pageSize;
-    }
-
     private static List<BatchPlanDto> ApplySorting(List<BatchPlanDto> items, string sortBy, bool desc)
     {
         var query = sortBy.ToLower() switch
@@ -1152,6 +1160,7 @@ public partial class BatchPlans
             "currentcr_billetspec" => items.OrderBy(x => x.CurrentCR_BilletSpec ?? ""),
             "currentcr_rollingspec" => items.OrderBy(x => x.CurrentCR_RollingSpec ?? ""),
             "currentcr_isfinished" => items.OrderBy(x => x.CurrentCR_IsFinished),
+            "currentcr_deformedseqcompleted" => items.OrderBy(x => x.CurrentCR_DeformedSeqCompleted),
             "nextcr_processtype" => items.OrderBy(x => x.NextCR_ProcessType ?? ""),
             "nextcr_billetspec" => items.OrderBy(x => x.NextCR_BilletSpec ?? ""),
             "nextcr_rollingspec" => items.OrderBy(x => x.NextCR_RollingSpec ?? ""),
@@ -1160,6 +1169,10 @@ public partial class BatchPlans
             "nextnextcr_billetspec" => items.OrderBy(x => x.NextNextCR_BilletSpec ?? ""),
             "nextnextcr_rollingspec" => items.OrderBy(x => x.NextNextCR_RollingSpec ?? ""),
             "nextnextcr_isfinished" => items.OrderBy(x => x.NextNextCR_IsFinished),
+            "realtimecr_processtype" => items.OrderBy(x => x.RealTimeCR_ProcessType ?? ""),
+            "realtimecr_billetspec" => items.OrderBy(x => x.RealTimeCR_BilletSpec ?? ""),
+            "realtimecr_rollingspec" => items.OrderBy(x => x.RealTimeCR_RollingSpec ?? ""),
+            "realtimecr_isfinished" => items.OrderBy(x => x.RealTimeCR_IsFinished),
             "cr_completiontype" => items.OrderBy(x => x.CR_CompletionType ?? ""),
             "cr_rolltype" => items.OrderBy(x => x.CR_RollType ?? ""),
             "cr_schedmachineno" => items.OrderBy(x => x.CR_SchedMachineNo ?? ""),
@@ -1445,6 +1458,9 @@ public partial class BatchPlans
             case "CurrentCR_IsFinished":
                 builder.AddContent(0, item.CurrentCR_IsFinished ? "是" : "否");
                 break;
+            case "CurrentCR_DeformedSeqCompleted":
+                builder.AddContent(0, item.CurrentCR_DeformedSeqCompleted != false ? "完成" : "否");
+                break;
             case "NextCR_ProcessType":
                 builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.NextCR_ProcessType ?? "-"));
                 break;
@@ -1468,6 +1484,18 @@ public partial class BatchPlans
                 break;
             case "NextNextCR_IsFinished":
                 builder.AddContent(0, item.NextNextCR_IsFinished ? "是" : "否");
+                break;
+            case "RealTimeCR_ProcessType":
+                builder.AddContent(0, ProcessDisplayHelper.GetProcessNameText(item.RealTimeCR_ProcessType ?? "-"));
+                break;
+            case "RealTimeCR_BilletSpec":
+                builder.AddContent(0, item.RealTimeCR_BilletSpec ?? "-");
+                break;
+            case "RealTimeCR_RollingSpec":
+                builder.AddContent(0, item.RealTimeCR_RollingSpec ?? "-");
+                break;
+            case "RealTimeCR_IsFinished":
+                builder.AddContent(0, item.RealTimeCR_IsFinished ? "是" : "否");
                 break;
             case "CR_CompletionType":
                 builder.AddContent(0, string.IsNullOrEmpty(item.CR_CompletionType) || item.CR_CompletionType == "None"
@@ -1622,10 +1650,12 @@ public partial class BatchPlans
                     item.PlanRemark = string.IsNullOrEmpty(v) ? null : v;
                     await SavePlanFieldAsync(item);
                 }));
-                builder.AddAttribute(3, "Dense", true);
-                builder.AddAttribute(4, "Variant", Variant.Outlined);
-                builder.AddAttribute(5, "Size", Size.Small);
-                builder.AddAttribute(6, "Class", "compact-select");
+                // ⚠️ 受控组件必须有 ValueExpression，否则输入回弹无法编辑（MudBlazor 6.19.1 已知问题）
+                builder.AddAttribute(3, "ValueExpression", () => item.PlanRemark ?? "");
+                builder.AddAttribute(4, "Dense", true);
+                builder.AddAttribute(5, "Variant", Variant.Outlined);
+                builder.AddAttribute(6, "Size", Size.Small);
+                builder.AddAttribute(7, "Class", "compact-select");
                 builder.CloseComponent();
                 break;
         }
@@ -1925,6 +1955,7 @@ public partial class BatchPlans
             "CurrentCR_BilletSpec" => item.CurrentCR_BilletSpec ?? "",
             "CurrentCR_RollingSpec" => item.CurrentCR_RollingSpec ?? "",
             "CurrentCR_IsFinished" => item.CurrentCR_IsFinished,
+            "CurrentCR_DeformedSeqCompleted" => item.CurrentCR_DeformedSeqCompleted != false ? "完成" : "否",
             "NextCR_ProcessType" => ProcessDisplayHelper.GetProcessNameText(item.NextCR_ProcessType),
             "NextCR_BilletSpec" => item.NextCR_BilletSpec ?? "",
             "NextCR_RollingSpec" => item.NextCR_RollingSpec ?? "",
@@ -1933,6 +1964,10 @@ public partial class BatchPlans
             "NextNextCR_BilletSpec" => item.NextNextCR_BilletSpec ?? "",
             "NextNextCR_RollingSpec" => item.NextNextCR_RollingSpec ?? "",
             "NextNextCR_IsFinished" => item.NextNextCR_IsFinished,
+            "RealTimeCR_ProcessType" => ProcessDisplayHelper.GetProcessNameText(item.RealTimeCR_ProcessType),
+            "RealTimeCR_BilletSpec" => item.RealTimeCR_BilletSpec ?? "",
+            "RealTimeCR_RollingSpec" => item.RealTimeCR_RollingSpec ?? "",
+            "RealTimeCR_IsFinished" => item.RealTimeCR_IsFinished,
             "CR_CompletionType" => DisplayHelper.GetCompletionTypeText(item.CR_CompletionType),
             "CR_RollType" => DisplayHelper.GetRollTypeText(item.CR_RollType),
             "CR_SchedMachineNo" => item.CR_SchedMachineNo ?? "",
