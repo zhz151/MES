@@ -308,7 +308,7 @@
                                             <span class="detail-section-name">@SectionDisplayHelper.GetSectionNameText(section.SectionName)</span>
                                             @if (section.ExecDate.HasValue)
                                             {
-                                                <span Style="font-size:0.65rem; color:#888; line-height:1.2;">@(section.ExecDate.Value.ToString("MM-dd"))</span>
+                                                <span Class="text-hint" Style="font-size:0.65rem; line-height:1.2;">@(section.ExecDate.Value.ToString("MM-dd"))</span>
                                             }
                                         </div>
                                         @if (section.Status == SectionStatus.Outsource)

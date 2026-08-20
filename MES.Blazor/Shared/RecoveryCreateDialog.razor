@@ -21,7 +21,7 @@
                                  ToStringFunc="@FormatOutsource"
                                  @bind-Value="_selectedOutsource"
                                  Dense="true" Variant="Variant.Outlined"
-                                 Clearable="true" />
+                                />
             </MudItem>
 
             @if (_selectedOutsource != null)
@@ -98,7 +98,7 @@
                                  Label="重量"
                                  @bind-Value="_wt"
                                  Dense="true" Variant="Variant.Outlined"
-                                 HideSpinButtons="true" />
+                                 HideSpinButtons="true" Format="G29" />
             </MudItem>
 
             <MudItem xs="12">
@@ -116,7 +116,7 @@
                                  Label="重量"
                                  @bind-Value="_unprocessedWt"
                                  Dense="true" Variant="Variant.Outlined"
-                                 HideSpinButtons="true" />
+                                 HideSpinButtons="true" Format="G29" />
             </MudItem>
 
             <MudItem xs="12">
@@ -124,7 +124,7 @@
                               Label="备注"
                               @bind-Value="_remark"
                               Dense="true" Variant="Variant.Outlined"
-                              Clearable="true" />
+                             />
             </MudItem>
         </MudGrid>
     </DialogContent>

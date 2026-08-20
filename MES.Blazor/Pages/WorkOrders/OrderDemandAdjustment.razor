@@ -41,8 +41,6 @@
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  Clearable="true"
-                                  ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
@@ -53,16 +51,12 @@
                                       Value="@_dateFrom"
                                       ValueChanged="@OnDateFromChanged"
                                       Placeholder="yyyy-MM-dd"
-                                      Clearable="true"
-                                      ClearButton="true"
                                       Style="flex:1;min-width:0" />
                         <MudTextField T="string"
                                       Label="签订日期至"
                                       Value="@_dateTo"
                                       ValueChanged="@OnDateToChanged"
                                       Placeholder="yyyy-MM-dd"
-                                      Clearable="true"
-                                      ClearButton="true"
                                       Style="flex:1;min-width:0" />
                     </div>
                 </MudItem>
@@ -73,16 +67,12 @@
                                       Value="@_deliveryDateFrom"
                                       ValueChanged="@OnDeliveryDateFromChanged"
                                       Placeholder="yyyy-MM-dd"
-                                      Clearable="true"
-                                      ClearButton="true"
                                       Style="flex:1;min-width:0" />
                         <MudTextField T="string"
                                       Label="交货日期至"
                                       Value="@_deliveryDateTo"
                                       ValueChanged="@OnDeliveryDateToChanged"
                                       Placeholder="yyyy-MM-dd"
-                                      Clearable="true"
-                                      ClearButton="true"
                                       Style="flex:1;min-width:0" />
                     </div>
                 </MudItem>
@@ -95,7 +85,7 @@
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
             }
             @* 工具栏：列显隐 + 打印按钮 + 记录数 *@
-            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"

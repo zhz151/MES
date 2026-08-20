@@ -899,7 +899,6 @@
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "Value", r.InspectionType);
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => r.InspectionType = v));
-                builder.AddAttribute(6, "Clearable", true);
                 builder.AddAttribute(10, "ChildContent", (RenderFragment)(cb =>
                 {
                     cb.OpenComponent<MudSelectItem<string?>>(0);
@@ -996,7 +995,6 @@
                             case "HoldTime": r.HoldTime = v; break;
                         }
                     }));
-                    builder.AddAttribute(7, "Clearable", true);
                     builder.CloseComponent();
                     break;
                 }
@@ -1023,7 +1021,6 @@
                             case "QualifiedWeight": r.QualifiedWeight = v; break;
                         }
                     }));
-                    builder.AddAttribute(7, "Clearable", true);
                     builder.CloseComponent();
                     break;
                 }
@@ -1037,7 +1034,6 @@
                     builder.AddAttribute(5, "Format", "G29");
                     builder.AddAttribute(6, "Value", r.Pressure);
                     builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.Pressure = v));
-                    builder.AddAttribute(8, "Clearable", true);
                     builder.CloseComponent();
                     break;
                 }

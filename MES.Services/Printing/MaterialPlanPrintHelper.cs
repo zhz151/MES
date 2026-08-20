@@ -93,7 +93,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchInProcessReworkPlanDocument(List<(InProcessReworkPlan plan, WoEntity workOrder)> items)
     {
-        if (!items.Any()) throw new BusinessException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("打印数据不能为空");
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -169,7 +169,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchInMainWorkOrderPlanDocument(List<(InMainWorkOrderPlan plan, WoEntity workOrder)> items)
     {
-        if (!items.Any()) throw new BusinessException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("打印数据不能为空");
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -268,7 +268,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchSemiPlanDocument(List<(PurchaseSemiPlan plan, WoEntity workOrder)> items)
     {
-        if (!items.Any()) throw new BusinessException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("打印数据不能为空");
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -341,7 +341,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchFinishPlanDocument(List<(PurchaseFinishedPlan plan, WoEntity workOrder)> items)
     {
-        if (!items.Any()) throw new BusinessException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("打印数据不能为空");
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -427,7 +427,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchInventoryPlanDocument(List<(InventoryPlan plan, WoEntity workOrder)> items)
     {
-        if (!items.Any()) throw new BusinessException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("打印数据不能为空");
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -513,7 +513,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchPiercingPlanDocument(List<(RoundBarPiercingPlan plan, WoEntity workOrder)> items)
     {
-        if (!items.Any()) throw new BusinessException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("打印数据不能为空");
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -589,7 +589,7 @@ public static class MaterialPlanPrintHelper
     // ==============================
     public static Document CreateBatchReworkPlanDocument(List<(InventoryPlan plan, WoEntity workOrder)> items)
     {
-        if (!items.Any()) throw new BusinessException("items cannot be empty");
+        if (!items.Any()) throw new BusinessException("打印数据不能为空");
         return Document.Create(container =>
         {
             container.Page(page =>

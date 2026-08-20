@@ -60,9 +60,9 @@ public partial class SectionParagraphFlowAnalysis
             new() { Key = "PendingTotal",    Label = "待在产重量", SortKey = "pendingtotal",  FilterType = "number" },
             new() { Key = "SustainableDays", Label = "可持续天数",  SortKey = "sustainabledays",FilterType = "number", Visible = false },
             new() { Key = "StatusJudgment",  Label = "总况判定",   SortKey = "statusjudgment",  FilterType = "string", IsRequired = true },
-            new() { Key = "PlanFlowQuantity",Label = "计划流转量", SortKey = "planflowquantity", FilterType = "number" },
+            new() { Key = "PlanFlowQuantity",Label = "计划重点批流转量", SortKey = "planflowquantity", FilterType = "number" },
             new() { Key = "PlanFlowJudgment",Label = "计划流转判定",SortKey = "planflowjudgment", FilterType = "string" },
-            new() { Key = "PlanKeyWeight",   Label = "重点批重量", SortKey = "plankeyweight",  FilterType = "number" },
+            new() { Key = "PlanKeyWeight",   Label = "特急批重量", SortKey = "plankeyweight",  FilterType = "number" },
         };
     }
 

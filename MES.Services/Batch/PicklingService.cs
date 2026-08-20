@@ -329,7 +329,7 @@ public class PicklingService : IPicklingService
         }
 
         if (sequenceNumber == 0)
-            throw new BusinessException($"工段「{request.SectionName}」不存在于工序组「{request.ProcessName}」中，无法提交");
+            throw new BusinessException($"工段「{SectionKeys.ToChinese(request.SectionName)}」不存在于工序组「{ProcessKeys.ToChinese(request.ProcessName)}」中，无法提交");
 
         // 校验：加工重量不能大于批次现有效原料重量
         if (request.Weight.HasValue && request.Weight > 0 && request.Weight > (batch.CurrentValidWeight ?? batch.InputWeight))
@@ -341,7 +341,7 @@ public class PicklingService : IPicklingService
                 && pr.ProcessGroupId == processGroupId
                 && pr.SectionName == request.SectionName);
         if (dupExists)
-            throw new BusinessException($"工段「{request.SectionName}」在该批次该工序组中已存在入缸记录，不能重复创建");
+            throw new BusinessException($"工段「{SectionKeys.ToChinese(request.SectionName)}」在该批次该工序组中已存在入缸记录，不能重复创建");
 
         // 规则④：冷轧/冷拔工序必须先有「冷轧拔」工段记录
         if (crKeys.Contains(ProcessKeys.ToKey(request.ProcessName) ?? request.ProcessName))
@@ -355,7 +355,7 @@ public class PicklingService : IPicklingService
                         && o.ProcessGroupId == processGroupId
                         && o.SectionName == SectionKeys.ColdRollDraw);
             if (!hasColdRollDraw)
-                throw new BusinessException($"工序「{request.ProcessName}」必须首先记录「冷轧拔」工段，才能进行去油/酸洗");
+                throw new BusinessException($"工序「{ProcessKeys.ToChinese(request.ProcessName)}」必须首先记录「冷轧拔」工段，才能进行去油/酸洗");
         }
 
         // 规则③：执行序号跳跃限制 — 对比该批次在此日期前已执行的最大序号（涵盖生产记录/委外/过程检验/入缸4类），不能 > +7
@@ -581,7 +581,7 @@ public class PicklingService : IPicklingService
 
             if (sequenceNumber == 0)
             {
-                errors.Add($"第{i + 1}行：工段「{request.SectionName}」不存在于工序组「{request.ProcessName}」中，无法提交");
+                errors.Add($"第{i + 1}行：工段「{SectionKeys.ToChinese(request.SectionName)}」不存在于工序组「{ProcessKeys.ToChinese(request.ProcessName)}」中，无法提交");
                 continue;
             }
             if (processGroupId == null || processGroupId == 0)
@@ -606,7 +606,7 @@ public class PicklingService : IPicklingService
                 var dupInPending = pendingKeys.Contains(key);
                 if (dupInDb || dupInPending)
                 {
-                    errors.Add($"第{i + 1}行：工段「{request.SectionName}」在该批次该工序组中已存在入缸记录，不能重复创建");
+                    errors.Add($"第{i + 1}行：工段「{SectionKeys.ToChinese(request.SectionName)}」在该批次该工序组中已存在入缸记录，不能重复创建");
                     continue;
                 }
                 pendingKeys.Add(key);
@@ -619,7 +619,7 @@ public class PicklingService : IPicklingService
                     || pendingColdRollDraw.Contains((batchId, processGroupId.Value));
                 if (!hasColdRollDraw)
                 {
-                    errors.Add($"第{i + 1}行：工序「{request.ProcessName}」必须首先记录「冷轧拔」工段，才能进行去油/酸洗");
+                    errors.Add($"第{i + 1}行：工序「{ProcessKeys.ToChinese(request.ProcessName)}」必须首先记录「冷轧拔」工段，才能进行去油/酸洗");
                     continue;
                 }
             }

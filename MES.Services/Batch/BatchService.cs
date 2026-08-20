@@ -2856,14 +2856,14 @@ public class BatchService : IBatchService
 
             // 工序名称不为空时制造规格必填
             if (!string.IsNullOrWhiteSpace(pg.ProcessName) && string.IsNullOrWhiteSpace(pg.ManufacturingSpec))
-                throw new BusinessException($"工序组第{i + 1}行：工序名称「{pg.ProcessName}」已填写，制造规格不能为空");
+                throw new BusinessException($"工序组第{i + 1}行：工序名称「{ProcessKeys.ToChinese(pg.ProcessName)}」已填写，制造规格不能为空");
 
             // 工序名称+制造规格在批次内唯一
             if (!string.IsNullOrWhiteSpace(pg.ProcessName))
             {
                 var comboKey = $"{pg.ProcessName}|{pg.ManufacturingSpec ?? ""}";
                 if (!nameSpecCombos.Add(comboKey))
-                    throw new BusinessException($"工序组第{i + 1}行：工序名称「{pg.ProcessName}」+制造规格「{pg.ManufacturingSpec ?? ""}」组合已在其他工序组中存在");
+                    throw new BusinessException($"工序组第{i + 1}行：工序名称「{ProcessKeys.ToChinese(pg.ProcessName)}」+制造规格「{pg.ManufacturingSpec ?? ""}」组合已在其他工序组中存在");
             }
 
             // 检查跨工序组重复

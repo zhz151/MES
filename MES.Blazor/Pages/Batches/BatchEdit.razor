@@ -289,7 +289,7 @@
                     <div class="d-flex align-center">
                         <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-1" Color="Color.Primary" />
                         <MudText Typo="Typo.h6" Class="font-weight-bold">工单字段信息</MudText>
-                        <span Class="ml-3 text-caption" Style="color:#999;">（@visibleFieldCount 字段可见/共29字段）</span>
+                        <span Class="ml-3 text-caption text-hint">（@visibleFieldCount 字段可见/共29字段）</span>
                     </div>
                 </CardHeaderContent>
                 <CardHeaderActions>
@@ -481,7 +481,7 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td><MudTextField T="string" Value="@(originalBatch.BatchNo)" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" Style="font-weight:700; color:#000000;" /></td>
+                                <td><MudTextField T="string" Value="@(originalBatch.BatchNo)" Disabled="true" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" Style="font-weight:700;" /></td>
                                 <td><MudTextField T="string" @bind-Value="request.TagNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" /></td>
                                 <td>
                                     <MudSelect T="ProductionType" @bind-Value="formProductionType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
@@ -2017,14 +2017,14 @@
 
             // 工序名称不为空时制造规格必填
             if (!string.IsNullOrWhiteSpace(pg.ProcessName) && string.IsNullOrWhiteSpace(pg.ManufacturingSpec))
-                errors.Add($"工序组第{i + 1}行：工序名称「{pg.ProcessName}」已填写，制造规格不能为空");
+                errors.Add($"工序组第{i + 1}行：工序名称「{ProcessDisplayHelper.GetProcessNameText(pg.ProcessName)}」已填写，制造规格不能为空");
 
             // 工序名称+制造规格在批次内唯一
             if (!string.IsNullOrWhiteSpace(pg.ProcessName))
             {
                 var comboKey = $"{pg.ProcessName}|{pg.ManufacturingSpec ?? ""}";
                 if (!nameSpecCombos.Add(comboKey))
-                    errors.Add($"工序组第{i + 1}行：工序名称「{pg.ProcessName}」+制造规格「{pg.ManufacturingSpec ?? ""}」组合已在其他工序组中存在");
+                    errors.Add($"工序组第{i + 1}行：工序名称「{ProcessDisplayHelper.GetProcessNameText(pg.ProcessName)}」+制造规格「{pg.ManufacturingSpec ?? ""}」组合已在其他工序组中存在");
             }
 
             foreach (var v in nonNullValues)

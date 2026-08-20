@@ -154,7 +154,7 @@ public class GradeMappingServiceTests : TestBase
         var svc = CreateService(ctx);
 
         var act = () => svc.GetByIdAsync(999);
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*does not exist*");
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*牌号映射不存在*");
     }
 
     // ========== CreateAsync ==========
@@ -242,7 +242,7 @@ public class GradeMappingServiceTests : TestBase
             PlantGrade = "NEW",
             Density = 7.85m
         });
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*does not exist*");
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*牌号映射不存在*");
     }
 
     // ========== DeleteAsync ==========
@@ -268,7 +268,7 @@ public class GradeMappingServiceTests : TestBase
         var svc = CreateService(ctx);
 
         var act = () => svc.DeleteAsync(999);
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*does not exist*");
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*牌号映射不存在*");
     }
 
     // ========== B11 专项测试 ==========

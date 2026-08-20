@@ -42,7 +42,12 @@ public class SectionOutsource : BaseEntity
     public int SequenceNumber { get; set; }
 
     /// <summary>
-    /// 委外单位
+    /// 是否厂内（虚拟发外）。true=厂内（仅限冷轧拔工段，车间名称存 OutsourceVendor，无需回收记录，状态=略），false=真正委外
+    /// </summary>
+    public bool IsInternal { get; set; }
+
+    /// <summary>
+    /// 委外单位（厂内时为车间名称）
     /// </summary>
     public string OutsourceVendor { get; set; } = null!;
 

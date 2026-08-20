@@ -519,7 +519,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 var dup = batchRecords.Any(r =>
                     r.ProcessGroupId == pgId.Value && r.SectionName == request.SectionName);
                 if (dup)
-                    errors.Add($"第{i + 1}行：工段「{request.SectionName}」在该批次该工序组中已存在过程检验记录，不能重复创建");
+                    errors.Add($"第{i + 1}行：工段「{SectionKeys.ToChinese(request.SectionName)}」在该批次该工序组中已存在过程检验记录，不能重复创建");
             }
 
             // 冷轧/冷拔前置校验：工序组为冷轧/冷拔的，必须先有冷轧拔记录
@@ -531,7 +531,7 @@ public class ProcessInspectionService : IProcessInspectionService
                     var hasColdRollDraw = coldRollDrawExists.Contains((batchId, pgId.Value))
                         || pendingColdRollDraw.Contains((batchId, pgId.Value));
                     if (!hasColdRollDraw)
-                        errors.Add($"第{i + 1}行：工序「{pg.ProcessName}」必须首先存在「冷轧拔」生产记录，才能进行过程检验");
+                        errors.Add($"第{i + 1}行：工序「{ProcessKeys.ToChinese(pg.ProcessName)}」必须首先存在「冷轧拔」生产记录，才能进行过程检验");
                 }
             }
 

@@ -59,8 +59,8 @@
             <MudNavGroup Title="计划排程" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                 <MudNavLink Href="/plan-overview">订单负荷总量</MudNavLink>
                 <MudNavLink Href="/raw-material-lock-plan">原锁计划</MudNavLink>
-                <MudNavLink Href="/scheduling-plans">排程计划</MudNavLink>
-                <MudNavLink Href="/cold-roll-plans">冷轧计划</MudNavLink>
+                <MudNavLink Href="/scheduling-plans">工单排程</MudNavLink>
+                <MudNavLink Href="/cold-roll-plans">冷轧排程</MudNavLink>
                 <MudNavLink Href="/batch-plans">批次计划</MudNavLink>
                 <MudNavLink Href="/final-inspection-plan">成检计划</MudNavLink>
             </MudNavGroup>
@@ -76,17 +76,14 @@
                 </MudNavGroup>
             </AuthorizeView>
 
-            <!-- 质量模块（3 级嵌套） -->
+            <!-- 质量模块 -->
             <AuthorizeView Roles="@Roles.Policies.QualityRead">
                 <MudNavGroup Title="质量管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                    <MudNavGroup Title="检验" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                        <MudNavLink Href="/quality/process-inspection">过程检验</MudNavLink>
-                        <MudNavLink Href="/quality/material-receive-checks">成检到料</MudNavLink>
-                        <MudNavLink Href="/quality/final-inspection">成品检验</MudNavLink>
-                        <MudNavLink Href="/quality/process-tracking">成检追踪</MudNavLink>
-                    </MudNavGroup>
+                    <MudNavLink Href="/quality/process-inspection">过程检验</MudNavLink>
+                    <MudNavLink Href="/quality/material-receive-checks">成检到料</MudNavLink>
+                    <MudNavLink Href="/quality/final-inspection">成品检验</MudNavLink>
+                    <MudNavLink Href="/quality/process-tracking">成检追踪</MudNavLink>
                     <MudNavLink Href="/quality/ncr">不合格报告</MudNavLink>
-                    <MudNavLink Href="/quality/certificates">质量证明书</MudNavLink>
                     <MudNavGroup Title="炉号/化学" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                         <MudNavLink Href="/quality/furnace">炉号登记</MudNavLink>
                     </MudNavGroup>
@@ -101,6 +98,7 @@
                         <MudNavLink Href="/quality/flattening-test">压扁检验</MudNavLink>
                         <MudNavLink Href="/quality/flaring-test">扩口检验</MudNavLink>
                     </MudNavGroup>
+                    <MudNavLink Href="/quality/certificates">质量证明书</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 

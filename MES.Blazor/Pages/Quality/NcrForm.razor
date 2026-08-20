@@ -33,7 +33,7 @@
             @if (!_isEditMode)
             {
                 <!-- 待处理批次卡片 -->
-                <MudPaper Elevation="0" Class="mb-4 pa-4" Style="border: 1px solid #e0e0e0; border-radius: 8px;">
+                <MudPaper Elevation="0" Class="mb-4 pa-4 form-card">
                     <div Class="d-flex align-center" style="cursor: pointer;" @onclick="TogglePendingChecks">
                         <MudIcon Icon="@Icons.Material.Filled.Inbox" Color="Color.Error" Class="mr-2" />
                         <MudText Typo="Typo.body1" Class="font-weight-bold flex-grow-1">待处理批次</MudText>

@@ -35,7 +35,7 @@
             {
                 var noneCount = procurementItems.Count(x => x.StatusText == "未采购");
                 var partialCount = procurementItems.Count(x => x.StatusText == "部分采购");
-                <MudPaper Class="pa-3 mb-3" Elevation="0" Style="border: 1px solid #e0e0e0; border-radius: 8px;">
+                <MudPaper Class="pa-3 mb-3 form-card" Elevation="0">
                     <div Class="d-flex align-center" style="cursor: pointer;" @onclick="ToggleProcurementStatus">
                         <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Info" Class="mr-2" />
                         <MudText Typo="Typo.body1" Class="font-weight-bold flex-grow-1">工单采购计划执行状态</MudText>
@@ -58,7 +58,7 @@
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd>
-                                        <MudText Style="cursor: pointer; color: #1976D2;" @onclick="@(() => AddRowFromProcurement(context))">
+                                        <MudText Class="text-link" @onclick="@(() => AddRowFromProcurement(context))">
                                             @context.WorkOrderNo
                                         </MudText>
                                     </MudTd>
@@ -221,7 +221,7 @@
                                                  SearchFunc="@(search => FilterSuppliers(row, search))"
                                                  ToStringFunc="@FormatSupplier"
                                                  Dense="true" Variant="Variant.Outlined" Size="Size.Small"
-                                                 Clearable="true" />
+                                                />
                             </MudTd>
                             <MudTd>
                                 <MudTextField T="string"

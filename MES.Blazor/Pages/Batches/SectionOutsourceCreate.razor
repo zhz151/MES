@@ -8,7 +8,6 @@
 @inject SectionOutsourceService SectionOutsourceService
 @inject BatchService BatchService
 @inject StandardWorkDayService StandardWorkDayService
-@inject ProcessDefinitionService ProcessDefinitionService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -186,7 +185,6 @@
 
 @code {
     private List<EditRow> _rows = new();
-    private List<ProcessInfoDto> _processOptions = new();
     private bool _isSubmitting;
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
@@ -220,6 +218,7 @@
         "BatchNo" => 150,
         "ProcessName" => 170,
         "SectionName" => 120,
+        "IsInternal" => 70,
         "TagNo" => 130,
         "PlantGrade" => 130,
         "OutsourceSpec" => 140,
@@ -250,6 +249,7 @@
         new() { Key = "SendWeight",        Label = "发出重量",                 GroupKey = 3, GroupName = "发出计量" },
         // G4：其他
         new() { Key = "OutsourceVendor",   Label = "委外单位", IsRequired = true, GroupKey = 4, GroupName = "其他" },
+        new() { Key = "IsInternal",        Label = "厂内",                     GroupKey = 4, GroupName = "其他" },
         new() { Key = "ExpectedReturnDate",Label = "要求收回日期",             GroupKey = 4, GroupName = "其他" },
         new() { Key = "IsUrgent",          Label = "紧急",                     GroupKey = 4, GroupName = "其他" },
         new() { Key = "Remark",            Label = "备注",                     GroupKey = 4, GroupName = "其他" },
@@ -312,9 +312,12 @@
     private class EditRow
     {
         public string BatchNo { get; set; } = string.Empty;
+        public int? ProcessGroupId { get; set; }                                                // 选中的批次工序组 Id（工序组粒度下拉绑定，消除同名工序组规格歧义）
         public string ProcessName { get; set; } = string.Empty;
         public string? ManufacturingSpec { get; set; }
         public string SectionName { get; set; } = string.Empty;
+        // 厂内（虚拟发外）：仅限冷轧拔工段，无需回收，状态=略，OutsourceVendor 填车间名称
+        public bool IsInternal { get; set; }
         public string OutsourceVendor { get; set; } = string.Empty;
         public string? SendOutDateText { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
         public DateTime? SendOutDate => DateTime.TryParse(SendOutDateText, out var d) ? d : null;
@@ -339,14 +342,66 @@
             _sectionOptions = SectionKeys.All.Select(k => (k, SectionDisplayHelper.GetSectionNameText(k))).ToList();
     }
 
-    // ========== 下拉显示转换（存储值英文 Key → 显示中文） ==========
-    private string GetProcessDisplayText(string key)
+    // ========== 批次工序组（工序组粒度下拉，消除同名工序组规格歧义） ==========
+    // 批次详情缓存（BatchNo → 批次），工序组下拉选项与联动共用，避免重复请求
+    private readonly Dictionary<string, ProductionBatchDetailDto> _batchCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private ProductionBatchDetailDto? GetRowBatch(EditRow r)
+        => !string.IsNullOrWhiteSpace(r.BatchNo) && _batchCache.TryGetValue(r.BatchNo, out var b) ? b : null;
+
+    private List<ProcessGroupDto> GetRowProcessGroups(EditRow r)
+        => GetRowBatch(r)?.ProcessGroups ?? new List<ProcessGroupDto>();
+
+    private ProcessGroupDto? FindRowProcessGroup(EditRow r, int? pgId)
+        => pgId.HasValue ? GetRowProcessGroups(r).FirstOrDefault(p => p.Id == pgId.Value) : null;
+
+    // 工序组下拉显示：工序名（制造规格），同名工序组用规格区分
+    private string GetProcessGroupDisplayText(EditRow r, int? pgId)
     {
-        if (string.IsNullOrEmpty(key)) return key ?? "";
-        foreach (var o in _processOptions)
-            if (o.ProcessKey == key) return o.ProcessName;
-        return key;
+        var pg = FindRowProcessGroup(r, pgId);
+        if (pg == null) return "";
+        return $"{ProcessDisplayHelper.GetProcessNameText(pg.ProcessName)}（{pg.ManufacturingSpec ?? ""}）";
     }
+
+    /// <summary>批次变更后重解析工序组：已选工序组仍有效则保持；否则按工序名称唯一匹配自动绑定，同名多规格/无匹配则清空让用户下拉重选</summary>
+    private void ResolveProcessGroupAfterBatchChange(EditRow row, List<ProcessGroupDto>? pgs)
+    {
+        var list = pgs ?? new List<ProcessGroupDto>();
+        if (row.ProcessGroupId.HasValue && list.Any(p => p.Id == row.ProcessGroupId.Value))
+            return;
+        var sameName = list.Where(p => p.ProcessName == row.ProcessName).ToList();
+        if (sameName.Count == 1)
+        {
+            row.ProcessGroupId = sameName[0].Id;
+            row.ManufacturingSpec = sameName[0].ManufacturingSpec;
+        }
+        else
+        {
+            row.ProcessGroupId = null;
+            row.ManufacturingSpec = null;
+        }
+    }
+
+    /// <summary>选中批次工序组 → 填充工序名称/制造规格 + 委外规格</summary>
+    private void OnProcessGroupSelected(EditRow row, int? pgId)
+    {
+        var pg = FindRowProcessGroup(row, pgId);
+        if (pg == null)
+        {
+            row.ProcessGroupId = null;
+            row.ProcessName = "";
+            row.ManufacturingSpec = null;
+            row.OutsourceSpec = null;
+            StateHasChanged();
+            return;
+        }
+        row.ProcessGroupId = pg.Id;
+        row.ProcessName = pg.ProcessName;
+        row.ManufacturingSpec = pg.ManufacturingSpec;
+        FillOutsourceSpec(row, GetRowProcessGroups(row), pg);
+        StateHasChanged();
+    }
+
     private string GetSectionDisplayText(string key)
     {
         if (string.IsNullOrEmpty(key)) return key ?? "";
@@ -358,7 +413,6 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadSectionOptionsAsync();
-        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("section-outsource-create", null);
         if (saved.Count > 0)
@@ -411,6 +465,7 @@
         {
             var source = _rows[^1];
             newRow.BatchNo = source.BatchNo;
+            newRow.ProcessGroupId = source.ProcessGroupId;
             newRow.ProcessName = source.ProcessName;
             newRow.ManufacturingSpec = source.ManufacturingSpec;
             newRow.SectionName = source.SectionName;
@@ -439,6 +494,7 @@
         if (index <= 0) return;
         var source = _rows[index - 1];
         row.BatchNo = source.BatchNo;
+        row.ProcessGroupId = source.ProcessGroupId;
         row.ProcessName = source.ProcessName;
         row.ManufacturingSpec = source.ManufacturingSpec;
         row.SectionName = source.SectionName;
@@ -467,25 +523,27 @@
             return;
 
         var batch = result.Data;
+        _batchCache[batch.BatchNo] = batch;
 
         // 填充批次级冗余字段
         row.TagNo = batch.TagNo;
         row.PlantGrade = batch.PlantGrade;
 
-        // 查找匹配的工序组（优先按工序名称，其次按制造规格）
-        ProcessGroupDto? currentPg = null;
-        if (!string.IsNullOrWhiteSpace(row.ProcessName))
+        // 查找匹配的工序组（优先按已选工序组 Id，其次按工序名称，再次按制造规格反查）
+        ProcessGroupDto? currentPg = FindRowProcessGroup(row, row.ProcessGroupId);
+        if (currentPg == null && !string.IsNullOrWhiteSpace(row.ProcessName))
             currentPg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
-
         currentPg ??= batch.ProcessGroups?.FirstOrDefault(p => p.ManufacturingSpec == row.ManufacturingSpec);
 
         if (currentPg == null)
         {
+            row.ProcessGroupId = null;
             StateHasChanged();
             return;
         }
 
-        // 从工序组填充
+        // 从工序组填充（同步选中工序组 Id，消除同名工序组规格歧义）
+        row.ProcessGroupId = currentPg.Id;
         row.ProcessName = currentPg.ProcessName;
         row.ManufacturingSpec = currentPg.ManufacturingSpec;
 
@@ -534,21 +592,24 @@
                 builder.CloseComponent();
                 break;
             case "ProcessName":
-                builder.OpenComponent<MudSelect<string>>(0);
+                // 工序组粒度下拉：列出该批次已配置的工序组（工序名+制造规格），消除同名工序组规格歧义
+                builder.OpenComponent<MudSelect<int?>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetProcessDisplayText);
-                builder.AddAttribute(5, "Value", r.ProcessName);
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await ApplyAutoFillAsync(r); }));
+                builder.AddAttribute(4, "ToStringFunc", (Func<int?, string>)(id => GetProcessGroupDisplayText(r, id)));
+                builder.AddAttribute(5, "Value", r.ProcessGroupId);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, id => OnProcessGroupSelected(r, id)));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var opt in _processOptions)
+                    b.OpenComponent<MudSelectItem<int?>>(0);
+                    b.AddAttribute(1, "Text", "");
+                    b.CloseComponent();
+                    foreach (var pg in GetRowProcessGroups(r))
                     {
-                        b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", opt.ProcessKey);
-                        b.AddAttribute(2, "Text", opt.ProcessName);
-                        b.AddAttribute(3, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
+                        b.OpenComponent<MudSelectItem<int?>>(0);
+                        b.AddAttribute(1, "Value", pg.Id);
+                        b.AddAttribute(2, "Text", GetProcessGroupDisplayText(r, pg.Id));
                         b.CloseComponent();
                     }
                 }));
@@ -582,9 +643,23 @@
                         b.CloseComponent();
                     }
                 }));
+                builder.AddAttribute(8, "Disabled", r.IsInternal);
+                builder.CloseComponent();
+                break;
+            case "IsInternal":
+                builder.OpenComponent<MudSwitch<bool>>(0);
+                builder.AddAttribute(1, "Color", Color.Primary);
+                builder.AddAttribute(2, "Value", r.IsInternal);
+                builder.AddAttribute(3, "ValueChanged", EventCallback.Factory.Create<bool>(this, v =>
+                {
+                    r.IsInternal = v;
+                    if (v && r.SectionName != SectionKeys.ColdRollDraw)
+                        r.SectionName = SectionKeys.ColdRollDraw;
+                }));
                 builder.CloseComponent();
                 break;
             case "OutsourceVendor":
+                // CoerceValue=true：允许输入历史列表外的新委外单位（自由文本直接写入 Value）
                 builder.OpenComponent<MudAutocomplete<string>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
@@ -593,6 +668,7 @@
                 builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.OutsourceVendor = v ?? ""));
                 builder.AddAttribute(6, "SearchFunc", (Func<string, Task<IEnumerable<string>>>)(async search => await SearchVendorsAsync(search)));
                 builder.AddAttribute(7, "MinCharacters", 1);
+                builder.AddAttribute(8, "CoerceValue", true);
                 builder.CloseComponent();
                 break;
             case "SendOutDate":
@@ -724,6 +800,7 @@
                 ProcessName = r.ProcessName.Trim(),
                 ManufacturingSpec = r.ManufacturingSpec?.Trim() ?? "",
                 SectionName = r.SectionName.Trim(),
+                IsInternal = r.IsInternal,
                 OutsourceVendor = r.OutsourceVendor.Trim(),
                 SendOutDate = r.SendOutDate ?? DateTime.Today,
                 SendQuantity = r.SendQuantity,
@@ -769,7 +846,15 @@
 
     private async Task<IEnumerable<string>> SearchVendorsAsync(string? keyword)
     {
-        var result = await SectionOutsourceService.SearchVendorsAsync(keyword);
-        return result ?? new List<string>();
+        var result = (await SectionOutsourceService.SearchVendorsAsync(keyword)) ?? new List<string>();
+        // 输入的新单位名不在历史列表中时，作为首项呈现，便于新建委外单位（配合 CoerceValue 点选确认）
+        if (!string.IsNullOrWhiteSpace(keyword)
+            && !result.Any(v => string.Equals(v, keyword, StringComparison.OrdinalIgnoreCase)))
+        {
+            var list = result.ToList();
+            list.Insert(0, keyword.Trim());
+            return list;
+        }
+        return result;
     }
 }

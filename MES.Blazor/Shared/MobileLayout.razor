@@ -62,8 +62,8 @@
                         <div style="padding-left: 16px;">
                             <MudNavLink Href="/plan-overview" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">订单负荷总量</MudNavLink>
                             <MudNavLink Href="/raw-material-lock-plan" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">原锁计划</MudNavLink>
-                            <MudNavLink Href="/scheduling-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">排程计划</MudNavLink>
-                            <MudNavLink Href="/cold-roll-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">冷轧计划</MudNavLink>
+                            <MudNavLink Href="/scheduling-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工单排程</MudNavLink>
+                            <MudNavLink Href="/cold-roll-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">冷轧排程</MudNavLink>
                             <MudNavLink Href="/batch-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">批次计划</MudNavLink>
                             <MudNavLink Href="/final-inspection-plan" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成检计划</MudNavLink>
                         </div>
@@ -86,18 +86,11 @@
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">质量管理</div></TitleContent>
                     <ChildContent>
-                        <!-- 检验 三级嵌套 -->
-                        <MudExpansionPanel Style="background: transparent; color: #999;" Class="ml-4">
-                            <TitleContent><div style="padding: 8px 16px; font-size: 0.9rem;">检验</div></TitleContent>
-                            <ChildContent>
-                                <div style="padding-left: 32px;">
-                                    <MudNavLink Href="/quality/process-inspection" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">过程检验</MudNavLink>
-                                    <MudNavLink Href="/quality/material-receive-checks" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成检到料</MudNavLink>
-                                    <MudNavLink Href="/quality/final-inspection" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成品检验</MudNavLink>
-                                    <MudNavLink Href="/quality/process-tracking" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成检追踪</MudNavLink>
-                                </div>
-                            </ChildContent>
-                        </MudExpansionPanel>
+                        <!-- 过程检验/成检到料/成品检验/成检追踪（二级）-->
+                        <MudNavLink Href="/quality/process-inspection" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">过程检验</MudNavLink>
+                        <MudNavLink Href="/quality/material-receive-checks" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">成检到料</MudNavLink>
+                        <MudNavLink Href="/quality/final-inspection" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">成品检验</MudNavLink>
+                        <MudNavLink Href="/quality/process-tracking" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">成检追踪</MudNavLink>
                         <!-- 不合格报告（二级）-->
                         <MudNavLink Href="/quality/ncr" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">不合格报告</MudNavLink>
                         <!-- 炉号/化学 三级嵌套 -->

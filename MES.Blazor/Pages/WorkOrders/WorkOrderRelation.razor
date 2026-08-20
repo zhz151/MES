@@ -45,7 +45,7 @@
 
             <MudCardContent>
                 <!-- 订单基本信息卡片（一行显示） -->
-                <MudPaper Class="pa-4 mb-4 d-flex flex-wrap gap-4 align-center" Elevation="0" Style="background-color: #f5f5f5;">
+                <MudPaper Class="pa-4 mb-4 d-flex flex-wrap gap-4 align-center bg-soft-gray" Elevation="0">
                     <MudText Typo="Typo.body2"><strong>订单号：</strong>@relation.OrderNumber</MudText>
                     <MudText Typo="Typo.body2"><strong>签订日期：</strong>@relation.SignDate.ToString("yyyy-MM-dd")</MudText>
                     <MudText Typo="Typo.body2"><strong>业务员：</strong>@relation.Salesman</MudText>
@@ -89,7 +89,7 @@
                                 <ChildContent>
                                     <!-- 块1：通用数据（列表模式） -->
                                     <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">通用信息</MudText>
-                                    <MudPaper Class="pa-3 mb-4" Elevation="0" Style="background-color: #fafafa;">
+                                    <MudPaper Class="pa-3 mb-4 bg-subtle" Elevation="0">
                                         @* 横向列表模式：字段水平排列 *@
                                         <div class="d-flex flex-wrap" style="gap: 0.5rem 2rem;">
                                             <MudText Typo="Typo.body2"><strong>钢管制造：</strong>@DisplayHelper.GetPipeManufacturingTypeText(Enum.Parse<PipeManufacturingType>(workOrder.MaterialName))</MudText>

@@ -38,7 +38,7 @@
     <!-- 汇总数据卡片（默认折叠，工具栏「汇总」按钮切换显隐） -->
     @if (_showSummaryCard)
     {
-        <MudCard Class="mb-2" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
+        <MudCard Class="mb-2 summary-card" Elevation="0">
             <MudCardContent>
                 <div class="d-flex justify-space-between align-center mb-2">
                     <MudText Typo="Typo.subtitle2"><b>待投料量汇总</b></MudText>
@@ -50,12 +50,12 @@
                 <MudGrid>
                     <MudItem xs="12">
                         <div class="d-flex flex-wrap" style="gap: 16px; align-items: center;">
-                            <MudText Typo="Typo.body2" Class="font-weight-bold" Style="color: #1565C0; min-width: 140px;">
+                            <MudText Typo="Typo.body2" Class="font-weight-bold text-brand" Style="min-width: 140px;">
                                 <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
                                 工单总数: @_totalOrderCount 批
                             </MudText>
                             <MudDivider Vertical="true" />
-                            <MudText Typo="Typo.body2" Style="color: #E65100; min-width: 120px;">
+                            <MudText Typo="Typo.body2" Class="text-warning-orange" Style="min-width: 120px;">
                                 <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty" Size="Size.Small" Color="Color.Warning" Class="mr-1" />
                                 待投料: @(_pendingWeight > 0 ? $"{(_pendingWeight / 1000m).ToString("F1")}t" : "0t")
                                 @if (_purchaseCount > 0)
@@ -195,8 +195,6 @@
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  Clearable="true"
-                                  ClearButton="true"
                                   Dense="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
@@ -210,7 +208,7 @@
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
             }
             @* 工具栏：列显隐（左）+ 打印按钮（右），参考订单列表布局 *@
-            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"

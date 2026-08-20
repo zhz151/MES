@@ -1,6 +1,4 @@
 using MES.Core.Constants;
-using MES.Core.DTOs.Equipment;
-using MES.Core.Enums;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.WorkOrder;
 using MudBlazor;
@@ -15,14 +13,15 @@ public partial class Index
     private string _footerTotal = "";
     private string _footerUrgentTotal = "";
 
-    // ========== 卡片 2：工段流转分析 ==========
+    // ========== 卡片 2：批次生产（直接采用「批次计划」中的「段落流转分析」列表） ==========
     private bool _isLoadingCard2;
-    private List<SectionFlowAnalysisDto> _flowAllItems = new();
-    private List<SectionFlowAnalysisDto> _flowItems = new();
+    private List<SectionParagraphFlowAnalysisDto> _paragraphFlowAllItems = new();
+    private List<SectionParagraphFlowAnalysisDto> _paragraphFlowItems = new();
     private string _flowSortColumn = "Category";
     private bool _flowSortDescending = false;
     private decimal? _flowTotalPending;
-    private decimal? _flowTotalKeyWeight;
+    private decimal? _flowTotalPlanFlowQuantity;
+    private decimal? _flowTotalPlanKeyWeight;
 
     // ========== 卡片 3：质量检验 ==========
     private bool _isLoadingCard3;
@@ -40,11 +39,6 @@ public partial class Index
     private decimal _card3InInspectionUrgentWeight;
     private int _card3PendingCheckBatches;     // 不合格报告 - 待处理批次
     private int _card3ProcessingNcrs;           // 不合格报告 - 处理中（Pending + Processing）
-
-    // ========== 卡片 4：设备维修 ==========
-    private bool _isLoadingCard4;
-    private int _card4InProgressCount;
-    private List<RepairOrderListDto> _card4InProgressList = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -65,10 +59,10 @@ public partial class Index
         _isLoadingCard2 = true;
         try
         {
-            var result = await SectionFlowSvc.GetAnalysisAsync();
+            var result = await ParagraphFlowSvc.GetAnalysisAsync();
             if (result.Success && result.Data != null)
             {
-                _flowAllItems = result.Data;
+                _paragraphFlowAllItems = result.Data;
             }
         }
         finally
@@ -85,17 +79,6 @@ public partial class Index
         finally
         {
             _isLoadingCard3 = false;
-        }
-
-        // 加载卡片 4
-        _isLoadingCard4 = true;
-        try
-        {
-            await LoadCard4Async();
-        }
-        finally
-        {
-            _isLoadingCard4 = false;
         }
 
         ApplyFlowSort();
@@ -160,7 +143,8 @@ public partial class Index
         _footerUrgentTotal = $"{grandUrgentCount}/{FormatWeight(grandUrgentWeight)}";
     }
 
-    private static string FormatWeight(decimal weight) => (weight / 1000m).ToString("F1");
+    private static string FormatWeight(decimal weight)
+        => Math.Round(weight / 1000m, 0, MidpointRounding.AwayFromZero).ToString("G29");
 
     // ========== 卡片 2 逻辑 ==========
 
@@ -178,7 +162,7 @@ public partial class Index
 
     private void ApplyFlowSort()
     {
-        var q = _flowAllItems.AsEnumerable();
+        var q = _paragraphFlowAllItems.AsEnumerable();
 
         q = _flowSortColumn switch
         {
@@ -188,72 +172,36 @@ public partial class Index
             "PendingTotal" => _flowSortDescending
                 ? q.OrderByDescending(x => x.PendingTotal)
                 : q.OrderBy(x => x.PendingTotal),
-            "KeyBatch" => _flowSortDescending
-                ? q.OrderByDescending(x => x.KeyBatchCount)
-                : q.OrderBy(x => x.KeyBatchCount),
             "StatusJudgment" => _flowSortDescending
                 ? q.OrderByDescending(x => x.StatusJudgment)
                 : q.OrderBy(x => x.StatusJudgment),
+            "PlanFlowQuantity" => _flowSortDescending
+                ? q.OrderByDescending(x => x.PlanFlowQuantity)
+                : q.OrderBy(x => x.PlanFlowQuantity),
+            "PlanFlowJudgment" => _flowSortDescending
+                ? q.OrderByDescending(x => x.PlanFlowJudgment)
+                : q.OrderBy(x => x.PlanFlowJudgment),
+            "PlanKeyWeight" => _flowSortDescending
+                ? q.OrderByDescending(x => x.PlanKeyWeight)
+                : q.OrderBy(x => x.PlanKeyWeight),
             _ => q.OrderBy(x => x.DisplayOrder)
         };
 
-        _flowItems = BuildMergedView(q.ToList());
+        _paragraphFlowItems = q.ToList();
         ComputeFlowFooter();
-    }
-
-    private static List<SectionFlowAnalysisDto> BuildMergedView(List<SectionFlowAnalysisDto> sorted)
-    {
-        var result = new List<SectionFlowAnalysisDto>();
-        var byName = sorted.ToDictionary(x => x.CategoryName, StringComparer.OrdinalIgnoreCase);
-
-        // 合并 外抛光+内修磨+外点磨 → 荒管抛修
-        var abcNames = new[] { "外抛光", "内修磨", "外点磨" };
-        var abc = abcNames.Select(n => byName.GetValueOrDefault(n)).Where(x => x != null).Select(x => x!).ToList();
-        if (abc.Count > 0)
-            result.Add(MergeRow("荒管抛修", abc));
-
-        // 合并 固溶+矫直+切割 → 固矫切
-        var fghNames = new[] { "固溶", "矫直", "切割" };
-        var fgh = fghNames.Select(n => byName.GetValueOrDefault(n)).Where(x => x != null).Select(x => x!).ToList();
-        if (fgh.Count > 0)
-            result.Add(MergeRow("固矫切", fgh));
-
-        // 其余类别按原顺序追加（含检验类：荒管检/在制检/成品待检 现均为普通类别）
-        var mergedNames = new HashSet<string>(
-            abc.Select(x => x!.CategoryName).Concat(fgh.Select(x => x!.CategoryName)),
-            StringComparer.OrdinalIgnoreCase);
-        foreach (var item in sorted.Where(x => !mergedNames.Contains(x.CategoryName)))
-        {
-            result.Add(item);
-        }
-
-        return result;
-    }
-
-    private static SectionFlowAnalysisDto MergeRow(string name, List<SectionFlowAnalysisDto> items)
-    {
-        return new SectionFlowAnalysisDto
-        {
-            CategoryName = name,
-            PendingTotal = items.Sum(x => x!.PendingTotal),
-            KeyBatchCount = items.Sum(x => x!.KeyBatchCount),
-            KeyBatchWeight = items.Sum(x => x!.KeyBatchWeight),
-            StatusJudgment = MergeStatus(items.Select(x => x!.StatusJudgment)),
-        };
-    }
-
-    private static string MergeStatus(IEnumerable<string?> statuses)
-    {
-        var list = statuses.Where(s => !string.IsNullOrEmpty(s)).ToList();
-        if (list.Any(s => s == "过多")) return "过多";
-        if (list.Any(s => s == "偏少")) return "偏少";
-        return "正常";
     }
 
     private void ComputeFlowFooter()
     {
-        _flowTotalPending = _flowItems.Sum(x => x.PendingTotal ?? 0m);
-        _flowTotalKeyWeight = _flowItems.Sum(x => x.KeyBatchWeight ?? 0m);
+        _flowTotalPending = _paragraphFlowItems.Sum(x => x.PendingTotal ?? 0m);
+        _flowTotalPlanFlowQuantity = _paragraphFlowItems.Sum(x => x.PlanFlowQuantity ?? 0m);
+        _flowTotalPlanKeyWeight = _paragraphFlowItems.Sum(x => x.PlanKeyWeight ?? 0m);
+    }
+
+    private string FlowSortIndicator(string key)
+    {
+        if (_flowSortColumn != key) return "";
+        return _flowSortDescending ? " ▼" : " ▲";
     }
 
     private static string FlowRenderInt(decimal? val)
@@ -261,22 +209,20 @@ public partial class Index
         return val.HasValue ? ((int)val.Value).ToString() : "-";
     }
 
-    private static string FlowRenderKeyBatch(int count, decimal? weight)
-    {
-        if (count <= 0 && (!weight.HasValue || weight.Value <= 0))
-            return "-";
-        return $"{count}/{(weight.HasValue ? ((int)weight.Value).ToString() : "0")}";
-    }
-
     private static Color FlowGetStatusColor(string? status)
     {
         return status switch
         {
-            "过多" => Color.Error,
-            "偏少" => Color.Warning,
+            "偏少" => Color.Error,
+            "过多" => Color.Warning,
             "正常" => Color.Success,
             _ => Color.Default
         };
+    }
+
+    private static Color FlowGetPlanFlowJudgmentColor(string? judgment)
+    {
+        return judgment == "加速" ? Color.Warning : Color.Default;
     }
 
     private static string Card3StatText(int count, decimal weightTons)
@@ -356,34 +302,6 @@ public partial class Index
         catch
         {
             _card3ProcessingNcrs = 0;
-        }
-    }
-
-    // ========== 卡片 4 逻辑 ==========
-
-    private async Task LoadCard4Async()
-    {
-        try
-        {
-            var result = await RepairOrderSvc.GetAllListAsync();
-            if (result?.Success == true && result.Data != null)
-            {
-                _card4InProgressList = result.Data
-                    .Where(r => r.RepairStatus != RepairOrderStatus.Completed)
-                    .OrderByDescending(r => r.ReportTime)
-                    .ToList();
-                _card4InProgressCount = _card4InProgressList.Count;
-            }
-            else
-            {
-                _card4InProgressCount = 0;
-                _card4InProgressList = new();
-            }
-        }
-        catch
-        {
-            _card4InProgressCount = 0;
-            _card4InProgressList = new();
         }
     }
 

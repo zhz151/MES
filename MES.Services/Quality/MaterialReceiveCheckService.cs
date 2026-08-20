@@ -258,7 +258,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         var exists = await _context.MaterialReceiveChecks
             .AnyAsync(m => m.ProcessGroupId == entity.ProcessGroupId);
         if (exists)
-            throw new BusinessException($"该批次工序组「{entity.ProcessName}」已完成成检到料，不能重复创建");
+            throw new BusinessException($"该批次工序组「{ProcessKeys.ToChinese(entity.ProcessName)}」已完成成检到料，不能重复创建");
 
         // 自动判定成检类型（最后检验工序组=正式成检，否则=预成检）
         var isLast = await IsLastProcessGroupAsync(batch.Id, entity.ProcessGroupId);
@@ -351,7 +351,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
             // 按工序组查重（允许同一批次不同检验工序组分别到料）
             if (existingPgSet.Contains(finalPgId))
-                throw new BusinessException($"批次「{batch.BatchNo}」工序组「{matchedPg.ProcessName}」已完成成检到料，不能重复创建");
+                throw new BusinessException($"批次「{batch.BatchNo}」工序组「{ProcessKeys.ToChinese(matchedPg.ProcessName)}」已完成成检到料，不能重复创建");
 
             existingPgSet.Add(finalPgId); // 防止同一请求中重复
 
@@ -451,7 +451,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 var occupied = await _context.MaterialReceiveChecks
                     .AnyAsync(m => m.ProcessGroupId == newPg.Id && m.Id != id);
                 if (occupied)
-                    throw new BusinessException($"工序组「{newPg.ProcessName}」已完成成检到料，不能重复关联");
+                    throw new BusinessException($"工序组「{ProcessKeys.ToChinese(newPg.ProcessName)}」已完成成检到料，不能重复关联");
 
                 entity.ProcessGroupId = newPg.Id;
             }

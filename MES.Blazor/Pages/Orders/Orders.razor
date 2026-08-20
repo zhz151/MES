@@ -50,12 +50,12 @@
             <!-- 订单接单·出库及现负荷汇总卡片（默认折叠，标题栏按钮切换显隐） -->
             @if (_showInOutSummaryCard)
             {
-                <MudCard Class="mb-2" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
+                <MudCard Class="mb-2 summary-card" Elevation="0">
                     <MudCardContent>
                         <div class="d-flex justify-space-between align-center mb-2">
                             <div class="d-flex align-center" style="gap: 8px;">
                                 <MudText Typo="Typo.subtitle2"><b>订单接单·出库及现负荷汇总</b></MudText>
-                                <MudText Typo="Typo.caption" Style="color: #757575;">单位：吨(t)（源数据 kg）｜成品库存(完工/未完工)与订单负荷量(实时)为当前存量，仅显示本月</MudText>
+                                <MudText Typo="Typo.caption" Class="text-hint">单位：吨(t)（源数据 kg）｜成品库存(完工/未完工)与订单负荷量(实时)为当前存量，仅显示本月</MudText>
                             </div>
                             <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
                                        StartIcon="@Icons.Material.Filled.Print" OnClick="PrintInOutSummary" Disabled="@(_inOutSummary == null)">
@@ -64,7 +64,7 @@
                         </div>
                         @if (_inOutSummary == null)
                         {
-                            <MudText Typo="Typo.body2" Style="color: #757575;">正在加载...</MudText>
+                            <MudText Typo="Typo.body2" Class="text-hint">正在加载...</MudText>
                         }
                         else
                         {
@@ -132,8 +132,6 @@
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  Clearable="true"
-                                  ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
@@ -144,16 +142,12 @@
                                       Value="@_dateFrom"
                                       ValueChanged="@OnDateFromChanged"
                                       Placeholder="yyyy-MM-dd"
-                                      Clearable="true"
-                                      ClearButton="true"
                                       Style="flex:1;min-width:0" />
                         <MudTextField T="string"
                                       Label="签订日期至"
                                       Value="@_dateTo"
                                       ValueChanged="@OnDateToChanged"
                                       Placeholder="yyyy-MM-dd"
-                                      Clearable="true"
-                                      ClearButton="true"
                                       Style="flex:1;min-width:0" />
                     </div>
                 </MudItem>
@@ -164,16 +158,12 @@
                                       Value="@_deliveryDateFrom"
                                       ValueChanged="@OnDeliveryDateFromChanged"
                                       Placeholder="yyyy-MM-dd"
-                                      Clearable="true"
-                                      ClearButton="true"
                                       Style="flex:1;min-width:0" />
                         <MudTextField T="string"
                                       Label="交货日期至"
                                       Value="@_deliveryDateTo"
                                       ValueChanged="@OnDeliveryDateToChanged"
                                       Placeholder="yyyy-MM-dd"
-                                      Clearable="true"
-                                      ClearButton="true"
                                       Style="flex:1;min-width:0" />
                     </div>
                 </MudItem>
@@ -182,7 +172,7 @@
             <!-- 数据表格 -->
             <div id="orders-list-table">
             <!-- 工具栏 -->
-            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"

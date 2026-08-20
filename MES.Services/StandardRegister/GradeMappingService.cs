@@ -167,7 +167,7 @@ public class GradeMappingService : IGradeMappingService
 
         if (entity == null)
         {
-            throw new BusinessException("Grade mapping does not exist");
+            throw new BusinessException("牌号映射不存在");
         }
 
         return ToDto(entity);
@@ -216,7 +216,7 @@ public class GradeMappingService : IGradeMappingService
 
         if (entity == null)
         {
-            throw new BusinessException("Grade mapping does not exist");
+            throw new BusinessException("牌号映射不存在");
         }
 
         // Check standard grade uniqueness (composite, exclude self)
@@ -282,7 +282,7 @@ public class GradeMappingService : IGradeMappingService
 
         if (entity == null)
         {
-            throw new BusinessException("Grade mapping does not exist");
+            throw new BusinessException("牌号映射不存在");
         }
 
         _context.StandardGradeMappings.Remove(entity);

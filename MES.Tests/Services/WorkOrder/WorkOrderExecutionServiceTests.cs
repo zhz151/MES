@@ -75,7 +75,11 @@ public class WorkOrderExecutionServiceTests : TestBase
         scopeMock.Setup(x => x.ServiceProvider).Returns(providerMock.Object);
         var scopeFactoryMock = new Mock<IServiceScopeFactory>();
         scopeFactoryMock.Setup(x => x.CreateScope()).Returns(scopeMock.Object);
-        return new WorkOrderExecutionService(ctx, loggerMock.Object, configMock.Object, dailyOutputMock.Object, new MemoryCache(new MemoryCacheOptions()), scopeFactoryMock.Object);
+        // 档3（成品检验）复用成检计划看板：mock 返回空看板，避免影响既有用例
+        var finalInspectionMock = new Mock<IFinalInspectionPlanService>();
+        finalInspectionMock.Setup(x => x.GetKanbanAsync())
+            .ReturnsAsync(new List<FinalInspectionPlanDto>());
+        return new WorkOrderExecutionService(ctx, loggerMock.Object, configMock.Object, dailyOutputMock.Object, new MemoryCache(new MemoryCacheOptions()), scopeFactoryMock.Object, finalInspectionMock.Object);
     }
 
     // ==================== GetPagedAsync 测试 ====================

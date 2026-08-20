@@ -370,7 +370,7 @@ public partial class ColdRollPlans
                                 ? (sched.MachineNo ?? "")
                                 : "",
                             DailyOutput = sched.DailyOutput,
-                            CompletionType = item.WeightProd > 0 ? sched.CompletionType : "None",
+                            CompletionType = (item.WeightProd > 0 || item.WeightWaitNear > 0) ? sched.CompletionType : "None",
                             RollType = item.WeightWaitNear > 0 ? sched.RollType : "None",
                         };
                         break;
@@ -395,7 +395,7 @@ public partial class ColdRollPlans
                             ? (schedule.MachineNo ?? "")
                             : "",
                         DailyOutput = schedule.DailyOutput,
-                        CompletionType = item.WeightProd > 0 ? schedule.CompletionType : "None",
+                        CompletionType = (item.WeightProd > 0 || item.WeightWaitNear > 0) ? schedule.CompletionType : "None",
                         RollType = item.WeightWaitNear > 0 ? schedule.RollType : "None",
                     };
                 }
@@ -852,7 +852,7 @@ public partial class ColdRollPlans
 
         var g2 = new List<ColumnDef>
         {
-            new() { Key = "MachineNo",          Label = "在轧设备号",     Width = "120", GroupKey = 2, GroupName = "近日在轧" },
+            new() { Key = "MachineNo",          Label = "在轧单位或设备",     Width = "140", GroupKey = 2, GroupName = "近日在轧" },
             new() { Key = "WeightProd",         Label = "在轧",        Width = "100", GroupKey = 2, GroupName = "近日在轧" },
             new() { Key = "WeightProdUrgent",   Label = "在轧(急+)", Width = "120", GroupKey = 2, GroupName = "近日在轧" },
             new() { Key = "WeightProdUrgentSub",  Label = "在轧(急)", Width = "120", GroupKey = 2, GroupName = "近日在轧" },
@@ -887,7 +887,7 @@ public partial class ColdRollPlans
         {
             new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetCompletionTypeOptions() },
             new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetRollTypeOptions() },
-            new() { Key = "SchedMachineNo", Label = "待轧设备号", Width = "100", GroupKey = 6, GroupName = "排程设置", FilterType = "string" },
+            new() { Key = "SchedMachineNo", Label = "待轧单位或设备", Width = "110", GroupKey = 6, GroupName = "排程设置", FilterType = "string" },
             new() { Key = "DailyOutput",    Label = "单机单日量(kg/天)", Width = "130", GroupKey = 6, GroupName = "排程设置" },
         };
 
@@ -905,7 +905,7 @@ public partial class ColdRollPlans
 
         var g2 = new List<ColumnDef>
         {
-            new() { Key = "MachineNo",          Label = "在轧设备号",     Width = "120", GroupKey = 2, GroupName = "近日在轧" },
+            new() { Key = "MachineNo",          Label = "在轧单位或设备",     Width = "140", GroupKey = 2, GroupName = "近日在轧" },
             new() { Key = "WeightProd",         Label = "在轧",        Width = "100", GroupKey = 2, GroupName = "近日在轧" },
             new() { Key = "WeightProdUrgent",   Label = "在轧(急+)", Width = "120", GroupKey = 2, GroupName = "近日在轧" },
             new() { Key = "WeightProdUrgentSub",  Label = "在轧(急)", Width = "120", GroupKey = 2, GroupName = "近日在轧" },
@@ -940,7 +940,7 @@ public partial class ColdRollPlans
         {
             new() { Key = "CompletionType", Label = "在轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetCompletionTypeOptions() },
             new() { Key = "RollType",       Label = "待轧要求", Width = "90",  GroupKey = 6, GroupName = "排程设置", FilterType = "enum", EnumOptions = DisplayHelper.GetRollTypeOptions() },
-            new() { Key = "SchedMachineNo", Label = "待轧设备号", Width = "100", GroupKey = 6, GroupName = "排程设置", FilterType = "string" },
+            new() { Key = "SchedMachineNo", Label = "待轧单位或设备", Width = "110", GroupKey = 6, GroupName = "排程设置", FilterType = "string" },
             new() { Key = "DailyOutput",    Label = "单机单日量(kg/天)", Width = "130", GroupKey = 6, GroupName = "排程设置" },
         };
 

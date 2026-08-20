@@ -11,7 +11,6 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
-@inject ProcessDefinitionService ProcessDefinitionService
 @attribute [Authorize(Roles = Roles.Policies.QualityRead)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
@@ -185,7 +184,6 @@
 
 @code {
     private List<EditRow> _rows = new();
-    private List<ProcessInfoDto> _processOptions = new();
     private bool _isSubmitting;
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
@@ -267,6 +265,7 @@
     {
         public string InspectionDate { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
         public string BatchNo { get; set; } = string.Empty;
+        public int? ProcessGroupId { get; set; }                                                // 选中的批次工序组 Id（工序组粒度下拉绑定，消除同名工序组规格歧义）
         public string ProcessName { get; set; } = string.Empty;
         public string? ManufacturingSpec { get; set; }
         public string SectionName { get; set; } = SectionKeys.Inspection;
@@ -373,14 +372,64 @@
     private static readonly List<(string Value, string Text)> _shiftOptions =
         DisplayHelper.GetEnumOptions<ShiftType>().Select(o => (o.Value, o.Display)).ToList();
 
-    // ========== 下拉显示转换（存储值英文 Key → 显示中文） ==========
-    private string GetProcessDisplayText(string key)
+    // ========== 批次工序组（工序组粒度下拉，消除同名工序组规格歧义） ==========
+    // 批次详情缓存（BatchNo → 批次），工序组下拉选项与联动共用，避免重复请求
+    private readonly Dictionary<string, ProductionBatchDetailDto> _batchCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private ProductionBatchDetailDto? GetRowBatch(EditRow r)
+        => !string.IsNullOrWhiteSpace(r.BatchNo) && _batchCache.TryGetValue(r.BatchNo, out var b) ? b : null;
+
+    private List<ProcessGroupDto> GetRowProcessGroups(EditRow r)
+        => GetRowBatch(r)?.ProcessGroups ?? new List<ProcessGroupDto>();
+
+    private ProcessGroupDto? FindRowProcessGroup(EditRow r, int? pgId)
+        => pgId.HasValue ? GetRowProcessGroups(r).FirstOrDefault(p => p.Id == pgId.Value) : null;
+
+    // 工序组下拉显示：工序名（制造规格），同名工序组用规格区分
+    private string GetProcessGroupDisplayText(EditRow r, int? pgId)
     {
-        if (string.IsNullOrEmpty(key)) return key ?? "";
-        foreach (var o in _processOptions)
-            if (o.ProcessKey == key) return o.ProcessName;
-        return key;
+        var pg = FindRowProcessGroup(r, pgId);
+        if (pg == null) return "";
+        return $"{ProcessDisplayHelper.GetProcessNameText(pg.ProcessName)}（{pg.ManufacturingSpec ?? ""}）";
     }
+
+    /// <summary>批次变更后重解析工序组：已选工序组仍有效则保持；否则按工序名称唯一匹配自动绑定，同名多规格/无匹配则清空让用户下拉重选</summary>
+    private void ResolveProcessGroupAfterBatchChange(EditRow row, List<ProcessGroupDto>? pgs)
+    {
+        var list = pgs ?? new List<ProcessGroupDto>();
+        if (row.ProcessGroupId.HasValue && list.Any(p => p.Id == row.ProcessGroupId.Value))
+            return;
+        var sameName = list.Where(p => p.ProcessName == row.ProcessName).ToList();
+        if (sameName.Count == 1)
+        {
+            row.ProcessGroupId = sameName[0].Id;
+            row.ManufacturingSpec = sameName[0].ManufacturingSpec;
+        }
+        else
+        {
+            row.ProcessGroupId = null;
+            row.ManufacturingSpec = null;
+        }
+    }
+
+    /// <summary>选中批次工序组 → 填充工序名称/制造规格</summary>
+    private void OnProcessGroupSelected(EditRow row, int? pgId)
+    {
+        var pg = FindRowProcessGroup(row, pgId);
+        if (pg == null)
+        {
+            row.ProcessGroupId = null;
+            row.ProcessName = "";
+            row.ManufacturingSpec = null;
+            StateHasChanged();
+            return;
+        }
+        row.ProcessGroupId = pg.Id;
+        row.ProcessName = pg.ProcessName;
+        row.ManufacturingSpec = pg.ManufacturingSpec;
+        StateHasChanged();
+    }
+
     private static string GetSectionDisplayText(string key)
     {
         if (string.IsNullOrEmpty(key)) return key ?? "";
@@ -403,7 +452,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("process-inspection-create", null);
         if (saved.Count > 0)
@@ -458,6 +506,7 @@
             var source = _rows[^1];
             newRow.InspectionDate = source.InspectionDate;
             newRow.BatchNo = source.BatchNo;
+            newRow.ProcessGroupId = source.ProcessGroupId;
             newRow.ProcessName = source.ProcessName;
             newRow.SectionName = source.SectionName;
             newRow.TagNo = source.TagNo;
@@ -482,6 +531,7 @@
         if (index <= 0) return;
         var source = _rows[index - 1];
         row.BatchNo = source.BatchNo;
+        row.ProcessGroupId = source.ProcessGroupId;
         row.ProcessName = source.ProcessName;
         row.SectionName = source.SectionName;
         row.TagNo = source.TagNo;
@@ -615,14 +665,16 @@
             return;
 
         var batch = result.Data;
+        _batchCache[batch.BatchNo] = batch;
         row.TagNo = batch.TagNo;
         row.PlantGrade = batch.PlantGrade;
         row.SourceUnit = batch.SourceName;
+        ResolveProcessGroupAfterBatchChange(row, batch.ProcessGroups);
         StateHasChanged();
     }
 
     /// <summary>
-    /// 制造规格变更时自动填充工序名称
+    /// 制造规格变更时自动填充工序名称（并同步选中工序组 Id）
     /// </summary>
     private async Task OnManufacturingSpecChangedAsync(EditRow row, string? spec)
     {
@@ -635,27 +687,13 @@
             return;
 
         var batch = result.Data;
+        _batchCache[batch.BatchNo] = batch;
         var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ManufacturingSpec == spec);
         if (pg != null)
+        {
+            row.ProcessGroupId = pg.Id;
             row.ProcessName = pg.ProcessName;
-
-        StateHasChanged();
-    }
-
-    // 批次号+工序名称 → 自动填充制造规格
-    private async Task OnAutoFillByProcessNameAsync(EditRow row)
-    {
-        if (string.IsNullOrWhiteSpace(row.BatchNo) || string.IsNullOrWhiteSpace(row.ProcessName))
-            return;
-
-        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
-        if (!result.Success || result.Data == null)
-            return;
-
-        var batch = result.Data;
-        var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
-        if (pg != null)
-            row.ManufacturingSpec = pg.ManufacturingSpec;
+        }
 
         StateHasChanged();
     }
@@ -713,21 +751,24 @@
                 builder.CloseComponent();
                 break;
             case "ProcessName":
-                builder.OpenComponent<MudSelect<string>>(0);
+                // 工序组粒度下拉：列出该批次已配置的工序组（工序名+制造规格），消除同名工序组规格歧义
+                builder.OpenComponent<MudSelect<int?>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetProcessDisplayText);
-                builder.AddAttribute(5, "Value", r.ProcessName);
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnAutoFillByProcessNameAsync(r); }));
+                builder.AddAttribute(4, "ToStringFunc", (Func<int?, string>)(id => GetProcessGroupDisplayText(r, id)));
+                builder.AddAttribute(5, "Value", r.ProcessGroupId);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, id => OnProcessGroupSelected(r, id)));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var opt in _processOptions)
+                    b.OpenComponent<MudSelectItem<int?>>(0);
+                    b.AddAttribute(1, "Text", "");
+                    b.CloseComponent();
+                    foreach (var pg in GetRowProcessGroups(r))
                     {
-                        b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", opt.ProcessKey);
-                        b.AddAttribute(2, "Text", opt.ProcessName);
-                        b.AddAttribute(3, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
+                        b.OpenComponent<MudSelectItem<int?>>(0);
+                        b.AddAttribute(1, "Value", pg.Id);
+                        b.AddAttribute(2, "Text", GetProcessGroupDisplayText(r, pg.Id));
                         b.CloseComponent();
                     }
                 }));
@@ -807,7 +848,6 @@
                 builder.AddAttribute(5, "HideSpinButtons",true);
                 builder.AddAttribute(5, "Value", r.Quantity);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { r.Quantity = v; AutoFillTheoryWeights(r); }));
-                builder.AddAttribute(7, "Clearable", true);
                 builder.CloseComponent();
                 break;
             case "Weight":
@@ -819,7 +859,6 @@
                 builder.AddAttribute(5, "Format", "G29");
                 builder.AddAttribute(6, "Value", r.Weight);
                 builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => { r.Weight = v; AutoFillTheoryWeights(r); }));
-                builder.AddAttribute(8, "Clearable", true);
                 builder.CloseComponent();
                 break;
             case "InspectionItem":
@@ -855,7 +894,6 @@
                 builder.AddAttribute(5, "HideSpinButtons",true);
                 builder.AddAttribute(5, "Value", r.QualifiedQuantity);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.QualifiedQuantity = v));
-                builder.AddAttribute(7, "Clearable", true);
                 builder.CloseComponent();
                 break;
             case "QualifiedWeight":
@@ -867,7 +905,6 @@
                 builder.AddAttribute(5, "Format", "G29");
                 builder.AddAttribute(6, "Value", r.QualifiedWeight);
                 builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.QualifiedWeight = v));
-                builder.AddAttribute(8, "Clearable", true);
                 builder.CloseComponent();
                 break;
             case "QualifiedConcessionQuantity":
@@ -878,7 +915,6 @@
                 builder.AddAttribute(5, "HideSpinButtons",true);
                 builder.AddAttribute(5, "Value", r.QualifiedConcessionQuantity);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.QualifiedConcessionQuantity = v));
-                builder.AddAttribute(7, "Clearable", true);
                 builder.CloseComponent();
                 break;
             case "ConcessionRemark":
@@ -898,7 +934,6 @@
                 builder.AddAttribute(5, "HideSpinButtons",true);
                 builder.AddAttribute(5, "Value", r.DefectReworkQuantity);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { r.DefectReworkQuantity = v; AutoFillTheoryWeights(r); }));
-                builder.AddAttribute(7, "Clearable", true);
                 builder.CloseComponent();
                 break;
             case "DefectWarehouseQuantity":
@@ -909,7 +944,6 @@
                 builder.AddAttribute(5, "HideSpinButtons",true);
                 builder.AddAttribute(5, "Value", r.DefectWarehouseQuantity);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { r.DefectWarehouseQuantity = v; AutoFillTheoryWeights(r); }));
-                builder.AddAttribute(7, "Clearable", true);
                 builder.CloseComponent();
                 break;
             case "DefectScrapQuantity":
@@ -920,7 +954,6 @@
                 builder.AddAttribute(5, "HideSpinButtons",true);
                 builder.AddAttribute(5, "Value", r.DefectScrapQuantity);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { r.DefectScrapQuantity = v; AutoFillTheoryWeights(r); }));
-                builder.AddAttribute(7, "Clearable", true);
                 builder.CloseComponent();
                 break;
             case "TheoreticalReworkWeight":

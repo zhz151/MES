@@ -18,5 +18,10 @@ public enum SectionOutsourceStatus
     /// <summary>
     /// 在轧（旧系统遗留状态）
     /// </summary>
-    InProgress = 2
+    InProgress = 2,
+
+    /// <summary>
+    /// 略（厂内虚拟发外状态，无需回收）
+    /// </summary>
+    Virtual = 3
 }

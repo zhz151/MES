@@ -271,7 +271,8 @@ public class ColdRollPlanService : IColdRollPlanService
                     AttentionMatchesCurrentCR = attentionMatchesCurrentCR,
                     PositionDiff = positionDiff,
                     Weight = batch.CurrentValidWeight ?? 0m,
-                    MachineNo = isProducing ? (batch.CurrentEquipmentName ?? batch.CurrentOutsource) : null,
+                    // 在轧单位或设备：优先批次「委外单位」，为空再取「设备号」（实际后续基本只有委外单位）
+                    MachineNo = isProducing ? (batch.CurrentOutsource ?? batch.CurrentEquipmentName) : null,
                     ShortDisplay = GetShortDisplay(billetSpec, rollingSpec),
                 });
             }

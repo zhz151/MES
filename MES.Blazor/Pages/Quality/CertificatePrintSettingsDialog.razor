@@ -45,7 +45,7 @@
                     </MudText>
                     @foreach (var blockGroup in FormatBlocks)
                     {
-                        <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-1 mt-2" Style="color:#37474F;">
+                        <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-1 mt-2 text-title">
                             <MudIcon Icon="@GetBlockIcon(blockGroup.Key)" Class="mr-1" Size="Size.Small" />
                             @GetBlockTitle(blockGroup.Key)
                             <MudText Typo="Typo.caption" Color="Color.Secondary" Inline="true">（@(blockGroup.Count()) 个字段）</MudText>

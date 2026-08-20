@@ -139,8 +139,6 @@
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  Clearable="true"
-                                  ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
@@ -152,8 +150,7 @@
                                   Label="登记日期从"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  Clearable="true"
-                                  ClearButton="true" />
+                                 />
                 </MudItem>
                 <MudItem xs="12" md="3">
                     <MudTextField T="string"
@@ -163,8 +160,7 @@
                                   Label="登记日期至"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  Clearable="true"
-                                  ClearButton="true" />
+                                 />
                 </MudItem>
             </MudGrid>
 
@@ -175,7 +171,7 @@
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 90;
             }
             @* 工具栏 *@
-            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"

@@ -71,8 +71,6 @@
                           ValueChanged="@OnSearchChanged"
                           Immediate="true"
                           DebounceInterval="500"
-                          Clearable="true"
-                          ClearButton="true"
                           Adornment="Adornment.End"
                           AdornmentIcon="@Icons.Material.Filled.Search" />
         </MudItem>
@@ -81,7 +79,7 @@
     <!-- 待检批支重汇总卡片（页面右上角按钮切换显隐，懒加载） -->
     @if (_showSummaryCard)
     {
-        <MudCard Class="mb-2" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
+        <MudCard Class="mb-2 summary-card" Elevation="0">
             <MudCardContent>
                 @if (_isLoadingSummary)
                 {
@@ -120,7 +118,7 @@
                         </tbody>
                     </table>
                 </div>
-                <MudText Typo="Typo.body2" Style="color:#666; margin-top:4px; font-size:0.75rem;">
+                <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
                     注：某检验项统计「要求该检验项且尚未完成该检验」的看板批次，按待到料/待检验+检验中分列；
                     已检完该检验项的批次（含「完成检验待入库」档）不计入；每格=批次数/生产支数/生产重量(kg)；
                     0 值显示 "-"；预+正式合并、按批次去重；汇总数据=两档之和。
@@ -137,7 +135,7 @@
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
             }
             <!-- 工具栏 -->
-            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"

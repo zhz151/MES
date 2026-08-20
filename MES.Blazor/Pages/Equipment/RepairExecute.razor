@@ -82,7 +82,7 @@
             {
                 <div class="d-flex flex-column">
                     @* 设备信息摘要 *@
-                    <MudPaper Class="pa-3 mb-3" Elevation="2" Style="border-left: 4px solid #1976d2; background: #e3f2fd;">
+                    <MudPaper Class="pa-3 mb-3 notice-card" Elevation="2">
                         <div class="d-flex align-center mb-1" style="gap: 12px;">
                             <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Color="Color.Primary" Size="Size.Small" />
                             <MudText Typo="Typo.body2" Class="font-weight-bold" Color="Color.Primary">
@@ -165,7 +165,7 @@
                     @* ========== 完成维修表单 ========== *@
                     @if (_activeOrder != null)
                     {
-                        <MudPaper Class="pa-3 mb-2" Elevation="2" Style="border-left: 4px solid #4caf50; background: #e8f5e9;">
+                        <MudPaper Class="pa-3 mb-2 notice-card-success" Elevation="2">
                             <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">
                                 完成维修 - @_activeOrder.RepairOrderNo
                             </MudText>

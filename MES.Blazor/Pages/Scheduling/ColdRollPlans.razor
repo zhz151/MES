@@ -14,7 +14,7 @@
         <div class="d-flex align-center mb-4 crp-page-title">
             <MudText Typo="Typo.h5" Class="font-weight-bold">
                 <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
-                冷轧计划
+                冷轧排程
             </MudText>
             <div style="margin-left:auto;">
                 <MudButton Variant="Variant.Outlined"
@@ -66,7 +66,7 @@
                       DebounceInterval="500"
                       AdornmentIcon="@Icons.Material.Filled.Search"
                       AdornmentSize="Size.Small"
-                      Clearable="true" />
+                     />
 
         <!-- Tab 汇总 -->
         <div class="d-flex flex-wrap align-center mb-2 crp-print-hide" style="gap: 12px; font-size: 0.85rem;">
@@ -125,8 +125,7 @@
     @* 冷轧排程排机估算 — 折叠汇总卡片（标题行右上角按钮展开） *@
     @if (_showMachineEstimate)
     {
-        <MudCard Class="mb-3 crp-print-hide" Elevation="0"
-                 Style="background:#FAFBFC; border:1px solid #E0E0E0; border-radius:8px;">
+        <MudCard Class="mb-3 crp-print-hide summary-card" Elevation="0">
             <MudCardContent>
                 <div class="d-flex justify-space-between align-center mb-2">
                     <MudText Typo="Typo.subtitle2"><b>冷轧排程排机估算</b></MudText>
@@ -352,11 +351,11 @@
                 var groupItems = group.ToList();
                 var grpFlowWeight = groupItems.Sum(x => x.TotalFlowWeight);
 
-                <MudCard Class="mb-3" Style="border-left: 4px solid #1976D2;">
+                <MudCard Class="mb-3 card-accent-left">
                     <MudCardContent Class="pa-3">
-                        <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-2" Style="color: #1565C0;">
+                        <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-2 text-brand">
                             @ProcessDisplayHelper.GetProcessNameText(group.Key)
-                            <span class="ml-4" style="font-size: 0.85rem; color: #555; font-weight: normal;">
+                            <span class="ml-4 text-hint" style="font-size: 0.85rem; font-weight: normal;">
                                 批次数：<b>@groupItems.Sum(x => x.BatchCount)</b>
                                 &nbsp;|&nbsp;流转总量：<b style="color:#2E7D32;">@(((int)grpFlowWeight).ToString())</b>
                             </span>
@@ -447,7 +446,7 @@
         /* 打印排程汇总（body.print-summary）：隐藏主计划区、仅显示汇总 */
         body.print-summary .crp-plan-section { display: none !important; }
         body.print-summary .crp-summary-section { display: block !important; }
-        /* 打印排程汇总：不显示页面标题「冷轧计划」 */
+        /* 打印排程汇总：不显示页面标题「冷轧排程」 */
         body.print-summary .crp-page-title { display: none !important; }
         .col-group-header-scroll { overflow: visible !important; }
         .mud-card { box-shadow: none !important; border: none !important; }

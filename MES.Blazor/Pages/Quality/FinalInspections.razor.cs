@@ -1337,7 +1337,6 @@ public partial class FinalInspections
                     builder.AddAttribute(1, "Value", cache.InspectionType);
                     builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string?>(this, v => cache.InspectionType = v));
                     builder.AddAttribute(3, "Class", "compact-input");
-                    builder.AddAttribute(4, "Clearable", true);
                     builder.AddAttribute(5, "ChildContent", (RenderFragment)(b =>
                     {
                         b.OpenComponent<MudSelectItem<string?>>(0);

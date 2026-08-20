@@ -25,7 +25,7 @@
 
         <MudCardContent>
             <!-- 待处理批次卡片 -->
-            <MudPaper Elevation="0" Class="mb-4 pa-4" Style="border: 1px solid #e0e0e0; border-radius: 8px;">
+            <MudPaper Elevation="0" Class="mb-4 pa-4 form-card">
                 <div style="display: flex; align-items: center; cursor: pointer;" @onclick="TogglePendingChecks">
                     <MudIcon Icon="@Icons.Material.Filled.Inbox" Color="Color.Error" Class="mr-2" />
                     <MudText Typo="Typo.body1" Class="font-weight-medium mr-4">待处理批次</MudText>
@@ -86,7 +86,6 @@
                                   Label="模糊搜索 - 编号/炉号/牌号/责任部门"
                                   Value="_searchKeyword" ValueChanged="@OnSearchChanged"
                                   Immediate="true" DebounceInterval="500"
-                                  Clearable="true" ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
@@ -97,8 +96,6 @@
                                   ValueChanged="@OnDateFromChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  Clearable="true"
-                                  ClearButton="true"
                                   Placeholder="yyyy-MM-dd" />
                 </MudItem>
                 <MudItem xs="12" md="3">
@@ -108,8 +105,6 @@
                                   ValueChanged="@OnDateToChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  Clearable="true"
-                                  ClearButton="true"
                                   Placeholder="yyyy-MM-dd" />
                 </MudItem>
             </MudGrid>
@@ -121,7 +116,7 @@
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 160;
             }
             @* 工具栏：列显隐 + 重置（左）+ 打印 + 记录数（右） *@
-            <div class="woe-toolbar">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="@_allColumns"
                                          OnColumnToggle="@OnColumnToggle"

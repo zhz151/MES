@@ -58,9 +58,7 @@
                                Value="_selectedDictKey"
                                ValueChanged="@OnDictKeyChanged"
                                Dense="true"
-                               Variant="Variant.Outlined"
-                               Clearable="true"
-                               ClearIcon="@Icons.Material.Filled.ClearAll">
+                               Variant="Variant.Outlined">
                         @foreach (var kv in _dictKeyOptions)
                         {
                             <MudSelectItem T="string" Value="@kv.Key">@kv.Text</MudSelectItem>

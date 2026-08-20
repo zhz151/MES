@@ -61,14 +61,17 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private readonly IMemoryCache _cache;
     private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IFinalInspectionPlanService _finalInspectionService;
 
     public WorkOrderExecutionService(AppDbContext context, ILogger<WorkOrderExecutionService> logger,
         IConfigParameterService configService,
         IDailyOutputEstimateService dailyOutputService,
         IMemoryCache cache,
-        IServiceScopeFactory serviceScopeFactory)
+        IServiceScopeFactory serviceScopeFactory,
+        IFinalInspectionPlanService finalInspectionService)
     {
         _context = context;
+        _finalInspectionService = finalInspectionService;
         _logger = logger;
         _configService = configService;
         _dailyOutputService = dailyOutputService;
@@ -2856,88 +2859,32 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         result.AddRange(stage2Grouped);
 
         // ========== Stage 3: 成品检验 ==========
-        // 成检阶段 = "待检验" + "检验中"
-        // 逻辑同 FinalInspectionPlanService.BuildInProcessAsync
-
-        // 1. MaterialReceiveCheck（排除强制完成）
-        var receiveBatchIds = await _context.MaterialReceiveChecks
-            .AsNoTracking()
-            .Where(rc => !rc.IsForceCompleted)
-            .Select(rc => rc.ProductionBatchId)
-            .Distinct()
-            .ToListAsync();
-        var receivedSet = receiveBatchIds.ToHashSet();
-
-        if (receivedSet.Count > 0)
-        {
-            // 2. FinalInspections 已检批次
-            var inspectedIds = await _context.FinalInspections
-                .AsNoTracking()
-                .Select(fi => fi.ProductionBatchId)
-                .Distinct()
-                .ToListAsync();
-            var inspectedSet = inspectedIds.ToHashSet();
-
-            // 3. 已入库批次
-            var warehousedNos = await _context.InventoryBatches
-                .AsNoTracking()
-                .Where(ib => ib.ProductionBatchNo != null)
-                .Select(ib => ib.ProductionBatchNo!)
-                .Distinct()
-                .ToListAsync();
-            var warehousedSet = warehousedNos.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            // 4. 加载已到料批次数据
-            var batchData = await _context.ProductionBatches.AsNoTracking()
-                .Where(b => receivedSet.Contains(b.Id))
-                .Select(b => new
-                {
-                    b.Id,
-                    b.BatchNo,
-                    b.WorkOrderNo,
-                    Weight = b.CurrentValidWeight ?? 0m
-                })
-                .ToListAsync();
-
-            // 5. 过滤：排除已入库 → 仅保留 待检验 + 检验中
-            var validBatches = batchData
-                .Where(b => b.BatchNo == null || !warehousedSet.Contains(b.BatchNo))
-                .ToList();
-
-            if (validBatches.Count > 0)
+        // 对齐成检计划看板前 3 档（待到料/待检验/检验中）：复用 GetKanbanAsync 判定（候选=InFinalInspection 批次，
+        // 行=批次+成检类型，强制完成跳过、已入库脱离、筛除「完成检验待入库」），按批次去重聚合。
+        // 重量口径=ProductionWeight（生产重量），与成检计划看板完全同源。
+        var kanbanItems = await _finalInspectionService.GetKanbanAsync();
+        var stage3Batches = kanbanItems
+            .Where(x => x.KanbanStage == "待到料" || x.KanbanStage == "待检验" || x.KanbanStage == "检验中")
+            .GroupBy(x => x.ProductionBatchId)
+            .Select(g => new
             {
-                var woNos = validBatches.Select(b => b.WorkOrderNo).Distinct().ToList();
-                var summaries = await _context.Set<WorkOrderExecutionSummary>()
-                    .AsNoTracking()
-                    .Where(s => woNos.Contains(s.WorkOrderNo))
-                    .Select(s => new { s.WorkOrderNo, s.UrgencyLevel })
-                    .ToListAsync();
+                WorkOrderNo = g.First().WorkOrderNo,
+                UrgencyLevel = g.First().UrgencyLevel,
+                Weight = g.First().ProductionWeight ?? 0m
+            })
+            .ToList();
 
-                var urgencyLookup = summaries
-                    .GroupBy(s => s.WorkOrderNo)
-                    .ToDictionary(g => g.Key, g => g.First().UrgencyLevel, StringComparer.OrdinalIgnoreCase);
-
-                var stage3Items = validBatches
-                    .Select(b => new
-                    {
-                        UrgencyLevel = b.WorkOrderNo != null && urgencyLookup.TryGetValue(b.WorkOrderNo, out var u) ? u : null,
-                        b.Weight,
-                        b.WorkOrderNo
-                    })
-                    .Where(x => x.UrgencyLevel != null)
-                    .GroupBy(x => x.UrgencyLevel!)
-                    .Select(g => new WorkOrderExecutionDashboardItem
-                    {
-                        ScheduleStage = 3,
-                        UrgencyLevel = g.Key,
-                        OrderCount = g.Select(x => x.WorkOrderNo).Distinct().Count(),
-                        TotalWeight = g.Sum(x => x.Weight)
-                    })
-                    .ToList();
-
-                result.AddRange(stage3Items);
-            }
-        }
+        var stage3Grouped = stage3Batches
+            .Where(x => x.UrgencyLevel != null)
+            .GroupBy(x => x.UrgencyLevel!)
+            .Select(g => new WorkOrderExecutionDashboardItem
+            {
+                ScheduleStage = 3,
+                UrgencyLevel = g.Key,
+                OrderCount = g.Select(x => x.WorkOrderNo).Distinct().Count(),
+                TotalWeight = g.Sum(x => x.Weight)
+            });
+        result.AddRange(stage3Grouped);
 
         return result;
     }

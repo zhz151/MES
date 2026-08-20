@@ -46,8 +46,6 @@
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  Clearable="true"
-                                  ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
@@ -56,7 +54,7 @@
             <!-- 数据表格 -->
             <div id="sub-standard-quick-views-list-table">
             <!-- 工具栏 -->
-            <div class="woe-toolbar">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"

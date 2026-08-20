@@ -226,7 +226,7 @@ public class CustomerServiceTests : TestBase
             Salesman = "张三"
         });
 
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*already exists*");
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*已存在*");
     }
 
     // ========== UpdateAsync ==========

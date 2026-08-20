@@ -28,7 +28,7 @@
         <MudCardContent>
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="模糊搜索 - 单号/工单号/供应商/牌号/规格" Value="_searchKeyword" ValueChanged="@OnSearchChanged" Immediate="true" DebounceInterval="500" Clearable="true" ClearButton="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+                    <MudTextField T="string" Label="模糊搜索 - 单号/工单号/供应商/牌号/规格" Value="_searchKeyword" ValueChanged="@OnSearchChanged" Immediate="true" DebounceInterval="500" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
             </MudGrid>
 
@@ -38,7 +38,7 @@
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
             }
             @* 工具栏 *@
-            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"

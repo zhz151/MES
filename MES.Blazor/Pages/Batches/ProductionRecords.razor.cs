@@ -866,7 +866,6 @@ public partial class ProductionRecords
                     builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool?>(this, v => cache.IsPreCut = v));
                     builder.AddAttribute(3, "Class", "compact-input");
                     builder.AddAttribute(4, "Dense", true);
-                    builder.AddAttribute(5, "Clearable", true);
                     builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
                     {
                         // 空 = null（不设置 Value，默认即为 null）

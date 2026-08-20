@@ -196,6 +196,7 @@ public partial class BatchPlans
             new() { Key = "PendingProcess",         Label = "执行工序",     FilterType = "string", Width = "130", GroupKey = 3, GroupName = "状态跟踪" },
             new() { Key = "PendingSectionName",     Label = "待在产执行工段", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "状态跟踪" },
             new() { Key = "PendingSpec",            Label = "执行规格",      FilterType = "string", Width = "120", GroupKey = 3, GroupName = "状态跟踪" },
+            new() { Key = "PendingUnit",            Label = "在产单位",      FilterType = "string", Width = "120", GroupKey = 3, GroupName = "状态跟踪" },
             new() { Key = "PendingEquipment",       Label = "在产设备",      FilterType = "string", Width = "120", GroupKey = 3, GroupName = "状态跟踪" },
             new() { Key = "ExecutionSequence",      Label = "现执行序",      FilterType = "number", Width = "70", GroupKey = 3, GroupName = "状态跟踪" },
         };
@@ -647,6 +648,7 @@ public partial class BatchPlans
         "PendingProcess" => item.PendingProcess,
         "PendingSectionName" => item.PendingSectionName,
         "PendingSpec" => item.PendingSpec,
+        "PendingUnit" => item.PendingUnit,
         "PendingEquipment" => item.PendingEquipment,
         "ExecutionSequence" => item.ExecutionSequence?.ToString(),
         "UrgencyLevel" => item.UrgencyLevel ?? FilterNull,
@@ -1052,6 +1054,7 @@ public partial class BatchPlans
                 (x.LengthStatus != null && DisplayHelper.GetLengthStatusText(x.LengthStatus.Value).Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.CurrentSectionName != null && (SectionDisplayHelper.GetSectionNameText(x.CurrentSectionName).Contains(kw, StringComparison.OrdinalIgnoreCase) || x.CurrentSectionName.Contains(kw, StringComparison.OrdinalIgnoreCase))) ||
                 (x.PendingSpec != null && x.PendingSpec.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
+                (x.PendingUnit != null && x.PendingUnit.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.PendingEquipment != null && x.PendingEquipment.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.OuterDiameterSpan != null && x.OuterDiameterSpan.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
                 (x.PlanOuterDiameterSpan != null && x.PlanOuterDiameterSpan.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
@@ -1155,6 +1158,7 @@ public partial class BatchPlans
             "pendingprocess" => items.OrderBy(x => x.PendingProcess ?? ""),
             "pendingsectionname" => items.OrderBy(x => x.PendingSectionName ?? ""),
             "pendingspec" => items.OrderBy(x => x.PendingSpec ?? ""),
+            "pendingunit" => items.OrderBy(x => x.PendingUnit ?? ""),
             "pendingequipment" => items.OrderBy(x => x.PendingEquipment ?? ""),
             "currentcr_processtype" => items.OrderBy(x => x.CurrentCR_ProcessType ?? ""),
             "currentcr_billetspec" => items.OrderBy(x => x.CurrentCR_BilletSpec ?? ""),
@@ -1297,6 +1301,9 @@ public partial class BatchPlans
                 break;
             case "PendingSpec":
                 builder.AddContent(0, item.PendingSpec ?? "-");
+                break;
+            case "PendingUnit":
+                builder.AddContent(0, item.PendingUnit ?? "-");
                 break;
             case "PendingEquipment":
                 builder.AddContent(0, item.PendingEquipment ?? "-");
@@ -1930,6 +1937,7 @@ public partial class BatchPlans
             "PendingProcess" => ProcessDisplayHelper.GetProcessNameText(item.PendingProcess),
             "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(item.PendingSectionName),
             "PendingSpec" => item.PendingSpec ?? "",
+            "PendingUnit" => item.PendingUnit ?? "",
             "PendingEquipment" => item.PendingEquipment ?? "",
             "ExecutionSequence" => item.ExecutionSequence ?? 0,
             "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,item.UrgencyLevel) ?? "",

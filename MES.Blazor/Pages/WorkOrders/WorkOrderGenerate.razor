@@ -77,7 +77,7 @@
                     <!-- 模式切换（仅已有工单时显示） -->
                     @if (hasExistingWorkOrders)
                     {
-                        <MudPaper Class="pa-3 mb-3 d-flex align-center" Elevation="0" Style="background-color: #f5f5f5; border-radius: 8px;">
+                        <MudPaper Class="pa-3 mb-3 d-flex align-center bg-soft-gray" Elevation="0">
                             <MudText Typo="Typo.body2" Class="mr-4"><strong>生成模式：</strong></MudText>
                             <MudButton Variant="@(generateMode == WorkOrderGenerateMode.Regenerate ? Variant.Filled : Variant.Outlined)"
                                        Color="Color.Success"

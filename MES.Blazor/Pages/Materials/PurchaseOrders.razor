@@ -45,13 +45,13 @@
             }
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="模糊搜索 - 单号/物料分类/钢种/规格/供应商/工单号" Value="_searchKeyword" ValueChanged="@OnSearchChanged" Immediate="true" DebounceInterval="500" Clearable="true" ClearButton="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+                    <MudTextField T="string" Label="模糊搜索 - 单号/物料分类/钢种/规格/供应商/工单号" Value="_searchKeyword" ValueChanged="@OnSearchChanged" Immediate="true" DebounceInterval="500" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudTextField T="string" Label="下单日期从" Value="@_dateFrom" ValueChanged="@OnDateFromChanged" Placeholder="yyyy-MM-dd" Clearable="true" ClearButton="true" />
+                    <MudTextField T="string" Label="下单日期从" Value="@_dateFrom" ValueChanged="@OnDateFromChanged" Placeholder="yyyy-MM-dd" />
                 </MudItem>
                 <MudItem xs="12" md="3">
-                    <MudTextField T="string" Label="下单日期至" Value="@_dateTo" ValueChanged="@OnDateToChanged" Placeholder="yyyy-MM-dd" Clearable="true" ClearButton="true" />
+                    <MudTextField T="string" Label="下单日期至" Value="@_dateTo" ValueChanged="@OnDateToChanged" Placeholder="yyyy-MM-dd" />
                 </MudItem>
             </MudGrid>
 
@@ -61,7 +61,7 @@
                 var noneCount = procurementItems.Count(x => x.StatusText == "未采购");
                 var partialCount = procurementItems.Count(x => x.StatusText == "部分采购");
                 var overCount = procurementItems.Count(x => x.StatusText == "超额采购");
-                <MudPaper Class="pa-3 mb-3" Elevation="0" Style="border: 1px solid #e0e0e0; border-radius: 8px;">
+                <MudPaper Class="pa-3 mb-3 form-card" Elevation="0">
                     <div Class="d-flex align-center" style="cursor: pointer;" @onclick="ToggleProcurementStatus">
                         <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Info" Class="mr-2" />
                         <MudText Typo="Typo.body1" Class="font-weight-bold flex-grow-1">工单采购计划执行状态</MudText>
@@ -108,7 +108,7 @@
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 90;
             }
             @* 工具栏：列显隐 + 打印按钮 + 记录数 *@
-            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"

@@ -2035,4 +2035,415 @@ public class ProductionRecordServiceTests : TestBase
         section.ExecDate.Should().Be(DateTime.Today.AddDays(-1));
         section.Status.Should().Be(SectionStatus.Completed);
     }
+
+    // ========== 当前设备 / 当前委外并存（2026-08-20） ==========
+
+    [Fact]
+    public async Task RefreshBatchTracking_设备与委外并存_未完工_互不覆盖()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-PARA-DEV-OUT");
+        var pg = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            Straighten = 5
+        };
+        ctx.ProcessGroups.Add(pg);
+        await ctx.SaveChangesAsync();
+
+        // 生产记录（矫直 seq=5，设备A）
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten,
+            SequenceNumber = 5,
+            ExecDate = new DateTime(2026, 8, 1),
+            EquipmentName = "设备A"
+        });
+        // 工段委外（seq=8，委外单位X，未回收）
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten,
+            SequenceNumber = 8,
+            OutsourceVendor = "委外单位X",
+            SendOutDate = new DateTime(2026, 8, 2)
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        // 委外未回收 → 当前工段未完工 → 设备/委外并存互不覆盖
+        refreshed.CurrentSectionCompleted.Should().BeFalse();
+        refreshed.CurrentEquipmentName.Should().Be("设备A");
+        refreshed.CurrentOutsource.Should().Be("委外单位X");
+        // 截止执行日 = 生产/委外两路日期取最大
+        refreshed.CurrentExecDate.Should().Be(new DateTime(2026, 8, 2));
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_生产工段完工_设备委外均清空()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-PARA-DONE");
+        var pg = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            Straighten = 5
+        };
+        ctx.ProcessGroups.Add(pg);
+        await ctx.SaveChangesAsync();
+
+        // 生产记录（矫直 seq=5，设备A）为最大序号 → 非冷轧拔工段 → 有记录即完工
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten,
+            SequenceNumber = 5,
+            ExecDate = new DateTime(2026, 8, 1),
+            EquipmentName = "设备A"
+        });
+        // 工段委外（seq=3，未回收）
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten,
+            SequenceNumber = 3,
+            OutsourceVendor = "委外单位X",
+            SendOutDate = new DateTime(2026, 8, 2)
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        // 生产工段完工 → 当前设备/委外均清空
+        refreshed.CurrentSectionCompleted.Should().BeTrue();
+        refreshed.CurrentEquipmentName.Should().BeNull();
+        refreshed.CurrentOutsource.Should().BeNull();
+        // 截止执行日不被清空，仍取五路最大
+        refreshed.CurrentExecDate.Should().Be(new DateTime(2026, 8, 2));
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_委外已回收_设备委外均清空()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-PARA-RECOVER");
+        var pg = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            Straighten = 3
+        };
+        ctx.ProcessGroups.Add(pg);
+        await ctx.SaveChangesAsync();
+
+        // 生产记录（矫直 seq=3，设备A）
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten,
+            SequenceNumber = 3,
+            ExecDate = new DateTime(2026, 8, 1),
+            EquipmentName = "设备A"
+        });
+        // 工段委外（seq=8，委外单位X，已回收）
+        var outsource = new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten,
+            SequenceNumber = 8,
+            OutsourceVendor = "委外单位X",
+            SendOutDate = new DateTime(2026, 8, 2)
+        };
+        ctx.SectionOutsources.Add(outsource);
+        await ctx.SaveChangesAsync();
+        ctx.OutsourceRecoveries.Add(new OutsourceRecovery
+        {
+            SectionOutsourceId = outsource.Id,
+            RecoveryDate = new DateTime(2026, 8, 3)
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        // 委外已回收 → 当前工段完工 → 设备/委外均清空
+        refreshed.CurrentSectionCompleted.Should().BeTrue();
+        refreshed.CurrentEquipmentName.Should().BeNull();
+        refreshed.CurrentOutsource.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_委外取序号最大者_未回收()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-PARA-MAXOUT");
+        var pg = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            Straighten = 3
+        };
+        ctx.ProcessGroups.Add(pg);
+        await ctx.SaveChangesAsync();
+
+        // 委外A seq=3、委外B seq=8（均未回收）→ 取序号最大的委外B
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten,
+            SequenceNumber = 3,
+            OutsourceVendor = "委外A",
+            SendOutDate = new DateTime(2026, 8, 1)
+        });
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten,
+            SequenceNumber = 8,
+            OutsourceVendor = "委外B",
+            SendOutDate = new DateTime(2026, 8, 2)
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.CurrentSectionCompleted.Should().BeFalse();
+        refreshed.CurrentOutsource.Should().Be("委外B");
+        refreshed.CurrentExecDate.Should().Be(new DateTime(2026, 8, 2));
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_截止执行日_五路日期取最大()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-PARA-FIVEMAX");
+        var pg = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            Straighten = 4,
+            Inspection = 6
+        };
+        ctx.ProcessGroups.Add(pg);
+        await ctx.SaveChangesAsync();
+
+        // ① 生产记录（矫直 seq=4，设备A，8/1）
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten,
+            SequenceNumber = 4,
+            ExecDate = new DateTime(2026, 8, 1),
+            EquipmentName = "设备A"
+        });
+        // ② 工段委外（seq=5，未回收，8/2）
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Straighten,
+            SequenceNumber = 5,
+            OutsourceVendor = "委外单位X",
+            SendOutDate = new DateTime(2026, 8, 2)
+        });
+        // ③ 过程检验（seq=6，设备B，8/3）
+        ctx.ProcessInspections.Add(new ProcessInspection
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Inspection,
+            SequenceNumber = 6,
+            InspectionDate = new DateTime(2026, 8, 3),
+            EquipmentName = "设备B"
+        });
+        // ④ 检验到料（pg.Inspection=6 → materialCheckSeq=6，8/4）
+        ctx.MaterialReceiveChecks.Add(new MaterialReceiveCheck
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "检验",
+            SequenceNumber = 1,
+            BatchNo = batch.BatchNo,
+            InspectionType = nameof(InspectionType.FormalInspection),
+            ReceiveDate = new DateTime(2026, 8, 4)
+        });
+        // ⑤ 入缸（酸洗 seq=7，浸泡中，设备C，8/5）
+        ctx.PicklingInRecords.Add(new PicklingInRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Pickle,
+            SequenceNumber = 7,
+            InDate = new DateTime(2026, 8, 5),
+            Status = PicklingStatus.Soaking,
+            EquipmentName = "设备C"
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        // 五路日期取最大 = 入缸 8/5
+        refreshed.CurrentExecDate.Should().Be(new DateTime(2026, 8, 5));
+        // 入缸浸泡中 → 未完工 → 设备/委外并存：设备取序号最大且非空 = 设备C，委外未回收保留
+        refreshed.CurrentSectionCompleted.Should().BeFalse();
+        refreshed.CurrentEquipmentName.Should().Be("设备C");
+        refreshed.CurrentOutsource.Should().Be("委外单位X");
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_冷轧拔完工_生产记录加纯合格回收_达标()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-CRD-RECOVERED");
+        var pg = await SeedProcessGroupAsync(ctx, batch.Id); // ColdRollDraw=1
+        // 生产记录 500（单凭生产记录不足 950 阈值）
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 1,
+            ExecDate = DateTime.Today,
+            Weight = 500m
+        });
+        // 委外冷轧拔 + 纯合格回收 500 → 500 + 500 = 1000 ≥ 950
+        var os = new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 1,
+            OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today,
+            SendWeight = 1000m,
+            Status = SectionOutsourceStatus.PendingRecovery
+        };
+        ctx.SectionOutsources.Add(os);
+        ctx.OutsourceRecoveries.Add(new OutsourceRecovery
+        {
+            SectionOutsource = os,
+            RecoveryDate = DateTime.Today,
+            RecoveryWeight = 500m
+        });
+        await ctx.SaveChangesAsync();
+        batch.CurrentValidWeight = 1000; // 阈值 950
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.CurrentSectionCompleted.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RefreshBatchTracking_冷轧拔完工_不含未加工退回()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-CRD-UNPROCESSED");
+        var pg = await SeedProcessGroupAsync(ctx, batch.Id);
+        // 生产 500 + 纯合格 400 = 900 < 950 → 未完工；
+        // 若错误计入未加工退回 100 → 1000 会误判完工，故断言 false 证明未加工退回未计入
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 1,
+            ExecDate = DateTime.Today,
+            Weight = 500m
+        });
+        var os = new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 1,
+            OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today,
+            SendWeight = 1000m,
+            Status = SectionOutsourceStatus.PendingRecovery
+        };
+        ctx.SectionOutsources.Add(os);
+        ctx.OutsourceRecoveries.Add(new OutsourceRecovery
+        {
+            SectionOutsource = os,
+            RecoveryDate = DateTime.Today,
+            RecoveryWeight = 400m,
+            UnprocessedWeight = 100m // 未加工退回，不计入完工
+        });
+        await ctx.SaveChangesAsync();
+        batch.CurrentValidWeight = 1000; // 阈值 950
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshBatchTrackingFieldsAsync(batch.Id);
+
+        var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
+        refreshed.CurrentSectionCompleted.Should().BeFalse();
+    }
 }

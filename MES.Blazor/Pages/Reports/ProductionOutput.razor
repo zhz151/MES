@@ -21,7 +21,6 @@
                               Label="日期从"
                               @bind-Value="_dateFrom"
                               Immediate="true" DebounceInterval="500"
-                              Clearable="true" ClearButton="true"
                               Placeholder="yyyy-MM-dd" />
             </MudItem>
             <MudItem xs="12" md="3">
@@ -29,7 +28,6 @@
                               Label="日期至"
                               @bind-Value="_dateTo"
                               Immediate="true" DebounceInterval="500"
-                              Clearable="true" ClearButton="true"
                               Placeholder="yyyy-MM-dd" />
             </MudItem>
             <MudItem xs="12" md="3" Class="d-flex align-center">
@@ -69,7 +67,7 @@
     {
         <div id="production-output-list-table">
             <!-- 工具栏 -->
-            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns"
                                          OnColumnToggle="OnColumnToggle"

@@ -78,11 +78,23 @@ public class BatchPlanDto
     public string? PendingSpec =>
         CurrentSectionCompleted == false ? CurrentSpec : CorrespondingSpec;
 
-    /// <summary>在轧设备：工段未完工→CurrentEquipmentName ?? CurrentOutsource，已完工→null</summary>
+    /// <summary>在产单位：工段未完工→CurrentOutsource（当前委外），已完工→null</summary>
+    public string? PendingUnit =>
+        CurrentSectionCompleted == false
+            ? CurrentOutsource
+            : null;
+
+    /// <summary>在产设备：工段未完工→CurrentEquipmentName（当前设备），已完工→null</summary>
     public string? PendingEquipment =>
         CurrentSectionCompleted == false
-            ? CurrentEquipmentName ?? CurrentOutsource
+            ? CurrentEquipmentName
             : null;
+
+    /// <summary>是否在轧（在产单位或在产设备任一非空），仅后端排程判定用，前端不显示</summary>
+    [JsonIgnore]
+    public bool IsProducing =>
+        CurrentSectionCompleted == false
+            && (!string.IsNullOrEmpty(CurrentEquipmentName) || !string.IsNullOrEmpty(CurrentOutsource));
 
     /// <summary>
     /// 重点生产批次（Service 计算字段，G4 工单计划列显示用，仅工单计划概念，冷轧排程逻辑不再使用）：

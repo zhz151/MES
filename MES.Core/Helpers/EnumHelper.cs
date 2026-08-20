@@ -132,7 +132,8 @@ public static class EnumHelper
 
         Register<SectionOutsourceStatus>(("PendingRecovery", "待回收"),
                                           ("Recovered", "已回收"),
-                                          ("InProgress", "在轧"));
+                                          ("InProgress", "在轧"),
+                                          ("Virtual", "略"));
 
         Register<RepairPriority>(("Normal", "普通"),
                                   ("Urgent", "紧急"),

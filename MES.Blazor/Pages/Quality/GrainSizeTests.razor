@@ -44,26 +44,25 @@
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
-                                  Clearable="true" ClearButton="true"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
                 <MudItem xs="12" md="3">
                     <MudTextField T="string" Label="日期从" Value="_dateFrom"
                                   ValueChanged="@OnDateFromChanged" Immediate="true"
-                                  DebounceInterval="500" Clearable="true" ClearButton="true"
+                                  DebounceInterval="500"
                                   Placeholder="yyyy-MM-dd" />
                 </MudItem>
                 <MudItem xs="12" md="3">
                     <MudTextField T="string" Label="日期至" Value="_dateTo"
                                   ValueChanged="@OnDateToChanged" Immediate="true"
-                                  DebounceInterval="500" Clearable="true" ClearButton="true"
+                                  DebounceInterval="500"
                                   Placeholder="yyyy-MM-dd" />
                 </MudItem>
             </MudGrid>
 
             <div id="grain-size-test-list-table">
-            <div class="woe-toolbar">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="_allColumns" OnColumnToggle="OnColumnToggle"
                                          OnMoveUp="MoveColumnUp" OnMoveDown="MoveColumnDown" />

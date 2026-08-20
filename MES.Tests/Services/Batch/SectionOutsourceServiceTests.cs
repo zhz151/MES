@@ -72,7 +72,8 @@ public class SectionOutsourceServiceTests : TestBase
     }
 
     private async Task<SectionOutsource> SeedOutsourceAsync(AppDbContext ctx, int batchId,
-        string vendor = "委外厂A", SectionOutsourceStatus status = SectionOutsourceStatus.PendingRecovery)
+        string vendor = "委外厂A", SectionOutsourceStatus status = SectionOutsourceStatus.PendingRecovery,
+        bool isInternal = false)
     {
         var entity = new SectionOutsource
         {
@@ -85,7 +86,8 @@ public class SectionOutsourceServiceTests : TestBase
             SendOutDate = DateTime.Today,
             SendQuantity = 10,
             SendWeight = 1000m,
-            Status = status
+            Status = status,
+            IsInternal = isInternal
         };
         ctx.SectionOutsources.Add(entity);
         await ctx.SaveChangesAsync();
@@ -639,5 +641,226 @@ public class SectionOutsourceServiceTests : TestBase
         var contexts = await svc.GetFilterContextsAsync();
 
         contexts["ExpectedReturnDate"].Should().BeEmpty();
+    }
+
+    // ========== 厂内（虚拟发外） ==========
+
+    private async Task SeedColdRollDrawProcessGroupAsync(AppDbContext ctx, int batchId)
+    {
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batchId,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            ColdRollDraw = 1
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task CreateAsync_厂内_非冷轧拔工段_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedColdRollDrawProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateAsync(new CreateSectionOutsourceRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Pickle,
+            IsInternal = true,
+            OutsourceVendor = "一车间",
+            SendOutDate = DateTime.Today,
+            SendWeight = 1000m
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*厂内*冷轧拔*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_厂内_冷轧拔_状态为略()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedColdRollDrawProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateSectionOutsourceRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            IsInternal = true,
+            OutsourceVendor = "一车间",
+            SendOutDate = DateTime.Today,
+            SendQuantity = 10,
+            SendWeight = 1000m
+        });
+
+        result.IsInternal.Should().BeTrue();
+        result.Status.Should().Be(SectionOutsourceStatus.Virtual);
+        var db = await ctx.SectionOutsources.SingleAsync();
+        db.IsInternal.Should().BeTrue();
+        db.Status.Should().Be(SectionOutsourceStatus.Virtual);
+    }
+
+    [Fact]
+    public async Task BatchCreateAsync_厂内_非冷轧拔工段_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx, "BATCH001");
+        var svc = CreateService(ctx);
+
+        var act = () => svc.BatchCreateAsync(new List<CreateSectionOutsourceRequest>
+        {
+            new() { BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
+                SectionName = SectionKeys.Pickle, IsInternal = true, OutsourceVendor = "一车间",
+                OutsourceSpec = "219*8", SendOutDate = DateTime.Today }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*厂内*冷轧拔*");
+    }
+
+    [Fact]
+    public async Task BatchCreateAsync_厂内_冷轧拔_状态为略()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        await SeedColdRollDrawProcessGroupAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        var result = await svc.BatchCreateAsync(new List<CreateSectionOutsourceRequest>
+        {
+            new() { BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
+                SectionName = SectionKeys.ColdRollDraw, IsInternal = true, OutsourceVendor = "一车间",
+                OutsourceSpec = "219*8", SendOutDate = DateTime.Today }
+        });
+
+        result.Should().HaveCount(1);
+        result[0].IsInternal.Should().BeTrue();
+        result[0].Status.Should().Be(SectionOutsourceStatus.Virtual);
+    }
+
+    [Fact]
+    public async Task CreateRecoveryAsync_厂内_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var outsource = await SeedOutsourceAsync(ctx, batch.Id, isInternal: true);
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateRecoveryAsync(new CreateOutsourceRecoveryRequest
+        {
+            SectionOutsourceId = outsource.Id,
+            RecoveryDate = DateTime.Today,
+            RecoveryWeight = 800m
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*厂内*");
+    }
+
+    [Fact]
+    public async Task BatchCreateRecoveriesAsync_厂内_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var outsource = await SeedOutsourceAsync(ctx, batch.Id, isInternal: true);
+        var svc = CreateService(ctx);
+
+        var act = () => svc.BatchCreateRecoveriesAsync(new List<CreateOutsourceRecoveryRequest>
+        {
+            new() { SectionOutsourceId = outsource.Id, RecoveryDate = DateTime.Today, RecoveryWeight = 800m }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*厂内*");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_厂内_IsInternal投影正确()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-INTERNAL");
+        await SeedOutsourceAsync(ctx, batch.Id, vendor: "一车间", status: SectionOutsourceStatus.Virtual, isInternal: true);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].IsInternal.Should().BeTrue();
+        result.Items[0].Status.Should().Be(SectionOutsourceStatus.Virtual);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_改厂内_非冷轧拔工段_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var outsource = await SeedOutsourceAsync(ctx, batch.Id);
+        outsource.SectionName = SectionKeys.Pickle;
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { IsInternal = true });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*厂内*冷轧拔*");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_改厂内_冷轧拔_状态为略()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var outsource = await SeedOutsourceAsync(ctx, batch.Id);
+        var svc = CreateService(ctx);
+
+        var result = await svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { IsInternal = true });
+
+        result.IsInternal.Should().BeTrue();
+        result.Status.Should().Be(SectionOutsourceStatus.Virtual);
+        var db = await ctx.SectionOutsources.SingleAsync();
+        db.IsInternal.Should().BeTrue();
+        db.Status.Should().Be(SectionOutsourceStatus.Virtual);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_改厂内_已有回收记录_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var outsource = await SeedOutsourceAsync(ctx, batch.Id);
+        ctx.OutsourceRecoveries.Add(new OutsourceRecovery
+        {
+            SectionOutsourceId = outsource.Id,
+            RecoveryDate = DateTime.Today,
+            RecoveryWeight = 800m
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { IsInternal = true });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*已有回收记录*厂内*");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_厂内改回真委外_状态为待回收()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var outsource = await SeedOutsourceAsync(ctx, batch.Id, status: SectionOutsourceStatus.Virtual, isInternal: true);
+        var svc = CreateService(ctx);
+
+        var result = await svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { IsInternal = false });
+
+        result.IsInternal.Should().BeFalse();
+        result.Status.Should().Be(SectionOutsourceStatus.PendingRecovery);
+        var db = await ctx.SectionOutsources.SingleAsync();
+        db.IsInternal.Should().BeFalse();
+        db.Status.Should().Be(SectionOutsourceStatus.PendingRecovery);
     }
 }

@@ -262,6 +262,7 @@ public partial class AppDbContext
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
             entity.Property(e => e.OutsourceSpec).HasMaxLength(100);
             entity.Property(e => e.ExpectedReturnDate).HasColumnType("datetime2");
+            entity.Property(e => e.IsInternal).HasDefaultValue(false);
             entity.Property(e => e.IsUrgent).HasDefaultValue(false);
             entity.Property(e => e.ProductStatus).HasMaxLength(20);
             entity.Property(e => e.Remark).HasMaxLength(500);

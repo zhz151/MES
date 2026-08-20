@@ -116,6 +116,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
+                IsInternal = s.IsInternal,
                 Status = s.Status,
                 TagNo = s.TagNo,
                 PlantGrade = s.PlantGrade,
@@ -293,6 +294,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             ("outsourcespec", true) => queryable.OrderByDescending(s => s.OutsourceSpec ?? ""),
             ("isurgent", false) => queryable.OrderBy(s => s.IsUrgent),
             ("isurgent", true) => queryable.OrderByDescending(s => s.IsUrgent),
+            ("isinternal", false) => queryable.OrderBy(s => s.IsInternal),
+            ("isinternal", true) => queryable.OrderByDescending(s => s.IsInternal),
             ("remark", false) => queryable.OrderBy(s => s.Remark ?? ""),
             ("remark", true) => queryable.OrderByDescending(s => s.Remark ?? ""),
             ("productstatus", false) => queryable.OrderBy(s => s.ProductStatus ?? ""),
@@ -326,6 +329,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
+                IsInternal = s.IsInternal,
                 Status = s.Status,
                 TagNo = s.TagNo,
                 PlantGrade = s.PlantGrade,
@@ -364,6 +368,10 @@ public class SectionOutsourceService : ISectionOutsourceService
             .FirstOrDefaultAsync(b => b.BatchNo == request.BatchNo)
             ?? throw new BusinessException($"批次不存在: {request.BatchNo}");
 
+        // 厂内（虚拟发外）仅限冷轧拔工段
+        if (request.IsInternal && request.SectionName != SectionKeys.ColdRollDraw)
+            throw new BusinessException("厂内（虚拟发外）仅限冷轧拔工段，不能用于其他工段");
+
         // 自动解析 ProcessGroupId 和 SequenceNumber
         var processGroupId = request.ProcessGroupId;
         var sequenceNumber = request.SequenceNumber;
@@ -386,7 +394,7 @@ public class SectionOutsourceService : ISectionOutsourceService
         }
 
         if (sequenceNumber == 0)
-            throw new BusinessException($"工段「{request.SectionName}」不存在于工序组「{request.ProcessName}」中，无法提交");
+            throw new BusinessException($"工段「{SectionKeys.ToChinese(request.SectionName)}」不存在于工序组「{ProcessKeys.ToChinese(request.ProcessName)}」中，无法提交");
 
         var entity = new SectionOutsource
         {
@@ -400,7 +408,8 @@ public class SectionOutsourceService : ISectionOutsourceService
             SendOutDate = request.SendOutDate,
             SendQuantity = request.SendQuantity ?? 0,
             SendWeight = request.SendWeight ?? 0,
-            Status = SectionOutsourceStatus.PendingRecovery,
+            IsInternal = request.IsInternal,
+            Status = request.IsInternal ? SectionOutsourceStatus.Virtual : SectionOutsourceStatus.PendingRecovery,
             TagNo = request.TagNo ?? batch.TagNo,
             PlantGrade = request.PlantGrade ?? batch.PlantGrade,
             OutsourceSpec = request.OutsourceSpec,
@@ -467,6 +476,10 @@ public class SectionOutsourceService : ISectionOutsourceService
             if (string.IsNullOrWhiteSpace(request.OutsourceSpec))
                 requestErrors.Add($"第{i + 1}行：委外规格不能为空");
 
+            // 厂内（虚拟发外）仅限冷轧拔工段
+            if (request.IsInternal && request.SectionName != SectionKeys.ColdRollDraw)
+                requestErrors.Add($"第{i + 1}行：厂内（虚拟发外）仅限冷轧拔工段，不能用于其他工段");
+
             // 3) 发出重量不能大于批次领料重量
             if (request.SendWeight.HasValue && request.SendWeight > 0 && request.SendWeight > batch.InputWeight)
                 requestErrors.Add($"第{i + 1}行：发出重量({request.SendWeight})不能大于批次领料重量({batch.InputWeight})");
@@ -483,7 +496,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             {
                 var pg = processGroups.FirstOrDefault(pg => pg.Id == pgId.Value);
                 if (pg != null && pg.GetSectionSequence(request.SectionName).GetValueOrDefault() == 0)
-                    requestErrors.Add($"第{i + 1}行：工段「{request.SectionName}」不存在于工序组「{pg.ProcessName}」中，无法提交");
+                    requestErrors.Add($"第{i + 1}行：工段「{SectionKeys.ToChinese(request.SectionName)}」不存在于工序组「{ProcessKeys.ToChinese(pg.ProcessName)}」中，无法提交");
             }
         }
         if (requestErrors.Any())
@@ -582,7 +595,8 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SendOutDate = request.SendOutDate,
                 SendQuantity = request.SendQuantity ?? 0,
                 SendWeight = request.SendWeight ?? 0,
-                Status = SectionOutsourceStatus.PendingRecovery,
+                IsInternal = request.IsInternal,
+                Status = request.IsInternal ? SectionOutsourceStatus.Virtual : SectionOutsourceStatus.PendingRecovery,
                 TagNo = request.TagNo ?? batch.TagNo,
                 PlantGrade = request.PlantGrade ?? batch.PlantGrade,
                 OutsourceSpec = request.OutsourceSpec,
@@ -621,6 +635,25 @@ public class SectionOutsourceService : ISectionOutsourceService
         entity.ExpectedReturnDate = request.ExpectedReturnDate ?? entity.ExpectedReturnDate;
         if (request.IsUrgent.HasValue) entity.IsUrgent = request.IsUrgent.Value;
         if (request.Remark != null) entity.Remark = request.Remark;
+
+        // 厂内（虚拟发外）开关切换：改为厂内限冷轧拔且无回收记录，状态联动「略」/「待回收」
+        if (request.IsInternal.HasValue && request.IsInternal.Value != entity.IsInternal)
+        {
+            if (request.IsInternal.Value)
+            {
+                if (entity.SectionName != SectionKeys.ColdRollDraw)
+                    throw new BusinessException("厂内（虚拟发外）仅限冷轧拔工段，不能用于其他工段");
+                var hasRecovery = await _context.OutsourceRecoveries.AnyAsync(r => r.SectionOutsourceId == entity.Id);
+                if (hasRecovery)
+                    throw new BusinessException("该委外已有回收记录，不能改为厂内（虚拟发外）");
+                entity.Status = SectionOutsourceStatus.Virtual;
+            }
+            else
+            {
+                entity.Status = SectionOutsourceStatus.PendingRecovery;
+            }
+            entity.IsInternal = request.IsInternal.Value;
+        }
 
         // 重算产品状态（产类）：与生产记录行为一致，更新时基于批次最新信息刷新
         if (entity.ProductionBatch != null)
@@ -874,6 +907,9 @@ public class SectionOutsourceService : ISectionOutsourceService
         var outsource = await _context.SectionOutsources.FindAsync(request.SectionOutsourceId)
             ?? throw new BusinessException("工段委外记录不存在");
 
+        if (outsource.IsInternal)
+            throw new BusinessException("厂内（虚拟发外）记录无需回收，不能创建回收记录");
+
         var entity = new OutsourceRecovery
         {
             SectionOutsourceId = request.SectionOutsourceId,
@@ -945,6 +981,13 @@ public class SectionOutsourceService : ISectionOutsourceService
         {
             var request = requests[i];
             var outsource = outsourceLookup[request.SectionOutsourceId];
+
+            // 厂内（虚拟发外）记录无需回收
+            if (outsource.IsInternal)
+            {
+                recoveryErrors.Add($"第{i + 1}行：厂内（虚拟发外）记录无需回收，不能创建回收记录");
+                continue;
+            }
 
             // 1) 回收日期不能为空
             if (request.RecoveryDate == default)
@@ -1102,6 +1145,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["SectionName"] = SectionDisplayText(s.SectionName, sectionNameMap),
             ["SequenceNumber"] = s.SequenceNumber,
             ["OutsourceVendor"] = s.OutsourceVendor,
+            ["IsInternal"] = s.IsInternal ? "是" : "否",
             ["SendOutDate"] = s.SendOutDate.ToString("yyyy-MM-dd"),
             ["SendQuantity"] = (object)(s.SendQuantity ?? (object?)DBNull.Value)!,
             ["SendWeight"] = (object)(s.SendWeight ?? (object?)DBNull.Value)!,
@@ -1160,6 +1204,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["SectionName"] = SectionDisplayText(s.SectionName, sectionNameMap),
             ["SequenceNumber"] = s.SequenceNumber,
             ["OutsourceVendor"] = s.OutsourceVendor,
+            ["IsInternal"] = s.IsInternal ? "是" : "否",
             ["SendOutDate"] = s.SendOutDate.ToString("yyyy-MM-dd"),
             ["SendQuantity"] = (object)(s.SendQuantity ?? (object?)DBNull.Value)!,
             ["SendWeight"] = (object)(s.SendWeight ?? (object?)DBNull.Value)!,
@@ -1416,6 +1461,7 @@ public class SectionOutsourceService : ISectionOutsourceService
             SendOutDate = entity.SendOutDate,
             SendQuantity = entity.SendQuantity,
             SendWeight = entity.SendWeight,
+            IsInternal = entity.IsInternal,
             Status = entity.Status,
             TagNo = entity.TagNo,
             PlantGrade = entity.PlantGrade,
@@ -1452,6 +1498,10 @@ public class SectionOutsourceService : ISectionOutsourceService
         var anyChange = false;
         foreach (var outsource in outsources)
         {
+            // 厂内（虚拟发外）不参与回收状态判定，保持「略」
+            if (outsource.IsInternal)
+                continue;
+
             var totalRecoveredWeight = totalsDict.GetValueOrDefault(outsource.Id, 0m);
             var threshold = outsource.SendWeight.HasValue && outsource.SendWeight.Value > 0
                 ? outsource.SendWeight.Value * outsourceRecoveryRatio
@@ -1481,6 +1531,10 @@ public class SectionOutsourceService : ISectionOutsourceService
     /// </summary>
     private async Task UpdateOutsourceStatusByWeightAsync(SectionOutsource outsource)
     {
+        // 厂内（虚拟发外）不参与回收状态判定，保持「略」
+        if (outsource.IsInternal)
+            return;
+
         var totals = await _context.OutsourceRecoveries
             .Where(r => r.SectionOutsourceId == outsource.Id)
             .GroupBy(r => r.SectionOutsourceId)
@@ -1555,6 +1609,7 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
+                IsInternal = s.IsInternal,
                 Status = s.Status,
                 TagNo = s.TagNo,
                 PlantGrade = s.PlantGrade,

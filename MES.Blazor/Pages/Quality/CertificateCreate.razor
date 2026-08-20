@@ -38,7 +38,6 @@
                               ValueChanged="@(v => { _headerSearchKeyword = v ?? string.Empty; StateHasChanged(); })"
                               Immediate="true"
                               DebounceInterval="300"
-                              Clearable="true"
                               Adornment="Adornment.End"
                               AdornmentIcon="@Icons.Material.Filled.Search"
                               Class="mb-2" />
@@ -169,8 +168,6 @@
                                       ValueChanged="@OnBatchSearchChanged"
                                       Immediate="true"
                                       DebounceInterval="500"
-                                      Clearable="true"
-                                      ClearButton="true"
                                       Adornment="Adornment.End"
                                       AdornmentIcon="@Icons.Material.Filled.Search" />
                     </MudItem>
@@ -181,16 +178,12 @@
                                           Value="@_inboundDateFrom"
                                           ValueChanged="@OnInboundDateFromChanged"
                                           Placeholder="yyyy-MM-dd"
-                                          Clearable="true"
-                                          ClearButton="true"
                                           Style="flex:1;min-width:0" />
                             <MudTextField T="string"
                                           Label="入库日期至"
                                           Value="@_inboundDateTo"
                                           ValueChanged="@OnInboundDateToChanged"
                                           Placeholder="yyyy-MM-dd"
-                                          Clearable="true"
-                                          ClearButton="true"
                                           Style="flex:1;min-width:0" />
                         </div>
                     </MudItem>
@@ -331,15 +324,15 @@
                                 <MudTh Style="width:40px;">#</MudTh>
                                 <MudTh Style="width:40px;" />
                                 @* 第1组：仓库信息 *@
-                                <MudTh Class="col-g1-cell" Style="width:120px;background:#e3f2fd;">仓库批次</MudTh>
-                                <MudTh Class="col-g1-cell" Style="width:120px;background:#e3f2fd;">生产批号</MudTh>
-                                <MudTh Class="col-g1-cell" Style="width:100px;background:#e3f2fd;">炉号</MudTh>
-                                <MudTh Class="col-g1-cell" Style="width:100px;background:#e3f2fd;">牌号</MudTh>
-                                <MudTh Class="col-g1-cell" Style="width:110px;background:#e3f2fd;">规格</MudTh>
-                                <MudTh Class="col-g1-cell" Style="width:100px;background:#e3f2fd;">长度</MudTh>
-                                <MudTh Class="col-g1-cell" Style="width:90px;background:#e3f2fd;">支数</MudTh>
-                                <MudTh Class="col-g1-cell" Style="width:90px;background:#e3f2fd;">米数</MudTh>
-                                <MudTh Class="col-g1-cell" Style="width:90px;background:#e3f2fd;">重量</MudTh>
+                                <MudTh Class="col-g1-cell table-head-blue" Style="width:120px;">仓库批次</MudTh>
+                                <MudTh Class="col-g1-cell table-head-blue" Style="width:120px;">生产批号</MudTh>
+                                <MudTh Class="col-g1-cell table-head-blue" Style="width:100px;">炉号</MudTh>
+                                <MudTh Class="col-g1-cell table-head-blue" Style="width:100px;">牌号</MudTh>
+                                <MudTh Class="col-g1-cell table-head-blue" Style="width:110px;">规格</MudTh>
+                                <MudTh Class="col-g1-cell table-head-blue" Style="width:100px;">长度</MudTh>
+                                <MudTh Class="col-g1-cell table-head-blue" Style="width:90px;">支数</MudTh>
+                                <MudTh Class="col-g1-cell table-head-blue" Style="width:90px;">米数</MudTh>
+                                <MudTh Class="col-g1-cell table-head-blue" Style="width:90px;">重量</MudTh>
                                 @* 第2组：化学成分 *@
                                 <MudTh Class="col-g2-cell" Style="width:90px;">C</MudTh>
                                 <MudTh Class="col-g2-cell" Style="width:90px;">Si</MudTh>
@@ -412,7 +405,7 @@
                                     <MudTextField @bind-Value="item.LengthDesc" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
                                 </MudTd>
                                 <MudTd Class="col-g1-cell">
-                                    <MudNumericField @bind-Value="item.Quantity" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" />
+                                    <MudNumericField @bind-Value="item.Quantity" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" />
                                 </MudTd>
                                 <MudTd Class="col-g1-cell">
                                     <MudNumericField @bind-Value="item.Meters" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" />

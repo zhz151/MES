@@ -809,7 +809,7 @@ public class BatchPlanService : IBatchPlanService
             }
 
             // 在轧要求：仅在批次实际在轧（在轧设备不为空）且本层冷轧拔未完工时匹配本层
-            if (!string.IsNullOrEmpty(item.PendingEquipment) && !curCrPassDone)
+            if (item.IsProducing && !curCrPassDone)
             {
                 var curKey = $"{item.CurrentCR_ProcessType}|{item.CurrentCR_BilletSpec}|{item.CurrentCR_RollingSpec}|{item.CurrentCR_IsFinished}";
                 if (scheduleLookup.TryGetValue(curKey, out var curSched))
@@ -863,7 +863,7 @@ public class BatchPlanService : IBatchPlanService
         var rollIsNormal = item.ProductionFlowProperty == ProductionFlowKeys.Normal;
 
         if (!string.IsNullOrEmpty(item.CurrentCR_ProcessType)
-            && (string.IsNullOrEmpty(item.PendingEquipment) || curCrPassDone))
+            && (!item.IsProducing || curCrPassDone))
         {
             // 本层冷轧拔已轧过 → 本层不是下一个冷轧拔层，跳过（待轧看下一冷轧拔层，与排程侧对齐）
             var curPg = pgs.FirstOrDefault(pg => pg.ProcessName == item.CurrentCR_ProcessType);
@@ -885,7 +885,7 @@ public class BatchPlanService : IBatchPlanService
             }
         }
         if (!rollMatched && !string.IsNullOrEmpty(item.NextCR_ProcessType)
-            && (string.IsNullOrEmpty(item.PendingEquipment) || curCrPassDone))
+            && (!item.IsProducing || curCrPassDone))
         {
             var nextPg = pgs.FirstOrDefault(pg => pg.ProcessName == item.NextCR_ProcessType);
             if (nextPg == null || !IsColdRollPassDone(nextPg, pgs, item))
@@ -906,7 +906,7 @@ public class BatchPlanService : IBatchPlanService
             }
         }
         if (!rollMatched && !string.IsNullOrEmpty(item.NextNextCR_ProcessType)
-            && (string.IsNullOrEmpty(item.PendingEquipment) || curCrPassDone))
+            && (!item.IsProducing || curCrPassDone))
         {
             var nextNextPg = pgs.FirstOrDefault(pg => pg.ProcessName == item.NextNextCR_ProcessType);
             if (nextNextPg == null || !IsColdRollPassDone(nextNextPg, pgs, item))

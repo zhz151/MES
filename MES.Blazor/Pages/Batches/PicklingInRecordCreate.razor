@@ -13,7 +13,6 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
-@inject ProcessDefinitionService ProcessDefinitionService
 @attribute [Authorize(Roles = Roles.Policies.BatchWrite)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
@@ -187,7 +186,6 @@
 
 @code {
     private List<EditRow> _rows = new();
-    private List<ProcessInfoDto> _processOptions = new();
     private bool _isSubmitting;
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
@@ -284,13 +282,62 @@
     private static readonly List<(string Value, string Text)> _shiftOptions =
         DisplayHelper.GetEnumOptions<ShiftType>().Select(o => (o.Value, o.Display)).ToList();
 
-    // ========== 下拉显示转换（存储值英文 Key → 显示中文） ==========
-    private string GetProcessDisplayText(string key)
+    // ========== 批次工序组（工序组粒度下拉，消除同名工序组规格歧义） ==========
+    // 批次详情缓存（BatchNo → 批次），工序组下拉选项与联动共用，避免重复请求
+    private readonly Dictionary<string, ProductionBatchDetailDto> _batchCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private ProductionBatchDetailDto? GetRowBatch(EditRow r)
+        => !string.IsNullOrWhiteSpace(r.BatchNo) && _batchCache.TryGetValue(r.BatchNo, out var b) ? b : null;
+
+    private List<ProcessGroupDto> GetRowProcessGroups(EditRow r)
+        => GetRowBatch(r)?.ProcessGroups ?? new List<ProcessGroupDto>();
+
+    private ProcessGroupDto? FindRowProcessGroup(EditRow r, int? pgId)
+        => pgId.HasValue ? GetRowProcessGroups(r).FirstOrDefault(p => p.Id == pgId.Value) : null;
+
+    // 工序组下拉显示：工序名（制造规格），同名工序组用规格区分
+    private string GetProcessGroupDisplayText(EditRow r, int? pgId)
     {
-        if (string.IsNullOrEmpty(key)) return key ?? "";
-        foreach (var o in _processOptions)
-            if (o.ProcessKey == key) return o.ProcessName;
-        return key;
+        var pg = FindRowProcessGroup(r, pgId);
+        if (pg == null) return "";
+        return $"{ProcessDisplayHelper.GetProcessNameText(pg.ProcessName)}（{pg.ManufacturingSpec ?? ""}）";
+    }
+
+    /// <summary>批次变更后重解析工序组：已选工序组仍有效则保持；否则按工序名称唯一匹配自动绑定，同名多规格/无匹配则清空让用户下拉重选</summary>
+    private void ResolveProcessGroupAfterBatchChange(EditRow row, List<ProcessGroupDto>? pgs)
+    {
+        var list = pgs ?? new List<ProcessGroupDto>();
+        if (row.ProcessGroupId.HasValue && list.Any(p => p.Id == row.ProcessGroupId.Value))
+            return;
+        var sameName = list.Where(p => p.ProcessName == row.ProcessName).ToList();
+        if (sameName.Count == 1)
+        {
+            row.ProcessGroupId = sameName[0].Id;
+            row.ManufacturingSpec = sameName[0].ManufacturingSpec;
+        }
+        else
+        {
+            row.ProcessGroupId = null;
+            row.ManufacturingSpec = null;
+        }
+    }
+
+    /// <summary>选中批次工序组 → 填充工序名称/制造规格</summary>
+    private void OnProcessGroupSelected(EditRow row, int? pgId)
+    {
+        var pg = FindRowProcessGroup(row, pgId);
+        if (pg == null)
+        {
+            row.ProcessGroupId = null;
+            row.ProcessName = "";
+            row.ManufacturingSpec = null;
+            StateHasChanged();
+            return;
+        }
+        row.ProcessGroupId = pg.Id;
+        row.ProcessName = pg.ProcessName;
+        row.ManufacturingSpec = pg.ManufacturingSpec;
+        StateHasChanged();
     }
     private static string GetSectionDisplayText(string key)
     {
@@ -332,8 +379,6 @@
             _allColumns = reordered;
         }
 
-        _processOptions = await ProcessOptionsHelper.LoadAsync(ProcessDefinitionService);
-
         if (!_rows.Any())
             _rows.Add(new EditRow());
     }
@@ -363,6 +408,7 @@
             var source = _rows[^1];
             newRow.InDateText = source.InDateText;
             newRow.BatchNo = source.BatchNo;
+            newRow.ProcessGroupId = source.ProcessGroupId;
             newRow.ProcessName = source.ProcessName;
             newRow.SectionName = source.SectionName;
             newRow.TagNo = source.TagNo;
@@ -386,6 +432,7 @@
         if (index <= 0) return;
         var source = _rows[index - 1];
         row.BatchNo = source.BatchNo;
+        row.ProcessGroupId = source.ProcessGroupId;
         row.ProcessName = source.ProcessName;
         row.SectionName = source.SectionName;
         row.TagNo = source.TagNo;
@@ -404,35 +451,14 @@
         var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
         if (!result.Success || result.Data == null)
         {
-            row.TagNo = null; row.PlantGrade = null; row.ManufacturingSpec = null;
+            row.TagNo = null; row.PlantGrade = null; row.ManufacturingSpec = null; row.ProcessGroupId = null;
             StateHasChanged(); return;
         }
         var batch = result.Data;
+        _batchCache[batch.BatchNo] = batch;
         row.TagNo = batch.TagNo;
         row.PlantGrade = batch.PlantGrade;
-        if (!string.IsNullOrWhiteSpace(row.ProcessName))
-        {
-            var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
-            row.ManufacturingSpec = pg?.ManufacturingSpec;
-        }
-        StateHasChanged();
-    }
-
-    private async Task OnProcessNameChangedAsync(EditRow row)
-    {
-        if (string.IsNullOrWhiteSpace(row.ProcessName))
-        {
-            row.ManufacturingSpec = null; StateHasChanged(); return;
-        }
-        if (string.IsNullOrWhiteSpace(row.BatchNo)) return;
-        var result = await BatchService.GetByBatchNoAsync(row.BatchNo);
-        if (!result.Success || result.Data == null)
-        {
-            row.ManufacturingSpec = null; StateHasChanged(); return;
-        }
-        var batch = result.Data;
-        var pg = batch.ProcessGroups?.FirstOrDefault(p => p.ProcessName == row.ProcessName);
-        row.ManufacturingSpec = pg?.ManufacturingSpec;
+        ResolveProcessGroupAfterBatchChange(row, batch.ProcessGroups);
         StateHasChanged();
     }
 
@@ -452,21 +478,24 @@
                 builder.CloseComponent();
                 break;
             case "ProcessName":
-                builder.OpenComponent<MudSelect<string>>(0);
+                // 工序组粒度下拉：列出该批次已配置的工序组（工序名+制造规格），消除同名工序组规格歧义
+                builder.OpenComponent<MudSelect<int?>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetProcessDisplayText);
-                builder.AddAttribute(5, "Value", r.ProcessName);
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.ProcessName = v ?? ""; await OnProcessNameChangedAsync(r); }));
+                builder.AddAttribute(4, "ToStringFunc", (Func<int?, string>)(id => GetProcessGroupDisplayText(r, id)));
+                builder.AddAttribute(5, "Value", r.ProcessGroupId);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, id => OnProcessGroupSelected(r, id)));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
-                    foreach (var opt in _processOptions)
+                    b.OpenComponent<MudSelectItem<int?>>(0);
+                    b.AddAttribute(1, "Text", "");
+                    b.CloseComponent();
+                    foreach (var pg in GetRowProcessGroups(r))
                     {
-                        b.OpenComponent<MudSelectItem<string>>(0);
-                        b.AddAttribute(1, "Value", opt.ProcessKey);
-                        b.AddAttribute(2, "Text", opt.ProcessName);
-                        b.AddAttribute(3, "ChildContent", (RenderFragment)(bb => bb.AddContent(0, opt.ProcessName)));
+                        b.OpenComponent<MudSelectItem<int?>>(0);
+                        b.AddAttribute(1, "Value", pg.Id);
+                        b.AddAttribute(2, "Text", GetProcessGroupDisplayText(r, pg.Id));
                         b.CloseComponent();
                     }
                 }));
@@ -718,6 +747,7 @@
     {
         public string BatchNo { get; set; } = string.Empty;
         public string ProcessName { get; set; } = string.Empty;
+        public int? ProcessGroupId { get; set; }                                                // 选中的批次工序组 Id（工序组粒度下拉绑定，消除同名工序组规格歧义）
         public string? ManufacturingSpec { get; set; }
         public string SectionName { get; set; } = string.Empty;
         public string? InDateText { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");

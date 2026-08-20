@@ -35,7 +35,7 @@ public class ColdRollPlanRowDto
     public int BatchCount { get; set; }
 
     // ===== 冷轧排程 =====
-    /// <summary>在轧设备号（从 ProductionBatch 在产设备字段聚合）</summary>
+    /// <summary>在轧单位或设备（优先批次委外单位 CurrentOutsource，为空回退在产设备号 CurrentEquipmentName，聚合去重）</summary>
     public string? MachineNo { get; set; }
 
     /// <summary>在轧要求（排程数据，仅供客户端排序/筛选）</summary>

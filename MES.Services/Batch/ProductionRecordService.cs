@@ -75,7 +75,9 @@ public class ProductionRecordService : IProductionRecordService
         string ProcessName,
         string? OutsourceVendor,
         DateTime SendOutDate,
-        int RecoveryCount);
+        int RecoveryCount,
+        decimal RecoveryWeight,
+        bool IsInternal);
 
     public ProductionRecordService(
         AppDbContext context,
@@ -591,7 +593,7 @@ public class ProductionRecordService : IProductionRecordService
 
             if (!hasColdRollDraw)
             {
-                requestErrors.Add($"第{i + 1}行：工序「{pg.ProcessName}」必须首先记录「冷轧拔」工段，才能记录「{request.SectionName}」");
+                requestErrors.Add($"第{i + 1}行：工序「{ProcessKeys.ToChinese(pg.ProcessName)}」必须首先记录「冷轧拔」工段，才能记录「{SectionKeys.ToChinese(request.SectionName)}」");
             }
         }
 
@@ -626,7 +628,7 @@ public class ProductionRecordService : IProductionRecordService
                 }
                 var sections = GetSectionsFromProcessGroup(pg);
                 if (!sections.Any(s => SectionKeys.ToKey(s.SectionName) == request.SectionName))
-                    requestErrors.Add($"第{i + 1}行：工段「{request.SectionName}」不存在于工序组「{pg.ProcessName}」中，无法提交");
+                    requestErrors.Add($"第{i + 1}行：工段「{SectionKeys.ToChinese(request.SectionName)}」不存在于工序组「{ProcessKeys.ToChinese(pg.ProcessName)}」中，无法提交");
             }
         }
 
@@ -711,7 +713,7 @@ public class ProductionRecordService : IProductionRecordService
                     r.ProcessGroupId == pgId.Value && r.SectionName == request.SectionName)
                     || pendingSimpleKeys.Contains(key);
                 if (dup)
-                    requestErrors.Add($"第{i + 1}行：工段「{request.SectionName}」在该批次该工序组中已存在记录，不能重复创建");
+                    requestErrors.Add($"第{i + 1}行：工段「{SectionKeys.ToChinese(request.SectionName)}」在该批次该工序组中已存在记录，不能重复创建");
                 else
                     pendingSimpleKeys.Add(key);
             }
@@ -1563,7 +1565,6 @@ public class ProductionRecordService : IProductionRecordService
                 : inventoryBatches.Count > 0;
             if (hasMaterialCheck)
             {
-                batch.CurrentExecDate = materialChecks.Max(m => (DateTime?)m.ReceiveDate);
                 if (hasWarehouse)
                 {
                     // 同时有成检到料和仓库入库 → 完成
@@ -1585,7 +1586,7 @@ public class ProductionRecordService : IProductionRecordService
                 .ThenBy(r => r.ExecDate)
                 .ToListAsync();
 
-            // 收集该批次的所有工段委外（含待回收和已回收）及各自的回收记录数
+            // 收集该批次的所有工段委外（含待回收和已回收）及各自的回收记录数与纯合格回收重量
             var sectionOutsources = await _context.SectionOutsources
                 .Where(s => s.ProductionBatchId == batchId)
                 .Select(s => new
@@ -1597,7 +1598,9 @@ public class ProductionRecordService : IProductionRecordService
                     s.ProcessName,
                     s.OutsourceVendor,
                     s.SendOutDate,
-                    RecoveryCount = s.OutsourceRecoveries.Count
+                    s.IsInternal,
+                    RecoveryCount = s.OutsourceRecoveries.Count,
+                    RecoveryWeight = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight ?? 0)
                 })
                 .OrderBy(s => s.SequenceNumber)
                 .ToListAsync();
@@ -1656,7 +1659,8 @@ public class ProductionRecordService : IProductionRecordService
             // 转换委外列表为命名类型
             var outsourceInfos = sectionOutsources.Select(s => new SectionOutsourceInfo(
                 s.Id, 0, s.ProcessGroupId, s.SectionName, s.SequenceNumber,
-                s.ProcessName, s.OutsourceVendor, s.SendOutDate, s.RecoveryCount
+                s.ProcessName, s.OutsourceVendor, s.SendOutDate, s.RecoveryCount,
+                s.RecoveryWeight, s.IsInternal
             )).ToList();
 
             // 公共跟踪计算（除投料变更外）
@@ -1664,7 +1668,8 @@ public class ProductionRecordService : IProductionRecordService
             var dsExtraDaysMap = await _deliveryStateService.GetDeliveryStateExtraDaysMapAsync();
             ComputeBatchTrackingCore(batch, pgSpecLookup, productionRecords, outsourceInfos,
                 processInspections, picklingInRecords, hasMaterialCheck,
-                materialChecks.OrderByDescending(m => m.SequenceNumber).FirstOrDefault(), materialCheckSeq, materialCheckPg, coldRollCompleteRatio, dayMap, dsExtraDaysMap);
+                materialChecks.Count > 0 ? materialChecks.Max(m => (DateTime?)m.ReceiveDate) : null,
+                materialCheckSeq, materialCheckPg, coldRollCompleteRatio, dayMap, dsExtraDaysMap);
 
             // ====== 1b. 状态定稿：无检验到料/无仓库入库时，下工段为成品检验且前段已完工 → 成检 ======
             if (batch.Status != BatchStatus.Suspended && !hasMaterialCheck && !hasWarehouse
@@ -2059,7 +2064,9 @@ public class ProductionRecordService : IProductionRecordService
                 s.ProcessName,
                 s.OutsourceVendor,
                 s.SendOutDate,
-                RecoveryCount = s.OutsourceRecoveries.Count
+                s.IsInternal,
+                RecoveryCount = s.OutsourceRecoveries.Count,
+                RecoveryWeight = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight ?? 0)
             })
             .OrderBy(s => s.SequenceNumber)
             .ToListAsync();
@@ -2138,14 +2145,12 @@ public class ProductionRecordService : IProductionRecordService
                 // 同时有成检到料和仓库入库记录 → 完成
                 if (batch.Status != BatchStatus.Completed)
                     batch.Status = BatchStatus.Completed;
-                batch.CurrentExecDate = batchMaterialChecks!.Max(m => (DateTime?)m.ReceiveDate);
             }
             else if (hasCheck)
             {
                 // 只有成检到料，无仓库入库 → 成检
                 if (batch.Status != BatchStatus.InFinalInspection)
                     batch.Status = BatchStatus.InFinalInspection;
-                batch.CurrentExecDate = batchMaterialChecks!.Max(m => (DateTime?)m.ReceiveDate);
             }
             else if (batch.Status != BatchStatus.Suspended)
             {
@@ -2179,14 +2184,16 @@ public class ProductionRecordService : IProductionRecordService
             // 转换委外列表为命名类型
             var outsourceInfos = sectionOutsources.Select(s => new SectionOutsourceInfo(
                 s.Id, 0, s.ProcessGroupId, s.SectionName, s.SequenceNumber,
-                s.ProcessName, s.OutsourceVendor, s.SendOutDate, s.RecoveryCount
+                s.ProcessName, s.OutsourceVendor, s.SendOutDate, s.RecoveryCount,
+                s.RecoveryWeight, s.IsInternal
             )).ToList();
 
             // 公共跟踪计算（除投料变更外）
             var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(batch.PlantGrade);
             ComputeBatchTrackingCore(batch, pgSpecLookup, productionRecords, outsourceInfos,
                 processInspections, picklingInRecords, hasCheck,
-                batchMaterialChecks?.FirstOrDefault(), materialCheckSeq, materialCheckPg,
+                hasCheck && batchMaterialChecks != null ? batchMaterialChecks.Max(m => (DateTime?)m.ReceiveDate) : null,
+                materialCheckSeq, materialCheckPg,
                 coldRollCompleteRatio, dayMap, dsExtraDaysMap);
 
             // 状态定稿：无检验到料/无仓库入库时，下工段为成品检验且前段已完工 → 成检（对齐单批次刷新路径）
@@ -2243,7 +2250,7 @@ public class ProductionRecordService : IProductionRecordService
         List<ProcessInspection> processInspections,
         List<PicklingInRecord> picklingInRecords,
         bool hasMaterialCheck,
-        MaterialReceiveCheck? materialCheck,
+        DateTime? materialCheckDate,
         int materialCheckSeq,
         ProcessGroup? materialCheckPg,
         decimal coldRollCompleteRatio,
@@ -2281,92 +2288,22 @@ public class ProductionRecordService : IProductionRecordService
         // 五取最大（含检验到料的"检验"工段序号 + 去油/酸洗入缸记录）
         int overallMaxSeq = Math.Max(Math.Max(Math.Max(Math.Max(maxRecordSeq, maxOutsourceSeq), maxInspectionSeq), materialCheckSeq), maxPicklingSeq);
 
-        // ====== 截止执行日 ======
-        if (overallMaxSeq == maxRecordSeq && maxSeqRecord != null)
-            batch.CurrentExecDate = maxSeqRecord.ExecDate;
-        else if (overallMaxSeq == maxOutsourceSeq && maxSeqOutsource != null)
-            batch.CurrentExecDate = maxSeqOutsource.SendOutDate;
-        else if (overallMaxSeq == maxInspectionSeq && maxSeqInspection != null)
-            batch.CurrentExecDate = maxSeqInspection.InspectionDate;
-        else if (overallMaxSeq == materialCheckSeq && hasMaterialCheck)
-            batch.CurrentExecDate = materialCheck?.ReceiveDate;
-        else if (overallMaxSeq == maxPicklingSeq && maxSeqPickling != null)
-            batch.CurrentExecDate = maxSeqPickling.InDate;
-        else
-            batch.CurrentExecDate = null;
-
-        // ====== 当前工段/工序/设备/委外/规格 ======
-        if (overallMaxSeq == maxRecordSeq)
-        {
-            if (maxSeqRecord != null)
-            {
-                batch.CurrentGroupName = maxSeqRecord.ProcessName;
-                batch.CurrentSectionName = maxSeqRecord.SectionName;
-                batch.CurrentEquipmentName = maxSeqRecord.EquipmentName;
-                batch.CurrentSpec = pgSpecLookup.GetValueOrDefault(maxSeqRecord.ProcessGroupId);
-            }
-            else
-            {
-                batch.CurrentGroupName = null;
-                batch.CurrentSectionName = null;
-                batch.CurrentEquipmentName = null;
-                batch.CurrentSpec = null;
-            }
-            batch.CurrentOutsource = null;
-        }
-        else if (overallMaxSeq == maxOutsourceSeq)
-        {
-            batch.CurrentGroupName = maxSeqOutsource!.ProcessName;
-            batch.CurrentSectionName = maxSeqOutsource.SectionName;
-            batch.CurrentEquipmentName = null;
-            batch.CurrentSpec = pgSpecLookup.GetValueOrDefault(maxSeqOutsource.ProcessGroupId);
-            batch.CurrentOutsource = maxSeqOutsource.RecoveryCount == 0
-                ? maxSeqOutsource.OutsourceVendor
-                : null;
-        }
-        else if (overallMaxSeq == maxPicklingSeq)
-        {
-            batch.CurrentGroupName = maxSeqPickling?.ProcessName;
-            batch.CurrentSectionName = maxSeqPickling?.SectionName;
-            batch.CurrentEquipmentName = maxSeqPickling?.EquipmentName;
-            batch.CurrentSpec = maxSeqPickling != null
-                ? pgSpecLookup.GetValueOrDefault(maxSeqPickling.ProcessGroupId)
-                : null;
-            batch.CurrentOutsource = null;
-        }
-        else if (overallMaxSeq == materialCheckSeq && hasMaterialCheck)
-        {
-            batch.CurrentGroupName = materialCheckPg?.ProcessName;
-            batch.CurrentSectionName = SectionKeys.Inspection;
-            batch.CurrentEquipmentName = null;
-            batch.CurrentSpec = materialCheckPg != null
-                ? pgSpecLookup.GetValueOrDefault(materialCheckPg.Id)
-                : null;
-            batch.CurrentOutsource = null;
-        }
-        else
-        {
-            batch.CurrentGroupName = maxSeqInspection?.ProcessName;
-            batch.CurrentSectionName = maxSeqInspection?.SectionName;
-            batch.CurrentEquipmentName = maxSeqInspection?.EquipmentName;
-            batch.CurrentSpec = maxSeqInspection != null
-                ? pgSpecLookup.GetValueOrDefault(maxSeqInspection.ProcessGroupId)
-                : null;
-            batch.CurrentOutsource = null;
-        }
-
-        // ====== 当前工段是否完工 ======
+        // ====== 当前工段是否完工（前移：完工后当前设备/委外均清空） ======
         if (overallMaxSeq < 0)
         {
             batch.CurrentSectionCompleted = null;
         }
         else if (overallMaxSeq == maxRecordSeq && maxSeqRecord?.SectionName == SectionKeys.ColdRollDraw)
         {
-            // 冷轧拔：总加工重量 ≥ 有效原料重量 × 95% 才算完工
+            // 冷轧拔：生产记录重量 + Σ纯合格回收重量(RecoveryWeight，不含未加工退回) ≥ 有效原料重量 × 95% 才算完工
             var pgId = maxSeqRecord.ProcessGroupId;
-            var totalWeight = productionRecords
+            var producedWeight = productionRecords
                 .Where(r => r.ProcessGroupId == pgId && r.SectionName == SectionKeys.ColdRollDraw && r.Weight.HasValue)
                 .Sum(r => r.Weight!.Value);
+            var recoveredWeight = sectionOutsources
+                .Where(o => o.ProcessGroupId == pgId && o.SectionName == SectionKeys.ColdRollDraw)
+                .Sum(o => o.RecoveryWeight);
+            var totalWeight = producedWeight + recoveredWeight;
             var threshold = (batch.CurrentValidWeight ?? batch.InputWeight ?? 0) * coldRollCompleteRatio;
             batch.CurrentSectionCompleted = totalWeight >= threshold;
         }
@@ -2382,8 +2319,90 @@ public class ProductionRecordService : IProductionRecordService
         }
         else
         {
-            // 其它工段（含过程检验）：有记录即完工
+            // 其它工段（含过程检验/检验到料）：有记录即完工
             batch.CurrentSectionCompleted = true;
+        }
+
+        // ====== 截止执行日：生产/委外/过程检验/到料/入缸 五路日期取最大 ======
+        batch.CurrentExecDate = new[]
+        {
+            maxSeqRecord?.ExecDate,
+            maxSeqOutsource?.SendOutDate,
+            maxSeqInspection?.InspectionDate,
+            hasMaterialCheck ? materialCheckDate : null,
+            maxSeqPickling?.InDate
+        }.Max();
+
+        // ====== 当前工段/工序/规格（按 overallMaxSeq 唯一归因，与下一工段/剩余工量同口径） ======
+        if (overallMaxSeq == maxRecordSeq)
+        {
+            batch.CurrentGroupName = maxSeqRecord?.ProcessName;
+            batch.CurrentSectionName = maxSeqRecord?.SectionName;
+            batch.CurrentSpec = maxSeqRecord != null
+                ? pgSpecLookup.GetValueOrDefault(maxSeqRecord.ProcessGroupId)
+                : null;
+        }
+        else if (overallMaxSeq == maxOutsourceSeq)
+        {
+            batch.CurrentGroupName = maxSeqOutsource!.ProcessName;
+            batch.CurrentSectionName = maxSeqOutsource.SectionName;
+            batch.CurrentSpec = pgSpecLookup.GetValueOrDefault(maxSeqOutsource.ProcessGroupId);
+        }
+        else if (overallMaxSeq == maxPicklingSeq)
+        {
+            batch.CurrentGroupName = maxSeqPickling?.ProcessName;
+            batch.CurrentSectionName = maxSeqPickling?.SectionName;
+            batch.CurrentSpec = maxSeqPickling != null
+                ? pgSpecLookup.GetValueOrDefault(maxSeqPickling.ProcessGroupId)
+                : null;
+        }
+        else if (overallMaxSeq == materialCheckSeq && hasMaterialCheck)
+        {
+            batch.CurrentGroupName = materialCheckPg?.ProcessName;
+            batch.CurrentSectionName = SectionKeys.Inspection;
+            batch.CurrentSpec = materialCheckPg != null
+                ? pgSpecLookup.GetValueOrDefault(materialCheckPg.Id)
+                : null;
+        }
+        else
+        {
+            batch.CurrentGroupName = maxSeqInspection?.ProcessName;
+            batch.CurrentSectionName = maxSeqInspection?.SectionName;
+            batch.CurrentSpec = maxSeqInspection != null
+                ? pgSpecLookup.GetValueOrDefault(maxSeqInspection.ProcessGroupId)
+                : null;
+        }
+
+        // ====== 当前设备 / 当前委外（独立维度互不覆盖；工段完工后均清空） ======
+        if (batch.CurrentSectionCompleted == true)
+        {
+            batch.CurrentEquipmentName = null;
+            batch.CurrentOutsource = null;
+        }
+        else
+        {
+            // 当前设备：设备来源（生产记录/入缸/过程检验）中序号最大者的设备名
+            string? deviceName = null;
+            var bestDeviceSeq = -1;
+            foreach (var (seq, name) in new (int Seq, string? Name)[]
+            {
+                (maxRecordSeq, maxSeqRecord?.EquipmentName),
+                (maxPicklingSeq, maxSeqPickling?.EquipmentName),
+                (maxInspectionSeq, maxSeqInspection?.EquipmentName)
+            })
+            {
+                if (seq > bestDeviceSeq && !string.IsNullOrWhiteSpace(name))
+                {
+                    bestDeviceSeq = seq;
+                    deviceName = name;
+                }
+            }
+            batch.CurrentEquipmentName = deviceName;
+
+            // 当前委外：序号最大的委外记录，未回收则显示单位（与完工判定同源）
+            batch.CurrentOutsource = maxSeqOutsource?.RecoveryCount == 0
+                ? maxSeqOutsource.OutsourceVendor
+                : null;
         }
 
         // ====== 下一工段 / 对应规格 ======

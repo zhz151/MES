@@ -554,6 +554,7 @@ public static class DisplayHelper
             "PendingRecovery" => Color.Warning,
             "Recovered" => Color.Success,
             "InProgress" => Color.Info,
+            "Virtual" => Color.Default,
             _ => Color.Default
         };
     }
@@ -566,6 +567,7 @@ public static class DisplayHelper
             SectionOutsourceStatus.PendingRecovery => Color.Warning,
             SectionOutsourceStatus.Recovered => Color.Success,
             SectionOutsourceStatus.InProgress => Color.Info,
+            SectionOutsourceStatus.Virtual => Color.Default,
             _ => Color.Default
         };
     }

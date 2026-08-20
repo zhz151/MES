@@ -103,7 +103,7 @@
     <!-- 跨工段汇总卡片（仿原锁计划，工具栏「汇总」按钮切换显隐） -->
     @if (_showSummaryCard)
     {
-        <MudCard Class="mb-2" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
+        <MudCard Class="mb-2 summary-card" Elevation="0">
             <MudCardContent>
                 @if (_isLoadingSummary)
                 {
@@ -159,7 +159,7 @@
                         </tbody>
                     </table>
                 </div>
-                <MudText Typo="Typo.body2" Style="color:#666; margin-top:4px; font-size:0.75rem;">
+                <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
                     注：各工段行按工段筛选口径统计，同一批次按当前/下一工段唯一归入一个工段（冷轧类按工序、普通工段按工段名），各工段批次数之和等于合计；合计行=全量唯一批次。
                 </MudText>
             </MudCardContent>
@@ -169,7 +169,7 @@
     <!-- 段落流转分析折叠查询（纯表，无可持续天数字段） -->
     @if (_showParagraphCard)
     {
-        <MudCard Class="mb-2" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
+        <MudCard Class="mb-2 summary-card" Elevation="0">
             <MudCardContent>
                 @if (_isLoadingParagraph)
                 {
@@ -193,9 +193,9 @@
                             <MudTh><div class="col-header-cell"><span class="th-label">生产段落</span></div></MudTh>
                             <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">待在产重量</span></div></MudTh>
                             <MudTh Class="mud-table-cell--center"><div class="col-header-cell"><span class="th-label">总况判定</span></div></MudTh>
-                            <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">计划流转量</span></div></MudTh>
+                            <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">计划重点批流转量</span></div></MudTh>
                             <MudTh Class="mud-table-cell--center"><div class="col-header-cell"><span class="th-label">计划流转判定</span></div></MudTh>
-                            <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">重点批重量</span></div></MudTh>
+                            <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">特急批重量</span></div></MudTh>
                         </HeaderContent>
                         <RowTemplate Context="item">
                             <MudTd><span class="font-weight-bold">@item.ParagraphName</span></MudTd>
@@ -226,7 +226,7 @@
     <!-- 工段流转分析折叠查询（纯表，无可持续天数字段） -->
     @if (_showFlowCard)
     {
-        <MudCard Class="mb-2" Elevation="0" Style="background: #FAFBFC; border: 1px solid #E0E0E0; border-radius: 8px;">
+        <MudCard Class="mb-2 summary-card" Elevation="0">
             <MudCardContent>
                 @if (_isLoadingFlow)
                 {
@@ -289,8 +289,6 @@
                           ValueChanged="@OnSearchChanged"
                           Immediate="true"
                           DebounceInterval="500"
-                          Clearable="true"
-                          ClearButton="true"
                           Adornment="Adornment.End"
                           AdornmentIcon="@Icons.Material.Filled.Search" />
         </MudItem>
@@ -305,7 +303,7 @@
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;
             }
             @* 工具栏：列显隐（左）+ 打印按钮（右）*@
-            <div class="woe-toolbar" style="min-height:28px;padding:2px 0;display:flex;align-items:center;">
+            <div class="list-toolbar">
                 <div class="d-flex align-center">
                     <ColumnDisplaySelect Columns="GetToggleableColumns()"
                                          OnColumnToggle="OnColumnToggle"

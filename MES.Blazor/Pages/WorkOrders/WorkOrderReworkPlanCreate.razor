@@ -291,7 +291,7 @@
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
                                                          Min="1" Max="99"
-                                                         Class="my-n2" Style="width:42px;" />
+                                                         Class="my-n2" Style="width:42px;" Format="G29" />
                                     }
                                 </MudTd>
                                 <MudTd DataLabel="使用模式" Style="background-color: rgba(255, 152, 0, 0.08);">
@@ -315,7 +315,7 @@
                                                          Size="Size.Small"
                                                          Variant="Variant.Outlined"
                                                          Min="1" Max="@(context.RemainingQuantity - context.ReservedQuantity)"
-                                                         Class="my-n2" Style="width:42px;" />
+                                                         Class="my-n2" Style="width:42px;" Format="G29" />
                                     }
                                     else if (GetSelection(context.Id))
                                     {

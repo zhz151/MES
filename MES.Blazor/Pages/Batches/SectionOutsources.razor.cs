@@ -30,7 +30,8 @@ public partial class SectionOutsources
         {
             if (value)
             {
-                foreach (var item in _pageItems)
+                // 厂内（虚拟发外）记录无需回收，不参与全选
+                foreach (var item in _pageItems.Where(i => !i.IsInternal))
                     selectedIds.Add(item.Id);
             }
             else
@@ -126,6 +127,7 @@ public partial class SectionOutsources
             EnumOptions = DisplayHelper.GetEnumFilterOptions<SectionOutsourceStatus>() },
         new() { Key = "SendOutDate",         Label = "发出日期",     SortKey = "sendoutdate",         FilterType = "date", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "OutsourceVendor",     Label = "委外单位",     SortKey = "outsourcevendor",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "IsInternal",          Label = "厂内",         SortKey = "isinternal",          FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "SendQuantity",        Label = "发出支数",     SortKey = "sendquantity", Width = "80", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "SendWeight",          Label = "发出重量",     SortKey = "sendweight", Width = "80", GroupKey = 1, GroupName = "委外信息" },
@@ -522,6 +524,7 @@ public partial class SectionOutsources
         public string? OutsourceSpec { get; set; }
         public string? ExpectedReturnDateText { get; set; }
         public bool IsUrgent { get; set; }
+        public bool IsInternal { get; set; }
         public string? Remark { get; set; }
     }
 
@@ -568,6 +571,21 @@ public partial class SectionOutsources
                     RenderEditTextField(builder, cache.OutsourceVendor ?? "", v => cache.OutsourceVendor = v);
                 else
                     builder.AddContent(0, item.OutsourceVendor);
+                break;
+
+            case "IsInternal":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudCheckBox<bool>>(0);
+                    builder.AddAttribute(1, "Value", cache.IsInternal);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => cache.IsInternal = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.GetYesNoText(item.IsInternal));
+                }
                 break;
 
             case "SendOutDate":
@@ -748,6 +766,7 @@ public partial class SectionOutsources
             OutsourceSpec = item.OutsourceSpec,
             ExpectedReturnDateText = item.ExpectedReturnDate?.ToString("yyyy-MM-dd"),
             IsUrgent = item.IsUrgent,
+            IsInternal = item.IsInternal,
             Remark = item.Remark
         };
     }
@@ -774,6 +793,7 @@ public partial class SectionOutsources
                 OutsourceSpec = cache.OutsourceSpec,
                 ExpectedReturnDate = DateTime.TryParse(cache.ExpectedReturnDateText, out var erd) ? erd : null,
                 IsUrgent = cache.IsUrgent,
+                IsInternal = cache.IsInternal,
                 Remark = cache.Remark
             };
 
@@ -868,8 +888,14 @@ public partial class SectionOutsources
 
     private void NavigateToBatchRecovery()
     {
-        if (!selectedIds.Any()) return;
-        var ids = string.Join(",", selectedIds);
+        // 厂内（虚拟发外）记录无需回收，从已选中集合中排除
+        var pendingIds = selectedIds.Where(id => _pageItems.Any(i => i.Id == id && !i.IsInternal)).ToList();
+        if (!pendingIds.Any())
+        {
+            Snackbar.Add("请选择待回收的委外记录（厂内记录无需回收）", Severity.Warning);
+            return;
+        }
+        var ids = string.Join(",", pendingIds);
         Navigation.NavigateTo($"/section-outsources/create-recovery?ids={ids}");
     }
 

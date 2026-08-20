@@ -43,7 +43,9 @@ public class SectionOutsourceDto
     public int? SendQuantity { get; set; }
     /// <summary>发出重量(kg)</summary>
     public decimal? SendWeight { get; set; }
-    /// <summary>状态（PendingRecovery=待回收, Recovered=已回收）</summary>
+    /// <summary>是否厂内（虚拟发外，仅限冷轧拔，无需回收，状态=略）</summary>
+    public bool IsInternal { get; set; }
+    /// <summary>状态（PendingRecovery=待回收, Recovered=已回收, Virtual=略）</summary>
     public SectionOutsourceStatus Status { get; set; }
     public string StatusDisplay => EnumHelper.GetDisplayName(Status);
     /// <summary>挂牌号</summary>
@@ -112,6 +114,11 @@ public class CreateSectionOutsourceRequest
     /// <summary>执行序号（0=由系统自动从工序组解析）</summary>
     public int SequenceNumber { get; set; }
 
+    /// <summary>
+    /// 是否厂内（虚拟发外）。true=仅限冷轧拔工段，默认略状态无需回收，OutsourceVendor 填车间名称；false=真正委外
+    /// </summary>
+    public bool IsInternal { get; set; }
+
     [Required(ErrorMessage = "委外单位不能为空")]
     [MaxLength(100)]
     public string OutsourceVendor { get; set; } = null!;
@@ -160,6 +167,11 @@ public class UpdateSectionOutsourceRequest
 
     public DateTime? ExpectedReturnDate { get; set; }
     public bool? IsUrgent { get; set; }
+
+    /// <summary>
+    /// 是否厂内（虚拟发外）。true=仅限冷轧拔工段，状态置「略」无需回收；false=真正委外，状态回到「待回收」
+    /// </summary>
+    public bool? IsInternal { get; set; }
 
     [MaxLength(500)]
     public string? Remark { get; set; }

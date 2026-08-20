@@ -160,7 +160,7 @@ public class CustomerService : ICustomerService
 
         if (exists)
         {
-            throw new BusinessException($"Customer code '{request.CustomerCode}' already exists");
+            throw new BusinessException($"客户代码'{request.CustomerCode}'已存在");
         }
 
         var entity = new CustomerProfile
