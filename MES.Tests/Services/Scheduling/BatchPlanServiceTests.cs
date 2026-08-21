@@ -9,6 +9,7 @@ using MES.Data.Entities;
 using MES.Services.Scheduling;
 using MES.Tests.Tests;
 using MES.Data.Entities.Batch;
+using MES.Data.Entities.Quality;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.WorkOrder;
 
@@ -1575,177 +1576,464 @@ public class BatchPlanServiceTests : TestBase
         result.Should().Be(1);
     }
 
-    // ========== 跨工段汇总 GetSummaryAsync ==========
+    // ========== 近日生产量数据 GetSummaryAsync ==========
 
     private static BatchPlanSummaryRowDto Row(List<BatchPlanSummaryRowDto> rows, string sectionName)
         => rows.Single(r => r.SectionName == sectionName);
 
+    private static BatchPlanMonthlySummaryRowDto Row(List<BatchPlanMonthlySummaryRowDto> rows, string sectionName)
+        => rows.Single(r => r.SectionName == sectionName);
+
+    // —— 夹具 helper：生产记录 / 委外回收 / 去油酸洗完工 / 过程检验（InMemory 不校验外键，FK 用占位 1） ——
+
+    private static async Task AddRecord(AppDbContext ctx, string processName, string sectionName,
+        DateTime execDate, decimal weight)
+    {
+        ctx.Set<ProductionRecord>().Add(new ProductionRecord
+        {
+            ProductionBatchId = 1,
+            ProcessGroupId = 1,
+            ProcessName = processName,
+            SectionName = sectionName,
+            ExecDate = execDate,
+            Weight = weight,
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    private static async Task AddRecovery(AppDbContext ctx, string processName, string sectionName,
+        DateTime recoveryDate, decimal recoveryWeight, decimal? unprocessedWeight = null)
+    {
+        var so = new SectionOutsource
+        {
+            ProductionBatchId = 1,
+            ProcessGroupId = 1,
+            ProcessName = processName,
+            SectionName = sectionName,
+            OutsourceVendor = "委外厂",
+            SendOutDate = recoveryDate,
+        };
+        ctx.Set<SectionOutsource>().Add(so);
+        await ctx.SaveChangesAsync(); // 先保存拿真实 Id 供回收记录 FK
+
+        ctx.Set<OutsourceRecovery>().Add(new OutsourceRecovery
+        {
+            SectionOutsourceId = so.Id,
+            RecoveryDate = recoveryDate,
+            RecoveryWeight = recoveryWeight,
+            UnprocessedWeight = unprocessedWeight,
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    private static async Task AddPicklingOut(AppDbContext ctx, string sectionName,
+        DateTime completeDate, decimal weight)
+    {
+        var pin = new PicklingInRecord
+        {
+            ProductionBatchId = 1,
+            ProcessGroupId = 1,
+            ProcessName = ProcessKeys.RoughTubeProcessing,
+            SectionName = sectionName,
+            InDate = completeDate,
+        };
+        ctx.Set<PicklingInRecord>().Add(pin);
+        await ctx.SaveChangesAsync(); // 先保存拿真实 Id 供完工记录 FK
+
+        ctx.Set<PicklingOutRecord>().Add(new PicklingOutRecord
+        {
+            PicklingInRecordId = pin.Id,
+            CompleteDate = completeDate,
+            SectionName = sectionName,
+            Weight = weight,
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    private static async Task AddInspection(AppDbContext ctx, string productStatus,
+        DateTime inspectionDate, decimal weight)
+    {
+        ctx.Set<ProcessInspection>().Add(new ProcessInspection
+        {
+            ProductionBatchId = 1,
+            ProcessGroupId = 1,
+            ProcessName = ProcessKeys.RoughTubeProcessing,
+            SectionName = SectionKeys.Inspection,
+            InspectionDate = inspectionDate,
+            Weight = weight,
+            ProductStatus = productStatus,
+        });
+        await ctx.SaveChangesAsync();
+    }
+
     [Fact]
-    public async Task GetSummaryAsync_按工段归桶_合计为全量唯一()
+    public async Task GetSummaryAsync_冷轧拔按工序分化_普通工段按工段名()
     {
         using var ctx = CreateDbContext();
-        // 断切工段批次 + 油管断工段批次（"断切"→Cut 不得子串误匹配 OilPipeCut）
-        CreateBatch(ctx, "B001", "WO001",
-            currentSectionName: SectionKeys.Cut,
-            currentSectionCompleted: false,
-            currentValidWeight: 1000);
-        CreateBatch(ctx, "B002", "WO002",
-            currentSectionName: SectionKeys.OilPipeCut,
-            currentSectionCompleted: false,
-            currentValidWeight: 2000);
-        await ctx.SaveChangesAsync();
+        var today = DateTime.Today;
+        await AddRecord(ctx, ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, today, 1000m); // 冷轧拔-60冷轧
+        await AddRecord(ctx, ProcessKeys.ColdRoll50, SectionKeys.ColdRollDraw, today, 2000m); // 冷轧拔-50冷轧
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, today, 3000m); // 断切
 
         var svc = CreateService(ctx);
         var rows = await svc.GetSummaryAsync();
 
-        rows.Should().HaveCount(BatchPlanSectionTabs.All.Length + 1); // 17 工段 + 合计
+        Row(rows, "冷轧拔-60冷轧").TodayWeight.Should().Be(1000m);
+        Row(rows, "冷轧拔-50冷轧").TodayWeight.Should().Be(2000m);
+        Row(rows, "断切").TodayWeight.Should().Be(3000m);
+        Row(rows, "合计").TodayWeight.Should().Be(6000m);
+    }
+
+    [Fact]
+    public async Task GetSummaryAsync_冷轧拔按工序分化_90冷轧兜底_非冷轧工序丢弃()
+    {
+        using var ctx = CreateDbContext();
+        var today = DateTime.Today;
+        await AddRecord(ctx, ProcessKeys.ColdRoll30, SectionKeys.ColdRollDraw, today, 500m);   // 冷轧拔-30冷轧
+        await AddRecord(ctx, "90冷轧", SectionKeys.ColdRollDraw, today, 700m);                  // 90冷轧（中文，暂未收录 ProcessKeys）
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.ColdRollDraw, today, 999m); // 非冷轧工序 → 丢弃
+
+        var svc = CreateService(ctx);
+        var rows = await svc.GetSummaryAsync();
+
+        Row(rows, "冷轧拔-30冷轧").TodayWeight.Should().Be(500m);
+        Row(rows, "冷轧拔-90冷轧").TodayWeight.Should().Be(700m);
+        Row(rows, "合计").TodayWeight.Should().Be(1200m);   // 999 丢弃不计入合计
+    }
+
+    [Fact]
+    public async Task GetSummaryAsync_日期窗口_今日实时_前3日前6日不含今日()
+    {
+        using var ctx = CreateDbContext();
+        var today = DateTime.Today;
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, today, 100m);
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, today.AddDays(-2), 200m);
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, today.AddDays(-5), 300m);
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, today.AddDays(-7), 400m); // 窗口外
+
+        var svc = CreateService(ctx);
+        var rows = await svc.GetSummaryAsync();
 
         var cut = Row(rows, "断切");
-        cut.BatchCount.Should().Be(1);
-        cut.TotalWeight.Should().Be(1000m);
-        cut.FlowBatchCount.Should().Be(0);
-        cut.KeyBatchCount.Should().Be(0);
-        cut.Level5Count.Should().Be(1); // 无批次计划薄表 → 等级=略(5)
-
-        var oilPipe = Row(rows, "油管断");
-        oilPipe.BatchCount.Should().Be(1);
-        oilPipe.TotalWeight.Should().Be(2000m);
-
-        // 合计 = 全量唯一批次（两批次各命中唯一工段，无重叠）
-        var total = Row(rows, "合计");
-        total.BatchCount.Should().Be(2);
-        total.TotalWeight.Should().Be(3000m);
-        total.Level5Count.Should().Be(2);
+        cut.TodayWeight.Should().Be(100m);       // 今日（实时），仅今日
+        cut.Last3DaysWeight.Should().Be(200m);   // 前3日=[今天−3,今天)：仅前2天，不含今日
+        cut.Last7DaysWeight.Should().Be(500m);   // 前6日=[今天−6,今天)：前2天+前5天，不含今日（前7天在窗口外）
     }
 
     [Fact]
-    public async Task GetSummaryAsync_流转与重点批次统计()
+    public async Task GetSummaryAsync_去油酸洗用完工记录_不含生产记录()
     {
         using var ctx = CreateDbContext();
-        var b1 = CreateBatch(ctx, "B001", "WO001",
-            currentSectionName: SectionKeys.Cut,
-            currentSectionCompleted: false,
-            currentValidWeight: 1000);
-        var b2 = CreateBatch(ctx, "B002", "WO002",
-            currentSectionName: SectionKeys.Cut,
-            currentSectionCompleted: false,
-            currentValidWeight: 2000);
-        await ctx.SaveChangesAsync(); // 先保存拿到真实 Id
-
-        ctx.Set<BatchPlanSchedule>().AddRange(
-            new BatchPlanSchedule { BatchId = b1.Id, IsFlow = true, FlowLevel = 1 },  // 急+ = 重点
-            new BatchPlanSchedule { BatchId = b2.Id, IsFlow = true, FlowLevel = 2 }); // 急
-        await ctx.SaveChangesAsync();
+        var today = DateTime.Today;
+        // 去油/酸洗工段的生产记录不计入（走完工记录统计）
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.Degrease, today, 999m);
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.Pickle, today, 888m);
+        await AddPicklingOut(ctx, SectionKeys.Degrease, today, 1000m);
+        await AddPicklingOut(ctx, SectionKeys.Pickle, today, 2000m);
 
         var svc = CreateService(ctx);
         var rows = await svc.GetSummaryAsync();
 
-        var cut = Row(rows, "断切");
-        cut.BatchCount.Should().Be(2);
-        cut.FlowBatchCount.Should().Be(2);
-        cut.FlowBatchWeight.Should().Be(3000m);
-        cut.KeyBatchCount.Should().Be(1);                 // 重点 = PlanFlowLevel==1
-        cut.KeyBatchWeight.Should().Be(1000m);
-        cut.Level1Count.Should().Be(1);
-        cut.Level2Count.Should().Be(1);
-        cut.Level4Count.Should().Be(0);
-
-        var total = Row(rows, "合计");
-        total.FlowBatchCount.Should().Be(2);
-        total.KeyBatchCount.Should().Be(1);
+        Row(rows, "去油").TodayWeight.Should().Be(1000m);
+        Row(rows, "酸洗").TodayWeight.Should().Be(2000m);
+        Row(rows, "合计").TodayWeight.Should().Be(3000m);
     }
 
     [Fact]
-    public async Task GetSummaryAsync_检验类多Tab重叠_合计唯一()
+    public async Task GetSummaryAsync_荒管检在制检用过程检验重量_按产类区分()
     {
         using var ctx = CreateDbContext();
-        var b = CreateBatch(ctx, "B001", "WO001",
-            currentGroupName: ProcessKeys.RoughTubeProcessing,
-            currentSectionName: SectionKeys.Inspection,
-            currentSectionCompleted: false,
-            currentValidWeight: 1000);
-        await ctx.SaveChangesAsync(); // 先保存拿到真实 Id
-
-        ctx.ProcessGroups.AddRange(
-            new ProcessGroup { ProductionBatchId = b.Id, ProcessName = ProcessKeys.RoughTubeProcessing, SequenceNumber = 1 },
-            new ProcessGroup { ProductionBatchId = b.Id, ProcessName = ProcessKeys.ColdRoll60, SequenceNumber = 2 });
-        await ctx.SaveChangesAsync();
+        var today = DateTime.Today;
+        await AddInspection(ctx, ProductStatuses.RoughTube, today, 1000m);
+        await AddInspection(ctx, ProductStatuses.InProgress, today.AddDays(-1), 2000m);
+        await AddInspection(ctx, ProductStatuses.Finished, today, 5000m); // 成品不计入荒管检/在制检
 
         var svc = CreateService(ctx);
         var rows = await svc.GetSummaryAsync();
 
-        // 荒管检：工段=检验 + 产类=荒管（工序=荒管处理）→ 命中
-        Row(rows, "荒管检").BatchCount.Should().Be(1);
-        // 在制检：产类=在制 → 不命中（此批次产类=荒管）
-        Row(rows, "在制检").BatchCount.Should().Be(0);
-        // 成品检概念已删除；内抛+内修磨：工段=检验 ≠ 内抛/内修磨 → 不命中
-        Row(rows, "内抛+内修磨").BatchCount.Should().Be(0);
-        // 过程检概念已删除，不出现于汇总行
-        rows.Select(r => r.SectionName).Should().NotContain("过程检");
-        rows.Select(r => r.SectionName).Should().NotContain("过程检验");
-
-        // 合计 = 全量唯一批次
-        var total = Row(rows, "合计");
-        total.BatchCount.Should().Be(1);
-        total.TotalWeight.Should().Be(1000m);
+        Row(rows, "检验-荒管").TodayWeight.Should().Be(1000m);
+        Row(rows, "检验-在制").TodayWeight.Should().Be(0m);          // 前1天不在今日
+        Row(rows, "检验-在制").Last3DaysWeight.Should().Be(2000m);
+        Row(rows, "合计").TodayWeight.Should().Be(1000m);
+        Row(rows, "合计").Last3DaysWeight.Should().Be(2000m);     // 前3日不含今日：仅前1天在制检 2000
     }
 
     [Fact]
-    public async Task GetSummaryAsync_在制修检检验批次_按产类归入在制检()
+    public async Task GetSummaryAsync_委外回收仅回收量_冷轧委外归冷轧拔行()
     {
         using var ctx = CreateDbContext();
-        var b = CreateBatch(ctx, "B001", "WO001",
-            currentGroupName: ProcessKeys.InProcessRepair,
-            currentSectionName: SectionKeys.Inspection,
-            currentSectionCompleted: false,
-            currentValidWeight: 1000);
-        await ctx.SaveChangesAsync(); // 先保存拿到真实 Id
-
-        // 在制修检为中间工序（非末道，末道=冷轧60），批次含荒管处理工序组但荒管规格为空 → 产类=在制
-        ctx.ProcessGroups.AddRange(
-            new ProcessGroup { ProductionBatchId = b.Id, ProcessName = ProcessKeys.RoughTubeProcessing, SequenceNumber = 1 },
-            new ProcessGroup { ProductionBatchId = b.Id, ProcessName = ProcessKeys.InProcessRepair, SequenceNumber = 2 },
-            new ProcessGroup { ProductionBatchId = b.Id, ProcessName = ProcessKeys.ColdRoll60, SequenceNumber = 3 });
-        await ctx.SaveChangesAsync();
+        var today = DateTime.Today;
+        // 冷轧委外回收按工段归冷轧拔行；未加工量不计入
+        await AddRecovery(ctx, ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, today, 1000m, unprocessedWeight: 500m);
+        await AddRecovery(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, today, 2000m);
 
         var svc = CreateService(ctx);
         var rows = await svc.GetSummaryAsync();
 
-        // 在制检：工段=检验 + 产类=在制（非末道工序、无荒管规格匹配）→ 命中
-        Row(rows, "在制检").BatchCount.Should().Be(1);
-        // 荒管检：产类=在制 ≠ 荒管 → 不命中
-        Row(rows, "荒管检").BatchCount.Should().Be(0);
-        // 内抛+内修磨：工段=检验 ≠ 内抛/内修磨 → 不命中
-        Row(rows, "内抛+内修磨").BatchCount.Should().Be(0);
+        Row(rows, "冷轧拔-60冷轧").TodayWeight.Should().Be(1000m);
+        Row(rows, "断切").TodayWeight.Should().Be(2000m);
+        Row(rows, "合计").TodayWeight.Should().Be(3000m);
     }
 
     [Fact]
-    public async Task GetSummaryAsync_内抛与内修磨批次_归入内抛内修磨Tab()
+    public async Task GetSummaryAsync_内抛与内修磨合并归行()
     {
         using var ctx = CreateDbContext();
-        // 内抛批次（当前工段=内抛 未完工）
-        CreateBatch(ctx, "B001", "WO001",
-            currentSectionName: SectionKeys.InnerPolish,
-            currentSectionCompleted: false,
-            currentValidWeight: 1000);
-        // 内修磨批次（当前已完工，下一工段=内修磨）
-        CreateBatch(ctx, "B002", "WO002",
-            currentSectionCompleted: true,
-            nextSectionName: SectionKeys.InnerGrinding,
-            currentValidWeight: 2000);
-        await ctx.SaveChangesAsync();
+        var today = DateTime.Today;
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.InnerPolish, today, 1000m);
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.InnerGrinding, today, 2000m);
 
         var svc = CreateService(ctx);
         var rows = await svc.GetSummaryAsync();
 
         var combo = Row(rows, "内抛+内修磨");
-        combo.BatchCount.Should().Be(2);
-        combo.TotalWeight.Should().Be(3000m);
+        combo.TodayWeight.Should().Be(3000m);
+        Row(rows, "合计").TodayWeight.Should().Be(3000m);
+    }
 
-        // 合计 = 全量唯一批次（两批次各命中唯一 Tab，无重叠）
-        var total = Row(rows, "合计");
-        total.BatchCount.Should().Be(2);
-        total.TotalWeight.Should().Be(3000m);
+    // ========== 月度生产量数据 GetMonthlySummaryAsync（口径与 GetSummaryAsync 一致，按本年 1月~12月） ==========
+
+    [Fact]
+    public async Task GetMonthlySummaryAsync_按本年月份聚合_冷轧归冷轧拔行_合计()
+    {
+        using var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.Cut,
+            new DateTime(year, 1, 15), 1000m);                 // 断切 1月
+        await AddRecord(ctx, ProcessKeys.RoughTubeProcessing, SectionKeys.Cut,
+            new DateTime(year, 6, 10), 2000m);                 // 断切 6月
+        await AddRecord(ctx, ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw,
+            new DateTime(year, 12, 5), 3000m);                 // 冷轧拔 12月（原60冷轧行）
+
+        var svc = CreateService(ctx);
+        var rows = await svc.GetMonthlySummaryAsync();
+
+        var cut = Row(rows, "断切");
+        cut.MonthlyWeights[0].Should().Be(1000m);              // 1月
+        cut.MonthlyWeights[5].Should().Be(2000m);              // 6月
+        cut.MonthlyWeights[11].Should().Be(0m);                // 12月无断切
+        Row(rows, "冷轧拔-60冷轧").MonthlyWeights[11].Should().Be(3000m); // 12月
+        Row(rows, "合计").MonthlyWeights[0].Should().Be(1000m);
+        Row(rows, "合计").MonthlyWeights[5].Should().Be(2000m);
+        Row(rows, "合计").MonthlyWeights[11].Should().Be(3000m);
+    }
+
+    [Fact]
+    public async Task GetMonthlySummaryAsync_去油酸洗完工记录与过程检验按月归桶()
+    {
+        using var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        await AddPicklingOut(ctx, SectionKeys.Degrease, new DateTime(year, 2, 1), 1000m);
+        await AddPicklingOut(ctx, SectionKeys.Pickle, new DateTime(year, 3, 1), 2000m);
+        await AddInspection(ctx, ProductStatuses.RoughTube, new DateTime(year, 4, 1), 3000m);
+
+        var svc = CreateService(ctx);
+        var rows = await svc.GetMonthlySummaryAsync();
+
+        Row(rows, "去油").MonthlyWeights[1].Should().Be(1000m);   // 2月
+        Row(rows, "酸洗").MonthlyWeights[2].Should().Be(2000m);   // 3月
+        Row(rows, "检验-荒管").MonthlyWeights[3].Should().Be(3000m); // 4月
+        Row(rows, "合计").MonthlyWeights[1].Should().Be(1000m);
+        Row(rows, "合计").MonthlyWeights[3].Should().Be(3000m);
+    }
+
+    [Fact]
+    public async Task GetSummaryAsync_整行全0工段隐藏_仅保留合计()
+    {
+        using var ctx = CreateDbContext();
+        // 无任何产量数据 → 全部工段行（含冷轧拔分化行/检验行）全 0，应默认隐藏，仅保留合计行
+        var svc = CreateService(ctx);
+        var rows = await svc.GetSummaryAsync();
+
+        rows.Count.Should().Be(1);
+        rows[0].SectionName.Should().Be("合计");
+    }
+
+    [Fact]
+    public async Task GetMonthlySummaryAsync_整行全0工段隐藏_仅保留合计()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+        var rows = await svc.GetMonthlySummaryAsync();
+
+        rows.Count.Should().Be(1);
+        rows[0].SectionName.Should().Be("合计");
+    }
+
+    // ========== 实时委外在产 GetOutsourcePendingAsync（批次信息口径） ==========
+
+    private static OutsourcePendingRowDto OutsourceUnitRow(BatchPlanOutsourcePendingDto dto, string unit)
+        => dto.Rows.Single(r => r.OutsourceUnit == unit);
+
+    /// <summary>创建带当前委外单位+有效投料重量的批次（默认在产，需手动 SaveChanges）</summary>
+    private ProductionBatch CreateOutsourceBatch(AppDbContext ctx, string batchNo, string unit,
+        string? groupName, string? sectionName, int validWeight, BatchStatus status = BatchStatus.InProgress)
+    {
+        var b = CreateBatch(ctx, batchNo, batchNo, status: status,
+            currentGroupName: groupName, currentSectionName: sectionName);
+        b.CurrentOutsource = unit;
+        b.CurrentValidWeight = validWeight;
+        return b;
+    }
+
+    [Fact]
+    public async Task GetOutsourcePendingAsync_按在产单位工段聚合有效投料_无委外不计入_未产也计入()
+    {
+        using var ctx = CreateDbContext();
+        // 单位A·断切：两个在产批次有效投料 1000+2000
+        CreateOutsourceBatch(ctx, "B1", "单位A", ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, 1000);
+        CreateOutsourceBatch(ctx, "B2", "单位A", ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, 2000);
+        // 单位A·酸洗：未产批次 500（未产也计入）
+        CreateOutsourceBatch(ctx, "B3", "单位A", ProcessKeys.RoughTubeProcessing, SectionKeys.Pickle, 500,
+            status: BatchStatus.None);
+        // 单位B·断切：1500
+        CreateOutsourceBatch(ctx, "B4", "单位B", ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, 1500);
+        // 无当前委外单位（CurrentOutsource=null）：不计入
+        CreateBatch(ctx, "B5", "WO5", currentGroupName: ProcessKeys.RoughTubeProcessing, currentSectionName: SectionKeys.Cut);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var dto = await svc.GetOutsourcePendingAsync();
+
+        var rowA = OutsourceUnitRow(dto, "单位A");
+        rowA.Cells["断切"].Total.Should().Be(3000m);             // 1000+2000
+        rowA.Cells["酸洗"].Total.Should().Be(500m);              // 未产批次也计入
+        rowA.TotalCell.Total.Should().Be(3500m);
+
+        var rowB = OutsourceUnitRow(dto, "单位B");
+        rowB.Cells["断切"].Total.Should().Be(1500m);
+        rowB.TotalCell.Total.Should().Be(1500m);
+
+        // 合计行
+        var total = dto.Rows.Single(r => r.OutsourceUnit == "合计");
+        total.Cells["断切"].Total.Should().Be(4500m);            // 3000+1500
+        total.Cells["酸洗"].Total.Should().Be(500m);
+        total.TotalCell.Total.Should().Be(5000m);
+    }
+
+    [Fact]
+    public async Task GetOutsourcePendingAsync_冷轧按工序分化_内抛内修磨合并_列BatchPlanSectionTabs序()
+    {
+        using var ctx = CreateDbContext();
+        // 60冷轧：车间一两个在产批次 3000+2000 → 列 60冷轧
+        CreateOutsourceBatch(ctx, "B1", "车间一", ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, 3000);
+        CreateOutsourceBatch(ctx, "B2", "车间一", ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, 2000);
+        // 内抛+内修磨：车间二两批次合并 → 列 内抛+内修磨
+        CreateOutsourceBatch(ctx, "B3", "车间二", ProcessKeys.RoughTubeProcessing, SectionKeys.InnerPolish, 1000);
+        CreateOutsourceBatch(ctx, "B4", "车间二", ProcessKeys.RoughTubeProcessing, SectionKeys.InnerGrinding, 500);
+        // 断切：车间一 400
+        CreateOutsourceBatch(ctx, "B5", "车间一", ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, 400);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var dto = await svc.GetOutsourcePendingAsync();
+
+        // BatchPlanSectionTabs.All 序：60冷轧(index0) < 断切(index8) < 内抛+内修磨(index13)
+        dto.Sections.Should().Equal("60冷轧", "断切", "内抛+内修磨");
+        var r1 = OutsourceUnitRow(dto, "车间一");
+        r1.Cells["60冷轧"].Total.Should().Be(5000m);             // 3000+2000
+        r1.Cells["断切"].Total.Should().Be(400m);
+        r1.TotalCell.Total.Should().Be(5400m);
+        var r2 = OutsourceUnitRow(dto, "车间二");
+        r2.Cells["内抛+内修磨"].Total.Should().Be(1500m);        // 1000+500 合并
+        r2.TotalCell.Total.Should().Be(1500m);
+    }
+
+    [Fact]
+    public async Task GetOutsourcePendingAsync_完成成检暂停批次不计入()
+    {
+        using var ctx = CreateDbContext();
+        CreateOutsourceBatch(ctx, "B1", "单位A", ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, 1000,
+            status: BatchStatus.Completed);
+        CreateOutsourceBatch(ctx, "B2", "单位A", ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, 2000,
+            status: BatchStatus.InFinalInspection);
+        CreateOutsourceBatch(ctx, "B3", "单位A", ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, 3000,
+            status: BatchStatus.Suspended);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var dto = await svc.GetOutsourcePendingAsync();
+
+        dto.Sections.Should().BeEmpty();
+        dto.Rows.Single(r => r.OutsourceUnit == "合计").TotalCell.Total.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetOutsourcePendingAsync_当前工段无对应Tab丢弃_合计恒追加()
+    {
+        using var ctx = CreateDbContext();
+        // 检验工段无"检验"Tab（荒管检/在制检需产类，委外工段不出现）→ ResolveSummaryTabName 归列失败丢弃
+        CreateOutsourceBatch(ctx, "B1", "单位A", ProcessKeys.RoughTubeProcessing, SectionKeys.Inspection, 1000);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var dto = await svc.GetOutsourcePendingAsync();
+
+        dto.Sections.Should().BeEmpty();
+        var total = dto.Rows.Single(r => r.OutsourceUnit == "合计");
+        total.TotalCell.Total.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetOutsourcePendingAsync_流转重量按实时IsFlow聚合_重点按等级急加聚合()
+    {
+        using var ctx = CreateDbContext();
+        // 单位A·50冷轧：批次1 冷轧拔在轧 + 本层排程 All → 实时 IsFlow=true（无薄表 → PlanFlowLevel=5 非重点）
+        var b1 = CreateOutsourceBatch(ctx, "B1", "单位A", ProcessKeys.ColdRoll50, SectionKeys.ColdRollDraw, 3000);
+        b1.CurrentSectionCompleted = false; // 本层冷轧拔在轧（在轧要求分支匹配 CompletionType=All → 流转）
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = b1.Id,
+            ProcessName = ProcessKeys.ColdRoll50,
+            SequenceNumber = 1,
+            ColdRollDraw = 1,
+            ManufacturingSpec = "38*3.2",
+        });
+        ctx.ColdRollSpecSchedules.Add(new ColdRollSpecSchedule
+        {
+            ProcessType = ProcessKeys.ColdRoll50,
+            BilletSpec = "",
+            RollingSpec = "38*3.2",
+            IsFinished = true, // 单工序组 → 批次 IsFinished=true，排程 key 需一致
+            CompletionType = "All",
+            RollType = "All",
+        });
+        SeedSummary(ctx, "WO1", scheduleStage: 3, urgencyLevel: UrgencyLevelKeys.CSlow);
+        await ctx.SaveChangesAsync();
+        var s1 = ctx.Set<WorkOrderExecutionSummary>().First(x => x.WorkOrderNo == "WO1");
+        s1.MainNoAttentionProcess = ProcessKeys.ColdRoll50;
+        s1.ProductionFlowProperty = ProductionFlowKeys.Normal;
+
+        // 单位A·50冷轧：批次2 薄表 PlanFlowLevel=1（等级急+）→ 重点重量计入 2000（无排程/无工序组 → 实时 IsFlow=false）
+        var b2 = CreateOutsourceBatch(ctx, "B2", "单位A", ProcessKeys.ColdRoll50, SectionKeys.ColdRollDraw, 2000);
+        await ctx.SaveChangesAsync(); // 先保存拿到 Id
+        ctx.Set<BatchPlanSchedule>().Add(new BatchPlanSchedule
+        {
+            BatchId = b2.Id,
+            IsFlow = true,
+            FlowLevel = 1,
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var dto = await svc.GetOutsourcePendingAsync();
+
+        var rowA = OutsourceUnitRow(dto, "单位A");
+        rowA.Cells["50冷轧"].Total.Should().Be(5000m);           // 3000+2000
+        rowA.Cells["50冷轧"].Flow.Should().Be(3000m);            // 仅批次1 IsFlow=true
+        rowA.Cells["50冷轧"].Key.Should().Be(2000m);             // 仅批次2 等级急+
+        rowA.TotalCell.Total.Should().Be(5000m);
+        rowA.TotalCell.Flow.Should().Be(3000m);
+        rowA.TotalCell.Key.Should().Be(2000m);
+
+        // 合计行
+        var total = dto.Rows.Single(r => r.OutsourceUnit == "合计");
+        total.Cells["50冷轧"].Total.Should().Be(5000m);
+        total.Cells["50冷轧"].Flow.Should().Be(3000m);
+        total.Cells["50冷轧"].Key.Should().Be(2000m);
+        total.TotalCell.Total.Should().Be(5000m);
+        total.TotalCell.Flow.Should().Be(3000m);
+        total.TotalCell.Key.Should().Be(2000m);
     }
 
     [Fact]

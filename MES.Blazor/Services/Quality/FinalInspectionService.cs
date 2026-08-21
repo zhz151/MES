@@ -44,6 +44,26 @@ public class FinalInspectionService
         catch (Exception ex) { return ApiResponse<FinalInspectionHealthSummaryDto>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    public async Task<ApiResponse<List<FinalInspectionSummaryRowDto>>> GetRecentSummaryAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<FinalInspectionSummaryRowDto>>>($"{BaseUrl}/summary")
+                   ?? ApiResponse<List<FinalInspectionSummaryRowDto>>.Fail("获取近日成检量失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<FinalInspectionSummaryRowDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<List<FinalInspectionMonthlySummaryRowDto>>> GetMonthlySummaryAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<FinalInspectionMonthlySummaryRowDto>>>($"{BaseUrl}/monthly-summary")
+                   ?? ApiResponse<List<FinalInspectionMonthlySummaryRowDto>>.Fail("获取月度成检量失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<FinalInspectionMonthlySummaryRowDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     public async Task<ApiResponse<List<FinalInspectionDto>>> GetAllListAsync()
     {
         try

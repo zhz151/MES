@@ -84,7 +84,7 @@
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 编号/炉号/牌号/责任部门"
-                                  Value="_searchKeyword" ValueChanged="@OnSearchChanged"
+                                  Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)" ValueChanged="@OnSearchChanged"
                                   Immediate="true" DebounceInterval="500"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />

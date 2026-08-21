@@ -47,6 +47,8 @@ public partial class PicklingInRecords
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
+    private string _completeDateFrom = string.Empty;
+    private string _completeDateTo = string.Empty;
 
     private string sortColumn = "createdtime";
     private bool sortDescending = true;
@@ -317,6 +319,8 @@ public partial class PicklingInRecords
                 isDescending: sortDescending,
                 inDateFrom: DateTime.TryParse(_dateFrom, out var df) ? df : null,
                 inDateTo: DateTime.TryParse(_dateTo, out var dt) ? dt : null,
+                completeDateFrom: DateTime.TryParse(_completeDateFrom, out var cdf) ? cdf : null,
+                completeDateTo: DateTime.TryParse(_completeDateTo, out var cdt) ? cdt : null,
                 filters: filtersJson);
 
             if (result.Success && result.Data != null)
@@ -477,6 +481,20 @@ public partial class PicklingInRecords
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnCompleteDateFromChanged(string value)
+    {
+        _completeDateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnCompleteDateToChanged(string value)
+    {
+        _completeDateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 列显示管理 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -543,6 +561,10 @@ public partial class PicklingInRecords
                 _dateFrom = dateFrom ?? string.Empty;
             if (savedState.Extras?.TryGetValue("dateTo", out var dateTo) == true)
                 _dateTo = dateTo ?? string.Empty;
+            if (savedState.Extras?.TryGetValue("completeDateFrom", out var completeDateFrom) == true)
+                _completeDateFrom = completeDateFrom ?? string.Empty;
+            if (savedState.Extras?.TryGetValue("completeDateTo", out var completeDateTo) == true)
+                _completeDateTo = completeDateTo ?? string.Empty;
         }
 
         // 状态恢复后重新加载表格数据
@@ -792,6 +814,8 @@ public partial class PicklingInRecords
             IsDescending = sortDescending,
             InDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
             InDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
+            CompleteDateFrom = DateTime.TryParse(_completeDateFrom, out var cdf) ? cdf : null,
+            CompleteDateTo = DateTime.TryParse(_completeDateTo, out var cdt) ? cdt : null,
             Columns = columns
         };
         var apiUrl = $"{Http.BaseAddress}api/pickling/print-all-file";
@@ -918,6 +942,8 @@ public partial class PicklingInRecords
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         if (!string.IsNullOrEmpty(_dateFrom)) extras["dateFrom"] = _dateFrom;
         if (!string.IsNullOrEmpty(_dateTo)) extras["dateTo"] = _dateTo;
+        if (!string.IsNullOrEmpty(_completeDateFrom)) extras["completeDateFrom"] = _completeDateFrom;
+        if (!string.IsNullOrEmpty(_completeDateTo)) extras["completeDateTo"] = _completeDateTo;
 
         await PageState.SaveAsync("picklinginrecords", new PageState
         {

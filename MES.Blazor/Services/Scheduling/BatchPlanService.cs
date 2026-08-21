@@ -64,6 +64,32 @@ public class BatchPlanService
         }
     }
 
+    public async Task<List<BatchPlanMonthlySummaryRowDto>> GetMonthlySummaryAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<BatchPlanMonthlySummaryRowDto>>>($"{BaseUrl}/monthly-summary");
+            return response?.Data ?? new List<BatchPlanMonthlySummaryRowDto>();
+        }
+        catch
+        {
+            return new List<BatchPlanMonthlySummaryRowDto>();
+        }
+    }
+
+    public async Task<BatchPlanOutsourcePendingDto?> GetOutsourcePendingAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<BatchPlanOutsourcePendingDto>>($"{BaseUrl}/outsource-pending");
+            return response?.Data;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<List<BatchPlanDto>> GetAllAsync(string? sectionTab)
     {
         try

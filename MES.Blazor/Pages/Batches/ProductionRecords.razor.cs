@@ -9,6 +9,7 @@ using MES.Blazor.Services;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
 using System.Text.Json;
@@ -57,6 +58,15 @@ public partial class ProductionRecords
 
     // ========== 分页汇总 ==========
     private Dictionary<string, string> _pageSums = new();
+
+    // ========== 产量统计（近日/月度生产量数据，折叠卡片，口径与批次计划页一致） ==========
+    private bool _showRecentSummaryCard;
+    private bool _showMonthlySummaryCard;
+    private List<BatchPlanSummaryRowDto> _recentSummaryRows = new();
+    private List<BatchPlanMonthlySummaryRowDto> _monthlySummaryRows = new();
+    private List<string> _monthlyLabels = new();
+    private bool _isLoadingRecentSummary;
+    private bool _isLoadingMonthlySummary;
 
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
@@ -580,6 +590,103 @@ public partial class ProductionRecords
 
         // 加载筛选上下文（ExcelFilter 下拉选项），完成后由表格触发首次数据加载
         await LoadFilterContextsAsync();
+    }
+
+    // ========== 产量统计加载/打印 ==========
+
+    /// <summary>切换「近日生产量数据」折叠卡片（首次展开时懒加载）</summary>
+    private async Task ToggleRecentSummaryCard()
+    {
+        _showRecentSummaryCard = !_showRecentSummaryCard;
+        if (_showRecentSummaryCard && _recentSummaryRows.Count == 0)
+            await LoadRecentSummaryAsync();
+    }
+
+    /// <summary>切换「月度生产量数据」折叠卡片（首次展开时懒加载）</summary>
+    private async Task ToggleMonthlySummaryCard()
+    {
+        _showMonthlySummaryCard = !_showMonthlySummaryCard;
+        if (_showMonthlySummaryCard && _monthlySummaryRows.Count == 0)
+            await LoadMonthlySummaryAsync();
+    }
+
+    private async Task LoadRecentSummaryAsync()
+    {
+        try
+        {
+            _isLoadingRecentSummary = true;
+            StateHasChanged();
+            _recentSummaryRows = await BatchPlanSvc.GetSummaryAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"近日生产量加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingRecentSummary = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMonthlySummaryAsync()
+    {
+        try
+        {
+            _isLoadingMonthlySummary = true;
+            StateHasChanged();
+            _monthlySummaryRows = await BatchPlanSvc.GetMonthlySummaryAsync();
+            _monthlyLabels = Enumerable.Range(1, 12)
+                .Select(m => new DateTime(DateTime.Today.Year, m, 1).ToString("yyyy-MM"))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"月度生产量加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingMonthlySummary = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>重量(t) 格式化：kg /1000 显示 t（保留 1 位），0 值留空（防视觉污染）</summary>
+    private static string FormatT(decimal kg)
+        => kg > 0 ? (kg / 1000m).ToString("F1") : string.Empty;
+
+    /// <summary>打印「近日生产量数据」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
+    private async Task PrintRecentSummaryTable()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#production-records-recent-summary-table");
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, "近日生产量数据");
+            else
+                Snackbar.Add("未找到可打印的近日生产量表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>打印「月度生产量数据」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
+    private async Task PrintMonthlySummaryTable()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#production-records-monthly-summary-table");
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, "月度生产量数据");
+            else
+                Snackbar.Add("未找到可打印的月度生产量表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

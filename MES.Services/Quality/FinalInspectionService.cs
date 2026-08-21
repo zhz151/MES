@@ -1439,6 +1439,121 @@ public class FinalInspectionService : IFinalInspectionService
     }
 
     /// <summary>
+    /// 近日成检量汇总（实时查询）：全库成品检验记录按「检验项目」统计前6日/前3日（均不含今日）/今日（实时）检验重量(kg，前端 /1000 显示 t)。
+    /// 行 = 9 个检验项目（InspectionItem 枚举）+ 合计行。
+    /// 统计口径：每条成品检验记录按其检验重量 Weight 计入所属检验项目；预成检/正式成检合并统计；
+    /// 前3日 = [今天−3, 今天)、前6日 = [今天−6, 今天)（均不含今日，今日单独实时统计）。
+    /// 整行全 0 的检验项目默认隐藏（防视觉污染），合计行始终保留。
+    /// </summary>
+    public async Task<List<FinalInspectionSummaryRowDto>> GetRecentSummaryAsync()
+    {
+        var today = DateTime.Today;
+        var start = today.AddDays(-6);
+        var end = today.AddDays(1);
+
+        // ===== 1. 加载 [今天−6, 今天+1) 窗口内成品检验记录（投影仅取归行所需列） =====
+        var inspections = await _context.Set<FinalInspection>()
+            .Where(f => f.InspectionDate >= start && f.InspectionDate < end)
+            .Select(f => new { f.InspectionDate, f.InspectionItem, f.Weight })
+            .ToListAsync();
+
+        // ===== 2. 初始化行（9 个检验项目枚举序 + 合计） =====
+        var rows = Enum.GetValues<InspectionItem>()
+            .Select(i => new FinalInspectionSummaryRowDto { InspectionItem = EnumHelper.GetDisplayName(i) })
+            .ToList();
+        var rowByItem = rows.ToDictionary(r => r.InspectionItem, StringComparer.OrdinalIgnoreCase);
+        var totalRow = new FinalInspectionSummaryRowDto { InspectionItem = "合计" };
+        rows.Add(totalRow);
+
+        // 按日期窗口累加：今日=实时（date>=today）；前3日=[今天−3,今天)、前6日=[今天−6,今天)（均不含今日）
+        void Accumulate(FinalInspectionSummaryRowDto row, DateTime date, decimal weight)
+        {
+            if (date >= today) row.TodayWeight += weight;
+            if (date >= today.AddDays(-3) && date < today) row.Last3DaysWeight += weight;
+            if (date >= today.AddDays(-6) && date < today) row.Last7DaysWeight += weight;
+        }
+
+        void Add(FinalInspectionSummaryRowDto row, DateTime date, decimal weight)
+        {
+            if (weight <= 0) return;
+            Accumulate(row, date, weight);
+            Accumulate(totalRow, date, weight);
+        }
+
+        // ===== 3. 归行：每条记录按检验项目计入其检验重量 =====
+        foreach (var f in inspections)
+        {
+            var itemName = EnumHelper.GetDisplayName(f.InspectionItem);
+            if (rowByItem.TryGetValue(itemName, out var row)) Add(row, f.InspectionDate, f.Weight ?? 0m);
+        }
+
+        // 整行全 0 的检验项目默认隐藏（防视觉污染），合计行始终保留
+        rows.RemoveAll(r => r.InspectionItem != "合计"
+            && r.Last7DaysWeight <= 0 && r.Last3DaysWeight <= 0 && r.TodayWeight <= 0);
+
+        return rows;
+    }
+
+    /// <summary>
+    /// 月度成检量汇总（实时查询）：全库成品检验记录按「检验项目」统计本年 1月~12月各月检验重量(kg，前端 /1000 显示 t)。
+    /// 行 = 9 个检验项目（InspectionItem 枚举）+ 合计行，列 = MonthlyWeights 索引 0=1月…11=12月。
+    /// 统计口径与 GetRecentSummaryAsync 一致（每条记录按检验重量 Weight 计入所属检验项目，预成检/正式成检合并），
+    /// 仅日期窗口改为 [本年1月1日, 次年1月1日)。
+    /// 整行全 0 的检验项目默认隐藏（防视觉污染），合计行始终保留。
+    /// </summary>
+    public async Task<List<FinalInspectionMonthlySummaryRowDto>> GetMonthlySummaryAsync()
+    {
+        var year = DateTime.Today.Year;
+        var start = new DateTime(year, 1, 1);
+        var end = start.AddYears(1);
+
+        // ===== 1. 加载 [本年1月1日, 次年1月1日) 窗口内成品检验记录 =====
+        var inspections = await _context.Set<FinalInspection>()
+            .Where(f => f.InspectionDate >= start && f.InspectionDate < end)
+            .Select(f => new { f.InspectionDate, f.InspectionItem, f.Weight })
+            .ToListAsync();
+
+        // ===== 2. 初始化行（9 个检验项目枚举序 + 合计），各月索引 0=1月…11=12月 =====
+        var rows = Enum.GetValues<InspectionItem>()
+            .Select(i => new FinalInspectionMonthlySummaryRowDto
+            {
+                InspectionItem = EnumHelper.GetDisplayName(i),
+                MonthlyWeights = Enumerable.Repeat(0m, 12).ToList(),
+            })
+            .ToList();
+        var rowByItem = rows.ToDictionary(r => r.InspectionItem, StringComparer.OrdinalIgnoreCase);
+        var totalRow = new FinalInspectionMonthlySummaryRowDto
+        {
+            InspectionItem = "合计",
+            MonthlyWeights = Enumerable.Repeat(0m, 12).ToList(),
+        };
+        rows.Add(totalRow);
+
+        // 按月份索引累加（index = date.Month - 1）
+        void Accumulate(FinalInspectionMonthlySummaryRowDto row, DateTime date, decimal weight)
+            => row.MonthlyWeights[date.Month - 1] += weight;
+
+        void Add(FinalInspectionMonthlySummaryRowDto row, DateTime date, decimal weight)
+        {
+            if (weight <= 0) return;
+            Accumulate(row, date, weight);
+            Accumulate(totalRow, date, weight);
+        }
+
+        // ===== 3. 归行：每条记录按检验项目计入其检验重量 =====
+        foreach (var f in inspections)
+        {
+            var itemName = EnumHelper.GetDisplayName(f.InspectionItem);
+            if (rowByItem.TryGetValue(itemName, out var row)) Add(row, f.InspectionDate, f.Weight ?? 0m);
+        }
+
+        // 整行全 0 的检验项目默认隐藏（防视觉污染），合计行始终保留
+        rows.RemoveAll(r => r.InspectionItem != "合计" && r.MonthlyWeights.All(m => m <= 0));
+
+        return rows;
+    }
+
+    /// <summary>
     /// 回填全部成品检验记录的定尺切割长度匹配标识（CutLengthMatchType）
     /// 仅正式成检记录计算；预成检/非定尺/无定尺长度一律置 null（显示空白）
     /// </summary>

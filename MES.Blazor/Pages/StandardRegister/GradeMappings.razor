@@ -43,7 +43,7 @@
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 标准牌号/工厂牌号/热处理工艺/特殊材料"
-                                  Value="_searchKeyword"
+                                  Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"

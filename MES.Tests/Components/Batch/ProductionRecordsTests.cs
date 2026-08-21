@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Blazor.Pages.Batches;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Scheduling;
 
 namespace MES.Tests.Components;
 
@@ -11,8 +12,17 @@ public class ProductionRecordsTests : TestBase
 {
     public ProductionRecordsTests()
     {
-        RegisterServices(typeof(ProductionRecordService));
+        RegisterServices(typeof(ProductionRecordService), typeof(BatchPlanService));
         ConfigureEmptyResponse("/api/production-record/all/records");
+        // 月度/近日生产量汇总（BatchPlanSvc）——返回空列表，避免渲染时 NRE
+        ConfigureResponse("/api/batch-plan/summary", new ApiResponse<List<BatchPlanSummaryRowDto>>
+        {
+            Success = true, Code = 200, Data = new List<BatchPlanSummaryRowDto>()
+        });
+        ConfigureResponse("/api/batch-plan/monthly-summary", new ApiResponse<List<BatchPlanMonthlySummaryRowDto>>
+        {
+            Success = true, Code = 200, Data = new List<BatchPlanMonthlySummaryRowDto>()
+        });
     }
 
     [Fact]

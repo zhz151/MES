@@ -35,7 +35,7 @@
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
                                   Label="搜索 - 用户名/邮箱/姓名"
-                                  Value="_searchKeyword"
+                                  Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"

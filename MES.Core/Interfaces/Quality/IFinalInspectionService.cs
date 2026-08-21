@@ -57,6 +57,16 @@ public interface IFinalInspectionService
     Task<FinalInspectionHealthSummaryDto> GetFinalInspectionHealthSummaryAsync(QueryParams query);
 
     /// <summary>
+    /// 近日成检量汇总（按检验项目统计前6日/前3日/今日检验重量）
+    /// </summary>
+    Task<List<FinalInspectionSummaryRowDto>> GetRecentSummaryAsync();
+
+    /// <summary>
+    /// 月度成检量汇总（按检验项目统计本年 1月~12月各月检验重量）
+    /// </summary>
+    Task<List<FinalInspectionMonthlySummaryRowDto>> GetMonthlySummaryAsync();
+
+    /// <summary>
     /// 回填全部成品检验记录的定尺切割长度匹配标识（CutLengthMatchType），返回更新条数
     /// </summary>
     Task<int> RefreshAllCutLengthMatchAsync();

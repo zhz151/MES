@@ -70,6 +70,85 @@ public class BatchPlanService : IBatchPlanService
         ProcessKeys.ThreeRollColdRoll, ProcessKeys.ColdDraw
     };
 
+    // 近日生产量数据工段 Tab 规范序索引（列排序用：实时委外在产列按此序展示，未知 Tab 放末尾）
+    private static readonly Dictionary<string, int> _sectionTabIndex =
+        BatchPlanSectionTabs.All
+            .Select((t, i) => (t, i))
+            .ToDictionary(x => x.t, x => x.i, StringComparer.Ordinal);
+
+    // 冷轧拔分化工序（显示序）：90 冷轧暂未启用（ProcessKeys 未收录，按字符串 ColdRoll90/90冷轧 兜底匹配），
+    // 其余对应 ProcessKeys 冷轧/冷拔类（60/50/30/20/三辊/冷拔）。
+    // ⚠️ 必须声明在 _summaryAllSectionTabs 之前：静态字段初始化按文本顺序执行，BuildSummaryAllSectionTabs 依赖它。
+    private static readonly string[] _coldRollDrawSplitProcesses = new[]
+    {
+        "90冷轧", "60冷轧", "50冷轧", "30冷轧", "20冷轧", "三辊冷轧", "冷拔"
+    };
+
+    // 近日/月度生产量数据全工段汇总行集合：SectionDefs 全部 26 个工段中文（内抛+内修磨合并为一行），
+    // 其中冷轧拔工段按所在工序组分化为多行（含暂未启用的 90 冷轧）+ 检验-荒管/检验-在制。
+    // 与 BatchPlanSectionTabs（工段筛选 Tab，17 项）解耦：汇总按全工段归行（修复冷轧按工序聚合导致的
+    // 「50冷轧 3 月偏大 / 油管断恒空」），筛选 Tab 保持原状。行序 = SectionDefs.All 顺序（冷轧拔位置展开分化行）+ 检验-荒管/检验-在制末尾。
+    private static readonly string[] _summaryAllSectionTabs = BuildSummaryAllSectionTabs();
+
+    private static string[] BuildSummaryAllSectionTabs()
+    {
+        var tabs = new List<string>(SectionDefs.All.Length + 10);
+        foreach (var cn in SectionDefs.All)
+        {
+            if (cn == SectionDefs.ColdRollDraw)
+            {
+                foreach (var p in _coldRollDrawSplitProcesses)
+                    tabs.Add("冷轧拔-" + p);
+                continue;
+            }
+            if (cn == SectionDefs.InnerGrinding) continue;   // 与内抛合并为「内抛+内修磨」
+            tabs.Add(cn == SectionDefs.InnerPolish ? "内抛+内修磨" : cn);
+        }
+        tabs.Add("检验-荒管");
+        tabs.Add("检验-在制");
+        return tabs.ToArray();
+    }
+
+    /// <summary>
+    /// 批次/记录 (工序, 工段) → 近日生产量数据工段 Tab：
+    /// 冷轧类按工序分化（60冷轧…冷拔）、普通按工段 Key（内抛+内修磨合并）、无对应 Tab 返回 null。
+    /// </summary>
+    private static string? ResolveSummaryTabName(string? processName, string? sectionName)
+    {
+        var pKey = ProcessKeys.ToKey(processName);
+        if (pKey != null && ProcessKeys.IsColdRollOrColdDraw(pKey))
+            return ProcessKeys.ToChinese(pKey);
+        var sKey = SectionKeys.ToKey(sectionName);
+        if (sKey == null) return null;
+        return sKey is SectionKeys.InnerPolish or SectionKeys.InnerGrinding
+            ? "内抛+内修磨"
+            : SectionKeys.ToChinese(sKey) ?? sKey;
+    }
+
+    /// <summary>
+    /// 全工段汇总归行：一般工段按工段 Key 归行（内抛/内修磨合并为「内抛+内修磨」）；
+    /// 冷轧拔工段按所在工序组分化为「冷轧拔-&lt;工序&gt;」行（含暂未启用的 90 冷轧），非冷轧/冷拔工序的冷轧拔记录丢弃。
+    /// 供近日/月度生产量汇总（GetSummaryAsync/GetMonthlySummaryAsync）使用；无对应行返回 null。
+    /// 注意：GetOutsourcePendingAsync（实时委外在产）仍用 ResolveSummaryTabName（按工序分化列序），勿改。
+    /// </summary>
+    private static string? ResolveAllSectionTabName(string? processName, string? sectionName)
+    {
+        var sKey = SectionKeys.ToKey(sectionName);
+        if (sKey == null) return null;
+        if (sKey == SectionKeys.ColdRollDraw)
+        {
+            // 冷轧拔 → 按工序分化；90 冷轧暂未收录 ProcessKeys，ColdRoll90/90冷轧 均归一为「90冷轧」
+            var display = ProcessKeys.ToChinese(processName);
+            if (processName == "ColdRoll90") display = "90冷轧";
+            return display != null && _coldRollDrawSplitProcesses.Contains(display, StringComparer.Ordinal)
+                ? "冷轧拔-" + display
+                : null;
+        }
+        return sKey is SectionKeys.InnerPolish or SectionKeys.InnerGrinding
+            ? "内抛+内修磨"
+            : SectionKeys.ToChinese(sKey) ?? sKey;
+    }
+
     /// <summary>调度工段 Tab 归一：中文 Tab 名 → 稳定 Key（工序优先，工段次之）；检验类/内抛+内修磨特殊 Tab 名保持中文。</summary>
     private static string? NormalizeSectionTab(string? sectionTab)
     {
@@ -587,108 +666,298 @@ public class BatchPlanService : IBatchPlanService
     }
 
     /// <summary>
-    /// 跨工段汇总（实时查询）：一次全量加载，按工段 Tab 逐工段归桶统计（内存过滤，口径与 GetAllAsync(sectionTab) 完全一致），末尾追加"合计"行。
+    /// 近日生产量汇总（实时查询）：全库跨批次按工段统计前6日/前3日（均不含今日）/今日（实时）产量重量(kg，前端 /1000 显示 t)。
+    /// 行 = 全部 26 个工段（SectionDefs，内抛+内修磨合并为一行），冷轧拔按所在工序组分化为「冷轧拔-&lt;工序&gt;」行（含 90 冷轧），
+    /// + 检验-荒管/检验-在制 + 合计行。
+    /// 统计口径：一般工段 = 生产记录（ExecDate）+ 委外回收量（RecoveryDate）；去油/酸洗 = 完工记录（CompleteDate）+ 委外回收量（不含生产记录）；
+    /// 荒管检/在制检 = 过程检验检验重量（InspectionDate，按产类区分）；委外回收仅回收量（不含未加工量）；
+    /// 前3日 = [今天−3, 今天)、前6日 = [今天−6, 今天)（均不含今日，今日单独实时统计）。
     /// </summary>
     public async Task<List<BatchPlanSummaryRowDto>> GetSummaryAsync()
     {
-        var allItems = await GetAllAsync(null);
-        if (allItems.Count == 0)
+        var today = DateTime.Today;
+        var start = today.AddDays(-6);
+        var end = today.AddDays(1);
+
+        // ===== 1. 加载 [今天−6, 今天+1) 窗口内的四类产量数据（投影仅取归行所需列） =====
+        var records = await _context.Set<ProductionRecord>()
+            .Where(r => r.ExecDate >= start && r.ExecDate < end)
+            .Select(r => new { r.ExecDate, r.ProcessName, r.SectionName, r.Weight })
+            .ToListAsync();
+
+        var recoveries = await _context.Set<OutsourceRecovery>()
+            .Where(o => o.RecoveryDate >= start && o.RecoveryDate < end)
+            .Select(o => new
+            {
+                o.RecoveryDate,
+                o.RecoveryWeight,
+                SectionName = o.SectionOutsource.SectionName,
+                ProcessName = o.SectionOutsource.ProcessName,
+            })
+            .ToListAsync();
+
+        var picklingOuts = await _context.Set<PicklingOutRecord>()
+            .Where(p => p.CompleteDate >= start && p.CompleteDate < end)
+            .Select(p => new { p.CompleteDate, p.SectionName, p.Weight })
+            .ToListAsync();
+
+        var inspections = await _context.Set<ProcessInspection>()
+            .Where(p => p.InspectionDate >= start && p.InspectionDate < end)
+            .Select(p => new { p.InspectionDate, p.Weight, p.ProductStatus })
+            .ToListAsync();
+
+        // ===== 2. 初始化行（全工段 26 工段 + 荒管检/在制检 + 合计） =====
+        var rows = _summaryAllSectionTabs
+            .Select(t => new BatchPlanSummaryRowDto { SectionName = t })
+            .ToList();
+        var rowByTab = rows.ToDictionary(r => r.SectionName, StringComparer.OrdinalIgnoreCase);
+        var totalRow = new BatchPlanSummaryRowDto { SectionName = "合计" };
+        rows.Add(totalRow);
+
+        // 按日期窗口累加：今日=实时（date>=today）；前3日=[今天−3,今天)、前6日=[今天−6,今天)（均不含今日）
+        void Accumulate(BatchPlanSummaryRowDto row, DateTime date, decimal weight)
         {
-            return new List<BatchPlanSummaryRowDto> { BuildSummaryRow("合计", allItems) };
+            if (date >= today) row.TodayWeight += weight;
+            if (date >= today.AddDays(-3) && date < today) row.Last3DaysWeight += weight;
+            if (date >= today.AddDays(-6) && date < today) row.Last7DaysWeight += weight;
         }
 
-        // 检验类 Tab 需按产类（荒管/在制/成品）判定（与 GetAllAsync 检验类分支一致），加载 ProcessGroups
-        var batchIds = allItems.Select(i => i.BatchId).Distinct().ToList();
-        var pgLookup = (await _context.Set<ProcessGroup>()
-                .AsNoTracking()
-                .Where(pg => batchIds.Contains(pg.ProductionBatchId))
-                .ToListAsync())
-            .GroupBy(pg => pg.ProductionBatchId)
-            .ToDictionary(g => g.Key, g => g.ToList());
-
-        var rows = new List<BatchPlanSummaryRowDto>();
-        foreach (var tab in BatchPlanSectionTabs.All)
+        // 归行：按工段 Key 归行（冷轧拔按工序分化，ResolveAllSectionTabName）；不在行集合中的工段丢弃
+        BatchPlanSummaryRowDto? ResolveRow(string? processName, string? sectionName)
         {
-            var filtered = allItems.Where(x => SectionTabMatches(x, tab, pgLookup)).ToList();
-            rows.Add(BuildSummaryRow(tab, filtered));
+            var tab = ResolveAllSectionTabName(processName, sectionName);
+            return tab != null && rowByTab.TryGetValue(tab, out var r) ? r : null;
         }
-        rows.Add(BuildSummaryRow("合计", allItems));
+
+        void Add(BatchPlanSummaryRowDto row, DateTime date, decimal weight)
+        {
+            if (weight <= 0) return;
+            Accumulate(row, date, weight);
+            Accumulate(totalRow, date, weight);
+        }
+
+        // ===== 3. 生产记录（去油/酸洗/检验工段不在此统计：去油酸洗走完工记录、检验走过程检验） =====
+        foreach (var r in records)
+        {
+            var sKey = SectionKeys.ToKey(r.SectionName);
+            if (sKey is SectionKeys.Degrease or SectionKeys.Pickle or SectionKeys.Inspection) continue;
+            var row = ResolveRow(r.ProcessName, r.SectionName);
+            if (row != null) Add(row, r.ExecDate, r.Weight ?? 0m);
+        }
+
+        // ===== 4. 委外回收（仅回收量；按工段归行，冷轧委外归冷轧拔行） =====
+        foreach (var o in recoveries)
+        {
+            var row = ResolveRow(o.ProcessName, o.SectionName);
+            if (row != null) Add(row, o.RecoveryDate, o.RecoveryWeight ?? 0m);
+        }
+
+        // ===== 5. 去油/酸洗完工记录（仅归去油/酸洗两行） =====
+        foreach (var p in picklingOuts)
+        {
+            var sKey = SectionKeys.ToKey(p.SectionName);
+            var tab = sKey == SectionKeys.Degrease ? "去油" : sKey == SectionKeys.Pickle ? "酸洗" : null;
+            if (tab != null && rowByTab.TryGetValue(tab, out var row)) Add(row, p.CompleteDate, p.Weight ?? 0m);
+        }
+
+        // ===== 6. 过程检验（荒管检/在制检按产类区分） =====
+        foreach (var i in inspections)
+        {
+            var status = ProductStatuses.ToKey(i.ProductStatus);
+            var tab = status == ProductStatuses.RoughTube ? "检验-荒管" : status == ProductStatuses.InProgress ? "检验-在制" : null;
+            if (tab != null && rowByTab.TryGetValue(tab, out var row)) Add(row, i.InspectionDate, i.Weight ?? 0m);
+        }
+
+        // 整行全 0 的工段行默认隐藏（防视觉污染），合计行始终保留
+        rows.RemoveAll(r => r.SectionName != "合计"
+            && r.Last7DaysWeight <= 0 && r.Last3DaysWeight <= 0 && r.TodayWeight <= 0);
+
         return rows;
     }
 
     /// <summary>
-    /// 工段 Tab 内存过滤谓词（复刻 GetAllAsync 的 IQueryable 过滤逻辑，保证汇总口径与列表工段筛选完全一致）：
-    /// 冷轧类（工序 Key 命中）→ 工序名包含 + 当前/下一工段为冷拔；检验类（荒管检/在制检）→ 工段=检验 + 按产类区分；
-    /// 其余 → 待在产执行工段精确匹配英文 Key / 兼容存量中文。
+    /// 月度生产量汇总（实时查询）：全库跨批次按工段统计本年 1月~12月各月产量重量(kg，前端 /1000 显示 t)。
+    /// 行 = 全部 26 个工段（SectionDefs，内抛+内修磨合并为一行），冷轧拔按所在工序组分化为「冷轧拔-&lt;工序&gt;」行（含 90 冷轧），
+    /// + 检验-荒管/检验-在制 + 合计行，列 = MonthlyWeights 索引 0=1月…11=12月。
+    /// 统计口径与 GetSummaryAsync 一致（一般工段 = 生产记录 + 委外回收量；去油/酸洗 = 完工记录 + 委外回收量；
+    /// 荒管检/在制检 = 过程检验），仅日期窗口改为 [本年1月1日, 次年1月1日)。
     /// </summary>
-    private static bool SectionTabMatches(BatchPlanDto item, string sectionTab, Dictionary<int, List<ProcessGroup>> pgLookup)
+    public async Task<List<BatchPlanMonthlySummaryRowDto>> GetMonthlySummaryAsync()
     {
-        var norm = NormalizeSectionTab(sectionTab) ?? sectionTab;
+        var year = DateTime.Today.Year;
+        var start = new DateTime(year, 1, 1);
+        var end = start.AddYears(1);
 
-        // 冷轧类 Tab：工序 Key 命中 → 需工序名包含 + 当前/下一工段为冷拔
-        if (_coldRollTabs.Contains(norm))
+        // ===== 1. 加载 [本年1月1日, 次年1月1日) 窗口内的四类产量数据（投影仅取归行所需列） =====
+        var records = await _context.Set<ProductionRecord>()
+            .Where(r => r.ExecDate >= start && r.ExecDate < end)
+            .Select(r => new { r.ExecDate, r.ProcessName, r.SectionName, r.Weight })
+            .ToListAsync();
+
+        var recoveries = await _context.Set<OutsourceRecovery>()
+            .Where(o => o.RecoveryDate >= start && o.RecoveryDate < end)
+            .Select(o => new
+            {
+                o.RecoveryDate,
+                o.RecoveryWeight,
+                SectionName = o.SectionOutsource.SectionName,
+                ProcessName = o.SectionOutsource.ProcessName,
+            })
+            .ToListAsync();
+
+        var picklingOuts = await _context.Set<PicklingOutRecord>()
+            .Where(p => p.CompleteDate >= start && p.CompleteDate < end)
+            .Select(p => new { p.CompleteDate, p.SectionName, p.Weight })
+            .ToListAsync();
+
+        var inspections = await _context.Set<ProcessInspection>()
+            .Where(p => p.InspectionDate >= start && p.InspectionDate < end)
+            .Select(p => new { p.InspectionDate, p.Weight, p.ProductStatus })
+            .ToListAsync();
+
+        // ===== 2. 初始化行（全工段 26 工段 + 荒管检/在制检 + 合计），各月索引 0=1月…11=12月 =====
+        var rows = _summaryAllSectionTabs
+            .Select(t => new BatchPlanMonthlySummaryRowDto { SectionName = t, MonthlyWeights = Enumerable.Repeat(0m, 12).ToList() })
+            .ToList();
+        var rowByTab = rows.ToDictionary(r => r.SectionName, StringComparer.OrdinalIgnoreCase);
+        var totalRow = new BatchPlanMonthlySummaryRowDto { SectionName = "合计", MonthlyWeights = Enumerable.Repeat(0m, 12).ToList() };
+        rows.Add(totalRow);
+
+        // 按月份索引累加（index = date.Month - 1）
+        void Accumulate(BatchPlanMonthlySummaryRowDto row, DateTime date, decimal weight)
+            => row.MonthlyWeights[date.Month - 1] += weight;
+
+        // 归行：按工段 Key 归行（冷轧拔按工序分化，ResolveAllSectionTabName）；不在行集合中的工段丢弃
+        BatchPlanMonthlySummaryRowDto? ResolveRow(string? processName, string? sectionName)
         {
-            return (item.CurrentSectionCompleted == false &&
-                    item.CurrentGroupName != null && item.CurrentGroupName.Contains(norm) &&
-                    item.CurrentSectionName == SectionKeys.ColdRollDraw) ||
-                   (item.CurrentSectionCompleted != false &&
-                    item.NextProcess != null && item.NextProcess.Contains(norm) &&
-                    item.NextSectionName == SectionKeys.ColdRollDraw);
+            var tab = ResolveAllSectionTabName(processName, sectionName);
+            return tab != null && rowByTab.TryGetValue(tab, out var r) ? r : null;
         }
 
-        // 检验类 Tab：工段=检验（无论最大/非最大工序），再按产类（荒管/在制）区分
-        if (norm == "荒管检" || norm == "在制检")
+        void Add(BatchPlanMonthlySummaryRowDto row, DateTime date, decimal weight)
         {
-            var inInspection =
-                (item.CurrentSectionCompleted == false && item.CurrentSectionName == SectionKeys.Inspection) ||
-                (item.CurrentSectionCompleted != false && item.NextSectionName == SectionKeys.Inspection && item.NextProcess != null);
-            if (!inInspection) return false;
-
-            var expectedStatus = norm == "荒管检" ? ProductStatuses.RoughTube : ProductStatuses.InProgress;
-            return pgLookup.TryGetValue(item.BatchId, out var statusPgs) && statusPgs.Count > 0 &&
-                   ComputePendingProductStatus(item.PendingProcess, item.ManufacturingItem, statusPgs, item.Specification) == expectedStatus;
+            if (weight <= 0) return;
+            Accumulate(row, date, weight);
+            Accumulate(totalRow, date, weight);
         }
 
-        // 内抛+内修磨 Tab：两工段任一命中（当前/下一工段皆可）
-        if (norm == "内抛+内修磨")
+        // ===== 3. 生产记录（去油/酸洗/检验工段不在此统计：去油酸洗走完工记录、检验走过程检验） =====
+        foreach (var r in records)
         {
-            return (item.CurrentSectionCompleted == false &&
-                    (item.CurrentSectionName == SectionKeys.InnerPolish || item.CurrentSectionName == SectionKeys.InnerGrinding)) ||
-                   (item.CurrentSectionCompleted != false &&
-                    (item.NextSectionName == SectionKeys.InnerPolish || item.NextSectionName == SectionKeys.InnerGrinding));
+            var sKey = SectionKeys.ToKey(r.SectionName);
+            if (sKey is SectionKeys.Degrease or SectionKeys.Pickle or SectionKeys.Inspection) continue;
+            var row = ResolveRow(r.ProcessName, r.SectionName);
+            if (row != null) Add(row, r.ExecDate, r.Weight ?? 0m);
         }
 
-        // 其它：待在产执行工段=Tab名（精确匹配英文 Key / 兼容存量中文，避免 "断切"→"Cut" 子串误匹配 "OilPipeCut"）
-        var tabKey = norm;
-        var tabCn = SectionKeys.ToChinese(norm);
-        return (item.CurrentSectionCompleted == false && item.CurrentSectionName != null &&
-                (item.CurrentSectionName == tabKey || item.CurrentSectionName == tabCn)) ||
-               (item.CurrentSectionCompleted != false && item.NextSectionName != null &&
-                (item.NextSectionName == tabKey || item.NextSectionName == tabCn));
+        // ===== 4. 委外回收（仅回收量；按工段归行，冷轧委外归冷轧拔行） =====
+        foreach (var o in recoveries)
+        {
+            var row = ResolveRow(o.ProcessName, o.SectionName);
+            if (row != null) Add(row, o.RecoveryDate, o.RecoveryWeight ?? 0m);
+        }
+
+        // ===== 5. 去油/酸洗完工记录（仅归去油/酸洗两行） =====
+        foreach (var p in picklingOuts)
+        {
+            var sKey = SectionKeys.ToKey(p.SectionName);
+            var tab = sKey == SectionKeys.Degrease ? "去油" : sKey == SectionKeys.Pickle ? "酸洗" : null;
+            if (tab != null && rowByTab.TryGetValue(tab, out var row)) Add(row, p.CompleteDate, p.Weight ?? 0m);
+        }
+
+        // ===== 6. 过程检验（荒管检/在制检按产类区分） =====
+        foreach (var i in inspections)
+        {
+            var status = ProductStatuses.ToKey(i.ProductStatus);
+            var tab = status == ProductStatuses.RoughTube ? "检验-荒管" : status == ProductStatuses.InProgress ? "检验-在制" : null;
+            if (tab != null && rowByTab.TryGetValue(tab, out var row)) Add(row, i.InspectionDate, i.Weight ?? 0m);
+        }
+
+        // 整行全 0 的工段行默认隐藏（防视觉污染），合计行始终保留
+        rows.RemoveAll(r => r.SectionName != "合计" && r.MonthlyWeights.All(m => m <= 0));
+
+        return rows;
     }
 
-    /// <summary>按工段 Tab 口径构建一行汇总（批次数/总重量/流转/重点/等级分布）</summary>
-    private static BatchPlanSummaryRowDto BuildSummaryRow(string sectionName, List<BatchPlanDto> items)
+    /// <summary>
+    /// 实时委外在产汇总（实时查询）：按「在产单位 × 工段」二维表统计批次有效投料重量(kg，前端 /1000 显示 t)。
+    /// 口径：状态为在产(BatchStatus.InProgress)/未产(BatchStatus.None) 且有当前委外单位（CurrentOutsource 非空）的批次，
+    /// 取有效投料重量（CurrentValidWeight），按（CurrentOutsource 在产单位, 当前工段 CurrentSectionName 归列）聚合。
+    /// 不依赖委外发出/回收（SectionOutsource/OutsourceRecovery）。
+    /// 每个单元格三值：总量 = 该格所有批次有效投料；流转 = 其中实时 IsFlow（批次计划流转=是）批次之和；
+    /// 特急 = 其中批次计划等级=急+（PlanFlowLevel 1，与批次计划页"特急批重量"口径一致）批次之和。
+    /// 行 = 在产单位（合计降序），末尾"合计"行（列合计+行合计）。
+    /// </summary>
+    public async Task<BatchPlanOutsourcePendingDto> GetOutsourcePendingAsync()
     {
-        var totalWeight = items.Sum(x => (decimal)(x.CurrentValidWeight ?? 0));
-        var flowBatches = items.Where(x => x.PlanIsFlow).ToList();
-        // 重点批次 = 批次计划等级 == 急+（PlanFlowLevel 1），与 G13 等级列口径一致
-        var keyBatches = items.Where(x => x.PlanFlowLevel == 1).ToList();
-        return new BatchPlanSummaryRowDto
+        // ===== 1. 复用 GetAllAsync 全量加载（含冷轧维度推导 IsFlow / 薄表 PlanFlowLevel），过滤有当前委外单位的批次 =====
+        var all = await GetAllAsync(null);
+        var batches = all.Where(x => !string.IsNullOrEmpty(x.CurrentOutsource)).ToList();
+
+        // ===== 2. 按（在产单位, 工段 Tab）聚合三值（总量/流转/特急） =====
+        var cells = new Dictionary<(string Unit, string Section), OutsourcePendingCellDto>();
+        foreach (var b in batches)
         {
-            SectionName = sectionName,
-            BatchCount = items.Count,
-            TotalWeight = totalWeight,
-            FlowBatchCount = flowBatches.Count,
-            FlowBatchWeight = flowBatches.Sum(x => (decimal)(x.CurrentValidWeight ?? 0)),
-            KeyBatchCount = keyBatches.Count,
-            KeyBatchWeight = keyBatches.Sum(x => (decimal)(x.CurrentValidWeight ?? 0)),
-            Level1Count = keyBatches.Count,
-            Level2Count = items.Count(x => x.PlanFlowLevel == 2),
-            Level3Count = items.Count(x => x.PlanFlowLevel == 3),
-            Level4Count = items.Count(x => x.PlanFlowLevel == 4),
-            Level5Count = items.Count(x => x.PlanFlowLevel == 5),
-        };
+            var tab = ResolveSummaryTabName(b.CurrentGroupName, b.CurrentSectionName);
+            if (tab == null || !_sectionTabIndex.ContainsKey(tab)) continue; // 无对应工段 Tab（如检验工段无委外）→ 丢弃
+            var weight = b.CurrentValidWeight ?? 0m;
+            if (weight <= 0) continue;
+            var key = (b.CurrentOutsource!, tab);
+            if (!cells.TryGetValue(key, out var cell))
+            {
+                cell = new OutsourcePendingCellDto();
+                cells[key] = cell;
+            }
+            cell.Total += weight;
+            if (b.IsFlow) cell.Flow += weight;
+            if (b.PlanFlowLevel == 1) cell.Key += weight;
+        }
+
+        // ===== 3. 列 = 有数据的工段（近日生产量数据工段 Tab 规范序，未知 Tab 放末尾） =====
+        var sections = cells.Keys.Select(c => c.Section)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(s => _sectionTabIndex.TryGetValue(s, out var idx) ? idx : int.MaxValue)
+            .ThenBy(s => s, StringComparer.Ordinal)
+            .ToList();
+
+        // ===== 4. 行 = 在产单位（合计降序），每行 TotalCell = 该行三值之和 =====
+        var rows = cells
+            .GroupBy(c => c.Key.Unit, StringComparer.Ordinal)
+            .Select(g =>
+            {
+                var row = new OutsourcePendingRowDto { OutsourceUnit = g.Key };
+                foreach (var kv in g)
+                    row.Cells[kv.Key.Section] = kv.Value;
+                row.TotalCell = new OutsourcePendingCellDto
+                {
+                    Total = g.Sum(kv => kv.Value.Total),
+                    Flow = g.Sum(kv => kv.Value.Flow),
+                    Key = g.Sum(kv => kv.Value.Key),
+                };
+                return row;
+            })
+            .OrderByDescending(r => r.TotalCell.Total)
+            .ThenBy(r => r.OutsourceUnit, StringComparer.Ordinal)
+            .ToList();
+
+        // ===== 5. "合计"行：每列三值合计 + 行合计（三值） =====
+        var totalRow = new OutsourcePendingRowDto { OutsourceUnit = "合计" };
+        foreach (var s in sections)
+        {
+            var cell = new OutsourcePendingCellDto
+            {
+                Total = rows.Sum(r => r.Cells.TryGetValue(s, out var c) ? c.Total : 0m),
+                Flow = rows.Sum(r => r.Cells.TryGetValue(s, out var c) ? c.Flow : 0m),
+                Key = rows.Sum(r => r.Cells.TryGetValue(s, out var c) ? c.Key : 0m),
+            };
+            totalRow.Cells[s] = cell;
+            totalRow.TotalCell.Total += cell.Total;
+            totalRow.TotalCell.Flow += cell.Flow;
+            totalRow.TotalCell.Key += cell.Key;
+        }
+        rows.Add(totalRow);
+
+        return new BatchPlanOutsourcePendingDto { Sections = sections, Rows = rows };
     }
 
     public static int? ComputeTargetSequence(List<ProcessGroup> pgs, string? flowTarget, string? flowCRType)

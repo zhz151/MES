@@ -22,7 +22,8 @@ public class WorkOrderScheduleServiceTests : TestBase
     private void SeedSummary(AppDbContext ctx, string workOrderNo, int workOrderId,
         int scheduleStage = 2,
         string? urgencyLevel = null,
-        string? productionFlowProperty = ProductionFlowKeys.Normal)
+        string? productionFlowProperty = ProductionFlowKeys.Normal,
+        string? mainNoAttentionProcess = null)
     {
         ctx.Set<WorkOrderExecutionSummary>().Add(new WorkOrderExecutionSummary
         {
@@ -47,6 +48,7 @@ public class WorkOrderScheduleServiceTests : TestBase
             ScheduleStage = scheduleStage,
             UrgencyLevel = urgencyLevel,
             ProductionFlowProperty = productionFlowProperty,
+            MainNoAttentionProcess = mainNoAttentionProcess,
             FlowOutputRatio = 85m,
             FlowStatus = 1,
         });
@@ -351,6 +353,111 @@ public class WorkOrderScheduleServiceTests : TestBase
 
         var plan = ctx.Set<WorkOrderPlan>().Single();
         plan.ScheduleStage.Should().Be(3); // 成品检验(4) → 排程 3，绝不再存 5 档值 4
+    }
+
+    // ==================== PlanScheduleKeepAdjustmentAsync 测试 ====================
+
+    [Fact]
+    public async Task PlanScheduleKeepAdjustmentAsync_进度调整工单_保留生产关注不覆盖()
+    {
+        using var ctx = CreateDbContext();
+        // 系统主号关注=荒管处理，生产执行档
+        SeedSummary(ctx, "WO001", 1, scheduleStage: 2, productionFlowProperty: ProductionFlowKeys.Normal,
+            mainNoAttentionProcess: ProcessKeys.RoughTubeProcessing);
+        // 已有计划：生产关注被人工调为 60冷轧（进度调整档），其余 3 对与系统一致（ScheduleStage=1→生产执行、紧急性空、流转正常）
+        ctx.Set<WorkOrderPlan>().Add(new WorkOrderPlan
+        {
+            WorkOrderId = 1,
+            ScheduleStage = 1,
+            UrgencyLevel = null,
+            ProductionAttentionProcess = ProcessKeys.ColdRoll60,
+            ProductionFlowProperty = ProductionFlowKeys.Normal,
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.PlanScheduleKeepAdjustmentAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var plan = ctx.Set<WorkOrderPlan>().Single();
+        plan.ProductionAttentionProcess.Should().Be(ProcessKeys.ColdRoll60); // 生产关注保留不覆盖
+        plan.ScheduleStage.Should().Be(1);            // 工单状态照常覆盖
+        plan.ProductionFlowProperty.Should().Be(ProductionFlowKeys.Normal); // 流转性照常覆盖
+
+        // 更新后仍为「进度调整」档（生产关注与系统不一致、其余 3 对一致）
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+        result.Items.Single().ConsistencyStatus.Should().Be("进度调整");
+    }
+
+    [Fact]
+    public async Task PlanScheduleKeepAdjustmentAsync_非进度调整工单_生产关注照常覆盖()
+    {
+        using var ctx = CreateDbContext();
+        SeedSummary(ctx, "WO001", 1, scheduleStage: 2, productionFlowProperty: ProductionFlowKeys.Normal,
+            mainNoAttentionProcess: ProcessKeys.RoughTubeProcessing);
+        // 已有计划：工单状态与系统不一致（ScheduleStage=3→成品检验，系统生产执行）→ 「错误」档而非进度调整
+        ctx.Set<WorkOrderPlan>().Add(new WorkOrderPlan
+        {
+            WorkOrderId = 1,
+            ScheduleStage = 3,
+            UrgencyLevel = null,
+            ProductionAttentionProcess = ProcessKeys.ColdRoll60,
+            ProductionFlowProperty = ProductionFlowKeys.Normal,
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.PlanScheduleKeepAdjustmentAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var plan = ctx.Set<WorkOrderPlan>().Single();
+        plan.ProductionAttentionProcess.Should().Be(ProcessKeys.RoughTubeProcessing); // 非进度调整 → 生产关注覆盖为系统值
+        plan.ScheduleStage.Should().Be(1); // 成品检验档同步为系统生产执行档
+    }
+
+    [Fact]
+    public async Task PlanScheduleKeepAdjustmentAsync_与全量计划差异_仅进度调整档保留()
+    {
+        using var ctx = CreateDbContext();
+        // 工单1：进度调整档（生产关注被人工调），工单2：一致档（生产关注=系统值）
+        SeedSummary(ctx, "WO001", 1, scheduleStage: 2, productionFlowProperty: ProductionFlowKeys.Normal,
+            mainNoAttentionProcess: ProcessKeys.RoughTubeProcessing);
+        SeedSummary(ctx, "WO002", 2, scheduleStage: 2, productionFlowProperty: ProductionFlowKeys.Normal,
+            mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        ctx.Set<WorkOrderPlan>().Add(new WorkOrderPlan
+        {
+            WorkOrderId = 1,
+            ScheduleStage = 1,
+            UrgencyLevel = null,
+            ProductionAttentionProcess = ProcessKeys.ColdRoll60, // 人工调整（进度调整档）
+            ProductionFlowProperty = ProductionFlowKeys.Normal,
+        });
+        ctx.Set<WorkOrderPlan>().Add(new WorkOrderPlan
+        {
+            WorkOrderId = 2,
+            ScheduleStage = 1,
+            UrgencyLevel = null,
+            ProductionAttentionProcess = ProcessKeys.ColdRoll60, // 与系统一致
+            ProductionFlowProperty = ProductionFlowKeys.Normal,
+        });
+        await ctx.SaveChangesAsync();
+
+        // 全量计划：两个工单的生产关注均被系统值覆盖
+        var svc = CreateService(ctx);
+        await svc.PlanScheduleAllAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+        ctx.Set<WorkOrderPlan>().Single(p => p.WorkOrderId == 1).ProductionAttentionProcess
+            .Should().Be(ProcessKeys.RoughTubeProcessing); // 进度调整档也被覆盖
+        ctx.Set<WorkOrderPlan>().Single(p => p.WorkOrderId == 2).ProductionAttentionProcess
+            .Should().Be(ProcessKeys.ColdRoll60);
+
+        // 恢复进度调整档后，进度调整保留计划：仅工单1保留生产关注
+        var plan1 = ctx.Set<WorkOrderPlan>().Single(p => p.WorkOrderId == 1);
+        plan1.ProductionAttentionProcess = ProcessKeys.ColdRoll60;
+        await ctx.SaveChangesAsync();
+
+        await svc.PlanScheduleKeepAdjustmentAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+        ctx.Set<WorkOrderPlan>().Single(p => p.WorkOrderId == 1).ProductionAttentionProcess
+            .Should().Be(ProcessKeys.ColdRoll60); // 进度调整档保留
+        ctx.Set<WorkOrderPlan>().Single(p => p.WorkOrderId == 2).ProductionAttentionProcess
+            .Should().Be(ProcessKeys.ColdRoll60);
     }
 
 }

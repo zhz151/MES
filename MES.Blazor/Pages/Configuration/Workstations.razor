@@ -42,7 +42,7 @@
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 工位编码/名称/设备/工段/模板类型"
-                                  Value="_searchKeyword"
+                                  Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"

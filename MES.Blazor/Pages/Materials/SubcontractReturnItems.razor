@@ -28,7 +28,7 @@
         <MudCardContent>
             <MudGrid>
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="模糊搜索 - 单号/工单号/供应商/牌号/规格" Value="_searchKeyword" ValueChanged="@OnSearchChanged" Immediate="true" DebounceInterval="500" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+                    <MudTextField T="string" Label="模糊搜索 - 单号/工单号/供应商/牌号/规格" Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)" ValueChanged="@OnSearchChanged" Immediate="true" DebounceInterval="500" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
             </MudGrid>
 

@@ -70,6 +70,15 @@ public partial class FinalInspections
     // ========== 实时健康校验通知条 ==========
     private FinalInspectionHealthSummaryDto? _healthSummary;
 
+    // ========== 成检量统计（近日/月度成检量数据，折叠卡片，按检验项目统计） ==========
+    private bool _showRecentSummaryCard;
+    private bool _showMonthlySummaryCard;
+    private List<FinalInspectionSummaryRowDto> _recentSummaryRows = new();
+    private List<FinalInspectionMonthlySummaryRowDto> _monthlySummaryRows = new();
+    private List<string> _monthlyLabels = new();
+    private bool _isLoadingRecentSummary;
+    private bool _isLoadingMonthlySummary;
+
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
@@ -470,6 +479,105 @@ public partial class FinalInspections
     private async Task MoveColumnDown(ColumnDef col)
     {
         await SaveColumnPrefs();
+    }
+
+    // ========== 成检量统计（近日/月度成检量数据，折叠卡片，按检验项目统计） ==========
+
+    /// <summary>切换「近日成检量数据」折叠卡片（首次展开时懒加载）</summary>
+    private async Task ToggleRecentSummaryCard()
+    {
+        _showRecentSummaryCard = !_showRecentSummaryCard;
+        if (_showRecentSummaryCard && _recentSummaryRows.Count == 0)
+            await LoadRecentSummaryAsync();
+    }
+
+    /// <summary>切换「月度成检量数据」折叠卡片（首次展开时懒加载）</summary>
+    private async Task ToggleMonthlySummaryCard()
+    {
+        _showMonthlySummaryCard = !_showMonthlySummaryCard;
+        if (_showMonthlySummaryCard && _monthlySummaryRows.Count == 0)
+            await LoadMonthlySummaryAsync();
+    }
+
+    private async Task LoadRecentSummaryAsync()
+    {
+        try
+        {
+            _isLoadingRecentSummary = true;
+            StateHasChanged();
+            var result = await FinalInspectionService.GetRecentSummaryAsync();
+            _recentSummaryRows = result.Data ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"近日成检量加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingRecentSummary = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMonthlySummaryAsync()
+    {
+        try
+        {
+            _isLoadingMonthlySummary = true;
+            StateHasChanged();
+            var result = await FinalInspectionService.GetMonthlySummaryAsync();
+            _monthlySummaryRows = result.Data ?? new();
+            _monthlyLabels = Enumerable.Range(1, 12)
+                .Select(m => new DateTime(DateTime.Today.Year, m, 1).ToString("yyyy-MM"))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"月度成检量加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingMonthlySummary = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>重量(t) 格式化：kg /1000 显示 t（保留 1 位），0 值留空（防视觉污染）</summary>
+    private static string FormatT(decimal kg)
+        => kg > 0 ? (kg / 1000m).ToString("F1") : string.Empty;
+
+    /// <summary>打印「近日成检量数据」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
+    private async Task PrintRecentSummaryTable()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#final-inspection-recent-summary-table");
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, "近日成检量数据");
+            else
+                Snackbar.Add("未找到可打印的近日成检量表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>打印「月度成检量数据」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
+    private async Task PrintMonthlySummaryTable()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#final-inspection-monthly-summary-table");
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, "月度成检量数据");
+            else
+                Snackbar.Add("未找到可打印的月度成检量表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
     }
 
     // ========== 初始化 ==========

@@ -1384,6 +1384,96 @@ public class FinalInspectionServiceTests : TestBase
         saved.CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.FullMatch));
     }
 
+    // ========== 成检量汇总（近日/月度，按检验项目统计，预成检/正式成检合并） ==========
+
+    private static FinalInspectionSummaryRowDto Row(List<FinalInspectionSummaryRowDto> rows, string item)
+        => rows.Single(r => r.InspectionItem == item);
+
+    private static FinalInspectionMonthlySummaryRowDto Row(List<FinalInspectionMonthlySummaryRowDto> rows, string item)
+        => rows.Single(r => r.InspectionItem == item);
+
+    [Fact]
+    public async Task GetRecentSummaryAsync_按检验项目聚合_今日前3日前6日_合计_预成检合并()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var today = DateTime.Today;
+        await AddFinalInspection(ctx, batch, InspectionItem.PMIInspection, today, 1000m, "FormalInspection");         // 今日 PMI 正式成检
+        await AddFinalInspection(ctx, batch, InspectionItem.VisualInspection, today.AddDays(-1), 2000m, "PreInspection"); // 昨天 表检 预成检（前3日+前6日窗口）
+        await AddFinalInspection(ctx, batch, InspectionItem.Dimension, today.AddDays(-4), 3000m, null);                // 今天-4 尺寸（前6日窗口，非前3日）
+
+        var svc = CreateService(ctx);
+        var rows = await svc.GetRecentSummaryAsync();
+
+        Row(rows, "PMI检验").TodayWeight.Should().Be(1000m);
+        Row(rows, "表检").Last3DaysWeight.Should().Be(2000m);
+        Row(rows, "表检").Last7DaysWeight.Should().Be(2000m);
+        Row(rows, "尺寸").Last7DaysWeight.Should().Be(3000m);
+        Row(rows, "尺寸").Last3DaysWeight.Should().Be(0m);
+        Row(rows, "合计").TodayWeight.Should().Be(1000m);
+        Row(rows, "合计").Last3DaysWeight.Should().Be(2000m);
+        Row(rows, "合计").Last7DaysWeight.Should().Be(5000m);
+    }
+
+    [Fact]
+    public async Task GetRecentSummaryAsync_整行全0检验项目隐藏_仅保留合计()
+    {
+        var ctx = CreateDbContext();
+        // 无任何成品检验记录 → 全部检验项目行全 0，应默认隐藏，仅保留合计行
+        var svc = CreateService(ctx);
+        var rows = await svc.GetRecentSummaryAsync();
+
+        rows.Count.Should().Be(1);
+        rows[0].InspectionItem.Should().Be("合计");
+    }
+
+    [Fact]
+    public async Task GetMonthlySummaryAsync_按本年月份聚合_预成检合并_合计()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var year = DateTime.Today.Year;
+        await AddFinalInspection(ctx, batch, InspectionItem.PMIInspection, new DateTime(year, 1, 15), 1000m, "FormalInspection");
+        await AddFinalInspection(ctx, batch, InspectionItem.VisualInspection, new DateTime(year, 6, 10), 2000m, "PreInspection");
+        await AddFinalInspection(ctx, batch, InspectionItem.Dimension, new DateTime(year, 12, 5), 3000m, null);
+
+        var svc = CreateService(ctx);
+        var rows = await svc.GetMonthlySummaryAsync();
+
+        Row(rows, "PMI检验").MonthlyWeights[0].Should().Be(1000m);   // 1月
+        Row(rows, "表检").MonthlyWeights[5].Should().Be(2000m);      // 6月
+        Row(rows, "尺寸").MonthlyWeights[11].Should().Be(3000m);     // 12月
+        Row(rows, "合计").MonthlyWeights[0].Should().Be(1000m);
+        Row(rows, "合计").MonthlyWeights[5].Should().Be(2000m);
+        Row(rows, "合计").MonthlyWeights[11].Should().Be(3000m);
+    }
+
+    [Fact]
+    public async Task GetMonthlySummaryAsync_整行全0检验项目隐藏_仅保留合计()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+        var rows = await svc.GetMonthlySummaryAsync();
+
+        rows.Count.Should().Be(1);
+        rows[0].InspectionItem.Should().Be("合计");
+    }
+
+    private async Task AddFinalInspection(AppDbContext ctx, ProductionBatch batch, InspectionItem item,
+        DateTime inspectionDate, decimal weight, string? inspectionType)
+    {
+        ctx.FinalInspections.Add(new FinalInspection
+        {
+            InspectionItem = item,
+            InspectionDate = inspectionDate,
+            BatchNo = batch.BatchNo,
+            ProductionBatchId = batch.Id,
+            InspectionType = inspectionType,
+            Weight = (int)weight,
+        });
+        await ctx.SaveChangesAsync();
+    }
+
     private async Task AddFinalInspection(AppDbContext ctx, ProductionBatch batch, string? inspectionType)
     {
         ctx.FinalInspections.Add(new FinalInspection

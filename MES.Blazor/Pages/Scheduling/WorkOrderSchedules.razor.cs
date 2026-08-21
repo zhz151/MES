@@ -1247,6 +1247,48 @@ public partial class WorkOrderSchedules
         }
     }
 
+    private async Task OnPlanAdjustmentKeepAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "进度调整保留计划",
+            "确认将当前查询范围内所有工单的工单计划值设为系统值（工单状态/紧急性/流转性），并删除不匹配的 Plan 行？\n实时一致性为「进度调整」的工单，其薄表「生产关注」字段将保留不覆盖。",
+            yesText: "确认",
+            cancelText: "取消");
+        if (confirmed != true) return;
+
+        try
+        {
+            var filtersJson = SerializeFilters();
+
+            var query = new QueryParams
+            {
+                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+                SortBy = sortColumn,
+                IsDescending = sortDescending,
+                PageSize = 5000,
+            };
+            if (filtersJson != null)
+            {
+                query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
+            }
+
+            var result = await WorkOrderScheduleSvc.PlanScheduleKeepAdjustmentAsync(query);
+            if (result.Success)
+            {
+                Snackbar.Add("进度调整保留计划成功，已同步系统值（进度调整工单的生产关注已保留）并清理多余记录", Severity.Success);
+                await LoadDataAsync();
+            }
+            else
+            {
+                Snackbar.Add($"进度调整保留计划失败: {result.Message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"进度调整保留计划失败: {ex.Message}", Severity.Error);
+        }
+    }
+
     private string? SerializeFilters()
     {
         if (_columnFilters.Count == 0) return null;

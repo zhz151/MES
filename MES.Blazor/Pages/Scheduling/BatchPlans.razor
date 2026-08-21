@@ -44,7 +44,13 @@
                            Color="@(_showSummaryCard ? Color.Primary : Color.Default)"
                            StartIcon="@(_showSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
                            OnClick="ToggleSummaryCard">
-                    显示类汇总
+                    近日生产量数据
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="@(_showOutsourcePendingCard ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showOutsourcePendingCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleOutsourcePendingCard">
+                    实时委外在产
                 </MudButton>
                 <MudButton Variant="Variant.Outlined"
                            Color="@(_showParagraphCard ? Color.Primary : Color.Default)"
@@ -92,10 +98,10 @@
                 <b>计划流转批次重量(t)：</b>@((_tabFlowBatchWeight / 1000m).ToString("F1"))
             </MudText>
             <MudText Typo="Typo.body2" Class="text-error">
-                <b>计划重点批次：</b>@_tabKeyBatchCount
+                <b>计划特急批次：</b>@_tabKeyBatchCount
             </MudText>
             <MudText Typo="Typo.body2" Class="text-error">
-                <b>计划重点批次重量(t)：</b>@((_tabKeyBatchWeight / 1000m).ToString("F1"))
+                <b>计划特急批重量(t)：</b>@((_tabKeyBatchWeight / 1000m).ToString("F1"))
             </MudText>
         </div>
     </div>
@@ -113,7 +119,7 @@
                     </div>
                 }
                 <div class="d-flex justify-space-between align-center mb-2">
-                    <MudText Typo="Typo.subtitle2"><b>显示类汇总</b></MudText>
+                    <MudText Typo="Typo.subtitle2"><b>近日生产量数据</b></MudText>
                     <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Print" OnClick="PrintSummaryTable">
                         打印
@@ -124,17 +130,9 @@
                         <thead>
                             <tr>
                                 <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">工段</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">批次数</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">总重量(t)</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">流转批次</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">流转重量(t)</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">重点批次</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">重点重量(t)</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">急+</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">急</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">急-</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">一般</th>
-                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">略</th>
+                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">前6日(t)</th>
+                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">前3日(t)</th>
+                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">今日(t)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -143,25 +141,79 @@
                                 var isTotal = r.SectionName == "合计";
                                 <tr>
                                     <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SectionName</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@r.BatchCount</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@((r.TotalWeight / 1000m).ToString("F1"))</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@r.FlowBatchCount</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@((r.FlowBatchWeight / 1000m).ToString("F1"))</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@r.KeyBatchCount</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@((r.KeyBatchWeight / 1000m).ToString("F1"))</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@r.Level1Count</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@r.Level2Count</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@r.Level3Count</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@r.Level4Count</td>
-                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@r.Level5Count</td>
+                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(r.Last7DaysWeight)</td>
+                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(r.Last3DaysWeight)</td>
+                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatT(r.TodayWeight)</td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 </div>
                 <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
-                    注：各工段行按工段筛选口径统计，同一批次按当前/下一工段唯一归入一个工段（冷轧类按工序、普通工段按工段名），各工段批次数之和等于合计；合计行=全量唯一批次。
+                    注：前6日/前3日均不含今日，今日列为实时数据（浅黄底色）；一般工段=生产记录+委外回收量，去油/酸洗=完工记录+委外回收量，荒管检/在制检=过程检验检验重量；合计行=各工段之和。
                 </MudText>
+            </MudCardContent>
+        </MudCard>
+    }
+
+    <!-- 实时委外在产折叠卡片（按在产单位×工段二维表，实时查询） -->
+    @if (_showOutsourcePendingCard)
+    {
+        <MudCard Class="mb-2 summary-card" Elevation="0">
+            <MudCardContent>
+                @if (_isLoadingOutsourcePending)
+                {
+                    <div class="d-flex align-center" style="gap:8px;">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <span>实时委外在产加载中...</span>
+                    </div>
+                }
+                else if (_outsourcePendingData.Sections.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="text-hint">暂无在产委外数据</MudText>
+                }
+                else
+                {
+                    <div class="d-flex justify-space-between align-center mb-2">
+                        <MudText Typo="Typo.subtitle2"><b>实时委外在产</b></MudText>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Print" OnClick="PrintOutsourcePendingTable">
+                            打印
+                        </MudButton>
+                    </div>
+                    <div id="batch-plan-outsource-pending-table" style="overflow-x:auto;">
+                        <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">在产单位</th>
+                                    @foreach (var s in _outsourcePendingData.Sections)
+                                    {
+                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@s (t)</th>
+                                    }
+                                    <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in _outsourcePendingData.Rows)
+                                {
+                                    var isTotal = r.OutsourceUnit == "合计";
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.OutsourceUnit</td>
+                                        @foreach (var s in _outsourcePendingData.Sections)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatOutsourceCell(r.Cells.TryGetValue(s, out var c) ? c : null)</td>
+                                        }
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatOutsourceCell(r.TotalCell)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                        注：在产委外 = 状态在产/未产且当前委外单位非空的批次「有效投料重量」，按（在产单位, 当前工段）统计；
+                        单元格格式「总量/[流转]/[*特急]」= 总量、其中批次计划实时流转（IsFlow=是）重量、其中批次计划等级急+（特急批）重量（<span style="color:#d32f2f;">*</span> 标红）；0 值留空，单位为重量(t)。
+                    </MudText>
+                }
             </MudCardContent>
         </MudCard>
     }
@@ -252,7 +304,7 @@
                             <MudTh Class="mud-table-cell--center"><div class="col-header-cell"><span class="th-label">总况判定</span></div></MudTh>
                             <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">计划流转量</span></div></MudTh>
                             <MudTh Class="mud-table-cell--center"><div class="col-header-cell"><span class="th-label">计划流转判定</span></div></MudTh>
-                            <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">重点批重量</span></div></MudTh>
+                            <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">特急批重量</span></div></MudTh>
                         </HeaderContent>
                         <RowTemplate Context="item">
                             <MudTd><span class="font-weight-bold">@item.CategoryName</span></MudTd>
@@ -285,7 +337,7 @@
         <MudItem xs="12" md="6">
             <MudTextField T="string"
                           Label=""
-                          Value="@_searchKeyword"
+                          Value="@_searchKeyword" ValueExpression="@(() => _searchKeyword)"
                           ValueChanged="@OnSearchChanged"
                           Immediate="true"
                           DebounceInterval="500"

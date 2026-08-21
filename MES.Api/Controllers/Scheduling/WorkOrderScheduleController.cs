@@ -59,6 +59,13 @@ public class WorkOrderScheduleController : ControllerBase
         return Ok(ApiResponse<bool>.Ok(result));
     }
 
+    [HttpPost("plan-adjustment-keep")]
+    public async Task<ActionResult<ApiResponse<bool>>> PlanAdjustmentKeep([FromBody] QueryParams query)
+    {
+        var result = await _service.PlanScheduleKeepAdjustmentAsync(query);
+        return Ok(ApiResponse<bool>.Ok(result));
+    }
+
     [HttpPost("print-file")]
     public async Task<IActionResult> PrintFile([FromBody] WorkOrderSchedulePrintRequest request)
     {

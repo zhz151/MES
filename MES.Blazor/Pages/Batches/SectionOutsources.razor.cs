@@ -48,6 +48,8 @@ public partial class SectionOutsources
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
+    private string _recoveryDateFrom = string.Empty;
+    private string _recoveryDateTo = string.Empty;
 
     private string sortColumn = "createdtime";
     private bool sortDescending = true;
@@ -241,6 +243,8 @@ public partial class SectionOutsources
                 isDescending: query.IsDescending,
                 sendOutDateFrom: DateTime.TryParse(_dateFrom, out var df) ? df : null,
                 sendOutDateTo: DateTime.TryParse(_dateTo, out var dt) ? dt : null,
+                actualRecoveryDateFrom: DateTime.TryParse(_recoveryDateFrom, out var arf) ? arf : null,
+                actualRecoveryDateTo: DateTime.TryParse(_recoveryDateTo, out var art) ? art : null,
                 filters: filtersJson);
 
             if (result.Success && result.Data != null)
@@ -411,6 +415,20 @@ public partial class SectionOutsources
         if (table != null) await table.ReloadServerData();
     }
 
+    private async Task OnRecoveryDateFromChanged(string value)
+    {
+        _recoveryDateFrom = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task OnRecoveryDateToChanged(string value)
+    {
+        _recoveryDateTo = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 列显示管理 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -484,6 +502,10 @@ public partial class SectionOutsources
                 _dateFrom = dateFrom ?? string.Empty;
             if (savedState.Extras?.TryGetValue("dateTo", out var dateTo) == true)
                 _dateTo = dateTo ?? string.Empty;
+            if (savedState.Extras?.TryGetValue("recoveryDateFrom", out var recoveryDateFrom) == true)
+                _recoveryDateFrom = recoveryDateFrom ?? string.Empty;
+            if (savedState.Extras?.TryGetValue("recoveryDateTo", out var recoveryDateTo) == true)
+                _recoveryDateTo = recoveryDateTo ?? string.Empty;
         }
 
         // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
@@ -876,6 +898,8 @@ public partial class SectionOutsources
             IsDescending = sortDescending,
             SendOutDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
             SendOutDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
+            ActualRecoveryDateFrom = DateTime.TryParse(_recoveryDateFrom, out var arf) ? arf : null,
+            ActualRecoveryDateTo = DateTime.TryParse(_recoveryDateTo, out var art) ? art : null,
             Columns = columns
         };
         var apiUrl = $"{Http.BaseAddress}api/section-outsource/print-all-file";
@@ -1013,6 +1037,8 @@ public partial class SectionOutsources
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         if (!string.IsNullOrEmpty(_dateFrom)) extras["dateFrom"] = _dateFrom;
         if (!string.IsNullOrEmpty(_dateTo)) extras["dateTo"] = _dateTo;
+        if (!string.IsNullOrEmpty(_recoveryDateFrom)) extras["recoveryDateFrom"] = _recoveryDateFrom;
+        if (!string.IsNullOrEmpty(_recoveryDateTo)) extras["recoveryDateTo"] = _recoveryDateTo;
         var state = new PageState
         {
             SortBy = sortColumn,

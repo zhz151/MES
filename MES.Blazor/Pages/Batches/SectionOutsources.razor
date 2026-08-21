@@ -52,37 +52,57 @@
         </MudCardHeader>
 
         <MudCardContent>
-            <!-- 搜索栏 -->
+            <!-- 搜索栏（布局仿订单管理：模糊搜索 + 发出日期 + 回收日期，各占 1/3） -->
             <MudGrid>
-                <MudItem xs="12" md="6">
+                <MudItem xs="12" md="4">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 批次号/工序/工段/委外单位"
-                                  Value="_searchKeyword"
+                                  Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField T="string"
-                                  Value="_dateFrom"
-                                  ValueChanged="OnDateFromChanged"
-                                  Placeholder="yyyy-MM-dd"
-                                  Label="发出日期从"
-                                  Immediate="true"
-                                  DebounceInterval="500"
-                                 />
+                <MudItem xs="12" md="4">
+                    <div style="display:flex; gap:8px;">
+                        <MudTextField T="string"
+                                      Label="发出日期从"
+                                      Value="_dateFrom" ValueExpression="@(() => _dateFrom)"
+                                      ValueChanged="OnDateFromChanged"
+                                      Placeholder="yyyy-MM-dd"
+                                      Immediate="true"
+                                      DebounceInterval="500"
+                                      Style="flex:1;min-width:0" />
+                        <MudTextField T="string"
+                                      Label="发出日期至"
+                                      Value="_dateTo" ValueExpression="@(() => _dateTo)"
+                                      ValueChanged="OnDateToChanged"
+                                      Placeholder="yyyy-MM-dd"
+                                      Immediate="true"
+                                      DebounceInterval="500"
+                                      Style="flex:1;min-width:0" />
+                    </div>
                 </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTextField T="string"
-                                  Value="_dateTo"
-                                  ValueChanged="OnDateToChanged"
-                                  Placeholder="yyyy-MM-dd"
-                                  Label="发出日期至"
-                                  Immediate="true"
-                                  DebounceInterval="500"
-                                 />
+                <MudItem xs="12" md="4">
+                    <div style="display:flex; gap:8px;">
+                        <MudTextField T="string"
+                                      Label="回收日期从"
+                                      Value="_recoveryDateFrom" ValueExpression="@(() => _recoveryDateFrom)"
+                                      ValueChanged="OnRecoveryDateFromChanged"
+                                      Placeholder="yyyy-MM-dd"
+                                      Immediate="true"
+                                      DebounceInterval="500"
+                                      Style="flex:1;min-width:0" />
+                        <MudTextField T="string"
+                                      Label="回收日期至"
+                                      Value="_recoveryDateTo" ValueExpression="@(() => _recoveryDateTo)"
+                                      ValueChanged="OnRecoveryDateToChanged"
+                                      Placeholder="yyyy-MM-dd"
+                                      Immediate="true"
+                                      DebounceInterval="500"
+                                      Style="flex:1;min-width:0" />
+                    </div>
                 </MudItem>
             </MudGrid>
 

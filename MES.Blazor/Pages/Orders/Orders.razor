@@ -128,7 +128,7 @@
                 <MudItem xs="12" md="4">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 订单号/客户/业务员/状态"
-                                  Value="@_searchKeyword"
+                                  Value="@_searchKeyword" ValueExpression="@(() => _searchKeyword)"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"

@@ -96,6 +96,28 @@ public class FinalInspectionsController : ControllerBase
     }
 
     /// <summary>
+    /// 近日成检量汇总（按检验项目统计前6日/前3日/今日检验重量）
+    /// </summary>
+    [HttpGet("summary")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<FinalInspectionSummaryRowDto>>>> GetSummary()
+    {
+        var result = await _service.GetRecentSummaryAsync();
+        return Ok(ApiResponse<List<FinalInspectionSummaryRowDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 月度成检量汇总（按检验项目统计本年 1月~12月各月检验重量）
+    /// </summary>
+    [HttpGet("monthly-summary")]
+    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<FinalInspectionMonthlySummaryRowDto>>>> GetMonthlySummary()
+    {
+        var result = await _service.GetMonthlySummaryAsync();
+        return Ok(ApiResponse<List<FinalInspectionMonthlySummaryRowDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
     /// 获取所有成品检验记录（无分页）
     /// </summary>
     [HttpGet("all-list")]

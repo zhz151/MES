@@ -77,4 +77,17 @@ public class WorkOrderScheduleService
             return ApiResponse<bool>.Fail($"计划安排失败: {ex.Message}");
         }
     }
+
+    public async Task<ApiResponse<bool>> PlanScheduleKeepAdjustmentAsync(QueryParams query)
+    {
+        try
+        {
+            var result = await _http.PostAsJsonAsync<QueryParams, ApiResponse<bool>>($"{BaseUrl}/plan-adjustment-keep", query);
+            return result ?? ApiResponse<bool>.Fail("计划安排失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<bool>.Fail($"计划安排失败: {ex.Message}");
+        }
+    }
 }

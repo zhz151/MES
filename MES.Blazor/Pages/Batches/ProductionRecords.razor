@@ -6,7 +6,9 @@
 @using MES.Blazor.Shared
 @using MES.Blazor.Components
 @using MES.Core.DTOs.Batch
+@using MES.Core.DTOs.Scheduling
 @inject ProductionRecordService ProductionRecordService
+@inject BatchPlanService BatchPlanSvc
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -26,6 +28,18 @@
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined"
+                           Color="@(_showRecentSummaryCard ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showRecentSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleRecentSummaryCard">
+                    近日生产量数据
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="@(_showMonthlySummaryCard ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showMonthlySummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleMonthlySummaryCard">
+                    月度生产量数据
+                </MudButton>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
@@ -36,12 +50,123 @@
         </MudCardHeader>
 
         <MudCardContent>
+            <!-- 产量统计：近日生产量数据（折叠卡片，与批次计划页口径一致） -->
+            @if (_showRecentSummaryCard)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingRecentSummary)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>近日生产量加载中...</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>近日生产量数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintRecentSummaryTable">
+                                    打印
+                                </MudButton>
+                            </div>
+                            <div id="production-records-recent-summary-table" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">工段</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">前6日(t)</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">前3日(t)</th>
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">今日(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _recentSummaryRows)
+                                        {
+                                            var isTotal = r.SectionName == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SectionName</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(r.Last7DaysWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(r.Last3DaysWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatT(r.TodayWeight)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：前6日/前3日均不含今日，今日列为实时数据（浅黄底色）；一般工段=生产记录+委外回收量，去油/酸洗=完工记录+委外回收量，荒管检/在制检=过程检验检验重量；合计行=各工段之和；0 值留空。口径与批次计划页「近日生产量数据」一致。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <!-- 产量统计：月度生产量数据（折叠卡片，按本年 1月~12月统计，末列"合计"=该行各月之和） -->
+            @if (_showMonthlySummaryCard)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingMonthlySummary)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>月度生产量加载中...</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>月度生产量数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintMonthlySummaryTable">
+                                    打印
+                                </MudButton>
+                            </div>
+                            <div id="production-records-monthly-summary-table" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">工段</th>
+                                            @foreach (var label in _monthlyLabels)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _monthlySummaryRows)
+                                        {
+                                            var isTotal = r.SectionName == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SectionName</td>
+                                                @for (var m = 0; m < _monthlyLabels.Count; m++)
+                                                {
+                                                    var val = m < r.MonthlyWeights.Count ? r.MonthlyWeights[m] : 0m;
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(val)</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatT(r.MonthlyWeights.Sum())</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：按本年度各月份统计；一般工段=生产记录+委外回收量，去油/酸洗=完工记录+委外回收量，荒管检/在制检=过程检验检验重量；末列"合计"=该行 1月~12月之和；0 值留空。口径与批次计划页「近日生产量数据」一致。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
             <!-- 搜索栏 -->
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 批次号/工序/工段"
-                                  Value="_searchKeyword"
+                                  Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"

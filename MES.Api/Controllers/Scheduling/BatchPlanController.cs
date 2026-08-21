@@ -59,6 +59,20 @@ public class BatchPlanController : ControllerBase
         return Ok(ApiResponse<List<BatchPlanSummaryRowDto>>.Ok(result));
     }
 
+    [HttpGet("monthly-summary")]
+    public async Task<ActionResult<ApiResponse<List<BatchPlanMonthlySummaryRowDto>>>> GetMonthlySummary()
+    {
+        var result = await _service.GetMonthlySummaryAsync();
+        return Ok(ApiResponse<List<BatchPlanMonthlySummaryRowDto>>.Ok(result));
+    }
+
+    [HttpGet("outsource-pending")]
+    public async Task<ActionResult<ApiResponse<BatchPlanOutsourcePendingDto>>> GetOutsourcePending()
+    {
+        var result = await _service.GetOutsourcePendingAsync();
+        return Ok(ApiResponse<BatchPlanOutsourcePendingDto>.Ok(result));
+    }
+
     [HttpGet("filter-contexts")]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {

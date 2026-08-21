@@ -65,6 +65,11 @@ public partial class BatchPlans
     private bool _isLoadingSummary;
     private List<BatchPlanSummaryRowDto> _summaryRows = new();
 
+    // ========== 实时委外在产折叠卡片（按在产单位×工段二维表，懒加载） ==========
+    private bool _showOutsourcePendingCard;
+    private bool _isLoadingOutsourcePending;
+    private BatchPlanOutsourcePendingDto _outsourcePendingData = new();
+
     // ========== 段落流转分析折叠查询（纯表，无可持续天数字段，懒加载） ==========
     private bool _showParagraphCard;
     private bool _isLoadingParagraph;
@@ -423,7 +428,7 @@ public partial class BatchPlans
         _tabKeyBatchWeight = keyBatches.Sum(x => x.CurrentValidWeight ?? 0m);
     }
 
-    // ========== 跨工段汇总卡片（仿原锁计划，默认折叠，工具栏「显示类汇总」按钮切换显隐） ==========
+    // ========== 跨工段汇总卡片（仿原锁计划，默认折叠，工具栏「近日生产量数据」按钮切换显隐） ==========
 
     private void ToggleSummaryCard() => _showSummaryCard = !_showSummaryCard;
 
@@ -444,6 +449,47 @@ public partial class BatchPlans
             _isLoadingSummary = false;
             StateHasChanged();
         }
+    }
+
+    // ========== 实时委外在产折叠卡片（仿汇总卡片，懒加载） ==========
+
+    private async Task ToggleOutsourcePendingCard()
+    {
+        _showOutsourcePendingCard = !_showOutsourcePendingCard;
+        if (_showOutsourcePendingCard && _outsourcePendingData.Rows.Count == 0)
+            await LoadOutsourcePendingAsync();
+    }
+
+    private async Task LoadOutsourcePendingAsync()
+    {
+        try
+        {
+            _isLoadingOutsourcePending = true;
+            StateHasChanged();
+            _outsourcePendingData = await BatchPlanSvc.GetOutsourcePendingAsync() ?? new BatchPlanOutsourcePendingDto();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"实时委外在产加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingOutsourcePending = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// 委外在产单元格三值格式化（前端 /1000 显示 t，保留 1 位，0 值留空）：
+    /// 格式「总量/[流转]/[*特急]」= 总量、其中批次计划实时流转（IsFlow=是）重量、其中批次计划等级急+（特急批）重量（* 标红）。
+    /// </summary>
+    private static MarkupString FormatOutsourceCell(OutsourcePendingCellDto? cell)
+    {
+        if (cell == null || cell.Total <= 0) return new MarkupString("");
+        var sb = new System.Text.StringBuilder((cell.Total / 1000m).ToString("F1"));
+        if (cell.Flow > 0) sb.Append($"/[{(cell.Flow / 1000m).ToString("F1")}]");
+        if (cell.Key > 0) sb.Append($"/[<span style=\"color:#d32f2f;font-weight:600;\">*{(cell.Key / 1000m).ToString("F1")}</span>]");
+        return new MarkupString(sb.ToString());
     }
 
     // ========== 段落/工段流转分析折叠查询（仿汇总卡片，懒加载） ==========
@@ -512,6 +558,10 @@ public partial class BatchPlans
 
     // 纯表渲染辅助（与流转分析独立页口径一致）
     private static string RenderInt(decimal? val) => val.HasValue ? ((int)val.Value).ToString() : "-";
+
+    // 近日生产量数据重量(t) 格式化：kg /1000 显示 t（保留 1 位），0 值留空（防视觉污染，与生产记录页口径一致）
+    private static string FormatT(decimal kg)
+        => kg > 0 ? (kg / 1000m).ToString("F1") : string.Empty;
 
     private static Color GetStatusColor(string? status) => status switch
     {
@@ -1754,16 +1804,33 @@ public partial class BatchPlans
 
     // ========== 打印 ==========
 
-    /// <summary>打印「显示类汇总」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
+    /// <summary>打印「近日生产量数据」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
     private async Task PrintSummaryTable()
     {
         try
         {
             var html = await JS.InvokeAsync<string>("getTableHtml", "#batch-plan-summary-table");
             if (!string.IsNullOrEmpty(html))
-                await JS.InvokeVoidAsync("printRawHtml", html, "批次计划-显示类汇总");
+                await JS.InvokeVoidAsync("printRawHtml", html, "近日生产量数据");
             else
                 Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>打印「实时委外在产」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
+    private async Task PrintOutsourcePendingTable()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#batch-plan-outsource-pending-table");
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, "实时委外在产");
+            else
+                Snackbar.Add("未找到可打印的委外在产表格", Severity.Warning);
         }
         catch (Exception ex)
         {
@@ -1783,7 +1850,7 @@ public partial class BatchPlans
                 new() { Key = "StatusJudgment",Label = "总况判定" },
                 new() { Key = "PlanFlowQuantity",Label = "计划流转量" },
                 new() { Key = "PlanFlowJudgment",Label = "计划流转判定" },
-                new() { Key = "PlanKeyWeight", Label = "重点批重量" },
+                new() { Key = "PlanKeyWeight", Label = "特急批重量" },
             };
             var printItems = _paragraphRows.Select(item => new Dictionary<string, object>
             {
@@ -1823,7 +1890,7 @@ public partial class BatchPlans
                 new() { Key = "StatusJudgment",Label = "总况判定" },
                 new() { Key = "PlanFlowQuantity",Label = "计划流转量" },
                 new() { Key = "PlanFlowJudgment",Label = "计划流转判定" },
-                new() { Key = "PlanKeyWeight", Label = "重点批重量" },
+                new() { Key = "PlanKeyWeight", Label = "特急批重量" },
             };
             var printItems = _flowRows.Select(item => new Dictionary<string, object>
             {

@@ -29,6 +29,22 @@ public interface IBatchPlanService
     /// </summary>
     Task<List<BatchPlanSummaryRowDto>> GetSummaryAsync();
 
+    /// <summary>
+    /// 月度生产量数据（实时查询）：全库跨批次按工段统计本年 1月~12月各月产量重量。
+    /// 统计口径与「近日生产量数据」（GetSummaryAsync）一致，仅日期窗口改为 [本年1月1日, 次年1月1日)。
+    /// </summary>
+    Task<List<BatchPlanMonthlySummaryRowDto>> GetMonthlySummaryAsync();
+
+    /// <summary>
+    /// 实时委外在产汇总（实时查询）：按「在产单位 × 工段」二维表统计批次有效投料重量。
+    /// 口径：状态为在产/未产且有当前委外单位（CurrentOutsource 非空）的批次，取有效投料重量（CurrentValidWeight），
+    /// 按（在产单位, 当前工段归列）聚合；不依赖委外发出/回收。
+    /// 每个单元格三值：总量 = 该格所有批次有效投料；流转 = 其中实时 IsFlow（批次计划流转=是）批次之和；
+    /// 特急 = 其中批次计划等级=急+（PlanFlowLevel 1）批次之和（与批次计划页"特急批重量"口径一致）。
+    /// 行 = 在产单位（合计降序），列 = 有数据的工段（近日生产量数据工段 Tab 规范序），末尾追加"合计"行。
+    /// </summary>
+    Task<BatchPlanOutsourcePendingDto> GetOutsourcePendingAsync();
+
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns);
 }

@@ -19,8 +19,8 @@
                         工单执行
                     </MudText>
                     <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
-                               OnClick="@(() => Navigation.NavigateTo("/workorder-execution"))">
-                        详情 →
+                               OnClick="@(() => Navigation.NavigateTo("/plan-overview"))">
+                        负荷总量 →
                     </MudButton>
                 </div>
 
@@ -37,7 +37,9 @@
                             </a>
                         </MudTd>
                         <MudTd Class="mud-table-cell--right font-weight-bold">@context.TotalText</MudTd>
-                        <MudTd Class="mud-table-cell--right font-weight-bold text-brand">@context.UrgentTotalText</MudTd>
+                        <MudTd Class="mud-table-cell--right">
+                            <MudChip Size="Size.Small" Color="Color.Error">@context.UrgentTotalText</MudChip>
+                        </MudTd>
                     </RowTemplate>
                     <FooterContent>
                         <MudTd Class="font-weight-bold">合计</MudTd>
@@ -73,21 +75,21 @@
                     <MudItem xs="4">
                         <MudPaper Class="pa-3 text-center form-card" Elevation="0">
                             <MudText Typo="Typo.caption" Class="font-weight-bold">@Card3StatText(_card3AwaitingMaterialCount, _card3AwaitingMaterialWeight)</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Error" Class="font-weight-bold">@Card3StatText(_card3AwaitingMaterialUrgentCount, _card3AwaitingMaterialUrgentWeight)</MudText>
+                            <MudChip Size="Size.Small" Color="Color.Error">@Card3StatText(_card3AwaitingMaterialUrgentCount, _card3AwaitingMaterialUrgentWeight)</MudChip>
                             <MudChip Size="Size.Small" Color="Color.Warning" Class="mt-1">待到料</MudChip>
                         </MudPaper>
                     </MudItem>
                     <MudItem xs="4">
                         <MudPaper Class="pa-3 text-center form-card" Elevation="0">
                             <MudText Typo="Typo.caption" Class="font-weight-bold">@Card3StatText(_card3AwaitingInspectionCount, _card3AwaitingInspectionWeight)</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Error" Class="font-weight-bold">@Card3StatText(_card3AwaitingInspectionUrgentCount, _card3AwaitingInspectionUrgentWeight)</MudText>
+                            <MudChip Size="Size.Small" Color="Color.Error">@Card3StatText(_card3AwaitingInspectionUrgentCount, _card3AwaitingInspectionUrgentWeight)</MudChip>
                             <MudChip Size="Size.Small" Color="Color.Primary" Class="mt-1">待检验</MudChip>
                         </MudPaper>
                     </MudItem>
                     <MudItem xs="4">
                         <MudPaper Class="pa-3 text-center form-card" Elevation="0">
                             <MudText Typo="Typo.caption" Class="font-weight-bold">@Card3StatText(_card3InInspectionCount, _card3InInspectionWeight)</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Error" Class="font-weight-bold">@Card3StatText(_card3InInspectionUrgentCount, _card3InInspectionUrgentWeight)</MudText>
+                            <MudChip Size="Size.Small" Color="Color.Error">@Card3StatText(_card3InInspectionUrgentCount, _card3InInspectionUrgentWeight)</MudChip>
                             <MudChip Size="Size.Small" Color="Color.Info" Class="mt-1">检验中</MudChip>
                         </MudPaper>
                     </MudItem>
@@ -133,7 +135,7 @@
                         批次生产
                     </MudText>
                     <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
-                               OnClick="@(() => Navigation.NavigateTo("/section-paragraph-flow-analysis"))">
+                               OnClick="@(() => Navigation.NavigateTo("/batch-plans"))">
                         详情 →
                     </MudButton>
                 </div>
@@ -148,7 +150,7 @@
                         </MudTh>
                         <MudTh Class="mud-table-cell--right font-weight-bold">
                             <span @onclick='() => ToggleFlowSort("PendingTotal")' style="cursor:pointer">
-                                待在产重量 @FlowSortIndicator("PendingTotal")
+                                待在产重量(吨) @FlowSortIndicator("PendingTotal")
                             </span>
                         </MudTh>
                         <MudTh Class="mud-table-cell--center font-weight-bold">
@@ -158,7 +160,7 @@
                         </MudTh>
                         <MudTh Class="mud-table-cell--right font-weight-bold">
                             <span @onclick='() => ToggleFlowSort("PlanFlowQuantity")' style="cursor:pointer">
-                                计划重点批流转量 @FlowSortIndicator("PlanFlowQuantity")
+                                计划重点批流转量(吨) @FlowSortIndicator("PlanFlowQuantity")
                             </span>
                         </MudTh>
                         <MudTh Class="mud-table-cell--center font-weight-bold">
@@ -168,7 +170,7 @@
                         </MudTh>
                         <MudTh Class="mud-table-cell--right font-weight-bold">
                             <span @onclick='() => ToggleFlowSort("PlanKeyWeight")' style="cursor:pointer">
-                                特急批重量 @FlowSortIndicator("PlanKeyWeight")
+                                特急批重量(吨) @FlowSortIndicator("PlanKeyWeight")
                             </span>
                         </MudTh>
                     </HeaderContent>

@@ -362,6 +362,16 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
     }
 
     public async Task<bool> PlanScheduleAllAsync(QueryParams query)
+        => await PlanScheduleCoreAsync(query, keepProgressAdjustment: false);
+
+    /// <summary>
+    /// 进度调整保留计划：与全量计划相同，但对实时一致性为「进度调整」的工单（薄表「生产关注」被人工调整、
+    /// 其余 3 对覆盖值均与系统一致）保留其薄表「生产关注」字段不覆盖，其余 3 字段仍重置为系统值。
+    /// </summary>
+    public async Task<bool> PlanScheduleKeepAdjustmentAsync(QueryParams query)
+        => await PlanScheduleCoreAsync(query, keepProgressAdjustment: true);
+
+    private async Task<bool> PlanScheduleCoreAsync(QueryParams query, bool keepProgressAdjustment)
     {
         var q = _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
             .Where(e => e.ProductionFlowProperty != null && e.ProductionFlowProperty != ProductionFlowKeys.Skip);
@@ -423,10 +433,18 @@ public class WorkOrderScheduleService : IWorkOrderScheduleService
                 plan = new WorkOrderPlan { WorkOrderId = data.WorkOrderId };
                 _context.Set<WorkOrderPlan>().Add(plan);
             }
+            // 进度调整保留计划：已有计划为「进度调整」档（仅生产关注被人工调整、其余 3 对与系统一致）时保留其生产关注不覆盖
+            bool isProgressAdjustment = keepProgressAdjustment
+                && IsProgressAdjustment(
+                    plan.ScheduleStage, data.ScheduleStage,
+                    plan.UrgencyLevel, data.UrgencyLevel,
+                    plan.ProductionAttentionProcess, data.MainNoAttentionProcess,
+                    plan.ProductionFlowProperty, data.ProductionFlowProperty);
             // 关注档位(5档) → 排程覆盖档位(4档)：与手动编辑/前端下拉/一致性判定口径统一
             plan.ScheduleStage = MapSummaryStageToPlanStage(data.ScheduleStage);
             plan.UrgencyLevel = data.UrgencyLevel;
-            plan.ProductionAttentionProcess = data.MainNoAttentionProcess;
+            if (!isProgressAdjustment)
+                plan.ProductionAttentionProcess = data.MainNoAttentionProcess;
             plan.ProductionFlowProperty = data.ProductionFlowProperty;
         }
 

@@ -29,6 +29,10 @@
             <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd" Class="mr-1" />
             全量计划
         </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="@OnPlanAdjustmentKeepAsync" Class="mr-6">
+            <MudIcon Icon="@Icons.Material.Filled.SaveAlt" Class="mr-1" />
+            进度调整保留计划
+        </MudButton>
     </div>
 
     <MudCard>
@@ -38,7 +42,7 @@
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
                                   Label=""
-                                  Value="@_searchKeyword"
+                                  Value="@_searchKeyword" ValueExpression="@(() => _searchKeyword)"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
                                   DebounceInterval="500"

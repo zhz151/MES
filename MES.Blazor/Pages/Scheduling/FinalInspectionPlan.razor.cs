@@ -9,6 +9,7 @@ using MES.Core.Constants;
 using MES.Core.Helpers;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
@@ -73,6 +74,11 @@ public partial class FinalInspectionPlan
     private bool _showSummaryCard;
     private bool _isLoadingSummary;
     private List<FinalInspectionPlanSummaryRowDto> _summaryRows = new();
+
+    // ========== 近日成检量数据卡片（按检验项目统计检验重量，与成品检验页口径一致） ==========
+    private bool _showRecentSummaryCard;
+    private bool _isLoadingRecentSummary;
+    private List<FinalInspectionSummaryRowDto> _recentSummaryRows = new();
 
     private void SelectAllItems(bool selected)
     {
@@ -1021,6 +1027,56 @@ public partial class FinalInspectionPlan
                 await JS.InvokeVoidAsync("printRawHtml", html, "成检计划-待检批支重汇总");
             else
                 Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== 近日成检量数据卡片 ==========
+
+    private void ToggleRecentSummaryCard()
+    {
+        _showRecentSummaryCard = !_showRecentSummaryCard;
+        if (_showRecentSummaryCard && _recentSummaryRows.Count == 0)
+            _ = LoadRecentSummaryAsync();
+    }
+
+    private async Task LoadRecentSummaryAsync()
+    {
+        try
+        {
+            _isLoadingRecentSummary = true;
+            StateHasChanged();
+            var result = await FinalInspectionService.GetRecentSummaryAsync();
+            _recentSummaryRows = result.Data ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"近日成检量加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingRecentSummary = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>重量(t) 格式化：kg /1000 显示 t（保留 1 位），0 值留空（防视觉污染）</summary>
+    private static string FormatT(decimal kg)
+        => kg > 0 ? (kg / 1000m).ToString("F1") : string.Empty;
+
+    /// <summary>打印「近日成检量数据」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
+    private async Task PrintRecentSummaryTable()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#final-inspection-plan-recent-summary-table");
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, "成检计划-近日成检量数据");
+            else
+                Snackbar.Add("未找到可打印的近日成检量表格", Severity.Warning);
         }
         catch (Exception ex)
         {
