@@ -66,7 +66,8 @@ public class InventoryService : IInventoryService
         SalesOrderNo = b.SalesOrderNo,
         ProductionMainNo = b.ProductionMainNo,
         OrderItemIds = b.OrderItemIds,
-        SourceOrderNo = b.SourceOrderNo
+        SourceOrderNo = b.SourceOrderNo,
+        SourceOrderSequence = b.SourceOrderSequence
     };
 
     private static readonly Expression<Func<OutboundRecord, OutboundRecordDto>> OutboundToDtoExpr = r => new OutboundRecordDto

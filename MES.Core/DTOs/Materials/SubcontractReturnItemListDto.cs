@@ -10,6 +10,12 @@ public class SubcontractReturnItemListDto
 {
     public int Id { get; set; }
     public int SubcontractOrderId { get; set; }
+
+    /// <summary>
+    /// 委外序号（委外单内明细行号，与进库批次 SourceOrderSequence 匹配）
+    /// </summary>
+    public int Sequence { get; set; }
+
     public string? OrderNo { get; set; }
     public string? SupplierName { get; set; }
 

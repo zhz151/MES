@@ -292,6 +292,12 @@ public class OutboundWriteService : IOutboundWriteService
         if (entity == null)
             throw new BusinessException("出库记录不存在");
 
+        // 已被生产批次合并投料/领料引用（ProductionBatchInventory.OutboundRecordId）→ 禁止删除，避免破坏领料追溯
+        var referenced = await _context.ProductionBatchInventories
+            .AnyAsync(x => x.OutboundRecordId == id);
+        if (referenced)
+            throw new BusinessException("该出库记录已被生产批次合并投料领用，不可删除");
+
         using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
         try

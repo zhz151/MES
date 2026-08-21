@@ -25,6 +25,11 @@ public interface ISubcontractOrderService
     Task<PagedResult<SubcontractReturnItemListDto>> GetReturnItemListAsync(QueryParams query, string? status = null);
     Task<Dictionary<string, List<string>>> GetReturnItemFilterContextsAsync();
 
+    // ========== 圆钢穿孔汇总（按子项聚合） ==========
+    Task<List<SubcontractPiercingPendingDto>> GetPiercingPendingAsync();
+    Task<SubcontractPiercingInProgressResultDto> GetPiercingInProgressAsync();
+    Task<SubcontractPiercingMonthlyResultDto> GetPiercingMonthlyAsync();
+
     // ========== 筛选上下文 ==========
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 

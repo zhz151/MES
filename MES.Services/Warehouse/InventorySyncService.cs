@@ -360,14 +360,33 @@ public class InventorySyncService : IInventorySyncService
                 .Where(b => b.SourceOrderNo != null && sourceOrderNos.Contains(b.SourceOrderNo))
                 .ToListAsync();
 
+            // 退货量（序号级）：状态判定按「净回收 = 回收 - 退货」；聚合口径与 SubcontractOrderService 一致
+            var subcontractBatchNos = allBatches.Where(b => !string.IsNullOrEmpty(b.BatchNo)).Select(b => b.BatchNo!).ToList();
+            var returnOutbounds = new List<OutboundRecord>();
+            foreach (var chunk in subcontractBatchNos.Chunk(1000))
+            {
+                returnOutbounds.AddRange(await _context.OutboundRecords.AsNoTracking()
+                    .Where(o => o.OutboundType == OutboundType.ReturnOut
+                             && o.ReturnSourceBatchNo != null
+                             && chunk.Contains(o.ReturnSourceBatchNo))
+                    .ToListAsync());
+            }
+            var bySeqMap = SubcontractHelper.AggregateReturnsBySequence(
+                returnOutbounds,
+                allBatches.Select(b => (b.BatchNo, b.SourceOrderNo, b.SourceOrderSequence)));
+
             foreach (var order in subcontractOrders)
             {
-                var orderBatches = allBatches.Where(b => b.SourceOrderNo == order.OrderNo).ToList();
+                // SQL 查询后内存过滤须忽略大小写（SQL 排序规则不区分大小写，C# 默认 == 区分，委外单号手输可能大小写不一）
+                var orderBatches = allBatches.Where(b => string.Equals(b.SourceOrderNo, order.OrderNo, StringComparison.OrdinalIgnoreCase)).ToList();
                 order.InQuantity = orderBatches.Sum(b => b.InitialQuantity);
                 order.InWeight = orderBatches.Sum(b => b.InitialWeight);
 
+                var returnBySequence = bySeqMap.TryGetValue(order.OrderNo, out var rs) ? rs : null;
+                var orderReturnWeight = returnBySequence?.Values.Sum(x => x.Weight) ?? 0m;
+
                 foreach (var item in order.ReturnItems)
-                    SubcontractHelper.SyncReturnItemFromBatches(item, orderBatches, subcontractOverRatio, subcontractOverDeviation);
+                    SubcontractHelper.SyncReturnItemFromBatches(item, orderBatches, subcontractOverRatio, subcontractOverDeviation, returnBySequence);
 
                 if (order.IsForceCompleted)
                 {
@@ -380,9 +399,10 @@ public class InventorySyncService : IInventorySyncService
                 }
                 else
                 {
-                    if (order.InWeight == null || order.InWeight == 0)
+                    var netRecover = order.InWeight.HasValue ? Math.Max(0m, order.InWeight.Value - orderReturnWeight) : 0m;
+                    if (netRecover <= 0m)
                         order.Status = SubcontractOrderStatus.Sent;
-                    else if (order.InWeight >= order.OutWeight * subcontractCompleteRatio)
+                    else if (netRecover >= order.OutWeight * subcontractCompleteRatio)
                         order.Status = SubcontractOrderStatus.Completed;
                     else
                         order.Status = SubcontractOrderStatus.PartialReturned;

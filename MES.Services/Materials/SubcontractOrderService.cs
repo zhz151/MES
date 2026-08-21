@@ -222,6 +222,20 @@ public class SubcontractOrderService : ISubcontractOrderService
             item.ActualOutboundQuantity = quantityMap.GetValueOrDefault(item.OrderNo);
         }
 
+        // 批量查询退货量（委外单号级，各序号求和）
+        if (orderNos.Count > 0)
+        {
+            var returnSummary = await BuildReturnSummaryAsync(orderNos);
+            foreach (var item in items)
+            {
+                if (returnSummary.TryGetValue(item.OrderNo, out var rs))
+                {
+                    item.ReturnQuantity = rs.BySequence.Values.Sum(x => x.Quantity);
+                    item.ReturnWeight = rs.BySequence.Values.Sum(x => x.Weight);
+                }
+            }
+        }
+
         return new PagedResult<SubcontractOrderDto>
         {
             Items = items,
@@ -240,7 +254,24 @@ public class SubcontractOrderService : ISubcontractOrderService
             .ThenBy(s => s.OrderNo)
             .ToListAsync();
 
-        return entityList.Select(ToDto).ToList();
+        var items = entityList.Select(ToDto).ToList();
+
+        // 退货量补充（委外单号级，各序号求和）
+        var orderNos = items.Select(i => i.OrderNo).ToList();
+        if (orderNos.Count > 0)
+        {
+            var returnSummary = await BuildReturnSummaryAsync(orderNos);
+            foreach (var item in items)
+            {
+                if (returnSummary.TryGetValue(item.OrderNo, out var rs))
+                {
+                    item.ReturnQuantity = rs.BySequence.Values.Sum(x => x.Quantity);
+                    item.ReturnWeight = rs.BySequence.Values.Sum(x => x.Weight);
+                }
+            }
+        }
+
+        return items;
     }
 
     public async Task<SubcontractOrderDto> GetByIdAsync(int id)
@@ -269,6 +300,12 @@ public class SubcontractOrderService : ISubcontractOrderService
                 .ToDictionaryAsync(w => w.WorkOrderNo, w => w);
         }
 
+        // 退货量补充：委外单号级（详情表头「退货总量」）+ 序号级（明细「退货量」）
+        var returnSummary = await BuildReturnSummaryAsync(new[] { entity.OrderNo });
+        var returnBySequence = returnSummary.TryGetValue(entity.OrderNo, out var rs) ? rs.BySequence : new Dictionary<int, (int Quantity, decimal Weight)>();
+        dto.ReturnQuantity = returnBySequence.Values.Sum(x => x.Quantity);
+        dto.ReturnWeight = returnBySequence.Values.Sum(x => x.Weight);
+
         dto.ReturnItems = entity.ReturnItems.Select(r =>
         {
             var itemDto = new SubcontractReturnItemDto
@@ -293,6 +330,13 @@ public class SubcontractOrderService : ISubcontractOrderService
                 ProcessStatus = Enum.TryParse<SubcontractOrderStatus>(r.ProcessStatus, out var ps) ? ps : default,
                 IsForceCompleted = r.IsForceCompleted
             };
+
+            // 序号级退货量补充
+            if (returnBySequence.TryGetValue(r.Sequence, out var ret))
+            {
+                itemDto.ReturnQuantity = ret.Quantity;
+                itemDto.ReturnWeight = ret.Weight;
+            }
 
             // 按每个 ReturnItem 各自的 SourceWorkOrderNo 填充 Wo* 字段
             if (r.SourceWorkOrderNo != null && workOrders.TryGetValue(r.SourceWorkOrderNo, out var wo))
@@ -464,6 +508,26 @@ public class SubcontractOrderService : ISubcontractOrderService
                     IsForceCompleted = item.IsForceCompleted
                 });
             }
+
+            // 全量替换子表后重新同步回收数据（防替换丢失已进库的回收支数/重量）
+            var batches = await _context.InventoryBatches
+                .AsNoTracking()
+                .Where(b => b.SourceOrderNo == entity.OrderNo)
+                .ToListAsync();
+            var overRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractOverRatio", 1.05m);
+            var overDeviation = await GetConfigAsync("WarehouseThreshold", "SubcontractOverDeviation", 100m);
+            // 退货量（序号级）：状态判定按「净回收 = 回收 - 退货」
+            var returnSummary = await BuildReturnSummaryAsync(new[] { entity.OrderNo });
+            var returnBySequence = returnSummary.TryGetValue(entity.OrderNo, out var rs) ? rs.BySequence : null;
+            var orderReturnWeight = returnBySequence?.Values.Sum(x => x.Weight) ?? 0m;
+            entity.InQuantity = batches.Sum(b => b.InitialQuantity);
+            entity.InWeight = batches.Sum(b => b.InitialWeight);
+            foreach (var item in entity.ReturnItems)
+                SubcontractHelper.SyncReturnItemFromBatches(item, batches, overRatio, overDeviation, returnBySequence);
+            if (!entity.IsForceCompleted)
+                await RecalcSubcontractStatusAsync(entity, orderReturnWeight);
+            else
+                ForceCompleteAllReturnItems(entity);
         }
 
         await _context.SaveChangesAsync();
@@ -513,24 +577,31 @@ public class SubcontractOrderService : ISubcontractOrderService
         var overRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractOverRatio", 1.05m);
         var overDeviation = await GetConfigAsync("WarehouseThreshold", "SubcontractOverDeviation", 100m);
 
+        // 退货量（序号级）：状态判定按「净回收 = 回收 - 退货」
+        var returnSummary = await BuildReturnSummaryAsync(orderNos);
+
         foreach (var order in orders)
         {
-            var orderBatches = batches.Where(b => b.SourceOrderNo == order.OrderNo).ToList();
+            // SQL 查询后内存过滤须忽略大小写（SQL 排序规则不区分大小写，C# 默认 == 区分，委外单号手输可能大小写不一）
+            var orderBatches = batches.Where(b => string.Equals(b.SourceOrderNo, order.OrderNo, StringComparison.OrdinalIgnoreCase)).ToList();
 
             order.InQuantity = orderBatches.Sum(b => b.InitialQuantity);
             order.InWeight = orderBatches.Sum(b => b.InitialWeight);
 
+            var returnBySequence = returnSummary.TryGetValue(order.OrderNo, out var rs) ? rs.BySequence : null;
+            var orderReturnWeight = returnBySequence?.Values.Sum(x => x.Weight) ?? 0m;
+
             // 同步每个 ReturnItem 的回收数据
             foreach (var item in order.ReturnItems)
             {
-                SubcontractHelper.SyncReturnItemFromBatches(item, orderBatches, overRatio, overDeviation);
+                SubcontractHelper.SyncReturnItemFromBatches(item, orderBatches, overRatio, overDeviation, returnBySequence);
             }
 
             // 主表强制完成 → 子表全部强制完成
             if (order.IsForceCompleted)
                 ForceCompleteAllReturnItems(order);
             else
-                await RecalcSubcontractStatusAsync(order);
+                await RecalcSubcontractStatusAsync(order, orderReturnWeight);
         }
 
         await _context.SaveChangesAsync();
@@ -559,17 +630,22 @@ public class SubcontractOrderService : ISubcontractOrderService
         var overRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractOverRatio", 1.05m);
         var overDeviation = await GetConfigAsync("WarehouseThreshold", "SubcontractOverDeviation", 100m);
 
+        // 退货量（序号级）：状态判定按「净回收 = 回收 - 退货」
+        var returnSummary = await BuildReturnSummaryAsync(new[] { order.OrderNo });
+        var returnBySequence = returnSummary.TryGetValue(order.OrderNo, out var rs) ? rs.BySequence : null;
+        var orderReturnWeight = returnBySequence?.Values.Sum(x => x.Weight) ?? 0m;
+
         // 同步每个 ReturnItem 的回收数据
         foreach (var item in order.ReturnItems)
         {
-            SubcontractHelper.SyncReturnItemFromBatches(item, batches, overRatio, overDeviation);
+            SubcontractHelper.SyncReturnItemFromBatches(item, batches, overRatio, overDeviation, returnBySequence);
         }
 
         // 主表强制完成 → 子表全部强制完成
         if (order.IsForceCompleted)
             ForceCompleteAllReturnItems(order);
-        else if (!order.IsForceCompleted)
-            await RecalcSubcontractStatusAsync(order);
+        else
+            await RecalcSubcontractStatusAsync(order, orderReturnWeight);
 
         await _context.SaveChangesAsync();
 
@@ -597,13 +673,24 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             // 委外超量回收配置（仿采购订单超量到货判定）
             var overRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractOverRatio", 1.05m);
             var overDeviation = await GetConfigAsync("WarehouseThreshold", "SubcontractOverDeviation", 100m);
+            // 退货量（序号级）：状态判定按「净回收 = 回收 - 退货」
+            var returnSummary = await BuildReturnSummaryAsync(new[] { entity.OrderNo });
+            var returnBySequence = returnSummary.TryGetValue(entity.OrderNo, out var rs) ? rs.BySequence : null;
+            var orderReturnWeight = returnBySequence?.Values.Sum(x => x.Weight) ?? 0m;
 
-            await RecalcSubcontractStatusAsync(entity);
-            // 取消级联：每个子表按实际回收数据重新计算
+            await RecalcSubcontractStatusAsync(entity, orderReturnWeight);
+            // 取消级联：每个子表按实际净回收数据重新计算
             foreach (var item in entity.ReturnItems)
             {
                 item.IsForceCompleted = false;
-                SubcontractHelper.RecalcReturnItemStatus(item, overRatio, overDeviation);
+                var returnQuantity = 0;
+                var returnWeight = 0m;
+                if (returnBySequence != null && returnBySequence.TryGetValue(item.Sequence, out var ret))
+                {
+                    returnQuantity = ret.Quantity;
+                    returnWeight = ret.Weight;
+                }
+                SubcontractHelper.RecalcReturnItemStatus(item, overRatio, overDeviation, returnQuantity, returnWeight);
             }
         }
 
@@ -774,6 +861,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             {
                 Id = i.Id,
                 SubcontractOrderId = i.SubcontractOrderId,
+                Sequence = i.Sequence,
                 OrderNo = i.OrderNo ?? i.SubcontractOrder.OrderNo,
                 SupplierName = i.SubcontractOrder.SupplierName,
                 OrderDate = i.SubcontractOrder.OrderDate,
@@ -796,6 +884,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
         {
             Id = i.Id,
             SubcontractOrderId = i.SubcontractOrderId,
+            Sequence = i.Sequence,
             OrderNo = i.OrderNo,
             SupplierName = i.SupplierName,
             OrderDate = i.OrderDate,
@@ -813,7 +902,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             ProcessStatus = EnumHelper.TryParse<SubcontractOrderStatus>(i.ProcessStatus)
         }).ToList();
 
-        // 退货量 + 截止回收日补充（退货出库 ReturnSourceBatchNo → 原仓库批 → SourceOrderNo==委外单号；截止回收日=仓库批 InboundDate 最大值）
+        // 退货量（序号级）+ 截止回收日补充（退货出库 ReturnSourceBatchNo → 原仓库批 → SourceOrderNo==委外单号；截止回收日=仓库批 InboundDate 最大值）
         var orderNos = allItems.Select(x => x.OrderNo)
             .Where(x => !string.IsNullOrEmpty(x))
             .Select(x => x!)
@@ -826,8 +915,11 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             {
                 if (item.OrderNo != null && returnSummary.TryGetValue(item.OrderNo, out var rs))
                 {
-                    item.ReturnQuantity = rs.Quantity;
-                    item.ReturnWeight = rs.Weight;
+                    if (rs.BySequence.TryGetValue(item.Sequence, out var s))
+                    {
+                        item.ReturnQuantity = s.Quantity;
+                        item.ReturnWeight = s.Weight;
+                    }
                     item.ReturnDeadline = rs.LastDate;
                 }
             }
@@ -923,6 +1015,8 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
         {
             ("orderno", true) => allItems.OrderByDescending(i => i.OrderNo ?? ""),
             ("orderno", false) => allItems.OrderBy(i => i.OrderNo ?? ""),
+            ("sequence", true) => allItems.OrderByDescending(i => i.Sequence),
+            ("sequence", false) => allItems.OrderBy(i => i.Sequence),
             ("suppliername", true) => allItems.OrderByDescending(i => i.SupplierName ?? ""),
             ("suppliername", false) => allItems.OrderBy(i => i.SupplierName ?? ""),
             ("orderdate", true) => allItems.OrderByDescending(i => i.OrderDate),
@@ -978,6 +1072,339 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    // ========== 圆钢穿孔汇总（按子项聚合） ==========
+
+    /// <summary>是否未完成子项（排除强制完成/已完成/超量回收；ProcessStatus 空视为未完成）</summary>
+    private static bool IsUnfinished(SubcontractReturnItemListDto i)
+        => !i.IsForceCompleted
+           && i.ProcessStatus is not (SubcontractOrderStatus.Completed or SubcontractOrderStatus.OverReceived);
+
+    /// <summary>
+    /// 加载全部子项执行数据（含序号级退货量 + 工单实时关注），供三个穿孔汇总表复用。
+    /// 退货量/工单关注口径与 GetReturnItemListAsync 完全一致。
+    /// </summary>
+    private async Task<List<SubcontractReturnItemListDto>> LoadPiercingSummaryItemsAsync()
+    {
+        var rawItems = await _context.SubcontractReturnItems
+            .AsNoTracking()
+            .Select(i => new
+            {
+                Id = i.Id,
+                SubcontractOrderId = i.SubcontractOrderId,
+                Sequence = i.Sequence,
+                OrderNo = i.OrderNo ?? i.SubcontractOrder.OrderNo,
+                SupplierName = i.SubcontractOrder.SupplierName,
+                OrderDate = i.SubcontractOrder.OrderDate,
+                SourceWorkOrderNo = i.SourceWorkOrderNo,
+                PlantGrade = i.PlantGrade,
+                ProcessSpecification = i.ProcessSpecification,
+                RequiredWeight = i.RequiredWeight,
+                ReturnedWeight = i.ReturnedWeight,
+                IsForceCompleted = i.IsForceCompleted,
+                ProcessStatus = i.ProcessStatus
+            })
+            .ToListAsync();
+
+        var allItems = rawItems.Select(i => new SubcontractReturnItemListDto
+        {
+            Id = i.Id,
+            SubcontractOrderId = i.SubcontractOrderId,
+            Sequence = i.Sequence,
+            OrderNo = i.OrderNo,
+            SupplierName = i.SupplierName,
+            OrderDate = i.OrderDate,
+            SourceWorkOrderNo = i.SourceWorkOrderNo,
+            PlantGrade = i.PlantGrade,
+            ProcessSpecification = i.ProcessSpecification,
+            RequiredWeight = i.RequiredWeight,
+            ReturnedWeight = i.ReturnedWeight,
+            IsForceCompleted = i.IsForceCompleted,
+            ProcessStatus = EnumHelper.TryParse<SubcontractOrderStatus>(i.ProcessStatus)
+        }).ToList();
+
+        // 退货量（序号级）
+        var orderNos = allItems.Where(x => !string.IsNullOrEmpty(x.OrderNo)).Select(x => x.OrderNo!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (orderNos.Count > 0)
+        {
+            var returnSummary = await BuildReturnSummaryAsync(orderNos);
+            foreach (var item in allItems)
+            {
+                if (item.OrderNo != null && returnSummary.TryGetValue(item.OrderNo, out var rs)
+                    && rs.BySequence.TryGetValue(item.Sequence, out var s))
+                {
+                    item.ReturnQuantity = s.Quantity;
+                    item.ReturnWeight = s.Weight;
+                }
+            }
+        }
+
+        // 工单实时关注（按来源工单号关联工单执行状况读模型）
+        var workOrderNos = allItems.Where(x => !string.IsNullOrEmpty(x.SourceWorkOrderNo)).Select(x => x.SourceWorkOrderNo!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (workOrderNos.Count > 0)
+        {
+            var execLookup = await _context.WorkOrderExecutionSummaries.AsNoTracking()
+                .Where(e => workOrderNos.Contains(e.WorkOrderNo))
+                .Select(e => new { e.WorkOrderNo, e.ScheduleStage, e.UrgencyLevel, e.RawMaterialLockRemark })
+                .ToListAsync();
+            var execMap = execLookup.ToDictionary(e => e.WorkOrderNo, e => e, StringComparer.OrdinalIgnoreCase);
+            foreach (var item in allItems)
+            {
+                if (item.SourceWorkOrderNo != null && execMap.TryGetValue(item.SourceWorkOrderNo, out var exec))
+                {
+                    item.ExecutionScheduleStage = exec.ScheduleStage;
+                    item.ExecutionUrgencyLevel = exec.UrgencyLevel;
+                    item.ExecutionRawMaterialLockRemark = exec.RawMaterialLockRemark;
+                }
+            }
+        }
+
+        return allItems;
+    }
+
+    /// <summary>
+    /// 按工单号关联工单执行状况读模型（工单关注/原锁执行/工单计划性），无记录返回默认
+    /// </summary>
+    private async Task<Dictionary<string, (int? Stage, string? Urgency, string? LockRemark)>> BuildExecutionMapAsync(List<string> workOrderNos)
+    {
+        var result = new Dictionary<string, (int?, string?, string?)>(StringComparer.OrdinalIgnoreCase);
+        if (workOrderNos.Count == 0)
+            return result;
+
+        var rows = await _context.WorkOrderExecutionSummaries
+            .AsNoTracking()
+            .Where(e => workOrderNos.Contains(e.WorkOrderNo))
+            .Select(e => new { e.WorkOrderNo, e.ScheduleStage, e.UrgencyLevel, e.RawMaterialLockRemark })
+            .ToListAsync();
+
+        foreach (var r in rows)
+            result[r.WorkOrderNo] = (r.ScheduleStage, r.UrgencyLevel, r.RawMaterialLockRemark);
+
+        return result;
+    }
+
+    /// <summary>
+    /// 圆钢待穿孔（明细，行=工单）：数据源=圆棒穿孔计划需求 − 已下委外量（子项需求重量按工单聚合）；
+    /// 缺少量=Max(0, 需求重量-已下委外量)，列结构对齐「荒管待购」（仅缺少量，规格只留穿孔规格）。
+    /// 尚未决定穿孔单位，故无委外单号/序号/委外单位列；含工单实时关注
+    /// </summary>
+    public async Task<List<SubcontractPiercingPendingDto>> GetPiercingPendingAsync()
+    {
+        // 1. 圆棒穿孔计划（需要穿孔的圆钢需求）
+        var planRows = await _context.RoundBarPiercingPlans
+            .AsNoTracking()
+            .Where(p => p.RequiredWeight > 0)
+            .Select(p => new { p.WorkOrderId, p.PlantGrade, p.PiercingSpec, p.RequiredWeight })
+            .ToListAsync();
+        if (planRows.Count == 0)
+            return new List<SubcontractPiercingPendingDto>();
+
+        // 2. 工单号映射
+        var woIds = planRows.Select(p => p.WorkOrderId).Distinct().ToList();
+        var workOrders = await _context.WorkOrders.AsNoTracking()
+            .Where(w => woIds.Contains(w.Id))
+            .ToDictionaryAsync(w => w.Id, w => w.WorkOrderNo);
+        var allWorkOrderNos = workOrders.Values.ToList();
+
+        // 3. 已下委外量 = 子项需求重量按工单聚合（发出量口径，与 GetPiercingProcurementStatusAsync 一致）
+        var dispatchedWeights = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        if (allWorkOrderNos.Count > 0)
+        {
+            var subData = await _context.SubcontractReturnItems
+                .AsNoTracking()
+                .Where(r => r.SourceWorkOrderNo != null && allWorkOrderNos.Contains(r.SourceWorkOrderNo))
+                .GroupBy(r => r.SourceWorkOrderNo!)
+                .Select(g => new { g.Key, Weight = g.Sum(r => r.RequiredWeight ?? 0) })
+                .ToListAsync();
+            dispatchedWeights = subData.ToDictionary(x => x.Key, x => x.Weight, StringComparer.OrdinalIgnoreCase);
+        }
+
+        // 4. 工单实时关注
+        var execMap = await BuildExecutionMapAsync(allWorkOrderNos);
+
+        // 5. 按工单号分组聚合
+        return planRows
+            .GroupBy(x => x.WorkOrderId)
+            .Select(g =>
+            {
+                var workOrderNo = workOrders.GetValueOrDefault(g.Key, "");
+                var dispatched = dispatchedWeights.GetValueOrDefault(workOrderNo, 0);
+                var (stage, urgency, lockRemark) = execMap.GetValueOrDefault(workOrderNo);
+                return new SubcontractPiercingPendingDto
+                {
+                    WorkOrderNo = workOrderNo,
+                    PlantGrade = string.Join(",", g.Select(x => x.PlantGrade).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase)),
+                    PiercingSpec = string.Join(",", g.Select(x => x.PiercingSpec).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase)),
+                    MissingWeight = Math.Max(0, g.Sum(x => x.RequiredWeight) - dispatched),
+                    ExecutionScheduleStage = stage,
+                    ExecutionUrgencyLevel = urgency,
+                    ExecutionRawMaterialLockRemark = lockRemark
+                };
+            })
+            .Where(x => x.MissingWeight > 0 && !string.IsNullOrEmpty(x.WorkOrderNo))
+            .OrderBy(x => x.WorkOrderNo)
+            .ToList();
+    }
+
+    /// <summary>
+    /// 圆钢在穿孔（二维：委外单位×加工规格）：在穿孔量=Max(0, 需求-净回收)，排除已完成/强制完成；
+    /// 不含急量；含合计行
+    /// </summary>
+    public async Task<SubcontractPiercingInProgressResultDto> GetPiercingInProgressAsync()
+    {
+        var result = new SubcontractPiercingInProgressResultDto();
+        var items = await LoadPiercingSummaryItemsAsync();
+
+        var unfinished = items
+            .Where(IsUnfinished)
+            .Select(i =>
+            {
+                var pending = Math.Max(0, (i.RequiredWeight ?? 0m) - Math.Max(0, i.ReturnedWeight - i.ReturnWeight));
+                return new
+                {
+                    Supplier = string.IsNullOrWhiteSpace(i.SupplierName) ? "未填写单位" : i.SupplierName.Trim(),
+                    Spec = string.IsNullOrWhiteSpace(i.ProcessSpecification) ? "" : i.ProcessSpecification.Trim(),
+                    Pending = pending
+                };
+            })
+            .Where(x => x.Pending > 0)
+            .ToList();
+        if (unfinished.Count == 0)
+        {
+            // 无数据时仅保留全 0 合计行，前端仍可渲染表结构
+            result.Rows.Add(new SubcontractPiercingInProgressRowDto { SupplierName = "合计" });
+            return result;
+        }
+
+        result.Specifications = unfinished.Select(x => x.Spec)
+            .Where(s => !string.IsNullOrEmpty(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var rowMap = new Dictionary<string, Dictionary<string, decimal>>(StringComparer.OrdinalIgnoreCase);
+        var totalMap = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        foreach (var x in unfinished)
+        {
+            if (!rowMap.TryGetValue(x.Supplier, out var cells))
+            {
+                cells = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+                rowMap[x.Supplier] = cells;
+            }
+            cells[x.Spec] = cells.GetValueOrDefault(x.Spec) + x.Pending;
+            totalMap[x.Supplier] = totalMap.GetValueOrDefault(x.Supplier) + x.Pending;
+        }
+
+        foreach (var kvp in rowMap.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var cells = new Dictionary<string, SubcontractPiercingInProgressCellDto>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in result.Specifications)
+                cells[s] = new SubcontractPiercingInProgressCellDto { TotalWeight = kvp.Value.GetValueOrDefault(s) };
+            result.Rows.Add(new SubcontractPiercingInProgressRowDto
+            {
+                SupplierName = kvp.Key,
+                Cells = cells,
+                Total = new SubcontractPiercingInProgressCellDto { TotalWeight = totalMap.GetValueOrDefault(kvp.Key) }
+            });
+        }
+
+        // 合计行
+        var specTotals = result.Specifications.ToDictionary(
+            s => s,
+            s => new SubcontractPiercingInProgressCellDto
+            {
+                TotalWeight = result.Rows.Sum(r => r.Cells.GetValueOrDefault(s)?.TotalWeight ?? 0)
+            },
+            StringComparer.OrdinalIgnoreCase);
+        result.Rows.Add(new SubcontractPiercingInProgressRowDto
+        {
+            SupplierName = "合计",
+            Cells = specTotals,
+            Total = new SubcontractPiercingInProgressCellDto { TotalWeight = result.Rows.Sum(r => r.Total.TotalWeight) }
+        });
+
+        return result;
+    }
+
+    /// <summary>
+    /// 圆钢月度穿孔数据（二维：委外单位×1~12月）：发=该月下单的需求重量，回=净回收重量；
+    /// 现在穿=未完成子项的在穿孔量（不分加工规格）；含合计行。发/回仅统计本年下单子项（同采购月度口径）。
+    /// </summary>
+    public async Task<SubcontractPiercingMonthlyResultDto> GetPiercingMonthlyAsync()
+    {
+        var result = new SubcontractPiercingMonthlyResultDto();
+        var year = DateTime.Today.Year;
+        var labels = Enumerable.Range(1, 12).Select(m => $"{year}-{m:00}").ToList();
+        result.MonthLabels = labels;
+
+        var items = await LoadPiercingSummaryItemsAsync();
+        if (items.Count == 0)
+        {
+            // 无子项时仅保留全 0 合计行，前端仍可渲染表结构
+            result.Rows.Add(new SubcontractPiercingMonthlyRowDto
+            {
+                SupplierName = "合计",
+                Months = labels.Select(_ => new SubcontractPiercingMonthlyValueDto()).ToList()
+            });
+            return result;
+        }
+
+        var rowMap = new Dictionary<string, SubcontractPiercingMonthlyRowDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var i in items)
+        {
+            // 发/回仅统计本年下单的子项
+            if (i.OrderDate.Year != year) continue;
+
+            var supplier = string.IsNullOrWhiteSpace(i.SupplierName) ? "未填写单位" : i.SupplierName.Trim();
+            if (!rowMap.TryGetValue(supplier, out var row))
+            {
+                row = new SubcontractPiercingMonthlyRowDto
+                {
+                    SupplierName = supplier,
+                    Months = labels.Select(_ => new SubcontractPiercingMonthlyValueDto()).ToList()
+                };
+                rowMap[supplier] = row;
+            }
+
+            var monthIdx = i.OrderDate.Month - 1;
+            var req = i.RequiredWeight ?? 0m;
+            var net = Math.Max(0, i.ReturnedWeight - i.ReturnWeight);
+            row.Months[monthIdx].SendWeight += req;
+            row.Months[monthIdx].RecoverWeight += net;
+            row.Total.SendWeight += req;
+            row.Total.RecoverWeight += net;
+
+            // 现在穿 = 未完成子项的在穿孔量
+            if (IsUnfinished(i))
+            {
+                var pending = Math.Max(0, req - net);
+                if (pending > 0) row.NowPiercing += pending;
+            }
+        }
+
+        result.Rows = rowMap.Values.OrderBy(x => x.SupplierName, StringComparer.OrdinalIgnoreCase).ToList();
+
+        // 合计行
+        var totalRow = new SubcontractPiercingMonthlyRowDto
+        {
+            SupplierName = "合计",
+            Months = labels.Select(_ => new SubcontractPiercingMonthlyValueDto()).ToList()
+        };
+        foreach (var r in result.Rows)
+        {
+            for (var i = 0; i < labels.Count; i++)
+            {
+                totalRow.Months[i].SendWeight += r.Months[i].SendWeight;
+                totalRow.Months[i].RecoverWeight += r.Months[i].RecoverWeight;
+            }
+            totalRow.Total.SendWeight += r.Total.SendWeight;
+            totalRow.Total.RecoverWeight += r.Total.RecoverWeight;
+            totalRow.NowPiercing += r.NowPiercing;
+        }
+        result.Rows.Add(totalRow);
+
+        return result;
     }
 
     private static string FormatFilterValue(object val)
@@ -1086,26 +1513,24 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
     }
 
     /// <summary>
-    /// 按委外单号汇总其退货量：退货出库 ReturnSourceBatchNo（原仓库批批次号）→ 反查 InventoryBatch.BatchNo → 其 SourceOrderNo == 委外单号。
-    /// 同时返回「截止回收日」= 该委外单号回收入库仓库批 InboundDate 的最大值（实际收回入库日期）。
+    /// 按「委外单号 × 序号」汇总其退货量：退货出库 ReturnSourceBatchNo（原仓库批批次号）→ 反查 InventoryBatch.BatchNo → 其 SourceOrderNo == 委外单号。
+    /// 返回（委外单号 →（序号 → 退货量/退货重, 截止回收日））；截止回收日=该委外单号回收入库仓库批 InboundDate 的最大值（实际收回入库日期）。
+    /// 委外单号级退货量由 BySequence 各序号求和派生（详情表头/列表页/主表状态判定使用）。
+    /// 聚合复用 SubcontractHelper.AggregateReturnsBySequence（与 InventorySyncService 退货口径一致）。
     /// </summary>
-    private async Task<Dictionary<string, (int Quantity, decimal Weight, DateTime? LastDate)>> BuildReturnSummaryAsync(IReadOnlyCollection<string> orderNos)
+    private async Task<Dictionary<string, (Dictionary<int, (int Quantity, decimal Weight)> BySequence, DateTime? LastDate)>> BuildReturnSummaryAsync(IReadOnlyCollection<string> orderNos)
     {
-        var result = new Dictionary<string, (int, decimal, DateTime?)>(StringComparer.OrdinalIgnoreCase);
+        var result = new Dictionary<string, (Dictionary<int, (int Quantity, decimal Weight)> BySequence, DateTime? LastDate)>(StringComparer.OrdinalIgnoreCase);
         if (orderNos.Count == 0) return result;
 
         foreach (var no in orderNos.Distinct(StringComparer.OrdinalIgnoreCase))
-            result[no] = (0, 0m, null);
+            result[no] = (new Dictionary<int, (int, decimal)>(), null);
 
-        // 按委外单号查其回收入库的仓库批，建立「原仓库批批次号 → 委外单号」映射 + 「委外单号 → 最近入库日期」
+        // 按委外单号查其回收入库的仓库批
         var batches = await _context.InventoryBatches.AsNoTracking()
             .Where(b => b.SourceOrderNo != null && orderNos.Contains(b.SourceOrderNo))
-            .Select(b => new { b.BatchNo, b.SourceOrderNo, b.InboundDate })
+            .Select(b => new { b.BatchNo, b.SourceOrderNo, b.SourceOrderSequence, b.InboundDate })
             .ToListAsync();
-
-        var batchNoToOrderNo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var b in batches.Where(b => !string.IsNullOrEmpty(b.BatchNo) && !string.IsNullOrEmpty(b.SourceOrderNo)))
-            batchNoToOrderNo[b.BatchNo!] = b.SourceOrderNo!;
 
         // 截止回收日：按委外单号取 InboundDate 最大值（无回收入库 → 保持 null）
         var lastDateByOrderNo = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
@@ -1118,31 +1543,47 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
         {
             if (lastDateByOrderNo.TryGetValue(no, out var d))
             {
-                var (q, w, _) = result[no];
-                result[no] = (q, w, d);
+                var (bySeq, _) = result[no];
+                result[no] = (bySeq, d);
             }
         }
 
-        if (batchNoToOrderNo.Count == 0) return result;
+        var batchNos = batches.Where(b => !string.IsNullOrEmpty(b.BatchNo)).Select(b => b.BatchNo!).ToList();
+        if (batchNos.Count == 0) return result;
 
-        var batchNos = batchNoToOrderNo.Keys.ToList();
+        var outbounds = new List<OutboundRecord>();
         foreach (var chunk in batchNos.Chunk(1000))
         {
-            var outbounds = await _context.OutboundRecords.AsNoTracking()
+            outbounds.AddRange(await _context.OutboundRecords.AsNoTracking()
                 .Where(o => o.OutboundType == OutboundType.ReturnOut
                          && o.ReturnSourceBatchNo != null
                          && chunk.Contains(o.ReturnSourceBatchNo))
-                .ToListAsync();
+                .ToListAsync());
+        }
 
-            foreach (var o in outbounds)
+        var bySeqMap = SubcontractHelper.AggregateReturnsBySequence(
+            outbounds,
+            batches.Select(b => (b.BatchNo, b.SourceOrderNo, b.SourceOrderSequence)));
+
+        foreach (var no in result.Keys.ToList())
+        {
+            if (bySeqMap.TryGetValue(no, out var bySeq))
             {
-                if (!batchNoToOrderNo.TryGetValue(o.ReturnSourceBatchNo!, out var orderNo)) continue;
-                var (q, w, d) = result[orderNo];
-                result[orderNo] = (q + o.OutboundQuantity, w + o.OutboundWeight, d);
+                var (_, d) = result[no];
+                result[no] = (bySeq, d);
             }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 委外单号级退货重量（主表净回收状态判定用，= 各序号退货重量之和）。
+    /// </summary>
+    private async Task<decimal> GetOrderReturnWeightAsync(string orderNo)
+    {
+        var summary = await BuildReturnSummaryAsync(new[] { orderNo });
+        return summary.TryGetValue(orderNo, out var rs) ? rs.BySequence.Values.Sum(x => x.Weight) : 0m;
     }
 
     public async Task<byte[]> PrintReturnItemListAsync(string? keyword, string? sortBy, bool isDescending, string? status, string? filters, List<PrintColumnDef>? columns)
@@ -1182,6 +1623,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             {
                 Id = i.Id,
                 SubcontractOrderId = i.SubcontractOrderId,
+                Sequence = i.Sequence,
                 OrderNo = i.OrderNo ?? i.SubcontractOrder.OrderNo,
                 SupplierName = i.SubcontractOrder.SupplierName,
                 OrderDate = i.SubcontractOrder.OrderDate,
@@ -1204,6 +1646,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
         {
             Id = i.Id,
             SubcontractOrderId = i.SubcontractOrderId,
+            Sequence = i.Sequence,
             OrderNo = i.OrderNo,
             SupplierName = i.SupplierName,
             OrderDate = i.OrderDate,
@@ -1221,7 +1664,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             ProcessStatus = EnumHelper.TryParse<SubcontractOrderStatus>(i.ProcessStatus)
         }).ToList();
 
-        // 退货量 + 截止回收日补充（同 GetReturnItemListAsync）
+        // 退货量（序号级）+ 截止回收日补充（同 GetReturnItemListAsync）
         var orderNos = items.Select(x => x.OrderNo)
             .Where(x => !string.IsNullOrEmpty(x))
             .Select(x => x!)
@@ -1234,8 +1677,11 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             {
                 if (item.OrderNo != null && returnSummary.TryGetValue(item.OrderNo, out var rs))
                 {
-                    item.ReturnQuantity = rs.Quantity;
-                    item.ReturnWeight = rs.Weight;
+                    if (rs.BySequence.TryGetValue(item.Sequence, out var s))
+                    {
+                        item.ReturnQuantity = s.Quantity;
+                        item.ReturnWeight = s.Weight;
+                    }
                     item.ReturnDeadline = rs.LastDate;
                 }
             }
@@ -1287,9 +1733,17 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 .ToDictionaryAsync(w => w.WorkOrderNo, w => w);
         }
 
+        // 退货量补充：委外单号级（各序号求和）+ 序号级
+        var orderNos = entities.Select(e => e.OrderNo).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var returnSummary = orderNos.Count > 0 ? await BuildReturnSummaryAsync(orderNos) : new Dictionary<string, (Dictionary<int, (int Quantity, decimal Weight)> BySequence, DateTime? LastDate)>(StringComparer.OrdinalIgnoreCase);
+
         return entities.Select(e =>
         {
             var dto = ToDto(e);
+
+            var returnBySequence = returnSummary.TryGetValue(e.OrderNo, out var rs) ? rs.BySequence : new Dictionary<int, (int Quantity, decimal Weight)>();
+            dto.ReturnQuantity = returnBySequence.Values.Sum(x => x.Quantity);
+            dto.ReturnWeight = returnBySequence.Values.Sum(x => x.Weight);
 
             dto.ReturnItems = e.ReturnItems.Select(r =>
             {
@@ -1314,6 +1768,11 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                     ProcessStatus = Enum.TryParse<SubcontractOrderStatus>(r.ProcessStatus, out var ps) ? ps : default,
                     IsForceCompleted = r.IsForceCompleted
                 };
+                if (returnBySequence.TryGetValue(r.Sequence, out var ret))
+                {
+                    itemDto.ReturnQuantity = ret.Quantity;
+                    itemDto.ReturnWeight = ret.Weight;
+                }
                 if (r.SourceWorkOrderNo != null && workOrders.TryGetValue(r.SourceWorkOrderNo, out var wo))
                     FillWorkOrderFields(itemDto, wo);
                 return itemDto;
@@ -1341,14 +1800,18 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
 
     // ========== 私有方法 ==========
 
-    private async Task RecalcSubcontractStatusAsync(SubcontractOrder order)
+    private async Task RecalcSubcontractStatusAsync(SubcontractOrder order, decimal? knownReturnWeight = null)
     {
         var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
         var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
 
-        if (order.InWeight == null || order.InWeight == 0)
+        // 净回收 = 总回收 - 退货量（与采购订单「按回收量-退货量计算真正的回收量」口径一致）
+        var returnWeight = knownReturnWeight ?? await GetOrderReturnWeightAsync(order.OrderNo);
+        var netRecover = order.InWeight.HasValue ? Math.Max(0m, order.InWeight.Value - returnWeight) : 0m;
+
+        if (netRecover <= 0m)
             order.Status = SubcontractOrderStatus.Sent;
-        else if (PurchaseOrderService.IsThresholdMet(order.InWeight.Value, order.OutWeight, ratio, deviation))
+        else if (PurchaseOrderService.IsThresholdMet(netRecover, order.OutWeight, ratio, deviation))
             order.Status = SubcontractOrderStatus.Completed;
         else
             order.Status = SubcontractOrderStatus.PartialReturned;

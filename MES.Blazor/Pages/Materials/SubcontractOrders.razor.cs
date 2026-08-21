@@ -61,7 +61,7 @@ public partial class SubcontractOrders : IAsyncDisposable
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "OutQuantity", "OutWeight", "ActualOutboundWeight", "Returned",
+        "OutQuantity", "OutWeight", "ActualOutboundWeight", "Returned", "ReturnQuantity",
     };
 
     private string sortColumn = "OrderDate";
@@ -102,6 +102,7 @@ public partial class SubcontractOrders : IAsyncDisposable
             EnumOptions = DisplayHelper.GetEnumFilterOptions<SubcontractOrderStatus>() },
         new() { Key = "ActualOutboundWeight",Label = "实发量",                                                                 Width = "90"  },
         new() { Key = "Returned",            Label = "已回收",                                                                 Width = "130" },
+        new() { Key = "ReturnQuantity",      Label = "已退货",                                                                 Width = "130" },
     };
 
     // ========== 列选择操作 ==========
@@ -151,6 +152,15 @@ public partial class SubcontractOrders : IAsyncDisposable
             {
                 var sum = _pageItems.Sum(item => item.InWeight ?? 0m);
                 _pageSums[col.Key] = ((int)sum).ToString();
+                continue;
+            }
+
+            // 特殊处理: "ReturnQuantity" 列汇总支数+重量
+            if (col.Key == "ReturnQuantity")
+            {
+                var qtySum = _pageItems.Sum(item => item.ReturnQuantity);
+                var wgtSum = _pageItems.Sum(item => item.ReturnWeight);
+                _pageSums[col.Key] = qtySum == 0 && wgtSum == 0 ? "-" : $"{qtySum}支/{((int)wgtSum).ToString()}kg";
                 continue;
             }
 
@@ -469,6 +479,9 @@ public partial class SubcontractOrders : IAsyncDisposable
                 break;
             case "Returned":
                 builder.AddContent(0, $"{item.InQuantity?.ToString() ?? "0"}支/{((int)(item.InWeight ?? 0)).ToString()}kg");
+                break;
+            case "ReturnQuantity":
+                builder.AddContent(0, $"{item.ReturnQuantity}支/{((int)item.ReturnWeight).ToString()}kg");
                 break;
         }
     };

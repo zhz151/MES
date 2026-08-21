@@ -168,4 +168,36 @@ public class SubcontractOrderService
         catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    // ========== 圆钢穿孔汇总（按子项聚合） ==========
+
+    public async Task<ApiResponse<List<SubcontractPiercingPendingDto>>> GetPiercingPendingAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<SubcontractPiercingPendingDto>>>($"{BaseUrl}/piercing-pending")
+                   ?? ApiResponse<List<SubcontractPiercingPendingDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<SubcontractPiercingPendingDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<SubcontractPiercingInProgressResultDto>> GetPiercingInProgressAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<SubcontractPiercingInProgressResultDto>>($"{BaseUrl}/piercing-in-progress")
+                   ?? ApiResponse<SubcontractPiercingInProgressResultDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<SubcontractPiercingInProgressResultDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<SubcontractPiercingMonthlyResultDto>> GetPiercingMonthlyAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<SubcontractPiercingMonthlyResultDto>>($"{BaseUrl}/piercing-monthly")
+                   ?? ApiResponse<SubcontractPiercingMonthlyResultDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<SubcontractPiercingMonthlyResultDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
 }

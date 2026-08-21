@@ -29,6 +29,10 @@ public class SubcontractOrderDto
     public DateTime? ReturnDeadline { get; set; }
     public int? InQuantity { get; set; }
     public decimal? InWeight { get; set; }
+    /// <summary>退货量（支）：退货出库归集到委外单号级</summary>
+    public int ReturnQuantity { get; set; }
+    /// <summary>退货重量（kg）：退货出库归集到委外单号级</summary>
+    public decimal ReturnWeight { get; set; }
     public string? Remark { get; set; }
     public List<SubcontractReturnItemDto> ReturnItems { get; set; } = new();
     public DateTimeOffset CreatedTime { get; set; }
@@ -79,6 +83,10 @@ public class SubcontractReturnItemDto
     // ========== 回收执行数据 ==========
     public int ReturnedQuantity { get; set; }
     public decimal ReturnedWeight { get; set; }
+    /// <summary>退货量（支）：退货出库归集到序号级</summary>
+    public int ReturnQuantity { get; set; }
+    /// <summary>退货重量（kg）：退货出库归集到序号级</summary>
+    public decimal ReturnWeight { get; set; }
     public SubcontractOrderStatus ProcessStatus { get; set; }
     public string ProcessStatusDisplay => EnumHelper.GetDisplayName(ProcessStatus);
     public bool IsForceCompleted { get; set; }

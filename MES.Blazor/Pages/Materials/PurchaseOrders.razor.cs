@@ -1037,15 +1037,18 @@ public partial class PurchaseOrders : IAsyncDisposable
     /// <summary>待购量(kg) 格式化：0 值留空（后端已过滤 PendingWeight&gt;0，仅防边界）</summary>
     private static string FormatPendingWeight(decimal kg) => kg > 0 ? ((int)kg).ToString() : string.Empty;
 
-    /// <summary>在购单元格格式化（t，保留 1 位）：总量&gt;0 显示「总量」，急量&gt;0 追加「[*急量]」；全 0 留空</summary>
+    /// <summary>在购单元格格式化（t，保留 1 位）：总量&gt;0 显示「总量」，急量&gt;0 追加「[*急量]」（`*` 标红=表内急量数据值）；全 0 留空</summary>
     private static string FormatInProgressCell(PurchaseInProgressCellDto cell)
     {
         var total = cell.TotalWeight / 1000m;
         if (total <= 0) return string.Empty;
         var s = total.ToString("F1");
         var urgent = cell.UrgentWeight / 1000m;
-        return urgent > 0 ? $"{s}[*{urgent.ToString("F1")}]" : s;
+        return urgent > 0 ? $"{s}[<span style=\"color:#d32f2f;font-weight:700;\">*</span>{urgent.ToString("F1")}]" : s;
     }
+
+    /// <summary>在购单元格 MarkupString 渲染（急量 `*` 标红需按 HTML 解析）</summary>
+    private static MarkupString RenderInProgressCell(PurchaseInProgressCellDto cell) => new(FormatInProgressCell(cell));
 
     /// <summary>月度单元格格式化（t，保留 1 位）：「购X/回Y」，0 值留空</summary>
     private static string FormatPurchaseMonthlyCell(decimal buy, decimal ret)

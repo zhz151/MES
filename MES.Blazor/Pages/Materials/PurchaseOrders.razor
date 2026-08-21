@@ -180,9 +180,9 @@
                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
                                                 @foreach (var g in _semiInProgressData.SteelGrades)
                                                 {
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatInProgressCell(r.Cells.GetValueOrDefault(g) ?? new PurchaseInProgressCellDto())</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@RenderInProgressCell(r.Cells.GetValueOrDefault(g) ?? new PurchaseInProgressCellDto())</td>
                                                 }
-                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatInProgressCell(r.Total)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@RenderInProgressCell(r.Total)</td>
                                             </tr>
                                         }
                                     </tbody>
@@ -361,9 +361,9 @@
                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
                                                 @foreach (var g in _finishedInProgressData.SteelGrades)
                                                 {
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatInProgressCell(r.Cells.GetValueOrDefault(g) ?? new PurchaseInProgressCellDto())</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@RenderInProgressCell(r.Cells.GetValueOrDefault(g) ?? new PurchaseInProgressCellDto())</td>
                                                 }
-                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatInProgressCell(r.Total)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@RenderInProgressCell(r.Total)</td>
                                             </tr>
                                         }
                                     </tbody>

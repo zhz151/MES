@@ -28,6 +28,19 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
 
+    // ========== 圆钢穿孔汇总折叠卡片（懒加载） ==========
+    private bool _showPiercingPending;
+    private bool _isLoadingPiercingPending;
+    private List<SubcontractPiercingPendingDto> _piercingPendingItems = new();
+
+    private bool _showPiercingInProgress;
+    private bool _isLoadingPiercingInProgress;
+    private SubcontractPiercingInProgressResultDto? _piercingInProgressData;
+
+    private bool _showPiercingMonthly;
+    private bool _isLoadingPiercingMonthly;
+    private SubcontractPiercingMonthlyResultDto? _piercingMonthlyData;
+
     // ========== 分页汇总 ==========
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
@@ -77,8 +90,8 @@ public partial class SubcontractReturnItems : IAsyncDisposable
         // G1: 委外信息
         var g1 = new List<ColumnDef>
         {
-            new() { Key = "#",                   Label = "#",                                                    Width = "40",  GroupKey = 1, GroupName = "委外信息" },
             new() { Key = "OrderNo",             Label = "委外单号",       SortKey = "orderno",           FilterType = "string", Width = "130", GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "Sequence",            Label = "序号",           SortKey = "sequence",                                 Width = "60",  GroupKey = 1, GroupName = "委外信息" },
             new() { Key = "SupplierName",        Label = "供应商",         SortKey = "suppliername",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
             new() { Key = "OrderDate",           Label = "下单日期",       SortKey = "orderdate",           FilterType = "date",  Width = "110", GroupKey = 1, GroupName = "委外信息" },
             new() { Key = "SourceWorkOrderNo",   Label = "来源工单号",     SortKey = "sourceworkorderno",  FilterType = "string", Width = "130", GroupKey = 1, GroupName = "委外信息" },
@@ -399,6 +412,105 @@ public partial class SubcontractReturnItems : IAsyncDisposable
         if (table != null) await table.ReloadServerData();
     }
 
+    // ========== 圆钢穿孔汇总折叠卡片（懒加载） ==========
+
+    private async Task TogglePiercingPending()
+    {
+        _showPiercingPending = !_showPiercingPending;
+        if (_showPiercingPending && _piercingPendingItems.Count == 0) await LoadPiercingPendingAsync();
+    }
+
+    private async Task TogglePiercingInProgress()
+    {
+        _showPiercingInProgress = !_showPiercingInProgress;
+        if (_showPiercingInProgress && _piercingInProgressData == null) await LoadPiercingInProgressAsync();
+    }
+
+    private async Task TogglePiercingMonthly()
+    {
+        _showPiercingMonthly = !_showPiercingMonthly;
+        if (_showPiercingMonthly && _piercingMonthlyData == null) await LoadPiercingMonthlyAsync();
+    }
+
+    private async Task LoadPiercingPendingAsync()
+    {
+        _isLoadingPiercingPending = true;
+        StateHasChanged();
+        try
+        {
+            var result = await SubcontractService.GetPiercingPendingAsync();
+            _piercingPendingItems = result.Success && result.Data != null ? result.Data : new List<SubcontractPiercingPendingDto>();
+        }
+        catch (Exception ex) { Snackbar.Add($"圆钢待穿孔数据加载失败: {ex.Message}", Severity.Error); }
+        finally { _isLoadingPiercingPending = false; StateHasChanged(); }
+    }
+
+    private async Task LoadPiercingInProgressAsync()
+    {
+        _isLoadingPiercingInProgress = true;
+        StateHasChanged();
+        try
+        {
+            var result = await SubcontractService.GetPiercingInProgressAsync();
+            _piercingInProgressData = result.Success && result.Data != null ? result.Data : null;
+        }
+        catch (Exception ex) { Snackbar.Add($"圆钢在穿孔数据加载失败: {ex.Message}", Severity.Error); }
+        finally { _isLoadingPiercingInProgress = false; StateHasChanged(); }
+    }
+
+    private async Task LoadPiercingMonthlyAsync()
+    {
+        _isLoadingPiercingMonthly = true;
+        StateHasChanged();
+        try
+        {
+            var result = await SubcontractService.GetPiercingMonthlyAsync();
+            _piercingMonthlyData = result.Success && result.Data != null ? result.Data : null;
+        }
+        catch (Exception ex) { Snackbar.Add($"圆钢月度穿孔数据加载失败: {ex.Message}", Severity.Error); }
+        finally { _isLoadingPiercingMonthly = false; StateHasChanged(); }
+    }
+
+    // ========== 圆钢穿孔汇总格式化 ==========
+
+    /// <summary>吨(t) 格式化：kg/1000 保留 1 位，0 值留空</summary>
+    private static string FormatTon(decimal kg) => kg > 0 ? (kg / 1000m).ToString("F1") : string.Empty;
+
+    /// <summary>kg 取整显示，0 值留空（同荒管待购 FormatPendingWeight）</summary>
+    private static string FormatKg(decimal kg) => kg > 0 ? ((int)kg).ToString() : string.Empty;
+
+    /// <summary>月度单元格格式化：「发X/回Y」（t），0 值留空</summary>
+    private static string FormatSendRecoverText(decimal send, decimal rec)
+    {
+        if (send <= 0 && rec <= 0) return string.Empty;
+        var parts = new List<string>();
+        if (send > 0) parts.Add("发" + (send / 1000m).ToString("F1"));
+        if (rec > 0) parts.Add("回" + (rec / 1000m).ToString("F1"));
+        return string.Join("/", parts);
+    }
+
+    // ========== 圆钢穿孔汇总打印（前端 printRawHtml 直接打印 DOM 表格） ==========
+
+    private async Task PrintTableAsync(string tableId, string title)
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", tableId);
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, title);
+            else
+                Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private Task PrintPiercingPendingTable() => PrintTableAsync("#sc-piercing-pending-table", "圆钢待穿孔");
+    private Task PrintPiercingInProgressTable() => PrintTableAsync("#sc-piercing-in-progress-table", "圆钢在穿孔");
+    private Task PrintPiercingMonthlyTable() => PrintTableAsync("#sc-piercing-monthly-table", "圆钢月度穿孔数据");
+
     private async Task PrintSelected()
     {
         if (!selectedIds.Any())
@@ -420,7 +532,6 @@ public partial class SubcontractReturnItems : IAsyncDisposable
 
     private void ToggleSort(string colKey)
     {
-        if (colKey == "#") return; // # 行号仅展示，不做排序
         if (sortColumn == colKey)
             sortDescending = !sortDescending;
         else
@@ -483,9 +594,8 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     {
         switch (col.Key)
         {
-            case "#":
-                var rowNo = _pageItems.IndexOf(item) + 1 + ((_currentPage - 1) * _pageSize);
-                builder.AddContent(0, rowNo);
+            case "Sequence":
+                builder.AddContent(0, item.Sequence);
                 break;
             case "OrderNo":
                 builder.AddContent(0, item.OrderNo);

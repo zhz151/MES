@@ -615,14 +615,15 @@ public class PurchaseOrderService : IPurchaseOrderService
                     .FirstOrDefaultAsync();
             }
 
-            // 非强制完成时自动计算状态
+            // 非强制完成时自动计算状态（净到货 = 已到货 - 退货）
             if (!entity.IsForceCompleted)
             {
                 var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
                 var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
                 var overRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
                 var overDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseOverDeviation", 100m);
-                RecalcPurchaseStatus(entity, ratio, deviation, overRatio, overDeviation);
+                var retW = (await BuildReturnSummaryAsync(new[] { entity.OrderNo })).GetValueOrDefault(entity.OrderNo).Weight;
+                RecalcPurchaseStatus(entity, ratio, deviation, overRatio, overDeviation, retW);
             }
         }
 
@@ -666,6 +667,9 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Where(b => b.SourceOrderNo != null && orderNos.Contains(b.SourceOrderNo))
             .ToListAsync();
 
+        // 退货量（按采购单号，一次性查询避免 N+1）
+        var returnSummary = await BuildReturnSummaryAsync(orderNos);
+
         foreach (var order in orders)
         {
             var orderBatches = batches.Where(b => string.Equals(b.SourceOrderNo, order.OrderNo, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -681,7 +685,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
                 var overRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
                 var overDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseOverDeviation", 100m);
-                RecalcPurchaseStatus(order, ratio, deviation, overRatio, overDeviation);
+                RecalcPurchaseStatus(order, ratio, deviation, overRatio, overDeviation, returnSummary.GetValueOrDefault(order.OrderNo).Weight);
             }
         }
 
@@ -715,7 +719,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
             var overRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
             var overDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseOverDeviation", 100m);
-            RecalcPurchaseStatus(order, ratio, deviation, overRatio, overDeviation);
+            var retW = (await BuildReturnSummaryAsync(new[] { order.OrderNo })).GetValueOrDefault(order.OrderNo).Weight;
+            RecalcPurchaseStatus(order, ratio, deviation, overRatio, overDeviation, retW);
         }
 
         await _context.SaveChangesAsync();
@@ -738,7 +743,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
             var overRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
             var overDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseOverDeviation", 100m);
-            RecalcPurchaseStatus(entity, ratio, deviation, overRatio, overDeviation);
+            var retW = (await BuildReturnSummaryAsync(new[] { entity.OrderNo })).GetValueOrDefault(entity.OrderNo).Weight;
+            RecalcPurchaseStatus(entity, ratio, deviation, overRatio, overDeviation, retW);
         }
 
         await _context.SaveChangesAsync();
@@ -763,14 +769,16 @@ public class PurchaseOrderService : IPurchaseOrderService
         await TryRefreshExecutionSummaryAsync(deletedWoNo);
     }
 
-    private static void RecalcPurchaseStatus(PurchaseOrder order, decimal purchaseCompleteRatio, decimal purchaseCompleteDeviation, decimal purchaseOverRatio, decimal purchaseOverDeviation)
+    private static void RecalcPurchaseStatus(PurchaseOrder order, decimal purchaseCompleteRatio, decimal purchaseCompleteDeviation, decimal purchaseOverRatio, decimal purchaseOverDeviation, decimal returnWeight)
     {
-        if (order.ReceivedWeight == 0)
+        // 净到货量 = 已到货量（多次到货累加）- 退货量（不合格退回回冲），以净到货对比采购量确定状态
+        var received = Math.Max(0, order.ReceivedWeight - returnWeight);
+        if (received == 0)
             order.Status = PurchaseOrderStatus.Open;
-        else if (order.ReceivedWeight > order.Weight * purchaseOverRatio
-                 && order.ReceivedWeight - order.Weight > purchaseOverDeviation)
+        else if (received > order.Weight * purchaseOverRatio
+                 && received - order.Weight > purchaseOverDeviation)
             order.Status = PurchaseOrderStatus.OverReceived;
-        else if (IsThresholdMet(order.ReceivedWeight, order.Weight, purchaseCompleteRatio, purchaseCompleteDeviation))
+        else if (IsThresholdMet(received, order.Weight, purchaseCompleteRatio, purchaseCompleteDeviation))
             order.Status = PurchaseOrderStatus.Completed;
         else
             order.Status = PurchaseOrderStatus.Partial;

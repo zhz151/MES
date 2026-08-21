@@ -1273,6 +1273,37 @@ public class InventoryServiceTests : TestBase
         result.Items.Should().HaveCount(1);
     }
 
+    [Fact]
+    public async Task GetPagedAsync_委外序号_列表DTO回显SourceOrderSequence()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx);
+        var svc = CreateService(ctx);
+
+        await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.RoughTube,
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InboundSource = InboundSource.Subcontract,
+            SourceName = "委外供应商",
+            SourceOrderNo = "WW260822001",
+            SourceOrderSequence = 3,
+            InitialQuantity = 10,
+            InitialWeight = 1000m
+        });
+
+        var result = await svc.GetPagedAsync(new InventoryQueryParams
+        {
+            PageIndex = 0,
+            PageSize = 10
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items[0].SourceOrderSequence.Should().Be(3);
+    }
+
     // ========== 更新 ==========
 
     [Fact]
@@ -2033,5 +2064,37 @@ public class InventoryServiceTests : TestBase
 
         woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-999"))), Times.AtLeastOnce);
         woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-001"))), Times.Never);
+    }
+
+    [Fact]
+    public async Task HardDeleteOutboundRecordAsync_已被生产批次合并投料领用_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedInventoryBatchAsync(ctx, "WO-001");
+        var svc = CreateOutboundWriteService(ctx, out var woExecMock);
+
+        var record = await svc.OutboundAsync(new CreateOutboundRequest
+        {
+            InventoryBatchId = batch.Id,
+            OutboundQuantity = 3,
+            OutboundWeight = 300m,
+            OutboundType = OutboundType.ProductionPick,
+            WorkOrderNo = "WO-001",
+            OutboundDate = DateTime.Today
+        });
+
+        // 生产批次合并投料已引用该出库记录（OutboundRecordId）
+        ctx.ProductionBatchInventories.Add(new ProductionBatchInventory
+        {
+            ProductionBatchId = 1,
+            InventoryBatchId = batch.Id,
+            OutboundRecordId = record.Id,
+            InputQuantity = 3,
+            InputWeight = 300m
+        });
+        await ctx.SaveChangesAsync();
+
+        var act = async () => await svc.HardDeleteOutboundRecordAsync(record.Id);
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("该出库记录已被生产批次合并投料领用，不可删除");
     }
 }

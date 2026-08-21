@@ -182,6 +182,30 @@ public class SubcontractOrderController : ControllerBase
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result, "查询成功"));
     }
 
+    [HttpGet("piercing-pending")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<SubcontractPiercingPendingDto>>>> GetPiercingPending()
+    {
+        var result = await _service.GetPiercingPendingAsync();
+        return Ok(ApiResponse<List<SubcontractPiercingPendingDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("piercing-in-progress")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<SubcontractPiercingInProgressResultDto>>> GetPiercingInProgress()
+    {
+        var result = await _service.GetPiercingInProgressAsync();
+        return Ok(ApiResponse<SubcontractPiercingInProgressResultDto>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("piercing-monthly")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<SubcontractPiercingMonthlyResultDto>>> GetPiercingMonthly()
+    {
+        var result = await _service.GetPiercingMonthlyAsync();
+        return Ok(ApiResponse<SubcontractPiercingMonthlyResultDto>.Ok(result, "查询成功"));
+    }
+
     [HttpPost("return-items/print-all-file")]
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<IActionResult> PrintReturnItemListFile([FromBody] OrderPrintAllRequest request)

@@ -175,12 +175,17 @@ public static class SubcontractOrderPrintHelper
                     t.Span("状态：").Bold().FontSize(9);
                     t.Span(EnumHelper.GetDisplayName(order.Status)).FontSize(9);
                 });
-                row.RelativeItem(2.5f).Text(t =>
+                row.RelativeItem(2).Text(t =>
                 {
                     t.Span("已回收：").Bold().FontSize(9);
                     t.Span($"{order.InQuantity?.ToString("G29") ?? "0"}支 / {order.InWeight?.ToString("G29") ?? "0"}kg").FontSize(9);
                 });
-                row.RelativeItem(2).Text(t =>
+                row.RelativeItem(1.5f).Text(t =>
+                {
+                    t.Span("退货量：").Bold().FontSize(9);
+                    t.Span(order.ReturnWeight > 0 ? $"{order.ReturnQuantity}支/{order.ReturnWeight:G29}kg" : "-").FontSize(9);
+                });
+                row.RelativeItem(2.5f).Text(t =>
                 {
                     t.Span("备注：").Bold().FontSize(9);
                     t.Span(order.Remark ?? "-").FontSize(9);
@@ -203,6 +208,7 @@ public static class SubcontractOrderPrintHelper
                 columns.ConstantColumn(42);   // 单重
                 columns.ConstantColumn(42);   // 需求支数
                 columns.ConstantColumn(50);   // 需求重量
+                columns.ConstantColumn(50);   // 退货量
                 columns.ConstantColumn(50);   // 加工状态
                 columns.ConstantColumn(50);   // 单价
                 columns.ConstantColumn(55);   // 加工金额
@@ -212,7 +218,7 @@ public static class SubcontractOrderPrintHelper
 
             // 表头
             string[] headers = { "序号", "物料分类", "加工牌号", "加工规格", "单重", "需求支数", "需求重量",
-                "加工状态", "加工单价", "加工金额", "来源工单号", "备注" };
+                "退货量", "加工状态", "加工单价", "加工金额", "来源工单号", "备注" };
             foreach (var h in headers)
                 table.Cell().Element(CellHeaderStyle).Text(h).FontSize(7).AlignCenter();
 
@@ -226,6 +232,7 @@ public static class SubcontractOrderPrintHelper
                 table.Cell().Element(CellStyle).Text(FormatNullableDecimal(item.UnitWeight)).FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.RequiredQuantity?.ToString("G29") ?? "-").FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(FormatNullableDecimal(item.RequiredWeight)).FontSize(7).AlignCenter();
+                table.Cell().Element(CellStyle).Text(item.ReturnWeight > 0 ? $"{item.ReturnQuantity}支/{item.ReturnWeight:G29}kg" : "-").FontSize(7).AlignCenter();
                 table.Cell().Element(CellStyle).Text(item.ProcessStatusRemark ?? "-").FontSize(7);
                 table.Cell().Element(CellStyle).Text(FormatNullableDecimal(item.ProcessUnitPrice)).FontSize(7).AlignRight();
                 table.Cell().Element(CellStyle).Text(FormatNullableDecimal(item.ProcessTotalAmount)).FontSize(7).AlignRight();

@@ -210,6 +210,8 @@
         // ========== 回收执行数据（只读展示，由增量更新同步） ==========
         public int ReturnedQuantity { get; set; }
         public decimal ReturnedWeight { get; set; }
+        public int ReturnQuantity { get; set; }
+        public decimal ReturnWeight { get; set; }
         public SubcontractOrderStatus ProcessStatus { get; set; }
         public bool IsForceCompleted { get; set; }
 
@@ -269,6 +271,7 @@
             new() { Key = "returndeadline", Label = "收回期限", Visible = true },
             new() { Key = "inquantity", Label = "已收回支数", Visible = true },
             new() { Key = "inweight", Label = "已收回重量", Visible = true },
+            new() { Key = "returnquantity", Label = "退货总量", Visible = true },
             new() { Key = "remark", Label = "备注", Visible = false },
         };
     }
@@ -290,6 +293,7 @@
             // 回收执行数据（只读）
             new() { Key = "returnedquantity", Label = "回收支数", Visible = true, GroupKey = 1, GroupName = "加工要求" },
             new() { Key = "returnedweight", Label = "回收重量", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "returnquantity", Label = "退货量", Visible = true, GroupKey = 1, GroupName = "加工要求" },
             new() { Key = "processstatus", Label = "加工状态", Visible = true, GroupKey = 1, GroupName = "加工要求" },
             new() { Key = "isforcecompleted", Label = "强制完成", Visible = true, GroupKey = 1, GroupName = "加工要求" },
             new() { Key = "remark", Label = "备注", Visible = false, GroupKey = 1, GroupName = "加工要求" },
@@ -432,6 +436,8 @@
             // 回收执行数据
             ReturnedQuantity = i.ReturnedQuantity,
             ReturnedWeight = i.ReturnedWeight,
+            ReturnQuantity = i.ReturnQuantity,
+            ReturnWeight = i.ReturnWeight,
             ProcessStatus = i.ProcessStatus,
             IsForceCompleted = i.IsForceCompleted,
             // Wo* 字段（每个 Sequence 各自关联）
@@ -795,6 +801,9 @@
             case "inweight":
                 builder.AddContent(0, item.InWeight?.ToString("G29") ?? "0");
                 break;
+            case "returnquantity":
+                builder.AddContent(0, item.ReturnWeight > 0 ? $"{item.ReturnQuantity}支/{((int)item.ReturnWeight).ToString("G29")}kg" : "-");
+                break;
             case "remark":
                 if (_isEditMode)
                 {
@@ -939,6 +948,9 @@
                 break;
             case "returnedweight":
                 builder.AddContent(0, item.ReturnedWeight > 0 ? ((int)item.ReturnedWeight).ToString() : "-");
+                break;
+            case "returnquantity":
+                builder.AddContent(0, item.ReturnWeight > 0 ? $"{item.ReturnQuantity}支/{((int)item.ReturnWeight).ToString()}kg" : "-");
                 break;
             case "processstatus":
                 builder.AddContent(0, DisplayHelper.GetSubcontractProcessStatusText(item.ProcessStatus));

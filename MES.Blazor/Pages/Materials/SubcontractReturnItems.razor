@@ -3,6 +3,8 @@
 @using MES.Blazor.Helpers
 @using MES.Blazor.Components
 @using MES.Core.Enums
+@using MES.Core.Helpers
+@using MES.Core.Constants
 @using MES.Core.Models
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
@@ -24,6 +26,20 @@
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.ListAlt" Class="mr-2" Color="Color.Primary" />子项查询</MudText>
             </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showPiercingPending ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showPiercingPending ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="TogglePiercingPending">圆钢待穿孔</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showPiercingInProgress ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showPiercingInProgress ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="TogglePiercingInProgress">圆钢在穿孔</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showPiercingMonthly ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showPiercingMonthly ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="TogglePiercingMonthly">圆钢月度穿孔数据</MudButton>
+            </CardHeaderActions>
         </MudCardHeader>
         <MudCardContent>
             <MudGrid>
@@ -31,6 +47,195 @@
                     <MudTextField T="string" Label="模糊搜索 - 单号/工单号/供应商/牌号/规格" Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)" ValueChanged="@OnSearchChanged" Immediate="true" DebounceInterval="500" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
             </MudGrid>
+
+            @* ==================== 圆钢穿孔汇总折叠卡片（按子项汇总） ==================== *@
+
+            @* 圆钢待穿孔实时数据（明细表，行=子项） *@
+            @if (_showPiercingPending)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingPiercingPending)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>圆钢待穿孔实时数据加载中...</span>
+                            </div>
+                        }
+                        else if (_piercingPendingItems.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无圆钢待穿孔数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>圆钢待穿孔实时数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintPiercingPendingTable">打印</MudButton>
+                            </div>
+                            <div id="sc-piercing-pending-table" style="overflow-x: auto; max-height: 30vh;">
+                                <MudTable T="SubcontractPiercingPendingDto" Items="@_piercingPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                    <HeaderContent>
+                                        <MudTh Style="width: 130px;">工单号</MudTh>
+                                        <MudTh Style="width: 90px;">工单关注</MudTh>
+                                        <MudTh Style="width: 110px;">原锁执行</MudTh>
+                                        <MudTh Style="width: 90px;">工单计划性</MudTh>
+                                        <MudTh Style="width: 90px;">钢种</MudTh>
+                                        <MudTh Style="width: 110px;">穿孔规格</MudTh>
+                                        <MudTh Style="width: 100px;" Class="text-right">缺少量(kg)</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.WorkOrderNo</MudTd>
+                                        <MudTd>
+                                            @if (context.ExecutionScheduleStage.HasValue)
+                                            {
+                                                <MudChip Size="Size.Small" Color="@DisplayHelper.GetScheduleStageColor(context.ExecutionScheduleStage.Value)">@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage.Value)</MudChip>
+                                            }
+                                            else
+                                            {
+                                                <span>-</span>
+                                            }
+                                        </MudTd>
+                                        <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (RawMaterialLockRemarkKeys.ToChinese(context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
+                                        <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
+                                        <MudTd>@context.PlantGrade</MudTd>
+                                        <MudTd>@context.PiercingSpec</MudTd>
+                                        <MudTd Class="text-right"><b>@FormatKg(context.MissingWeight)</b></MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：缺少量(kg) = Max(0, 圆棒穿孔计划需求 - 已下委外量)，已下委外量 = 子项需求重量按工单聚合；
+                                按（工单号）聚合，尚未决定穿孔单位故无委外单号/序号/委外单位；钢种/穿孔规格 = 该工单计划多值合并，0 值留空（同荒管待购）；
+                                工单关注/原锁执行/工单计划性按工单号关联工单执行状况（无记录 "-"）。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            @* 圆钢在穿孔实时数据（委外单位×加工规格二维表） *@
+            @if (_showPiercingInProgress)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingPiercingInProgress)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>圆钢在穿孔实时数据加载中...</span>
+                            </div>
+                        }
+                        else if (_piercingInProgressData == null || _piercingInProgressData.Rows.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无圆钢在穿孔数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>圆钢在穿孔实时数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintPiercingInProgressTable">打印</MudButton>
+                            </div>
+                            <div id="sc-piercing-in-progress-table" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">委外单位</th>
+                                            @foreach (var spec in _piercingInProgressData.Specifications)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@spec (t)</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _piercingInProgressData.Rows)
+                                        {
+                                            var isTotal = r.SupplierName == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                @foreach (var spec in _piercingInProgressData.Specifications)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatTon(r.Cells.GetValueOrDefault(spec)?.TotalWeight ?? 0)</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatTon(r.Total.TotalWeight)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：在穿孔 = 按（委外单位×加工规格）聚合的待穿孔量，在穿孔量 = Max(0, 需求重量 - 净回收重量)（净回收 = 回收量 - 退货量）；
+                                仅统计未完成子项，0 值留空；末行「合计」=全部委外单位合计。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            @* 圆钢月度穿孔数据（委外单位×1月~12月二维表） *@
+            @if (_showPiercingMonthly)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingPiercingMonthly)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>圆钢月度穿孔数据加载中...</span>
+                            </div>
+                        }
+                        else if (_piercingMonthlyData == null || _piercingMonthlyData.Rows.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无圆钢月度穿孔数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>圆钢月度穿孔数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintPiercingMonthlyTable">打印</MudButton>
+                            </div>
+                            <div id="sc-piercing-monthly-table" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">委外单位</th>
+                                            @foreach (var label in _piercingMonthlyData.MonthLabels)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                            <th style="padding:4px 10px; background:#ffe0b2; border:1px solid #e0e0e0; text-align:center;">现在穿(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _piercingMonthlyData.Rows)
+                                        {
+                                            var isTotal = r.SupplierName == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                @foreach (var mv in r.Months)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatSendRecoverText(mv.SendWeight, mv.RecoverWeight)</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatSendRecoverText(r.Total.SendWeight, r.Total.RecoverWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#ffe0b2;" : "background:#fff3e0;")">@FormatTon(r.NowPiercing)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：按本年度（下单日期）各月份统计，单元格「发X/回Y」（t），发=该月下单的子项需求重量，回=净回收重量（回收量-退货量），0 值留空；
+                                末列「合计」=该行 1月~12月发/回各自求和，末行「合计」=全部委外单位各月求和；
+                                「现在穿」=未完成子项的在穿孔量（Max(0, 需求-净回收)），橙底区分。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
 
             <div id="return-item-list-table">
             @{
