@@ -36,6 +36,7 @@ using MES.Tests.Tests;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Materials;
+using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -1023,5 +1024,171 @@ public class SubcontractOrderServiceTests : TestBase
         });
         filtered.Items.Should().HaveCount(1);
         filtered.Items[0].IsForceCompleted.Should().BeTrue();
+    }
+
+    // ========== 工单实时关注（按来源工单号关联工单执行状况读模型） ==========
+
+    [Fact]
+    public async Task GetReturnItemListAsync_工单实时关注_按来源工单号关联读模型填充()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}030", DateTime.Today);
+        order.ReturnItems.Single().SourceWorkOrderNo = "WO-EXEC-001";
+        await ctx.SaveChangesAsync();
+
+        ctx.WorkOrderExecutionSummaries.Add(new WorkOrderExecutionSummary
+        {
+            WorkOrderNo = "WO-EXEC-001",
+            Salesman = "测试业务",
+            CustomerName = "测试客户",
+            SalesOrderNo = "SO-001",
+            ProductionMainNo = "X01",
+            MaterialName = "无缝钢管",
+            DeliveryState = "Normal",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            LengthStatus = "Range",
+            SettlementMethod = "PerOrder",
+            ScheduleStage = 2,
+            UrgencyLevel = "BOrder",
+            RawMaterialLockRemark = "ExecuteRework",
+            TheoreticalCutoffDate = new DateTime(2026, 8, 20)
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetReturnItemListAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var dto = result.Items.Should().ContainSingle().Subject;
+        dto.ExecutionScheduleStage.Should().Be(2);
+        dto.ExecutionUrgencyLevel.Should().Be("BOrder");
+        dto.ExecutionRawMaterialLockRemark.Should().Be("ExecuteRework");
+        dto.ExecutionTheoreticalCutoffDate.Should().Be(new DateTime(2026, 8, 20));
+    }
+
+    [Fact]
+    public async Task GetReturnItemListAsync_工单实时关注_无读模型记录默认空()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}031", DateTime.Today); // 无 SourceWorkOrderNo
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetReturnItemListAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var dto = result.Items.Should().ContainSingle().Subject;
+        dto.ExecutionScheduleStage.Should().BeNull();
+        dto.ExecutionUrgencyLevel.Should().BeNull();
+        dto.ExecutionRawMaterialLockRemark.Should().BeNull();
+        dto.ExecutionTheoreticalCutoffDate.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetReturnItemListAsync_工单实时关注_按关注排序_按关注筛选()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var o1 = await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}032", DateTime.Today, reqQty: 100);
+        o1.ReturnItems.Single().SourceWorkOrderNo = "WO-1";
+        var o2 = await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}033", DateTime.Today, reqQty: 200);
+        o2.ReturnItems.Single().SourceWorkOrderNo = "WO-2";
+        await ctx.SaveChangesAsync();
+        ctx.WorkOrderExecutionSummaries.AddRange(
+            new WorkOrderExecutionSummary { WorkOrderNo = "WO-1", Salesman = "业务", CustomerName = "客户", SalesOrderNo = "S1", ProductionMainNo = "X01", MaterialName = "钢管", DeliveryState = "Normal", PlantGrade = "20#", Specification = "219*8", LengthStatus = "Range", SettlementMethod = "PerOrder", ScheduleStage = 4 },
+            new WorkOrderExecutionSummary { WorkOrderNo = "WO-2", Salesman = "业务", CustomerName = "客户", SalesOrderNo = "S2", ProductionMainNo = "X02", MaterialName = "钢管", DeliveryState = "Normal", PlantGrade = "20#", Specification = "219*8", LengthStatus = "Range", SettlementMethod = "PerOrder", ScheduleStage = 1 });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        // 排序
+        var asc = await svc.GetReturnItemListAsync(new QueryParams { PageIndex = 1, PageSize = 20, SortBy = "executionschedulestage", IsDescending = false });
+        asc.Items.Select(x => x.ExecutionScheduleStage).Should().Equal(1, 4);
+
+        // 筛选
+        var filtered = await svc.GetReturnItemListAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ExecutionScheduleStage", Operator = "in", Values = new List<string> { "4" } }
+            }
+        });
+        filtered.Items.Should().HaveCount(1);
+        filtered.Items[0].ExecutionScheduleStage.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task GetReturnItemFilterContextsAsync_工单实时关注_无工单号子项_含空值哨兵()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}034", DateTime.Today); // 无 SourceWorkOrderNo
+        var o2 = await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}035", DateTime.Today, reqQty: 200);
+        o2.ReturnItems.Single().SourceWorkOrderNo = "WO-EXEC-001";
+        await ctx.SaveChangesAsync();
+        ctx.WorkOrderExecutionSummaries.Add(new WorkOrderExecutionSummary
+        {
+            WorkOrderNo = "WO-EXEC-001", Salesman = "业务", CustomerName = "客户", SalesOrderNo = "S1", ProductionMainNo = "X01",
+            MaterialName = "钢管", DeliveryState = "Normal", PlantGrade = "20#", Specification = "219*8", LengthStatus = "Range",
+            SettlementMethod = "PerOrder", ScheduleStage = 3, UrgencyLevel = "BOrder", RawMaterialLockRemark = "ExecuteRework",
+            TheoreticalCutoffDate = new DateTime(2026, 8, 20)
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var contexts = await svc.GetReturnItemFilterContextsAsync();
+
+        // 无关联子项以空值哨兵输出，且空值排最前
+        contexts["ExecutionUrgencyLevel"].Should().Contain("__EXCEL_FILTER_NULL__").And.Contain("BOrder");
+        contexts["ExecutionUrgencyLevel"][0].Should().Be("__EXCEL_FILTER_NULL__");
+        contexts["ExecutionRawMaterialLockRemark"].Should().Contain("__EXCEL_FILTER_NULL__").And.Contain("ExecuteRework");
+        contexts["ExecutionTheoreticalCutoffDate"].Should().Contain("__EXCEL_FILTER_NULL__").And.Contain("2026-08-20");
+    }
+
+    [Fact]
+    public async Task GetReturnItemListAsync_工单实时关注_筛选空值_筛出无关联子项()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}036", DateTime.Today); // 无工单号 → 关注 null
+        var o2 = await SeedOrderWithDateAsync(ctx, sid, $"WW{DateTime.Now:yyMMdd}037", DateTime.Today, reqQty: 200);
+        o2.ReturnItems.Single().SourceWorkOrderNo = "WO-EXEC-001";
+        await ctx.SaveChangesAsync();
+        ctx.WorkOrderExecutionSummaries.Add(new WorkOrderExecutionSummary
+        {
+            WorkOrderNo = "WO-EXEC-001", Salesman = "业务", CustomerName = "客户", SalesOrderNo = "S1", ProductionMainNo = "X01",
+            MaterialName = "钢管", DeliveryState = "Normal", PlantGrade = "20#", Specification = "219*8", LengthStatus = "Range",
+            SettlementMethod = "PerOrder", ScheduleStage = 4
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        // 仅勾选空值 → isnull 操作符
+        var nullOnly = await svc.GetReturnItemListAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ExecutionScheduleStage", Operator = "isnull", IncludeNull = true }
+            }
+        });
+        nullOnly.Items.Should().HaveCount(1);
+        nullOnly.Items[0].ExecutionScheduleStage.Should().BeNull();
+
+        // 空值 + 具体值 → in + IncludeNull
+        var withValue = await svc.GetReturnItemListAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ExecutionScheduleStage", Operator = "in", Values = new List<string> { "4" }, IncludeNull = true }
+            }
+        });
+        withValue.Items.Should().HaveCount(2);
     }
 }

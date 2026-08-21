@@ -863,4 +863,199 @@ public class SectionOutsourceServiceTests : TestBase
         db.IsInternal.Should().BeFalse();
         db.Status.Should().Be(SectionOutsourceStatus.PendingRecovery);
     }
+
+    // ========== 月度委外数据汇总 + 厂内单位 ==========
+
+    [Fact]
+    public async Task GetMonthlyOutsourceAsync_发回退按月聚合_含合计行()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        var batch = await SeedBatchAsync(ctx, "BATCH-MONTHLY");
+        // 委外厂A：60冷轧/冷轧拔，1月发出 1000，1月回收 800 + 退 200
+        var outsource = await SeedOutsourceAsync(ctx, batch.Id, vendor: "委外厂A");
+        outsource.SendOutDate = new DateTime(year, 1, 15);
+        outsource.SendWeight = 1000m;
+        ctx.OutsourceRecoveries.Add(new OutsourceRecovery
+        {
+            SectionOutsourceId = outsource.Id,
+            RecoveryDate = new DateTime(year, 1, 20),
+            RecoveryWeight = 800m,
+            UnprocessedWeight = 200m
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetMonthlyOutsourceAsync();
+
+        var row = result.Should().ContainSingle(r => r.OutsourceVendor == "委外厂A").Subject;
+        row.SectionName.Should().Be("冷轧拔-60冷轧");
+        row.Months.Should().HaveCount(12);
+        row.Months[0].Send.Should().Be(1000m);
+        row.Months[0].Recover.Should().Be(800m);
+        row.Months[0].Unprocessed.Should().Be(200m);
+        row.TotalSend.Should().Be(1000m);
+        row.TotalRecover.Should().Be(800m);
+        row.TotalUnprocessed.Should().Be(200m);
+        // 回 800 + 退 200 = 发出 1000 → 已回收完，现在产 0
+        row.NowInProduction.Should().Be(0m);
+
+        var total = result.Should().ContainSingle(r => r.OutsourceVendor == "合计").Subject;
+        total.SectionName.Should().Be("合计");
+        total.TotalSend.Should().Be(1000m);
+        total.TotalRecover.Should().Be(800m);
+        total.TotalUnprocessed.Should().Be(200m);
+        total.Months[0].Send.Should().Be(1000m);
+        total.Months[0].Recover.Should().Be(800m);
+        total.Months[0].Unprocessed.Should().Be(200m);
+        total.NowInProduction.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetMonthlyOutsourceAsync_厂内IsInternal过滤_不计入()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-INTERNAL-MONTHLY");
+        // 厂内（IsInternal=true，车间名）记录不应出现在月度委外数据中
+        var internalOut = await SeedOutsourceAsync(ctx, batch.Id, vendor: "一车间", status: SectionOutsourceStatus.Virtual, isInternal: true);
+        internalOut.SendOutDate = new DateTime(DateTime.Today.Year, 1, 15);
+        internalOut.SendWeight = 1000m;
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetMonthlyOutsourceAsync();
+
+        result.Should().NotContain(r => r.OutsourceVendor == "一车间");
+        // 唯一数据被过滤后仅剩全 0「合计」行
+        result.Should().ContainSingle(r => r.OutsourceVendor == "合计");
+    }
+
+    [Fact]
+    public async Task GetMonthlyOutsourceAsync_冷轧拔按工序分化_非冷轧工序丢弃()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        var batch = await SeedBatchAsync(ctx, "BATCH-SPLIT");
+        // 60冷轧/冷轧拔 → 冷轧拔-60冷轧
+        var o60 = await SeedOutsourceAsync(ctx, batch.Id, vendor: "委外厂A");
+        o60.ProcessName = "60冷轧";
+        o60.SendOutDate = new DateTime(year, 2, 10);
+        o60.SendWeight = 500m;
+        // 50冷轧/冷轧拔 → 冷轧拔-50冷轧
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "50冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 1,
+            OutsourceVendor = "委外厂B",
+            SendOutDate = new DateTime(year, 2, 12),
+            SendWeight = 300m,
+            Status = SectionOutsourceStatus.PendingRecovery
+        });
+        // 酸洗/冷轧拔：非冷轧/冷拔工序的冷轧拔记录应丢弃（无对应行）
+        ctx.SectionOutsources.Add(new SectionOutsource
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "酸洗",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 2,
+            OutsourceVendor = "委外厂C",
+            SendOutDate = new DateTime(year, 2, 14),
+            SendWeight = 999m,
+            Status = SectionOutsourceStatus.PendingRecovery
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetMonthlyOutsourceAsync();
+
+        var row60 = result.Should().ContainSingle(r => r.OutsourceVendor == "委外厂A").Subject;
+        row60.SectionName.Should().Be("冷轧拔-60冷轧");
+        row60.Months[1].Send.Should().Be(500m);
+        var row50 = result.Should().ContainSingle(r => r.OutsourceVendor == "委外厂B").Subject;
+        row50.SectionName.Should().Be("冷轧拔-50冷轧");
+        row50.Months[1].Send.Should().Be(300m);
+        result.Should().NotContain(r => r.OutsourceVendor == "委外厂C");
+        // 合计行：60+50 = 800
+        var total = result.Should().ContainSingle(r => r.OutsourceVendor == "合计").Subject;
+        total.TotalSend.Should().Be(800m);
+    }
+
+    [Fact]
+    public async Task GetMonthlyOutsourceAsync_无数据_仅合计行()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetMonthlyOutsourceAsync();
+
+        result.Should().ContainSingle(r => r.OutsourceVendor == "合计");
+        result[0].Months.Should().HaveCount(12);
+        result[0].Months.All(m => m.Send == 0 && m.Recover == 0 && m.Unprocessed == 0).Should().BeTrue();
+        result[0].TotalSend.Should().Be(0m);
+        result[0].NowInProduction.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetMonthlyOutsourceAsync_现在产_未回收发出重量_已回收不计_跨年度计入()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        var batch = await SeedBatchAsync(ctx, "BATCH-NOW");
+        // 委外厂A：本年发出 1000 无回收 → 未回收，现在产 1000
+        var a = await SeedOutsourceAsync(ctx, batch.Id, vendor: "委外厂A");
+        a.SendOutDate = new DateTime(year, 1, 15);
+        a.SendWeight = 1000m;
+        // 委外厂B：本年发出 1000，已回收 1000 → 已回收完，现在产 0
+        var b = await SeedOutsourceAsync(ctx, batch.Id, vendor: "委外厂B");
+        b.SendOutDate = new DateTime(year, 1, 15);
+        b.SendWeight = 1000m;
+        ctx.OutsourceRecoveries.Add(new OutsourceRecovery
+        {
+            SectionOutsourceId = b.Id,
+            RecoveryDate = new DateTime(year, 1, 20),
+            RecoveryWeight = 1000m
+        });
+        // 委外厂C：去年发出 500 未回收 → 本年发聚合无，但现在产 500（与发出年度无关的实时存量）
+        var c = await SeedOutsourceAsync(ctx, batch.Id, vendor: "委外厂C");
+        c.SendOutDate = new DateTime(year - 1, 12, 1);
+        c.SendWeight = 500m;
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetMonthlyOutsourceAsync();
+
+        var rowA = result.Should().ContainSingle(r => r.OutsourceVendor == "委外厂A").Subject;
+        rowA.TotalSend.Should().Be(1000m);
+        rowA.NowInProduction.Should().Be(1000m);
+        var rowB = result.Should().ContainSingle(r => r.OutsourceVendor == "委外厂B").Subject;
+        rowB.TotalSend.Should().Be(1000m);
+        rowB.NowInProduction.Should().Be(0m);
+        // 委外厂C 行：本年发/回/退全 0 但现在产 500 → 行仍显示（隐藏判定含现在产）
+        var rowC = result.Should().ContainSingle(r => r.OutsourceVendor == "委外厂C").Subject;
+        rowC.TotalSend.Should().Be(0m);
+        rowC.NowInProduction.Should().Be(500m);
+        var total = result.Should().ContainSingle(r => r.OutsourceVendor == "合计").Subject;
+        total.NowInProduction.Should().Be(1500m);   // 1000 + 0 + 500
+    }
+
+    [Fact]
+    public async Task GetInternalVendorsAsync_返回厂内单位去重集合()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-INTERNAL-VENDORS");
+        // 厂内车间（IsInternal=true）
+        await SeedOutsourceAsync(ctx, batch.Id, vendor: "一车间", status: SectionOutsourceStatus.Virtual, isInternal: true);
+        await SeedOutsourceAsync(ctx, batch.Id, vendor: "二车间", status: SectionOutsourceStatus.Virtual, isInternal: true);
+        // 非厂内委外厂
+        await SeedOutsourceAsync(ctx, batch.Id, vendor: "委外厂A");
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetInternalVendorsAsync();
+
+        result.Should().BeEquivalentTo(new[] { "一车间", "二车间" });
+    }
 }

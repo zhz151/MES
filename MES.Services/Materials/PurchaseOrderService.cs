@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
+using MES.Core.Constants;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -56,6 +56,9 @@ public class PurchaseOrderService : IPurchaseOrderService
     private readonly ILogger<PurchaseOrderService> _logger;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private readonly IMemoryCache _cache;
+
+    // 空值筛选哨兵（与前端 ExcelFilter/BatchPlans 的 "__EXCEL_FILTER_NULL__" 一致）
+    private const string FilterNull = "__EXCEL_FILTER_NULL__";
 
     public PurchaseOrderService(AppDbContext context, IConfigParameterService configService,
         IWorkOrderExecutionService workOrderExecutionService, ILogger<PurchaseOrderService> logger, IMemoryCache cache)
@@ -137,7 +140,9 @@ public class PurchaseOrderService : IPurchaseOrderService
         var entityQuery = from p in _context.PurchaseOrders.AsNoTracking()
                           join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
                           from w in wj.DefaultIfEmpty()
-                          select new { p, w, MaterialCategory = p.MaterialCategory };
+                          join e in _context.WorkOrderExecutionSummaries.AsNoTracking() on p.SourceWorkOrderNo equals e.WorkOrderNo into ej
+                          from e in ej.DefaultIfEmpty()
+                          select new { p, w, e, MaterialCategory = p.MaterialCategory };
 
         // 关键词筛选（使用实体级字符串字段）
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -217,6 +222,10 @@ public class PurchaseOrderService : IPurchaseOrderService
             WoTotalWeight = x.w != null ? (decimal?)x.w.TotalWeight : null,
             WoDeliveryState = x.w != null ? (DeliveryState?)x.w.DeliveryState : null,
             WoTotalItemCount = x.w != null ? (int?)x.w.TotalItemCount : null,
+            ExecutionScheduleStage = x.e != null ? (int?)x.e.ScheduleStage : null,
+            ExecutionUrgencyLevel = x.e != null ? x.e.UrgencyLevel : null,
+            ExecutionRawMaterialLockRemark = x.e != null ? x.e.RawMaterialLockRemark : null,
+            ExecutionTheoreticalCutoffDate = x.e != null ? (DateTime?)x.e.TheoreticalCutoffDate : null,
         });
 
         // 通用筛选
@@ -274,6 +283,10 @@ public class PurchaseOrderService : IPurchaseOrderService
             WoTotalWeight = x.WoTotalWeight,
             WoDeliveryState = x.WoDeliveryState,
             WoTotalItemCount = x.WoTotalItemCount,
+            ExecutionScheduleStage = x.ExecutionScheduleStage,
+            ExecutionUrgencyLevel = x.ExecutionUrgencyLevel,
+            ExecutionRawMaterialLockRemark = x.ExecutionRawMaterialLockRemark,
+            ExecutionTheoreticalCutoffDate = x.ExecutionTheoreticalCutoffDate,
         }).ToList();
 
         // 退货量（内存补充：按采购单号汇总退货出库 ReturnOut 支数/重量）
@@ -884,28 +897,16 @@ public class PurchaseOrderService : IPurchaseOrderService
                 .ToDictionary(x => $"{x.SourceWorkOrderNo}|{x.MaterialCategory}", x => x.Weight, StringComparer.OrdinalIgnoreCase);
         }
 
-        // 6. 按工单号+物料分类聚合已委外重量（按 ReturnItems RequiredWeight 汇总）
-        var subcontractWeights = new Dictionary<string, decimal>();
-        if (allWorkOrderNos.Count > 0)
-        {
-            var subcontractData = await _context.SubcontractReturnItems
-                .AsNoTracking()
-                .Where(r => r.SourceWorkOrderNo != null && allWorkOrderNos.Contains(r.SourceWorkOrderNo))
-                .GroupBy(r => new { SourceWorkOrderNo = r.SourceWorkOrderNo!, r.MaterialCategory })
-                .Select(g => new { g.Key.SourceWorkOrderNo, g.Key.MaterialCategory, Weight = g.Sum(r => r.RequiredWeight ?? 0) })
-                .ToListAsync();
-            subcontractWeights = subcontractData
-                .ToDictionary(x => $"{x.SourceWorkOrderNo}|{x.MaterialCategory}", x => x.Weight, StringComparer.OrdinalIgnoreCase);
-        }
+        // 6. 按工单号关联工单执行状况读模型（工单关注/原锁执行/工单计划性）
+        var execMap = await BuildExecutionMapAsync(allWorkOrderNos);
 
-        // 7. 合并原料+成品计划数据，计算采购执行状态
+        // 7. 合并原料+成品计划数据，计算采购执行状态（执行量=已采购，委外穿孔不属采购计划）
         var allPlanData = semiPlanData.Concat(finishedPlanData)
             .Select(x =>
             {
                 var workOrderNo = workOrders.GetValueOrDefault(x.WorkOrderId, "");
                 var purchaseW = purchaseWeights.GetValueOrDefault($"{workOrderNo}|{x.CategoryName}", 0);
-                var subcontractW = subcontractWeights.GetValueOrDefault($"{workOrderNo}|{x.CategoryName}", 0);
-                var total = purchaseW + subcontractW;
+                var (execStage, execUrgency, execLock) = execMap.GetValueOrDefault(workOrderNo);
                 return new ProcurementStatusDto
                 {
                     WorkOrderNo = workOrderNo,
@@ -913,11 +914,13 @@ public class PurchaseOrderService : IPurchaseOrderService
                     MaterialCategory = EnumHelper.TryParse<MaterialType>(x.CategoryName),
                     PlanWeight = x.PlanWeight,
                     PurchaseWeight = purchaseW,
-                    SubcontractWeight = subcontractW,
-                    TotalWeight = total,
-                    StatusText = total == 0 ? "未采购"
-                        : total > x.PlanWeight * purchaseOverRatio ? "超额采购"
-                        : IsThresholdMet(total, x.PlanWeight, purchaseCompleteRatio, purchaseCompleteDeviation) ? "已采购"
+                    MissingWeight = Math.Max(0, x.PlanWeight - purchaseW),
+                    ExecutionScheduleStage = execStage,
+                    ExecutionUrgencyLevel = execUrgency,
+                    ExecutionRawMaterialLockRemark = execLock,
+                    StatusText = purchaseW == 0 ? "未采购"
+                        : purchaseW > x.PlanWeight * purchaseOverRatio ? "超额采购"
+                        : IsThresholdMet(purchaseW, x.PlanWeight, purchaseCompleteRatio, purchaseCompleteDeviation) ? "已采购"
                         : "部分采购"
                 };
             })
@@ -979,12 +982,16 @@ public class PurchaseOrderService : IPurchaseOrderService
             subcontractWeights = subcontractData.ToDictionary(x => x.SourceWorkOrderNo, x => x.Weight, StringComparer.OrdinalIgnoreCase);
         }
 
-        // 5. 合并数据，计算执行状态
+        // 5. 按工单号关联工单执行状况读模型（工单关注/原锁执行/工单计划性）
+        var execMap = await BuildExecutionMapAsync(allWorkOrderNos);
+
+        // 6. 合并数据，计算执行状态（执行量=已委外，缺少量=计划-已委外）
         var result = piercingPlanData
             .Select(x =>
             {
                 var workOrderNo = workOrders.GetValueOrDefault(x.WorkOrderId, "");
                 var subW = subcontractWeights.GetValueOrDefault(workOrderNo, 0);
+                var (execStage, execUrgency, execLock) = execMap.GetValueOrDefault(workOrderNo);
                 return new ProcurementStatusDto
                 {
                     WorkOrderNo = workOrderNo,
@@ -993,7 +1000,10 @@ public class PurchaseOrderService : IPurchaseOrderService
                     PlanWeight = x.PlanWeight,
                     PurchaseWeight = 0,
                     SubcontractWeight = subW,
-                    TotalWeight = subW,
+                    MissingWeight = Math.Max(0, x.PlanWeight - subW),
+                    ExecutionScheduleStage = execStage,
+                    ExecutionUrgencyLevel = execUrgency,
+                    ExecutionRawMaterialLockRemark = execLock,
                     StatusText = subW == 0 ? "未穿孔"
                         : subW > x.PlanWeight * purchaseOverRatio ? "超额穿孔"
                         : IsThresholdMet(subW, x.PlanWeight, purchaseCompleteRatio, purchaseCompleteDeviation) ? "已穿孔"
@@ -1003,6 +1013,319 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Where(x => x.StatusText != "已穿孔" && !string.IsNullOrEmpty(x.WorkOrderNo))
             .OrderBy(x => x.WorkOrderNo)
             .ToList();
+
+        return result;
+    }
+
+    /// <summary>
+    /// 按工单号集合构建工单执行状况读模型映射（工单关注/原锁执行/工单计划性），无记录返回 null
+    /// </summary>
+    private async Task<Dictionary<string, (int? Stage, string? Urgency, string? LockRemark)>> BuildExecutionMapAsync(List<string> workOrderNos)
+    {
+        var result = new Dictionary<string, (int?, string?, string?)>(StringComparer.OrdinalIgnoreCase);
+        if (workOrderNos.Count == 0)
+            return result;
+
+        var rows = await _context.WorkOrderExecutionSummaries
+            .AsNoTracking()
+            .Where(e => workOrderNos.Contains(e.WorkOrderNo))
+            .Select(e => new { e.WorkOrderNo, e.ScheduleStage, e.UrgencyLevel, e.RawMaterialLockRemark })
+            .ToListAsync();
+
+        foreach (var r in rows)
+            result[r.WorkOrderNo] = (r.ScheduleStage, r.UrgencyLevel, r.RawMaterialLockRemark);
+
+        return result;
+    }
+
+    // ========== 采购首页汇总（荒管/成品） ==========
+
+    // 荒管物料分类（采购单 MaterialCategory 存储值）
+    private static readonly string[] SemiCategories = { "RoughTube", "SemiFinished" };
+
+    // 成品物料分类（采购单 MaterialCategory 存储值 = MaterialType 枚举名）
+    private static readonly string[] FinishedCategories = { "CriticalFinished", "OrderFinished", "SpecialDeliveryStatus" };
+
+    private static HashSet<string> GetCategorySet(bool isFinished)
+        => new(isFinished ? FinishedCategories : SemiCategories, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 待购实时数据（荒管/成品）：按（工单号+物料分类）聚合，待购量=Max(0, 计划总量-已采购量)；
+    /// 厂内钢种/规格=组内计划多值合并；工单关注/原锁执行/工单计划性按工单号关联读模型（无记录 null）
+    /// </summary>
+    public async Task<List<PurchasePendingDto>> GetPurchasePendingAsync(bool isFinished)
+    {
+        var categorySet = GetCategorySet(isFinished);
+
+        // 1. 计划明细（荒管 PurchaseSemiPlans / 成品 PurchaseFinishedPlans）
+        List<(int WorkOrderId, string CategoryName, string PlantGrade, string Spec, decimal PlanWeight)> planRows;
+        if (isFinished)
+        {
+            var rows = await _context.PurchaseFinishedPlans.AsNoTracking()
+                .Where(p => p.RequiredWeight > 0)
+                .Select(p => new { p.WorkOrderId, p.ProductType, p.PlantGrade, p.Specification, p.RequiredWeight })
+                .ToListAsync();
+            planRows = rows.Select(p => (
+                p.WorkOrderId,
+                CategoryName: p.ProductType == FinishedProductType.Critical ? "CriticalFinished"
+                    : p.ProductType == FinishedProductType.SpecialDeliveryStatus ? "SpecialDeliveryStatus"
+                    : "OrderFinished",
+                p.PlantGrade, p.Specification, p.RequiredWeight)).ToList();
+        }
+        else
+        {
+            var rows = await _context.PurchaseSemiPlans.AsNoTracking()
+                .Where(p => p.RequiredWeight > 0)
+                .Select(p => new { p.WorkOrderId, p.RawMaterialType, p.PlantGrade, Spec = p.RawMaterialSpec, p.RequiredWeight })
+                .ToListAsync();
+            planRows = rows.Select(p => (
+                p.WorkOrderId,
+                CategoryName: p.RawMaterialType == MaterialType.RoughTube ? "RoughTube" : "SemiFinished",
+                p.PlantGrade, p.Spec, p.RequiredWeight)).ToList();
+        }
+        if (planRows.Count == 0)
+            return new List<PurchasePendingDto>();
+
+        // 2. 工单号映射
+        var woIds = planRows.Select(p => p.WorkOrderId).Distinct().ToList();
+        var workOrders = await _context.WorkOrders.AsNoTracking()
+            .Where(w => woIds.Contains(w.Id))
+            .ToDictionaryAsync(w => w.Id, w => w.WorkOrderNo);
+        var allWorkOrderNos = workOrders.Values.ToList();
+
+        // 3. 已采购按（工单号+物料分类）聚合
+        var purchaseWeights = new Dictionary<string, decimal>();
+        if (allWorkOrderNos.Count > 0)
+        {
+            var purchaseData = await _context.PurchaseOrders.AsNoTracking()
+                .Where(p => p.SourceWorkOrderNo != null && allWorkOrderNos.Contains(p.SourceWorkOrderNo)
+                         && categorySet.Contains(p.MaterialCategory))
+                .GroupBy(p => new { p.SourceWorkOrderNo, p.MaterialCategory })
+                .Select(g => new { g.Key.SourceWorkOrderNo, g.Key.MaterialCategory, Weight = g.Sum(p => p.Weight) })
+                .ToListAsync();
+            purchaseWeights = purchaseData
+                .ToDictionary(x => $"{x.SourceWorkOrderNo}|{x.MaterialCategory}", x => x.Weight, StringComparer.OrdinalIgnoreCase);
+        }
+
+        // 4. 工单执行读模型
+        var execMap = await BuildExecutionMapAsync(allWorkOrderNos);
+
+        // 5. 按（工单号+物料分类）分组聚合
+        return planRows
+            .GroupBy(x => new { x.WorkOrderId, x.CategoryName })
+            .Select(g =>
+            {
+                var workOrderNo = workOrders.GetValueOrDefault(g.Key.WorkOrderId, "");
+                var purchaseW = purchaseWeights.GetValueOrDefault($"{workOrderNo}|{g.Key.CategoryName}", 0);
+                var (execStage, execUrgency, execLock) = execMap.GetValueOrDefault(workOrderNo);
+                return new PurchasePendingDto
+                {
+                    WorkOrderNo = workOrderNo,
+                    MaterialCategory = EnumHelper.TryParse<MaterialType>(g.Key.CategoryName),
+                    PlantGrade = string.Join(",", g.Select(x => x.PlantGrade).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase)),
+                    Specification = string.Join(",", g.Select(x => x.Spec).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase)),
+                    PendingWeight = Math.Max(0, g.Sum(x => x.PlanWeight) - purchaseW),
+                    ExecutionScheduleStage = execStage,
+                    ExecutionUrgencyLevel = execUrgency,
+                    ExecutionRawMaterialLockRemark = execLock
+                };
+            })
+            .Where(x => x.PendingWeight > 0 && !string.IsNullOrEmpty(x.WorkOrderNo))
+            .OrderBy(x => x.WorkOrderNo)
+            .ThenBy(x => x.MaterialCategory)
+            .ToList();
+    }
+
+    /// <summary>
+    /// 在购实时数据（荒管/成品）：状态=已下单+部分到货的采购单，按（供应商×厂内钢种）二维聚合；
+    /// 单元格值=采购重量+退货量-已到货量，急量=计划性 A+急/A急 的在购量；含合计行
+    /// </summary>
+    public async Task<PurchaseInProgressResultDto> GetPurchaseInProgressAsync(bool isFinished)
+    {
+        var result = new PurchaseInProgressResultDto();
+        var categorySet = GetCategorySet(isFinished);
+        var statuses = new[] { PurchaseOrderStatus.Open, PurchaseOrderStatus.Partial };
+
+        // 1. 在购采购单（已下单+部分到货）
+        var orders = await _context.PurchaseOrders.AsNoTracking()
+            .Where(p => statuses.Contains(p.Status) && categorySet.Contains(p.MaterialCategory))
+            .Select(p => new { p.OrderNo, p.SupplierName, p.PlantGrade, p.Weight, p.ReceivedWeight, p.SourceWorkOrderNo })
+            .ToListAsync();
+        if (orders.Count == 0)
+            return result;
+
+        // 2. 退货量（按采购单号）
+        var returnSummary = await BuildReturnSummaryAsync(orders.Select(o => o.OrderNo).ToList());
+
+        // 3. 急单（计划性 A+急/A急）：按工单号关联读模型
+        var urgentSet = new HashSet<string>(new[] { UrgencyLevelKeys.APlusUrgent, UrgencyLevelKeys.AUrgent }, StringComparer.OrdinalIgnoreCase);
+        var sourceNos = orders.Select(o => o.SourceWorkOrderNo).Where(n => !string.IsNullOrEmpty(n)).Cast<string>().Distinct().ToList();
+        var execMap = await BuildExecutionMapAsync(sourceNos);
+
+        // 4. 按（供应商+厂内钢种）聚合：总量=采购重量+退货量-已到货量，急量=急单的总量
+        var cellMap = new Dictionary<string, Dictionary<string, (decimal Total, decimal Urgent)>>(StringComparer.OrdinalIgnoreCase);
+        var totalMap = new Dictionary<string, (decimal Total, decimal Urgent)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var o in orders)
+        {
+            var supplier = string.IsNullOrWhiteSpace(o.SupplierName) ? "未填写供应商" : o.SupplierName.Trim();
+            var grade = string.IsNullOrWhiteSpace(o.PlantGrade) ? "" : o.PlantGrade.Trim();
+            var retW = returnSummary.GetValueOrDefault(o.OrderNo).Weight;
+            var inProgress = o.Weight + retW - o.ReceivedWeight;
+            if (inProgress <= 0)
+                continue; // 已到完/超收，不计在购
+
+            var isUrgent = false;
+            if (!string.IsNullOrEmpty(o.SourceWorkOrderNo))
+            {
+                var (_, urgency, _) = execMap.GetValueOrDefault(o.SourceWorkOrderNo!);
+                isUrgent = urgency != null && urgentSet.Contains(urgency);
+            }
+
+            if (!cellMap.TryGetValue(supplier, out var supplierCells))
+            {
+                supplierCells = new Dictionary<string, (decimal, decimal)>(StringComparer.OrdinalIgnoreCase);
+                cellMap[supplier] = supplierCells;
+            }
+            var (t, u) = supplierCells.GetValueOrDefault(grade);
+            supplierCells[grade] = (t + inProgress, u + (isUrgent ? inProgress : 0));
+
+            var (st, su) = totalMap.GetValueOrDefault(supplier);
+            totalMap[supplier] = (st + inProgress, su + (isUrgent ? inProgress : 0));
+        }
+
+        // 5. 构建二维结果 + 合计行
+        var steelGrades = cellMap.Values
+            .SelectMany(d => d.Keys)
+            .Where(g => !string.IsNullOrEmpty(g))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        result.SteelGrades = steelGrades;
+
+        foreach (var kvp in cellMap.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var cells = new Dictionary<string, PurchaseInProgressCellDto>(StringComparer.OrdinalIgnoreCase);
+            foreach (var g in steelGrades)
+            {
+                var (t, u) = kvp.Value.GetValueOrDefault(g);
+                cells[g] = new PurchaseInProgressCellDto { TotalWeight = t, UrgentWeight = u };
+            }
+            var (gt, gu) = totalMap.GetValueOrDefault(kvp.Key);
+            result.Rows.Add(new PurchaseInProgressRowDto
+            {
+                SupplierName = kvp.Key,
+                Cells = cells,
+                Total = new PurchaseInProgressCellDto { TotalWeight = gt, UrgentWeight = gu }
+            });
+        }
+
+        // 合计行
+        var grandTotal = new PurchaseInProgressCellDto
+        {
+            TotalWeight = result.Rows.Sum(r => r.Total.TotalWeight),
+            UrgentWeight = result.Rows.Sum(r => r.Total.UrgentWeight)
+        };
+        var gradeTotals = steelGrades.ToDictionary(
+            g => g,
+            g => new PurchaseInProgressCellDto
+            {
+                TotalWeight = result.Rows.Sum(r => r.Cells.GetValueOrDefault(g)?.TotalWeight ?? 0),
+                UrgentWeight = result.Rows.Sum(r => r.Cells.GetValueOrDefault(g)?.UrgentWeight ?? 0)
+            },
+            StringComparer.OrdinalIgnoreCase);
+        result.Rows.Add(new PurchaseInProgressRowDto
+        {
+            SupplierName = "合计",
+            Cells = gradeTotals,
+            Total = grandTotal
+        });
+
+        return result;
+    }
+
+    /// <summary>
+    /// 月度采购数据（荒管/成品）：按下单日期分月（本年1月~12月），按供应商聚合；
+    /// 单元格格式「购X/回Y」，购=该月下单采购重量，回=已到货量-退货量；合计列=12月购/回各自求和；
+    /// 现在购=状态已下单+部分到货的 采购重量+退货量-已到货量（不分厂内钢种）；含合计行
+    /// </summary>
+    public async Task<PurchaseMonthlyResultDto> GetPurchaseMonthlyAsync(bool isFinished)
+    {
+        var result = new PurchaseMonthlyResultDto();
+        var categorySet = GetCategorySet(isFinished);
+        var year = DateTime.Today.Year;
+        var labels = Enumerable.Range(1, 12).Select(m => $"{year}-{m:00}").ToList();
+        result.MonthLabels = labels;
+
+        // 1. 本年采购单（所有状态，含已完成）
+        var orders = await _context.PurchaseOrders.AsNoTracking()
+            .Where(p => p.OrderDate.Year == year && categorySet.Contains(p.MaterialCategory))
+            .Select(p => new { p.OrderNo, p.SupplierName, p.OrderDate, p.Weight, p.ReceivedWeight, p.Status })
+            .ToListAsync();
+        if (orders.Count == 0)
+        {
+            // 无本年订单时仅保留全 0 合计行，前端仍可渲染表结构
+            result.Rows = new List<PurchaseMonthlyRowDto>
+            {
+                new() { SupplierName = "合计", Months = labels.Select(_ => new PurchaseMonthlyValueDto()).ToList() }
+            };
+            return result;
+        }
+
+        // 2. 退货量（按采购单号）
+        var returnSummary = await BuildReturnSummaryAsync(orders.Select(o => o.OrderNo).ToList());
+
+        // 3. 按供应商聚合（12月购/回 + 合计 + 现在购）
+        var rowMap = new Dictionary<string, PurchaseMonthlyRowDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var o in orders)
+        {
+            var supplier = string.IsNullOrWhiteSpace(o.SupplierName) ? "未填写供应商" : o.SupplierName.Trim();
+            if (!rowMap.TryGetValue(supplier, out var row))
+            {
+                row = new PurchaseMonthlyRowDto
+                {
+                    SupplierName = supplier,
+                    Months = labels.Select(_ => new PurchaseMonthlyValueDto()).ToList()
+                };
+                rowMap[supplier] = row;
+            }
+
+            var monthIdx = o.OrderDate.Month - 1;
+            var retW = returnSummary.GetValueOrDefault(o.OrderNo).Weight;
+            var buy = o.Weight;
+            var ret = Math.Max(0, o.ReceivedWeight - retW);
+            row.Months[monthIdx].BuyWeight += buy;
+            row.Months[monthIdx].ReturnWeight += ret;
+            row.Total.BuyWeight += buy;
+            row.Total.ReturnWeight += ret;
+
+            if (o.Status is PurchaseOrderStatus.Open or PurchaseOrderStatus.Partial)
+            {
+                var inProgress = o.Weight + retW - o.ReceivedWeight;
+                if (inProgress > 0)
+                    row.NowInProgress += inProgress;
+            }
+        }
+
+        result.Rows = rowMap.Values.OrderBy(x => x.SupplierName, StringComparer.OrdinalIgnoreCase).ToList();
+
+        // 4. 合计行
+        var totalRow = new PurchaseMonthlyRowDto
+        {
+            SupplierName = "合计",
+            Months = labels.Select(_ => new PurchaseMonthlyValueDto()).ToList()
+        };
+        foreach (var r in result.Rows)
+        {
+            for (var i = 0; i < labels.Count; i++)
+            {
+                totalRow.Months[i].BuyWeight += r.Months[i].BuyWeight;
+                totalRow.Months[i].ReturnWeight += r.Months[i].ReturnWeight;
+            }
+            totalRow.Total.BuyWeight += r.Total.BuyWeight;
+            totalRow.Total.ReturnWeight += r.Total.ReturnWeight;
+            totalRow.NowInProgress += r.NowInProgress;
+        }
+        result.Rows.Add(totalRow);
 
         return result;
     }
@@ -1140,6 +1463,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             var query = from p in _context.PurchaseOrders.AsNoTracking()
                         join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
                         from w in wj.DefaultIfEmpty()
+                        join e in _context.WorkOrderExecutionSummaries.AsNoTracking() on p.SourceWorkOrderNo equals e.WorkOrderNo into ej
+                        from e in ej.DefaultIfEmpty()
                         select new
                         {
                             p.OrderNo,
@@ -1159,7 +1484,10 @@ public class PurchaseOrderService : IPurchaseOrderService
                             WoEndCustomer = w.EndCustomer,
                             WoDeliveryDate = (DateTime?)w.DeliveryDate,
                             WoPlantGrade = w.PlantGrade,
-                            WoSpecification = w.Specification
+                            WoSpecification = w.Specification,
+                            ExecutionUrgencyLevel = e != null ? e.UrgencyLevel : null,
+                            ExecutionRawMaterialLockRemark = e != null ? e.RawMaterialLockRemark : null,
+                            ExecutionTheoreticalCutoffDate = e != null ? (DateTime?)e.TheoreticalCutoffDate : null
                         };
 
             var all = await query.ToListAsync();
@@ -1186,6 +1514,22 @@ public class PurchaseOrderService : IPurchaseOrderService
                 ["WoDeliveryDate"] = all.Where(x => x.WoDeliveryDate != null).Select(x => x.WoDeliveryDate!.Value.ToString("yyyy-MM-dd")).Distinct().OrderBy(x => x).ToList(),
                 ["WoPlantGrade"] = all.Where(x => x.WoPlantGrade != null).Select(x => x.WoPlantGrade!).Distinct().OrderBy(x => x).ToList(),
                 ["WoSpecification"] = all.Where(x => x.WoSpecification != null).Select(x => x.WoSpecification!).Distinct().OrderBy(x => x).ToList(),
+                // 空值（无工单号/读模型无记录）以哨兵 "__EXCEL_FILTER_NULL__" 输出，供筛选下拉「空值」选项体现
+                ["ExecutionUrgencyLevel"] = all
+                    .Select(x => x.ExecutionUrgencyLevel ?? FilterNull)
+                    .Distinct()
+                    .OrderBy(x => x == FilterNull ? 0 : 1).ThenBy(x => x)
+                    .ToList(),
+                ["ExecutionRawMaterialLockRemark"] = all
+                    .Select(x => x.ExecutionRawMaterialLockRemark ?? FilterNull)
+                    .Distinct()
+                    .OrderBy(x => x == FilterNull ? 0 : 1).ThenBy(x => x)
+                    .ToList(),
+                ["ExecutionTheoreticalCutoffDate"] = all
+                    .Select(x => x.ExecutionTheoreticalCutoffDate != null ? x.ExecutionTheoreticalCutoffDate.Value.ToString("yyyy-MM-dd") : FilterNull)
+                    .Distinct()
+                    .OrderBy(x => x == FilterNull ? 0 : 1).ThenBy(x => x)
+                    .ToList(),
             };
 
         }) ?? new Dictionary<string, List<string>>();

@@ -10,6 +10,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Shared;
+using MES.Core.DTOs.Scheduling;
 using MES.Core.Enums;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -908,6 +909,18 @@ public partial class SectionOutsources
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
+    // ========== 实时委外在产 / 月度委外数据 折叠卡片 ==========
+
+    private bool _showPendingCard;
+    private bool _isLoadingPending;
+    private List<OutsourcePendingRowDto> _pendingRows = new();
+    private List<string> _pendingSections = new();
+    private bool _showMonthlyCard;
+    private bool _isLoadingMonthly;
+    private List<SectionOutsourceMonthlyRowDto> _monthlyRows = new();
+    private List<string> _monthlyLabels = new();
+    private Dictionary<string, int> _vendorRowspans = new(StringComparer.OrdinalIgnoreCase);
+
     private void NavigateToCreate() => Navigation.NavigateTo("/section-outsources/create");
 
     private void NavigateToBatchRecovery()
@@ -1048,5 +1061,182 @@ public partial class SectionOutsources
             Extras = extras
         };
         await PageState.SaveAsync("sectionoutsources", state);
+    }
+
+    // ========== 实时委外在产折叠卡片（懒加载，仿批次计划页） ==========
+
+    /// <summary>切换「实时委外在产」折叠卡片（首次展开时懒加载）</summary>
+    private async Task TogglePendingCard()
+    {
+        _showPendingCard = !_showPendingCard;
+        if (_showPendingCard && _pendingRows.Count == 0)
+            await LoadPendingAsync();
+    }
+
+    private async Task LoadPendingAsync()
+    {
+        _isLoadingPending = true;
+        StateHasChanged();
+        try
+        {
+            // 厂内单位集合（IsInternal=true 的委外单位），用于过滤厂内行
+            var internalVendors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var iv = await SectionOutsourceService.GetInternalVendorsAsync();
+            if (iv.Success && iv.Data != null)
+                internalVendors = new HashSet<string>(iv.Data, StringComparer.OrdinalIgnoreCase);
+
+            var data = await BatchPlanSvc.GetOutsourcePendingAsync() ?? new BatchPlanOutsourcePendingDto();
+
+            // 厂内行过滤（排除「合计」行，末尾按非厂内行重算合计）
+            var rows = data.Rows
+                .Where(r => r.OutsourceUnit != "合计" && !internalVendors.Contains(r.OutsourceUnit))
+                .ToList();
+
+            // 无任何非厂内行 → 显示空提示
+            if (rows.Count == 0)
+            {
+                _pendingRows = new();
+                _pendingSections = new();
+                return;
+            }
+
+            // 过滤后同步移除全空工段列
+            _pendingSections = data.Sections.Where(s => rows.Any(r => r.Cells.ContainsKey(s))).ToList();
+
+            // ⚠️ 重算「合计」行：仅对保留的非厂内单位求和（原「合计」含厂内重量，直接保留会与各行不勾稽）
+            rows.Add(new OutsourcePendingRowDto
+            {
+                OutsourceUnit = "合计",
+                Cells = new(),
+                TotalCell = new OutsourcePendingCellDto { Total = rows.Sum(r => r.TotalCell.Total) }
+            });
+            _pendingRows = rows;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"实时委外在产加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingPending = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>委外在产单元格仅总量(t) 格式化：kg /1000 保留 1 位，0 值留空（不显示流转/特急）</summary>
+    private static string FormatTotalOnly(decimal kg)
+        => kg > 0 ? (kg / 1000m).ToString("F1") : string.Empty;
+
+    private static decimal CellTotal(Dictionary<string, OutsourcePendingCellDto> cells, string section)
+        => cells.TryGetValue(section, out var c) ? c.Total : 0m;
+
+    /// <summary>打印「实时委外在产」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
+    private async Task PrintPendingTable()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#section-outsources-pending-table");
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, "实时委外在产");
+            else
+                Snackbar.Add("未找到可打印的实时委外在产表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== 月度委外数据折叠卡片（懒加载，仿生产记录月度表） ==========
+
+    /// <summary>切换「月度委外数据」折叠卡片（首次展开时懒加载）</summary>
+    private async Task ToggleMonthlyCard()
+    {
+        _showMonthlyCard = !_showMonthlyCard;
+        if (_showMonthlyCard && _monthlyRows.Count == 0)
+            await LoadMonthlyAsync();
+    }
+
+    private async Task LoadMonthlyAsync()
+    {
+        _isLoadingMonthly = true;
+        StateHasChanged();
+        try
+        {
+            _monthlyLabels = Enumerable.Range(1, 12)
+                .Select(m => new DateTime(DateTime.Today.Year, m, 1).ToString("yyyy-MM"))
+                .ToList();
+            var result = await SectionOutsourceService.GetMonthlyOutsourceAsync();
+            _monthlyRows = result.Success && result.Data != null
+                ? result.Data
+                : new List<SectionOutsourceMonthlyRowDto>();
+            BuildVendorRowspans();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"月度委外数据加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingMonthly = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// 预计算同委外单位连续行数（后端已按单位总重量降序分组、组内工段规范序排序，同单位必相邻），
+    /// 供「委外单位」列合并单元格 rowspan。
+    /// </summary>
+    private void BuildVendorRowspans()
+    {
+        _vendorRowspans.Clear();
+        for (var i = 0; i < _monthlyRows.Count; i++)
+        {
+            var vendor = _monthlyRows[i].OutsourceVendor;
+            var count = 1;
+            while (i + count < _monthlyRows.Count
+                   && string.Equals(_monthlyRows[i + count].OutsourceVendor, vendor, StringComparison.OrdinalIgnoreCase))
+                count++;
+            _vendorRowspans[vendor] = count;
+            i += count - 1;
+        }
+    }
+
+    /// <summary>
+    /// 月度委外单元格「发/回/退」三合一格式化（kg /1000 显示 t，保留 1 位，0 值留空）：
+    /// 发>0 显示「发X」、回>0 追加「/回Y」、退>0 追加「[退Z]」；全 0 留空。
+    /// </summary>
+    private static string FormatSendRecoverText(decimal send, decimal recover, decimal unprocessed)
+    {
+        if (send <= 0 && recover <= 0 && unprocessed <= 0) return string.Empty;
+        var parts = new List<string>();
+        if (send > 0) parts.Add("发" + (send / 1000m).ToString("F1"));
+        if (recover > 0) parts.Add("回" + (recover / 1000m).ToString("F1"));
+        if (unprocessed > 0) parts.Add("[退" + (unprocessed / 1000m).ToString("F1") + "]");
+        return string.Join("/", parts);
+    }
+
+    /// <summary>
+    /// 「现在产」列格式化（kg /1000 显示 t，保留 1 位，0 值留空）：
+    /// 取该行当前未回收（发出未全部回收）的发出重量（NowInProduction），0 值留空。
+    /// </summary>
+    private static string FormatNowInProduction(decimal weight)
+        => weight > 0 ? (weight / 1000m).ToString("F1") : string.Empty;
+
+    /// <summary>打印「月度委外数据」卡片（前端 printRawHtml 直接打印 DOM 表格）</summary>
+    private async Task PrintMonthlyTable()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#section-outsources-monthly-summary-table");
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, "月度委外数据");
+            else
+                Snackbar.Add("未找到可打印的月度委外数据表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
     }
 }

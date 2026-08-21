@@ -1625,4 +1625,172 @@ public class SectionOutsourceService : ISectionOutsourceService
             .ToListAsync();
     }
 
+    // ========== 月度委外数据汇总 + 厂内单位 ==========
+
+    /// <summary>
+    /// 月度委外数据汇总（不含厂内单位）：发/回/退按 (委外单位 × 工段) 按月聚合本年 1月~12月；
+    /// 每行另加「现在产」= 当前未回收（回收+退回未达发出×0.99）的非厂内发出记录发出重量，与发出年度无关的实时存量。
+    /// 工段归行按生产记录「月度生产量数据」表全工段样式（ProductionSummaryHelper.ResolveAllSectionTabName）；
+    /// 行 =（委外单位 × 工段）组合 + 合计行，整行全 0（12 月发/回/退全 0 且现在产 0）隐藏；
+    /// 排序 = 单位总重量（发+回+退）降序分组，组内按工段规范序（同单位相邻，供前端合并单元格）。
+    /// </summary>
+    public async Task<List<SectionOutsourceMonthlyRowDto>> GetMonthlyOutsourceAsync()
+    {
+        var year = DateTime.Today.Year;
+        var start = new DateTime(year, 1, 1);
+        var end = start.AddYears(1);
+
+        // ===== 1. 加载 [本年1月1日, 次年1月1日) 窗口内发出（非厂内） =====
+        var outsources = await _context.SectionOutsources
+            .AsNoTracking()
+            .Where(s => !s.IsInternal && s.SendOutDate >= start && s.SendOutDate < end)
+            .Select(s => new { s.OutsourceVendor, s.ProcessName, s.SectionName, s.SendOutDate, s.SendWeight })
+            .ToListAsync();
+
+        // ===== 2. 加载窗口内回收（经导航拿单位/工段/工序，排除厂内） =====
+        var recoveries = await _context.OutsourceRecoveries
+            .AsNoTracking()
+            .Where(o => !o.SectionOutsource.IsInternal && o.RecoveryDate >= start && o.RecoveryDate < end)
+            .Select(o => new
+            {
+                o.SectionOutsource.OutsourceVendor,
+                o.SectionOutsource.ProcessName,
+                o.SectionOutsource.SectionName,
+                o.RecoveryDate,
+                o.RecoveryWeight,
+                o.UnprocessedWeight
+            })
+            .ToListAsync();
+
+        // ===== 3. 按 (委外单位, 工段Tab) 归行聚合，月份索引 = date.Month - 1 =====
+        var rows = new Dictionary<string, SectionOutsourceMonthlyRowDto>(StringComparer.OrdinalIgnoreCase);
+        var monthValues = () => Enumerable.Range(0, 12).Select(_ => new SectionOutsourceMonthValueDto()).ToList();
+
+        void Accumulate(string vendor, string tab, DateTime date, decimal send, decimal recover, decimal unprocessed)
+        {
+            var key = vendor + "|" + tab;
+            if (!rows.TryGetValue(key, out var row))
+            {
+                row = new SectionOutsourceMonthlyRowDto
+                {
+                    OutsourceVendor = vendor,
+                    SectionName = tab,
+                    Months = monthValues()
+                };
+                rows[key] = row;
+            }
+            var m = row.Months[date.Month - 1];
+            m.Send += send;
+            m.Recover += recover;
+            m.Unprocessed += unprocessed;
+        }
+
+        void AccumulateNowInProduction(string vendor, string tab, decimal weight)
+        {
+            var key = vendor + "|" + tab;
+            if (!rows.TryGetValue(key, out var row))
+            {
+                row = new SectionOutsourceMonthlyRowDto
+                {
+                    OutsourceVendor = vendor,
+                    SectionName = tab,
+                    Months = monthValues()
+                };
+                rows[key] = row;
+            }
+            row.NowInProduction += weight;
+        }
+
+        foreach (var o in outsources)
+        {
+            var tab = ProductionSummaryHelper.ResolveAllSectionTabName(o.ProcessName, o.SectionName);
+            if (tab == null) continue;   // 无对应工段行丢弃（同生产记录月度表）
+            Accumulate(o.OutsourceVendor, tab, o.SendOutDate, o.SendWeight ?? 0m, 0m, 0m);
+        }
+
+        foreach (var o in recoveries)
+        {
+            var tab = ProductionSummaryHelper.ResolveAllSectionTabName(o.ProcessName, o.SectionName);
+            if (tab == null) continue;
+            Accumulate(o.OutsourceVendor, tab, o.RecoveryDate, 0m, o.RecoveryWeight ?? 0m, o.UnprocessedWeight ?? 0m);
+        }
+
+        // ===== 3.5 「现在产」= 当前未回收的非厂内发出记录发出重量（回收+退回未达发出×0.99），与发出年度无关 =====
+        var nowOutsources = await _context.SectionOutsources
+            .AsNoTracking()
+            .Where(s => !s.IsInternal && s.SendWeight.HasValue && s.SendWeight.Value > 0)
+            .Select(s => new { s.Id, s.OutsourceVendor, s.ProcessName, s.SectionName, s.SendWeight })
+            .ToListAsync();
+        var nowRecoveryTotals = (await _context.OutsourceRecoveries
+            .AsNoTracking()
+            .GroupBy(r => r.SectionOutsourceId)
+            .Select(g => new
+            {
+                SectionOutsourceId = g.Key,
+                Total = g.Sum(r => (r.RecoveryWeight ?? 0) + (r.UnprocessedWeight ?? 0))
+            })
+            .ToListAsync())
+            .ToDictionary(x => x.SectionOutsourceId, x => x.Total);
+        var recoveryRatio = await GetConfigAsync("WarehouseThreshold", "OutsourceRecoveryRatio", 0.99m);
+        foreach (var o in nowOutsources)
+        {
+            var recovered = nowRecoveryTotals.GetValueOrDefault(o.Id, 0m);
+            if (o.SendWeight.HasValue && recovered >= o.SendWeight.Value * recoveryRatio) continue;   // 已回收完不计入
+            var tab = ProductionSummaryHelper.ResolveAllSectionTabName(o.ProcessName, o.SectionName);
+            if (tab == null) continue;
+            AccumulateNowInProduction(o.OutsourceVendor, tab, o.SendWeight ?? 0m);
+        }
+
+        // ===== 4. 合计列 + 整行全 0 隐藏 =====
+        var result = new List<SectionOutsourceMonthlyRowDto>();
+        foreach (var row in rows.Values)
+        {
+            row.TotalSend = row.Months.Sum(m => m.Send);
+            row.TotalRecover = row.Months.Sum(m => m.Recover);
+            row.TotalUnprocessed = row.Months.Sum(m => m.Unprocessed);
+            if (row.TotalSend <= 0 && row.TotalRecover <= 0 && row.TotalUnprocessed <= 0 && row.NowInProduction <= 0) continue;
+            result.Add(row);
+        }
+
+        // ===== 5. 排序：单位总重量降序分组，组内工段规范序（同单位相邻） =====
+        result = result
+            .GroupBy(r => r.OutsourceVendor, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Sum(r => r.TotalSend + r.TotalRecover + r.TotalUnprocessed))
+            .SelectMany(g => g.OrderBy(r => ProductionSummaryHelper.SectionTabIndex(r.SectionName)))
+            .ToList();
+
+        // ===== 6. 末尾「合计」行（各月发/回/退合计 + 三 Total 合计） =====
+        var totalRow = new SectionOutsourceMonthlyRowDto
+        {
+            OutsourceVendor = "合计",
+            SectionName = "合计",
+            Months = Enumerable.Range(0, 12).Select(i => new SectionOutsourceMonthValueDto
+            {
+                Send = result.Sum(r => r.Months[i].Send),
+                Recover = result.Sum(r => r.Months[i].Recover),
+                Unprocessed = result.Sum(r => r.Months[i].Unprocessed)
+            }).ToList()
+        };
+        totalRow.TotalSend = result.Sum(r => r.TotalSend);
+        totalRow.TotalRecover = result.Sum(r => r.TotalRecover);
+        totalRow.TotalUnprocessed = result.Sum(r => r.TotalUnprocessed);
+        totalRow.NowInProduction = result.Sum(r => r.NowInProduction);
+        result.Add(totalRow);
+
+        return result;
+    }
+
+    /// <summary>
+    /// 获取厂内单位集合（IsInternal=true 的委外单位，用于「实时委外在产」/「月度委外数据」过滤厂内行）
+    /// </summary>
+    public async Task<List<string>> GetInternalVendorsAsync()
+    {
+        return await _context.SectionOutsources
+            .AsNoTracking()
+            .Where(s => s.IsInternal)
+            .Select(s => s.OutsourceVendor)
+            .Distinct()
+            .OrderBy(v => v)
+            .ToListAsync();
+    }
 }

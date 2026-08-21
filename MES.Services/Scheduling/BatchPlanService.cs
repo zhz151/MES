@@ -27,6 +27,7 @@ using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Helpers;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
@@ -76,38 +77,9 @@ public class BatchPlanService : IBatchPlanService
             .Select((t, i) => (t, i))
             .ToDictionary(x => x.t, x => x.i, StringComparer.Ordinal);
 
-    // 冷轧拔分化工序（显示序）：90 冷轧暂未启用（ProcessKeys 未收录，按字符串 ColdRoll90/90冷轧 兜底匹配），
-    // 其余对应 ProcessKeys 冷轧/冷拔类（60/50/30/20/三辊/冷拔）。
-    // ⚠️ 必须声明在 _summaryAllSectionTabs 之前：静态字段初始化按文本顺序执行，BuildSummaryAllSectionTabs 依赖它。
-    private static readonly string[] _coldRollDrawSplitProcesses = new[]
-    {
-        "90冷轧", "60冷轧", "50冷轧", "30冷轧", "20冷轧", "三辊冷轧", "冷拔"
-    };
-
-    // 近日/月度生产量数据全工段汇总行集合：SectionDefs 全部 26 个工段中文（内抛+内修磨合并为一行），
-    // 其中冷轧拔工段按所在工序组分化为多行（含暂未启用的 90 冷轧）+ 检验-荒管/检验-在制。
-    // 与 BatchPlanSectionTabs（工段筛选 Tab，17 项）解耦：汇总按全工段归行（修复冷轧按工序聚合导致的
-    // 「50冷轧 3 月偏大 / 油管断恒空」），筛选 Tab 保持原状。行序 = SectionDefs.All 顺序（冷轧拔位置展开分化行）+ 检验-荒管/检验-在制末尾。
-    private static readonly string[] _summaryAllSectionTabs = BuildSummaryAllSectionTabs();
-
-    private static string[] BuildSummaryAllSectionTabs()
-    {
-        var tabs = new List<string>(SectionDefs.All.Length + 10);
-        foreach (var cn in SectionDefs.All)
-        {
-            if (cn == SectionDefs.ColdRollDraw)
-            {
-                foreach (var p in _coldRollDrawSplitProcesses)
-                    tabs.Add("冷轧拔-" + p);
-                continue;
-            }
-            if (cn == SectionDefs.InnerGrinding) continue;   // 与内抛合并为「内抛+内修磨」
-            tabs.Add(cn == SectionDefs.InnerPolish ? "内抛+内修磨" : cn);
-        }
-        tabs.Add("检验-荒管");
-        tabs.Add("检验-在制");
-        return tabs.ToArray();
-    }
+    // 近日/月度生产量数据全工段汇总行集合（含冷轧拔按工序分化 + 检验-荒管/在制）——共享 ProductionSummaryHelper，
+    // 与月度委外汇总（SectionOutsourceService）归行口径一致。
+    private static readonly string[] _summaryAllSectionTabs = ProductionSummaryHelper.SummaryAllSectionTabs;
 
     /// <summary>
     /// 批次/记录 (工序, 工段) → 近日生产量数据工段 Tab：
@@ -120,30 +92,6 @@ public class BatchPlanService : IBatchPlanService
             return ProcessKeys.ToChinese(pKey);
         var sKey = SectionKeys.ToKey(sectionName);
         if (sKey == null) return null;
-        return sKey is SectionKeys.InnerPolish or SectionKeys.InnerGrinding
-            ? "内抛+内修磨"
-            : SectionKeys.ToChinese(sKey) ?? sKey;
-    }
-
-    /// <summary>
-    /// 全工段汇总归行：一般工段按工段 Key 归行（内抛/内修磨合并为「内抛+内修磨」）；
-    /// 冷轧拔工段按所在工序组分化为「冷轧拔-&lt;工序&gt;」行（含暂未启用的 90 冷轧），非冷轧/冷拔工序的冷轧拔记录丢弃。
-    /// 供近日/月度生产量汇总（GetSummaryAsync/GetMonthlySummaryAsync）使用；无对应行返回 null。
-    /// 注意：GetOutsourcePendingAsync（实时委外在产）仍用 ResolveSummaryTabName（按工序分化列序），勿改。
-    /// </summary>
-    private static string? ResolveAllSectionTabName(string? processName, string? sectionName)
-    {
-        var sKey = SectionKeys.ToKey(sectionName);
-        if (sKey == null) return null;
-        if (sKey == SectionKeys.ColdRollDraw)
-        {
-            // 冷轧拔 → 按工序分化；90 冷轧暂未收录 ProcessKeys，ColdRoll90/90冷轧 均归一为「90冷轧」
-            var display = ProcessKeys.ToChinese(processName);
-            if (processName == "ColdRoll90") display = "90冷轧";
-            return display != null && _coldRollDrawSplitProcesses.Contains(display, StringComparer.Ordinal)
-                ? "冷轧拔-" + display
-                : null;
-        }
         return sKey is SectionKeys.InnerPolish or SectionKeys.InnerGrinding
             ? "内抛+内修磨"
             : SectionKeys.ToChinese(sKey) ?? sKey;
@@ -707,7 +655,7 @@ public class BatchPlanService : IBatchPlanService
             .ToListAsync();
 
         // ===== 2. 初始化行（全工段 26 工段 + 荒管检/在制检 + 合计） =====
-        var rows = _summaryAllSectionTabs
+        var rows = ProductionSummaryHelper.SummaryAllSectionTabs
             .Select(t => new BatchPlanSummaryRowDto { SectionName = t })
             .ToList();
         var rowByTab = rows.ToDictionary(r => r.SectionName, StringComparer.OrdinalIgnoreCase);
@@ -725,7 +673,7 @@ public class BatchPlanService : IBatchPlanService
         // 归行：按工段 Key 归行（冷轧拔按工序分化，ResolveAllSectionTabName）；不在行集合中的工段丢弃
         BatchPlanSummaryRowDto? ResolveRow(string? processName, string? sectionName)
         {
-            var tab = ResolveAllSectionTabName(processName, sectionName);
+            var tab = ProductionSummaryHelper.ResolveAllSectionTabName(processName, sectionName);
             return tab != null && rowByTab.TryGetValue(tab, out var r) ? r : null;
         }
 
@@ -816,7 +764,7 @@ public class BatchPlanService : IBatchPlanService
             .ToListAsync();
 
         // ===== 2. 初始化行（全工段 26 工段 + 荒管检/在制检 + 合计），各月索引 0=1月…11=12月 =====
-        var rows = _summaryAllSectionTabs
+        var rows = ProductionSummaryHelper.SummaryAllSectionTabs
             .Select(t => new BatchPlanMonthlySummaryRowDto { SectionName = t, MonthlyWeights = Enumerable.Repeat(0m, 12).ToList() })
             .ToList();
         var rowByTab = rows.ToDictionary(r => r.SectionName, StringComparer.OrdinalIgnoreCase);
@@ -830,7 +778,7 @@ public class BatchPlanService : IBatchPlanService
         // 归行：按工段 Key 归行（冷轧拔按工序分化，ResolveAllSectionTabName）；不在行集合中的工段丢弃
         BatchPlanMonthlySummaryRowDto? ResolveRow(string? processName, string? sectionName)
         {
-            var tab = ResolveAllSectionTabName(processName, sectionName);
+            var tab = ProductionSummaryHelper.ResolveAllSectionTabName(processName, sectionName);
             return tab != null && rowByTab.TryGetValue(tab, out var r) ? r : null;
         }
 

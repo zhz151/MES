@@ -30,16 +30,6 @@
                 批次计划
             </MudText>
             <div class="d-flex align-center" style="gap: 8px; margin-right: 24px;">
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           Disabled="@_isPlanning"
-                           OnClick="@HandlePlanAllAsync">
-                    @if (_isPlanning)
-                    {
-                        <MudProgressCircular Size="Size.Small" Class="mr-1" Indeterminate="true" />
-                    }
-                    计划安排
-                </MudButton>
                 <MudButton Variant="Variant.Outlined"
                            Color="@(_showSummaryCard ? Color.Primary : Color.Default)"
                            StartIcon="@(_showSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
@@ -63,6 +53,16 @@
                            StartIcon="@(_showFlowCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
                            OnClick="ToggleFlowCard">
                     工段流转分析
+                </MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="@_isPlanning"
+                           OnClick="@HandlePlanAllAsync">
+                    @if (_isPlanning)
+                    {
+                        <MudProgressCircular Size="Size.Small" Class="mr-1" Indeterminate="true" />
+                    }
+                    计划安排
                 </MudButton>
             </div>
         </div>

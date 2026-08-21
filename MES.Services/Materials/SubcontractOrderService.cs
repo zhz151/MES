@@ -61,6 +61,9 @@ public class SubcontractOrderService : ISubcontractOrderService
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private readonly IMemoryCache _cache;
 
+    // 空值筛选哨兵（与前端 ExcelFilter/BatchPlans 的 "__EXCEL_FILTER_NULL__" 一致）
+    private const string FilterNull = "__EXCEL_FILTER_NULL__";
+
     public SubcontractOrderService(AppDbContext context, IPurchaseOrderService purchaseService,
         IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService,
         ILogger<SubcontractOrderService> logger, IMemoryCache cache)
@@ -830,6 +833,30 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             }
         }
 
+        // 工单实时关注：按来源工单号关联工单执行状况读模型（无记录默认 null → 前端 "-"）
+        var workOrderNos = allItems.Where(x => !string.IsNullOrEmpty(x.SourceWorkOrderNo))
+            .Select(x => x.SourceWorkOrderNo!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (workOrderNos.Count > 0)
+        {
+            var execLookup = await _context.WorkOrderExecutionSummaries.AsNoTracking()
+                .Where(e => workOrderNos.Contains(e.WorkOrderNo))
+                .Select(e => new { e.WorkOrderNo, e.ScheduleStage, e.UrgencyLevel, e.RawMaterialLockRemark, e.TheoreticalCutoffDate })
+                .ToListAsync();
+            var execMap = execLookup.ToDictionary(e => e.WorkOrderNo, e => e, StringComparer.OrdinalIgnoreCase);
+            foreach (var item in allItems)
+            {
+                if (item.SourceWorkOrderNo != null && execMap.TryGetValue(item.SourceWorkOrderNo, out var exec))
+                {
+                    item.ExecutionScheduleStage = exec.ScheduleStage;
+                    item.ExecutionUrgencyLevel = exec.UrgencyLevel;
+                    item.ExecutionRawMaterialLockRemark = exec.RawMaterialLockRemark;
+                    item.ExecutionTheoreticalCutoffDate = exec.TheoreticalCutoffDate;
+                }
+            }
+        }
+
         // 内存筛选 — 支持所有 DTO 属性（包括跨表字段如 OrderNo、ReturnDeadline）
         if (query.Filters?.Count > 0)
         {
@@ -840,13 +867,18 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 if (prop == null) continue;
 
                 var op = filter.Operator ?? "contains";
-                if (op == "in" && filter.Values?.Count > 0)
+                if (op == "isnull")
+                {
+                    // 空值筛选：仅匹配 null（无工单号/读模型无记录）
+                    allItems = allItems.Where(item => prop.GetValue(item) == null).ToList();
+                }
+                else if (op == "in" && filter.Values?.Count > 0)
                 {
                     var filterValues = filter.Values;
                     allItems = allItems.Where(item =>
                     {
                         var val = prop.GetValue(item);
-                        if (val == null) return false;
+                        if (val == null) return filter.IncludeNull; // 空值记录仅当勾选空值时保留
                         return filterValues.Contains(FormatFilterValue(val), StringComparer.OrdinalIgnoreCase);
                     }).ToList();
                 }
@@ -925,6 +957,14 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             ("isforcecompleted", false) => allItems.OrderBy(i => i.IsForceCompleted),
             ("processstatus", true) => allItems.OrderByDescending(i => i.ProcessStatus),
             ("processstatus", false) => allItems.OrderBy(i => i.ProcessStatus),
+            ("executionschedulestage", true) => allItems.OrderByDescending(i => i.ExecutionScheduleStage),
+            ("executionschedulestage", false) => allItems.OrderBy(i => i.ExecutionScheduleStage),
+            ("executionurgencylevel", true) => allItems.OrderByDescending(i => i.ExecutionUrgencyLevel ?? ""),
+            ("executionurgencylevel", false) => allItems.OrderBy(i => i.ExecutionUrgencyLevel ?? ""),
+            ("executionrawmateriallockremark", true) => allItems.OrderByDescending(i => i.ExecutionRawMaterialLockRemark ?? ""),
+            ("executionrawmateriallockremark", false) => allItems.OrderBy(i => i.ExecutionRawMaterialLockRemark ?? ""),
+            ("executiontheoreticalcutoffdate", true) => allItems.OrderByDescending(i => i.ExecutionTheoreticalCutoffDate),
+            ("executiontheoreticalcutoffdate", false) => allItems.OrderBy(i => i.ExecutionTheoreticalCutoffDate),
             _ => allItems.OrderByDescending(i => i.Id)
         };
 
@@ -992,6 +1032,36 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                     .ToListAsync()
                 : new List<string>();
 
+            // 工单实时关注筛选上下文：按来源工单号关联工单执行状况读模型（无记录不参与 DISTINCT）
+            var execWoNos = all.Where(x => x.SourceWorkOrderNo != null)
+                .Select(x => x.SourceWorkOrderNo!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var execMap = new Dictionary<string, (string? UrgencyLevel, string? RawMaterialLockRemark, DateTime? TheoreticalCutoffDate)>(StringComparer.OrdinalIgnoreCase);
+            if (execWoNos.Count > 0)
+            {
+                var execRows = await _context.WorkOrderExecutionSummaries.AsNoTracking()
+                    .Where(e => execWoNos.Contains(e.WorkOrderNo))
+                    .Select(e => new { e.WorkOrderNo, e.UrgencyLevel, e.RawMaterialLockRemark, e.TheoreticalCutoffDate })
+                    .ToListAsync();
+                foreach (var r in execRows)
+                    execMap[r.WorkOrderNo] = (r.UrgencyLevel, r.RawMaterialLockRemark, r.TheoreticalCutoffDate);
+            }
+
+            // 空值（无工单号/读模型无记录）以哨兵 "__EXCEL_FILTER_NULL__" 输出，供筛选下拉「空值」选项体现
+            var hasNullExec = all.Any(x => string.IsNullOrEmpty(x.SourceWorkOrderNo) || !execMap.ContainsKey(x.SourceWorkOrderNo!));
+            var execUrgencyLevels = execMap.Values.Select(x => x.UrgencyLevel ?? FilterNull).Distinct().ToList();
+            var execLockRemarks = execMap.Values.Select(x => x.RawMaterialLockRemark ?? FilterNull).Distinct().ToList();
+            var execCutoffDates = execMap.Values
+                .Select(x => x.TheoreticalCutoffDate != null ? x.TheoreticalCutoffDate.Value.ToString("yyyy-MM-dd") : FilterNull)
+                .Distinct().ToList();
+            if (hasNullExec)
+            {
+                if (!execUrgencyLevels.Contains(FilterNull)) execUrgencyLevels.Add(FilterNull);
+                if (!execLockRemarks.Contains(FilterNull)) execLockRemarks.Add(FilterNull);
+                if (!execCutoffDates.Contains(FilterNull)) execCutoffDates.Add(FilterNull);
+            }
+
             return new Dictionary<string, List<string>>
             {
                 ["OrderNo"] = all.Where(x => x.OrderNo != null || x.ParentOrderNo != null)
@@ -1008,6 +1078,9 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 ["ReturnDeadline"] = returnDeadlineDates,
                 ["Remark"] = all.Where(x => x.Remark != null).Select(x => x.Remark!).Distinct().OrderBy(x => x).ToList(),
                 ["IsForceCompleted"] = all.Select(x => x.IsForceCompleted ? "True" : "False").Distinct().OrderBy(x => x).ToList(),
+                ["ExecutionUrgencyLevel"] = execUrgencyLevels.OrderBy(x => x == FilterNull ? 0 : 1).ThenBy(x => x).ToList(),
+                ["ExecutionRawMaterialLockRemark"] = execLockRemarks.OrderBy(x => x == FilterNull ? 0 : 1).ThenBy(x => x).ToList(),
+                ["ExecutionTheoreticalCutoffDate"] = execCutoffDates.OrderBy(x => x == FilterNull ? 0 : 1).ThenBy(x => x).ToList(),
             };
         }) ?? new Dictionary<string, List<string>>();
     }

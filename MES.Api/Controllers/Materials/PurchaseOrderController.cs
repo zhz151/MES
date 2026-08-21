@@ -169,6 +169,32 @@ public class PurchaseOrderController : ControllerBase
         return Ok(ApiResponse<List<OrderMismatchInfo>>.Ok(result, "查询成功"));
     }
 
+    // ========== 采购首页汇总（荒管/成品，isFinished=true 成品） ==========
+
+    [HttpGet("summary/pending")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<PurchasePendingDto>>>> GetPurchasePending([FromQuery] bool isFinished = false)
+    {
+        var result = await _service.GetPurchasePendingAsync(isFinished);
+        return Ok(ApiResponse<List<PurchasePendingDto>>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("summary/in-progress")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PurchaseInProgressResultDto>>> GetPurchaseInProgress([FromQuery] bool isFinished = false)
+    {
+        var result = await _service.GetPurchaseInProgressAsync(isFinished);
+        return Ok(ApiResponse<PurchaseInProgressResultDto>.Ok(result, "查询成功"));
+    }
+
+    [HttpGet("summary/monthly")]
+    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<PurchaseMonthlyResultDto>>> GetPurchaseMonthly([FromQuery] bool isFinished = false)
+    {
+        var result = await _service.GetPurchaseMonthlyAsync(isFinished);
+        return Ok(ApiResponse<PurchaseMonthlyResultDto>.Ok(result, "查询成功"));
+    }
+
     // ========== 打印 ==========
 
     [HttpPost("print-single")]

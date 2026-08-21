@@ -13,6 +13,8 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
+using MES.Core.Constants;
+using MES.Core.Helpers;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Materials;
@@ -73,10 +75,35 @@ public partial class PurchaseOrders : IAsyncDisposable
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
 
+    // 空值筛选哨兵（与 ExcelFilter 组件/后端 Service 的 "__EXCEL_FILTER_NULL__" 一致）
+    private const string FilterNull = "__EXCEL_FILTER_NULL__";
+
     // ========== 采购状态 & 关联异常 ==========
     private List<ProcurementStatusDto> procurementItems = new();
     private bool showProcurementStatus = false;
     private List<OrderMismatchInfo> mismatchItems = new();
+
+    // ========== 采购首页汇总折叠卡片（荒管/成品 各 3 张：待购/在购/月度，懒加载） ==========
+    private bool _showSemiPending;
+    private bool _isLoadingSemiPending;
+    private List<PurchasePendingDto> _semiPendingItems = new();
+    private bool _showFinishedPending;
+    private bool _isLoadingFinishedPending;
+    private List<PurchasePendingDto> _finishedPendingItems = new();
+
+    private bool _showSemiInProgress;
+    private bool _isLoadingSemiInProgress;
+    private PurchaseInProgressResultDto? _semiInProgressData;
+    private bool _showFinishedInProgress;
+    private bool _isLoadingFinishedInProgress;
+    private PurchaseInProgressResultDto? _finishedInProgressData;
+
+    private bool _showSemiMonthly;
+    private bool _isLoadingSemiMonthly;
+    private PurchaseMonthlyResultDto? _semiMonthlyData;
+    private bool _showFinishedMonthly;
+    private bool _isLoadingFinishedMonthly;
+    private PurchaseMonthlyResultDto? _finishedMonthlyData;
 
     // ========== 状态面板定时轮询 ==========
     private CancellationTokenSource? _pollingCts;
@@ -108,46 +135,57 @@ public partial class PurchaseOrders : IAsyncDisposable
             new() { Key = "Remark",              Label = "采购备注",     SortKey = "remark", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购信息", Visible = false },
         };
 
-        // G2: 执行状态
+        // G2: 工单实时关注（从工单执行状况读模型按来源工单号关联，无记录默认 "-"）
+        var g2Exec = new List<ColumnDef>
+        {
+            new() { Key = "ExecutionScheduleStage",         Label = "工单关注",     SortKey = "executionschedulestage",         FilterType = "enum",   Width = "100", GroupKey = 2, GroupName = "工单实时关注",
+                EnumOptions = new List<EnumOption> { new(FilterNull, "空值") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList() },
+            new() { Key = "ExecutionRawMaterialLockRemark", Label = "原锁执行备注", SortKey = "executionrawmateriallockremark", FilterType = "string", Width = "130", GroupKey = 2, GroupName = "工单实时关注" },
+            new() { Key = "ExecutionUrgencyLevel",          Label = "计划性",       SortKey = "executionurgencylevel",          FilterType = "string", Width = "100", GroupKey = 2, GroupName = "工单实时关注" },
+            new() { Key = "ExecutionTheoreticalCutoffDate", Label = "理论截止投料日", SortKey = "executiontheoreticalcutoffdate", FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "工单实时关注" },
+        };
+
+        // G3: 执行状态
         var g2 = new List<ColumnDef>
         {
-            new() { Key = "Status",              Label = "状态",         SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "执行状态",
+            new() { Key = "Status",              Label = "状态",         SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "执行状态",
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<PurchaseOrderStatus>() },
-            new() { Key = "ArrivalDate",         Label = "到货截止日",   SortKey = "lastarrivaldate", FilterField = "LastArrivalDate", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "执行状态" },
-            new() { Key = "Received",            Label = "已到货量",     Width = "100", GroupKey = 2, GroupName = "执行状态" },
-            new() { Key = "Returned",            Label = "退货量",       Width = "100", GroupKey = 2, GroupName = "执行状态" },
-            new() { Key = "IsForceCompleted",    Label = "属强制完成",   SortKey = "isforcecompleted", FilterType = "enum", Width = "100", GroupKey = 2, GroupName = "执行状态",
+            new() { Key = "ArrivalDate",         Label = "到货截止日",   SortKey = "lastarrivaldate", FilterField = "LastArrivalDate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "执行状态" },
+            new() { Key = "Received",            Label = "已到货量",     Width = "100", GroupKey = 3, GroupName = "执行状态" },
+            new() { Key = "Returned",            Label = "退货量",       Width = "100", GroupKey = 3, GroupName = "执行状态" },
+            new() { Key = "IsForceCompleted",    Label = "属强制完成",   SortKey = "isforcecompleted", FilterType = "enum", Width = "100", GroupKey = 3, GroupName = "执行状态",
                 EnumOptions = new() { new("True", "是"), new("False", "否") } },
         };
 
         // G3: 来源销售订单（默认隐藏）
         var g3 = new List<ColumnDef>
         {
-            new() { Key = "WoSalesOrderNo",      Label = "订单号",       SortKey = "wosalesorderno", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoProductionMainNo",  Label = "主号",         SortKey = "woproductionmainno", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoProductionSubNo",   Label = "次号",         SortKey = "woproductionsubno", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoSignDate",          Label = "签订日期",     SortKey = "wosigndate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoSalesman",          Label = "业务员",       SortKey = "wosalesman", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoEndCustomer",       Label = "最终用户",     SortKey = "woendcustomer", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoDeliveryDate",      Label = "交货日期",     SortKey = "wodeliverydate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoDelayPenalty",      Label = "延期罚款",     SortKey = "wodelaypenalty", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false,
+            new() { Key = "WoSalesOrderNo",      Label = "订单号",       SortKey = "wosalesorderno", FilterType = "string", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoProductionMainNo",  Label = "主号",         SortKey = "woproductionmainno", FilterType = "string", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoProductionSubNo",   Label = "次号",         SortKey = "woproductionsubno", FilterType = "string", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoSignDate",          Label = "签订日期",     SortKey = "wosigndate", FilterType = "date", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoSalesman",          Label = "业务员",       SortKey = "wosalesman", FilterType = "string", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoEndCustomer",       Label = "最终用户",     SortKey = "woendcustomer", FilterType = "string", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoDeliveryDate",      Label = "交货日期",     SortKey = "wodeliverydate", FilterType = "date", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoDelayPenalty",      Label = "延期罚款",     SortKey = "wodelaypenalty", FilterType = "enum", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false,
                 EnumOptions = new() { new("True", "是"), new("False", "否") } },
-            new() { Key = "WoSettlementMethod",  Label = "结算方式",     SortKey = "wosettlementmethod", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false,
+            new() { Key = "WoSettlementMethod",  Label = "结算方式",     SortKey = "wosettlementmethod", FilterType = "enum", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false,
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
-            new() { Key = "WoPlantGrade",        Label = "工厂牌号",     SortKey = "woplantgrade", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoSpecification",     Label = "成品规格",     SortKey = "wospecification", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoLengthStatus",      Label = "长度状态",     SortKey = "wolengthstatus", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false,
+            new() { Key = "WoPlantGrade",        Label = "工厂牌号",     SortKey = "woplantgrade", FilterType = "string", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoSpecification",     Label = "成品规格",     SortKey = "wospecification", FilterType = "string", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoLengthStatus",      Label = "长度状态",     SortKey = "wolengthstatus", FilterType = "enum", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false,
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
-            new() { Key = "WoMaxLength",         Label = "最大长度",     SortKey = "womaxlength", Width = "80", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoTotalQuantity",     Label = "总支数",       SortKey = "wototalquantity", Width = "80", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoTotalWeight",       Label = "总重量",       SortKey = "wototalweight", Width = "80", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
-            new() { Key = "WoDeliveryState",     Label = "交货状态",     SortKey = "wodeliverystate", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "来源销售订单", Visible = false,
+            new() { Key = "WoMaxLength",         Label = "最大长度",     SortKey = "womaxlength", Width = "80", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoTotalQuantity",     Label = "总支数",       SortKey = "wototalquantity", Width = "80", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoTotalWeight",       Label = "总重量",       SortKey = "wototalweight", Width = "80", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoDeliveryState",     Label = "交货状态",     SortKey = "wodeliverystate", FilterType = "enum", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false,
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
-            new() { Key = "WoTotalItemCount",    Label = "含项次数",     SortKey = "wototalitemcount", Width = "80", GroupKey = 3, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "WoTotalItemCount",    Label = "含项次数",     SortKey = "wototalitemcount", Width = "80", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
         };
 
         var all = new List<ColumnDef>();
         all.AddRange(g1);
+        all.AddRange(g2Exec);
         all.AddRange(g2);
         all.AddRange(g3);
         return all;
@@ -277,12 +315,21 @@ public partial class PurchaseOrders : IAsyncDisposable
             if (kvp.Value.Count == 0) continue;
             // 别名列（显示 Key ≠ 后端字段名）经 FilterField 映射发后端
             var field = colByKey.TryGetValue(kvp.Key, out var col) && !string.IsNullOrEmpty(col.FilterField) ? col.FilterField! : kvp.Key;
-            descriptors.Add(new FilterDescriptor
+            // 空值哨兵 → IncludeNull=true 生成 OR IS NULL；仅勾选空值时用 isnull 操作符
+            var values = kvp.Value;
+            var hasNull = values.Contains(FilterNull);
+            var actualValues = values.Where(v => v != FilterNull).ToList();
+            if (hasNull)
             {
-                Field = field,
-                Operator = "in",
-                Values = kvp.Value.ToList()
-            });
+                if (actualValues.Count > 0)
+                    descriptors.Add(new FilterDescriptor { Field = field, Operator = "in", Values = actualValues, IncludeNull = true });
+                else
+                    descriptors.Add(new FilterDescriptor { Field = field, Operator = "isnull", IncludeNull = true });
+            }
+            else
+            {
+                descriptors.Add(new FilterDescriptor { Field = field, Operator = "in", Values = actualValues });
+            }
         }
         return descriptors.Count > 0 ? descriptors : null;
     }
@@ -389,6 +436,18 @@ public partial class PurchaseOrders : IAsyncDisposable
             }
         }
 
+        // 工单实时关注组：计划性 / 原锁执行备注 筛选选项显示中文（后端 DISTINCT 返回英文 Key）
+        if (_filterContextOptions.TryGetValue("ExecutionUrgencyLevel", out var execUrgencyOptions))
+        {
+            foreach (var opt in execUrgencyOptions)
+                opt.Display = DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, opt.Value) ?? opt.Value;
+        }
+        if (_filterContextOptions.TryGetValue("ExecutionRawMaterialLockRemark", out var execLockOptions))
+        {
+            foreach (var opt in execLockOptions)
+                opt.Display = RawMaterialLockRemarkKeys.ToChinese(opt.Value) ?? opt.Value;
+        }
+
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
         foreach (var col in _allColumns)
         {
@@ -401,6 +460,13 @@ public partial class PurchaseOrders : IAsyncDisposable
                     Count = 0
                 }).ToList();
             }
+        }
+
+        // 空值选项统一显示「空值」（哨兵 "__EXCEL_FILTER_NULL__"，须在各项中文映射之后执行）
+        foreach (var options in _filterContextOptions.Values)
+        {
+            foreach (var opt in options.Where(o => o.Value == FilterNull))
+                opt.Display = "空值";
         }
 
         // 别名列（FilterField）选项回填到列 Key：如 ArrivalDate ← LastArrivalDate
@@ -511,6 +577,29 @@ public partial class PurchaseOrders : IAsyncDisposable
                 break;
             case "SourceWorkOrderNo":
                 builder.AddContent(0, item.SourceWorkOrderNo);
+                break;
+            case "ExecutionScheduleStage":
+                if (item.ExecutionScheduleStage.HasValue)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", DisplayHelper.GetScheduleStageColor(item.ExecutionScheduleStage.Value));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, IntStatusDisplayHelper.GetScheduleStageText(item.ExecutionScheduleStage.Value))));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "-");
+                }
+                break;
+            case "ExecutionRawMaterialLockRemark":
+                builder.AddContent(0, string.IsNullOrEmpty(item.ExecutionRawMaterialLockRemark) ? "-" : (RawMaterialLockRemarkKeys.ToChinese(item.ExecutionRawMaterialLockRemark) ?? "-"));
+                break;
+            case "ExecutionUrgencyLevel":
+                builder.AddContent(0, string.IsNullOrEmpty(item.ExecutionUrgencyLevel) ? "-" : (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.ExecutionUrgencyLevel) ?? "-"));
+                break;
+            case "ExecutionTheoreticalCutoffDate":
+                builder.AddContent(0, item.ExecutionTheoreticalCutoffDate?.ToString("yyyy-MM-dd") ?? "-");
                 break;
             case "WoSalesOrderNo":
                 builder.AddContent(0, item.WoSalesOrderNo);
@@ -841,6 +930,160 @@ public partial class PurchaseOrders : IAsyncDisposable
     }
 
     private void ToggleProcurementStatus() => showProcurementStatus = !showProcurementStatus;
+
+    // ========== 采购首页汇总折叠卡片（懒加载） ==========
+
+    private async Task ToggleSemiPending()
+    {
+        _showSemiPending = !_showSemiPending;
+        if (_showSemiPending && _semiPendingItems.Count == 0) await LoadPendingAsync(false);
+    }
+
+    private async Task ToggleFinishedPending()
+    {
+        _showFinishedPending = !_showFinishedPending;
+        if (_showFinishedPending && _finishedPendingItems.Count == 0) await LoadPendingAsync(true);
+    }
+
+    private async Task ToggleSemiInProgress()
+    {
+        _showSemiInProgress = !_showSemiInProgress;
+        if (_showSemiInProgress && _semiInProgressData == null) await LoadInProgressAsync(false);
+    }
+
+    private async Task ToggleFinishedInProgress()
+    {
+        _showFinishedInProgress = !_showFinishedInProgress;
+        if (_showFinishedInProgress && _finishedInProgressData == null) await LoadInProgressAsync(true);
+    }
+
+    private async Task ToggleSemiMonthly()
+    {
+        _showSemiMonthly = !_showSemiMonthly;
+        if (_showSemiMonthly && _semiMonthlyData == null) await LoadMonthlyAsync(false);
+    }
+
+    private async Task ToggleFinishedMonthly()
+    {
+        _showFinishedMonthly = !_showFinishedMonthly;
+        if (_showFinishedMonthly && _finishedMonthlyData == null) await LoadMonthlyAsync(true);
+    }
+
+    private async Task LoadPendingAsync(bool isFinished)
+    {
+        if (isFinished) _isLoadingFinishedPending = true; else _isLoadingSemiPending = true;
+        StateHasChanged();
+        try
+        {
+            var result = await PurchaseService.GetPurchasePendingAsync(isFinished);
+            var items = result.Success && result.Data != null ? result.Data : new List<PurchasePendingDto>();
+            if (isFinished) _finishedPendingItems = items; else _semiPendingItems = items;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"{(isFinished ? "成品" : "荒管")}待购数据加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            if (isFinished) _isLoadingFinishedPending = false; else _isLoadingSemiPending = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadInProgressAsync(bool isFinished)
+    {
+        if (isFinished) _isLoadingFinishedInProgress = true; else _isLoadingSemiInProgress = true;
+        StateHasChanged();
+        try
+        {
+            var result = await PurchaseService.GetPurchaseInProgressAsync(isFinished);
+            var data = result.Success && result.Data != null ? result.Data : new PurchaseInProgressResultDto();
+            if (isFinished) _finishedInProgressData = data; else _semiInProgressData = data;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"{(isFinished ? "成品" : "荒管")}在购数据加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            if (isFinished) _isLoadingFinishedInProgress = false; else _isLoadingSemiInProgress = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMonthlyAsync(bool isFinished)
+    {
+        if (isFinished) _isLoadingFinishedMonthly = true; else _isLoadingSemiMonthly = true;
+        StateHasChanged();
+        try
+        {
+            var result = await PurchaseService.GetPurchaseMonthlyAsync(isFinished);
+            var data = result.Success && result.Data != null ? result.Data : new PurchaseMonthlyResultDto();
+            if (isFinished) _finishedMonthlyData = data; else _semiMonthlyData = data;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"{(isFinished ? "成品" : "荒管")}月度采购数据加载失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            if (isFinished) _isLoadingFinishedMonthly = false; else _isLoadingSemiMonthly = false;
+            StateHasChanged();
+        }
+    }
+
+    // ========== 汇总卡片格式化 ==========
+
+    /// <summary>待购量(kg) 格式化：0 值留空（后端已过滤 PendingWeight&gt;0，仅防边界）</summary>
+    private static string FormatPendingWeight(decimal kg) => kg > 0 ? ((int)kg).ToString() : string.Empty;
+
+    /// <summary>在购单元格格式化（t，保留 1 位）：总量&gt;0 显示「总量」，急量&gt;0 追加「[*急量]」；全 0 留空</summary>
+    private static string FormatInProgressCell(PurchaseInProgressCellDto cell)
+    {
+        var total = cell.TotalWeight / 1000m;
+        if (total <= 0) return string.Empty;
+        var s = total.ToString("F1");
+        var urgent = cell.UrgentWeight / 1000m;
+        return urgent > 0 ? $"{s}[*{urgent.ToString("F1")}]" : s;
+    }
+
+    /// <summary>月度单元格格式化（t，保留 1 位）：「购X/回Y」，0 值留空</summary>
+    private static string FormatPurchaseMonthlyCell(decimal buy, decimal ret)
+    {
+        if (buy <= 0 && ret <= 0) return string.Empty;
+        var parts = new List<string>();
+        if (buy > 0) parts.Add("购" + (buy / 1000m).ToString("F1"));
+        if (ret > 0) parts.Add("回" + (ret / 1000m).ToString("F1"));
+        return string.Join("/", parts);
+    }
+
+    /// <summary>现在购(t) 格式化：kg /1000 保留 1 位，0 值留空</summary>
+    private static string FormatNowInProgress(decimal kg) => kg > 0 ? (kg / 1000m).ToString("F1") : string.Empty;
+
+    // ========== 汇总卡片打印（前端 printRawHtml 直接打印 DOM 表格） ==========
+
+    private async Task PrintTableAsync(string tableId, string title)
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", tableId);
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, title);
+            else
+                Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private Task PrintSemiPendingTable() => PrintTableAsync("#po-semi-pending-table", "荒管待购实时数据");
+    private Task PrintFinishedPendingTable() => PrintTableAsync("#po-finished-pending-table", "成品待购实时数据");
+    private Task PrintSemiInProgressTable() => PrintTableAsync("#po-semi-in-progress-table", "荒管在购实时数据");
+    private Task PrintFinishedInProgressTable() => PrintTableAsync("#po-finished-in-progress-table", "成品在购实时数据");
+    private Task PrintSemiMonthlyTable() => PrintTableAsync("#po-semi-monthly-table", "荒管月度采购数据");
+    private Task PrintFinishedMonthlyTable() => PrintTableAsync("#po-finished-monthly-table", "成品月度采购数据");
 
     private async Task LoadOrderMismatches()
     {

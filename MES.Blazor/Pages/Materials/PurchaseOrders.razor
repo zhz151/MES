@@ -27,6 +27,30 @@
                 <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Class="mr-2" Color="Color.Primary" />采购订单</MudText>
             </CardHeaderContent>
             <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showSemiPending ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showSemiPending ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleSemiPending">荒管待购</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showSemiInProgress ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showSemiInProgress ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleSemiInProgress">荒管在购</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showSemiMonthly ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showSemiMonthly ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleSemiMonthly">荒管月度</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showFinishedPending ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showFinishedPending ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleFinishedPending">成品待购</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showFinishedInProgress ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showFinishedInProgress ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleFinishedInProgress">成品在购</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showFinishedMonthly ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showFinishedMonthly ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleFinishedMonthly">成品月度</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="NavigateToCreate">新建采购单</MudButton>
             </CardHeaderActions>
         </MudCardHeader>
@@ -55,6 +79,368 @@
                 </MudItem>
             </MudGrid>
 
+            @* ==================== 采购首页汇总折叠卡片（荒管） ==================== *@
+
+            @* 荒管待购实时数据（明细表） *@
+            @if (_showSemiPending)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingSemiPending)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>荒管待购实时数据加载中...</span>
+                            </div>
+                        }
+                        else if (_semiPendingItems.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无荒管待购数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>荒管待购实时数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintSemiPendingTable">打印</MudButton>
+                            </div>
+                            <div id="po-semi-pending-table" style="overflow-x: auto; max-height: 30vh;">
+                                <MudTable T="PurchasePendingDto" Items="@_semiPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                    <HeaderContent>
+                                        <MudTh Style="width: 120px;">工单号</MudTh>
+                                        <MudTh Style="width: 90px;">工单关注</MudTh>
+                                        <MudTh Style="width: 110px;">原锁执行</MudTh>
+                                        <MudTh Style="width: 90px;">工单计划性</MudTh>
+                                        <MudTh Style="width: 90px;">物料分类</MudTh>
+                                        <MudTh Style="width: 130px;">厂内钢种</MudTh>
+                                        <MudTh Style="width: 130px;">规格</MudTh>
+                                        <MudTh Style="width: 100px;" Class="text-right">待购量(kg)</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.WorkOrderNo</MudTd>
+                                        <MudTd>@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage, "-")</MudTd>
+                                        <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (RawMaterialLockRemarkKeys.ToChinese(context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
+                                        <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
+                                        <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
+                                        <MudTd>@context.PlantGrade</MudTd>
+                                        <MudTd>@context.Specification</MudTd>
+                                        <MudTd Class="text-right">@FormatPendingWeight(context.PendingWeight)</MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：待购量 = Max(0, 计划总量 - 已采购量)，按（工单号×物料分类）聚合；厂内钢种/规格 = 该组计划多值合并；
+                                工单关注/原锁执行/工单计划性按工单号关联工单执行状况（无记录 "-"）。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            @* 荒管在购实时数据（供应商×厂内钢种二维表） *@
+            @if (_showSemiInProgress)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingSemiInProgress)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>荒管在购实时数据加载中...</span>
+                            </div>
+                        }
+                        else if (_semiInProgressData == null || _semiInProgressData.Rows.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无荒管在购数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>荒管在购实时数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintSemiInProgressTable">打印</MudButton>
+                            </div>
+                            <div id="po-semi-in-progress-table" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">供应商</th>
+                                            @foreach (var g in _semiInProgressData.SteelGrades)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@g (t)</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _semiInProgressData.Rows)
+                                        {
+                                            var isTotal = r.SupplierName == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                @foreach (var g in _semiInProgressData.SteelGrades)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatInProgressCell(r.Cells.GetValueOrDefault(g) ?? new PurchaseInProgressCellDto())</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatInProgressCell(r.Total)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：在购 = 状态「已下单」+「部分到货」的采购单，按（供应商×厂内钢种）聚合，数据值 = 采购重量 + 退货量 - 已到货量；
+                                单元格「总量[*急量]」（t），急量 = 工单计划性 A+急/A急 的在购量，无急量仅显示总量，0 值留空；末行「合计」=全部供应商合计。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            @* 荒管月度采购数据（供应商×1月~12月二维表） *@
+            @if (_showSemiMonthly)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingSemiMonthly)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>荒管月度采购数据加载中...</span>
+                            </div>
+                        }
+                        else if (_semiMonthlyData == null || _semiMonthlyData.Rows.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无荒管月度采购数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>荒管月度采购数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintSemiMonthlyTable">打印</MudButton>
+                            </div>
+                            <div id="po-semi-monthly-table" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">供应商</th>
+                                            @foreach (var label in _semiMonthlyData.MonthLabels)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                            <th style="padding:4px 10px; background:#ffe0b2; border:1px solid #e0e0e0; text-align:center;">现在购(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _semiMonthlyData.Rows)
+                                        {
+                                            var isTotal = r.SupplierName == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                @foreach (var mv in r.Months)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatPurchaseMonthlyCell(mv.BuyWeight, mv.ReturnWeight)</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatPurchaseMonthlyCell(r.Total.BuyWeight, r.Total.ReturnWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#ffe0b2;" : "background:#fff3e0;")">@FormatNowInProgress(r.NowInProgress)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：按本年度（下单日期）各月份统计，单元格「购X/回Y」（t），购=该月下单采购重量，回=已到货量-退货量，0 值留空；
+                                末列「合计」=该行 1月~12月购/回各自求和，末行「合计」=全部供应商各月求和；
+                                「现在购」=状态「已下单」+「部分到货」的 采购重量+退货量-已到货量（不分厂内钢种），橙底区分。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            @* ==================== 采购首页汇总折叠卡片（成品） ==================== *@
+
+            @* 成品待购实时数据（明细表） *@
+            @if (_showFinishedPending)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingFinishedPending)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>成品待购实时数据加载中...</span>
+                            </div>
+                        }
+                        else if (_finishedPendingItems.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无成品待购数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>成品待购实时数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintFinishedPendingTable">打印</MudButton>
+                            </div>
+                            <div id="po-finished-pending-table" style="overflow-x: auto; max-height: 30vh;">
+                                <MudTable T="PurchasePendingDto" Items="@_finishedPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                    <HeaderContent>
+                                        <MudTh Style="width: 120px;">工单号</MudTh>
+                                        <MudTh Style="width: 90px;">工单关注</MudTh>
+                                        <MudTh Style="width: 110px;">原锁执行</MudTh>
+                                        <MudTh Style="width: 90px;">工单计划性</MudTh>
+                                        <MudTh Style="width: 90px;">物料分类</MudTh>
+                                        <MudTh Style="width: 130px;">厂内钢种</MudTh>
+                                        <MudTh Style="width: 130px;">规格</MudTh>
+                                        <MudTh Style="width: 100px;" Class="text-right">待购量(kg)</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.WorkOrderNo</MudTd>
+                                        <MudTd>@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage, "-")</MudTd>
+                                        <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (RawMaterialLockRemarkKeys.ToChinese(context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
+                                        <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
+                                        <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
+                                        <MudTd>@context.PlantGrade</MudTd>
+                                        <MudTd>@context.Specification</MudTd>
+                                        <MudTd Class="text-right">@FormatPendingWeight(context.PendingWeight)</MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：待购量 = Max(0, 计划总量 - 已采购量)，按（工单号×物料分类）聚合；厂内钢种/规格 = 该组计划多值合并；
+                                工单关注/原锁执行/工单计划性按工单号关联工单执行状况（无记录 "-"）。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            @* 成品在购实时数据（供应商×厂内钢种二维表） *@
+            @if (_showFinishedInProgress)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingFinishedInProgress)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>成品在购实时数据加载中...</span>
+                            </div>
+                        }
+                        else if (_finishedInProgressData == null || _finishedInProgressData.Rows.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无成品在购数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>成品在购实时数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintFinishedInProgressTable">打印</MudButton>
+                            </div>
+                            <div id="po-finished-in-progress-table" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">供应商</th>
+                                            @foreach (var g in _finishedInProgressData.SteelGrades)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@g (t)</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _finishedInProgressData.Rows)
+                                        {
+                                            var isTotal = r.SupplierName == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                @foreach (var g in _finishedInProgressData.SteelGrades)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatInProgressCell(r.Cells.GetValueOrDefault(g) ?? new PurchaseInProgressCellDto())</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatInProgressCell(r.Total)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：在购 = 状态「已下单」+「部分到货」的采购单，按（供应商×厂内钢种）聚合，数据值 = 采购重量 + 退货量 - 已到货量；
+                                单元格「总量[*急量]」（t），急量 = 工单计划性 A+急/A急 的在购量，无急量仅显示总量，0 值留空；末行「合计」=全部供应商合计。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            @* 成品月度采购数据（供应商×1月~12月二维表） *@
+            @if (_showFinishedMonthly)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingFinishedMonthly)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>成品月度采购数据加载中...</span>
+                            </div>
+                        }
+                        else if (_finishedMonthlyData == null || _finishedMonthlyData.Rows.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无成品月度采购数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>成品月度采购数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintFinishedMonthlyTable">打印</MudButton>
+                            </div>
+                            <div id="po-finished-monthly-table" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">供应商</th>
+                                            @foreach (var label in _finishedMonthlyData.MonthLabels)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                            <th style="padding:4px 10px; background:#ffe0b2; border:1px solid #e0e0e0; text-align:center;">现在购(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _finishedMonthlyData.Rows)
+                                        {
+                                            var isTotal = r.SupplierName == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                @foreach (var mv in r.Months)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatPurchaseMonthlyCell(mv.BuyWeight, mv.ReturnWeight)</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatPurchaseMonthlyCell(r.Total.BuyWeight, r.Total.ReturnWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#ffe0b2;" : "background:#fff3e0;")">@FormatNowInProgress(r.NowInProgress)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：按本年度（下单日期）各月份统计，单元格「购X/回Y」（t），购=该月下单采购重量，回=已到货量-退货量，0 值留空；
+                                末列「合计」=该行 1月~12月购/回各自求和，末行「合计」=全部供应商各月求和；
+                                「现在购」=状态「已下单」+「部分到货」的 采购重量+退货量-已到货量（不分厂内钢种），橙底区分。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
             @* 工单采购计划执行状态 *@
             @if (procurementItems.Any())
             {
@@ -79,8 +465,10 @@
                                     <MudTh Style="width: 90px;">物料分类</MudTh>
                                     <MudTh Style="width: 100px;" Class="text-right">计划总量(kg)</MudTh>
                                     <MudTh Style="width: 100px;" Class="text-right">已采购(kg)</MudTh>
-                                    <MudTh Style="width: 100px;" Class="text-right">已委外(kg)</MudTh>
-                                    <MudTh Style="width: 100px;" Class="text-right">合计(kg)</MudTh>
+                                    <MudTh Style="width: 100px;" Class="text-right">缺少量(kg)</MudTh>
+                                    <MudTh Style="width: 90px;">工单关注</MudTh>
+                                    <MudTh Style="width: 90px;">原锁执行</MudTh>
+                                    <MudTh Style="width: 90px;">工单计划性</MudTh>
                                     <MudTh Style="width: 90px;">状态</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
@@ -88,8 +476,10 @@
                                     <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                     <MudTd Class="text-right">@(((int)context.PlanWeight).ToString())</MudTd>
                                     <MudTd Class="text-right">@(((int)context.PurchaseWeight).ToString())</MudTd>
-                                    <MudTd Class="text-right">@(((int)context.SubcontractWeight).ToString())</MudTd>
-                                    <MudTd Class="text-right">@(((int)context.TotalWeight).ToString())</MudTd>
+                                    <MudTd Class="text-right">@(((int)context.MissingWeight).ToString())</MudTd>
+                                    <MudTd>@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage, "-")</MudTd>
+                                    <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (RawMaterialLockRemarkKeys.ToChinese(context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
+                                    <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
                                     <MudTd>
                                         <MudChip Size="Size.Small" Color="@(context.StatusText is "未采购" or "超额采购" ? Color.Error : Color.Warning)">
                                             @context.StatusText

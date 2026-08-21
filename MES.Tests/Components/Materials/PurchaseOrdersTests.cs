@@ -100,6 +100,34 @@ public class PurchaseOrdersTests : TestBase
         cut.Markup.Should().Contain("已完成");
     }
 
+    [Fact]
+    public void WorkOrderAttentionGroup_Renders工单实时关注组()
+    {
+        ConfigureListResponse(new List<PurchaseOrderDto>
+        {
+            new()
+            {
+                Id = 4, OrderNo = "PO-004", SupplierName = "测试供应商",
+                OrderDate = DateTime.Today, Status = PurchaseOrderStatus.Open,
+                MaterialCategory = MaterialType.RoughTube, Specification = "89×10",
+                Quantity = 100, Weight = 5000, RequiredDate = DateTime.Today.AddDays(30),
+                UnitWeight = 50, PlantGrade = "304", SupplierId = 1,
+                IsForceCompleted = false,
+                SourceWorkOrderNo = "WO-EXEC-001",
+                ExecutionScheduleStage = 3,
+                ExecutionUrgencyLevel = "AUrgent",
+                ExecutionRawMaterialLockRemark = "QualityReplenish",
+                ExecutionTheoreticalCutoffDate = new DateTime(2026, 8, 15)
+            }
+        });
+
+        var cut = Ctx.RenderComponent<PurchaseOrders>();
+        cut.Markup.Should().Contain("工单实时关注");
+        cut.Markup.Should().Contain("生产执行");      // 工单关注（ScheduleStage=3）
+        cut.Markup.Should().Contain("A急");           // 计划性（AUrgent → 字典中文）
+        cut.Markup.Should().Contain("2026-08-15");    // 理论截止投料日
+    }
+
     private void ConfigureListResponse(List<PurchaseOrderDto> items)
     {
         // 先配置初始空数据响应，避免首次 OnInitializedAsync 渲染时触发查询

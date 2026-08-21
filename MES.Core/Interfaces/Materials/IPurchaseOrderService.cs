@@ -21,6 +21,11 @@ public interface IPurchaseOrderService
     Task<List<OrderMismatchInfo>> GetMismatchedPurchaseOrdersAsync();
     Task<PlanDetailDto?> GetPlanDetailAsync(string workOrderNo, string materialCategory);
 
+    // ========== 采购首页汇总（荒管/成品，isFinished=true 成品） ==========
+    Task<List<PurchasePendingDto>> GetPurchasePendingAsync(bool isFinished);
+    Task<PurchaseInProgressResultDto> GetPurchaseInProgressAsync(bool isFinished);
+    Task<PurchaseMonthlyResultDto> GetPurchaseMonthlyAsync(bool isFinished);
+
     // ========== 筛选上下文 ==========
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 

@@ -73,7 +73,10 @@
                                         <MudTh Style="width: 90px;">物料分类</MudTh>
                                         <MudTh Style="width: 100px;" Class="text-right">计划总量(kg)</MudTh>
                                         <MudTh Style="width: 100px;" Class="text-right">已委外(kg)</MudTh>
-                                        <MudTh Style="width: 100px;" Class="text-right">合计(kg)</MudTh>
+                                        <MudTh Style="width: 100px;" Class="text-right">缺少量(kg)</MudTh>
+                                        <MudTh Style="width: 90px;">工单关注</MudTh>
+                                        <MudTh Style="width: 90px;">原锁执行</MudTh>
+                                        <MudTh Style="width: 90px;">工单计划性</MudTh>
                                         <MudTh Style="width: 90px;">状态</MudTh>
                                     </HeaderContent>
                                     <RowTemplate>
@@ -85,7 +88,10 @@
                                         <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                         <MudTd Class="text-right">@context.PlanWeight.ToString("G29")</MudTd>
                                         <MudTd Class="text-right">@context.SubcontractWeight.ToString("G29")</MudTd>
-                                        <MudTd Class="text-right">@context.TotalWeight.ToString("G29")</MudTd>
+                                        <MudTd Class="text-right">@context.MissingWeight.ToString("G29")</MudTd>
+                                        <MudTd>@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage, "-")</MudTd>
+                                        <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (RawMaterialLockRemarkKeys.ToChinese(context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
+                                        <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
                                         <MudTd>
                                             <MudChip Size="Size.Small" Color="@(context.StatusText == "未穿孔" ? Color.Error : Color.Warning)">
                                                 @context.StatusText

@@ -76,49 +76,51 @@
             <MudText Typo="Typo.body2">
                 <b>总重量(kg)：</b>@(((int)_tabTotalWeight).ToString())
             </MudText>
-            <MudIconButton Icon="@Icons.Material.Filled.Print"
-                           Size="Size.Small"
-                           Color="Color.Primary"
-                           Title="打印"
-                           OnClick="@OnPrint" />
-            <ColumnDisplaySelect Columns="_allColumns"
-                                 OnColumnToggle="OnColumnToggle"
-                                 OnMoveUp="MoveColumnUp"
-                                 OnMoveDown="MoveColumnDown" />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                       Class="ml-2" OnClick="@EnterSchedulingModeAsync">编辑排程</MudButton>
-            @if (_isSchedulingMode)
-            {
-                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
-                           OnClick="@SaveScheduleAsync">保存排程</MudButton>
-                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
-                           OnClick="@CancelSchedule">取消</MudButton>
-            }
-            @if (_scheduleUpdatedTime.HasValue)
-            {
-                <MudText Typo="Typo.body2" Class="ml-4 mr-2">
-                    <b>最后更新：</b>@_scheduleUpdatedTime.Value.ToString("yyyy-MM-dd HH:mm")
-                </MudText>
-            }
-            @if (_showScheduleSummary)
-            {
-                <MudIconButton Icon="@Icons.Material.Filled.Close"
+            <div class="d-flex flex-wrap align-center" style="gap: 8px; margin-left:auto;">
+                @if (_showScheduleSummary)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                   Size="Size.Small"
+                                   Color="Color.Error"
+                                   Title="关闭排程汇总"
+                                   OnClick="@ToggleScheduleSummaryAsync" />
+                }
+                else
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                               Class="ml-1" OnClick="@ToggleScheduleSummaryAsync" Disabled="@_summaryLoading">
+                        @if (_summaryLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                        }
+                        排程汇总
+                    </MudButton>
+                }
+                <ColumnDisplaySelect Columns="_allColumns"
+                                     OnColumnToggle="OnColumnToggle"
+                                     OnMoveUp="MoveColumnUp"
+                                     OnMoveDown="MoveColumnDown" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                           Class="ml-2" OnClick="@EnterSchedulingModeAsync">编辑排程</MudButton>
+                @if (_isSchedulingMode)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                               OnClick="@SaveScheduleAsync">保存排程</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                               OnClick="@CancelSchedule">取消</MudButton>
+                }
+                @if (_scheduleUpdatedTime.HasValue)
+                {
+                    <MudText Typo="Typo.body2" Class="ml-4 mr-2">
+                        <b>最后更新：</b>@_scheduleUpdatedTime.Value.ToString("yyyy-MM-dd HH:mm")
+                    </MudText>
+                }
+                <MudIconButton Icon="@Icons.Material.Filled.Print"
                                Size="Size.Small"
-                               Color="Color.Error"
-                               Title="关闭排程汇总"
-                               OnClick="@ToggleScheduleSummaryAsync" />
-            }
-            else
-            {
-                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                           Class="ml-1" OnClick="@ToggleScheduleSummaryAsync" Disabled="@_summaryLoading">
-                    @if (_summaryLoading)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
-                    }
-                    排程汇总
-                </MudButton>
-            }
+                               Color="Color.Primary"
+                               Title="打印"
+                               OnClick="@OnPrint" />
+            </div>
         </div>
     </div>
 

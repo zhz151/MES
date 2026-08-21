@@ -109,4 +109,18 @@ public interface ISectionOutsourceService
     /// 模糊搜索委外单位（用于 MudAutocomplete）
     /// </summary>
     Task<List<string>> SearchVendorsAsync(string? keyword);
+
+    // ========== 汇总 ==========
+
+    /// <summary>
+    /// 月度委外数据汇总（不含厂内单位）：发/回/退按 (委外单位 × 工段) 按月聚合本年 1月~12月。
+    /// 工段归行按生产记录「月度生产量数据」表全工段样式（ProductionSummaryHelper.ResolveAllSectionTabName）；
+    /// 行 =（委外单位 × 工段）组合 + 合计行，整行全 0 隐藏；排序 = 单位总重量降序，组内工段规范序。
+    /// </summary>
+    Task<List<SectionOutsourceMonthlyRowDto>> GetMonthlyOutsourceAsync();
+
+    /// <summary>
+    /// 获取厂内单位集合（IsInternal=true 的委外单位，用于「实时委外在产」/「月度委外数据」过滤厂内行）
+    /// </summary>
+    Task<List<string>> GetInternalVendorsAsync();
 }

@@ -12,6 +12,7 @@ using MES.Core.Helpers;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Shared.Constants;
+using MES.Core.Constants;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Materials;
@@ -64,6 +65,9 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
 
+    // 空值筛选哨兵（与 ExcelFilter 组件/后端 Service 的 "__EXCEL_FILTER_NULL__" 一致）
+    private const string FilterNull = "__EXCEL_FILTER_NULL__";
+
     // ========== 列管理 ==========
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns => _allColumns.Where(c => c.Visible).ToList();
@@ -87,21 +91,32 @@ public partial class SubcontractReturnItems : IAsyncDisposable
             new() { Key = "Remark",              Label = "委外备注",       SortKey = "remark",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息", Visible = false },
         };
 
-        // G2: 执行状态
+        // G2: 工单实时关注（从工单执行状况读模型按来源工单号关联，无记录默认 "-"）
+        var g2Exec = new List<ColumnDef>
+        {
+            new() { Key = "ExecutionScheduleStage",         Label = "工单关注",     SortKey = "executionschedulestage",         FilterType = "enum",   Width = "100", GroupKey = 2, GroupName = "工单实时关注",
+                EnumOptions = new List<EnumOption> { new(FilterNull, "空值") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList() },
+            new() { Key = "ExecutionRawMaterialLockRemark", Label = "原锁执行备注", SortKey = "executionrawmateriallockremark", FilterType = "string", Width = "130", GroupKey = 2, GroupName = "工单实时关注" },
+            new() { Key = "ExecutionUrgencyLevel",          Label = "计划性",       SortKey = "executionurgencylevel",          FilterType = "string", Width = "100", GroupKey = 2, GroupName = "工单实时关注" },
+            new() { Key = "ExecutionTheoreticalCutoffDate", Label = "理论截止投料日", SortKey = "executiontheoreticalcutoffdate", FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "工单实时关注" },
+        };
+
+        // G3: 执行状态
         var g2 = new List<ColumnDef>
         {
-            new() { Key = "ProcessStatus",       Label = "执行状态",       SortKey = "processstatus",      FilterType = "enum",  Width = "100", GroupKey = 2, GroupName = "执行状态",
+            new() { Key = "ProcessStatus",       Label = "执行状态",       SortKey = "processstatus",      FilterType = "enum",  Width = "100", GroupKey = 3, GroupName = "执行状态",
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<SubcontractOrderStatus>() },
-            new() { Key = "ReturnDeadline",      Label = "截止回收日",     SortKey = "returndeadline",     FilterType = "date",  Width = "110", GroupKey = 2, GroupName = "执行状态" },
-            new() { Key = "ReturnedQuantity",    Label = "回收支数",       SortKey = "returnedquantity",                       Width = "80",  GroupKey = 2, GroupName = "执行状态" },
-            new() { Key = "ReturnedWeight",      Label = "回收重量(kg)",   SortKey = "returnedweight",                         Width = "100", GroupKey = 2, GroupName = "执行状态" },
-            new() { Key = "ReturnQuantity",      Label = "退货量",                                                   Width = "100", GroupKey = 2, GroupName = "执行状态" },
-            new() { Key = "IsForceCompleted",    Label = "属强制完成",     SortKey = "isforcecompleted",   FilterType = "enum",  Width = "100", GroupKey = 2, GroupName = "执行状态",
+            new() { Key = "ReturnDeadline",      Label = "截止回收日",     SortKey = "returndeadline",     FilterType = "date",  Width = "110", GroupKey = 3, GroupName = "执行状态" },
+            new() { Key = "ReturnedQuantity",    Label = "回收支数",       SortKey = "returnedquantity",                       Width = "80",  GroupKey = 3, GroupName = "执行状态" },
+            new() { Key = "ReturnedWeight",      Label = "回收重量(kg)",   SortKey = "returnedweight",                         Width = "100", GroupKey = 3, GroupName = "执行状态" },
+            new() { Key = "ReturnQuantity",      Label = "退货量",                                                   Width = "100", GroupKey = 3, GroupName = "执行状态" },
+            new() { Key = "IsForceCompleted",    Label = "属强制完成",     SortKey = "isforcecompleted",   FilterType = "enum",  Width = "100", GroupKey = 3, GroupName = "执行状态",
                 EnumOptions = new() { new("True", "是"), new("False", "否") } },
         };
 
         var all = new List<ColumnDef>();
         all.AddRange(g1);
+        all.AddRange(g2Exec);
         all.AddRange(g2);
         return all;
     }
@@ -219,6 +234,25 @@ public partial class SubcontractReturnItems : IAsyncDisposable
                 }).ToList();
             }
         }
+
+        // 工单实时关注组：计划性 / 原锁执行备注 筛选选项显示中文（后端 DISTINCT 返回英文 Key）
+        if (_filterContextOptions.TryGetValue("ExecutionUrgencyLevel", out var execUrgencyOptions))
+        {
+            foreach (var opt in execUrgencyOptions)
+                opt.Display = DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, opt.Value) ?? opt.Value;
+        }
+        if (_filterContextOptions.TryGetValue("ExecutionRawMaterialLockRemark", out var execLockOptions))
+        {
+            foreach (var opt in execLockOptions)
+                opt.Display = RawMaterialLockRemarkKeys.ToChinese(opt.Value) ?? opt.Value;
+        }
+
+        // 空值选项统一显示「空值」（哨兵 "__EXCEL_FILTER_NULL__"，须在各项中文映射之后执行）
+        foreach (var options in _filterContextOptions.Values)
+        {
+            foreach (var opt in options.Where(o => o.Value == FilterNull))
+                opt.Display = "空值";
+        }
     }
 
     private async Task<TableData<SubcontractReturnItemListDto>> LoadDataFromServer(TableState tableState)
@@ -324,8 +358,21 @@ public partial class SubcontractReturnItems : IAsyncDisposable
         var list = new List<FilterDescriptor>();
         foreach (var kv in _columnFilters)
         {
-            if (kv.Value.Count > 0)
-                list.Add(new FilterDescriptor { Field = kv.Key, Operator = "in", Values = kv.Value.ToList() });
+            if (kv.Value.Count == 0) continue;
+            // 空值哨兵 → IncludeNull=true（内存层 val==null 匹配）；仅勾选空值时用 isnull 操作符
+            var hasNull = kv.Value.Contains(FilterNull);
+            var actualValues = kv.Value.Where(v => v != FilterNull).ToList();
+            if (hasNull)
+            {
+                if (actualValues.Count > 0)
+                    list.Add(new FilterDescriptor { Field = kv.Key, Operator = "in", Values = actualValues, IncludeNull = true });
+                else
+                    list.Add(new FilterDescriptor { Field = kv.Key, Operator = "isnull", IncludeNull = true });
+            }
+            else
+            {
+                list.Add(new FilterDescriptor { Field = kv.Key, Operator = "in", Values = actualValues });
+            }
         }
         return list.Count > 0 ? list : null;
     }
@@ -451,6 +498,29 @@ public partial class SubcontractReturnItems : IAsyncDisposable
                 break;
             case "SourceWorkOrderNo":
                 builder.AddContent(0, item.SourceWorkOrderNo);
+                break;
+            case "ExecutionScheduleStage":
+                if (item.ExecutionScheduleStage.HasValue)
+                {
+                    builder.OpenComponent(0, typeof(MudChip));
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", DisplayHelper.GetScheduleStageColor(item.ExecutionScheduleStage.Value));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)((b) => b.AddContent(0, IntStatusDisplayHelper.GetScheduleStageText(item.ExecutionScheduleStage.Value))));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "-");
+                }
+                break;
+            case "ExecutionRawMaterialLockRemark":
+                builder.AddContent(0, string.IsNullOrEmpty(item.ExecutionRawMaterialLockRemark) ? "-" : (RawMaterialLockRemarkKeys.ToChinese(item.ExecutionRawMaterialLockRemark) ?? "-"));
+                break;
+            case "ExecutionUrgencyLevel":
+                builder.AddContent(0, string.IsNullOrEmpty(item.ExecutionUrgencyLevel) ? "-" : (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.ExecutionUrgencyLevel) ?? "-"));
+                break;
+            case "ExecutionTheoreticalCutoffDate":
+                builder.AddContent(0, item.ExecutionTheoreticalCutoffDate?.ToString("yyyy-MM-dd") ?? "-");
                 break;
             case "PlantGrade":
                 builder.AddContent(0, item.PlantGrade);

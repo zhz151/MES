@@ -229,4 +229,32 @@ public class SectionOutsourceService
             return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    // ========== 汇总 ==========
+
+    /// <summary>
+    /// 月度委外数据汇总（不含厂内单位）：发/回/退按 (委外单位 × 工段) 按月聚合 + 合计行
+    /// </summary>
+    public async Task<ApiResponse<List<SectionOutsourceMonthlyRowDto>>> GetMonthlyOutsourceAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<SectionOutsourceMonthlyRowDto>>>($"{BaseUrl}/monthly-summary")
+                   ?? ApiResponse<List<SectionOutsourceMonthlyRowDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<SectionOutsourceMonthlyRowDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// 获取厂内单位集合（IsInternal=true 的委外单位，用于实时委外在产/月度委外数据过滤）
+    /// </summary>
+    public async Task<ApiResponse<List<string>>> GetInternalVendorsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<string>>>($"{BaseUrl}/internal-vendors")
+                   ?? ApiResponse<List<string>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<string>>.Fail($"网络错误: {ex.Message}"); }
+    }
 }

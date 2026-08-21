@@ -164,4 +164,36 @@ public class PurchaseOrderService
         catch (Exception ex) { return ApiResponse<PlanDetailDto>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    // ========== 采购首页汇总（荒管/成品，isFinished=true 成品） ==========
+
+    public async Task<ApiResponse<List<PurchasePendingDto>>> GetPurchasePendingAsync(bool isFinished)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<PurchasePendingDto>>>($"{BaseUrl}/summary/pending?isFinished={isFinished}")
+                   ?? ApiResponse<List<PurchasePendingDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<PurchasePendingDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<PurchaseInProgressResultDto>> GetPurchaseInProgressAsync(bool isFinished)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<PurchaseInProgressResultDto>>($"{BaseUrl}/summary/in-progress?isFinished={isFinished}")
+                   ?? ApiResponse<PurchaseInProgressResultDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<PurchaseInProgressResultDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    public async Task<ApiResponse<PurchaseMonthlyResultDto>> GetPurchaseMonthlyAsync(bool isFinished)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<PurchaseMonthlyResultDto>>($"{BaseUrl}/summary/monthly?isFinished={isFinished}")
+                   ?? ApiResponse<PurchaseMonthlyResultDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<PurchaseMonthlyResultDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
 }

@@ -7,8 +7,10 @@
 @using Microsoft.AspNetCore.Components.Rendering
 @using MES.Blazor.Models
 @using MES.Core.DTOs.Batch
+@using MES.Core.DTOs.Scheduling
 @using System.Text.Json
 @inject SectionOutsourceService SectionOutsourceService
+@inject BatchPlanService BatchPlanSvc
 @inject ProductionRecordService ProductionRecordService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -29,6 +31,18 @@
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined"
+                           Color="@(_showPendingCard ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showPendingCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="TogglePendingCard">
+                    实时委外在产
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="@(_showMonthlyCard ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showMonthlyCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleMonthlyCard">
+                    月度委外数据
+                </MudButton>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Warning"
                            StartIcon="@Icons.Material.Filled.Add"
@@ -52,6 +66,146 @@
         </MudCardHeader>
 
         <MudCardContent>
+            <!-- 实时委外在产折叠卡片（按在产单位×工段二维表，取消厂内单位，单元格仅总量） -->
+            @if (_showPendingCard)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingPending)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>实时委外在产加载中...</span>
+                            </div>
+                        }
+                        else if (_pendingRows.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无在产委外数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>实时委外在产</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintPendingTable">
+                                    打印
+                                </MudButton>
+                            </div>
+                            <div id="section-outsources-pending-table" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">在产单位</th>
+                                            @foreach (var s in _pendingSections)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@s (t)</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _pendingRows)
+                                        {
+                                            var isTotal = r.OutsourceUnit == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.OutsourceUnit</td>
+                                                @foreach (var s in _pendingSections)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatTotalOnly(CellTotal(r.Cells, s))</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatTotalOnly(r.TotalCell.Total)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：在产委外 = 状态在产/未产且当前委外单位非空的批次「有效投料重量」，按（在产单位, 当前工段）统计；
+                                已取消「厂内」单位（厂内=委外记录 IsInternal=true 的车间名）；单元格仅显示总量(t)，0 值留空。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <!-- 月度委外数据折叠卡片（委外单位×工段，1月~12月+合计，不含厂内单位，单位合并单元格） -->
+            @if (_showMonthlyCard)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingMonthly)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>月度委外数据加载中...</span>
+                            </div>
+                        }
+                        else if (_monthlyRows.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无委外数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>月度委外数据</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintMonthlyTable">
+                                    打印
+                                </MudButton>
+                            </div>
+                            <div id="section-outsources-monthly-summary-table" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">委外单位</th>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">工段</th>
+                                            @foreach (var label in _monthlyLabels)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                            <th style="padding:4px 10px; background:#ffe0b2; border:1px solid #e0e0e0; text-align:center;">现在产(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (var i = 0; i < _monthlyRows.Count; i++)
+                                        {
+                                            var r = _monthlyRows[i];
+                                            var isTotal = r.OutsourceVendor == "合计";
+                                            var isVendorFirst = i == 0 || !string.Equals(_monthlyRows[i - 1].OutsourceVendor, r.OutsourceVendor, StringComparison.OrdinalIgnoreCase);
+                                            <tr>
+                                                @if (isVendorFirst)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")"
+                                                        rowspan="@_vendorRowspans.GetValueOrDefault(r.OutsourceVendor, 1)">@r.OutsourceVendor</td>
+                                                }
+                                                else
+                                                {
+                                                    <td style="display:none"></td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SectionName</td>
+                                                @for (var m = 0; m < _monthlyLabels.Count; m++)
+                                                {
+                                                    var mv = m < r.Months.Count ? r.Months[m] : null;
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatSendRecoverText(mv?.Send ?? 0m, mv?.Recover ?? 0m, mv?.Unprocessed ?? 0m)</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatSendRecoverText(r.TotalSend, r.TotalRecover, r.TotalUnprocessed)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#ffe0b2;" : "background:#fff3e0;")">@FormatNowInProduction(r.NowInProduction)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：按本年度各月份统计，不含厂内单位；发=委外发出重量，回=委外回收（正常）重量，退=非正常回收重量；
+                                单元格格式「发X/回Y[退Z]」（t），0 值留空；同委外单位跨多工段合并单元格；末行「合计」=全部单位各月求和，末列「合计」=该行 1月~12月发/回/退各自求和；
+                                末列「现在产」=该行当前未回收（发出未全部回收）的发出重量合计（t），与发出年度无关的实时存量，橙色底区分。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
             <!-- 搜索栏（布局仿订单管理：模糊搜索 + 发出日期 + 回收日期，各占 1/3） -->
             <MudGrid>
                 <MudItem xs="12" md="4">

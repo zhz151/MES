@@ -393,4 +393,28 @@ public class SectionOutsourceController : ControllerBase
         var result = await _service.SearchVendorsAsync(keyword);
         return Ok(ApiResponse<List<string>>.Ok(result));
     }
+
+    // ========== 汇总 ==========
+
+    /// <summary>
+    /// 月度委外数据汇总（不含厂内单位）：发/回/退按 (委外单位 × 工段) 按月聚合 + 合计行
+    /// </summary>
+    [HttpGet("monthly-summary")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<SectionOutsourceMonthlyRowDto>>>> GetMonthlySummary()
+    {
+        var result = await _service.GetMonthlyOutsourceAsync();
+        return Ok(ApiResponse<List<SectionOutsourceMonthlyRowDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 获取厂内单位集合（IsInternal=true 的委外单位，用于实时委外在产/月度委外数据过滤）
+    /// </summary>
+    [HttpGet("internal-vendors")]
+    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<List<string>>>> GetInternalVendors()
+    {
+        var result = await _service.GetInternalVendorsAsync();
+        return Ok(ApiResponse<List<string>>.Ok(result, "查询成功"));
+    }
 }

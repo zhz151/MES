@@ -61,4 +61,17 @@ public class SubcontractReturnItemListDto
     public SubcontractOrderStatus? ProcessStatus { get; set; }
 
     public string? ProcessStatusDisplay => ProcessStatus.HasValue ? EnumHelper.GetDisplayName(ProcessStatus.Value) : null;
+
+    // ========== 工单实时关注（从工单执行状况读模型 WorkOrderExecutionSummary 按来源工单号关联，无记录默认 null → 前端 "-"） ==========
+    /// <summary>工单关注(0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验)</summary>
+    public int? ExecutionScheduleStage { get; set; }
+
+    /// <summary>原锁执行备注（原料锁定原因）</summary>
+    public string? ExecutionRawMaterialLockRemark { get; set; }
+
+    /// <summary>计划性（A+急/A急/B顺/C缓/D缓）</summary>
+    public string? ExecutionUrgencyLevel { get; set; }
+
+    /// <summary>理论截止投料日</summary>
+    public DateTime? ExecutionTheoreticalCutoffDate { get; set; }
 }

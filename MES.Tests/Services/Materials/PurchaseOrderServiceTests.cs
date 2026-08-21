@@ -680,13 +680,47 @@ public class PurchaseOrderServiceTests : TestBase
             RequiredDate = DateTime.Today.AddMonths(1)
         };
         ctx.RoundBarPiercingPlans.Add(piercing);
+
+        // 添加工单执行状况读模型记录（验证工单关注/原锁执行/工单计划性填充）
+        ctx.WorkOrderExecutionSummaries.Add(new WorkOrderExecutionSummary
+        {
+            WorkOrderId = wo.Id,
+            WorkOrderNo = wo.WorkOrderNo,
+            Salesman = "测试",
+            CustomerName = "测试客户",
+            SignDate = DateTime.Today,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            SettlementMethod = SettlementMethod.Theoretical.ToString(),
+            SalesOrderNo = order.OrderNumber,
+            ProductionMainNo = wo.ProductionMainNo,
+            ProductionSubNo = wo.ProductionSubNo,
+            MaterialName = "圆钢",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled.ToString(),
+            PlantGrade = "20#",
+            Specification = "219*8",
+            LengthStatus = LengthStatus.Fixed.ToString(),
+            TotalItemCount = 1,
+            TotalQuantity = 10,
+            TotalMeters = 60,
+            TotalWeight = 2500m,
+            ScheduleStage = 3,
+            UrgencyLevel = "B",
+            RawMaterialLockRemark = "A质量补料"
+        });
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
         var statuses = await svc.GetPiercingProcurementStatusAsync();
 
-        statuses.Should().NotBeEmpty();
-        statuses.Should().Contain(s => s.WorkOrderNo == wo.WorkOrderNo);
+        var row = statuses.Should().ContainSingle(s => s.WorkOrderNo == wo.WorkOrderNo).Subject;
+        row.MaterialCategory.Should().Be(MaterialType.RoundBar);
+        row.PlanWeight.Should().Be(3000m);
+        row.SubcontractWeight.Should().Be(0m);
+        row.MissingWeight.Should().Be(3000m);
+        row.ExecutionScheduleStage.Should().Be(3);
+        row.ExecutionUrgencyLevel.Should().Be("B");
+        row.ExecutionRawMaterialLockRemark.Should().Be("A质量补料");
+        row.StatusText.Should().Be("未穿孔");
     }
 
     [Fact]
@@ -768,7 +802,7 @@ public class PurchaseOrderServiceTests : TestBase
         row.MaterialCategory.Should().Be(MaterialType.SpecialDeliveryStatus);
         row.PlanWeight.Should().Be(3000m);
         row.PurchaseWeight.Should().Be(1500m);
-        row.TotalWeight.Should().Be(1500m);
+        row.MissingWeight.Should().Be(1500m);
         row.StatusText.Should().Be("部分采购");
     }
 
@@ -1024,5 +1058,466 @@ public class PurchaseOrderServiceTests : TestBase
 
         result.Items.Should().HaveCount(1);
         result.Items[0].IsForceCompleted.Should().BeTrue();
+    }
+
+    // ========== 工单实时关注（按来源工单号关联工单执行状况读模型） ==========
+
+    private async Task SeedWorkOrderExecutionAsync(AppDbContext ctx, string woNo, int scheduleStage,
+        string? urgencyLevel = null, string? rawMaterialLockRemark = null, DateTime? theoreticalCutoffDate = null)
+    {
+        ctx.WorkOrderExecutionSummaries.Add(new WorkOrderExecutionSummary
+        {
+            WorkOrderNo = woNo,
+            Salesman = "测试业务",
+            CustomerName = "测试客户",
+            SalesOrderNo = "SO-001",
+            ProductionMainNo = "X01",
+            MaterialName = "无缝钢管",
+            DeliveryState = "Normal",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            LengthStatus = "Range",
+            SettlementMethod = "PerOrder",
+            ScheduleStage = scheduleStage,
+            UrgencyLevel = urgencyLevel,
+            RawMaterialLockRemark = rawMaterialLockRemark,
+            TheoreticalCutoffDate = theoreticalCutoffDate
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_工单实时关注_按来源工单号关联读模型填充()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid);
+        order.SourceWorkOrderNo = "WO-EXEC-001";
+        await ctx.SaveChangesAsync();
+        await SeedWorkOrderExecutionAsync(ctx, "WO-EXEC-001", 3, "AUrgent", "QualityReplenish", new DateTime(2026, 8, 15));
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams { PageIndex = 1, PageSize = 20 });
+
+        var dto = result.Items.Should().ContainSingle().Subject;
+        dto.ExecutionScheduleStage.Should().Be(3);
+        dto.ExecutionUrgencyLevel.Should().Be("AUrgent");
+        dto.ExecutionRawMaterialLockRemark.Should().Be("QualityReplenish");
+        dto.ExecutionTheoreticalCutoffDate.Should().Be(new DateTime(2026, 8, 15));
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_工单实时关注_无读模型记录默认空()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid); // 无 SourceWorkOrderNo，读模型必然无匹配
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPagedAsync(new PurchaseOrderQueryParams { PageIndex = 1, PageSize = 20 });
+
+        var dto = result.Items.Should().ContainSingle().Subject;
+        dto.ExecutionScheduleStage.Should().BeNull();
+        dto.ExecutionUrgencyLevel.Should().BeNull();
+        dto.ExecutionRawMaterialLockRemark.Should().BeNull();
+        dto.ExecutionTheoreticalCutoffDate.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_工单实时关注_按关注排序_按关注筛选()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var o1 = await SeedOrderAsync(ctx, sid);
+        o1.SourceWorkOrderNo = "WO-1";
+        var o2 = await SeedOrderAsync(ctx, sid, quantity: 200);
+        o2.SourceWorkOrderNo = "WO-2";
+        await ctx.SaveChangesAsync();
+        await SeedWorkOrderExecutionAsync(ctx, "WO-1", 4);
+        await SeedWorkOrderExecutionAsync(ctx, "WO-2", 1);
+
+        var svc = CreateService(ctx);
+
+        // 排序
+        var asc = await svc.GetPagedAsync(new PurchaseOrderQueryParams { PageIndex = 1, PageSize = 20, SortBy = "executionschedulestage", IsDescending = false });
+        asc.Items.Select(x => x.ExecutionScheduleStage).Should().Equal(1, 4);
+
+        // 筛选
+        var filtered = await svc.GetPagedAsync(new PurchaseOrderQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ExecutionScheduleStage", Operator = "in", Values = new List<string> { "4" } }
+            }
+        });
+        filtered.Items.Should().HaveCount(1);
+        filtered.Items[0].ExecutionScheduleStage.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_工单实时关注_无工单号记录_筛选上下文含空值哨兵()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid);               // 无 SourceWorkOrderNo → 4 字段 null
+        var o2 = await SeedOrderAsync(ctx, sid, quantity: 200); // 有读模型记录
+        o2.SourceWorkOrderNo = "WO-EXEC-001";
+        await ctx.SaveChangesAsync();
+        await SeedWorkOrderExecutionAsync(ctx, "WO-EXEC-001", 3, "AUrgent", "QualityReplenish", new DateTime(2026, 8, 15));
+
+        var svc = CreateService(ctx);
+        var contexts = await svc.GetFilterContextsAsync();
+
+        // 无关联记录以空值哨兵输出，且空值排最前
+        contexts["ExecutionUrgencyLevel"].Should().Contain("__EXCEL_FILTER_NULL__").And.Contain("AUrgent");
+        contexts["ExecutionUrgencyLevel"][0].Should().Be("__EXCEL_FILTER_NULL__");
+        contexts["ExecutionRawMaterialLockRemark"].Should().Contain("__EXCEL_FILTER_NULL__").And.Contain("QualityReplenish");
+        contexts["ExecutionTheoreticalCutoffDate"].Should().Contain("__EXCEL_FILTER_NULL__").And.Contain("2026-08-15");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_工单实时关注_筛选空值_筛出无关联记录()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedOrderAsync(ctx, sid);               // 无工单号 → 关注 null
+        var o2 = await SeedOrderAsync(ctx, sid, quantity: 200); // 有读模型 ScheduleStage=4
+        o2.SourceWorkOrderNo = "WO-EXEC-001";
+        await ctx.SaveChangesAsync();
+        await SeedWorkOrderExecutionAsync(ctx, "WO-EXEC-001", 4);
+
+        var svc = CreateService(ctx);
+
+        // 仅勾选空值 → isnull 操作符
+        var nullOnly = await svc.GetPagedAsync(new PurchaseOrderQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ExecutionScheduleStage", Operator = "isnull", IncludeNull = true }
+            }
+        });
+        nullOnly.Items.Should().HaveCount(1);
+        nullOnly.Items[0].ExecutionScheduleStage.Should().BeNull();
+
+        // 空值 + 具体值 → in + IncludeNull
+        var withValue = await svc.GetPagedAsync(new PurchaseOrderQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "ExecutionScheduleStage", Operator = "in", Values = new List<string> { "4" }, IncludeNull = true }
+            }
+        });
+        withValue.Items.Should().HaveCount(2);
+    }
+
+    // ========== 采购首页汇总（GetPurchasePending / GetPurchaseInProgress / GetPurchaseMonthly） ==========
+
+    private async Task<MES.Data.Entities.WorkOrder.WorkOrder> SeedMinWorkOrderAsync(AppDbContext ctx, string suffix = "")
+    {
+        var wo = new MES.Data.Entities.WorkOrder.WorkOrder
+        {
+            WorkOrderNo = $"WO-SUM-{suffix}{Guid.NewGuid():N}"[..20],
+            SalesOrderNo = $"SO-SUM-{Guid.NewGuid():N}"[..15],
+            ProductionMainNo = "D01",
+            ProductionSubNo = "C01",
+            OrderItemIds = "[]",
+            Status = WorkOrderStatus.Pending,
+            RowVersion = new byte[8],
+            SignDate = DateTime.Today,
+            Salesman = "测试",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = "GB/T-8163",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            PlantGrade = "20#",
+            Specification = "219*8",
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.5m,
+            WallThicknessPositive = 0.5m,
+            LengthStatus = LengthStatus.Fixed,
+            TotalQuantity = 10,
+            TotalMeters = 60,
+            TotalWeight = 2500m,
+            TotalItemCount = 1
+        };
+        ctx.WorkOrders.Add(wo);
+        await ctx.SaveChangesAsync();
+        return wo;
+    }
+
+    private async Task SeedPurchaseSemiPlanAsync(AppDbContext ctx, int workOrderId, string grade, string spec, decimal requiredWeight)
+    {
+        ctx.PurchaseSemiPlans.Add(new PurchaseSemiPlan
+        {
+            WorkOrderId = workOrderId,
+            PlanDate = DateTime.Today,
+            PlantGrade = grade,
+            RawMaterialType = MaterialType.RoughTube,
+            RawMaterialSpec = spec,
+            RequiredWeight = requiredWeight,
+            StandardCycle = 3
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    private async Task SeedPurchaseFinishedPlanAsync(AppDbContext ctx, int workOrderId, FinishedProductType productType, string grade, string spec, decimal requiredWeight)
+    {
+        ctx.PurchaseFinishedPlans.Add(new PurchaseFinishedPlan
+        {
+            WorkOrderId = workOrderId,
+            PlanDate = DateTime.Today,
+            ProductType = productType,
+            RequiredWeight = requiredWeight,
+            PlantGrade = grade,
+            Specification = spec,
+            LengthStatus = LengthStatus.Fixed,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            StandardCycle = 3
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    private async Task SeedSummaryOrderAsync(AppDbContext ctx, int supplierId, string orderNo, decimal weight,
+        decimal receivedWeight, PurchaseOrderStatus status, string materialCategory, string supplierName,
+        string plantGrade, string? sourceWoNo = null, DateTime? orderDate = null)
+    {
+        ctx.PurchaseOrders.Add(new PurchaseOrder
+        {
+            OrderNo = orderNo,
+            SupplierId = supplierId,
+            SupplierName = supplierName,
+            OrderDate = orderDate ?? DateTime.Today,
+            Status = status,
+            MaterialCategory = materialCategory,
+            PlantGrade = plantGrade,
+            Specification = "219*8",
+            Quantity = 100,
+            Weight = weight,
+            ReceivedWeight = receivedWeight,
+            RequiredDate = DateTime.Today.AddDays(30),
+            SourceWorkOrderNo = sourceWoNo
+        });
+        await ctx.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task GetPurchasePendingAsync_荒管_按工单物料分类聚合_合并钢种规格_关联执行字段()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var wo = await SeedMinWorkOrderAsync(ctx, "RT");
+
+        // 同类别 RoughTube 两个计划（不同钢种/规格）
+        await SeedPurchaseSemiPlanAsync(ctx, wo.Id, "20#", "219*8", 3000m);
+        await SeedPurchaseSemiPlanAsync(ctx, wo.Id, "20#", "273*10", 2000m);
+        // 已采购 1500
+        await SeedSummaryOrderAsync(ctx, sid, $"CG{DateTime.Now:yyMMdd}RT01", 1500m, 0m, PurchaseOrderStatus.Open, "RoughTube", "测试供应商", "20#", wo.WorkOrderNo);
+        await SeedWorkOrderExecutionAsync(ctx, wo.WorkOrderNo, 3, "APlusUrgent", "QualityReplenish");
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPurchasePendingAsync(false);
+
+        var row = result.Should().ContainSingle().Subject;
+        row.WorkOrderNo.Should().Be(wo.WorkOrderNo);
+        row.MaterialCategory.Should().Be(MaterialType.RoughTube);
+        row.PlantGrade.Should().Be("20#");
+        row.Specification.Should().Be("219*8,273*10");
+        row.PendingWeight.Should().Be(3500m); // 5000 - 1500
+        row.ExecutionScheduleStage.Should().Be(3);
+        row.ExecutionUrgencyLevel.Should().Be("APlusUrgent");
+        row.ExecutionRawMaterialLockRemark.Should().Be("QualityReplenish");
+    }
+
+    [Fact]
+    public async Task GetPurchasePendingAsync_待购量已足_不返回行()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var wo = await SeedMinWorkOrderAsync(ctx, "RT2");
+        await SeedPurchaseSemiPlanAsync(ctx, wo.Id, "20#", "219*8", 1000m);
+        // 已采购 1000 ≥ 计划 → 待购 0
+        await SeedSummaryOrderAsync(ctx, sid, $"CG{DateTime.Now:yyMMdd}RT2", 1000m, 1000m, PurchaseOrderStatus.Completed, "RoughTube", "测试供应商", "20#", wo.WorkOrderNo);
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPurchasePendingAsync(false);
+
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetPurchasePendingAsync_成品_ProductType映射分类_与荒管隔离()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var woF = await SeedMinWorkOrderAsync(ctx, "FN");
+        await SeedPurchaseFinishedPlanAsync(ctx, woF.Id, FinishedProductType.Critical, "304", "219*8", 3000m);
+        await SeedSummaryOrderAsync(ctx, sid, $"CG{DateTime.Now:yyMMdd}FN", 1200m, 0m, PurchaseOrderStatus.Open, "CriticalFinished", "测试供应商", "304", woF.WorkOrderNo);
+
+        var woS = await SeedMinWorkOrderAsync(ctx, "SM");
+        await SeedPurchaseSemiPlanAsync(ctx, woS.Id, "20#", "219*8", 2000m);
+
+        var svc = CreateService(ctx);
+
+        // 成品路径：只含成品行，Critical→CriticalFinished
+        var finished = await svc.GetPurchasePendingAsync(true);
+        var frow = finished.Should().ContainSingle(s => s.WorkOrderNo == woF.WorkOrderNo).Subject;
+        frow.MaterialCategory.Should().Be(MaterialType.CriticalFinished);
+        frow.PendingWeight.Should().Be(1800m); // 3000 - 1200
+        finished.Should().NotContain(s => s.WorkOrderNo == woS.WorkOrderNo);
+
+        // 荒管路径：只含荒管行
+        var semi = await svc.GetPurchasePendingAsync(false);
+        var srow = semi.Should().ContainSingle(s => s.WorkOrderNo == woS.WorkOrderNo).Subject;
+        srow.MaterialCategory.Should().Be(MaterialType.RoughTube);
+        srow.PendingWeight.Should().Be(2000m);
+        semi.Should().NotContain(s => s.WorkOrderNo == woF.WorkOrderNo);
+    }
+
+    [Fact]
+    public async Task GetPurchaseInProgressAsync_供应商钢种二维聚合_急量_合计行()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+
+        // 供应商A 钢种20#：Open 3000 已到1000 → 在购2000，急单（APlusUrgent）→ 急2000
+        await SeedSummaryOrderAsync(ctx, sid, "CGIP01", 3000m, 1000m, PurchaseOrderStatus.Open, "RoughTube", "A供应商", "20#", "WO-IP-A");
+        // 供应商A 钢种20#：Open 500 已到1000 → 在购<=0 跳过（超收）
+        await SeedSummaryOrderAsync(ctx, sid, "CGIP02", 500m, 1000m, PurchaseOrderStatus.Open, "RoughTube", "A供应商", "20#");
+        // 供应商B 钢种304：Partial 2000 已到500 → 在购1500，无工单 → 不急
+        await SeedSummaryOrderAsync(ctx, sid, "CGIP03", 2000m, 500m, PurchaseOrderStatus.Partial, "RoughTube", "B供应商", "304");
+        await SeedWorkOrderExecutionAsync(ctx, "WO-IP-A", 3, "APlusUrgent", null);
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPurchaseInProgressAsync(false);
+
+        result.SteelGrades.Should().ContainInOrder("20#", "304");
+        var rowA = result.Rows.Should().ContainSingle(r => r.SupplierName == "A供应商").Subject;
+        rowA.Cells["20#"].TotalWeight.Should().Be(2000m);
+        rowA.Cells["20#"].UrgentWeight.Should().Be(2000m);
+        rowA.Cells["304"].TotalWeight.Should().Be(0m);
+        rowA.Total.TotalWeight.Should().Be(2000m);
+        rowA.Total.UrgentWeight.Should().Be(2000m);
+
+        var rowB = result.Rows.Should().ContainSingle(r => r.SupplierName == "B供应商").Subject;
+        rowB.Cells["304"].TotalWeight.Should().Be(1500m);
+        rowB.Cells["304"].UrgentWeight.Should().Be(0m);
+        rowB.Total.TotalWeight.Should().Be(1500m);
+
+        var totalRow = result.Rows.Should().ContainSingle(r => r.SupplierName == "合计").Subject;
+        totalRow.Total.TotalWeight.Should().Be(3500m);
+        totalRow.Total.UrgentWeight.Should().Be(2000m);
+        totalRow.Cells["20#"].TotalWeight.Should().Be(2000m);
+        totalRow.Cells["304"].TotalWeight.Should().Be(1500m);
+    }
+
+    [Fact]
+    public async Task GetPurchaseInProgressAsync_退货量加回_已完成状态排除()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+
+        // Open 1000 已到600，退货50 → 在购 1000+50-600=450
+        await SeedSummaryOrderAsync(ctx, sid, "CGIP11", 1000m, 600m, PurchaseOrderStatus.Open, "RoughTube", "A供应商", "20#");
+        var order = await ctx.PurchaseOrders.FirstAsync(o => o.OrderNo == "CGIP11");
+        var batch = new InventoryBatch
+        {
+            BatchNo = "BATCH-IP11",
+            InboundSource = "采购",
+            SourceName = "测试供应商",
+            SourceOrderNo = order.OrderNo,
+            MaterialType = "RoughTube",
+            PlantGrade = "20#",
+            Specification = "219*8",
+            InitialQuantity = 100,
+            InitialWeight = 1000m,
+            WarehouseId = 1,
+            InboundDate = DateTime.Today
+        };
+        ctx.InventoryBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+        ctx.OutboundRecords.Add(new OutboundRecord
+        {
+            InventoryBatchId = batch.Id,
+            BatchNo = batch.BatchNo,
+            OutboundType = OutboundType.ReturnOut,
+            ReturnSourceBatchNo = "BATCH-IP11",
+            OutboundQuantity = 5,
+            OutboundWeight = 50m,
+            OutboundDate = DateTime.Today
+        });
+
+        // 已完成采购单不计入在购
+        await SeedSummaryOrderAsync(ctx, sid, "CGIP12", 2000m, 2000m, PurchaseOrderStatus.Completed, "RoughTube", "A供应商", "20#");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPurchaseInProgressAsync(false);
+
+        var rowA = result.Rows.Should().ContainSingle(r => r.SupplierName == "A供应商").Subject;
+        rowA.Total.TotalWeight.Should().Be(450m);
+        result.Rows.Should().ContainSingle(r => r.SupplierName == "合计").Subject.Total.TotalWeight.Should().Be(450m);
+    }
+
+    [Fact]
+    public async Task GetPurchaseMonthlyAsync_按月分桶_购回合计_现在购_合计行()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var year = DateTime.Today.Year;
+
+        // 供应商A 1月 Open 1000 已到400 → 购1000 回400 现在购600
+        await SeedSummaryOrderAsync(ctx, sid, "CGMP01", 1000m, 400m, PurchaseOrderStatus.Open, "RoughTube", "A供应商", "20#", null, new DateTime(year, 1, 15));
+        // 供应商A 6月 Completed 2000 已到2500 → 购2000 回2500（已完成不计现在购）
+        await SeedSummaryOrderAsync(ctx, sid, "CGMP02", 2000m, 2500m, PurchaseOrderStatus.Completed, "RoughTube", "A供应商", "20#", null, new DateTime(year, 6, 15));
+        // 供应商B 12月 Open 800 已到300 → 购800 回300 现在购500
+        await SeedSummaryOrderAsync(ctx, sid, "CGMP03", 800m, 300m, PurchaseOrderStatus.Open, "RoughTube", "B供应商", "304", null, new DateTime(year, 12, 15));
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPurchaseMonthlyAsync(false);
+
+        result.MonthLabels[0].Should().Be($"{year}-01");
+        result.MonthLabels[11].Should().Be($"{year}-12");
+
+        var rowA = result.Rows.Should().ContainSingle(r => r.SupplierName == "A供应商").Subject;
+        rowA.Months[0].BuyWeight.Should().Be(1000m);
+        rowA.Months[0].ReturnWeight.Should().Be(400m);
+        rowA.Months[5].BuyWeight.Should().Be(2000m);
+        rowA.Months[5].ReturnWeight.Should().Be(2500m);
+        rowA.Total.BuyWeight.Should().Be(3000m);
+        rowA.Total.ReturnWeight.Should().Be(2900m);
+        rowA.NowInProgress.Should().Be(600m);
+
+        var rowB = result.Rows.Should().ContainSingle(r => r.SupplierName == "B供应商").Subject;
+        rowB.Months[11].BuyWeight.Should().Be(800m);
+        rowB.Months[11].ReturnWeight.Should().Be(300m);
+        rowB.NowInProgress.Should().Be(500m);
+
+        var totalRow = result.Rows.Should().ContainSingle(r => r.SupplierName == "合计").Subject;
+        totalRow.Total.BuyWeight.Should().Be(3800m);
+        totalRow.Total.ReturnWeight.Should().Be(3200m);
+        totalRow.NowInProgress.Should().Be(1100m);
+        totalRow.Months[0].BuyWeight.Should().Be(1000m);
+        totalRow.Months[11].BuyWeight.Should().Be(800m);
+    }
+
+    [Fact]
+    public async Task GetPurchaseMonthlyAsync_无本年订单_返回空行仅合计()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        await SeedSummaryOrderAsync(ctx, sid, "CGMP99", 1000m, 0m, PurchaseOrderStatus.Open, "RoughTube", "A供应商", "20#", null, new DateTime(2020, 1, 15));
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPurchaseMonthlyAsync(false);
+
+        result.Rows.Should().ContainSingle(r => r.SupplierName == "合计");
     }
 }

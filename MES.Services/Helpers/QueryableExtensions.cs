@@ -251,9 +251,15 @@ public static class QueryableExtensions
                 .First(m => m.Name == "Contains" && m.GetParameters().Length == 2)
                 .MakeGenericMethod(underlyingType);
 
-            // 可空类型 member 需转换为底层类型（Nullable<Enum> → Enum）
-            var memberExpr = member.Type != underlyingType ? Expression.Convert(member, underlyingType) : member;
-            return Expression.Call(containsMethod, Expression.Constant(list), memberExpr);
+            // 可空类型 member（Nullable<Enum>）需先判 HasValue 再取 .Value（避免 InMemory 上 Convert(null) 抛异常，SQL 由 NULL 语义短路）
+            if (member.Type != underlyingType)
+            {
+                var hasValue = Expression.Property(member, "HasValue");
+                var valueExpr = Expression.Property(member, "Value");
+                var containsCall = Expression.Call(containsMethod, Expression.Constant(list), valueExpr);
+                return Expression.AndAlso(hasValue, containsCall);
+            }
+            return Expression.Call(containsMethod, Expression.Constant(list), member);
         }
 
         // 布尔类型：解析 "True"/"False" 字符串为 bool 后匹配
@@ -270,11 +276,15 @@ public static class QueryableExtensions
             var containsMethod = typeof(List<bool>).GetMethod("Contains", [typeof(bool)]);
             if (containsMethod == null)
                 return null;
-            // Nullable<bool> 类型需取 .Value 以匹配 Contains(bool)
-            var memberForContains = member;
+            // Nullable<bool> 类型需先判 HasValue 再取 .Value（避免 InMemory 上 null 抛异常）
             if (member.Type != typeof(bool))
-                memberForContains = Expression.Property(member, "Value");
-            return Expression.Call(list, containsMethod, memberForContains);
+            {
+                var hasValue = Expression.Property(member, "HasValue");
+                var valueExpr = Expression.Property(member, "Value");
+                var containsCall = Expression.Call(list, containsMethod, valueExpr);
+                return Expression.AndAlso(hasValue, containsCall);
+            }
+            return Expression.Call(list, containsMethod, member);
         }
 
         // DateTime 类型（含 Nullable<DateTime>）
@@ -292,13 +302,17 @@ public static class QueryableExtensions
             var dateContains = typeof(List<DateTime>).GetMethod("Contains", [typeof(DateTime)]);
             if (dateContains == null)
                 return null;
-            // Nullable<DateTime> 类型需取 .Value 以匹配 Contains(DateTime)
-            var memberForContains = member;
             if (member.Type != typeof(DateTime))
-                memberForContains = Expression.Property(member, "Value");
+            {
+                // Nullable<DateTime>：先判 HasValue 再取 .Value（避免 InMemory 上 null 抛异常）
+                var hasValue = Expression.Property(member, "HasValue");
+                var valueDate = Expression.Property(Expression.Property(member, "Value"), "Date");
+                var dateContainsCall = Expression.Call(dateList, dateContains, valueDate);
+                return Expression.AndAlso(hasValue, dateContainsCall);
+            }
             // 截取 Date 部分：使带时间的 DateTime 也能被纯日期值匹配
-            memberForContains = Expression.Property(memberForContains, "Date");
-            return Expression.Call(dateList, dateContains, memberForContains);
+            var dateMember = Expression.Property(member, "Date");
+            return Expression.Call(dateList, dateContains, dateMember);
         }
 
         // 整数类型（如 MaterialPlanStatus=0/1/2/3/4 等状态字段）
@@ -321,9 +335,15 @@ public static class QueryableExtensions
                 .GetMethods()
                 .First(m => m.Name == "Contains" && m.GetParameters().Length == 2)
                 .MakeGenericMethod(underlyingType);
-            // 可空整数（int?/long? 等）需转换为底层类型以匹配 Contains(T)
-            var intMember = member.Type != underlyingType ? Expression.Convert(member, underlyingType) : member;
-            return Expression.Call(containsMethod, Expression.Constant(list), intMember);
+            // 可空整数（int?/long? 等）需先判 HasValue 再取 .Value（避免 InMemory 上 Convert(null,int) 抛异常，SQL 由 NULL 语义短路）
+            if (member.Type != underlyingType)
+            {
+                var hasValue = Expression.Property(member, "HasValue");
+                var valueExpr = Expression.Property(member, "Value");
+                var intContainsCall = Expression.Call(containsMethod, Expression.Constant(list), valueExpr);
+                return Expression.AndAlso(hasValue, intContainsCall);
+            }
+            return Expression.Call(containsMethod, Expression.Constant(list), member);
         }
 
         // decimal 类型（含可空 decimal?）— 按精确值匹配
@@ -340,8 +360,15 @@ public static class QueryableExtensions
             var decimalContains = typeof(List<decimal>).GetMethod("Contains", [typeof(decimal)]);
             if (decimalContains == null)
                 return null;
-            var decimalMember = member.Type != typeof(decimal) ? Expression.Convert(member, typeof(decimal)) : member;
-            return Expression.Call(decimalList, decimalContains, decimalMember);
+            if (member.Type != typeof(decimal))
+            {
+                // 可空 decimal?：先判 HasValue 再取 .Value（避免 InMemory 上 Convert(null,decimal) 抛异常）
+                var hasValue = Expression.Property(member, "HasValue");
+                var valueExpr = Expression.Property(member, "Value");
+                var decimalContainsCall = Expression.Call(decimalList, decimalContains, valueExpr);
+                return Expression.AndAlso(hasValue, decimalContainsCall);
+            }
+            return Expression.Call(decimalList, decimalContains, member);
         }
 
         // 字符串列表
