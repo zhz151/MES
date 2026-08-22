@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.Interfaces.Batch;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Equipment;
@@ -15,7 +14,6 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
-using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.DataExchange;
 using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;

@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -122,14 +121,20 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
                 }
             }
 
-            // 转换为吨
-            pendingTotal = Math.Round(pendingTotal / 1000m, 0);
-            variationTotal = Math.Round(variationTotal / 1000m, 0);
-            var planFlowTons = Math.Round(planFlowTotal / 1000m, 0);
-            var planKeyTons = Math.Round(planKeyTotal / 1000m, 0);
+            // 精确吨值（DTO 存精确值：前端单行显示时取整、页脚汇总先精确求和再一次取整，消除逐行取整放大）
+            var pendingTonsExact = pendingTotal / 1000m;
+            var variationTonsExact = variationTotal / 1000m;
+            var planFlowTonsExact = planFlowTotal / 1000m;
+            var planKeyTonsExact = planKeyTotal / 1000m;
+
+            // 取整吨（仅用于非零门控/可持续天数/流转判定，保持既有判定口径；存储仍用精确值）
+            var pendingTons = Math.Round(pendingTonsExact, 0);
+            var variationTons = Math.Round(variationTonsExact, 0);
+            var planFlowTons = Math.Round(planFlowTonsExact, 0);
+            var planKeyTons = Math.Round(planKeyTonsExact, 0);
 
             var sustainableDays = setting.DailyProductionTarget.HasValue && setting.DailyProductionTarget.Value > 0
-                ? Math.Round(variationTotal / setting.DailyProductionTarget.Value, 1)
+                ? Math.Round(variationTons / setting.DailyProductionTarget.Value, 1)
                 : (decimal?)null;
 
             string? status = null;
@@ -153,16 +158,16 @@ public class SectionFlowAnalysisService : ISectionFlowAnalysisService
                 Id = setting.Id,
                 CategoryName = setting.CategoryName,
                 DisplayOrder = setting.DisplayOrder,
-                PendingTotal = pendingTotal > 0 ? pendingTotal : null,
-                VariationTotal = variationTotal > 0 ? variationTotal : null,
+                PendingTotal = pendingTons > 0 ? pendingTonsExact : null,
+                VariationTotal = variationTons > 0 ? variationTonsExact : null,
                 DailyProductionTarget = setting.DailyProductionTarget,
                 SustainableDays = sustainableDays,
                 LowerLimitDays = setting.LowerLimitDays,
                 UpperLimitDays = setting.UpperLimitDays,
                 StatusJudgment = status,
-                PlanFlowQuantity = planFlowTons > 0 ? planFlowTons : null,
+                PlanFlowQuantity = planFlowTons > 0 ? planFlowTonsExact : null,
                 PlanFlowJudgment = planFlowJudgment,
-                PlanKeyWeight = planKeyTons > 0 ? planKeyTons : null,
+                PlanKeyWeight = planKeyTons > 0 ? planKeyTonsExact : null,
             };
         }).ToList();
 

@@ -337,3 +337,70 @@ window.initGroupHeaders = function (tableSelector) {
 
     return true;
 };
+
+// 打印前同步分组标题栏：按 th 内联 width（col.Width，与打印 table-layout:fixed 列宽同基准）重算，
+// 解决「屏幕列被拉伸（表格 width:100%）、打印表格压缩回 col.Width」导致的组标题与字段错位。
+// 打印结束后（afterprint）自动恢复屏幕测量对齐。
+window.syncGroupHeadersForPrint = function (tableSelector) {
+    var wrapper = document.querySelector(tableSelector);
+    if (!wrapper) return false;
+
+    var headerScroll = wrapper.querySelector('.col-group-header-scroll');
+    var headerBar = headerScroll ? headerScroll.querySelector('.col-group-header-bar') : null;
+    if (!headerScroll || !headerBar) return false;
+
+    var tableContainer = wrapper.querySelector('.mud-table-container');
+    if (!tableContainer) return false;
+    var headerRow = tableContainer.querySelector('thead tr');
+    if (!headerRow) return false;
+    var thCells = headerRow.querySelectorAll('th');
+    if (thCells.length === 0) return false;
+
+    var groupItems = headerBar.querySelectorAll('.col-group-header-item');
+    if (groupItems.length === 0) return false;
+
+    function getGroupKey(className) {
+        var m = className.match(/\bcol-g(\d+)\b/);
+        return m ? parseInt(m[1]) : 0;
+    }
+    // 优先解析 th 内联 width（col.Width，打印固定布局列宽来源）；解析失败回退 offsetWidth
+    function colWidthPx(th) {
+        if (th.style && th.style.width) {
+            var v = parseFloat(th.style.width);
+            if (!isNaN(v) && v > 0) return v;
+        }
+        return th.offsetWidth;
+    }
+
+    var itemIndex = 0;
+    var barTotalWidth = 0;
+    var groupItemWidth = 0;
+    var currentGk = null;
+    thCells.forEach(function (th) {
+        var gk = getGroupKey(th.className);
+        if (gk !== currentGk && currentGk !== null) {
+            if (itemIndex < groupItems.length) {
+                groupItems[itemIndex].style.width = groupItemWidth + 'px';
+                barTotalWidth += groupItemWidth;
+                itemIndex++;
+            }
+            groupItemWidth = 0;
+        }
+        currentGk = gk;
+        groupItemWidth += colWidthPx(th);
+    });
+    if (itemIndex < groupItems.length) {
+        groupItems[itemIndex].style.width = groupItemWidth + 'px';
+        barTotalWidth += groupItemWidth;
+    }
+    headerBar.style.width = barTotalWidth + 'px';
+    headerBar.style.transform = ''; // 打印不横向滚动
+
+    // 打印结束恢复屏幕测量对齐（一次性监听）
+    window.addEventListener('afterprint', function onAfter() {
+        window.initGroupHeaders(tableSelector);
+        window.removeEventListener('afterprint', onAfter);
+    });
+
+    return true;
+};

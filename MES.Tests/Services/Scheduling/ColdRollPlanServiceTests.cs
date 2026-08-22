@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Caching.Memory;
 using MES.Core.Constants;
+using MES.Core.DTOs.Scheduling;
 using MES.Core.Enums;
 using MES.Data;
 using MES.Data.Entities;
@@ -364,6 +365,85 @@ public class ColdRollPlanServiceTests : TestBase
         row.ProcessType.Should().Be(ProcessKeys.ThreeRollColdRoll);
         row.WeightTomorrow.Should().Be(1000m);
         row.WeightToday.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetPlanAsync_排程档位命中_在轧待轧要求标记在档()
+    {
+        using var ctx = CreateDbContext();
+        // 在轧急+批次（60冷轧）：正常流转、关注=当前冷轧，排程行 CrOnly → 在轧要求在档
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: true, weight: 3000,
+            currentGroupName: ProcessKeys.ColdRoll60,
+            currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.APlusUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, completionType: "CrOnly", rollType: "CrOnly");
+
+        // 待轧急+批次（三辊冷轧今日待轧 diff=1）：批次在荒管处理，排程行 CrOnly → 待轧要求在档
+        CreateBatchMultiGroups(ctx, "B002", "WO002",
+            currentGroupName: ProcessKeys.RoughTubeProcessing,
+            currentSectionName: SectionKeys.Inspection);
+        SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.APlusUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ThreeRollColdRoll);
+        SeedSchedule(ctx, ProcessKeys.ThreeRollColdRoll, "18*1.5", "18*1.5", isFinished: false, completionType: "CrOnly", rollType: "CrOnly");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPlanAsync(null);
+
+        result.Should().HaveCount(2);
+        var prodRow = result.Single(x => x.ProcessType == ProcessKeys.ColdRoll60);
+        prodRow.ProdTierMatched.Should().BeTrue();   // 在轧急+ 命中 CrOnly
+        prodRow.WaitTierMatched.Should().BeFalse();  // 该行无待轧批次
+        var waitRow = result.Single(x => x.ProcessType == ProcessKeys.ThreeRollColdRoll);
+        waitRow.WaitTierMatched.Should().BeTrue();   // 待轧急+ 命中 CrOnly
+        waitRow.ProdTierMatched.Should().BeFalse();  // 该行无在轧批次
+    }
+
+    [Fact]
+    public async Task GetPlanAsync_排程行档位None_在轧要求不标记()
+    {
+        using var ctx = CreateDbContext();
+        // 在轧批次存在但排程行档位为 None（无排程计划）→ 「在轧要求」留空
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: true, weight: 3000,
+            currentGroupName: ProcessKeys.ColdRoll60,
+            currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.APlusUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, completionType: "None", rollType: "None");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPlanAsync(null);
+
+        var row = result.Single();
+        row.ProdTierMatched.Should().BeFalse();   // 排程行档位 None → 不标记
+        row.WaitTierMatched.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetPlanAsync_有待流转量但批次不命中档位_待轧要求不标记()
+    {
+        using var ctx = CreateDbContext();
+        // 用户场景：某规格存在「待流转的量」，但未设入本次「流转计划」——即待轧批次存在、排程行档位也有
+        // （如「急+/急」），但批次属性不命中该档位（如 B顺 非急）→ 该规格不在本次排程建议内，「待轧要求」留空
+        CreateBatchMultiGroups(ctx, "B001", "WO001",
+            currentGroupName: ProcessKeys.RoughTubeProcessing, // 三辊冷轧之前 → 今日待轧 diff=1
+            currentSectionName: SectionKeys.Inspection);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.BOrder,
+            productionFlowProperty: ProductionFlowKeys.Normal);
+        SeedSchedule(ctx, ProcessKeys.ThreeRollColdRoll, "18*1.5", "18*1.5", isFinished: false,
+            completionType: "Urgent", rollType: "Urgent");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetPlanAsync(null);
+
+        var row = result.Single(x => x.ProcessType == ProcessKeys.ThreeRollColdRoll);
+        row.WaitTierMatched.Should().BeFalse();   // 有待流转量+有档位，但批次(B顺)不命中「急+/急」→ 不在本次流转计划
+        row.ProdTierMatched.Should().BeFalse();   // 该行无在轧批次
     }
 
     // ==================== GetScheduleSummaryAsync 测试 ====================
@@ -773,5 +853,895 @@ public class ColdRollPlanServiceTests : TestBase
         var row = result.Single(r => r.MachineType == "冷轧5060");
         row.FlowTotalWeight.Should().Be(12000m);
         row.MachineCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetMachineEstimateAsync_参数表单机单日量优先于排程小表()
+    {
+        using var ctx = CreateDbContext();
+        // 小表 4000，参数表 12000；批次 48000kg → 参数表:48000/12000/6=0.67→1；若误读小表:48000/4000/6=2→2
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 48000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 4000m);
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll60,
+            BilletSpec = "",
+            RollingSpec = "219*8",
+            IsFinished = true,
+            MachineNo = "60-1#",
+            DailyOutput = 12000m,
+            SampleCount = 1,
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMachineEstimateAsync();
+
+        var row = result.Single(r => r.MachineType == "冷轧5060");
+        row.FlowTotalWeight.Should().Be(48000m);
+        row.MachineCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetMachineEstimateAsync_参数表缺该维度_回退排程小表()
+    {
+        using var ctx = CreateDbContext();
+        // 参数表无该规格 → 用小表 5000；批次 60000 → 60000/5000/6=2 → 2
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 60000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMachineEstimateAsync();
+
+        var row = result.Single(r => r.MachineType == "冷轧5060");
+        row.FlowTotalWeight.Should().Be(60000m);
+        row.MachineCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetMachineEstimateAsync_参数表日产能为空_回退排程小表()
+    {
+        using var ctx = CreateDbContext();
+        // 参数表有该维度但单机单日量为空 → 回退小表 5000；批次 30000 → 30000/5000/6=1 → 1
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 30000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll60,
+            BilletSpec = "",
+            RollingSpec = "219*8",
+            IsFinished = true,
+            DailyOutput = null,
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMachineEstimateAsync();
+
+        var row = result.Single(r => r.MachineType == "冷轧5060");
+        row.FlowTotalWeight.Should().Be(30000m);
+        row.MachineCount.Should().Be(1);
+    }
+
+    // ==================== GetScheduleSuggestionAsync 测试 ====================
+
+    /// <summary>机台数配置：按单冷轧类型（排程建议产能平衡输入）</summary>
+    private void SeedMachineConfig(AppDbContext ctx, string processType,
+        int ownedCount, int minMachines, int maxMachines, decimal? estimatedDailyOutput = null)
+    {
+        ctx.ColdRollMachineConfigs.Add(new ColdRollMachineConfig
+        {
+            ProcessType = processType,
+            OwnedCount = ownedCount,
+            MinMachines = minMachines,
+            MaxMachines = maxMachines,
+            EstimatedDailyOutput = estimatedDailyOutput,
+        });
+    }
+
+    /// <summary>5060 → 下游链批次：60冷轧(在制) → 下一冷轧/冷拔工序组，用于方式B流转折算</summary>
+    private ProductionBatch CreateBatch60Chain(AppDbContext ctx, string batchNo, string workOrderNo,
+        string firstSpec, string nextProcess, string nextSpec, int weight)
+    {
+        var batch = new ProductionBatch
+        {
+            BatchNo = batchNo,
+            Status = BatchStatus.InProgress,
+            WorkOrderNo = workOrderNo,
+            SalesOrderNo = "SO001",
+            ProductionMainNo = "D01",
+            OrderItemIds = "1",
+            SignDate = DateTime.Today,
+            Salesman = "业务员",
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            MaterialName = "无缝管",
+            SettlementMethod = "Theoretical",
+            StandardCode = "GB/T 8163",
+            DeliveryState = "SolutionAnnealedAndPickled",
+            LengthStatus = "Fixed",
+            ManufacturingItem = "OrderFinished",
+            PlantGrade = "304",
+            Specification = firstSpec,
+            TotalQuantity = 100,
+            TotalMeters = 600,
+            TotalWeight = weight,
+            TotalItemCount = 1,
+            TechnicalRequirements = "NORMAL",
+            CurrentValidWeight = weight,
+            CurrentGroupName = ProcessKeys.ColdRoll60,
+            CurrentSectionName = SectionKeys.ColdRollDraw,
+            CurrentSectionCompleted = false,
+            RowVersion = new byte[8],
+            ProcessGroups = new List<ProcessGroup>
+            {
+                new() { ProcessName = ProcessKeys.ColdRoll60, SequenceNumber = 1, ColdRollDraw = 1, ManufacturingSpec = firstSpec },
+                new() { ProcessName = nextProcess, SequenceNumber = 2, ColdRollDraw = 1, ManufacturingSpec = nextSpec },
+            }
+        };
+        ctx.ProductionBatches.Add(batch);
+        return batch;
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_特急锁定_无配置默认Partial2且急加锁定()
+    {
+        using var ctx = CreateDbContext();
+        // B001：急+批次（A急/正常/关注=60冷轧）待轧 spec 219*8 → 无配置默认「急+/急/急-」，急+行标记锁定
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 3000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        // B002：普通批次 spec 273*8 → 无急+不标记锁定
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 2000, spec: "273*8");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧5060");
+        group.HasUrgentPlus.Should().BeTrue();
+        group.Status.Should().Be("OK");
+        group.SuggestedTier.Should().Be("急+/急/急-"); // 无配置无机台数区间 → 保持默认原始档
+        // 组「本次计划流转量」= 明细行计划量之和（锁定行待轧 3000 + 新增行 0，建议档位口径）
+        group.PlannedFlowWeight.Should().Be(3000m);
+
+        var urgentItem = group.Items.Single(i => i.RollingSpec == "219*8");
+        urgentItem.HasUrgentPlus.Should().BeTrue();
+        urgentItem.SuggestedCompletionType.Should().Be("Partial2");
+        urgentItem.SuggestedRollType.Should().Be("Partial2");
+        urgentItem.RowStatus.Should().Be("锁定");
+        urgentItem.InProdExists.Should().BeFalse(); // 无在轧批次，在制档位仍必须设
+        // 锁定行：实际流转档两侧均按建议填入（即使在轧侧计划量 0，锁定优先两侧非空）
+        urgentItem.PlannedInProdWeight.Should().Be(0);
+        urgentItem.PlannedInWaitWeight.Should().Be(3000m); // 待轧急+ 命中 Partial2
+        urgentItem.ActualCompletionTier.Should().Be("Partial2");
+        urgentItem.ActualRollTier.Should().Be("Partial2");
+
+        var normalItem = group.Items.Single(i => i.RollingSpec == "273*8");
+        normalItem.HasUrgentPlus.Should().BeFalse();
+        normalItem.SuggestedCompletionType.Should().Be("Partial2");
+        normalItem.SuggestedRollType.Should().Be("Partial2");
+        normalItem.RowStatus.Should().Be("新增");
+        // 非锁定新增行：批次不命中档位 → 计划量 0 → 实际档留空（不在本次流转计划，不写入排程设置）
+        normalItem.PlannedInWaitWeight.Should().Be(0);
+        normalItem.ActualCompletionTier.Should().Be("");
+        normalItem.ActualRollTier.Should().Be("");
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_实际流转档_计划量为0侧留空_有量侧填建议()
+    {
+        using var ctx = CreateDbContext();
+        // 有排程行（现有行）无急+：产能平衡放宽到 All（min1 max3），全部批次命中 → 建议 All/All
+        // B001 在轧（spec 219*8）、B002 待轧（spec 273*8），均非急非锁定 → 现有 OK 行
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 30000,
+            currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 6000, spec: "273*8");
+        // 单工序组批次 allocation IsFinished=true；产能档案 5000/日（机台数计算依赖排程日产量）
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 2, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧5060");
+        group.SuggestedTier.Should().Be("全量");
+
+        // 在轧行：计划在轧量=30000（命中 All）→ 实际在轧流转档=All；无待轧批次 → 实际待轧留空
+        var inProdRow = group.Items.Single(i => i.RollingSpec == "219*8");
+        inProdRow.RowStatus.Should().Be("OK");
+        inProdRow.PlannedInProdWeight.Should().Be(30000m);
+        inProdRow.PlannedInWaitWeight.Should().Be(0);
+        inProdRow.ActualCompletionTier.Should().Be("All");
+        inProdRow.ActualRollTier.Should().Be("");
+
+        // 待轧行：计划待轧量=6000（命中 All）→ 实际待轧流转档=All；无在轧批次 → 实际在轧留空
+        var waitRow = group.Items.Single(i => i.RollingSpec == "273*8");
+        waitRow.RowStatus.Should().Be("OK");
+        waitRow.PlannedInProdWeight.Should().Be(0);
+        waitRow.PlannedInWaitWeight.Should().Be(6000m);
+        waitRow.ActualCompletionTier.Should().Be("");
+        waitRow.ActualRollTier.Should().Be("All");
+
+        // 组「本次计划流转量」= 明细行计划量之和（建议档位口径，与组头显示一致）
+        group.PlannedFlowWeight.Should().Be(30000m + 6000m);
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_自动分配_不考虑人工已设档位()
+    {
+        using var ctx = CreateDbContext();
+        // B001：急+ spec 219*8，现有排程 None/None → 无配置默认档 Partial2（覆盖）
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 3000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, completionType: "", rollType: "");
+        // B002：急+ spec 273*8，现有排程 Urgent/Urgent → 自动分配覆盖为 Partial2（不考虑人工已设档位）
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 3000, spec: "273*8");
+        SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: true, completionType: "Urgent", rollType: "Urgent");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧5060");
+        group.Items.Single(i => i.RollingSpec == "219*8")
+            .Should().Match<ColdRollScheduleSuggestionItemDto>(i =>
+                i.SuggestedCompletionType == "Partial2" && i.SuggestedRollType == "Partial2" && i.RowStatus == "锁定");
+        group.Items.Single(i => i.RollingSpec == "273*8")
+            .Should().Match<ColdRollScheduleSuggestionItemDto>(i =>
+                i.SuggestedCompletionType == "Partial2" && i.SuggestedRollType == "Partial2");
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_产能平衡_逐档放宽至满足最小机台数()
+    {
+        using var ctx = CreateDbContext();
+        // 冷轧30 min=3 max=4；三批各 30000/(5000×6)=1 台
+        // B001 急(正常∧关注≠30) → 命中 Urgent 起；B002 急-(非正常) → 命中 Partial2 起；B003 普通 → 仅 All
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000, spec: "273*8");
+        SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
+        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000, spec: "325*8");
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "219*8", isFinished: true, completionType: "CrOnly", rollType: "CrOnly", dailyOutput: 5000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "273*8", isFinished: true, completionType: "CrOnly", rollType: "CrOnly", dailyOutput: 5000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "325*8", isFinished: true, completionType: "CrOnly", rollType: "CrOnly", dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 3, minMachines: 3, maxMachines: 4);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧2030");
+        group.CurrentTier.Should().Be("急+");
+        group.SuggestedTier.Should().Be("全量");
+        group.TierChanged.Should().BeTrue();
+        group.MachineCount.Should().Be(3);
+        group.Status.Should().Be("OK");
+        group.Items.Should().OnlyContain(i => i.SuggestedCompletionType == "All" && i.SuggestedRollType == "All");
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_现状达标_保持现档()
+    {
+        using var ctx = CreateDbContext();
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 30000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 2, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧5060");
+        // 建议档=现状档（All/全量），始终显示档位名（不显示「保持」，语义即建议值）
+        group.SuggestedTier.Should().Be("全量");
+        group.TierChanged.Should().BeFalse();
+        group.MachineCount.Should().Be(1); // 30000/(5000×6)=1 ∈ [1,3]
+        group.Status.Should().Be("OK");
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_覆盖关系_机台需求按组聚合()
+    {
+        using var ctx = CreateDbContext();
+        // 60/50/30/20 各一在轧 30000，配置各 min1 max3
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 30000);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll50, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll50, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 30000, spec: "273*8");
+        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll30, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll30, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 30000, spec: "180*8");
+        CreateBatch(ctx, "B004", "WO004", ProcessKeys.ColdRoll20, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll20, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 30000, spec: "356*8");
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll50, "", "273*8", isFinished: true, dailyOutput: 5000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "180*8", isFinished: true, dailyOutput: 5000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll20, "", "356*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 2, minMachines: 1, maxMachines: 3);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll50, ownedCount: 2, minMachines: 1, maxMachines: 3);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 2, minMachines: 1, maxMachines: 3);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll20, ownedCount: 2, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group5060 = result.Single(g => g.MachineType == "冷轧5060");
+        group5060.MinMachines.Should().Be(2); // 50+60
+        group5060.MaxMachines.Should().Be(6);
+        group5060.MachineCount.Should().Be(2);
+        group5060.Items.Should().HaveCount(2);
+        group5060.MemberProcessTypes.Should().Contain(ProcessKeys.ColdRoll50).And.Contain(ProcessKeys.ColdRoll60);
+
+        var group2030 = result.Single(g => g.MachineType == "冷轧2030");
+        group2030.MinMachines.Should().Be(2); // 20+30
+        group2030.Items.Should().HaveCount(2);
+        group2030.MachineCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_流转保底_方式B折算2030机台需求()
+    {
+        using var ctx = CreateDbContext();
+        // B001：60在制 → 下游 30(180*8)，方式B 产能档案按规格反算 → 90000/(5000×6)=3 台
+        CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 90000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false); // 60在制行排程（All 命中）→ 有流转要求才计入 flowDemand
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "219*8",
+            RollingSpec = "180*8",
+            IsFinished = true,
+            DailyOutput = 5000m,
+        });
+        // B002：2030 本组在制 60000/(5000×6)=2 台
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll30, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 60000, spec: "180*8");
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "180*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 3, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var demander = result.Single(g => g.MachineType == "冷轧2030");
+        demander.FlowState.Should().NotBeNull();
+        demander.FlowState!.Role.Should().Be("Demander");
+        demander.FlowState.SupplyMachines.Should().Be(3); // 方式B：90000/(5000×6)=3
+        demander.FlowState.NeedMachines.Should().Be(1);
+        demander.FlowState.Balanced.Should().BeTrue();
+        // target=max(1,3)=3 > 现状 2 台 → 矛盾A（需求抬升至流转保底量）
+        demander.Status.Should().Be("A");
+        demander.Conflicts.Should().Contain(c => c.Contains("全量排程仍不足机台需求"));
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_流转保底_方式B优先方式A兜底()
+    {
+        using var ctx = CreateDbContext();
+        // B001：60→30(180*8)，产能档案有 → 方式B 60000/(10000×6)=1
+        CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 60000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false); // 60在制行排程（All 命中）→ 有流转要求才计入 flowDemand
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "219*8",
+            RollingSpec = "180*8",
+            IsFinished = true,
+            DailyOutput = 10000m,
+        });
+        // B002：60→20(273*8)，产能档案无 + 机台配置估算日产空 → 0
+        CreateBatch60Chain(ctx, "B002", "WO002", "273*8", ProcessKeys.ColdRoll20, "325*8", weight: 60000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: false); // 60在制行排程（All 命中）
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll20, ownedCount: 2, minMachines: 1, maxMachines: 2);
+        // B003：60→30(356*8)，产能档案无 + 机台配置估算日产 5000 → 方式A 60000/(5000×6)=2
+        CreateBatch60Chain(ctx, "B003", "WO003", "219*8", ProcessKeys.ColdRoll30, "356*8", weight: 60000);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 3, minMachines: 1, maxMachines: 3, estimatedDailyOutput: 5000m);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var demander = result.Single(g => g.MachineType == "冷轧2030");
+        demander.FlowState.Should().NotBeNull();
+        demander.FlowState!.SupplyMachines.Should().Be(3); // 方式B 1 + 方式A 2
+        demander.FlowState.NeedMachines.Should().Be(2);    // 30 min1 + 20 min1
+        demander.FlowState.Balanced.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_流转保底_仅5060在制下游2030折算()
+    {
+        using var ctx = CreateDbContext();
+        // 60在制 → 下游三辊（非 2030）→ 不计入 2030 流转折算
+        CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ThreeRollColdRoll, "180*8", weight: 60000);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 3, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var supplier = result.Single(g => g.MachineType == "冷轧5060");
+        supplier.FlowState.Should().NotBeNull();
+        supplier.FlowState!.Role.Should().Be("Supplier");
+        supplier.FlowState.SupplyMachines.Should().Be(0); // 三辊不计入
+
+        var demander = result.Single(g => g.MachineType == "冷轧2030");
+        demander.FlowState.Should().NotBeNull();
+        demander.FlowState!.SupplyMachines.Should().Be(0);
+        demander.FlowState.NeedMachines.Should().Be(1);
+        demander.FlowState.Balanced.Should().BeFalse();
+
+        result.Single(g => g.MachineType == "冷轧三辊").FlowState.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_矛盾A_全量仍不足最小机台数()
+    {
+        using var ctx = CreateDbContext();
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 30000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 3, minMachines: 3, maxMachines: 5);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧5060");
+        group.Status.Should().Be("A");
+        group.Conflicts.Should().Contain(c => c.Contains("全量排程仍不足机台需求"));
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_矛盾A_急加锁定超最大机台数()
+    {
+        using var ctx = CreateDbContext();
+        // 两急+批次在轧，各 60000/(5000×6)=2 台 → CrOnly=4 台 > 最大 1 台
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 60000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 60000, spec: "273*8");
+        SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 1, minMachines: 1, maxMachines: 1);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧5060");
+        group.Status.Should().Be("A'");
+        group.Conflicts.Should().Contain(c => c.Contains("急+锁定已超最大机台数"));
+        group.HasUrgentPlus.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_矛盾B_可叠加于A()
+    {
+        using var ctx = CreateDbContext();
+        // B001：60→30 在制，方式B → 30000/(5000×6)=1 台 2030 流转需求
+        CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 30000);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false); // 60在制行排程（All 命中）→ 有流转要求才计入 flowDemand
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "219*8",
+            RollingSpec = "180*8",
+            IsFinished = true,
+            DailyOutput = 5000m,
+        });
+        // B002：2030 本组在制 30000/(5000×6)=1 台 → 现状 1 < 最小 3 → 矛盾A；流转 1 < 最小 3 → 叠加矛盾B
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll30, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 30000, spec: "180*8");
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "180*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 3, minMachines: 3, maxMachines: 5);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧2030");
+        group.Status.Should().Be("A,B");
+        group.Conflicts.Should().Contain(c => c.Contains("全量排程仍不足机台需求"));
+        group.Conflicts.Should().Contain(c => c.Contains("2030 下次承接流转 1 台"));
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_四维合并_现有行保批新增行提()
+    {
+        using var ctx = CreateDbContext();
+        // 现有行 A：219*8 无批次（suggested=existing 原样保留）
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        // 现有行 C + 批次：325*8
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "325*8", isFinished: true, dailyOutput: 5000m);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 30000, spec: "325*8");
+        // 新增行：273*8 有批次无排程
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 6000, spec: "273*8");
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 2, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧5060");
+        group.Items.Should().HaveCount(3);
+
+        var row219 = group.Items.Single(i => i.RollingSpec == "219*8");
+        row219.RowStatus.Should().Be("OK");
+        row219.SuggestedCompletionType.Should().Be("All");
+        row219.SuggestedRollType.Should().Be("All");
+        row219.InProdExists.Should().BeFalse();
+
+        var row325 = group.Items.Single(i => i.RollingSpec == "325*8");
+        row325.RowStatus.Should().Be("OK");
+
+        var row273 = group.Items.Single(i => i.RollingSpec == "273*8");
+        row273.RowStatus.Should().Be("新增");
+        row273.SuggestedCompletionType.Should().Be("All"); // 组目标档位 All 叠加到新增行
+        row273.SuggestedRollType.Should().Be("All");
+        row273.InWaitExists.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_2030过度_收窄至急加急档()
+    {
+        using var ctx = CreateDbContext();
+        // B001 急+（正常∧关注=30）、B002/B003 急-（非正常）各在轧 30000
+        // cPartial2=3 > max2 → 向窄收 Urgent：仅急+命中 → 1 ∈ [1,2] → 「急+/急」
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll30);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000, spec: "273*8");
+        SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
+        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000, spec: "325*8");
+        SeedSummary(ctx, "WO003", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "273*8", isFinished: true, dailyOutput: 5000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "325*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 2, minMachines: 1, maxMachines: 2);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧2030");
+        group.SuggestedTier.Should().Be("急+/急");
+        group.TierChanged.Should().BeTrue();
+        group.MachineCount.Should().Be(1);
+        group.Status.Should().Be("OK");
+        group.Items.Single(i => i.RollingSpec == "219*8").SuggestedCompletionType.Should().Be("Urgent");
+        group.Items.Single(i => i.RollingSpec == "273*8").SuggestedCompletionType.Should().Be("Urgent");
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_2030区间内_保持默认档()
+    {
+        using var ctx = CreateDbContext();
+        // B001/B002 急-（非正常）各在轧 30000 → cPartial2=2 ∈ [1,3] → 保持「急+/急/急-」原始档
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000, spec: "273*8");
+        SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "273*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 3, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧2030");
+        group.SuggestedTier.Should().Be("急+/急/急-");
+        group.MachineCount.Should().Be(2);
+        group.Status.Should().Be("OK");
+        group.Items.Should().OnlyContain(i => i.SuggestedCompletionType == "Partial2" && i.SuggestedRollType == "Partial2");
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_三辊冷拔_固定档不因产能失衡调整()
+    {
+        using var ctx = CreateDbContext();
+        // 三辊普通批次在轧 30000 → 固定「急+/急/急-」，即使 cPartial2=0 < min3 也不调（纯人工）
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ThreeRollColdRoll, 1, isFinished: false, weight: 30000);
+        SeedSchedule(ctx, ProcessKeys.ThreeRollColdRoll, "", "219*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ThreeRollColdRoll, ownedCount: 4, minMachines: 3, maxMachines: 5);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧三辊");
+        group.SuggestedTier.Should().Be("急+/急/急-");
+        group.MachineCount.Should().Be(0); // 不因未达最小机台数而调整
+        group.Status.Should().Be("OK");
+        group.InProdTier.Should().BeNull();
+        group.FinishedTier.Should().BeNull();
+        group.Items.Single(i => i.RollingSpec == "219*8").SuggestedCompletionType.Should().Be("Partial2");
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_5060流转平衡_两阶段_在制放宽喂饱2030总负荷未超上限成品不压缩()
+    {
+        using var ctx = CreateDbContext();
+        // 两阶段判据统一 2030 基准：
+        //  阶段1 = 在制品堆按「2030 产能档案 daily」折算的供给机台 < flowFrom5060 → 只放宽在制档位（成品不动）。
+        //  阶段2 = 放宽后 5060 组总机台（在制+成品，5060 本组产能 daily 口径）> maxMachines → 才压缩成品档位。
+        // flowFrom5060 = 全部 5060→2030 在制品折算 = B001(2) + B002(2) = 4；
+        // 阶段1：Partial2 档仅急+B001 命中 → 供给 2 < 4 → 放宽；至 All 两批都命中 → 供给 4 ≥ 4 → 停，在制=All。
+        // 阶段2：在制(10000 daily)2 台 + 成品(5000 daily)1 台 = 3 ≤ max 5 → 不触发，成品保持组档 Partial2。
+        // B001：60→30(180*8) 在制 60000 急+（CreateBatch60Chain 默认 PositionDiff=0）→ Partial2 起命中，2030 折算 2 台
+        CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 60000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        // B002：60→30(180*8) 在制 60000 普通（C缓，非急非顺）→ 仅 All 档命中，2030 折算 2 台
+        CreateBatch60Chain(ctx, "B002", "WO002", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 60000);
+        SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.CSlow,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        // 2030 产能档案（方式B）：B001/B002 共用 30|219*8|180*8|true daily=5000
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "219*8",
+            RollingSpec = "180*8",
+            IsFinished = true,
+            DailyOutput = 5000m,
+        });
+        // B003：60成品(IsFinished=true) 30000 急+ spec 273*8 → 阶段2未触发（总负荷未超上限），成品保持组档不压缩
+        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 30000, spec: "273*8");
+        SeedSummary(ctx, "WO003", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        // 5060 本组产能档案（组机台总量约束用 5060 daily）：在制行 daily=10000、成品行 daily=5000
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false, dailyOutput: 10000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 2, minMachines: 1, maxMachines: 5);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧5060");
+        group.SuggestedTier.Should().Be("急+/急/急-"); // ①产能 Partial2=2 ∈ [1,5] 保持默认档
+        group.InProdTier.Should().Be("All");           // ②阶段1：在制增档至全量（普通在制品也需排上喂饱 2030）
+        group.FinishedTier.Should().Be("Partial2");    // ②阶段2：总负荷 3 ≤ max 5 未超上限 → 成品不压缩
+        group.MachineCount.Should().Be(3);             // 在制 2 + 成品 1
+        group.Status.Should().Be("OK");
+
+        var inProdItem = group.Items.Single(i => i.RollingSpec == "219*8");
+        inProdItem.SuggestedCompletionType.Should().Be("All");
+        inProdItem.RowStatus.Should().Be("锁定");
+
+        var finishedItem = group.Items.Single(i => i.RollingSpec == "273*8");
+        finishedItem.SuggestedCompletionType.Should().Be("Partial2");
+        finishedItem.RowStatus.Should().Be("锁定");
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_5060流转平衡_在制供给已够2030_不触发对倒()
+    {
+        using var ctx = CreateDbContext();
+        // 对倒判据统一 2030 基准：在制品堆按 2030 daily 折算的供给 = flowDemand2030 → 不触发对倒，
+        // 在制/成品保持组档（普通成品不会被 5060 daily>2030 daily 的差异无脑压到 CrOnly）。
+        // B001：60→30(180*8) 在制 60000 急+ → 2030 折算 2 台
+        CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 60000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "219*8",
+            RollingSpec = "180*8",
+            IsFinished = true,
+            DailyOutput = 5000m,
+        });
+        // B002：60成品(IsFinished=true) 30000 急+ → 在制供给已够 2030，急+成品也不被无脑压 CrOnly
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 30000, spec: "273*8");
+        SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false, dailyOutput: 10000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 2, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧5060");
+        group.SuggestedTier.Should().Be("急+/急/急-"); // ①产能 cPartial2=B001(1)+B002(1)=2 ∈ [1,3] 保持默认
+        group.InProdTier.Should().Be("Partial2");      // ②供给=flowDemand=2 不触发对倒，保持组档
+        group.FinishedTier.Should().Be("Partial2");
+        group.MachineCount.Should().Be(2);             // 在制 1 + 成品 1
+        group.Status.Should().Be("OK");
+
+        var inProdItem = group.Items.Single(i => i.RollingSpec == "219*8");
+        inProdItem.SuggestedCompletionType.Should().Be("Partial2");
+        var finishedItem = group.Items.Single(i => i.RollingSpec == "273*8");
+        finishedItem.SuggestedCompletionType.Should().Be("Partial2");
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_5060流转平衡_两阶段_在制放宽后总负荷超上限再压缩成品()
+    {
+        using var ctx = CreateDbContext();
+        // 阶段1：flowFrom5060 = B001(2) + B002(2) = 4；Partial2 档仅急+B001 命中 → 供给 2 < 4 → 放宽至 All → 4 ≥ 4 停，在制=All。
+        // 阶段2：放宽后总机台 = 在制(5060 daily 10000)2 台 + 成品(5060 daily 5000)2 台 = 4 > max 3 → 压缩成品：
+        //   Urgent 档急+成品仍命中 → 总 4>3 继续；CrOnly 档该急+成品关注≠60(关注30) 不命中 → 总 2 ≤ 3 → 停，成品=CrOnly。
+        // B001：60→30(180*8) 在制 60000 急+ → 2030 折算 2 台
+        CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 60000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        // B002：60→30(180*8) 在制 60000 普通（C缓）→ 仅 All 档命中，2030 折算 2 台
+        CreateBatch60Chain(ctx, "B002", "WO002", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 60000);
+        SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.CSlow,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        // 2030 产能档案（方式B）：B001/B002 共用 30|219*8|180*8|true daily=5000
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "219*8",
+            RollingSpec = "180*8",
+            IsFinished = true,
+            DailyOutput = 5000m,
+        });
+        // B003：60成品(IsFinished=true) 60000 急+ spec 273*8，关注工序=30≠60 → CrOnly 档不命中，压缩至 CrOnly 让位
+        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 60000, spec: "273*8");
+        SeedSummary(ctx, "WO003", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll30);
+        // 5060 本组产能档案（组机台总量约束用 5060 daily）：在制行 daily=10000、成品行 daily=5000
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false, dailyOutput: 10000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: true, dailyOutput: 5000m);
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 3, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var group = result.Single(g => g.MachineType == "冷轧5060");
+        group.SuggestedTier.Should().Be("急+/急/急-"); // ①产能 cPartial2=B001(1)+B003(2)=3 == max 3 区间内保持默认档
+        group.InProdTier.Should().Be("All");           // ②阶段1：在制增档至全量喂饱 2030
+        group.FinishedTier.Should().Be("CrOnly");      // ②阶段2：放宽后总负荷 4 > max 3 → 压缩成品至急+（关注不匹配者让位）
+        group.MachineCount.Should().Be(2);             // 在制 2 + 成品(仅关注匹配者) 0
+        group.Status.Should().Be("OK");
+
+        var inProdItem = group.Items.Single(i => i.RollingSpec == "219*8");
+        inProdItem.SuggestedCompletionType.Should().Be("All");
+        var finishedItem = group.Items.Single(i => i.RollingSpec == "273*8");
+        finishedItem.SuggestedCompletionType.Should().Be("CrOnly");
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_流转保底_窗口口径PD1至6待轧5060计入flowDemand()
+    {
+        using var ctx = CreateDbContext();
+        // PD≤6 窗口口径：未产 5060→30 批次（Status=None → PositionDiff=1，非当日在轧）仍计入 6 天流转窗口
+        // → flowDemand2030=3（原 PD==0 口径会漏计，5060 在制=73t 与仅 17.6t 的差额即此）
+        var batch = CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 90000);
+        batch.Status = BatchStatus.None; // 未投产 → PD=diff=1
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false); // 60行排程（All 命中）→ 有流转要求才计入 flowDemand
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "219*8",
+            RollingSpec = "180*8",
+            IsFinished = true,
+            DailyOutput = 5000m,
+        });
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 3, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var supplier = result.Single(g => g.MachineType == "冷轧5060");
+        supplier.FlowState.Should().NotBeNull();
+        supplier.FlowState!.SupplyMachines.Should().Be(3); // PD=1 计入：90000/(5000×6)=3
+        var demander = result.Single(g => g.MachineType == "冷轧2030");
+        demander.FlowState.Should().NotBeNull();
+        demander.FlowState!.SupplyMachines.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_流转保底_无流转要求档位不命中的5060不计入flowDemand()
+    {
+        using var ctx = CreateDbContext();
+        // B001：60→30(180*8) 在制 60000 普通（CSlow，非急非顺）→ 60 行档位 CrOnly（仅急+命中）不命中
+        // → 该料无流转要求，不计入 2030 需求（对应真实场景：50.3t 档位不命中的料不产生 flowDemand）
+        CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 60000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.CSlow,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "219*8",
+            RollingSpec = "180*8",
+            IsFinished = true,
+            DailyOutput = 5000m,
+        });
+        // 60 在制行仅排急+档（CrOnly）→ 普通批次不命中
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false,
+            completionType: "CrOnly", rollType: "CrOnly");
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 3, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var demander = result.Single(g => g.MachineType == "冷轧2030");
+        demander.FlowState.Should().NotBeNull();
+        demander.FlowState!.SupplyMachines.Should().Be(0); // CrOnly 档不命中普通批次 → 不计入需求
+        demander.FlowState.NeedMachines.Should().Be(1);
+        demander.FlowState.Balanced.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetScheduleSuggestionAsync_流转保底_2030本组本次未定流转计入flowDemand()
+    {
+        using var ctx = CreateDbContext();
+        // 部分二：60→30 在制 60000 急+（60 行 All 命中）→ 30 产能 5000 → 流入 2 台
+        CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 60000);
+        SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false); // 60 在制行 All 命中
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "219*8",
+            RollingSpec = "180*8",
+            IsFinished = true,
+            DailyOutput = 5000m,
+        });
+        // 部分一：2030 本组在制 30000 普通（CSlow）→ 30 行档位 CrOnly（仅急+命中）不命中 → 本次未定流转计入 1 台
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false,
+            currentGroupName: ProcessKeys.ColdRoll30, currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false, weight: 30000, spec: "180*8");
+        SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.CSlow,
+            productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll30);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "180*8", isFinished: true,
+            completionType: "CrOnly", rollType: "CrOnly");
+        ctx.ColdRollCapacities.Add(new ColdRollCapacity
+        {
+            ProcessType = ProcessKeys.ColdRoll30,
+            BilletSpec = "",
+            RollingSpec = "180*8",
+            IsFinished = true,
+            DailyOutput = 5000m,
+        });
+        SeedMachineConfig(ctx, ProcessKeys.ColdRoll30, ownedCount: 3, minMachines: 1, maxMachines: 3);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetScheduleSuggestionAsync();
+
+        var demander = result.Single(g => g.MachineType == "冷轧2030");
+        demander.FlowState.Should().NotBeNull();
+        // 下次 2030 承接 = 5060 流入 2 + 2030 本组本次未定流转 1 = 3 台
+        demander.FlowState!.SupplyMachines.Should().Be(3);
+        demander.FlowState.NeedMachines.Should().Be(1);
+        demander.FlowState.Balanced.Should().BeTrue();
     }
 }

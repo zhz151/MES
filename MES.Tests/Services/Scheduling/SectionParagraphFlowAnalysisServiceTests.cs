@@ -82,10 +82,10 @@ public class SectionParagraphFlowAnalysisServiceTests : TestBase
 
         result.Should().HaveCount(1);
         var row = result.Single(x => x.ParagraphName == "酸洗");
-        row.PendingTotal.Should().Be(6);          // Round((2500+3000)/1000, 0) = 6
-        row.VariationTotal.Should().Be(6);
+        row.PendingTotal.Should().Be(5.5m);        // 精确吨值 (2500+3000)/1000 = 5.5（前端显示时取整、汇总先精确求和再一次取整）
+        row.VariationTotal.Should().Be(5.5m);
         row.DailyFlowTarget.Should().Be(40m);
-        row.SustainableDays.Should().Be(0.2m);    // Round(6/40, 1) = 0.2
+        row.SustainableDays.Should().Be(0.2m);    // Round(6/40, 1) = 0.2（判定用取整吨 6）
         row.StatusJudgment.Should().Be("偏少");    // 0.2 < 0.5
         row.KeyBatchCount.Should().Be(0);
     }

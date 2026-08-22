@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -103,10 +102,58 @@ public class ColdRollSpecScheduleService : IColdRollSpecScheduleService
             !incomingKeys.Contains($"{e.ProcessType}|{e.BilletSpec}|{e.RollingSpec}|{e.IsFinished}"));
         _context.ColdRollSpecSchedules.RemoveRange(toDelete);
 
+        // 排程保存 → 自动反哺产能档案（有产能信息的行 upsert 到 ColdRollCapacity，随主保存同事务提交）
+        await ReverseFillCapacityAsync(dtos);
+
         await _context.SaveChangesAsync();
 
-        // 排程变更 → 失效排机估算缓存（排机估算依赖排程档位/单机单日量）
+        // 排程变更 → 失效排机估算与排程建议缓存（两者都依赖排程档位/单机单日量）
         _cache.Remove(ColdRollPlanService.MachineEstimateCacheKey);
+        _cache.Remove(ColdRollPlanService.ScheduleSuggestionCacheKey);
+    }
+
+    /// <summary>
+    /// 反哺产能档案：遍历排程行，有产能信息（日产能或机台任一非空）的按四维键 upsert ColdRollCapacity。
+    /// 无产能信息跳过（清空产能是暂态，不覆盖不清除）；产能档案累积，不随排程小表僵尸清理删除。
+    /// 查重用请求内局部字典（新增后回写），防同请求重复维度触发唯一索引冲突。
+    /// </summary>
+    private async Task ReverseFillCapacityAsync(List<ColdRollSpecScheduleDto> dtos)
+    {
+        var capacityAll = await _context.ColdRollCapacities.ToListAsync();
+        var capacityLookup = capacityAll.ToDictionary(
+            c => $"{c.ProcessType}|{c.BilletSpec}|{c.RollingSpec}|{c.IsFinished}",
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var dto in dtos)
+        {
+            if (!dto.DailyOutput.HasValue && string.IsNullOrWhiteSpace(dto.MachineNo))
+                continue;
+
+            var key = $"{dto.ProcessType}|{dto.BilletSpec}|{dto.RollingSpec}|{dto.IsFinished}";
+            if (capacityLookup.TryGetValue(key, out var existing))
+            {
+                existing.MachineNo = dto.MachineNo;
+                existing.DailyOutput = dto.DailyOutput;
+                existing.SampleCount++;
+                existing.LastConfirmedAt = DateTimeOffset.Now;
+            }
+            else
+            {
+                var added = new ColdRollCapacity
+                {
+                    ProcessType = dto.ProcessType,
+                    BilletSpec = dto.BilletSpec,
+                    RollingSpec = dto.RollingSpec,
+                    IsFinished = dto.IsFinished,
+                    MachineNo = dto.MachineNo,
+                    DailyOutput = dto.DailyOutput,
+                    SampleCount = 1,
+                    LastConfirmedAt = DateTimeOffset.Now,
+                };
+                _context.ColdRollCapacities.Add(added);
+                capacityLookup[key] = added;
+            }
+        }
     }
 
     private static ColdRollSpecScheduleDto ToDto(ColdRollSpecSchedule entity)

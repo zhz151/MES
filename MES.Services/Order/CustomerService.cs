@@ -1,7 +1,6 @@
 // 文件路径: MES.Services/CustomerService.cs
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -43,7 +42,6 @@ using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Order;
 using MES.Services.Helpers;
-using MES.Services.Printing;
 using MES.Services.Order;
 using Microsoft.Extensions.Caching.Memory;
 

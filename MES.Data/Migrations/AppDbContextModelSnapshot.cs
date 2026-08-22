@@ -6180,6 +6180,128 @@ namespace MES.Data.Migrations
                     b.ToTable("BatchPlanTargets", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.Scheduling.ColdRollCapacity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BilletSpec")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("DailyOutput")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<bool>("IsFinished")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("LastConfirmedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("MachineNo")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProcessType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RollingSpec")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("SampleCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessType", "BilletSpec", "RollingSpec", "IsFinished")
+                        .IsUnique()
+                        .HasDatabaseName("UK_CRC_Dimensions");
+
+                    b.ToTable("ColdRollCapacity", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Scheduling.ColdRollMachineConfig", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("EstimatedDailyOutput")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("MaxMachines")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinMachines")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OwnedCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProcessType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessType")
+                        .IsUnique()
+                        .HasDatabaseName("UK_CRMC_ProcessType");
+
+                    b.ToTable("ColdRollMachineConfig", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.Scheduling.ColdRollSpecSchedule", b =>
                 {
                     b.Property<int>("Id")

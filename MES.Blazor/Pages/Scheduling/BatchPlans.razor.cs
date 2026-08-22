@@ -557,7 +557,7 @@ public partial class BatchPlans
     }
 
     // 纯表渲染辅助（与流转分析独立页口径一致）
-    private static string RenderInt(decimal? val) => val.HasValue ? ((int)val.Value).ToString() : "-";
+    private static string RenderInt(decimal? val) => val.HasValue ? Math.Round(val.Value, 0).ToString() : "-";
 
     // 近日生产量数据重量(t) 格式化：kg /1000 显示 t（保留 1 位），0 值留空（防视觉污染，与生产记录页口径一致）
     private static string FormatT(decimal kg)

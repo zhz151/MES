@@ -123,6 +123,8 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<WorkOrderPlan> WorkOrderPlans { get; set; } = null!;
     public DbSet<SectionFlowCategorySetting> SectionFlowCategorySettings { get; set; } = null!;
     public DbSet<ColdRollSpecSchedule> ColdRollSpecSchedules { get; set; } = null!;
+    public DbSet<ColdRollCapacity> ColdRollCapacities { get; set; } = null!;
+    public DbSet<ColdRollMachineConfig> ColdRollMachineConfigs { get; set; } = null!;
     public DbSet<BatchPlanSchedule> BatchPlanSchedules { get; set; } = null!;
     public DbSet<BatchPlanTarget> BatchPlanTargets { get; set; } = null!;
 
@@ -244,6 +246,8 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureWorkOrderPlan(builder);
         ConfigureSectionFlowCategorySetting(builder);
         ConfigureColdRollSpecSchedule(builder);
+        ConfigureColdRollCapacity(builder);
+        ConfigureColdRollMachineConfig(builder);
         ConfigureBatchPlanSchedule(builder);
         ConfigureBatchPlanTarget(builder);
 

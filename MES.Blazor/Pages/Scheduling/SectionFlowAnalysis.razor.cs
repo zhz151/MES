@@ -410,9 +410,9 @@ public partial class SectionFlowAnalysis
         var pageItems = _filteredItems.Skip(page * rowsPerPage).Take(rowsPerPage).ToList();
         if (pageItems.Count == 0) return;
 
-        _pageSums["PendingTotal"] = ((int)pageItems.Sum(x => x.PendingTotal ?? 0m)).ToString();
-        _pageSums["PlanFlowQuantity"] = ((int)pageItems.Sum(x => x.PlanFlowQuantity ?? 0m)).ToString();
-        _pageSums["PlanKeyWeight"] = ((int)pageItems.Sum(x => x.PlanKeyWeight ?? 0m)).ToString();
+        _pageSums["PendingTotal"] = Math.Round(pageItems.Sum(x => x.PendingTotal ?? 0m), 0).ToString();
+        _pageSums["PlanFlowQuantity"] = Math.Round(pageItems.Sum(x => x.PlanFlowQuantity ?? 0m), 0).ToString();
+        _pageSums["PlanKeyWeight"] = Math.Round(pageItems.Sum(x => x.PlanKeyWeight ?? 0m), 0).ToString();
     }
 
     private string RenderFooterCell(ColumnDef col)
@@ -446,7 +446,7 @@ public partial class SectionFlowAnalysis
 
     private static string RenderInt(decimal? val)
     {
-        return val.HasValue ? ((int)val.Value).ToString() : "-";
+        return val.HasValue ? Math.Round(val.Value, 0).ToString() : "-";
     }
 
     private static string RenderDecimal(decimal? val)
@@ -504,10 +504,10 @@ public partial class SectionFlowAnalysis
     private static object GetRawPropertyValue(SectionFlowAnalysisDto item, string key) => key switch
     {
         "Category" => item.CategoryName,
-        "PendingTotal" => item.PendingTotal.HasValue ? ((int)item.PendingTotal.Value).ToString() : "-",
-        "PlanFlowQuantity" => item.PlanFlowQuantity.HasValue ? ((int)item.PlanFlowQuantity.Value).ToString() : "-",
+        "PendingTotal" => item.PendingTotal.HasValue ? Math.Round(item.PendingTotal.Value, 0).ToString() : "-",
+        "PlanFlowQuantity" => item.PlanFlowQuantity.HasValue ? Math.Round(item.PlanFlowQuantity.Value, 0).ToString() : "-",
         "PlanFlowJudgment" => item.PlanFlowJudgment ?? "-",
-        "PlanKeyWeight" => item.PlanKeyWeight.HasValue ? ((int)item.PlanKeyWeight.Value).ToString() : "-",
+        "PlanKeyWeight" => item.PlanKeyWeight.HasValue ? Math.Round(item.PlanKeyWeight.Value, 0).ToString() : "-",
         "SustainableDays" => item.SustainableDays.HasValue ? item.SustainableDays.Value.ToString("F1") : "-",
         "StatusJudgment" => item.StatusJudgment ?? "-",
         _ => ""

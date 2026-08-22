@@ -16,7 +16,44 @@
                 <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
                 冷轧排程
             </MudText>
-            <div style="margin-left:auto;">
+            <div class="d-flex align-center crp-print-hide" style="margin-left:auto; gap: 8px;">
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showSuggestion ? Color.Secondary : Color.Default)"
+                           StartIcon="@(_showSuggestion ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.Lightbulb)"
+                           Class="crp-print-hide"
+                           OnClick="ToggleSuggestion">
+                    排程建议[自动]
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                           Class="ml-2" OnClick="@EnterSchedulingModeAsync">编辑排程[手动]</MudButton>
+                @* 保存排程/取消 属于「编辑排程[手动]」的一部分，必须紧随其后、不被「排程汇总」隔开 *@
+                @if (_isSchedulingMode)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                               Class="ml-2" OnClick="@SaveScheduleAsync">保存排程</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                               OnClick="@CancelSchedule">取消</MudButton>
+                }
+                @if (_showScheduleSummary)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                   Size="Size.Small"
+                                   Color="Color.Error"
+                                   Title="关闭排程汇总"
+                                   OnClick="@ToggleScheduleSummaryAsync" />
+                }
+                else
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                               Class="ml-1" OnClick="@ToggleScheduleSummaryAsync" Disabled="@_summaryLoading">
+                        @if (_summaryLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                        }
+                        排程汇总
+                    </MudButton>
+                }
                 <MudButton Variant="Variant.Outlined"
                            Size="Size.Small"
                            Color="@(_showMachineEstimate ? Color.Primary : Color.Default)"
@@ -25,6 +62,12 @@
                            OnClick="ToggleMachineEstimate">
                     排机估算
                 </MudButton>
+                @if (_scheduleUpdatedTime.HasValue)
+                {
+                    <MudText Typo="Typo.body2" Class="ml-4 mr-2">
+                        <b>最后更新：</b>@_scheduleUpdatedTime.Value.ToString("yyyy-MM-dd HH:mm")
+                    </MudText>
+                }
             </div>
         </div>
 
@@ -76,51 +119,6 @@
             <MudText Typo="Typo.body2">
                 <b>总重量(kg)：</b>@(((int)_tabTotalWeight).ToString())
             </MudText>
-            <div class="d-flex flex-wrap align-center" style="gap: 8px; margin-left:auto;">
-                @if (_showScheduleSummary)
-                {
-                    <MudIconButton Icon="@Icons.Material.Filled.Close"
-                                   Size="Size.Small"
-                                   Color="Color.Error"
-                                   Title="关闭排程汇总"
-                                   OnClick="@ToggleScheduleSummaryAsync" />
-                }
-                else
-                {
-                    <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                               Class="ml-1" OnClick="@ToggleScheduleSummaryAsync" Disabled="@_summaryLoading">
-                        @if (_summaryLoading)
-                        {
-                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
-                        }
-                        排程汇总
-                    </MudButton>
-                }
-                <ColumnDisplaySelect Columns="_allColumns"
-                                     OnColumnToggle="OnColumnToggle"
-                                     OnMoveUp="MoveColumnUp"
-                                     OnMoveDown="MoveColumnDown" />
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
-                           Class="ml-2" OnClick="@EnterSchedulingModeAsync">编辑排程</MudButton>
-                @if (_isSchedulingMode)
-                {
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
-                               OnClick="@SaveScheduleAsync">保存排程</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
-                               OnClick="@CancelSchedule">取消</MudButton>
-                }
-                @if (_scheduleUpdatedTime.HasValue)
-                {
-                    <MudText Typo="Typo.body2" Class="ml-4 mr-2">
-                        <b>最后更新：</b>@_scheduleUpdatedTime.Value.ToString("yyyy-MM-dd HH:mm")
-                    </MudText>
-                }
-                <MudIconButton Icon="@Icons.Material.Filled.Print"
-                               Size="Size.Small"
-                               Color="Color.Primary"
-                               Title="打印"
-                               OnClick="@OnPrint" />
-            </div>
         </div>
     </div>
 
@@ -170,12 +168,228 @@
         </MudCard>
     }
 
+    @* 冷轧排程建议 — 折叠汇总卡片（标题行右上角按钮展开）：特急锁定 → 流转保底 → 产能平衡 三步决策 *@
+    @if (_showSuggestion)
+    {
+        <MudCard Class="mb-3 crp-print-hide summary-card" Elevation="0">
+            <MudCardContent>
+                <div class="d-flex justify-space-between align-center mb-2">
+                    <MudText Typo="Typo.subtitle2"><b>冷轧排程建议</b></MudText>
+                    <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.DoneAll" OnClick="ApplySuggestionAsync"
+                               Disabled="@(_suggestionLoading || _suggestionApplying)">
+                        @if (_suggestionApplying)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                        }
+                        一键采用建议
+                    </MudButton>
+                </div>
+                @if (_suggestionLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                }
+                else if (!_suggestionRows.Any())
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Default">暂无排程建议（无机台数配置或无批次排程维度）</MudText>
+                }
+                else
+                {
+                    <div id="crp-schedule-suggestion-table">
+                    @foreach (var group in _suggestionRows)
+                    {
+                        <MudCard Class="mb-3 card-accent-left" Elevation="0">
+                            <MudCardContent Class="pa-3">
+                                <MudText Typo="Typo.subtitle1" Class="font-weight-bold text-brand mb-2">@group.MachineType</MudText>
+
+                                <MudText Typo="Typo.body2" Class="mb-1">
+                                    可流转量，<b>@TonsText(group.FlowTotalWeight)</b> 吨；本次计划流转量，<b>@TonsText(group.PlannedFlowWeight)</b> 吨；计划机台数，<b>@group.MachineCount</b> 台；流转档：<b>@SuggestionTierDisplay(group)</b>
+                                </MudText>
+                                @if (group.FlowState?.Role == "Supplier")
+                                {
+                                    <MudText Typo="Typo.body2">
+                                        后流转（2030量：<b>@TonsText(group.FlowState.TotalWeight)</b> 吨，预算机台：<b>@group.FlowState.SupplyMachines</b> 台）
+                                    </MudText>
+                                }
+
+                                @if (group.Conflicts.Any())
+                                {
+                                    @foreach (var c in group.Conflicts)
+                                    {
+                                        <MudAlert Severity="Severity.Warning" Variant="Variant.Text" Dense="true" Class="mb-2" Style="font-size: 0.8rem;">
+                                            @c
+                                        </MudAlert>
+                                    }
+                                }
+
+                                @* 建议明细表已按用户要求隐藏，仅保留组级基础数据行（可流转量/本次计划流转量/计划机台数/流转档）*@
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                    </div>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+
+    @* 排程汇总 — 基于 G7 实时值，按(冷轧类型, 外径跨度)聚合；显示区域置于「冷轧排程计划」列表上方 *@
+    @if (_showScheduleSummary && _scheduleSummaryData.Any())
+    {
+        var _summaryGroups = _displaySummaryData
+            .GroupBy(x => x.ProcessType)
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        <div class="mt-4 crp-summary-section">
+            <div class="d-flex align-center mb-3" style="gap: 12px;">
+                <MudText Typo="Typo.h6" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Summarize" Class="mr-1" Color="Color.Primary" />
+                    排程汇总
+                </MudText>
+                <div class="d-flex align-center" style="gap: 4px;">
+                    <MudButton Variant="@(_summaryMaxDiff == 2 ? Variant.Filled : Variant.Outlined)"
+                               Color="@(_summaryMaxDiff == 2 ? Color.Primary : Color.Default)"
+                               Size="Size.Small"
+                               OnClick="@(() => OnSummaryMaxDiffChanged(2))">近2天</MudButton>
+                    <MudButton Variant="@(_summaryMaxDiff == 4 ? Variant.Filled : Variant.Outlined)"
+                               Color="@(_summaryMaxDiff == 4 ? Color.Primary : Color.Default)"
+                               Size="Size.Small"
+                               OnClick="@(() => OnSummaryMaxDiffChanged(4))">近4天</MudButton>
+                    <MudButton Variant="@(!_summaryMaxDiff.HasValue ? Variant.Filled : Variant.Outlined)"
+                               Color="@(!_summaryMaxDiff.HasValue ? Color.Primary : Color.Default)"
+                               Size="Size.Small"
+                               OnClick="@(() => OnSummaryMaxDiffChanged(null))">近6天</MudButton>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Filled.Print"
+                               Size="Size.Small"
+                               Color="Color.Primary"
+                               Title="打印排程汇总"
+                               Class="ml-2"
+                               OnClick="@OnPrintSummary" />
+            </div>
+
+            @foreach (var group in _summaryGroups)
+            {
+                var groupItems = group.ToList();
+                var grpFlowWeight = groupItems.Sum(x => x.TotalFlowWeight);
+
+                <MudCard Class="mb-3 card-accent-left">
+                    <MudCardContent Class="pa-3">
+                        <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-2 text-brand">
+                            @ProcessDisplayHelper.GetProcessNameText(group.Key)
+                            <span class="ml-4 text-hint" style="font-size: 0.85rem; font-weight: normal;">
+                                批次数：<b>@groupItems.Sum(x => x.BatchCount)</b>
+                                &nbsp;|&nbsp;流转总量：<b style="color:#2E7D32;">@(((int)grpFlowWeight).ToString())</b>
+                            </span>
+                        </MudText>
+
+                        <table class="summary-flow-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 140px;">外径跨度</th>
+                                    <th style="width: 80px;">批次数</th>
+                                    <th style="width: 110px;">流转总量</th>
+                                    <th style="width: 110px;">在轧总量</th>
+                                    <th style="width: 110px;">在轧(急+)</th>
+                                    <th style="width: 110px;">在轧(急)</th>
+                                    <th style="width: 110px;">在轧(急-)</th>
+                                    <th style="width: 110px;">在轧(一般)</th>
+                                    <th style="width: 110px;">待轧总量</th>
+                                    <th style="width: 110px;">待轧(急+)</th>
+                                    <th style="width: 110px;">待轧(急)</th>
+                                    <th style="width: 110px;">待轧(急-)</th>
+                                    <th style="width: 110px;">待轧(一般)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in groupItems)
+                                {
+                                    <tr>
+                                        <td>@item.ShortDisplay</td>
+                                        <td>@item.BatchCount</td>
+                                        <td>@(((int)item.TotalFlowWeight).ToString())</td>
+                                        <td style="color: #1565C0; font-weight: 600;">@WeightText(item.ProdTotalWeight)</td>
+                                        <td style="color: #c62828;">@WeightText(item.ProdUrgentWeight)</td>
+                                        <td style="color: #E65100;">@WeightText(item.ProdUrgentSubWeight)</td>
+                                        <td style="color: #c62828;">@WeightText(item.ProdOtherWeight)</td>
+                                        <td>@WeightText(item.ProdRestWeight)</td>
+                                        <td style="color: #1565C0; font-weight: 600;">@WeightText(item.WaitTotalWeight)</td>
+                                        <td style="color: #c62828;">@WeightText(item.WaitUrgentWeight)</td>
+                                        <td style="color: #E65100;">@WeightText(item.WaitUrgentSubWeight)</td>
+                                        <td style="color: #c62828;">@WeightText(item.WaitOtherWeight)</td>
+                                        <td>@WeightText(item.WaitRestWeight)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td><b>小计</b></td>
+                                    <td><b>@groupItems.Sum(x => x.BatchCount)</b></td>
+                                    <td><b>@(((int)grpFlowWeight).ToString())</b></td>
+                                    <td><b style="color:#1565C0;">@WeightText(groupItems.Sum(x => x.ProdTotalWeight))</b></td>
+                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.ProdUrgentWeight))</b></td>
+                                    <td><b style="color:#E65100;">@WeightText(groupItems.Sum(x => x.ProdUrgentSubWeight))</b></td>
+                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.ProdOtherWeight))</b></td>
+                                    <td><b>@WeightText(groupItems.Sum(x => x.ProdRestWeight))</b></td>
+                                    <td><b style="color:#1565C0;">@WeightText(groupItems.Sum(x => x.WaitTotalWeight))</b></td>
+                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.WaitUrgentWeight))</b></td>
+                                    <td><b style="color:#E65100;">@WeightText(groupItems.Sum(x => x.WaitUrgentSubWeight))</b></td>
+                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.WaitOtherWeight))</b></td>
+                                    <td><b>@WeightText(groupItems.Sum(x => x.WaitRestWeight))</b></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <div class="mt-3 crp-summary-note" style="padding: 8px 14px; background: #F5F5F5; border-radius: 4px; border-left: 3px solid #9E9E9E;">
+                <MudText Typo="Typo.caption" Class="text-secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+                    <b>档位说明</b>：急+ / 急 / 急- 均为工单紧急性为「A+急」「A急」的特急工单（其余工单归入「一般」，即各档余量）。
+                    <br />
+                    急+：投料齐全（或投料未齐但销售催单，视同齐全），关注点 = 当前冷轧工序；
+                    <br />
+                    急：投料齐全（或投料未齐但销售催单，视同齐全），关注点 ≠ 当前冷轧工序；
+                    <br />
+                    急-：投料未齐（等待原料等非正常流转）。
+                </MudText>
+            </div>
+        </div>
+    }
+
     <MudCard Class="crp-plan-section">
         <MudCardContent>
             @{
                 var _groupHeaders = GetGroupHeaders();
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100);
             }
+
+            @* 工具栏：列显隐 + 重置（左），与其它列表页风格统一 *@
+            <div class="list-toolbar crp-print-hide">
+                <div class="d-flex align-center">
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto; gap: 8px;">
+                    <MudText Typo="Typo.body2">
+                        共 @_totalCount 条记录
+                    </MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.Print"
+                                   Size="Size.Small"
+                                   Color="Color.Primary"
+                                   Title="打印冷轧排程计划"
+                                   OnClick="@OnPrint" />
+                </div>
+            </div>
 
             <div id="crp-list-table">
             @* 分组标题栏 *@
@@ -312,131 +526,7 @@
         </MudCardContent>
     </MudCard>
 
-    @* 排程汇总 — 基于 G7 实时值，按(冷轧类型, 外径跨度)聚合 *@
-    @if (_showScheduleSummary && _scheduleSummaryData.Any())
-    {
-        var _summaryGroups = _displaySummaryData
-            .GroupBy(x => x.ProcessType)
-            .OrderBy(g => g.Key)
-            .ToList();
-
-        <div class="mt-4 crp-summary-section">
-            <div class="d-flex align-center mb-3" style="gap: 12px;">
-                <MudText Typo="Typo.h6" Class="font-weight-bold">
-                    <MudIcon Icon="@Icons.Material.Filled.Summarize" Class="mr-1" Color="Color.Primary" />
-                    排程汇总
-                </MudText>
-                <div class="d-flex align-center" style="gap: 4px;">
-                    <MudButton Variant="@(_summaryMaxDiff == 2 ? Variant.Filled : Variant.Outlined)"
-                               Color="@(_summaryMaxDiff == 2 ? Color.Primary : Color.Default)"
-                               Size="Size.Small"
-                               OnClick="@(() => OnSummaryMaxDiffChanged(2))">近2天</MudButton>
-                    <MudButton Variant="@(_summaryMaxDiff == 4 ? Variant.Filled : Variant.Outlined)"
-                               Color="@(_summaryMaxDiff == 4 ? Color.Primary : Color.Default)"
-                               Size="Size.Small"
-                               OnClick="@(() => OnSummaryMaxDiffChanged(4))">近4天</MudButton>
-                    <MudButton Variant="@(!_summaryMaxDiff.HasValue ? Variant.Filled : Variant.Outlined)"
-                               Color="@(!_summaryMaxDiff.HasValue ? Color.Primary : Color.Default)"
-                               Size="Size.Small"
-                               OnClick="@(() => OnSummaryMaxDiffChanged(null))">近6天</MudButton>
-                </div>
-                <MudIconButton Icon="@Icons.Material.Filled.Print"
-                               Size="Size.Small"
-                               Color="Color.Primary"
-                               Title="打印排程汇总"
-                               Class="ml-2"
-                               OnClick="@OnPrintSummary" />
-            </div>
-
-            @foreach (var group in _summaryGroups)
-            {
-                var groupItems = group.ToList();
-                var grpFlowWeight = groupItems.Sum(x => x.TotalFlowWeight);
-
-                <MudCard Class="mb-3 card-accent-left">
-                    <MudCardContent Class="pa-3">
-                        <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-2 text-brand">
-                            @ProcessDisplayHelper.GetProcessNameText(group.Key)
-                            <span class="ml-4 text-hint" style="font-size: 0.85rem; font-weight: normal;">
-                                批次数：<b>@groupItems.Sum(x => x.BatchCount)</b>
-                                &nbsp;|&nbsp;流转总量：<b style="color:#2E7D32;">@(((int)grpFlowWeight).ToString())</b>
-                            </span>
-                        </MudText>
-
-                        <table class="summary-flow-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 140px;">外径跨度</th>
-                                    <th style="width: 80px;">批次数</th>
-                                    <th style="width: 110px;">流转总量</th>
-                                    <th style="width: 110px;">在轧总量</th>
-                                    <th style="width: 110px;">在轧(急+)</th>
-                                    <th style="width: 110px;">在轧(急)</th>
-                                    <th style="width: 110px;">在轧(急-)</th>
-                                    <th style="width: 110px;">在轧(一般)</th>
-                                    <th style="width: 110px;">待轧总量</th>
-                                    <th style="width: 110px;">待轧(急+)</th>
-                                    <th style="width: 110px;">待轧(急)</th>
-                                    <th style="width: 110px;">待轧(急-)</th>
-                                    <th style="width: 110px;">待轧(一般)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var item in groupItems)
-                                {
-                                    <tr>
-                                        <td>@item.ShortDisplay</td>
-                                        <td>@item.BatchCount</td>
-                                        <td>@(((int)item.TotalFlowWeight).ToString())</td>
-                                        <td style="color: #1565C0; font-weight: 600;">@WeightText(item.ProdTotalWeight)</td>
-                                        <td style="color: #c62828;">@WeightText(item.ProdUrgentWeight)</td>
-                                        <td style="color: #E65100;">@WeightText(item.ProdUrgentSubWeight)</td>
-                                        <td style="color: #c62828;">@WeightText(item.ProdOtherWeight)</td>
-                                        <td>@WeightText(item.ProdRestWeight)</td>
-                                        <td style="color: #1565C0; font-weight: 600;">@WeightText(item.WaitTotalWeight)</td>
-                                        <td style="color: #c62828;">@WeightText(item.WaitUrgentWeight)</td>
-                                        <td style="color: #E65100;">@WeightText(item.WaitUrgentSubWeight)</td>
-                                        <td style="color: #c62828;">@WeightText(item.WaitOtherWeight)</td>
-                                        <td>@WeightText(item.WaitRestWeight)</td>
-                                    </tr>
-                                }
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td><b>小计</b></td>
-                                    <td><b>@groupItems.Sum(x => x.BatchCount)</b></td>
-                                    <td><b>@(((int)grpFlowWeight).ToString())</b></td>
-                                    <td><b style="color:#1565C0;">@WeightText(groupItems.Sum(x => x.ProdTotalWeight))</b></td>
-                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.ProdUrgentWeight))</b></td>
-                                    <td><b style="color:#E65100;">@WeightText(groupItems.Sum(x => x.ProdUrgentSubWeight))</b></td>
-                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.ProdOtherWeight))</b></td>
-                                    <td><b>@WeightText(groupItems.Sum(x => x.ProdRestWeight))</b></td>
-                                    <td><b style="color:#1565C0;">@WeightText(groupItems.Sum(x => x.WaitTotalWeight))</b></td>
-                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.WaitUrgentWeight))</b></td>
-                                    <td><b style="color:#E65100;">@WeightText(groupItems.Sum(x => x.WaitUrgentSubWeight))</b></td>
-                                    <td><b style="color:#c62828;">@WeightText(groupItems.Sum(x => x.WaitOtherWeight))</b></td>
-                                    <td><b>@WeightText(groupItems.Sum(x => x.WaitRestWeight))</b></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </MudCardContent>
-                </MudCard>
-            }
-
-            <div class="mt-3 crp-summary-note" style="padding: 8px 14px; background: #F5F5F5; border-radius: 4px; border-left: 3px solid #9E9E9E;">
-                <MudText Typo="Typo.caption" Class="text-secondary">
-                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
-                    <b>档位说明</b>：急+ / 急 / 急- 均为工单紧急性为「A+急」「A急」的特急工单（其余工单归入「一般」，即各档余量）。
-                    <br />
-                    急+：投料齐全（或投料未齐但销售催单，视同齐全），关注点 = 当前冷轧工序；
-                    <br />
-                    急：投料齐全（或投料未齐但销售催单，视同齐全），关注点 ≠ 当前冷轧工序；
-                    <br />
-                    急-：投料未齐（等待原料等非正常流转）。
-                </MudText>
-            </div>
-        </div>
-    }
+    @* 排程汇总（已移至主列表上方） *@
 </MudContainer>
 
 <style>
@@ -457,6 +547,10 @@
         #crp-list-table .mud-table-container { overflow: visible !important; }
         #crp-list-table table.mud-table { width: auto !important; }
         #crp-list-table table { table-layout: fixed !important; }
+        /* 关键：th 默认 content-box 时，fixed 布局下列宽 = 内联 width + padding，而组标题栏按 col.Width 累加
+           （不含 padding）→ 每列多出 padding 造成组标题与字段错位。统一 border-box 后打印列宽精确 = col.Width，
+           与组标题栏（syncGroupHeadersForPrint 按 col.Width 重算）同基准，逐列对齐。 */
+        #crp-list-table th { box-sizing: border-box !important; }
         .mud-drawer { display: none !important; }
         .mud-appbar { display: none !important; }
         .mud-main-content { margin-left: 0 !important; }

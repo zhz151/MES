@@ -24,7 +24,6 @@ using MES.Data.Entities.Batch;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.StandardRegister;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 

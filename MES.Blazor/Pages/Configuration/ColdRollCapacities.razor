@@ -1,0 +1,183 @@
+@page "/cold-roll-capacities"
+@using MES.Blazor.Services
+@using MES.Core.Constants
+@using MES.Core.Models
+@using MES.Core.Helpers
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@using MES.Core.DTOs.Scheduling
+@using System.Text.Json
+@inject MES.Blazor.Services.ColdRollCapacityService Service
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
+@inject PageStateService PageState
+@attribute [Authorize(Roles = Roles.Policies.AdminOnly)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Class="mr-2" Color="Color.Primary" />
+                    生产-冷轧产能档案
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudText Typo="Typo.body2" Color="Color.Default" Class="mr-2">由冷轧排程保存自动沉淀，可手工调整机台/日产能</MudText>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 搜索栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="模糊搜索 - 冷轧类型/轧坯规格/轧制规格/机台号"
+                                  Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)"
+                                  ValueChanged="@OnSearchChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <div id="cold-roll-capacities-list-table">
+            <MudTable @ref="table"
+                      T="ColdRollCapacityDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4 auto-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @_totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                            </div>
+                        </MudTh>
+                    }
+                    <MudTh Style="width: 90px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @{
+                        var rowEditing = _editingIds.Contains(item.Id);
+                        var rowCache = rowEditing && _editCache.TryGetValue(item.Id, out var rc) ? rc : null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>
+                        @if (col.Key == "ProcessType")
+                        {
+                            @ProcessDisplayHelper.GetProcessNameText(item.ProcessType)
+                        }
+                        else if (col.Key == "BilletSpec")
+                        {
+                            @item.BilletSpec
+                        }
+                        else if (col.Key == "RollingSpec")
+                        {
+                            @item.RollingSpec
+                        }
+                        else if (col.Key == "IsFinished")
+                        {
+                            @(item.IsFinished ? "是" : "否")
+                        }
+                        else if (col.Key == "MachineNo")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.MachineNo"
+                                              ValueChanged="@(v => rowCache.MachineNo = v)"
+                                              Class="compact-input" />
+                            }
+                            else
+                            {
+                                @item.MachineNo
+                            }
+                        }
+                        else if (col.Key == "DailyOutput")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudNumericField T="decimal?"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 HideSpinButtons="true"
+                                                 Value="@rowCache.DailyOutput"
+                                                 ValueChanged="@(v => rowCache.DailyOutput = v)"
+                                                 Class="compact-input"
+                                                 Min="0"
+                                                 Format="G29" />
+                            }
+                            else
+                            {
+                                @(item.DailyOutput?.ToString("G29"))
+                            }
+                        }
+                        else if (col.Key == "SampleCount")
+                        {
+                            @item.SampleCount
+                        }
+                        else if (col.Key == "LastConfirmedAt")
+                        {
+                            @(item.LastConfirmedAt?.ToString("yyyy-MM-dd"))
+                        }
+                        else if (col.Key == "UpdatedTime")
+                        {
+                            @item.UpdatedTime.ToString("yyyy-MM-dd HH:mm")
+                        }
+                        else
+                        {
+                            @("")
+                        }
+                        </MudTd>
+                    }
+                    <MudTd Style="white-space: nowrap; width: 90px;">
+                        @if (rowEditing)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small" OnClick="() => CancelEdit(item)" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

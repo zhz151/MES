@@ -59,6 +59,41 @@ public partial class AppDbContext
                 .HasDatabaseName("UK_CRSS_Dimensions");
         });
     }
+    private static void ConfigureColdRollCapacity(ModelBuilder builder)
+    {
+        builder.Entity<ColdRollCapacity>(entity =>
+        {
+            entity.ToTable("ColdRollCapacity");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProcessType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BilletSpec).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.RollingSpec).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.MachineNo).HasMaxLength(200);
+            entity.Property(e => e.DailyOutput).HasPrecision(18, 3);
+            entity.Property(e => e.SampleCount).IsRequired().HasDefaultValue(0);
+
+            // 唯一索引：四维度组合不重复（与冷轧排程小表 ColdRollSpecSchedule 维度一致）
+            entity.HasIndex(e => new { e.ProcessType, e.BilletSpec, e.RollingSpec, e.IsFinished })
+                .IsUnique()
+                .HasDatabaseName("UK_CRC_Dimensions");
+        });
+    }
+    private static void ConfigureColdRollMachineConfig(ModelBuilder builder)
+    {
+        builder.Entity<ColdRollMachineConfig>(entity =>
+        {
+            entity.ToTable("ColdRollMachineConfig");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProcessType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.EstimatedDailyOutput).HasPrecision(18, 3);
+            entity.Property(e => e.Remark).HasMaxLength(200);
+
+            // 唯一索引：机型唯一
+            entity.HasIndex(e => e.ProcessType)
+                .IsUnique()
+                .HasDatabaseName("UK_CRMC_ProcessType");
+        });
+    }
     private static void ConfigureSectionFlowCategorySetting(ModelBuilder builder)
     {
         builder.Entity<SectionFlowCategorySetting>(entity =>

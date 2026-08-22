@@ -12,6 +12,16 @@ namespace MES.Tests.Services.Helpers;
 /// </summary>
 public class EnumHelperTests
 {
+    /// <summary>
+    /// EnumHelper 为进程级静态缓存，其他测试类（如 EnumDisplayDefinitionServiceTests）会在用例执行期间
+    /// 并行注入配置表覆盖（ApplyEnumOverrides）且仅在本类 Dispose 后清理——本类验证静态兜底注册，
+    /// 需在每用例前复位覆盖，避免并行读到污染值（与 Core.Helpers.EnumHelperTests 同防御模式）。
+    /// </summary>
+    public EnumHelperTests()
+    {
+        EnumHelper.ClearEnumOverrides();
+    }
+
     #region GetDisplayName — 所有注册枚举
 
     [Fact]

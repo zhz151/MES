@@ -44,7 +44,6 @@ using MES.Data.Entities.Order;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.Quality;
-using Microsoft.Extensions.Caching.Memory;
 
 namespace MES.Tests.Services;
 

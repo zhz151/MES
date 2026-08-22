@@ -122,6 +122,8 @@ builder.Services.AddScoped<WorkOrderScheduleService>();
 builder.Services.AddScoped<BatchPlanService>();
 builder.Services.AddScoped<ColdRollPlanService>();
 builder.Services.AddScoped<ColdRollSpecScheduleService>();
+builder.Services.AddScoped<ColdRollCapacityService>();
+builder.Services.AddScoped<ColdRollMachineConfigService>();
 builder.Services.AddScoped<BatchPlanScheduleService>();
 builder.Services.AddScoped<BatchPlanTargetService>();
 builder.Services.AddScoped<FinalInspectionPlanService>();

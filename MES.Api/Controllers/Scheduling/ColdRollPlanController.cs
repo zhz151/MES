@@ -51,4 +51,14 @@ public class ColdRollPlanController : ControllerBase
         return Ok(ApiResponse<List<ColdRollMachineEstimateDto>>.Ok(data));
     }
 
+    /// <summary>
+    /// 获取冷轧排程建议（半自动）：机台类型组级 特急锁定 → 流转保底 → 产能平衡 三步决策
+    /// </summary>
+    [HttpGet("suggestion")]
+    public async Task<IActionResult> GetScheduleSuggestion()
+    {
+        var data = await _coldRollPlanService.GetScheduleSuggestionAsync();
+        return Ok(ApiResponse<List<ColdRollScheduleSuggestionDto>>.Ok(data));
+    }
+
 }

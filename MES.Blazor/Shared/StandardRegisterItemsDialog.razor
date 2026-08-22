@@ -35,12 +35,12 @@
             </HeaderContent>
             <RowTemplate Context="item">
                 <MudTd>
-                    <MudTextField @bind-Value="item.SeqNo"
-                                  T="int"
-                                  Dense="true"
-                                  Variant="Variant.Outlined"
-                                  HideSpinButtons="true"
-                                  Style="width:50px;" />
+                    <MudNumericField @bind-Value="item.SeqNo"
+                                     T="int"
+                                     Dense="true"
+                                     Variant="Variant.Outlined"
+                                     HideSpinButtons="true"
+                                     Style="width:50px;" />
                 </MudTd>
                 <MudTd>
                     <MudTextField @bind-Value="item.InspectionCategory"

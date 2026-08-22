@@ -206,7 +206,7 @@ public partial class Index
 
     private static string FlowRenderInt(decimal? val)
     {
-        return val.HasValue ? ((int)val.Value).ToString() : "-";
+        return val.HasValue ? Math.Round(val.Value, 0).ToString() : "-";
     }
 
     private static Color FlowGetStatusColor(string? status)

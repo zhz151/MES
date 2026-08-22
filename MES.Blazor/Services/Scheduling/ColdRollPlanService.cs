@@ -56,6 +56,16 @@ public class ColdRollPlanService
         return response?.Data ?? new List<ColdRollMachineEstimateDto>();
     }
 
+    /// <summary>
+    /// 获取冷轧排程建议（半自动）：机台类型组级 特急锁定 → 流转保底 → 产能平衡 三步决策
+    /// </summary>
+    public async Task<List<ColdRollScheduleSuggestionDto>> GetScheduleSuggestionAsync()
+    {
+        var url = $"{ApiEndpoints.ColdRollPlan}/suggestion";
+        var response = await _http.GetFromJsonAsync<SuggestionResponse>(url);
+        return response?.Data ?? new List<ColdRollScheduleSuggestionDto>();
+    }
+
     private class PlanResponse
     {
         public bool Success { get; set; }
@@ -72,5 +82,11 @@ public class ColdRollPlanService
     {
         public bool Success { get; set; }
         public List<ColdRollMachineEstimateDto> Data { get; set; } = new();
+    }
+
+    private class SuggestionResponse
+    {
+        public bool Success { get; set; }
+        public List<ColdRollScheduleSuggestionDto> Data { get; set; } = new();
     }
 }

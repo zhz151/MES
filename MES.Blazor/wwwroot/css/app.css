@@ -813,6 +813,10 @@ input[type="number"]::-webkit-outer-spin-button {
     justify-content: center;
     padding: 2px;
     border-right: 1px solid #e0e0e0;
+    /* 关键：content-box 时 item 实际占位 = 设置宽 + padding + border（多出 5px/项），
+       与表格列宽（th.offsetWidth / col.Width）错位累积。border-box 后占位精确 = 设置宽，
+       组标题栏与列宽（屏幕 offsetWidth、打印 col.Width）逐列对齐。 */
+    box-sizing: border-box;
 }
 
 .col-group-header-item:last-child {

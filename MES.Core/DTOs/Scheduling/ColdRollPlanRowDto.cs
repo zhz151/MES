@@ -44,6 +44,10 @@ public class ColdRollPlanRowDto
     /// <summary>待轧要求（排程数据，仅供客户端排序/筛选）</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string RollType { get; set; } = "None";
+    /// <summary>在轧侧是否存在待排实际批次且排程行档位非空（客户端据此决定「在轧要求」是否显示，否则留空便于区分在/不在排程计划）</summary>
+    public bool ProdTierMatched { get; set; }
+    /// <summary>待轧侧是否存在待排实际批次且排程行档位非空（客户端据此决定「待轧要求」是否显示）</summary>
+    public bool WaitTierMatched { get; set; }
     /// <summary>待轧设备号（排程数据，仅供客户端排序/筛选）</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string? SchedMachineNo { get; set; }

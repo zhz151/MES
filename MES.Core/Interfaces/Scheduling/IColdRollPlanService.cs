@@ -25,4 +25,10 @@ public interface IColdRollPlanService
     /// </summary>
     Task<List<ColdRollMachineEstimateDto>> GetMachineEstimateAsync();
 
+    /// <summary>
+    /// 获取冷轧排程建议（半自动）：机台类型组级 特急锁定 → 流转保底 → 产能平衡 三步决策。
+    /// 只读不写，矛盾（A/A'/B）标注交人；一键采用由前端走既有 save-all 通道回填小表。
+    /// </summary>
+    Task<List<ColdRollScheduleSuggestionDto>> GetScheduleSuggestionAsync();
+
 }

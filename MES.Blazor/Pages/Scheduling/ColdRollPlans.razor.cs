@@ -47,6 +47,12 @@ public partial class ColdRollPlans
     private bool _estimateLoading = false;
     private List<ColdRollMachineEstimateDto> _estimateRows = new();
 
+    // ========== 排程建议 ==========
+    private bool _showSuggestion = false;
+    private bool _suggestionLoading = false;
+    private bool _suggestionApplying = false;
+    private List<ColdRollScheduleSuggestionDto> _suggestionRows = new();
+
     // ========== 列筛选 ==========
     private readonly Dictionary<string, HashSet<string>> _columnFilters = new();
     private readonly Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -129,6 +135,8 @@ public partial class ColdRollPlans
                     WeightExt4 = g.Sum(x => x.WeightExt4),
                     WeightExt5 = g.Sum(x => x.WeightExt5),
                     WeightDistant = g.Sum(x => x.WeightDistant),
+                    ProdTierMatched = g.Any(x => x.ProdTierMatched),
+                    WaitTierMatched = g.Any(x => x.WaitTierMatched),
                 };
                 row.WeightWaitNear = row.WeightToday + row.WeightTomorrow + row.WeightDayAfter
                     + row.WeightExt3 + row.WeightExt4 + row.WeightExt5;
@@ -227,7 +235,18 @@ public partial class ColdRollPlans
     {
         // 打印冷轧排程计划：确保非汇总打印模式（隐藏排程汇总区）
         await JS.InvokeVoidAsync("eval", "document.body.classList.remove('print-summary')");
+        // 打印前按 th 内联 col.Width 重算组标题栏宽度，保证与打印表格（table-layout:fixed）列宽对齐。
+        // 浏览器仍缓存旧版 table-nav.js（无 syncGroupHeadersForPrint）时降级：跳过对齐、直接打印（不中断）。
+        try
+        {
+            await JS.InvokeVoidAsync("syncGroupHeadersForPrint", "#crp-list-table");
+        }
+        catch (JSException)
+        {
+            // 旧缓存 JS 无此函数：组标题按既有宽度打印，待硬刷新后恢复对齐
+        }
         await JS.InvokeVoidAsync("window.print");
+        // afterprint 事件内已恢复屏幕测量对齐（见 table-nav.js syncGroupHeadersForPrint）
     }
 
     private async Task OnPrintSummary()
@@ -276,6 +295,136 @@ public partial class ColdRollPlans
         await JS.InvokeVoidAsync("printRawHtml", html, "冷轧排程排机估算");
     }
 
+    // ========== 排程建议 ==========
+
+    private async Task ToggleSuggestion()
+    {
+        _showSuggestion = !_showSuggestion;
+        if (_showSuggestion)
+        {
+            // 展开时总是重载（后端 60 秒缓存命中则快速返回，避免折叠再展开仍显示旧数据）
+            await LoadSuggestionAsync();
+        }
+    }
+
+    private async Task LoadSuggestionAsync()
+    {
+        try
+        {
+            _suggestionLoading = true;
+            _suggestionRows = await ColdRollSvc.GetScheduleSuggestionAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载排程建议失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _suggestionLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>排程建议档位显示：None 无计划显"-"，其余走标准中文</summary>
+    private static string SuggestionTierText(string v)
+        => v == "None" ? "-" : DisplayHelper.GetCompletionTypeText(v);
+
+    /// <summary>组建议流转档显示：5060 拆档显示 [在制 X；成品 Y]，其余显示建议档名（已含中文，如 急+/急/急-）</summary>
+    private static string SuggestionTierDisplay(ColdRollScheduleSuggestionDto group)
+        => group.InProdTier != null && group.FinishedTier != null
+            ? $"[在制 {SuggestionTierText(group.InProdTier)}；成品 {SuggestionTierText(group.FinishedTier)}]"
+            : group.SuggestedTier;
+
+    /// <summary>建议明细表档位显示：None/空 → "-"，Subsequent → 全量，其余走档位中文（同列表列口径）</summary>
+    private static string TierCellText(string? v)
+        => string.IsNullOrEmpty(v) || v == "None" ? "-"
+           : v == "Subsequent" ? "全量"
+           : DisplayHelper.GetCompletionTypeText(v);
+
+    /// <summary>建议明细行状态中文：锁定/新增，OK 留空</summary>
+    private static string SuggestionRowStatusText(string status)
+        => status switch { "锁定" => "锁定", "新增" => "新增", _ => "" };
+
+    /// <summary>重量(kg) → 吨显示（G29 去零）</summary>
+    private static string TonsText(decimal kg) => (kg / 1000m).ToString("G29");
+
+    /// <summary>
+    /// 一键采用排程建议：suggestion Items（suggested 档位 + 保留 MachineNo/DailyOutput/MergeDisplay/Remark）
+    /// 转 ColdRollSpecScheduleDto → 与未被覆盖的现有排程行合并 → SaveAllAsync（复用既有保存合并逻辑）
+    /// </summary>
+    private async Task ApplySuggestionAsync()
+    {
+        if (!_suggestionRows.Any())
+        {
+            Snackbar.Add("暂无排程建议可采用", Severity.Info);
+            return;
+        }
+
+        try
+        {
+            _suggestionApplying = true;
+
+            var toSaveList = new List<ColdRollSpecScheduleDto>();
+            foreach (var group in _suggestionRows)
+            {
+                foreach (var item in group.Items)
+                {
+                    // 实际档两侧均为空 = 该规格不在本次流转计划（计划量 0 且非锁定）→ 跳过，由下方合并保留存量行
+                    if (string.IsNullOrEmpty(item.ActualCompletionTier) && string.IsNullOrEmpty(item.ActualRollTier)) continue;
+
+                    toSaveList.Add(new ColdRollSpecScheduleDto
+                    {
+                        ProcessType = item.ProcessType,
+                        BilletSpec = item.BilletSpec,
+                        RollingSpec = item.RollingSpec,
+                        IsFinished = item.IsFinished,
+                        MachineNo = item.MachineNo,
+                        DailyOutput = item.DailyOutput,
+                        CompletionType = string.IsNullOrEmpty(item.ActualCompletionTier) ? "None" : item.ActualCompletionTier,
+                        RollType = string.IsNullOrEmpty(item.ActualRollTier) ? "None" : item.ActualRollTier,
+                        MergeDisplay = item.MergeDisplay,
+                        Remark = item.Remark,
+                    });
+                }
+            }
+
+            // 合并未被覆盖的现有排程行（保 save-all 不删未建议维度）
+            var existingAll = await ScheduleSvc.GetAllAsync();
+            var editedKeys = new HashSet<string>(toSaveList.Select(e =>
+                $"{e.ProcessType}|{e.BilletSpec}|{e.RollingSpec}|{e.IsFinished}"),
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var existing in existingAll)
+            {
+                var key = $"{existing.ProcessType}|{existing.BilletSpec}|{existing.RollingSpec}|{existing.IsFinished}";
+                if (!editedKeys.Contains(key))
+                    toSaveList.Add(existing);
+            }
+
+            await ScheduleSvc.SaveAllAsync(toSaveList);
+
+            _scheduleUpdatedTime = DateTime.Now;
+            _scheduleDataLoaded = false; // 保存后重新加载排程数据
+            _scheduleEdits.Clear();
+            Snackbar.Add("排程建议已采用", Severity.Success);
+            if (table != null)
+                await table.ReloadServerData();
+            if (_showScheduleSummary)
+                _scheduleSummaryData = await ColdRollSvc.GetScheduleSummaryAsync(null, _summaryMaxDiff);
+            if (_showMachineEstimate)
+                await LoadMachineEstimateAsync();
+            // 排程建议展开状态同步刷新（建议引擎缓存已被后端失效）
+            await LoadSuggestionAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"采用排程建议失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _suggestionApplying = false;
+        }
+    }
+
     // ========== 列显隐 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -291,6 +440,19 @@ public partial class ColdRollPlans
     private async Task MoveColumnDown(ColumnDef col)
     {
         await SavePageStateAsync();
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        RebuildColumnDefs(); // 全列可见（保持当前视图：明细/简化）
+        var savedState = await PageState.LoadAsync("coldrollplans");
+        if (savedState != null)
+        {
+            savedState.Extras?.Remove("columnVisibility");
+            await PageState.SaveAsync("coldrollplans", savedState);
+        }
+        if (table != null)
+            await table.ReloadServerData();
     }
 
     private async Task RestoreColumnVisibilityAsync()
@@ -525,6 +687,11 @@ public partial class ColdRollPlans
             if (_showMachineEstimate)
             {
                 await LoadMachineEstimateAsync();
+            }
+            // 排程建议展开状态同步刷新
+            if (_showSuggestion)
+            {
+                await LoadSuggestionAsync();
             }
         }
         catch (Exception ex)
@@ -950,8 +1117,9 @@ public partial class ColdRollPlans
     // ========== 单元格渲染 ==========
     private string RenderCell(ColdRollPlanRowDto item, ColumnDef col)
     {
-        if (col.Key == "CompletionType") return GetCompletionTypeText(item.CompletionType);
-        if (col.Key == "RollType") return GetRollTypeText(item.RollType);
+        // 在轧/待轧要求仅在实际批次命中排程档位（在档）时显示，否则留空——人工可区分哪些规格在本次排程计划内
+        if (col.Key == "CompletionType") return item.ProdTierMatched ? GetCompletionTypeText(item.CompletionType) : "";
+        if (col.Key == "RollType") return item.WaitTierMatched ? GetRollTypeText(item.RollType) : "";
         if (col.Key == "SchedMachineNo") return item.SchedMachineNo ?? "";
         if (col.Key == "DailyOutput") return item.DailyOutput?.ToString("G29") ?? "";
 

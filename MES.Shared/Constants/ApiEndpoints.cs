@@ -76,6 +76,8 @@ public static class ApiEndpoints
     public const string BatchPlan = "api/batch-plan";
     public const string ColdRollPlan = "api/cold-roll-plan";
     public const string ColdRollSpecSchedule = "api/cold-roll-spec-schedule";
+    public const string ColdRollCapacity = "api/cold-roll-capacity";
+    public const string ColdRollMachineConfig = "api/cold-roll-machine-config";
     public const string FinalInspectionPlan = "api/final-inspection-plan";
     public const string BatchPlanSchedule = "api/batch-plan-schedule";
     public const string BatchPlanTarget = "api/batch-plan-target";

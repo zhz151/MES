@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
-using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Equipment;
@@ -54,10 +53,15 @@ public class ColdRollPlanService : IColdRollPlanService
     private readonly IMemoryCache _cache;
 
     /// <summary>
-    /// 排机估算缓存键。排程保存（ColdRollSpecScheduleService.SaveAllAsync）时主动失效；
+    /// 排机估算缓存键。排程保存/产能档案保存/机台数配置保存·删除时主动失效（四处失效点）；
     /// 批次/生产数据无统一失效入口，采用短 TTL（60 秒）保证新鲜度，兼顾重复展开时的加载性能。
     /// </summary>
     public const string MachineEstimateCacheKey = "ColdRollPlanService:MachineEstimate";
+
+    /// <summary>
+    /// 排程建议缓存键。排程保存/产能档案保存/机台数配置保存·删除时主动失效（四处失效点）。
+    /// </summary>
+    public const string ScheduleSuggestionCacheKey = "ColdRollPlanService:ScheduleSuggestion";
 
     public ColdRollPlanService(AppDbContext context, IProcessDefinitionService processDefService, IMemoryCache cache)
     {
@@ -199,6 +203,9 @@ public class ColdRollPlanService : IColdRollPlanService
             }
 
             // ===== 每个冷轧工序组都生成一行 =====
+            // 工序组追踪快照（仅排程建议方式B流转折算用，其余消费方只加不读）——每批次惰性构建一次，供其全部冷轧行共享，
+            // 避免同一批次 N 个冷轧组重复物化同一份快照
+            List<ProcessGroupTrace>? pgTrace = null;
             foreach (var crPg in coldRollPgs)
             {
                 // 工段筛选（中文 Tab 名归一为 Key 后与工序组 ProcessName(Key) 匹配）
@@ -274,6 +281,16 @@ public class ColdRollPlanService : IColdRollPlanService
                     // 在轧单位或设备：优先批次「委外单位」，为空再取「设备号」（实际后续基本只有委外单位）
                     MachineNo = isProducing ? (batch.CurrentOutsource ?? batch.CurrentEquipmentName) : null,
                     ShortDisplay = GetShortDisplay(billetSpec, rollingSpec),
+                    // 是否批次当前所在工序组（flowDemand 部分一 2030 本组批次判定：5060 批次的下游 30 组不属「2030 本组」）
+                    IsCurrentGroup = currentPgSeq.HasValue && crPg.SequenceNumber == currentPgSeq.Value,
+                    // 工序组追踪快照（仅排程建议方式B流转折算用，其余消费方只加不读）
+                    ProcessGroups = pgTrace ??= sortedPgs.Select(pg => new ProcessGroupTrace
+                    {
+                        ProcessName = pg.ProcessName,
+                        ManufacturingSpec = pg.ManufacturingSpec,
+                        SequenceNumber = pg.SequenceNumber,
+                        IsFinished = pg.SequenceNumber == sortedPgs.Max(x => x.SequenceNumber),
+                    }).ToList(),
                 });
             }
         }
@@ -284,6 +301,15 @@ public class ColdRollPlanService : IColdRollPlanService
     public async Task<List<ColdRollPlanRowDto>> GetPlanAsync(string? sectionFilter)
     {
         var intermediate = await BuildAllocationsAsync(sectionFilter);
+
+        // 排程设置（判定「在档」标记：实际批次是否命中在轧/待轧档位，客户端据此决定「在轧要求/待轧要求」是否显示）
+        var scheduleDict = await _context.ColdRollSpecSchedules
+            .AsNoTracking()
+            .Select(s => new { s.ProcessType, s.BilletSpec, s.RollingSpec, s.IsFinished, s.CompletionType, s.RollType })
+            .ToDictionaryAsync(
+                s => $"{s.ProcessType}|{s.BilletSpec}|{s.RollingSpec}|{s.IsFinished}",
+                s => new { s.CompletionType, s.RollType },
+                StringComparer.OrdinalIgnoreCase);
 
         // 5. 聚合：按 (ProcessType, BilletSpec, RollingSpec, IsFinished) 分组
         var result = intermediate
@@ -298,6 +324,25 @@ public class ColdRollPlanService : IColdRollPlanService
                     IsFinished = g.Key.IsFinished,
                     BatchCount = g.Count(),
                 };
+
+                // 在档标记：仅当该规格存在「实际命中排程行档位」的在轧/待轧批次时才标记，客户端据此决定
+                // 「在轧要求/待轧要求」是否显示。命中判定与排程建议「计划流转量」同口径（MatchesScheduleType）：
+                // 批次急/流转属性须与排程行档位匹配，否则即使规格有待流转量、排程行也有档位，该规格也不属于
+                // 本次排程计划内 → 留空，人工可区分哪些规格真正在本次排程建议中（如 67-48 规格虽有待流转量，
+                // 但未设入本次流转计划，则「待轧要求」不显示档位）。
+                var allocList = g.ToList();
+                var inProdAlloc = allocList.Where(x => x.PositionDiff == 0).ToList();
+                var inWaitAlloc = allocList.Where(x => x.PositionDiff >= 1 && x.PositionDiff <= 6).ToList();
+                var schedKey = $"{g.Key.ProcessType}|{g.Key.BilletSpec}|{g.Key.RollingSpec}|{g.Key.IsFinished}";
+                if (scheduleDict.TryGetValue(schedKey, out var sched))
+                {
+                    row.ProdTierMatched = inProdAlloc.Any(a =>
+                        !string.IsNullOrEmpty(sched.CompletionType)
+                        && MatchesScheduleType(sched.CompletionType, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel));
+                    row.WaitTierMatched = inWaitAlloc.Any(a =>
+                        !string.IsNullOrEmpty(sched.RollType)
+                        && MatchesScheduleType(sched.RollType, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel));
+                }
 
                 foreach (var item in g)
                 {
@@ -483,13 +528,21 @@ public class ColdRollPlanService : IColdRollPlanService
     {
         var allocations = await BuildAllocationsAsync(null);
 
-        // 加载排程设置（含单机单日量），键 = ProcessType|BilletSpec|RollingSpec|IsFinished
+        // 加载排程设置（含档位 + 兜底单机单日量），键 = ProcessType|BilletSpec|RollingSpec|IsFinished
         var scheduleDict = await _context.ColdRollSpecSchedules
             .AsNoTracking()
             .Select(s => new { s.ProcessType, s.BilletSpec, s.RollingSpec, s.IsFinished, s.CompletionType, s.RollType, s.DailyOutput })
             .ToDictionaryAsync(
                 s => $"{s.ProcessType}|{s.BilletSpec}|{s.RollingSpec}|{s.IsFinished}",
                 s => new { s.CompletionType, s.RollType, s.DailyOutput },
+                StringComparer.OrdinalIgnoreCase);
+
+        // 产能档案（参数表）优先：单机单日量的权威来源（排程保存反哺 + 手工调整，双向同步）
+        var capacityDict = await _context.ColdRollCapacities
+            .AsNoTracking()
+            .ToDictionaryAsync(
+                c => $"{c.ProcessType}|{c.BilletSpec}|{c.RollingSpec}|{c.IsFinished}",
+                c => c.DailyOutput,
                 StringComparer.OrdinalIgnoreCase);
 
         // 档位过滤 + 固定近6天（在轧0恒包含，待轧1~6，不含远日）——与排程汇总 GetScheduleSummaryAsync 一致
@@ -524,14 +577,19 @@ public class ColdRollPlanService : IColdRollPlanService
             decimal inProcess = flowTotal - finished;
 
             // 机台需求：Σ(规格流转量 ÷ 单机单日量) ÷ 6天，四舍五入；单机单日量为空/≤0 的规格贡献 0
+            // 单机单日量取值：产能档案（参数表）优先，缺失/无效回退排程小表
             decimal machineDays = 0m;
             foreach (var a in groupAlloc)
             {
-                if (scheduleDict.TryGetValue($"{a.ProcessType}|{a.BilletSpec}|{a.RollingSpec}|{a.IsFinished}", out var sched)
-                    && sched.DailyOutput.HasValue && sched.DailyOutput.Value > 0)
-                {
-                    machineDays += a.Weight / (sched.DailyOutput.Value * 6m);
-                }
+                var key = $"{a.ProcessType}|{a.BilletSpec}|{a.RollingSpec}|{a.IsFinished}";
+                decimal? dailyOutput = null;
+                if (capacityDict.TryGetValue(key, out var capOutput) && capOutput.HasValue && capOutput.Value > 0)
+                    dailyOutput = capOutput;
+                else if (scheduleDict.TryGetValue(key, out var sched) && sched.DailyOutput.HasValue && sched.DailyOutput.Value > 0)
+                    dailyOutput = sched.DailyOutput;
+
+                if (dailyOutput.HasValue)
+                    machineDays += a.Weight / (dailyOutput.Value * 6m);
             }
 
             result.Add(new ColdRollMachineEstimateDto
@@ -541,6 +599,279 @@ public class ColdRollPlanService : IColdRollPlanService
                 InProcessWeight = inProcess,
                 FinishedWeight = finished,
                 MachineCount = (int)Math.Round(machineDays, MidpointRounding.AwayFromZero),
+            });
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 获取冷轧排程建议（半自动）：机台类型组级 特急锁定 → 流转保底 → 产能平衡 三步决策。
+    /// 只读不写，矛盾（A/A'/B）标注交人；一键采用由前端走既有 save-all 通道回填小表。
+    /// </summary>
+    public async Task<List<ColdRollScheduleSuggestionDto>> GetScheduleSuggestionAsync()
+    {
+        // 缓存 60 秒：排程保存/产能档案保存/机台数配置保存·删除会主动失效（四处失效点）
+        return await _cache.GetOrCreateAsync(ScheduleSuggestionCacheKey, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+            return await BuildScheduleSuggestionCoreAsync();
+        }) ?? new List<ColdRollScheduleSuggestionDto>();
+    }
+
+    private async Task<List<ColdRollScheduleSuggestionDto>> BuildScheduleSuggestionCoreAsync()
+    {
+        var allocations = await BuildAllocationsAsync(null);
+
+        // 排程设置（含档位 + 单机单日量 + 机台/备注），键 = ProcessType|BilletSpec|RollingSpec|IsFinished
+        var scheduleDict = await _context.ColdRollSpecSchedules
+            .AsNoTracking()
+            .Select(s => new { s.ProcessType, s.BilletSpec, s.RollingSpec, s.IsFinished, s.CompletionType, s.RollType, s.DailyOutput, s.MachineNo, s.MergeDisplay, s.Remark })
+            .ToDictionaryAsync(
+                s => $"{s.ProcessType}|{s.BilletSpec}|{s.RollingSpec}|{s.IsFinished}",
+                s => new ScheduleRow
+                {
+                    CompletionType = s.CompletionType,
+                    RollType = s.RollType,
+                    DailyOutput = s.DailyOutput,
+                    MachineNo = s.MachineNo,
+                    MergeDisplay = s.MergeDisplay,
+                    Remark = s.Remark,
+                },
+                StringComparer.OrdinalIgnoreCase);
+
+        // 产能档案（参数表）优先：单机单日量的权威来源（排程保存反哺 + 手工调整，双向同步）
+        var capacityDict = await _context.ColdRollCapacities
+            .AsNoTracking()
+            .ToDictionaryAsync(
+                c => $"{c.ProcessType}|{c.BilletSpec}|{c.RollingSpec}|{c.IsFinished}",
+                c => c.DailyOutput,
+                StringComparer.OrdinalIgnoreCase);
+
+        // 机台数配置（按单冷轧类型）
+        var machineConfigDict = (await _context.ColdRollMachineConfigs.AsNoTracking().ToListAsync())
+            .ToDictionary(c => c.ProcessType, StringComparer.OrdinalIgnoreCase);
+
+        // 轧机类型归并（覆盖关系：60 可干 50、30 覆盖 20，机台需求按组聚合）
+        var machineTypeGroups = new[]
+        {
+            (Display: "冷轧5060", Keys: new[] { ProcessKeys.ColdRoll50, ProcessKeys.ColdRoll60 }),
+            (Display: "冷轧2030", Keys: new[] { ProcessKeys.ColdRoll20, ProcessKeys.ColdRoll30 }),
+            (Display: "冷轧三辊", Keys: new[] { ProcessKeys.ThreeRollColdRoll }),
+            (Display: "冷拔", Keys: new[] { ProcessKeys.ColdDraw }),
+        };
+
+        // 四维 key 合并：scheduleDict 现有行必保（save-all 按 incoming 删僵尸）+ allocations 新维度必提（尤其急+行）
+        var allKeys = scheduleDict.Keys
+            .Concat(allocations.Select(a => KeyOf(a)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // 2030 组最小机台数（流转保底矛盾 B 判定基准，5060/2030 两源组共用）
+        int minMachines2030 = machineTypeGroups.First(g => g.Display == "冷轧2030").Keys
+            .Sum(k => machineConfigDict.GetValueOrDefault(k)?.MinMachines ?? 0);
+
+        // 流转保底（方式 B → 方式 A）：2030 下次承接需求 = 5060 流入（档位命中延伸，flowFrom5060）+ 2030 本组本次未定流转（当前档位不命中）。
+        // flowDemand2030=总承接（2030 组需求基准）；flowFrom5060=仅 5060 流入（对倒判据，5060 供给只喂这部分）；同时返回各部分料重（kg）。
+        var (flowFrom5060, flowDemand2030, flowFrom5060Weight, flowDemand2030Weight) =
+            ComputeFlowDemand2030(allocations, scheduleDict, capacityDict, machineConfigDict);
+
+        var result = new List<ColdRollScheduleSuggestionDto>();
+        foreach (var group in machineTypeGroups)
+        {
+            var groupAlloc = allocations.Where(a => group.Keys.Contains(a.ProcessType)).ToList();
+            var groupKeys = allKeys
+                .Where(k => group.Keys.Contains(ProcessTypeOf(k)))
+                .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            // 组内机型配置之和（无配置机型=0）
+            int minMachines = group.Keys.Sum(k => machineConfigDict.GetValueOrDefault(k)?.MinMachines ?? 0);
+            int maxMachines = group.Keys.Sum(k => machineConfigDict.GetValueOrDefault(k)?.MaxMachines ?? 0);
+
+            // 组近6天可流转量（全部批次，不论是否排程）/ 在制量（展示）
+            // 「本次计划流转量」在行级建议构建后按建议档位求和（= 明细行计划量之和，见 result.Add 处 PlannedFlowWeight）
+            var groupNear = groupAlloc.Where(a => a.PositionDiff <= 6).ToList();
+            decimal flowTotalWeight = groupNear.Sum(a => a.Weight);
+            decimal inProcessWeight = groupNear.Where(a => a.PositionDiff == 0).Sum(a => a.Weight);
+
+            // 当前档位（组内有排程行的最宽档；无则 "-"）与现状机台数
+            string currentTier = ComputeCurrentTier(groupKeys, scheduleDict);
+            int currentCount = CountAtCurrentTiers(groupAlloc, scheduleDict, capacityDict);
+
+            // 流转保底（优先3）：2030 组需求方 / 5060 组供给方；组目标机台数
+            bool isDemander = group.Keys.Contains(ProcessKeys.ColdRoll20) || group.Keys.Contains(ProcessKeys.ColdRoll30);
+            bool isSupplier = group.Keys.Contains(ProcessKeys.ColdRoll50) || group.Keys.Contains(ProcessKeys.ColdRoll60);
+            FlowStateDto? flowState = null;
+            if (isDemander)
+            {
+                flowState = new FlowStateDto
+                {
+                    Role = "Demander",
+                    SupplyMachines = flowDemand2030,
+                    From5060Machines = flowFrom5060,
+                    TotalWeight = flowDemand2030Weight,
+                    From5060Weight = flowFrom5060Weight,
+                    NeedMachines = minMachines2030,
+                    Balanced = flowDemand2030 >= minMachines2030,
+                    Text = $"2030 下次承接流转 {flowDemand2030} 台 / {flowDemand2030Weight.ToString("G29")}kg（5060 流入 {flowFrom5060} 台 / {flowFrom5060Weight.ToString("G29")}kg + 本次未定流转 {flowDemand2030 - flowFrom5060} 台 / {(flowDemand2030Weight - flowFrom5060Weight).ToString("G29")}kg），2030 最小需 {minMachines2030} 台，流转{(flowDemand2030 >= minMachines2030 ? "平衡" : "不足")}",
+                };
+            }
+            else if (isSupplier)
+            {
+                flowState = new FlowStateDto
+                {
+                    Role = "Supplier",
+                    SupplyMachines = flowDemand2030,
+                    From5060Machines = flowFrom5060,
+                    TotalWeight = flowDemand2030Weight,
+                    From5060Weight = flowFrom5060Weight,
+                    NeedMachines = minMachines2030,
+                    Balanced = flowDemand2030 >= minMachines2030,
+                    Text = $"5060 本次流转可供给 2030 流入 {flowFrom5060} 台 / {flowFrom5060Weight.ToString("G29")}kg（2030 下次总承接 {flowDemand2030} 台 / {flowDemand2030Weight.ToString("G29")}kg 含本次未定流转），2030 最小需 {minMachines2030} 台，流转{(flowDemand2030 >= minMachines2030 ? "平衡" : "不足")}",
+                };
+            }
+            int minTarget = isDemander ? Math.Max(minMachines, flowDemand2030) : minMachines;
+
+            // ===== v2 档位决策：默认「急+/急/急-」起步，双向调整（产能平衡优先2）=====
+            string suggestedTier;
+            string status = "OK";
+            var conflicts = new List<string>();
+            string? inProdTier = null;      // 5060 ②流转平衡：在制行（IsFinished=false）档位
+            string? finishedTier = null;    // 5060 ②流转平衡：成品行（IsFinished=true）档位
+
+            if (groupKeys.Count == 0)
+            {
+                suggestedTier = "-"; // 无排程行无批次，无可建议
+            }
+            else if (!isDemander && !isSupplier)
+            {
+                // 三辊 / 冷拔：固定「急+/急/急-」，后续完全由人工判定
+                suggestedTier = "Partial2";
+            }
+            else if (maxMachines <= 0)
+            {
+                // 2030/5060 无机台数配置：无区间约束，保持默认原始档（特急锁定在行级仍生效）
+                suggestedTier = "Partial2";
+            }
+            else
+            {
+                var chosen = ChooseTierBidirectional(group.Display, groupAlloc, minTarget, maxMachines, scheduleDict, capacityDict);
+                suggestedTier = chosen.tier;
+                status = chosen.status;
+                conflicts.AddRange(chosen.conflicts);
+            }
+
+            // ===== 5060 ②流转平衡：两阶段——先只放宽在制喂饱 2030，再压成品防总负荷超上限 =====
+            // 判据统一 2030 基准：在制品堆按「2030 产能档案 daily」折算的供给机台 < flowFrom5060 才触发阶段1
+            // （flowFrom5060 = 仅 5060 流入需求，同样按 2030 daily 折算，两侧同基准；2030 本组本次未定流转由
+            //   2030 组自身承接，不由 5060 供给决定，故不进判据；只有真喂不饱 2030 时才动成品，
+            //   普通成品不会被 5060 daily > 2030 daily 的差异无脑压到 CrOnly）
+            if (isSupplier && suggestedTier != "-" && flowFrom5060 > 0)
+            {
+                inProdTier = suggestedTier;
+                finishedTier = suggestedTier;
+                var inProdAlloc = groupAlloc.Where(a => !a.IsFinished).ToList();
+                var finishedAlloc = groupAlloc.Where(a => a.IsFinished).ToList();
+                if (inProdAlloc.Count > 0 && finishedAlloc.Count > 0)
+                {
+                    // 阶段1：先只放宽 5060 在制档位，直到在制供给（2030 产能折算）≥ flowFrom5060 或放宽到 All；成品不动
+                    int guard1 = 0;
+                    while (CountAtTierFlow2030(inProdAlloc, inProdTier, capacityDict, machineConfigDict) < flowFrom5060
+                        && inProdTier != "All" && guard1++ < 5)
+                    {
+                        var nextIn = TierStepWide(inProdTier);
+                        if (nextIn == null) break;
+                        inProdTier = nextIn;
+                    }
+
+                    // 阶段2：放宽后若 5060 组总机台（在制+成品，5060 本组产能档案 5060 daily 口径）拉出组上限 → 压缩成品档位让路
+                    int guard2 = 0;
+                    while (CountAtTier(inProdAlloc, inProdTier, scheduleDict, capacityDict)
+                            + CountAtTier(finishedAlloc, finishedTier, scheduleDict, capacityDict) > maxMachines
+                        && finishedTier != "CrOnly" && guard2++ < 5)
+                    {
+                        var nextFin = TierStepNarrow(finishedTier);
+                        if (nextFin == null) break;
+                        finishedTier = nextFin;
+                    }
+                }
+            }
+
+            // 流转保底矛盾 B（可叠加 A/A'）
+            bool flowUnbalanced = isDemander && flowDemand2030 > 0 && flowDemand2030 < minMachines2030;
+            if (flowUnbalanced)
+            {
+                status = status == "OK" ? "B" : status + ",B";
+                conflicts.Add($"2030 下次承接流转 {flowDemand2030} 台（5060 流入 {flowFrom5060} + 本次未定流转 {flowDemand2030 - flowFrom5060}）< 2030 最小机台数 {minMachines2030} 台，请人工平衡 5060/2030 流转");
+            }
+
+            // 行级建议（按决策对象回填：三辊/冷拔→Partial2；2030→组档；5060→在制/成品档；矛盾→null 仅特急锁定）
+            var items = groupKeys
+                .Select(k =>
+                {
+                    string? itemTier = null;
+                    if (suggestedTier != "-")
+                    {
+                        if (isSupplier && inProdTier != null && finishedTier != null)
+                        {
+                            bool isFin = string.Equals(k.Split('|')[3], "True", StringComparison.OrdinalIgnoreCase);
+                            itemTier = isFin ? finishedTier : inProdTier;
+                        }
+                        else
+                        {
+                            itemTier = suggestedTier;
+                        }
+                    }
+                    return BuildSuggestionItem(k, scheduleDict, allocations, itemTier);
+                })
+                .ToList();
+
+            bool tierChanged = suggestedTier != "-"
+                && !string.Equals(suggestedTier, currentTier, StringComparison.OrdinalIgnoreCase);
+
+            // 档位显示名：CurrentTier=最宽档名；SuggestedTier=建议档名（始终显示档位名，不显示"保持"——与当前一致时档位名即建议值，避免语义不清）
+            string currentTierDisplay = currentTier == "-" ? "-" : TierDisplay(currentTier);
+            string suggestedTierDisplay = suggestedTier == "-" ? "-" : TierDisplay(suggestedTier);
+
+            // 组机台数：5060 拆档后 = 在制档 + 成品档 机台之和；其余 = 组档下机台
+            int machineCount = currentCount;
+            if (suggestedTier != "-")
+            {
+                if (isSupplier && inProdTier != null && finishedTier != null)
+                {
+                    var inProdAlloc = groupAlloc.Where(a => !a.IsFinished).ToList();
+                    var finishedAlloc = groupAlloc.Where(a => a.IsFinished).ToList();
+                    machineCount = CountAtTier(inProdAlloc, inProdTier, scheduleDict, capacityDict)
+                                 + CountAtTier(finishedAlloc, finishedTier, scheduleDict, capacityDict);
+                }
+                else
+                {
+                    machineCount = CountAtTier(groupAlloc, suggestedTier, scheduleDict, capacityDict);
+                }
+            }
+
+            result.Add(new ColdRollScheduleSuggestionDto
+            {
+                MachineType = group.Display,
+                MemberProcessTypes = group.Keys,
+                MinMachines = minMachines,
+                MaxMachines = maxMachines,
+                MachineCount = machineCount,
+                CurrentTier = currentTierDisplay,
+                SuggestedTier = suggestedTierDisplay,
+                TierChanged = tierChanged,
+                HasUrgentPlus = groupAlloc.Any(a => a.IsUrgent && a.IsNormal && a.AttentionMatchesCurrentCR),
+                Status = status,
+                Conflicts = conflicts,
+                FlowState = flowState,
+                FlowTotalWeight = flowTotalWeight,
+                // 本次计划流转量 = 明细行计划量之和（按建议档位命中，与行级「计划在轧量+计划待轧量」口径一致）
+                PlannedFlowWeight = items.Sum(i => i.PlannedInProdWeight + i.PlannedInWaitWeight),
+                InProcessWeight = inProcessWeight,
+                InProdTier = inProdTier,
+                FinishedTier = finishedTier,
+                Items = items,
             });
         }
 
@@ -608,6 +939,468 @@ public class ColdRollPlanService : IColdRollPlanService
             row.WeightWaitNearOtherUrgent += item.Weight;
     }
 
+    // ========== 排程建议私有方法 ==========
+
+    /// <summary>档位放宽阶梯（窄 → 宽，机台需求单调不减）</summary>
+    private static readonly string[] TierLadder = { "CrOnly", "Urgent", "Partial2", "Partial3", "All" };
+
+    /// <summary>四维 key（ProcessType|BilletSpec|RollingSpec|IsFinished，OrdinalIgnoreCase）</summary>
+    private static string KeyOf(BatchAllocation a)
+        => $"{a.ProcessType}|{a.BilletSpec}|{a.RollingSpec}|{a.IsFinished}";
+
+    private static string KeyOf(string processType, string billetSpec, string rollingSpec, bool isFinished)
+        => $"{processType}|{billetSpec}|{rollingSpec}|{isFinished}";
+
+    private static string ProcessTypeOf(string key)
+        => key.Split('|')[0];
+
+    /// <summary>存储档位规范化：Partial1→Urgent、Subsequent→All</summary>
+    private static string NormalizeTier(string? tier) => tier switch
+    {
+        "Partial1" => "Urgent",
+        "Subsequent" => "All",
+        _ => tier ?? "None",
+    };
+
+    /// <summary>档位宽度（越宽值越大；None/-= -1 无档）</summary>
+    private static int TierWidth(string? tier) => NormalizeTier(tier) switch
+    {
+        "CrOnly" => 0,
+        "Urgent" => 1,
+        "Partial2" => 2,
+        "Partial3" => 3,
+        "All" => 4,
+        _ => -1,
+    };
+
+    /// <summary>档位显示名（存储值→中文）</summary>
+    private static string TierDisplay(string? tier) => NormalizeTier(tier) switch
+    {
+        "CrOnly" => "急+",
+        "Urgent" => "急+/急",
+        "Partial2" => "急+/急/急-",
+        "Partial3" => "急+/急/急-/顺",
+        "All" => "全量",
+        _ => "-",
+    };
+
+    /// <summary>档位往宽走一步（CrOnly→...→All；已是 All 返回 null）</summary>
+    private static string? TierStepWide(string? tier)
+    {
+        int idx = Array.IndexOf(TierLadder, NormalizeTier(tier));
+        return idx >= 0 && idx < TierLadder.Length - 1 ? TierLadder[idx + 1] : null;
+    }
+
+    /// <summary>档位往窄走一步（All→...→CrOnly；已是 CrOnly 返回 null）</summary>
+    private static string? TierStepNarrow(string? tier)
+    {
+        int idx = Array.IndexOf(TierLadder, NormalizeTier(tier));
+        return idx > 0 ? TierLadder[idx - 1] : null;
+    }
+
+    /// <summary>
+    /// v2 产能平衡：默认「急+/急/急-」起步双向调整。
+    /// 需求>上限 → 向窄收（急+/急 → 急+）；需求<下限 → 向宽放（加顺 → 全量）；区间内保持默认档。
+    /// 收窄/放宽均无达标档 → 矛盾标注交人（A 全量不足 / A' 急+超上限 / 跨区间）。
+    /// </summary>
+    private static (string tier, string status, List<string> conflicts) ChooseTierBidirectional(
+        string groupDisplay,
+        List<BatchAllocation> groupAlloc,
+        int minTarget,
+        int maxMachines,
+        IReadOnlyDictionary<string, ScheduleRow> scheduleDict,
+        IReadOnlyDictionary<string, decimal?> capacityDict)
+    {
+        var conflicts = new List<string>();
+        int cPartial2 = CountAtTier(groupAlloc, "Partial2", scheduleDict, capacityDict);
+
+        if (cPartial2 > maxMachines)
+        {
+            // 过度 → 向窄收：Urgent → CrOnly
+            foreach (var t in new[] { "Urgent", "CrOnly" })
+            {
+                int c = CountAtTier(groupAlloc, t, scheduleDict, capacityDict);
+                if (c <= maxMachines)
+                {
+                    if (c >= minTarget) return (t, "OK", conflicts);
+                    conflicts.Add($"冷轧{groupDisplay}：产能平衡无法在最大 {maxMachines} 台内兼顾最小需求 {minTarget} 台（收窄到「{TierDisplay(t)}」后仅 {c} 台），请人工调整产能档案或机台配置");
+                    return ("-", "A", conflicts);
+                }
+            }
+            int crOnlyCount = CountAtTier(groupAlloc, "CrOnly", scheduleDict, capacityDict);
+            conflicts.Add($"冷轧{groupDisplay}：急+锁定已超最大机台数（{crOnlyCount} 台 > 最大 {maxMachines} 台），请人工决策加急/转外协");
+            return ("-", "A'", conflicts);
+        }
+
+        if (cPartial2 < minTarget)
+        {
+            // 过少 → 向宽放：Partial3 → All
+            foreach (var t in new[] { "Partial3", "All" })
+            {
+                int c = CountAtTier(groupAlloc, t, scheduleDict, capacityDict);
+                if (c >= minTarget)
+                {
+                    if (c <= maxMachines) return (t, "OK", conflicts);
+                    conflicts.Add($"冷轧{groupDisplay}：产能平衡无法在最大 {maxMachines} 台内满足最小需求 {minTarget} 台（放宽到「{TierDisplay(t)}」后 {c} 台超上限），请人工调整产能档案或机台配置");
+                    return ("-", "A", conflicts);
+                }
+            }
+            int allCount = CountAtTier(groupAlloc, "All", scheduleDict, capacityDict);
+            conflicts.Add($"冷轧{groupDisplay}：全量排程仍不足机台需求（需求 {minTarget} 台，全量仅 {allCount} 台），请人工调整产能档案或机台配置");
+            return ("-", "A", conflicts);
+        }
+
+        // 区间内 → 保持默认原始档
+        return ("Partial2", "OK", conflicts);
+    }
+
+    /// <summary>
+    /// 当前档位：组内有排程行的最宽档（在轧 CompletionType / 待轧 RollType 各自 Normalize 后取宽）；无则 "-"
+    /// </summary>
+    private static string ComputeCurrentTier(IEnumerable<string> groupKeys, IReadOnlyDictionary<string, ScheduleRow> scheduleDict)
+    {
+        string current = "-";
+        foreach (var key in groupKeys)
+        {
+            if (!scheduleDict.TryGetValue(key, out var sched)) continue;
+            var comp = NormalizeTier(sched.CompletionType);
+            var roll = NormalizeTier(sched.RollType);
+            if (TierWidth(comp) > TierWidth(current)) current = comp;
+            if (TierWidth(roll) > TierWidth(current)) current = roll;
+        }
+        return current;
+    }
+
+    /// <summary>现状机台数：每行按自身现有档位（在轧 CompletionType/待轧 RollType）分侧匹配</summary>
+    private static int CountAtCurrentTiers(
+        List<BatchAllocation> groupAlloc,
+        IReadOnlyDictionary<string, ScheduleRow> scheduleDict,
+        IReadOnlyDictionary<string, decimal?> capacityDict)
+    {
+        var matched = groupAlloc.Where(a =>
+        {
+            if (a.PositionDiff > 6) return false;
+            if (!scheduleDict.TryGetValue(KeyOf(a), out var sched)) return false;
+            var type = a.PositionDiff == 0 ? sched.CompletionType : sched.RollType;
+            return MatchesScheduleType(type, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel);
+        }).ToList();
+        return ComputeMachineCount(matched, scheduleDict, capacityDict);
+    }
+
+    /// <summary>统一档位下机台数：组内 PositionDiff≤6 且已排程按该档位匹配（在轧/待轧同档位，与 GetMachineEstimateCoreAsync 同公式）</summary>
+    private static int CountAtTier(
+        List<BatchAllocation> groupAlloc,
+        string tier,
+        IReadOnlyDictionary<string, ScheduleRow> scheduleDict,
+        IReadOnlyDictionary<string, decimal?> capacityDict)
+    {
+        var matched = groupAlloc.Where(a =>
+            a.PositionDiff <= 6
+            && scheduleDict.ContainsKey(KeyOf(a))
+            && MatchesScheduleType(tier, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel)).ToList();
+        return ComputeMachineCount(matched, scheduleDict, capacityDict);
+    }
+
+    /// <summary>机台需求数：Σ(规格流转量 ÷ 单机单日量) ÷ 6天，四舍五入（AwayFromZero）；单机单日量为空/≤0 贡献 0</summary>
+    private static int ComputeMachineCount(
+        List<BatchAllocation> matched,
+        IReadOnlyDictionary<string, ScheduleRow> scheduleDict,
+        IReadOnlyDictionary<string, decimal?> capacityDict)
+    {
+        decimal machineDays = 0m;
+        foreach (var a in matched)
+        {
+            var key = KeyOf(a);
+            decimal? dailyOutput = null;
+            if (capacityDict.TryGetValue(key, out var capOutput) && capOutput.HasValue && capOutput.Value > 0)
+                dailyOutput = capOutput;
+            else if (scheduleDict.TryGetValue(key, out var sched) && sched.DailyOutput.HasValue && sched.DailyOutput.Value > 0)
+                dailyOutput = sched.DailyOutput;
+            if (dailyOutput.HasValue)
+                machineDays += a.Weight / (dailyOutput.Value * 6m);
+        }
+        return (int)Math.Round(machineDays, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
+    /// 流转保底（方式 B → 方式 A）：2030 组下次计划（7-12天）的机台承接需求，两部分：
+    /// ① 5060 在制/待轧（PositionDiff≤6，档位命中=有流转要求）向下游延伸 2030 规格折算的流入机台 FlowFrom5060；
+    /// ② 2030 本组在制/待轧（PositionDiff≤6）本次计划未定流转的料（当前档位不命中，如急-/顺 未被本次档位覆盖）留待下次承接的机台。
+    /// 两者相加为 FlowTotal（2030 下次总承接）；产能档案有单机单日量用方式 B，否则回退机台配置 EstimatedDailyOutput（方式 A），皆无则贡献 0。
+    /// 同时返回各组成部分的料重（kg，与机台数同批次口径）。
+    /// </summary>
+    private static (int FlowFrom5060, int FlowTotal, decimal From5060Weight, decimal TotalWeight) ComputeFlowDemand2030(
+        List<BatchAllocation> allocations,
+        IReadOnlyDictionary<string, ScheduleRow> scheduleDict,
+        IReadOnlyDictionary<string, decimal?> capacityDict,
+        IReadOnlyDictionary<string, ColdRollMachineConfig> machineConfigDict)
+    {
+        decimal from5060 = 0m;
+        decimal self = 0m;
+        decimal from5060Weight = 0m;
+        decimal selfWeight = 0m;
+
+        // ===== 部分二：5060 本次安排流转（档位命中）→ 延伸 2030 折算流入机台 =====
+        foreach (var a in allocations)
+        {
+            if (a.PositionDiff > 6) continue;
+
+            // 只算有流转要求（排程档位命中）的料：本批 5060 排程行档位须匹配（在轧 CompletionType/待轧 RollType）
+            if (!scheduleDict.TryGetValue(KeyOf(a), out var sched)) continue;
+            var schedType = a.PositionDiff == 0 ? sched.CompletionType : sched.RollType;
+            if (!MatchesScheduleType(schedType, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel)) continue;
+
+            var sourceKey = ProcessKeys.ToKey(a.ProcessType) ?? a.ProcessType;
+            if (sourceKey != ProcessKeys.ColdRoll50 && sourceKey != ProcessKeys.ColdRoll60) continue;
+
+            var pgs = a.ProcessGroups.OrderBy(pg => pg.SequenceNumber).ToList();
+            if (pgs.Count == 0) continue;
+            int idx = -1;
+            for (int i = 0; i < pgs.Count; i++)
+            {
+                var k = ProcessKeys.ToKey(pgs[i].ProcessName) ?? pgs[i].ProcessName;
+                if (k == sourceKey) { idx = i; break; }
+            }
+            if (idx < 0) continue;
+
+            ProcessGroupTrace? next = null;
+            for (int i = idx + 1; i < pgs.Count; i++)
+            {
+                var k = ProcessKeys.ToKey(pgs[i].ProcessName) ?? pgs[i].ProcessName;
+                if (ProcessKeys.IsColdRollOrColdDraw(k)) { next = pgs[i]; break; }
+            }
+            if (next == null) continue;
+
+            var nextKey = ProcessKeys.ToKey(next.ProcessName) ?? next.ProcessName;
+            if (nextKey != ProcessKeys.ColdRoll30 && nextKey != ProcessKeys.ColdRoll20) continue;
+
+            // 2030 规格维度：ProcessType=下一冷轧组、BilletSpec=5060 轧坯(a.RollingSpec)、RollingSpec=next 制造规格、IsFinished=next 是否最后工序组
+            var key = KeyOf(next.ProcessName, a.RollingSpec, next.ManufacturingSpec ?? "", next.IsFinished);
+
+            decimal? daily = null;
+            if (capacityDict.TryGetValue(key, out var capOutput) && capOutput.HasValue && capOutput.Value > 0)
+                daily = capOutput;
+            else if (machineConfigDict.TryGetValue(nextKey, out var cfg)
+                && cfg.EstimatedDailyOutput.HasValue && cfg.EstimatedDailyOutput.Value > 0)
+                daily = cfg.EstimatedDailyOutput;
+
+            if (daily.HasValue)
+            {
+                from5060 += a.Weight / (daily.Value * 6m);
+                from5060Weight += a.Weight;
+            }
+        }
+
+        // ===== 部分一：2030 本组本次未定流转（当前档位不命中）→ 留待下次承接 =====
+        foreach (var a in allocations)
+        {
+            if (a.PositionDiff > 6) continue;
+            // 仅「2030 本组批次」（批次当前所在工序组为 20/30）：5060 批次的下游 30 组已由部分二（5060 流入）计入，不得重复
+            if (!a.IsCurrentGroup) continue;
+            var sourceKey = ProcessKeys.ToKey(a.ProcessType) ?? a.ProcessType;
+            if (sourceKey != ProcessKeys.ColdRoll20 && sourceKey != ProcessKeys.ColdRoll30) continue;
+
+            // 当前档位命中（本次已安排流转）→ 不计；无排程行或档位不命中（急-/顺 等未被覆盖）→ 本次未定流转，计入下次承接
+            bool matched = false;
+            if (scheduleDict.TryGetValue(KeyOf(a), out var sched))
+            {
+                var schedType = a.PositionDiff == 0 ? sched.CompletionType : sched.RollType;
+                matched = MatchesScheduleType(schedType, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel);
+            }
+            if (matched) continue;
+
+            decimal? daily = null;
+            if (capacityDict.TryGetValue(KeyOf(a), out var capOutput) && capOutput.HasValue && capOutput.Value > 0)
+                daily = capOutput;
+            else if (machineConfigDict.TryGetValue(sourceKey, out var cfg)
+                && cfg.EstimatedDailyOutput.HasValue && cfg.EstimatedDailyOutput.Value > 0)
+                daily = cfg.EstimatedDailyOutput;
+
+            if (daily.HasValue)
+            {
+                self += a.Weight / (daily.Value * 6m);
+                selfWeight += a.Weight;
+            }
+        }
+
+        int flowFrom5060 = (int)Math.Round(from5060, MidpointRounding.AwayFromZero);
+        int flowTotal = (int)Math.Round(from5060 + self, MidpointRounding.AwayFromZero);
+        return (flowFrom5060, flowTotal, from5060Weight, from5060Weight + selfWeight);
+    }
+
+    /// <summary>
+    /// 5060 ②在制品供给机台（统一 2030 基准）：在制品堆（IsFinished=false，调用处已过滤）按档位匹配后，
+    /// 经 ProcessGroups 追踪下一 2030 组，用 2030 规格产能档案 daily（方式 B → 方式 A）折算供给机台——
+    /// 与 ComputeFlowDemand2030 部分二（5060 流入 flowFrom5060）同基准、同窗口(PositionDiff≤6)；
+    /// 对倒判据用 flowFrom5060：供给随档位放宽逐档计入——放宽至 All 时供给 = flowFrom5060 → 对倒自然停止；
+    /// 无 2030 延伸的批次贡献 0。
+    /// </summary>
+    private static int CountAtTierFlow2030(
+        List<BatchAllocation> inProdAlloc,
+        string tier,
+        IReadOnlyDictionary<string, decimal?> capacityDict,
+        IReadOnlyDictionary<string, ColdRollMachineConfig> machineConfigDict)
+    {
+        decimal machineDays = 0m;
+        foreach (var a in inProdAlloc)
+        {
+            if (a.PositionDiff > 6) continue;
+            if (!MatchesScheduleType(tier, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel)) continue;
+
+            var sourceKey = ProcessKeys.ToKey(a.ProcessType) ?? a.ProcessType;
+            if (sourceKey != ProcessKeys.ColdRoll50 && sourceKey != ProcessKeys.ColdRoll60) continue;
+
+            var pgs = a.ProcessGroups.OrderBy(pg => pg.SequenceNumber).ToList();
+            if (pgs.Count == 0) continue;
+            int idx = -1;
+            for (int i = 0; i < pgs.Count; i++)
+            {
+                var k = ProcessKeys.ToKey(pgs[i].ProcessName) ?? pgs[i].ProcessName;
+                if (k == sourceKey) { idx = i; break; }
+            }
+            if (idx < 0) continue;
+
+            ProcessGroupTrace? next = null;
+            for (int i = idx + 1; i < pgs.Count; i++)
+            {
+                var k = ProcessKeys.ToKey(pgs[i].ProcessName) ?? pgs[i].ProcessName;
+                if (ProcessKeys.IsColdRollOrColdDraw(k)) { next = pgs[i]; break; }
+            }
+            if (next == null) continue;
+
+            var nextKey = ProcessKeys.ToKey(next.ProcessName) ?? next.ProcessName;
+            if (nextKey != ProcessKeys.ColdRoll30 && nextKey != ProcessKeys.ColdRoll20) continue;
+
+            var key = KeyOf(next.ProcessName, a.RollingSpec, next.ManufacturingSpec ?? "", next.IsFinished);
+
+            decimal? daily = null;
+            if (capacityDict.TryGetValue(key, out var capOutput) && capOutput.HasValue && capOutput.Value > 0)
+                daily = capOutput;
+            else if (machineConfigDict.TryGetValue(nextKey, out var cfg)
+                && cfg.EstimatedDailyOutput.HasValue && cfg.EstimatedDailyOutput.Value > 0)
+                daily = cfg.EstimatedDailyOutput;
+
+            if (daily.HasValue)
+                machineDays += a.Weight / (daily.Value * 6m);
+        }
+        return (int)Math.Round(machineDays, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
+    /// 四维行级建议（v2）：itemTier = 决策对象档位（三辊/冷拔=Partial2；2030=组档；5060=在制/成品档；null=矛盾仅特急锁定）。
+    /// 自动分配不考虑人工已设档位；特急锁定（有急+批次 → 恒 ≥ CrOnly，天然满足）标记"锁定"；有批次无排程行 → 新增行。
+    /// </summary>
+    private static ColdRollScheduleSuggestionItemDto BuildSuggestionItem(
+        string key,
+        IReadOnlyDictionary<string, ScheduleRow> scheduleDict,
+        List<BatchAllocation> allocations,
+        string? itemTier)
+    {
+        var parts = key.Split('|');
+        var processType = parts[0];
+        var billetSpec = parts[1];
+        var rollingSpec = parts[2];
+        var isFinished = string.Equals(parts[3], "True", StringComparison.OrdinalIgnoreCase);
+
+        var existing = scheduleDict.GetValueOrDefault(key);
+
+        // 行内批次（四维匹配，OrdinalIgnoreCase）
+        var rowAlloc = allocations.Where(a =>
+            string.Equals(a.ProcessType, processType, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(a.BilletSpec, billetSpec, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(a.RollingSpec, rollingSpec, StringComparison.OrdinalIgnoreCase)
+            && a.IsFinished == isFinished).ToList();
+        var inProd = rowAlloc.Where(a => a.PositionDiff == 0).ToList();
+        var inWait = rowAlloc.Where(a => a.PositionDiff >= 1 && a.PositionDiff <= 6).ToList();
+        bool hasUrgentPlus = rowAlloc.Any(a => a.IsUrgent && a.IsNormal && a.AttentionMatchesCurrentCR);
+
+        var item = new ColdRollScheduleSuggestionItemDto
+        {
+            ProcessType = processType,
+            BilletSpec = billetSpec,
+            RollingSpec = rollingSpec,
+            IsFinished = isFinished,
+            ShortDisplay = GetShortDisplay(billetSpec, rollingSpec),
+            MergeDisplay = existing?.MergeDisplay ?? $"{billetSpec}×{rollingSpec}-{(isFinished ? "成品" : "在制品")}",
+            HasUrgentPlus = hasUrgentPlus,
+            InProdExists = inProd.Count > 0,
+            InWaitExists = inWait.Count > 0,
+            FlowInProdWeight = inProd.Sum(a => a.Weight),
+            FlowInWaitWeight = inWait.Sum(a => a.Weight),
+            DailyOutput = existing?.DailyOutput,
+            MachineNo = existing?.MachineNo,
+            Remark = existing?.Remark,
+        };
+
+        // v2 档位建议：itemTier = 决策对象档位（三辊/冷拔=Partial2；2030=组档；5060=在制/成品档；null=矛盾仅特急锁定）
+        string suggestedCompletion;
+        string suggestedRoll;
+        string currentCompletion = existing?.CompletionType ?? "None";
+        string currentRoll = existing?.RollType ?? "None";
+        if (itemTier == null)
+        {
+            // 无组建议（矛盾/无批次维度）：仅特急锁定硬约束，其余保持现状
+            if (hasUrgentPlus)
+            {
+                suggestedCompletion = NormalizeTier(currentCompletion) == "None" ? "CrOnly" : currentCompletion;
+                suggestedRoll = NormalizeTier(currentRoll) == "None" ? "CrOnly" : currentRoll;
+                item.RowStatus = "锁定";
+            }
+            else
+            {
+                suggestedCompletion = currentCompletion;
+                suggestedRoll = currentRoll;
+            }
+        }
+        else
+        {
+            // 决策对象档位直接作为建议（自动分配不考虑人工已设档位）；急+行天然满足 ≥ CrOnly，标记锁定
+            suggestedCompletion = itemTier;
+            suggestedRoll = itemTier;
+            if (hasUrgentPlus) item.RowStatus = "锁定";
+        }
+
+        item.SuggestedCompletionType = suggestedCompletion;
+        item.SuggestedRollType = suggestedRoll;
+
+        // 新增行标注：无排程行但有批次 → 新增（特急锁定行保留「锁定」）
+        if (existing == null && item.RowStatus != "锁定") item.RowStatus = "新增";
+
+        // 计划在轧/待轧量 = 该侧批次中命中「建议档位」的重量（本次计划流转分侧展开，与建议引擎「计划流转量」同口径）
+        item.PlannedInProdWeight = inProd
+            .Where(a => MatchesScheduleType(suggestedCompletion, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel))
+            .Sum(a => a.Weight);
+        item.PlannedInWaitWeight = inWait
+            .Where(a => MatchesScheduleType(suggestedRoll, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel))
+            .Sum(a => a.Weight);
+
+        // 实际流转档（一键采用写入排程设置的最终值）：锁定行强制两侧按建议填入（均非空）；
+        // 其余按「对应侧计划量>0 才设档」——计划量=0 侧留空（该规格不在本次流转计划，不写入档位）
+        if (item.RowStatus == "锁定")
+        {
+            item.ActualCompletionTier = suggestedCompletion;
+            item.ActualRollTier = suggestedRoll;
+        }
+        else
+        {
+            item.ActualCompletionTier = item.PlannedInProdWeight > 0 ? suggestedCompletion : "";
+            item.ActualRollTier = item.PlannedInWaitWeight > 0 ? suggestedRoll : "";
+        }
+
+        return item;
+    }
+
+    /// <summary>排程设置行快照（建议引擎用）</summary>
+    private class ScheduleRow
+    {
+        public string? CompletionType { get; set; }
+        public string? RollType { get; set; }
+        public decimal? DailyOutput { get; set; }
+        public string? MachineNo { get; set; }
+        public string? MergeDisplay { get; set; }
+        public string? Remark { get; set; }
+    }
+
     /// <summary>
     /// 批次分配中间结构（分组前）
     /// </summary>
@@ -624,8 +1417,23 @@ public class ColdRollPlanService : IColdRollPlanService
         public bool AttentionMatchesCurrentCR { get; set; } // 关注工序==当前冷轧行 ProcessType
         public string ShortDisplay { get; set; } = ""; // 外径跨度
         public int PositionDiff { get; set; }
+        /// <summary>该分配对应的工序组是否为批次当前所在工序组（区分「本组批次」与下游延伸组，flowDemand 部分一 2030 本组判定用）</summary>
+        public bool IsCurrentGroup { get; set; }
         public decimal Weight { get; set; }
         /// <summary>在产设备的设备名（仅 PositionDiff==0 时有值）</summary>
         public string? MachineNo { get; set; }
+        /// <summary>批次全工序组追踪（排程建议方式B流转折算用，仅建议引擎读取）</summary>
+        public List<ProcessGroupTrace> ProcessGroups { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 工序组追踪快照（仅排程建议方式B流转折算用：5060 在制批次向下游延伸 2030 规格）
+    /// </summary>
+    private class ProcessGroupTrace
+    {
+        public string ProcessName { get; set; } = "";
+        public string? ManufacturingSpec { get; set; }
+        public int SequenceNumber { get; set; }
+        public bool IsFinished { get; set; }
     }
 }

@@ -267,6 +267,8 @@ builder.Services.AddScoped<IWorkOrderScheduleService, WorkOrderScheduleService>(
 builder.Services.AddScoped<IBatchPlanService, BatchPlanService>();
 builder.Services.AddScoped<IColdRollPlanService, ColdRollPlanService>();
 builder.Services.AddScoped<IColdRollSpecScheduleService, ColdRollSpecScheduleService>();
+builder.Services.AddScoped<IColdRollCapacityService, ColdRollCapacityService>();
+builder.Services.AddScoped<IColdRollMachineConfigService, ColdRollMachineConfigService>();
 builder.Services.AddScoped<IBatchPlanScheduleService, BatchPlanScheduleService>();
 builder.Services.AddScoped<IBatchPlanTargetService, BatchPlanTargetService>();
 builder.Services.AddScoped<IFinalInspectionPlanService, FinalInspectionPlanService>();

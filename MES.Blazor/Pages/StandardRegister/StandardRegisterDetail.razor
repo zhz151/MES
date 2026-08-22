@@ -228,12 +228,12 @@
                         <MudTd>
                             @if (_isEditMode || _isCreateMode)
                             {
-                                <MudTextField @bind-Value="item.SeqNo"
-                                              T="int"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              HideSpinButtons="true"
-                                              Style="width:50px;" />
+                                <MudNumericField @bind-Value="item.SeqNo"
+                                                 T="int"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 HideSpinButtons="true"
+                                                 Style="width:50px;" />
                             }
                             else
                             {
