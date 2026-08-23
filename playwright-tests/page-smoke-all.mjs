@@ -116,9 +116,6 @@ const PAGES = [
   { name: 'TensileTests',                  path: '/quality/tensile-test',                 type: 'LIST' },
   { name: 'TensileTestCreate',             path: '/quality/tensile-test/create',          type: 'CREATE' },
 
-  // ================ Reports ================
-  { name: 'ProductionOutput',  path: '/reports/production-output',  type: 'SPECIAL' },
-
   // ================ Scheduling ================
   { name: 'BatchPlans',               path: '/batch-plans',                   type: 'LIST' },
   { name: 'ColdRollPlans',            path: '/cold-roll-plans',               type: 'LIST' },

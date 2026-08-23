@@ -91,10 +91,6 @@ public static class ApiEndpoints
     public const string DashboardSectionLoad = "api/dashboard/section-load";
     public const string DashboardQuality = "api/dashboard/quality";
 
-    // ===== Report 报表 =====
-    public const string ReportDailyOutput = "api/report/daily-output";
-    public const string ReportDailyOutputPrint = "api/report/daily-output/print-file";
-
     // ===== User Management =====
     public const string Users = "api/users";
 

@@ -31,7 +31,6 @@ using MES.Services.DataFix;
 using MES.Services.Order;
 using MES.Services.Configuration;
 using MES.Services.StandardRegister;
-using MES.Services.Report;
 using MES.Services.Scheduling;
 using QuestPDF.Infrastructure;
 using MES.Shared.Settings;
@@ -45,7 +44,6 @@ using MES.Core.Interfaces.Materials;
 using MES.Core.Interfaces.Order;
 using MES.Core.Interfaces.StandardRegister;
 using MES.Core.Interfaces.Quality;
-using MES.Core.Interfaces.Report;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
@@ -278,9 +276,6 @@ builder.Services.AddScoped<IOperationLogService, OperationLogService>();
 
 // 质量过程跟踪
 builder.Services.AddScoped<IQualityProcessTrackingService, QualityProcessTrackingService>();
-
-// ========== 报表服务 ==========
-builder.Services.AddScoped<IReportService, ReportService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUserService>();

@@ -147,7 +147,4 @@ builder.Services.AddScoped<ProcessCardStyleDefinitionService>();
 builder.Services.AddScoped<CertificatePrintSettingService>();
 builder.Services.AddScoped<CertificatePrintColumnDefinitionService>();
 
-// ========== 报表 ==========
-builder.Services.AddScoped<ReportService>();
-
 await builder.Build().RunAsync();

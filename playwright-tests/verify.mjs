@@ -112,7 +112,6 @@ const LIST_PAGES = [
   { url: '/section-production-status', name: '工序生产状态', module: 'Analysis', hasPrint: false, hasSearch: true },
   { url: '/admin/users',        name: '用户管理',         module: 'Admin', hasPrint: false, hasSearch: true },
   { url: '/data-exchange',      name: '数据交换',         module: 'Tools', hasPrint: false, hasSearch: true },
-  { url: '/reports/production-output', name: '产量报表',  module: 'Reports', hasPrint: true, hasSearch: true },
 ];
 
 // ============================================================

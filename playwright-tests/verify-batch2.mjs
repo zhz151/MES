@@ -42,7 +42,6 @@ const RETEST_PAGES = [
   // ---- 其他 ----
   { url: '/admin/users', name: '用户管理', module: 'Admin', hasPrint: false },
   { url: '/data-exchange', name: '数据交换', module: 'Tools', hasPrint: false },
-  { url: '/reports/production-output', name: '产量报表', module: 'Reports', hasPrint: true },
 
   // ---- Warehouse 失败的 ----
   { url: '/warehouse', name: '库存查询', module: 'Warehouse', hasPrint: true },

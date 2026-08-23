@@ -28,9 +28,6 @@ global using MES.Core.Interfaces.Scheduling;
 global using MES.Core.Interfaces.Warehouse;
 global using MES.Core.Interfaces.WorkOrder;
 
-// Report DTOs
-global using MES.Core.DTOs.Report;
-
 // Printing namespace
 global using MES.Services.Printing;
 

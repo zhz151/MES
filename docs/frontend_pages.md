@@ -18,10 +18,9 @@
 | 批次 | 批次管理 | BatchStaff/Director | 14 | 6 |
 | 质量 | 质量管理 | QualityStaff/Director | 32 | 16 |
 | 物料 | 物料管理 | MaterialStaff/Director | 9 | 4 |
-| 仓库 | 仓库管理 | WarehouseStaff/Director | 6 | 4 |
+| 仓库 | 仓库管理 | WarehouseStaff/Director | 7 | 4 |
 | 设备 | 设备管理 | EquipmentStaff/Director | 8 | 4 |
 | 生产标准 | 生产标准 | StandardRead/StandardWrite | 18 | 9 |
-| 报表 | 报表系统 | 所有 | 2 | 1 |
 | 数据工具 | (独立按钮) | 所有 | 2 | 0 |
 | 扫码报工 | (独立按钮) | 所有 | 1 | 0 |
 | 设备扫码 | (独立按钮) | 所有 | 1 | 0 |
@@ -257,7 +256,7 @@
 路由前缀: /warehouse, /warehouse/{Code}, /warehouse/inbound, /warehouse/outbound,
          /warehouse/inbound-history, /warehouse/outbound-history, /warehouse/pending-delivery
 菜单: 仓库管理 → [原料库, 成品库, 在制品库, 次品库, 物料进出存报表, 待发货项]
-      （2026-08-23 在制品库移至次品库上方；物料进出存报表自报表系统移入，位于次品库之下）
+      （2026-08-23 在制品库移至次品库上方；物料进出存报表并入仓库管理，位于次品库之下；报表系统已删除）
 
 ┌─ 仓库管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -277,6 +276,9 @@
 │                                                           │
 │  OutboundHistory.razor        /warehouse/outbound-history      [列表页]│
 │  OutboundHistory.razor        /warehouse/outbound-history/{Code}[列表页(复用)]│
+│  MonthlyStock.razor          /warehouse/monthly-stock          [报表页]   │
+│  报表页: MonthlyStock（原生 table，4 报表切换：入库/出库/库存/物料进出存；入库按来源展开、出库按类型展开（含物料汇总合并列）；行=库房×物料类型，库房+物料类型双层合并单元格，无合计行；当前月之后月份单元格留空，「实时结存/实时数据」=截至当前月合计，三值格「入/出,[结]」如 80/15,[65]；打印横向 A4 撑满页宽）│
+│  ※ API: InventoryController (api/inventory/monthly-stock-summary) │
 │                                                           │
 │  列表页: WarehouseInventory, PendingDelivery,                 │
 │          InboundHistory, OutboundHistory                      │
@@ -404,24 +406,7 @@
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 2.11 报表上下文
-
-```
-路由前缀: /reports
-菜单: 报表系统 → [产量报表]（物料进出存报表 2026-08-23 已移至仓库管理上下文，路由改 /warehouse/monthly-stock）
-
-┌─ 报表系统 ───────────────────────────────────────────────────┐
-│                                                               │
-│  ProductionOutput.razor     /reports/production-output         [列表页]     │
-│  MonthlyStock.razor        /warehouse/monthly-stock           [报表页]     │
-│                                                               │
-│  报表页: MonthlyStock（原生 table，4 报表切换：入库/出库/库存/物料进出存；入库按来源展开、出库按类型展开（含物料汇总合并列）；行=库房×物料类型，库房+物料类型双层合并单元格，无合计行；当前月之后月份单元格留空，「实时结存/实时数据」=截至当前月合计，三值格「入/出,[结]」如 80/15,[65]；打印横向 A4 撑满页宽）│
-│  ※ API: InventoryController (api/inventory/monthly-stock-summary) │
-│  ※ 后端 Service: InventoryService, 前端 Service: InventoryService │
-└───────────────────────────────────────────────────────────────┘
-```
-
-### 2.12 其他页
+### 2.11 其他页
 
 ```
 ┌─ 其他 ────────────────────────────────────────────────────┐
@@ -449,7 +434,6 @@
           │            牌号对照 / 标准牌号化学成分 /            │
           │            工厂牌号化学成分 / 工厂牌号化分验证 /   │
           │            牌号物理性能 / 子标准速览             │
-│          ▸ 报表系统 → 产量报表（物料进出存报表移至仓库管理）│
 │          数据工具 / 扫码报工 / 设备扫码                  │
 │          ▸ 参数表 → 生产-流转类别日产配置 / 生产-段落日产配置 / │
 │                    生产-组合归类表 / 生产-重点工段日产 /      │
@@ -532,7 +516,6 @@
 | 60 | FlatteningTests.razor | /quality/flattening-test | 质量 | | 理化检测-压扁检验 |
 | 61 | FlaringTests.razor | /quality/flaring-test | 质量 | | 理化检测-扩口检验 |
 | 62 | DailyProductionCapacities.razor | /daily-production-capacities | 配置 | ✅ | 查改一体表，仿ConfigParameters模式 |
-| 63 | ProductionOutput.razor | /reports/production-output | 报表 | | 产量报表，服务端数据模式 |
 | 64 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页（打印选中/打印全部 + 打印设置对话框：打印版式/字段布局） |
 | 65 | PendingDelivery.razor | /warehouse/pending-delivery | 仓库 | | 待发货项列表页（订单关联组含「工单关注」列：取工单执行状况读模型主号-关注档位，按工单号关联） |
 | 66 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选；字段两组分组（一、委外信息12列含下单日期/要求到货日/委外备注、二、执行状态6列含退货量/属强制完成）；执行状态4档（已发出/部分收回/已完成/超量到货，MudChip与采购订单一致） |
@@ -587,6 +570,8 @@
 ---
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
+>
+> **最后更新：2026-08-23（V27）** — 产量报表删除：报表系统上下文消亡（后端 ReportController/ReportService/ReportPrintHelper/DailyProductionReportDto、前端 ProductionOutput.razor + ReportService 全删，菜单「报表系统」组移除，页面清单移除 #63，报表系统小节并入仓库上下文）
 >
 > **最后更新：2026-08-23（V26）** — 仓库管理菜单调整：在制品库移至次品库上方（原料库→成品库→在制品库→次品库→物料进出存报表→待发货项），物料进出存报表菜单自报表系统移入仓库管理组（报表系统仅余产量报表）；待发货项 #65 订单关联组新增「工单关注」列（取工单执行状况读模型「实时关注」组「主号-关注」档位，按工单号关联，可筛选/排序/打印）
 >
