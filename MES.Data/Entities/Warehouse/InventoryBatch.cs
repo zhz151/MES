@@ -207,7 +207,7 @@ public class InventoryBatch : BaseEntity
     public string? ProductionMainNo { get; set; }
 
     /// <summary>
-    /// 项次ID列表（逗号分隔，已弃用，待阶段二删除）
+    /// 项次ID列表（逗号分隔，存订单项次序号 Sequence；仍被 InventoryService/InventoryBatchWriteService/DataExchange 消费）
     /// </summary>
     public string? OrderItemIds { get; set; }
 

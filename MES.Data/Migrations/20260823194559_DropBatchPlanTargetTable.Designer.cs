@@ -4,6 +4,7 @@ using MES.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MES.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260823194559_DropBatchPlanTargetTable")]
+    partial class DropBatchPlanTargetTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -9549,11 +9552,31 @@ namespace MES.Data.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<int>("PendingOutsourceFinishQty")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<decimal>("PendingOutsourceFinishWeight")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,3)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal?>("PendingReworkOutputQty")
                         .HasColumnType("decimal(18,3)");
 
                     b.Property<decimal?>("PendingReworkOutputWeight")
                         .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("PendingRoughTubeQty")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<decimal>("PendingRoughTubeWeight")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,3)")
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal?>("PendingSection20Roll")
                         .HasColumnType("decimal(18,3)");
@@ -9768,6 +9791,16 @@ namespace MES.Data.Migrations
 
                     b.Property<DateTime?>("TheoreticalCutoffDate")
                         .HasColumnType("date");
+
+                    b.Property<decimal>("TheoreticalFinishQty")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,3)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("TheoreticalFinishWeight")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,3)")
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal>("TheoreticalOutputQty")
                         .ValueGeneratedOnAdd()

@@ -143,26 +143,6 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>执行状态：0无计划 1未执行 2部分 3已完成 4异常</summary>
     public int InMainInputStatus { get; set; }
 
-    // ========== Group 5（旧）: 物料执行实时信息（从采购订单聚合） ==========
-    // 前端显示为：物料执行（已废弃）
-    /// <summary>待回荒管支数</summary>
-    public int PendingRoughTubeQty { get; set; }
-
-    /// <summary>待回荒管重量</summary>
-    public decimal PendingRoughTubeWeight { get; set; }
-
-    /// <summary>待回外购成支</summary>
-    public int PendingOutsourceFinishQty { get; set; }
-
-    /// <summary>待回外购成重</summary>
-    public decimal PendingOutsourceFinishWeight { get; set; }
-
-    /// <summary>理论成品支（Σ 每笔待回收支 × 投料倍率）</summary>
-    public decimal TheoreticalFinishQty { get; set; }
-
-    /// <summary>理论成品重（待回荒管重量 × 0.92 + 待回外购成重）</summary>
-    public decimal TheoreticalFinishWeight { get; set; }
-
     // ========== Group 11: 原始投料（所有关联批次） ==========
     // 前端显示为 G11：原始投料
     /// <summary>投料起始日</summary>

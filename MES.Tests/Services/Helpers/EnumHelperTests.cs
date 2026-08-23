@@ -381,7 +381,8 @@ public class EnumHelperTests
             typeof(RepairOrderStatus), typeof(EquipmentTaskStatus), typeof(TaskOrderStatus),
             typeof(InspectionItem), typeof(DisposalMethod),
             typeof(NcrStatus), typeof(PicklingStatus),
-            typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus)
+            typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus),
+            typeof(InspectionRequirementStage)
         };
 
         foreach (var enumType in enumTypes)

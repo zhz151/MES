@@ -111,7 +111,8 @@
 │          WorkOrderSchedules, ColdRollPlans, BatchPlans,   │
 │          FinalInspectionPlan                              │
 │  只读聚合: PlanOverview（MudTable 客户端模式，无分页/排序/筛选）│
-│  ※ 已从菜单移除（页面/路由/接口仍保留）：                    │
+│  ※ 已删除独立页面（数据改经批次计划页内嵌折叠与报表总览消费， │
+│     后端接口保留）：                                       │
 │     SectionProductionStatus, SectionFlowAnalysis,         │
 │     SectionParagraphFlowAnalysis                          │
 └───────────────────────────────────────────────────────────┘
@@ -486,12 +487,12 @@
 | 30 | QualityProcessTracking.razor | /quality/process-tracking | 质量 | | 只读列表 |
 | 31 | Ncrs.razor | /quality/ncr | 质量 | | 列表页+分页汇总 |
 | 32 | OrderDemandAdjustment.razor | /order-demand-adjustment | 工单 | ✅ | 内联编辑催单/分批/暂停开关及调整备注 |
-| 33 | RawMaterialLockPlanAndExecution.razor | /raw-material-lock-plan | 计划排程 | ✅ | 汇总栏（工单总数/成品在购/待投料 + 紧急性5档分解 + 预执行(外购/投料) 区分）+ G15 预执行 MudSwitch 内联编辑 + BudgetInputDate 日期输入 + 主号齐全系统计算（LEFT JOIN 实时查询，无计划安排按钮）；右上角「待投料量汇总」按钮（2026-08-17 起由原工具栏"汇总"改名并移右上角，展开汇总卡片，内含待投料+成购两矩阵表 + 打印） |
+| 33 | RawMaterialLockPlanAndExecution.razor | /raw-material-lock-plan | 计划排程 | ✅ | G15 预执行 MudSwitch 内联编辑 + BudgetInputDate 日期输入（LEFT JOIN 实时查询，无计划安排按钮）；右上角「待投料量汇总」按钮展开汇总卡片（待投料+成购两矩阵表 + 理论待投料截日，可打印） |
 | 34 | StandardWorkDays.razor | /standard-work-days | 配置 | ✅ | 查改一体表 |
 | 35 | StandardWorkDayDeliveryStates.razor | /standard-work-day-delivery-states | 配置 | ✅ | 查改一体表 |
 | 36 | ConfigParameters.razor | /config-parameters | 配置 | ✅ | 查改一体表 |
-| 37 | SectionFlowAnalysis.razor | /section-flow-analysis | 计划排程 | | 客户端模式，4列；已从菜单移除 |
-| 38 | SectionProductionStatus.razor | /section-production-status | 计划排程 | | 客户端模式，6列；已从菜单移除 |
+| 37 | SectionFlowAnalysis.razor | /section-flow-analysis | 计划排程 | | 已删除（2026-08-24），数据改经批次计划页内嵌折叠与报表总览消费 |
+| 38 | SectionProductionStatus.razor | /section-production-status | 计划排程 | | 已删除（2026-08-24），数据改经批次计划页内嵌折叠与报表总览消费 |
 | 39 | SectionFlowCategorySettings.razor | /section-flow-category-settings | 配置 | ✅ | 主表+子表展开 |
 | 40 | WorkOrderSchedules.razor | /scheduling-plans | 计划排程 | | LEFT JOIN 实时查询模式（WorkOrderExecutionSummary + WorkOrderPlan 薄表），G15 内联编辑 + 计划安排按钮 |
 | 41 | DailyOutputEstimates.razor | /daily-output-estimates | 配置 | ✅ | 查改一体表 |

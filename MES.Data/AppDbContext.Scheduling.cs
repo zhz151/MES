@@ -126,17 +126,4 @@ public partial class AppDbContext
             entity.HasIndex(e => e.BatchId).IsUnique().HasDatabaseName("UK_BPS_BatchId");
         });
     }
-    private static void ConfigureBatchPlanTarget(ModelBuilder builder)
-    {
-        builder.Entity<BatchPlanTarget>(entity =>
-        {
-            entity.ToTable("BatchPlanTargets");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.DailyTarget).HasColumnType("decimal(18,2)");
-
-            // 唯一索引：每个工段一条目标
-            entity.HasIndex(e => e.SectionName).IsUnique().HasDatabaseName("UK_BPT_SectionName");
-        });
-    }
 }

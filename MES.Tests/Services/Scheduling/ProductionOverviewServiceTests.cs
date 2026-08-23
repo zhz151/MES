@@ -42,7 +42,7 @@ public class ProductionOverviewServiceTests : TestBase
         int scheduleStage, decimal totalWeight = 0m,
         decimal finishPlanWeight = 0m, decimal finishInWeight = 0m,
         decimal inputWeight = 0m, decimal flowOutputRatio = 0m,
-        decimal pendingRoughTubeWeight = 0m, string? rawMaterialLockRemark = null,
+        string? rawMaterialLockRemark = null,
         DateTime? deliveryDate = null, DateTime? estimatedProcessCompletionDate = null)
     {
         var s = new WorkOrderExecutionSummary
@@ -66,7 +66,6 @@ public class ProductionOverviewServiceTests : TestBase
             FinishInWeight = finishInWeight,
             InputWeight = inputWeight,
             FlowOutputRatio = flowOutputRatio,
-            PendingRoughTubeWeight = pendingRoughTubeWeight,
             RawMaterialLockRemark = rawMaterialLockRemark,
         };
         ctx.Set<WorkOrderExecutionSummary>().Add(s);
@@ -133,9 +132,9 @@ public class ProductionOverviewServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         SeedSummary(ctx, "WO-D1", 2, totalWeight: 10000m, finishPlanWeight: 2000m, finishInWeight: 0m,
-            inputWeight: 1000m, pendingRoughTubeWeight: 1000m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan);
+            inputWeight: 1000m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan);
         SeedSummary(ctx, "WO-D2", 2, totalWeight: 5000m, finishPlanWeight: 0m, finishInWeight: 0m,
-            inputWeight: 500m, pendingRoughTubeWeight: 2000m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan);
+            inputWeight: 500m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan);
         SeedSummary(ctx, "WO-A", 2, totalWeight: 8000m, finishPlanWeight: 0m, finishInWeight: 0m,
             inputWeight: 0m, flowOutputRatio: 50m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.QualityReplenish);
         SeedSummary(ctx, "WO-X", 3, totalWeight: 2000m);

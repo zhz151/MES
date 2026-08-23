@@ -7,7 +7,6 @@ namespace MES.Shared.Constants;
 public static class ApiEndpoints
 {
     // ===== Auth =====
-    public const string AuthBase = "api/auth";
     public const string AuthLogin = "api/auth/login";
     public const string AuthRefreshToken = "api/auth/refresh-token";
 
@@ -40,10 +39,6 @@ public static class ApiEndpoints
     public const string ChemicalAnalysis = "api/chemical-analysis";
     public const string HardnessTest = "api/hardness-test";
     public const string GrainSizeTest = "api/grain-size-test";
-    public const string PittingCorrosionTest = "api/pitting-corrosion-test";
-    public const string IntergranularCorrosionTest = "api/intergranular-corrosion-test";
-    public const string TensileTest = "api/tensile-test";
-    public const string MetallographicTest = "api/metallographic-test";
     public const string FlatteningTest = "api/flattening-test";
     public const string FlaringTest = "api/flaring-test";
 
@@ -56,7 +51,6 @@ public static class ApiEndpoints
     // ===== Material 物料 =====
     public const string PurchaseOrder = "api/purchase-order";
     public const string Subcontract = "api/subcontract";
-    public const string SubcontractReturnItem = "api/subcontract/return-items";
     public const string Supplier = "api/supplier";
 
     // ===== Warehouse 仓库 =====
@@ -80,16 +74,8 @@ public static class ApiEndpoints
     public const string ColdRollMachineConfig = "api/cold-roll-machine-config";
     public const string FinalInspectionPlan = "api/final-inspection-plan";
     public const string BatchPlanSchedule = "api/batch-plan-schedule";
-    public const string BatchPlanTarget = "api/batch-plan-target";
     public const string ProductionOverview = "api/production-overview";
     public const string RawMaterialLockPlan = "api/raw-material-lock-plan";
-
-    // ===== Dashboard 看板 =====
-    public const string DashboardIndex = "api/dashboard/index";
-    public const string DashboardDailyOutput = "api/dashboard/daily-output";
-    public const string DashboardUrgency = "api/dashboard/urgency";
-    public const string DashboardSectionLoad = "api/dashboard/section-load";
-    public const string DashboardQuality = "api/dashboard/quality";
 
     // ===== User Management =====
     public const string Users = "api/users";

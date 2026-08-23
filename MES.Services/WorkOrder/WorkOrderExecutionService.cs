@@ -346,7 +346,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var nonFixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("NonFixedSatisfied", 120m);
         var qualifiedRate = materialPlanStatusConfig.GetValueOrDefault("QualifiedRate", 98m) / 100m;
         var defaultValueConfig = await _configService.GetConfigMapAsync("DefaultValue");
-        var roughTubeFinishRatio = defaultValueConfig.GetValueOrDefault("RoughTubeFinishRatio", 0.92m);
         var defaultProcessCycle = (int)defaultValueConfig.GetValueOrDefault("DefaultProcessCycle", 22m);
 
         var planToleranceConfig = await _configService.GetConfigMapAsync("MaterialPlanTolerance");
@@ -407,10 +406,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                       && workOrderNos.Contains(po.SourceWorkOrderNo)
                       && po.Status != Core.Enums.PurchaseOrderStatus.Completed)
             .ToListAsync();
-
-        var poByWoNo = purchaseOrders
-            .GroupBy(po => po.SourceWorkOrderNo!)
-            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
         // 批量加载委外回收明细（用于 Group 10 物料执行实时信息，与采购订单逻辑相同）
         var returnItems = await _context.SubcontractReturnItems
@@ -573,53 +568,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.MaterialPlanCoveredCount = listSummary.MaterialPlanCoveredCount;
                 summary.MaterialPlanProportion = listSummary.MaterialPlanProportion;
                 summary.TheoreticalCutoffDate = listSummary.TheoreticalCutoffDate;
-            }
-
-            // Group（已废弃）: 物料执行实时信息（从采购订单 + 委外回收明细聚合）
-            poByWoNo.TryGetValue(wo.WorkOrderNo, out var woPos);
-            riByWoNo.TryGetValue(wo.WorkOrderNo, out var woRis);
-            if ((woPos?.Count ?? 0) > 0 || (woRis?.Count ?? 0) > 0)
-            {
-                var safePos = woPos ?? new List<PurchaseOrder>();
-                var safeRis = woRis ?? new List<SubcontractReturnItem>();
-
-                // 荒管组：荒管 + 半成品（采购单按 MaterialType 枚举名过滤）
-                var roughTubePos = safePos.Where(po =>
-                    po.MaterialCategory == "RoughTube" || po.MaterialCategory == "SemiFinished").ToList();
-                var roughTubeRis = safeRis.Where(ri =>
-                    ri.MaterialCategory == "RoughTube" || ri.MaterialCategory == "SemiFinished").ToList();
-                summary.PendingRoughTubeQty = roughTubePos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
-                    + roughTubeRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
-                summary.PendingRoughTubeWeight = roughTubePos.Sum(po => po.Weight - po.ReceivedWeight)
-                    + roughTubeRis.Sum(ri => (ri.RequiredWeight ?? 0) - ri.ReturnedWeight);
-
-                // 外购成组：临界成品 + 订单成品 + 订成-非交付态（采购单按 MaterialType 枚举名过滤）
-                var finishPos = safePos.Where(po =>
-                    po.MaterialCategory == "CriticalFinished" || po.MaterialCategory == "OrderFinished" || po.MaterialCategory == "SpecialDeliveryStatus").ToList();
-                var finishRis = safeRis.Where(ri =>
-                    ri.MaterialCategory == "CriticalFinished" || ri.MaterialCategory == "OrderFinished" || ri.MaterialCategory == "SpecialDeliveryStatus").ToList();
-                summary.PendingOutsourceFinishQty = finishPos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
-                    + finishRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
-                summary.PendingOutsourceFinishWeight = finishPos.Sum(po => po.Weight - po.ReceivedWeight)
-                    + finishRis.Sum(ri => (ri.RequiredWeight ?? 0) - ri.ReturnedWeight);
-
-                // 理论成品支：Σ(每笔待回收支 × 投料倍率)
-                summary.TheoreticalFinishQty = roughTubePos.Concat(finishPos)
-                    .Sum(po =>
-                    {
-                        var pendingQty = (po.Quantity ?? 0) - po.ReceivedQuantity;
-                        return pendingQty * (po.InputMultiple ?? 1);
-                    })
-                    + roughTubeRis.Concat(finishRis)
-                    .Sum(ri =>
-                    {
-                        var pendingQty = (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity;
-                        return pendingQty * (ri.InputMultiple ?? 1);
-                    });
-
-                // 理论成品重：待回荒管重量 × 荒管转成品系数 + 待回外购成重
-                summary.TheoreticalFinishWeight = Math.Round(
-                    summary.PendingRoughTubeWeight * roughTubeFinishRatio + summary.PendingOutsourceFinishWeight, 2);
             }
 
             // ========== G4~G10: 7 种用料计划执行状况 ==========
@@ -1128,7 +1076,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var nonFixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("NonFixedSatisfied", 120m);
         var qualifiedRate = materialPlanStatusConfig.GetValueOrDefault("QualifiedRate", 98m) / 100m;
         var defaultValueConfig = await _configService.GetConfigMapAsync("DefaultValue");
-        var roughTubeFinishRatio = defaultValueConfig.GetValueOrDefault("RoughTubeFinishRatio", 0.92m);
         var defaultProcessCycle = (int)defaultValueConfig.GetValueOrDefault("DefaultProcessCycle", 22m);
 
         // 用料计划容差配置（用于 G4~G10 状态计算）
@@ -1194,10 +1141,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .Where(po => po.SourceWorkOrderNo != null && allWoNos.Contains(po.SourceWorkOrderNo)
                       && po.Status != PurchaseOrderStatus.Completed)
             .ToListAsync();
-        var poByWoNo = purchaseOrders
-            .GroupBy(po => po.SourceWorkOrderNo!)
-            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
-
         var returnItems = await _context.SubcontractReturnItems
             .AsNoTracking()
             .Where(ri => ri.SourceWorkOrderNo != null && allWoNos.Contains(ri.SourceWorkOrderNo))
@@ -1351,33 +1294,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 summary.MaterialPlanCoveredCount = ls.MaterialPlanCoveredCount;
                 summary.MaterialPlanProportion = ls.MaterialPlanProportion;
                 summary.TheoreticalCutoffDate = ls.TheoreticalCutoffDate;
-            }
-
-            // Group（已废弃）: 物料执行
-            poByWoNo.TryGetValue(wo.WorkOrderNo, out var woPos);
-            riByWoNo.TryGetValue(wo.WorkOrderNo, out var woRis);
-            if ((woPos?.Count ?? 0) > 0 || (woRis?.Count ?? 0) > 0)
-            {
-                var safePos = woPos ?? new List<PurchaseOrder>();
-                var safeRis = woRis ?? new List<SubcontractReturnItem>();
-                var roughTubePos = safePos.Where(po => po.MaterialCategory == "RoughTube" || po.MaterialCategory == "SemiFinished").ToList();
-                var roughTubeRis = safeRis.Where(ri => ri.MaterialCategory == "RoughTube" || ri.MaterialCategory == "SemiFinished").ToList();
-                summary.PendingRoughTubeQty = roughTubePos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
-                    + roughTubeRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
-                summary.PendingRoughTubeWeight = roughTubePos.Sum(po => po.Weight - po.ReceivedWeight)
-                    + roughTubeRis.Sum(ri => (ri.RequiredWeight ?? 0) - ri.ReturnedWeight);
-                var finishPos = safePos.Where(po => po.MaterialCategory == "CriticalFinished" || po.MaterialCategory == "OrderFinished" || po.MaterialCategory == "SpecialDeliveryStatus").ToList();
-                var finishRis = safeRis.Where(ri => ri.MaterialCategory == "CriticalFinished" || ri.MaterialCategory == "OrderFinished" || ri.MaterialCategory == "SpecialDeliveryStatus").ToList();
-                summary.PendingOutsourceFinishQty = finishPos.Sum(po => (po.Quantity ?? 0) - po.ReceivedQuantity)
-                    + finishRis.Sum(ri => (ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity);
-                summary.PendingOutsourceFinishWeight = finishPos.Sum(po => po.Weight - po.ReceivedWeight)
-                    + finishRis.Sum(ri => (ri.RequiredWeight ?? 0) - ri.ReturnedWeight);
-                summary.TheoreticalFinishQty = roughTubePos.Concat(finishPos)
-                    .Sum(po => ((po.Quantity ?? 0) - po.ReceivedQuantity) * (po.InputMultiple ?? 1))
-                    + roughTubeRis.Concat(finishRis)
-                    .Sum(ri => ((ri.RequiredQuantity ?? 0) - ri.ReturnedQuantity) * (ri.InputMultiple ?? 1));
-                summary.TheoreticalFinishWeight = Math.Round(
-                    summary.PendingRoughTubeWeight * roughTubeFinishRatio + summary.PendingOutsourceFinishWeight, 2);
             }
 
             // ========== G4~G10: 7 种用料计划执行状况 ==========
@@ -2654,14 +2570,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.TheoreticalCutoffDate = source.TheoreticalCutoffDate;
         target.CutoffArrivalDate = source.CutoffArrivalDate;
         target.MainNoCutoffArrivalDate = source.MainNoCutoffArrivalDate;
-
-        // Group（已废弃）: 物料执行
-        target.PendingRoughTubeQty = source.PendingRoughTubeQty;
-        target.PendingRoughTubeWeight = source.PendingRoughTubeWeight;
-        target.PendingOutsourceFinishQty = source.PendingOutsourceFinishQty;
-        target.PendingOutsourceFinishWeight = source.PendingOutsourceFinishWeight;
-        target.TheoreticalFinishQty = source.TheoreticalFinishQty;
-        target.TheoreticalFinishWeight = source.TheoreticalFinishWeight;
 
         // G4~G10: 7 种用料计划执行状况
         target.PiercingPlanWeight = source.PiercingPlanWeight;

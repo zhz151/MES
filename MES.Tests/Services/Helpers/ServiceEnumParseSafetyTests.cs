@@ -56,7 +56,8 @@ public class ServiceEnumParseSafetyTests
         typeof(PicklingStatus),
         typeof(SeverityLevel),
         typeof(VerifyResult),
-        typeof(SectionStatus)
+        typeof(SectionStatus),
+        typeof(InspectionRequirementStage)
     };
 
     #region 基础安全：所有枚举值 .ToString() → Enum.Parse 可逆
@@ -234,7 +235,8 @@ public class ServiceEnumParseSafetyTests
             typeof(RepairOrderStatus), typeof(EquipmentTaskStatus), typeof(TaskOrderStatus),
             typeof(InspectionItem), typeof(DisposalMethod),
             typeof(NcrStatus), typeof(PicklingStatus),
-            typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus)
+            typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus),
+            typeof(InspectionRequirementStage)
         };
 
         AllServiceLayerEnumTypes.Should().BeEquivalentTo(enumHelperTypes,

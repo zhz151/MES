@@ -198,14 +198,6 @@ public class MaterialPlanOverviewTests : IDisposable
         cut.WaitForState(() => cut.Markup.Contains("WO-TEST-001"));
     }
 
-    [Fact]
-    public void Render_NoData_ShowsEmpty()
-    {
-        ConfigureResponse(r => { r.Items = new List<WorkOrderListDto>(); r.TotalCount = 0; });
-        var cut = Render();
-        // A19: 空状态不再显示提示文字
-    }
-
     // ========== 状态文本 ==========
 
     [Theory]

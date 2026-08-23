@@ -268,7 +268,6 @@ builder.Services.AddScoped<IColdRollSpecScheduleService, ColdRollSpecScheduleSer
 builder.Services.AddScoped<IColdRollCapacityService, ColdRollCapacityService>();
 builder.Services.AddScoped<IColdRollMachineConfigService, ColdRollMachineConfigService>();
 builder.Services.AddScoped<IBatchPlanScheduleService, BatchPlanScheduleService>();
-builder.Services.AddScoped<IBatchPlanTargetService, BatchPlanTargetService>();
 builder.Services.AddScoped<IFinalInspectionPlanService, FinalInspectionPlanService>();
 
 // 操作日志服务

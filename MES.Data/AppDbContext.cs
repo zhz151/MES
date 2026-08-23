@@ -126,7 +126,6 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ColdRollCapacity> ColdRollCapacities { get; set; } = null!;
     public DbSet<ColdRollMachineConfig> ColdRollMachineConfigs { get; set; } = null!;
     public DbSet<BatchPlanSchedule> BatchPlanSchedules { get; set; } = null!;
-    public DbSet<BatchPlanTarget> BatchPlanTargets { get; set; } = null!;
 
     // ========== Configuration 上下文 ==========
     public DbSet<StandardWorkDay> StandardWorkDays { get; set; } = null!;
@@ -249,7 +248,6 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureColdRollCapacity(builder);
         ConfigureColdRollMachineConfig(builder);
         ConfigureBatchPlanSchedule(builder);
-        ConfigureBatchPlanTarget(builder);
 
         // ========== Configuration 上下文 ==========
         ConfigureCombinationGroup(builder);

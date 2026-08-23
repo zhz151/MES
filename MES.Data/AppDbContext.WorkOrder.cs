@@ -536,14 +536,6 @@ public partial class AppDbContext
             entity.Property(e => e.InMainInputWeight).HasColumnType("decimal(18,3)").HasDefaultValue(0m);
             entity.Property(e => e.InMainInputStatus).IsRequired().HasDefaultValue(0);
 
-            // Group 5
-            entity.Property(e => e.PendingRoughTubeQty).IsRequired().HasDefaultValue(0);
-            entity.Property(e => e.PendingRoughTubeWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.PendingOutsourceFinishQty).IsRequired().HasDefaultValue(0);
-            entity.Property(e => e.PendingOutsourceFinishWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.TheoreticalFinishQty).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-            entity.Property(e => e.TheoreticalFinishWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
-
             // Group 3
             entity.Property(e => e.InputStartDate).HasColumnType("date");
             entity.Property(e => e.InputEndDate).HasColumnType("date");
