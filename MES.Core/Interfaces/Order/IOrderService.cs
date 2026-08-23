@@ -112,6 +112,11 @@ public interface IOrderService
     Task<OrderInOutSummaryDto> GetOrderInOutSummaryAsync(int year);
 
     /// <summary>
+    /// 获取订单交期预估（业务总况两小表：订单完成预估 / 延期交货订单预估，单数按订单号、重量按订单总重，7 桶归集）
+    /// </summary>
+    Task<OrderDeliveryEstimateDto> GetDeliveryEstimateAsync();
+
+    /// <summary>
     /// 刷新全部订单读模型（从源表重新聚合 OrderListSummary）
     /// </summary>
     Task RefreshAllAsync();

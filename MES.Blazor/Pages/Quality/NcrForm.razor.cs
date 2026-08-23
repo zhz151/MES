@@ -8,6 +8,7 @@ using MES.Core.Enums;
 using MES.Core.Helpers;
 using MES.Shared.Constants;
 using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Configuration;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -17,6 +18,7 @@ public partial class NcrForm
     [Inject] private NcrService NcrService { get; set; } = null!;
     [Inject] private NavigationManager Navigation { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
+    [Inject] private DictValueDefinitionService DictValueDefinitionService { get; set; } = null!;
 
     [Parameter] public int Id { get; set; }
 
@@ -25,6 +27,7 @@ public partial class NcrForm
     [SupplyParameterFromQuery] public string? disposalMethod { get; set; }
     [SupplyParameterFromQuery] public string? sourceType { get; set; }
     [SupplyParameterFromQuery] public int? defectQty { get; set; }
+    [SupplyParameterFromQuery] public int? defectWeight { get; set; }
     [SupplyParameterFromQuery] public string? inspector { get; set; }
     [SupplyParameterFromQuery] public string? inspectionItem { get; set; }
     [SupplyParameterFromQuery] public string? processName { get; set; }
@@ -37,6 +40,10 @@ public partial class NcrForm
     private bool _isEditMode;
     private bool _isSaving;
     private NcrStatus _currentStatus;
+
+    // 责任类别字典下拉（配置表动态加载）与「新增责任类型」输入
+    private List<DictValueInfoDto> _responsibilityOptions = new();
+    private string _newResponsibilityName = "";
 
     // 待处理卡片
     private List<NcrPendingCheckDto> _pendingItems = new();
@@ -54,6 +61,8 @@ public partial class NcrForm
     protected override async Task OnInitializedAsync()
     {
         _isEditMode = Id > 0;
+
+        await LoadResponsibilityOptionsAsync();
 
         if (_isEditMode)
         {
@@ -90,6 +99,7 @@ public partial class NcrForm
 
             _formData.BatchNo = batchNo;
             _formData.DefectiveQuantity = defectQty;
+            _formData.DefectiveWeight = defectWeight;
 
             // 反馈日期 = 检验记录中的检验日期
             if (!string.IsNullOrEmpty(reportDate) && DateTime.TryParse(reportDate, out var parsedDate))
@@ -151,6 +161,7 @@ public partial class NcrForm
 
             _formData.BatchNo = item.BatchNo;
             _formData.DefectiveQuantity = item.DefectQuantity;
+            _formData.DefectiveWeight = item.DefectiveWeight;
 
             // 反馈日期
             _formData.ReportDate = item.ReportDate;
@@ -230,6 +241,7 @@ public partial class NcrForm
         _formData.PlantGrade = dto.PlantGrade;
         _formData.Specification = dto.Specification;
         _formData.DefectiveQuantity = dto.DefectiveQuantity;
+        _formData.DefectiveWeight = dto.DefectiveWeight;
         _formData.ProblemDescription = dto.ProblemDescription;
 
         // G2
@@ -285,8 +297,85 @@ public partial class NcrForm
             _formData.WorkOrderNo = response.Data.WorkOrderNo;
             _formData.PlantGrade = response.Data.PlantGrade;
             _formData.Specification = response.Data.Specification;
+            _formData.DefectiveQuantity = response.Data.DefectiveQuantity;
+            _formData.DefectiveWeight = response.Data.DefectiveWeight;
         }
         // 不清空已有字段（允许手动修改）
+    }
+
+    // ========== 责任类别字典 ==========
+
+    /// <summary>加载责任类别字典下拉（配置表动态，失败/空兜底内置 5 值）</summary>
+    private async Task LoadResponsibilityOptionsAsync()
+    {
+        var result = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.NcrResponsibilityKey);
+        if (result.Success && result.Data is { Count: > 0 })
+        {
+            _responsibilityOptions = result.Data;
+        }
+        else
+        {
+            _responsibilityOptions = NcrResponsibilityKeys.All
+                .Select(k => new DictValueInfoDto
+                {
+                    Value = k,
+                    DisplayName = NcrResponsibilityKeys.ToChinese(k)!,
+                    DisplayOrder = 0,
+                    IsEnabled = true
+                })
+                .ToList();
+        }
+    }
+
+    /// <summary>
+    /// 新增责任类型：旁侧输入中文名 → 生成 NcrRC_n 英文 Key → 写入字典配置 → 刷新下拉并选中。
+    /// </summary>
+    private async Task AddResponsibilityAsync()
+    {
+        var name = _newResponsibilityName.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            Snackbar.Add("请输入要新增的责任类型", Severity.Warning);
+            return;
+        }
+        if (!name.Any(c => c >= 0x4E00 && c <= 0x9FFF))
+        {
+            Snackbar.Add("责任类型必须包含汉字", Severity.Warning);
+            return;
+        }
+        if (_responsibilityOptions.Any(o => string.Equals(o.DisplayName, name, StringComparison.Ordinal)))
+        {
+            Snackbar.Add($"责任类型「{name}」已存在", Severity.Warning);
+            return;
+        }
+
+        // 生成 NcrRC_{n}：取现有 NcrRC_ 前缀最大序号 + 1，首增 n=1
+        var maxSeq = _responsibilityOptions
+            .Select(o => o.Value.StartsWith("NcrRC_", StringComparison.Ordinal) && int.TryParse(o.Value["NcrRC_".Length..], out var seq) ? seq : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+        var key = $"NcrRC_{maxSeq + 1}";
+
+        var result = await DictValueDefinitionService.SaveAsync(new DictValueDefinitionDto
+        {
+            Id = 0,
+            DictKey = DictValueDefaults.NcrResponsibilityKey,
+            Value = key,
+            DisplayName = name,
+            DisplayOrder = 999,
+            IsEnabled = true
+        });
+        if (result.Success)
+        {
+            Snackbar.Add($"已添加责任类型「{name}」", Severity.Success);
+            _newResponsibilityName = "";
+            await LoadResponsibilityOptionsAsync();
+            _formData.ResponsibilityCategory = key;
+        }
+        else
+        {
+            Snackbar.Add($"添加失败: {result.Message}", Severity.Error);
+        }
     }
 
     private async Task Save()
@@ -312,6 +401,7 @@ public partial class NcrForm
                     PlantGrade = _formData.PlantGrade,
                     Specification = _formData.Specification,
                     DefectiveQuantity = _formData.DefectiveQuantity,
+                    DefectiveWeight = _formData.DefectiveWeight,
                     ProblemDescription = _formData.ProblemDescription,
                     SourceInspectionItem = _formData.SourceInspectionItem,
                     DisposalMethod = _formData.DisposalMethod,

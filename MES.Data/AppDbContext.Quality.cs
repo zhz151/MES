@@ -482,6 +482,7 @@ public partial class AppDbContext
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
             entity.Property(e => e.Specification).HasMaxLength(100);
             entity.Property(e => e.DefectiveQuantity);
+            entity.Property(e => e.DefectiveWeight);
             entity.Property(e => e.ProblemDescription).HasMaxLength(500);
             entity.Property(e => e.SourceInspectionItem).HasMaxLength(100);
 

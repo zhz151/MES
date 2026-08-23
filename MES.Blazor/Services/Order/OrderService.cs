@@ -244,6 +244,20 @@ public class OrderService
         }
     }
 
+    /// <summary>获取订单交期预估（业务总况两小表：订单完成预估 / 延期交货订单预估）</summary>
+    public async Task<ApiResponse<OrderDeliveryEstimateDto>> GetDeliveryEstimateAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<OrderDeliveryEstimateDto>>($"{BaseUrl}/delivery-estimate");
+            return response ?? ApiResponse<OrderDeliveryEstimateDto>.Fail("获取订单交期预估失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<OrderDeliveryEstimateDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     public async Task<ApiResponse<List<OperationLogDto>>> GetOperationLogsAsync(int id)
     {
         try

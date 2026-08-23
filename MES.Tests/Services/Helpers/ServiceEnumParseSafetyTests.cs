@@ -54,7 +54,6 @@ public class ServiceEnumParseSafetyTests
         typeof(DisposalMethod),
         typeof(NcrStatus),
         typeof(PicklingStatus),
-        typeof(ResponsibilityCategory),
         typeof(SeverityLevel),
         typeof(VerifyResult),
         typeof(SectionStatus)
@@ -234,7 +233,7 @@ public class ServiceEnumParseSafetyTests
             typeof(LifecycleStatus), typeof(UsageType), typeof(RunningStatus),
             typeof(RepairOrderStatus), typeof(EquipmentTaskStatus), typeof(TaskOrderStatus),
             typeof(InspectionItem), typeof(DisposalMethod),
-            typeof(NcrStatus), typeof(PicklingStatus), typeof(ResponsibilityCategory),
+            typeof(NcrStatus), typeof(PicklingStatus),
             typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus)
         };
 

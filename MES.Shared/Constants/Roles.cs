@@ -61,6 +61,9 @@ public static class Roles
 
         public const string StandardRead = "StandardStaff,StandardDirector,Admin";
         public const string StandardWrite = "StandardDirector,Admin";
+
+        /// <summary>报表系统总览页可见：Admin + 订单/工单/批次/物料/仓库/质量 6 Director + 质检员（覆盖全部数据源端点角色，无 403）</summary>
+        public const string ReportOverview = "OrderDirector,WorkOrderDirector,BatchDirector,MaterialDirector,WarehouseDirector,QualityDirector,QualityStaff,Admin";
     }
 
     public static string[] GetAllRoles()

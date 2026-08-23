@@ -30,7 +30,7 @@ const ENUM_TYPES = new Set([
   'RepairPriority', 'LifecycleStatus', 'UsageType', 'RunningStatus',
   'RepairOrderStatus', 'EquipmentTaskStatus', 'TaskOrderStatus',
   'InspectionItem', 'DisposalMethod', 'NcrStatus', 'PicklingStatus',
-  'ResponsibilityCategory', 'SeverityLevel', 'VerifyResult', 'PipeCategory',
+  'SeverityLevel', 'VerifyResult', 'PipeCategory',
   'SectionStatus',
   'NcrStatus', 'DisposalMethod',
 ]);

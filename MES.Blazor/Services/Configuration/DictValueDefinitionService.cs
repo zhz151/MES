@@ -2,6 +2,7 @@ using System.Text.Json;
 using MES.Shared.Constants;
 using MES.Core.Models;
 using MES.Core.DTOs.Configuration;
+using MES.Core.Helpers;
 
 namespace MES.Blazor.Services;
 
@@ -104,6 +105,8 @@ public class DictValueDefinitionService
         try
         {
             var response = await _http.PostAsJsonAsync<DictValueDefinitionDto, ApiResponse<bool>>($"{BaseUrl}/save", dto);
+            if (response?.Success == true)
+                await RefreshDisplayMapAsync(); // 保存即刷新前端静态映射，SPA 内新增/改名后全站显示免 F5 生效
             return response ?? ApiResponse<bool>.Fail("保存失败");
         }
         catch (Exception ex)
@@ -117,11 +120,21 @@ public class DictValueDefinitionService
         try
         {
             var response = await _http.PostAsJsonAsync<object?, ApiResponse<bool>>($"{BaseUrl}/delete/{id}", null);
+            if (response?.Success == true)
+                await RefreshDisplayMapAsync(); // 删除后同步刷新前端静态映射
             return response ?? ApiResponse<bool>.Fail("删除失败");
         }
         catch (Exception ex)
         {
             return ApiResponse<bool>.Fail($"网络错误: {ex.Message}");
         }
+    }
+
+    /// <summary>重新拉取 display-map 并注入前端静态 DictValueDisplayHelper.OverrideMap，保证新增/删除字典值后全站显示即时生效。</summary>
+    private async Task RefreshDisplayMapAsync()
+    {
+        var map = await GetDisplayMapAsync();
+        if (map != null)
+            DictValueDisplayHelper.OverrideMap = map;
     }
 }

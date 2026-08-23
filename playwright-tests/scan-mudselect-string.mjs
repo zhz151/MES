@@ -28,7 +28,7 @@ const SHARED_DIR = path.join(PROJECT_DIR, 'MES.Blazor', 'Shared');
 // ============================================================
 const KNOWN_ENUM_TYPES = new Set([
   'NcrStatus', 'PipeCategory', 'DisposalMethod', 'SeverityLevel',
-  'ResponsibilityCategory', 'VerifyResult', 'ProductionType',
+  'VerifyResult', 'ProductionType',
   'ManufacturingItem', 'MaterialStatus', 'BatchStatus',
   'DeliveryState', 'SalesOrderStatus', 'WorkOrderStatus',
   'InspectionResult', 'TestResult', 'FurnaceStatus',

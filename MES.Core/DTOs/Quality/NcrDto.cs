@@ -1,3 +1,4 @@
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 
@@ -23,6 +24,7 @@ public class NcrDto
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
     public int? DefectiveQuantity { get; set; }
+    public int? DefectiveWeight { get; set; }
     public string? ProblemDescription { get; set; }
 
     /// <summary>来源检验项目（卡片排重用）</summary>
@@ -43,8 +45,8 @@ public class NcrDto
     public DateTime? AnalysisConfirmDate { get; set; }
 
     // G4: 责任人及处理
-    public ResponsibilityCategory? ResponsibilityCategory { get; set; }
-    public string? ResponsibilityCategoryDisplay => ResponsibilityCategory.HasValue ? EnumHelper.GetDisplayName(ResponsibilityCategory.Value) : null;
+    public string? ResponsibilityCategory { get; set; }
+    public string? ResponsibilityCategoryDisplay => DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, ResponsibilityCategory);
     public string? ResponsibleDept { get; set; }
     public DateTime? OperationDate { get; set; }
     public string? ResponsiblePerson { get; set; }
@@ -86,6 +88,7 @@ public class CreateNcrRequest
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
     public int? DefectiveQuantity { get; set; }
+    public int? DefectiveWeight { get; set; }
     public string? ProblemDescription { get; set; }
     public string? SourceInspectionItem { get; set; }
 
@@ -104,8 +107,8 @@ public class CreateNcrRequest
     public DateTime? AnalysisConfirmDate { get; set; }
 
     // G4: 责任人及处理
-    public ResponsibilityCategory? ResponsibilityCategory { get; set; }
-    public string? ResponsibilityCategoryDisplay => ResponsibilityCategory.HasValue ? EnumHelper.GetDisplayName(ResponsibilityCategory.Value) : null;
+    public string? ResponsibilityCategory { get; set; }
+    public string? ResponsibilityCategoryDisplay => DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, ResponsibilityCategory);
     public string? ResponsibleDept { get; set; }
     public DateTime? OperationDate { get; set; }
     public string? ResponsiblePerson { get; set; }
@@ -137,6 +140,7 @@ public class UpdateNcrRequest
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
     public int? DefectiveQuantity { get; set; }
+    public int? DefectiveWeight { get; set; }
     public string? ProblemDescription { get; set; }
     public string? SourceInspectionItem { get; set; }
 
@@ -155,8 +159,8 @@ public class UpdateNcrRequest
     public DateTime? AnalysisConfirmDate { get; set; }
 
     // G4: 责任人及处理
-    public ResponsibilityCategory? ResponsibilityCategory { get; set; }
-    public string? ResponsibilityCategoryDisplay => ResponsibilityCategory.HasValue ? EnumHelper.GetDisplayName(ResponsibilityCategory.Value) : null;
+    public string? ResponsibilityCategory { get; set; }
+    public string? ResponsibilityCategoryDisplay => DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, ResponsibilityCategory);
     public string? ResponsibleDept { get; set; }
     public DateTime? OperationDate { get; set; }
     public string? ResponsiblePerson { get; set; }
@@ -192,4 +196,10 @@ public class NcrLookupResultDto
     public string? TagNo { get; set; }
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
+
+    /// <summary>该批次检验记录的次品支数合计（手动输入生产编号时自动填入）</summary>
+    public int? DefectiveQuantity { get; set; }
+
+    /// <summary>该批次检验记录的次品重量合计（kg；过程检验取理论重量、成品检验取实际重量）</summary>
+    public int? DefectiveWeight { get; set; }
 }

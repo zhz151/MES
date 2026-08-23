@@ -1,0 +1,1479 @@
+@page "/reports/overview"
+@using MES.Blazor.Helpers
+@using MES.Blazor.Pages.Scheduling
+@attribute [Authorize(Roles = Roles.Policies.ReportOverview)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <div class="d-flex align-center mb-4">
+        <MudText Typo="Typo.h5" Class="font-weight-bold">
+            <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
+            报表总览
+        </MudText>
+        <div class="ml-auto">
+            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshAllAsync">
+                全部刷新
+            </MudButton>
+        </div>
+    </div>
+
+    <MudTabs Position="Position.Top" ActivePanelIndex="_activeIndex" ActivePanelIndexChanged="OnActivePanelIndexChanged">
+
+        @* ========== Tab1 业务总况：订单接单·出库及现负荷汇总 ========== *@
+        <MudTabPanel Text="业务总况" Icon="@Icons.Material.Filled.ShowChart">
+            <div class="pa-2">
+                @if (_loading[0])
+                {
+                    <div class="d-flex align-center" style="gap:8px;">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <span>业务总况加载中...</span>
+                    </div>
+                }
+                else if (_failed[0])
+                {
+                    <MudAlert Severity="Severity.Error">@_errorMessages[0]</MudAlert>
+                }
+                else
+                {
+                    <MudPaper Class="pa-3" Elevation="0">
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <div class="d-flex align-center" style="gap: 8px;">
+                                <MudText Typo="Typo.subtitle2"><b>订单接单·出库及现负荷汇总</b></MudText>
+                                <MudText Typo="Typo.caption" Class="text-hint">单位：吨(t)（源数据 kg）｜成品库存(完工/未完工)与订单负荷量(实时)为当前存量，仅显示本月</MudText>
+                            </div>
+                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Print"
+                                       OnClick="@(() => PrintTableAsync("#report-inout-summary-table", "业务总况-订单接单出库及现负荷汇总"))"
+                                       Disabled="@(_inOutSummary == null)">
+                                打印
+                            </MudButton>
+                        </div>
+                        @if (_inOutSummary == null)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">正在加载...</MudText>
+                        }
+                        else
+                        {
+                            <div id="report-inout-summary-table">
+                            <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">指标</th>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@_inOutSummary.MonthLabels[m]</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">接单量</td>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatInOutWeight(_inOutSummary.OrderWeightByMonth[m])</td>
+                                        }
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">出库量</td>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatInOutWeight(_inOutSummary.OutboundWeightByMonth[m])</td>
+                                        }
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">成品库存(完工)</td>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(m == _currentMonthIndex ? FormatInOutWeight(_inOutSummary.FinishedStockCompleted) : "-")</td>
+                                        }
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">成品库存(未完工)</td>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(m == _currentMonthIndex ? FormatInOutWeight(_inOutSummary.FinishedStockUncompleted) : "-")</td>
+                                        }
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">订单负荷量(实时)</td>
+                                        @for (var m = 0; m < 12; m++)
+                                        {
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(m == _currentMonthIndex ? FormatInOutWeight(_inOutSummary.TurnoverTotal) : "-")</td>
+                                        }
+                                    </tr>
+                                </tbody>
+                            </table>
+                            </div>
+
+                            @* 两小表（订单交期预估：订单完成预估 / 延期交货订单预估），直接属于「订单接单·出库及现负荷汇总」表 *@
+                            @if (_deliveryEstimate != null)
+                            {
+                                @for (var i = 0; i < _deliveryEstimate.Tables.Count; i++)
+                                {
+                                    var table = _deliveryEstimate.Tables[i];
+                                    var tableId = $"report-delivery-estimate-{i}";
+                                    <div class="mt-3">
+                                        <div class="d-flex justify-space-between align-center mb-1">
+                                            <MudText Typo="Typo.body2"><b>@table.Name</b></MudText>
+                                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                       StartIcon="@Icons.Material.Filled.Print"
+                                                       OnClick="@(() => PrintTableAsync("#" + tableId, "业务总况-" + table.Name))">
+                                                打印
+                                            </MudButton>
+                                        </div>
+                                        <div id="@tableId" style="overflow-x:auto;">
+                                        <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">交货日期范围</th>
+                                                    @foreach (var label in table.BucketLabels)
+                                                    {
+                                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                                    }
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">单数/重量</td>
+                                                    @foreach (var bucket in table.Buckets)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatDeliveryBucket(bucket)</td>
+                                                    }
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </MudPaper>
+                }
+            </div>
+        </MudTabPanel>
+
+        @* ========== Tab2 现订单负荷总量：嵌入订单负荷总量组件 ========== *@
+        <MudTabPanel Text="现订单负荷总量" Icon="@Icons.Material.Filled.HourglassEmpty">
+            <div class="pa-2">
+                <WorkOrderLoadOverview Title="现订单负荷总量" @key="_refreshKey" />
+            </div>
+        </MudTabPanel>
+
+        @* ========== Tab3 原料需求：原锁待投料量汇总（矩阵 + 截日） ========== *@
+        <MudTabPanel Text="原料需求" Icon="@Icons.Material.Filled.Inventory">
+            <div class="pa-2">
+                @if (_loading[2])
+                {
+                    <div class="d-flex align-center" style="gap:8px;">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <span>原料需求加载中...</span>
+                    </div>
+                }
+                else if (_failed[2])
+                {
+                    <MudAlert Severity="Severity.Error">@_errorMessages[2]</MudAlert>
+                }
+                else
+                {
+                    <MudPaper Class="pa-3" Elevation="0">
+                        @if (_pendingSummary == null)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">正在加载...</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>待投料量汇总（原料锁定）</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print"
+                                           OnClick="@(() => PrintTableAsync("#report-pending-summary", "原料需求-待投料量汇总"))">
+                                    打印
+                                </MudButton>
+                            </div>
+
+                            @* 标量徽章 *@
+                            <div class="d-flex" style="gap:24px; flex-wrap:wrap; margin-bottom:12px;">
+                                <MudText Typo="Typo.body2">
+                                    <b>工单总数:</b> @_pendingSummary.TotalOrderCount 批
+                                </MudText>
+                                <MudText Typo="Typo.body2">
+                                    <b>计划投料:</b> @((_pendingSummary.TotalWeight / 1000m).ToString("F1"))t
+                                </MudText>
+                                <MudText Typo="Typo.body2" Class="text-warning-orange">
+                                    <b>待投料:</b> @((_pendingSummary.PendingWeight / 1000m).ToString("F1"))t
+                                </MudText>
+                                @if (_pendingSummary.HasPurchaseData)
+                                {
+                                    <MudText Typo="Typo.body2" Class="text-primary">
+                                        <b>成购:</b> @((_pendingSummary.PurchaseWeight / 1000m).ToString("F1"))t（@_pendingSummary.PurchaseCount 行）
+                                    </MudText>
+                                }
+                            </div>
+
+                            <div id="report-pending-summary">
+                                <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                                    @* 待投料矩阵：行=原料锁定备注，列=主号计划性 *@
+                                    <div style="flex:1; min-width:340px;">
+                                        <div style="font-weight:600; color:#E65100; margin-bottom:4px;">待投料</div>
+                                        <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="text-align:left; padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0;">备注 \ 计划性</th>
+                                                    @foreach (var label in _pendingSummary.MatrixColumnLabels)
+                                                    {
+                                                        <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                                    }
+                                                    <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center;">合计</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @for (var ri = 0; ri < _pendingSummary.MatrixRowLabels.Count; ri++)
+                                                {
+                                                    var row = _pendingSummary.MatrixRows[ri];
+                                                    <tr>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">@_pendingSummary.MatrixRowLabels[ri]</td>
+                                                        @foreach (var c in row.Cells)
+                                                        {
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatMatrixPending(c.Count, c.PendingWeight)</td>
+                                                        }
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#f0f7f0; font-weight:600;">@FormatMatrixPending(row.RowCount, row.RowPendingWeight)</td>
+                                                    </tr>
+                                                }
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; background:#eef3fa;">合计</td>
+                                                    @foreach (var col in _pendingSummary.MatrixColumnTotals)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#eef3fa; font-weight:600;">@FormatMatrixPending(col.Count, col.PendingWeight)</td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#e8f0e8; font-weight:700;">@FormatMatrixPending(_pendingSummary.MatrixGrandTotals.Count, _pendingSummary.MatrixGrandTotals.PendingWeight)</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    @* 成购矩阵：仅当有外购成品未到时显示 *@
+                                    @if (_pendingSummary.HasPurchaseData)
+                                    {
+                                        <div style="flex:1; min-width:340px;">
+                                            <div style="font-weight:600; color:#1565C0; margin-bottom:4px;">成购（外购成品）</div>
+                                            <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="text-align:left; padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0;">备注 \ 计划性</th>
+                                                        @foreach (var label in _pendingSummary.MatrixColumnLabels)
+                                                        {
+                                                            <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                                        }
+                                                        <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center;">合计</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @for (var ri = 0; ri < _pendingSummary.MatrixRowLabels.Count; ri++)
+                                                    {
+                                                        var row = _pendingSummary.MatrixRows[ri];
+                                                        <tr>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">@_pendingSummary.MatrixRowLabels[ri]</td>
+                                                            @foreach (var c in row.Cells)
+                                                            {
+                                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatMatrixPurchase(c.PurchaseCount, c.PurchaseWeight)</td>
+                                                            }
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#f0f7f0; font-weight:600;">@FormatMatrixPurchase(row.RowPurchaseCount, row.RowPurchaseWeight)</td>
+                                                        </tr>
+                                                    }
+                                                    <tr>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; background:#eef3fa;">合计</td>
+                                                        @foreach (var col in _pendingSummary.MatrixColumnTotals)
+                                                        {
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#eef3fa; font-weight:600;">@FormatMatrixPurchase(col.PurchaseCount, col.PurchaseWeight)</td>
+                                                        }
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#e8f0e8; font-weight:700;">@FormatMatrixPurchase(_pendingSummary.MatrixGrandTotals.PurchaseCount, _pendingSummary.MatrixGrandTotals.PurchaseWeight)</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                </div>
+
+                                @* 理论待投料截日 *@
+                                <div style="margin-top:16px;">
+                                    <div style="font-weight:600; color:#1565C0; margin-bottom:4px;">理论待投料截日</div>
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0;">原锁类别</th>
+                                                <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待投料总量</th>
+                                                @foreach (var b in _pendingSummary.CutoffBucketLabels)
+                                                {
+                                                    <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@b</th>
+                                                }
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var r in _pendingSummary.CutoffRows)
+                                            {
+                                                var isTotal = r.Category == "合计";
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; @(isTotal ? "background:#e8f0e8;" : "")">@r.Category</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#e8f0e8;" : "")">@FormatCutoffCell(r.Total)</td>
+                                                    @foreach (var v in r.Buckets)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#e8f0e8;" : "")">@FormatCutoffCell(v)</td>
+                                                    }
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        }
+                    </MudPaper>
+                }
+            </div>
+        </MudTabPanel>
+
+        @* ========== Tab4 物料执行：采购 6 卡 + 穿孔 3 卡 ========== *@
+        <MudTabPanel Text="物料执行" Icon="@Icons.Material.Filled.LocalShipping">
+            <div class="pa-2">
+                @if (_loading[3])
+                {
+                    <div class="d-flex align-center" style="gap:8px;">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <span>物料执行加载中...</span>
+                    </div>
+                }
+                else if (_failed[3])
+                {
+                    <MudAlert Severity="Severity.Error">@_errorMessages[3]</MudAlert>
+                }
+                else
+                {
+                    @* 荒管待购（折叠：实时卡默认展开） *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("material:semi-pending") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("material:semi-pending") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("material:semi-pending"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>荒管待购实时数据</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-semi-pending", "荒管待购实时数据"))">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("material:semi-pending"))
+                            {
+                                @if (_semiPendingItems.Count == 0)
+                                {
+                                    <MudText Typo="Typo.body2" Class="text-hint">暂无荒管待购数据</MudText>
+                                }
+                                else
+                                {
+                                    <div id="report-semi-pending" style="overflow-x: auto; max-height: 30vh;">
+                                        <MudTable T="PurchasePendingDto" Items="@_semiPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                            <HeaderContent>
+                                                <MudTh Style="width: 120px;">工单号</MudTh>
+                                                <MudTh Style="width: 90px;">工单关注</MudTh>
+                                                <MudTh Style="width: 110px;">原锁执行</MudTh>
+                                                <MudTh Style="width: 90px;">工单计划性</MudTh>
+                                                <MudTh Style="width: 90px;">物料分类</MudTh>
+                                                <MudTh Style="width: 130px;">厂内钢种</MudTh>
+                                                <MudTh Style="width: 130px;">规格</MudTh>
+                                                <MudTh Style="width: 100px;" Class="text-right">待购量(kg)</MudTh>
+                                            </HeaderContent>
+                                            <RowTemplate>
+                                                <MudTd>@context.WorkOrderNo</MudTd>
+                                                <MudTd>@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage, "-")</MudTd>
+                                                <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (RawMaterialLockRemarkKeys.ToChinese(context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
+                                                <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
+                                                <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
+                                                <MudTd>@context.PlantGrade</MudTd>
+                                                <MudTd>@context.Specification</MudTd>
+                                                <MudTd Class="text-right">@FormatPendingWeight(context.PendingWeight)</MudTd>
+                                            </RowTemplate>
+                                        </MudTable>
+                                    </div>
+                                }
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 荒管在购（供应商×厂内钢种二维表，折叠） *@
+                    @if (_semiInProgressData is { Rows.Count: > 0 })
+                    {
+                        <MudCard Class="mb-2 summary-card" Elevation="0">
+                            <MudCardContent>
+                                <div class="d-flex align-center mb-2">
+                                    <MudIconButton Icon="@(IsCardCollapsed("material:semi-in-progress") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                                   Size="Size.Small" Color="@(IsCardCollapsed("material:semi-in-progress") ? Color.Default : Color.Primary)"
+                                                   OnClick="@(() => ToggleCardAsync("material:semi-in-progress"))" Title="展开/折叠" />
+                                    <MudText Typo="Typo.subtitle2" Class="ml-1"><b>荒管在购实时数据</b></MudText>
+                                    <div class="ml-auto">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-semi-in-progress", "荒管在购实时数据"))">打印</MudButton>
+                                    </div>
+                                </div>
+                                @if (!IsCardCollapsed("material:semi-in-progress"))
+                                {
+                                <div id="report-semi-in-progress" style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">供应商</th>
+                                                @foreach (var g in _semiInProgressData.SteelGrades)
+                                                {
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@g (t)</th>
+                                                }
+                                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var r in _semiInProgressData.Rows)
+                                            {
+                                                var isTotal = r.SupplierName == "合计";
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                    @foreach (var g in _semiInProgressData.SteelGrades)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@RenderInProgressCell(r.Cells.GetValueOrDefault(g) ?? new PurchaseInProgressCellDto())</td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@RenderInProgressCell(r.Total)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    }
+
+                    @* 荒管月度（供应商×1月~12月二维表） *@
+                    @if (_semiMonthlyData is { Rows.Count: > 0 })
+                    {
+                        <MudCard Class="mb-2 summary-card" Elevation="0">
+                            <MudCardContent>
+                                <div class="d-flex align-center mb-2">
+                                    <MudIconButton Icon="@(IsCardCollapsed("material:semi-monthly") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                                   Size="Size.Small" Color="@(IsCardCollapsed("material:semi-monthly") ? Color.Default : Color.Primary)"
+                                                   OnClick="@(() => ToggleCardAsync("material:semi-monthly"))" Title="展开/折叠" />
+                                    <MudText Typo="Typo.subtitle2" Class="ml-1"><b>荒管月度采购数据</b></MudText>
+                                    <div class="ml-auto">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-semi-monthly", "荒管月度采购数据"))">打印</MudButton>
+                                    </div>
+                                </div>
+                                @if (!IsCardCollapsed("material:semi-monthly"))
+                                {
+                                <div id="report-semi-monthly" style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">供应商</th>
+                                                @foreach (var label in _semiMonthlyData.MonthLabels)
+                                                {
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                                }
+                                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                                <th style="padding:4px 10px; background:#ffe0b2; border:1px solid #e0e0e0; text-align:center;">现在购(t)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var r in _semiMonthlyData.Rows)
+                                            {
+                                                var isTotal = r.SupplierName == "合计";
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                    @foreach (var mv in r.Months)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatPurchaseMonthlyCell(mv.BuyWeight, mv.ReturnWeight)</td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatPurchaseMonthlyCell(r.Total.BuyWeight, r.Total.ReturnWeight)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#ffe0b2;" : "background:#fff3e0;")">@FormatNowInProgress(r.NowInProgress)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    }
+
+                    @* 成品待购 *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("material:finished-pending") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("material:finished-pending") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("material:finished-pending"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>成品待购实时数据</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-finished-pending", "成品待购实时数据"))">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("material:finished-pending"))
+                            {
+                            @if (_finishedPendingItems.Count == 0)
+                            {
+                                <MudText Typo="Typo.body2" Class="text-hint">暂无成品待购数据</MudText>
+                            }
+                            else
+                            {
+                                <div id="report-finished-pending" style="overflow-x: auto; max-height: 30vh;">
+                                    <MudTable T="PurchasePendingDto" Items="@_finishedPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                        <HeaderContent>
+                                            <MudTh Style="width: 120px;">工单号</MudTh>
+                                            <MudTh Style="width: 90px;">工单关注</MudTh>
+                                            <MudTh Style="width: 110px;">原锁执行</MudTh>
+                                            <MudTh Style="width: 90px;">工单计划性</MudTh>
+                                            <MudTh Style="width: 90px;">物料分类</MudTh>
+                                            <MudTh Style="width: 130px;">厂内钢种</MudTh>
+                                            <MudTh Style="width: 130px;">规格</MudTh>
+                                            <MudTh Style="width: 100px;" Class="text-right">待购量(kg)</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd>@context.WorkOrderNo</MudTd>
+                                            <MudTd>@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage, "-")</MudTd>
+                                            <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (RawMaterialLockRemarkKeys.ToChinese(context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
+                                            <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
+                                            <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
+                                            <MudTd>@context.PlantGrade</MudTd>
+                                            <MudTd>@context.Specification</MudTd>
+                                            <MudTd Class="text-right">@FormatPendingWeight(context.PendingWeight)</MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                </div>
+                            }
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 成品在购 *@
+                    @if (_finishedInProgressData is { Rows.Count: > 0 })
+                    {
+                        <MudCard Class="mb-2 summary-card" Elevation="0">
+                            <MudCardContent>
+                                <div class="d-flex align-center mb-2">
+                                    <MudIconButton Icon="@(IsCardCollapsed("material:finished-in-progress") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                                   Size="Size.Small" Color="@(IsCardCollapsed("material:finished-in-progress") ? Color.Default : Color.Primary)"
+                                                   OnClick="@(() => ToggleCardAsync("material:finished-in-progress"))" Title="展开/折叠" />
+                                    <MudText Typo="Typo.subtitle2" Class="ml-1"><b>成品在购实时数据</b></MudText>
+                                    <div class="ml-auto">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-finished-in-progress", "成品在购实时数据"))">打印</MudButton>
+                                    </div>
+                                </div>
+                                @if (!IsCardCollapsed("material:finished-in-progress"))
+                                {
+                                <div id="report-finished-in-progress" style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">供应商</th>
+                                                @foreach (var g in _finishedInProgressData.SteelGrades)
+                                                {
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@g (t)</th>
+                                                }
+                                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var r in _finishedInProgressData.Rows)
+                                            {
+                                                var isTotal = r.SupplierName == "合计";
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                    @foreach (var g in _finishedInProgressData.SteelGrades)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@RenderInProgressCell(r.Cells.GetValueOrDefault(g) ?? new PurchaseInProgressCellDto())</td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@RenderInProgressCell(r.Total)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    }
+
+                    @* 成品月度 *@
+                    @if (_finishedMonthlyData is { Rows.Count: > 0 })
+                    {
+                        <MudCard Class="mb-2 summary-card" Elevation="0">
+                            <MudCardContent>
+                                <div class="d-flex align-center mb-2">
+                                    <MudIconButton Icon="@(IsCardCollapsed("material:finished-monthly") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                                   Size="Size.Small" Color="@(IsCardCollapsed("material:finished-monthly") ? Color.Default : Color.Primary)"
+                                                   OnClick="@(() => ToggleCardAsync("material:finished-monthly"))" Title="展开/折叠" />
+                                    <MudText Typo="Typo.subtitle2" Class="ml-1"><b>成品月度采购数据</b></MudText>
+                                    <div class="ml-auto">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-finished-monthly", "成品月度采购数据"))">打印</MudButton>
+                                    </div>
+                                </div>
+                                @if (!IsCardCollapsed("material:finished-monthly"))
+                                {
+                                <div id="report-finished-monthly" style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">供应商</th>
+                                                @foreach (var label in _finishedMonthlyData.MonthLabels)
+                                                {
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                                }
+                                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                                <th style="padding:4px 10px; background:#ffe0b2; border:1px solid #e0e0e0; text-align:center;">现在购(t)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var r in _finishedMonthlyData.Rows)
+                                            {
+                                                var isTotal = r.SupplierName == "合计";
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                    @foreach (var mv in r.Months)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatPurchaseMonthlyCell(mv.BuyWeight, mv.ReturnWeight)</td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatPurchaseMonthlyCell(r.Total.BuyWeight, r.Total.ReturnWeight)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#ffe0b2;" : "background:#fff3e0;")">@FormatNowInProgress(r.NowInProgress)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    }
+
+                    @* 圆钢待穿孔 *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("material:piercing-pending") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("material:piercing-pending") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("material:piercing-pending"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>圆钢待穿孔实时数据</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-piercing-pending", "圆钢待穿孔实时数据"))">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("material:piercing-pending"))
+                            {
+                            @if (_piercingPendingItems.Count == 0)
+                            {
+                                <MudText Typo="Typo.body2" Class="text-hint">暂无圆钢待穿孔数据</MudText>
+                            }
+                            else
+                            {
+                                <div id="report-piercing-pending" style="overflow-x: auto; max-height: 30vh;">
+                                    <MudTable T="SubcontractPiercingPendingDto" Items="@_piercingPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                        <HeaderContent>
+                                            <MudTh Style="width: 130px;">工单号</MudTh>
+                                            <MudTh Style="width: 90px;">工单关注</MudTh>
+                                            <MudTh Style="width: 110px;">原锁执行</MudTh>
+                                            <MudTh Style="width: 90px;">工单计划性</MudTh>
+                                            <MudTh Style="width: 90px;">钢种</MudTh>
+                                            <MudTh Style="width: 110px;">穿孔规格</MudTh>
+                                            <MudTh Style="width: 100px;" Class="text-right">缺少量(kg)</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd>@context.WorkOrderNo</MudTd>
+                                            <MudTd>
+                                                @if (context.ExecutionScheduleStage.HasValue)
+                                                {
+                                                    <MudChip Size="Size.Small" Color="@DisplayHelper.GetScheduleStageColor(context.ExecutionScheduleStage.Value)">@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage.Value)</MudChip>
+                                                }
+                                                else
+                                                {
+                                                    <span>-</span>
+                                                }
+                                            </MudTd>
+                                            <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (RawMaterialLockRemarkKeys.ToChinese(context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
+                                            <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
+                                            <MudTd>@context.PlantGrade</MudTd>
+                                            <MudTd>@context.PiercingSpec</MudTd>
+                                            <MudTd Class="text-right"><b>@FormatKg(context.MissingWeight)</b></MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                </div>
+                            }
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 圆钢在穿孔（委外单位×加工规格二维表） *@
+                    @if (_piercingInProgressData is { Rows.Count: > 0 })
+                    {
+                        <MudCard Class="mb-2 summary-card" Elevation="0">
+                            <MudCardContent>
+                                <div class="d-flex align-center mb-2">
+                                    <MudIconButton Icon="@(IsCardCollapsed("material:piercing-in-progress") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                                   Size="Size.Small" Color="@(IsCardCollapsed("material:piercing-in-progress") ? Color.Default : Color.Primary)"
+                                                   OnClick="@(() => ToggleCardAsync("material:piercing-in-progress"))" Title="展开/折叠" />
+                                    <MudText Typo="Typo.subtitle2" Class="ml-1"><b>圆钢在穿孔实时数据</b></MudText>
+                                    <div class="ml-auto">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-piercing-in-progress", "圆钢在穿孔实时数据"))">打印</MudButton>
+                                    </div>
+                                </div>
+                                @if (!IsCardCollapsed("material:piercing-in-progress"))
+                                {
+                                <div id="report-piercing-in-progress" style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">委外单位</th>
+                                                @foreach (var spec in _piercingInProgressData.Specifications)
+                                                {
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@spec (t)</th>
+                                                }
+                                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var r in _piercingInProgressData.Rows)
+                                            {
+                                                var isTotal = r.SupplierName == "合计";
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                    @foreach (var spec in _piercingInProgressData.Specifications)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatTon(r.Cells.GetValueOrDefault(spec)?.TotalWeight ?? 0)</td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatTon(r.Total.TotalWeight)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    }
+
+                    @* 圆钢月度穿孔 *@
+                    @if (_piercingMonthlyData is { Rows.Count: > 0 })
+                    {
+                        <MudCard Class="mb-2 summary-card" Elevation="0">
+                            <MudCardContent>
+                                <div class="d-flex align-center mb-2">
+                                    <MudIconButton Icon="@(IsCardCollapsed("material:piercing-monthly") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                                   Size="Size.Small" Color="@(IsCardCollapsed("material:piercing-monthly") ? Color.Default : Color.Primary)"
+                                                   OnClick="@(() => ToggleCardAsync("material:piercing-monthly"))" Title="展开/折叠" />
+                                    <MudText Typo="Typo.subtitle2" Class="ml-1"><b>圆钢月度穿孔数据</b></MudText>
+                                    <div class="ml-auto">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-piercing-monthly", "圆钢月度穿孔数据"))">打印</MudButton>
+                                    </div>
+                                </div>
+                                @if (!IsCardCollapsed("material:piercing-monthly"))
+                                {
+                                <div id="report-piercing-monthly" style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">委外单位</th>
+                                                @foreach (var label in _piercingMonthlyData.MonthLabels)
+                                                {
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                                }
+                                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                                <th style="padding:4px 10px; background:#ffe0b2; border:1px solid #e0e0e0; text-align:center;">现在穿(t)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var r in _piercingMonthlyData.Rows)
+                                            {
+                                                var isTotal = r.SupplierName == "合计";
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SupplierName</td>
+                                                    @foreach (var mv in r.Months)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatSendRecoverText(mv.SendWeight, mv.RecoverWeight)</td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatSendRecoverText(r.Total.SendWeight, r.Total.RecoverWeight)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#ffe0b2;" : "background:#fff3e0;")">@FormatTon(r.NowPiercing)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                }
+            </div>
+        </MudTabPanel>
+
+        @* ========== Tab5 生产执行：段落/工段流转 + 近日/月度生产量 + 实时委外在产 + 月度委外 ========== *@
+        <MudTabPanel Text="生产执行" Icon="@Icons.Material.Filled.Factory">
+            <div class="pa-2">
+                @if (_loading[4])
+                {
+                    <div class="d-flex align-center" style="gap:8px;">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <span>生产执行加载中...</span>
+                    </div>
+                }
+                else if (_failed[4])
+                {
+                    <MudAlert Severity="Severity.Error">@_errorMessages[4]</MudAlert>
+                }
+                else
+                {
+                    @* 冷轧拔近日排程（只读建议卡，前往冷轧计划页执行） *@
+                    <MudCard Class="mb-2 summary-card card-accent-left" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("production:cold-roll-suggestion") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("production:cold-roll-suggestion") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("production:cold-roll-suggestion"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>冷轧拔近日排程</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print"
+                                               OnClick="@(() => PrintTableAsync("#report-cold-roll-suggestion", "冷轧拔近日排程"))"
+                                               Disabled="@(!_coldRollSuggestionRows.Any())">
+                                        打印
+                                    </MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("production:cold-roll-suggestion"))
+                            {
+                            @if (!_coldRollSuggestionRows.Any())
+                            {
+                                <MudText Typo="Typo.body2" Class="text-hint">暂无排程建议（无机台数配置或无批次排程维度）</MudText>
+                            }
+                            else
+                            {
+                                <div id="report-cold-roll-suggestion" style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">机台类型</th>
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">可流转量(t)</th>
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">计划流转量(t)</th>
+                                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">计划机台数</th>
+                                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">流转档</th>
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">后流转(2030)</th>
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:left;">矛盾标注</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var group in _coldRollSuggestionRows)
+                                            {
+                                                var hasConflict = group.Conflicts.Any();
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">@group.MachineType</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@TonsText(group.FlowTotalWeight)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@TonsText(group.PlannedFlowWeight)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600; background:#fff8e1;">@group.MachineCount</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600; background:#fff8e1;">@SuggestionTierDisplay(group)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(group.FlowState?.Role == "Supplier" ? $"{TonsText(group.FlowState.TotalWeight)}t / {group.FlowState.SupplyMachines}台" : "-")</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0;">
+                                                        @if (hasConflict)
+                                                        {
+                                                            <span style="color:#E65100; font-weight:600;">@string.Join("；", group.Conflicts)</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-hint">OK</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="mt-1 text-hint" style="font-size:0.8rem;">
+                                    档位说明：急+＝特急且关注本机台；急＝特急（正常流转）；急-＝急单（非正常流转）
+                                </div>
+                            }
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 段落流转分析 *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("production:paragraph-flow") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("production:paragraph-flow") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("production:paragraph-flow"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>段落流转分析</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-paragraph-flow", "段落流转分析"))">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("production:paragraph-flow"))
+                            {
+                            <div id="report-paragraph-flow" style="overflow-x:auto;">
+                            <MudTable T="SectionParagraphFlowAnalysisDto" Items="@_paragraphRows"
+                                      Dense="true" Hover="true" Elevation="0" Class="auto-table">
+                                <HeaderContent>
+                                    <MudTh><div class="col-header-cell"><span class="th-label">生产段落</span></div></MudTh>
+                                    <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">待在产重量</span></div></MudTh>
+                                    <MudTh Class="mud-table-cell--center"><div class="col-header-cell"><span class="th-label">总况判定</span></div></MudTh>
+                                    <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">计划重点批流转量</span></div></MudTh>
+                                    <MudTh Class="mud-table-cell--center"><div class="col-header-cell"><span class="th-label">计划流转判定</span></div></MudTh>
+                                    <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">特急批重量</span></div></MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="item">
+                                    <MudTd><span class="font-weight-bold">@item.ParagraphName</span></MudTd>
+                                    <MudTd Class="mud-table-cell--right">@RenderInt(item.PendingTotal)</MudTd>
+                                    <MudTd Class="mud-table-cell--center">
+                                        <MudChip Size="Size.Small" Color="@GetStatusColor(item.StatusJudgment)">@(item.StatusJudgment ?? "-")</MudChip>
+                                    </MudTd>
+                                    <MudTd Class="mud-table-cell--right">@RenderInt(item.PlanFlowQuantity)</MudTd>
+                                    <MudTd Class="mud-table-cell--center">
+                                        <MudChip Size="Size.Small" Color="@GetPlanFlowJudgmentColor(item.PlanFlowJudgment)">@(item.PlanFlowJudgment ?? "-")</MudChip>
+                                    </MudTd>
+                                    <MudTd Class="mud-table-cell--right">@RenderInt(item.PlanKeyWeight)</MudTd>
+                                </RowTemplate>
+                                <FooterContent>
+                                    <MudTd Class="col-footer-cell">&nbsp;</MudTd>
+                                    <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PendingTotal ?? 0m))</MudTd>
+                                    <MudTd Class="col-footer-cell">&nbsp;</MudTd>
+                                    <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PlanFlowQuantity ?? 0m))</MudTd>
+                                    <MudTd Class="col-footer-cell">&nbsp;</MudTd>
+                                    <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PlanKeyWeight ?? 0m))</MudTd>
+                                </FooterContent>
+                            </MudTable>
+                            </div>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 近日生产量 *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("production:recent-production") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("production:recent-production") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("production:recent-production"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>近日生产量数据</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-summary", "近日生产量数据"))">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("production:recent-production"))
+                            {
+                            <div id="report-summary" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">工段</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">前6日(t)</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">前3日(t)</th>
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">今日(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _summaryRows)
+                                        {
+                                            var isTotal = r.SectionName == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SectionName</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(r.Last7DaysWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(r.Last3DaysWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatT(r.TodayWeight)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 月度生产量 *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("production:monthly-production") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("production:monthly-production") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("production:monthly-production"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>月度生产量数据</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-monthly-production", "月度生产量数据"))">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("production:monthly-production"))
+                            {
+                            <div id="report-monthly-production" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">工段</th>
+                                            @foreach (var label in _monthlyLabels)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _monthlyProductionRows)
+                                        {
+                                            var isTotal = r.SectionName == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SectionName</td>
+                                                @for (var m = 0; m < _monthlyLabels.Count; m++)
+                                                {
+                                                    var val = m < r.MonthlyWeights.Count ? r.MonthlyWeights[m] : 0m;
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(val)</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatT(r.MonthlyWeights.Sum())</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 实时委外在产（厂内过滤后，按在产单位×工段二维表） *@
+                    @if (_outsourcePendingData.Sections.Count > 0)
+                    {
+                        <MudCard Class="mb-2 summary-card" Elevation="0">
+                            <MudCardContent>
+                                <div class="d-flex align-center mb-2">
+                                    <MudIconButton Icon="@(IsCardCollapsed("production:outsource-pending") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                                   Size="Size.Small" Color="@(IsCardCollapsed("production:outsource-pending") ? Color.Default : Color.Primary)"
+                                                   OnClick="@(() => ToggleCardAsync("production:outsource-pending"))" Title="展开/折叠" />
+                                    <MudText Typo="Typo.subtitle2" Class="ml-1"><b>实时委外在产</b></MudText>
+                                    <div class="ml-auto">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-outsource-pending", "实时委外在产"))">打印</MudButton>
+                                    </div>
+                                </div>
+                                @if (!IsCardCollapsed("production:outsource-pending"))
+                                {
+                                <div id="report-outsource-pending" style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">在产单位</th>
+                                                @foreach (var s in _outsourcePendingData.Sections)
+                                                {
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@s (t)</th>
+                                                }
+                                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var r in _outsourcePendingData.Rows)
+                                            {
+                                                var isTotal = r.OutsourceUnit == "合计";
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.OutsourceUnit</td>
+                                                    @foreach (var s in _outsourcePendingData.Sections)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatOutsourceCell(r.Cells.TryGetValue(s, out var c) ? c : null)</td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatOutsourceCell(r.TotalCell)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    }
+
+                    @* 月度委外（委外单位×工段，单位合并单元格，不含厂内） *@
+                    @if (_monthlyOutsourceRows.Count > 0)
+                    {
+                        <MudCard Class="mb-2 summary-card" Elevation="0">
+                            <MudCardContent>
+                                <div class="d-flex align-center mb-2">
+                                    <MudIconButton Icon="@(IsCardCollapsed("production:monthly-outsource") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                                   Size="Size.Small" Color="@(IsCardCollapsed("production:monthly-outsource") ? Color.Default : Color.Primary)"
+                                                   OnClick="@(() => ToggleCardAsync("production:monthly-outsource"))" Title="展开/折叠" />
+                                    <MudText Typo="Typo.subtitle2" Class="ml-1"><b>月度委外数据</b></MudText>
+                                    <div class="ml-auto">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-monthly-outsource", "月度委外数据"))">打印</MudButton>
+                                    </div>
+                                </div>
+                                @if (!IsCardCollapsed("production:monthly-outsource"))
+                                {
+                                <div id="report-monthly-outsource" style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">委外单位</th>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">工段</th>
+                                                @foreach (var label in _monthlyLabels)
+                                                {
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                                }
+                                                <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                                <th style="padding:4px 10px; background:#ffe0b2; border:1px solid #e0e0e0; text-align:center;">现在产(t)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (var i = 0; i < _monthlyOutsourceRows.Count; i++)
+                                            {
+                                                var r = _monthlyOutsourceRows[i];
+                                                var isTotal = r.OutsourceVendor == "合计";
+                                                var isVendorFirst = i == 0 || !string.Equals(_monthlyOutsourceRows[i - 1].OutsourceVendor, r.OutsourceVendor, StringComparison.OrdinalIgnoreCase);
+                                                <tr>
+                                                    @if (isVendorFirst)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")"
+                                                            rowspan="@_vendorRowspans.GetValueOrDefault(r.OutsourceVendor, 1)">@r.OutsourceVendor</td>
+                                                    }
+                                                    else
+                                                    {
+                                                        <td style="display:none"></td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.SectionName</td>
+                                                    @for (var m = 0; m < _monthlyLabels.Count; m++)
+                                                    {
+                                                        var mv = m < r.Months.Count ? r.Months[m] : null;
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatSendRecoverText3(mv?.Send ?? 0m, mv?.Recover ?? 0m, mv?.Unprocessed ?? 0m)</td>
+                                                    }
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatSendRecoverText3(r.TotalSend, r.TotalRecover, r.TotalUnprocessed)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#ffe0b2;" : "background:#fff3e0;")">@FormatNowInProduction(r.NowInProduction)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                }
+            </div>
+        </MudTabPanel>
+
+        @* ========== Tab6 质量管理：不合格品实时待处理 + 不合格品月度汇总 + 待检批支重汇总 + 近日成检量 + 月度成检量 ========== *@
+        <MudTabPanel Text="质量管理" Icon="@Icons.Material.Filled.FactCheck">
+            <div class="pa-2">
+                @if (_loading[5])
+                {
+                    <div class="d-flex align-center" style="gap:8px;">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <span>质量管理加载中...</span>
+                    </div>
+                }
+                else if (_failed[5])
+                {
+                    <MudAlert Severity="Severity.Error">@_errorMessages[5]</MudAlert>
+                }
+                else
+                {
+                    @* 不合格品实时待处理（NCR 上下文） *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("quality:ncr-pending") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("quality:ncr-pending") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("quality:ncr-pending"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>不合格品实时待处理</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-ncr-pending", "不合格品实时待处理", "quality:ncr-pending"))">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("quality:ncr-pending"))
+                            {
+                            <div id="report-ncr-pending" style="overflow-x:auto;">
+                                @if (_ncrPendingItems.Count == 0)
+                                {
+                                    <MudText Typo="Typo.body2" Class="text-hint">暂无待处理的不合格品。</MudText>
+                                }
+                                else
+                                {
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">反馈日期</th>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">反馈部门</th>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">物料类型</th>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">工单号</th>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">生产编号</th>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">牌号</th>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">规格</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">次品支数</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">次品重量</th>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">问题描述</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">处置方式</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in _ncrPendingItems)
+                                        {
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@item.ReportDate.ToString("yyyy-MM-dd")</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@GetNcrPendingReportDepartment(item)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@GetNcrPendingPipeCategoryText(item)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@item.WorkOrderNo</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@item.BatchNo</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@item.PlantGrade</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@item.Specification</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@item.DefectQuantity</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(item.DefectiveWeight?.ToString() ?? "-")</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0;">@item.DefectDescription</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@DisplayHelper.GetDisposalMethodText(item.DisposalMethod)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                                }
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：不合格品实时待处理列表（尚未建档不合格报告的检验批次，与不合格报告页待处理口径一致）；反馈部门=来源+检验项目、物料类型按检验来源判定，与不合格报告自动填充口径一致。
+                            </MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 不合格品月度汇总（NCR 上下文） *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("quality:ncr-monthly") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("quality:ncr-monthly") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("quality:ncr-monthly"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>不合格品月度汇总</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="PrintNcrMonthlySummaryAsync">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("quality:ncr-monthly"))
+                            {
+                            <div id="report-ncr-monthly-summary" style="overflow-x:auto;">
+                                @if (_ncrMonthlySummary == null || _ncrMonthlyRows.Count == 0)
+                                {
+                                    <MudText Typo="Typo.body2" Class="text-hint">暂无数据。</MudText>
+                                }
+                                else
+                                {
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">责任类别</th>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">责任部门</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">处置方式</th>
+                                            @foreach (var label in _ncrMonthlySummary.MonthLabels)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">处置方式汇总</th>
+                                            <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center;">责任部门汇总</th>
+                                            <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center;">责任类别汇总</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (var i = 0; i < _ncrMonthlyRows.Count; i++)
+                                        {
+                                            var r = _ncrMonthlyRows[i];
+                                            var catRowspan = _ncrCategoryRowspans[i];
+                                            var deptRowspan = _ncrDeptRowspans[i];
+                                            <tr>
+                                                @if (catRowspan > 0)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; white-space:nowrap;" rowspan="@catRowspan">@r.CategoryDisplay</td>
+                                                }
+                                                @if (deptRowspan > 0)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; white-space:nowrap;" rowspan="@deptRowspan">@r.ResponsibleDept</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@r.DisposalMethodDisplay</td>
+                                                @for (var m = 0; m < _ncrMonthlySummary.MonthLabels.Count; m++)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@(m > _ncrMonthlySummary.CurrentMonthIndex ? string.Empty : FormatNcrCell(r.Months[m].Quantity, r.Months[m].Weight))</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap; font-weight:600;">@FormatNcrCell(r.TotalQuantity, r.TotalWeight)</td>
+                                                @if (deptRowspan > 0)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap; font-weight:600; background:#f5f9ff;" rowspan="@deptRowspan">@FormatNcrCell(_ncrDeptTotals[i].Qty, _ncrDeptTotals[i].Weight)</td>
+                                                }
+                                                @if (catRowspan > 0)
+                                                {
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap; font-weight:600; background:#f5f9ff;" rowspan="@catRowspan">@FormatNcrCell(_ncrCategoryTotals[i].Qty, _ncrCategoryTotals[i].Weight)</td>
+                                                }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                                <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                    注：按（责任类别→责任部门→处置方式）三级分组，分月基准=反馈日期（本年）；单元格「X支/YKg」，为 0 的部分省略；当前月份为 @(_ncrMonthlySummary.CurrentMonthIndex + 1) 月，之后月份尚未发生、单元格留空；责任类别/责任部门/处置方式为空归「未填写」。
+                                </MudText>
+                                }
+                            </div>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 待检批支重汇总（成检计划上下文） *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("quality:inspection-plan") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("quality:inspection-plan") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("quality:inspection-plan"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>待检批支重汇总</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-inspection-plan-summary", "待检批支重汇总"))">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("quality:inspection-plan"))
+                            {
+                            <div id="report-inspection-plan-summary" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">检验项</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待到料</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待检验+检验中</th>
+                                            <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center; font-weight:600;">汇总数据</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _inspectionPlanSummaryRows)
+                                        {
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; white-space:nowrap;">@r.InspectionItemName</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@RenderSummaryCell(r.WaitingMaterialCount, r.WaitingMaterialQuantity, r.WaitingMaterialWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@RenderSummaryCell(r.WaitingInspectionCount + r.InspectingCount, r.WaitingInspectionQuantity + r.InspectingQuantity, r.WaitingInspectionWeight + r.InspectingWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap; font-weight:600; background:#eef3fa;">@RenderSummaryCell(r.TotalCount, r.TotalQuantity, r.TotalWeight)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：某检验项统计「要求该检验项且尚未完成该检验」的看板批次，按待到料/待检验+检验中分列；已检完该检验项的批次（含「完成检验待入库」档）不计入；每格=批次数/生产支数/生产重量(kg)；0 值显示 "-"；预+正式合并、按批次去重；汇总数据=两档之和。
+                            </MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 近日成检量数据（成品检验上下文） *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("quality:recent-inspection") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("quality:recent-inspection") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("quality:recent-inspection"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>近日成检量数据</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-recent-inspection", "近日成检量数据"))">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("quality:recent-inspection"))
+                            {
+                            <div id="report-recent-inspection" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">检验项目</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">前6日(t)</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">前3日(t)</th>
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">今日(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _recentInspectionRows)
+                                        {
+                                            var isTotal = r.InspectionItem == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.InspectionItem</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(r.Last7DaysWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(r.Last3DaysWeight)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatT(r.TodayWeight)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：前6日/前3日均不含今日，今日列为实时数据（浅黄底色）；按检验项目统计检验重量（成品检验记录 Weight，预成检/正式成检合并，与成品检验页口径一致）；合计行=各检验项目之和；0 值留空。
+                            </MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 月度成检量数据（成品检验上下文） *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("quality:monthly-inspection") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("quality:monthly-inspection") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("quality:monthly-inspection"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><b>月度成检量数据</b></MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print" OnClick="@(() => PrintTableAsync("#report-monthly-inspection", "月度成检量数据"))">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("quality:monthly-inspection"))
+                            {
+                            <div id="report-monthly-inspection" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">检验项目</th>
+                                            @foreach (var label in _monthlyInspectionLabels)
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                            }
+                                            <th style="padding:4px 10px; background:#fff8e1; border:1px solid #e0e0e0; text-align:center;">合计(t)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in _monthlyInspectionRows)
+                                        {
+                                            var isTotal = r.InspectionItem == "合计";
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:@(isTotal ? "700" : "600"); @(isTotal ? "background:#eef3fa;" : "")">@r.InspectionItem</td>
+                                                @for (var m = 0; m < _monthlyInspectionLabels.Count; m++)
+                                                {
+                                                    var val = m < r.MonthlyWeights.Count ? r.MonthlyWeights[m] : 0m;
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; @(isTotal ? "background:#eef3fa;" : "")">@FormatT(val)</td>
+                                                }
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; @(isTotal ? "background:#eef3fa;" : "background:#fff8e1;")">@FormatT(r.MonthlyWeights.Sum())</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：按本年度各月份统计；按检验项目统计检验重量（成品检验记录 Weight，预成检/正式成检合并，与成品检验页口径一致）；末列"合计"=该行 1月~12月之和；0 值留空。
+                            </MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </div>
+        </MudTabPanel>
+
+        @* ========== Tab7 仓库报表：嵌入物料进出存报表 ========== *@
+        <MudTabPanel Text="仓库报表" Icon="@Icons.Material.Filled.Warehouse">
+            <div class="pa-2">
+                <MonthlyStock @key="_refreshKey" />
+            </div>
+        </MudTabPanel>
+
+    </MudTabs>
+</MudContainer>

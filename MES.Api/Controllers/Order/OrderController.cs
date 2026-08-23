@@ -75,6 +75,17 @@ public class OrderController : ControllerBase
         return Ok(ApiResponse<OrderInOutSummaryDto>.Ok(result, "查询成功"));
     }
 
+    /// <summary>
+    /// 订单交期预估（业务总况两小表：订单完成预估 / 延期交货订单预估）
+    /// </summary>
+    [HttpGet("delivery-estimate")]
+    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<OrderDeliveryEstimateDto>>> GetDeliveryEstimate()
+    {
+        var result = await _orderService.GetDeliveryEstimateAsync();
+        return Ok(ApiResponse<OrderDeliveryEstimateDto>.Ok(result, "查询成功"));
+    }
+
     [HttpGet("{id}")]
     [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<SalesOrderDetailDto>>> GetById(int id)

@@ -33,8 +33,11 @@ public class Ncr : BaseEntity
     /// <summary>规格（从批次冗余）</summary>
     public string? Specification { get; set; }
 
-    /// <summary>不合格支数</summary>
+    /// <summary>次品支数</summary>
     public int? DefectiveQuantity { get; set; }
+
+    /// <summary>次品重量(kg，整数)</summary>
+    public int? DefectiveWeight { get; set; }
 
     /// <summary>问题描述</summary>
     public string? ProblemDescription { get; set; }
@@ -72,8 +75,8 @@ public class Ncr : BaseEntity
 
     // ========== G4: 责任人及处理 ==========
 
-    /// <summary>责任类别</summary>
-    public ResponsibilityCategory? ResponsibilityCategory { get; set; }
+    /// <summary>责任类别（字典 NcrResponsibilityKey 英文 Key）</summary>
+    public string? ResponsibilityCategory { get; set; }
 
     /// <summary>责任部门</summary>
     public string? ResponsibleDept { get; set; }

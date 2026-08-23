@@ -47,6 +47,9 @@ const RETEST_PAGES = [
   { url: '/warehouse', name: '库存查询', module: 'Warehouse', hasPrint: true },
   { url: '/warehouse/outbound-history', name: '出库历史', module: 'Warehouse', hasPrint: true },
   { url: '/warehouse/pending-delivery', name: '待发货', module: 'Warehouse', hasPrint: true },
+
+  // ---- Reports ----
+  { url: '/reports/overview', name: '报表总览', module: 'Reports', hasPrint: true },
 ];
 
 const CHECKS = {

@@ -82,4 +82,56 @@ public static class ProductionSummaryHelper
                 return i;
         return SummaryAllSectionTabs.Length;
     }
+
+    /// <summary>
+    /// 交期/投料截止负荷量 7 桶（绝对日期样式，2026-08-23 用户决策统一）：
+    /// ≤今日 / 今日+1~今日+桶1 / … / 今日+桶4+1~今日+桶5 / ≥今日+桶5+1。
+    /// 桶边界从 DateBucket 配置表读取（默认 7/15/30/45/60），改配置即各页面同步生效。
+    /// </summary>
+    public static List<(DateTime Start, DateTime End, string Label)> GenerateDateBuckets(
+        DateTime today, int bucket1, int bucket2, int bucket3, int bucket4, int bucket5)
+    {
+        var tailStart = today.AddDays(bucket5 + 1);
+        return new List<(DateTime, DateTime, string)>
+        {
+            (DateTime.MinValue, today, $"≤{today:yy/M/d}"),
+            (today.AddDays(1), today.AddDays(bucket1), $"{today.AddDays(1):yy/M/d}-{today.AddDays(bucket1):yy/M/d}"),
+            (today.AddDays(bucket1 + 1), today.AddDays(bucket2), $"{today.AddDays(bucket1 + 1):yy/M/d}-{today.AddDays(bucket2):yy/M/d}"),
+            (today.AddDays(bucket2 + 1), today.AddDays(bucket3), $"{today.AddDays(bucket2 + 1):yy/M/d}-{today.AddDays(bucket3):yy/M/d}"),
+            (today.AddDays(bucket3 + 1), today.AddDays(bucket4), $"{today.AddDays(bucket3 + 1):yy/M/d}-{today.AddDays(bucket4):yy/M/d}"),
+            (today.AddDays(bucket4 + 1), today.AddDays(bucket5), $"{today.AddDays(bucket4 + 1):yy/M/d}-{today.AddDays(bucket5):yy/M/d}"),
+            (tailStart, DateTime.MaxValue, $"≥{tailStart:yy/M/d}"),
+        };
+    }
+
+    /// <summary>
+    /// 单工单待投料计算（与原锁计划 RecalculateSummary.pendingCalc 口径一致）：
+    /// 成购缺口 = Max(0, 成品计划量 − 已到货量)；质量补料（A）按流转比缺口折算不减已投料，其余减已投料；逐工单 Max(0)。
+    /// 配置倍率 rawRatio 由调用方传入（订单负荷/原锁走 ProcessingDiscount/RawMaterialRatio 配置，默认 1.1）。
+    /// </summary>
+    public static decimal CalcPending(
+        decimal totalWeight, decimal finishPlanWeight, decimal finishInWeight,
+        decimal inputWeight, decimal flowOutputRatio, string? rawMaterialLockRemark, decimal rawRatio)
+    {
+        var purchase = Math.Max(0m, finishPlanWeight - finishInWeight);
+        var baseVal = (totalWeight - purchase) * rawRatio;
+        return RawMaterialLockRemarkKeys.ToKey(rawMaterialLockRemark) == RawMaterialLockRemarkKeys.QualityReplenish
+            ? Math.Max(0m, baseVal * (1m - flowOutputRatio / 100m))
+            : Math.Max(0m, baseVal - inputWeight);
+    }
+
+    /// <summary>
+    /// 按理论截止投料日归桶（桶边界与订单负荷总量页同源）：空 → 末桶「远日量」，闭区间首中即返，兜底末桶。
+    /// </summary>
+    public static int GetCutoffBucket(DateTime? cutoff, List<(DateTime Start, DateTime End, string Label)> buckets)
+    {
+        if (buckets.Count == 0) return 0;
+        if (!cutoff.HasValue) return buckets.Count - 1;
+        var d = cutoff.Value.Date;
+        for (var i = 0; i < buckets.Count; i++)
+        {
+            if (d >= buckets[i].Start && d <= buckets[i].End) return i;
+        }
+        return buckets.Count - 1;
+    }
 }

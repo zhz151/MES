@@ -380,7 +380,7 @@ public class EnumHelperTests
             typeof(LifecycleStatus), typeof(UsageType), typeof(RunningStatus),
             typeof(RepairOrderStatus), typeof(EquipmentTaskStatus), typeof(TaskOrderStatus),
             typeof(InspectionItem), typeof(DisposalMethod),
-            typeof(NcrStatus), typeof(PicklingStatus), typeof(ResponsibilityCategory),
+            typeof(NcrStatus), typeof(PicklingStatus),
             typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus)
         };
 
@@ -443,7 +443,6 @@ public class EnumHelperTests
         ("DisposalMethod", typeof(DisposalMethod)),
         ("NcrStatus", typeof(NcrStatus)),
         ("PicklingStatus", typeof(PicklingStatus)),
-        ("ResponsibilityCategory", typeof(ResponsibilityCategory)),
         ("SeverityLevel", typeof(SeverityLevel)),
         ("VerifyResult", typeof(VerifyResult)),
         ("PipeCategory", typeof(MaterialType)),

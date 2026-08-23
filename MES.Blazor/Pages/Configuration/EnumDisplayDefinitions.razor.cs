@@ -81,7 +81,6 @@ public partial class EnumDisplayDefinitions
         ["DisposalMethod"] = "处理方式",
         ["NcrStatus"] = "NCR 状态",
         ["PicklingStatus"] = "酸洗状态",
-        ["ResponsibilityCategory"] = "责任分类",
         ["SeverityLevel"] = "严重程度",
         ["VerifyResult"] = "验证结果",
         ["SectionStatus"] = "工段状态",

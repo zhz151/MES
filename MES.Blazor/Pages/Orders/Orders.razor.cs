@@ -38,6 +38,8 @@ public partial class Orders
     // ========== 订单接单·出库及现负荷汇总 ==========
     private bool _showInOutSummaryCard;
     private OrderInOutSummaryDto? _inOutSummary;
+    /// <summary>订单交期预估（两小表：订单(整单)完成预估 / 风险-已延期订单(整单)，x单/y吨，订单级口径）</summary>
+    private OrderDeliveryEstimateDto? _deliveryEstimate;
     private int _currentMonthIndex => DateTime.Today.Month - 1;
 
     private string sortColumn = "signdate";
@@ -812,11 +814,20 @@ public partial class Orders
         {
             try
             {
-                var result = await OrderService.GetInOutSummaryAsync(DateTime.Today.Year);
-                if (result.Success && result.Data != null)
-                    _inOutSummary = result.Data;
+                var inOutTask = OrderService.GetInOutSummaryAsync(DateTime.Today.Year);
+                var estimateTask = OrderService.GetDeliveryEstimateAsync();
+                await Task.WhenAll(inOutTask, estimateTask);
+
+                var inOut = await inOutTask;
+                if (inOut.Success && inOut.Data != null)
+                    _inOutSummary = inOut.Data;
                 else
-                    Snackbar.Add(result.Message ?? "加载汇总失败", Severity.Warning);
+                    Snackbar.Add(inOut.Message ?? "加载汇总失败", Severity.Warning);
+
+                var estimate = await estimateTask;
+                // 交期预估加载失败不阻断主表：保留 null，页面显示「暂无数据」
+                if (estimate.Success && estimate.Data != null)
+                    _deliveryEstimate = estimate.Data;
             }
             catch (Exception ex)
             {
@@ -826,6 +837,10 @@ public partial class Orders
     }
 
     private static string FormatInOutWeight(decimal kg) => kg == 0m ? "-" : $"{kg / 1000m:F1}";
+
+    /// <summary>订单交期预估小表单元格（x单/y吨）</summary>
+    private static string FormatDeliveryBucket(OrderDeliveryBucketDto b)
+        => b.Count > 0 || b.Weight > 0 ? $"{b.Count}单/{b.Weight.ToString("F1")}吨" : "-";
 
     /// <summary>打印「订单接单·出库及现负荷汇总」卡片（前端 printRawHtml 打印汇总表）</summary>
     private async Task PrintInOutSummary()
@@ -839,6 +854,25 @@ public partial class Orders
                 return;
             }
             await JS.InvokeVoidAsync("printRawHtml", html, "订单接单·出库及现负荷汇总");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>打印订单交期预估小表（两小表：订单(整单)完成预估 / 风险-已延期订单(整单)）</summary>
+    private async Task PrintDeliveryEstimate(string tableId, string title)
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", tableId);
+            if (string.IsNullOrEmpty(html))
+            {
+                Snackbar.Add("未找到可打印的交期预估表", Severity.Warning);
+                return;
+            }
+            await JS.InvokeVoidAsync("printRawHtml", html, title);
         }
         catch (Exception ex)
         {

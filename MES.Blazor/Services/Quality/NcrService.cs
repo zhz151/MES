@@ -110,4 +110,14 @@ public class NcrService
         catch (Exception ex) { return ApiResponse<List<NcrPendingCheckDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    public async Task<ApiResponse<NcrMonthlySummaryDto>> GetMonthlySummaryAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<NcrMonthlySummaryDto>>($"{BaseUrl}/monthly-summary")
+                   ?? ApiResponse<NcrMonthlySummaryDto>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<NcrMonthlySummaryDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
 }

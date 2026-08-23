@@ -39,6 +39,9 @@ public interface INcrService
     /// <summary>获取待处理批次卡片数据（分析过程检�?成品检验）</summary>
     Task<List<NcrPendingCheckDto>> GetPendingChecksAsync();
 
+    /// <summary>获取不合格品月度汇总（责任类别→责任部门→处置方式 三级，12 个月次品支数/重量矩阵）</summary>
+    Task<NcrMonthlySummaryDto> GetMonthlySummaryAsync();
+
     /// <summary>打印选中 NCR（生成 PDF）</summary>
     Task<byte[]> PrintSelectedAsync(int[] ids, List<PrintColumnDef> columns);
 

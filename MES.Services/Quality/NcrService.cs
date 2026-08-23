@@ -13,6 +13,7 @@ using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
@@ -176,6 +177,7 @@ public class NcrService : INcrService
             PlantGrade = request.PlantGrade ?? batch?.PlantGrade,
             Specification = request.Specification ?? batch?.Specification,
             DefectiveQuantity = request.DefectiveQuantity,
+            DefectiveWeight = request.DefectiveWeight,
             ProblemDescription = request.ProblemDescription,
             SourceInspectionItem = request.SourceInspectionItem,
 
@@ -241,6 +243,7 @@ public class NcrService : INcrService
         entity.PlantGrade = request.PlantGrade ?? entity.PlantGrade;
         entity.Specification = request.Specification ?? entity.Specification;
         entity.DefectiveQuantity = request.DefectiveQuantity ?? entity.DefectiveQuantity;
+        entity.DefectiveWeight = request.DefectiveWeight ?? entity.DefectiveWeight;
         entity.ProblemDescription = request.ProblemDescription ?? entity.ProblemDescription;
         entity.SourceInspectionItem = request.SourceInspectionItem ?? entity.SourceInspectionItem;
 
@@ -323,18 +326,44 @@ public class NcrService : INcrService
 
     public async Task<NcrLookupResultDto?> LookupBatchAsync(string batchNo)
     {
-        return await _context.ProductionBatches
+        var batch = await _context.ProductionBatches
             .AsNoTracking()
             .Where(b => b.BatchNo == batchNo)
-            .Select(b => new NcrLookupResultDto
-            {
-                WorkOrderNo = b.WorkOrderNo,
-                SalesOrderNo = b.SalesOrderNo,
-                TagNo = b.TagNo,
-                PlantGrade = b.PlantGrade,
-                Specification = b.Specification
-            })
+            .Select(b => new { b.Id, b.WorkOrderNo, b.SalesOrderNo, b.TagNo, b.PlantGrade, b.Specification })
             .FirstOrDefaultAsync();
+        if (batch == null) return null;
+
+        // 手动输入生产编号时自动填入：该批次检验记录的次品支数/重量合计
+        //（过程检验取理论重量、成品检验取实际重量；各处置类型合计）
+        var processDefects = await _context.ProcessInspections
+            .AsNoTracking()
+            .Where(pi => pi.ProductionBatchId == batch.Id)
+            .Select(pi => new
+            {
+                Qty = (pi.DefectReworkQuantity ?? 0) + (pi.DefectWarehouseQuantity ?? 0) + (pi.DefectScrapQuantity ?? 0),
+                Weight = (pi.TheoreticalReworkWeight ?? 0) + (pi.TheoreticalWarehouseWeight ?? 0) + (pi.TheoreticalScrapWeight ?? 0)
+            })
+            .ToListAsync();
+        var finalDefects = await _context.FinalInspections
+            .AsNoTracking()
+            .Where(fi => fi.ProductionBatchId == batch.Id)
+            .Select(fi => new
+            {
+                Qty = (fi.DefectReworkQuantity ?? 0) + (fi.DefectWarehouseQuantity ?? 0) + (fi.DefectScrapQuantity ?? 0),
+                Weight = (fi.DefectReworkWeight ?? 0) + (fi.DefectWarehouseWeight ?? 0) + (fi.DefectScrapWeight ?? 0)
+            })
+            .ToListAsync();
+
+        return new NcrLookupResultDto
+        {
+            WorkOrderNo = batch.WorkOrderNo,
+            SalesOrderNo = batch.SalesOrderNo,
+            TagNo = batch.TagNo,
+            PlantGrade = batch.PlantGrade,
+            Specification = batch.Specification,
+            DefectiveQuantity = processDefects.Sum(x => x.Qty) + finalDefects.Sum(x => x.Qty),
+            DefectiveWeight = processDefects.Sum(x => x.Weight) + finalDefects.Sum(x => x.Weight)
+        };
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
@@ -423,6 +452,9 @@ public class NcrService : INcrService
                 TotalRework = g.Sum(pi => (int?)pi.DefectReworkQuantity) ?? 0,
                 TotalWarehouse = g.Sum(pi => (int?)pi.DefectWarehouseQuantity) ?? 0,
                 TotalScrap = g.Sum(pi => (int?)pi.DefectScrapQuantity) ?? 0,
+                TotalReworkWeight = g.Sum(pi => (int?)pi.TheoreticalReworkWeight) ?? 0,
+                TotalWarehouseWeight = g.Sum(pi => (int?)pi.TheoreticalWarehouseWeight) ?? 0,
+                TotalScrapWeight = g.Sum(pi => (int?)pi.TheoreticalScrapWeight) ?? 0,
                 TotalQuantity = g.Sum(pi => (int?)pi.Quantity) ?? 0,
                 InspectionItem = g.Select(pi => pi.InspectionItem).FirstOrDefault(),
                 Inspector = g.Select(pi => pi.Inspector).FirstOrDefault(),
@@ -460,6 +492,7 @@ public class NcrService : INcrService
                     DefectDescription = a.DefectDescription,
                     DisposalMethod = DisposalMethod.Rework,
                     DefectQuantity = a.TotalRework,
+                    DefectiveWeight = a.TotalReworkWeight,
                     TotalQuantity = totalQty,
                     Percentage = Math.Round((decimal)a.TotalRework / totalQty * 100, 1)
                 });
@@ -481,6 +514,7 @@ public class NcrService : INcrService
                     DefectDescription = a.DefectDescription,
                     DisposalMethod = DisposalMethod.WarehouseEntry,
                     DefectQuantity = a.TotalWarehouse,
+                    DefectiveWeight = a.TotalWarehouseWeight,
                     TotalQuantity = totalQty,
                     Percentage = Math.Round((decimal)a.TotalWarehouse / totalQty * 100, 1)
                 });
@@ -502,6 +536,7 @@ public class NcrService : INcrService
                     DefectDescription = a.DefectDescription,
                     DisposalMethod = DisposalMethod.Scrap,
                     DefectQuantity = a.TotalScrap,
+                    DefectiveWeight = a.TotalScrapWeight,
                     TotalQuantity = totalQty,
                     Percentage = Math.Round((decimal)a.TotalScrap / totalQty * 100, 1)
                 });
@@ -520,6 +555,9 @@ public class NcrService : INcrService
                 TotalRework = g.Sum(fi => (int?)fi.DefectReworkQuantity) ?? 0,
                 TotalWarehouse = g.Sum(fi => (int?)fi.DefectWarehouseQuantity) ?? 0,
                 TotalScrap = g.Sum(fi => (int?)fi.DefectScrapQuantity) ?? 0,
+                TotalReworkWeight = g.Sum(fi => (int?)fi.DefectReworkWeight) ?? 0,
+                TotalWarehouseWeight = g.Sum(fi => (int?)fi.DefectWarehouseWeight) ?? 0,
+                TotalScrapWeight = g.Sum(fi => (int?)fi.DefectScrapWeight) ?? 0,
                 TotalQuantity = g.Sum(fi => (int?)fi.Quantity) ?? 0,
                 Inspector = g.Select(fi => fi.Operator).FirstOrDefault(),
                 ManufacturingItem = g.Select(fi => fi.ProductionBatch.ManufacturingItem).FirstOrDefault(),
@@ -555,6 +593,7 @@ public class NcrService : INcrService
                     DefectDescription = a.DefectDescription,
                     DisposalMethod = DisposalMethod.Rework,
                     DefectQuantity = a.TotalRework,
+                    DefectiveWeight = a.TotalReworkWeight,
                     TotalQuantity = totalQty,
                     Percentage = Math.Round((decimal)a.TotalRework / totalQty * 100, 1)
                 });
@@ -576,6 +615,7 @@ public class NcrService : INcrService
                     DefectDescription = a.DefectDescription,
                     DisposalMethod = DisposalMethod.WarehouseEntry,
                     DefectQuantity = a.TotalWarehouse,
+                    DefectiveWeight = a.TotalWarehouseWeight,
                     TotalQuantity = totalQty,
                     Percentage = Math.Round((decimal)a.TotalWarehouse / totalQty * 100, 1)
                 });
@@ -597,6 +637,7 @@ public class NcrService : INcrService
                     DefectDescription = a.DefectDescription,
                     DisposalMethod = DisposalMethod.Scrap,
                     DefectQuantity = a.TotalScrap,
+                    DefectiveWeight = a.TotalScrapWeight,
                     TotalQuantity = totalQty,
                     Percentage = Math.Round((decimal)a.TotalScrap / totalQty * 100, 1)
                 });
@@ -623,6 +664,77 @@ public class NcrService : INcrService
         });
 
         return results;
+    }
+
+    /// <summary>
+    /// 获取不合格品月度汇总：按（责任类别→责任部门→处置方式）三级分组，12 个月次品支数/重量矩阵。
+    /// 分月基准 = 反馈日期（ReportDate）；责任类别/责任部门/处置方式为空归「未填写」分组，全量守恒。
+    /// 返回行已按 责任类别→责任部门→处置方式 排序、同组相邻，便于前端合并单元格。
+    /// </summary>
+    public async Task<NcrMonthlySummaryDto> GetMonthlySummaryAsync()
+    {
+        var year = DateTime.Today.Year;
+
+        var ncrRows = await _context.Ncrs
+            .AsNoTracking()
+            .Where(n => n.ReportDate.Year == year)
+            .Select(n => new
+            {
+                n.ReportDate,
+                Category = n.ResponsibilityCategory,
+                Dept = n.ResponsibleDept,
+                Method = n.DisposalMethod,
+                Qty = n.DefectiveQuantity,
+                Weight = n.DefectiveWeight
+            })
+            .ToListAsync();
+
+        var rows = ncrRows
+            .GroupBy(r => new
+            {
+                Category = string.IsNullOrWhiteSpace(r.Category) ? "" : r.Category.Trim(),
+                Dept = string.IsNullOrWhiteSpace(r.Dept) ? "" : r.Dept.Trim(),
+                Method = r.Method
+            })
+            .Select(g =>
+            {
+                var months = new List<NcrMonthValueDto>(12);
+                for (var m = 1; m <= 12; m++)
+                {
+                    months.Add(new NcrMonthValueDto
+                    {
+                        Quantity = g.Where(x => x.ReportDate.Month == m).Sum(x => x.Qty ?? 0),
+                        Weight = g.Where(x => x.ReportDate.Month == m).Sum(x => x.Weight ?? 0)
+                    });
+                }
+                return new NcrMonthlyRowDto
+                {
+                    ResponsibilityCategory = g.Key.Category,
+                    CategoryDisplay = string.IsNullOrEmpty(g.Key.Category)
+                        ? "未填写"
+                        : (DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, g.Key.Category) ?? g.Key.Category),
+                    ResponsibleDept = string.IsNullOrEmpty(g.Key.Dept) ? "未填写" : g.Key.Dept,
+                    DisposalMethod = g.Key.Method,
+                    DisposalMethodDisplay = g.Key.Method.HasValue
+                        ? EnumHelper.GetDisplayName(g.Key.Method.Value)
+                        : "未填写",
+                    Months = months,
+                    TotalQuantity = g.Sum(x => x.Qty ?? 0),
+                    TotalWeight = g.Sum(x => x.Weight ?? 0)
+                };
+            })
+            .OrderBy(r => string.IsNullOrEmpty(r.ResponsibilityCategory) ? 1 : 0)
+            .ThenBy(r => r.CategoryDisplay, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.ResponsibleDept, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.DisposalMethodDisplay, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new NcrMonthlySummaryDto
+        {
+            MonthLabels = Enumerable.Range(1, 12).Select(m => $"{year}-{m:D2}").ToList(),
+            CurrentMonthIndex = DateTime.Today.Month - 1,
+            Rows = rows
+        };
     }
 
     // ========== 打印（PDF - QuestPDF） ==========
@@ -710,6 +822,7 @@ public class NcrService : INcrService
             PlantGrade = r.PlantGrade,
             Specification = r.Specification,
             DefectiveQuantity = r.DefectiveQuantity,
+            DefectiveWeight = r.DefectiveWeight,
             ProblemDescription = r.ProblemDescription,
             SourceInspectionItem = r.SourceInspectionItem,
             DisposalMethod = r.DisposalMethod,
@@ -754,6 +867,7 @@ public class NcrService : INcrService
             PlantGrade = entity.PlantGrade,
             Specification = entity.Specification,
             DefectiveQuantity = entity.DefectiveQuantity,
+            DefectiveWeight = entity.DefectiveWeight,
             ProblemDescription = entity.ProblemDescription,
             SourceInspectionItem = entity.SourceInspectionItem,
             DisposalMethod = entity.DisposalMethod,

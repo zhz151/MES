@@ -140,7 +140,11 @@
                         <MudTextField T="string" Label="规格" @bind-Value="_formData.Specification" Disabled="true" />
                     </MudItem>
                     <MudItem xs="12" sm="4" md="2">
-                        <MudNumericField T="int?" Label="不合格支数" @bind-Value="_formData.DefectiveQuantity"
+                        <MudNumericField T="int?" Label="次品支数" @bind-Value="_formData.DefectiveQuantity"
+                                         HideSpinButtons="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4" md="2">
+                        <MudNumericField T="int?" Label="次品重量" @bind-Value="_formData.DefectiveWeight"
                                          HideSpinButtons="true" />
                     </MudItem>
                 </MudGrid>
@@ -216,14 +220,23 @@
                 </MudText>
                 <MudGrid>
                     <MudItem xs="12" sm="6" md="2">
-                        <MudSelect T="ResponsibilityCategory?" Label="责任类别" @bind-Value="_formData.ResponsibilityCategory"
+                        <MudSelect T="string" Label="责任类别" @bind-Value="_formData.ResponsibilityCategory"
                                    Variant="Variant.Outlined">
-                            <MudSelectItem Value="@((ResponsibilityCategory?)null)">请选择</MudSelectItem>
-                            @foreach (var opt in DisplayHelper.GetEnumOptions<ResponsibilityCategory>())
+                            <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                            @foreach (var opt in _responsibilityOptions)
                             {
-                                <MudSelectItem Value="@((ResponsibilityCategory?)Enum.Parse<ResponsibilityCategory>(opt.Value))">@opt.Display</MudSelectItem>
+                                <MudSelectItem Value="@opt.Value">@opt.DisplayName</MudSelectItem>
                             }
                         </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudTextField T="string" Label="新增责任类型" @bind-Value="_newResponsibilityName"
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddResponsibilityAsync" FullWidth="true" Style="height: 100%;">添加</MudButton>
                     </MudItem>
                     <MudItem xs="12" sm="6" md="2">
                         <MudTextField T="string" Label="责任部门" @bind-Value="_formData.ResponsibleDept" />

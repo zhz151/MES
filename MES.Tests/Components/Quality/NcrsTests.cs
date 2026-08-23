@@ -15,9 +15,10 @@ public class NcrsTests : TestBase
 
     public NcrsTests()
     {
-        RegisterServices(typeof(NcrService));
+        RegisterServices(typeof(NcrService), typeof(DictValueDefinitionService));
         ConfigureEmptyResponse($"{NcrBase}/filter-contexts");
         ConfigureEmptyResponse($"{NcrBase}/pending-checks");
+        ConfigureEmptyResponse("/api/dict-value-definition/enabled-values");
     }
 
     [Fact]

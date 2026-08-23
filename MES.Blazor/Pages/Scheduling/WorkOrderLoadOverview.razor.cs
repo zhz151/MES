@@ -100,9 +100,12 @@ public partial class WorkOrderLoadOverview : ComponentBase
 
     /// <summary>
     /// 日期桶格值：延期分类行显示「主值/料副值」斜杠式（如 80/料16），延期量行显示「主值[*副值]」括号式（如 87[*18]，星号红色标注超1周量），其余行单值；0 显示 "-"
+    /// subOnly=true（订单延期-原料/在产/成检，2026-08-23 用户决策）：仅显示副值（如 118/待料89 → 89），去掉主值与前缀
     /// </summary>
-    private static string FormatBucketTons(decimal tons, decimal? sub, string? prefix, bool parenFormat = false)
+    private static string FormatBucketTons(decimal tons, decimal? sub, string? prefix, bool parenFormat = false, bool subOnly = false)
     {
+        if (subOnly)
+            return sub.HasValue && sub.Value > 0 ? $"{sub.Value:0}" : "-";
         var main = tons > 0 ? $"{tons:0}" : "-";
         if (sub.HasValue && sub.Value > 0)
             return parenFormat

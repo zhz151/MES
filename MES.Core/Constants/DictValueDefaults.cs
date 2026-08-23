@@ -35,11 +35,14 @@ public static class DictValueDefaults
     /// <summary>责任类别（LiabilityTypeKeys）</summary>
     public const string LiabilityTypeKey = "LiabilityTypeKey";
 
+    /// <summary>NCR 责任类别（NcrResponsibilityKeys）</summary>
+    public const string NcrResponsibilityKey = "NcrResponsibilityKey";
+
     /// <summary>全部字典标识有序列表（配置页下拉/列表用）</summary>
     public static readonly string[] DictKeys =
     [
         SectionKey, ProcessKey, UrgencyLevelKey, ProductStatus, ProductionFlowKey,
-        FlowTargetKey, ProductionOverviewRowKey, LiabilityTypeKey
+        FlowTargetKey, ProductionOverviewRowKey, LiabilityTypeKey, NcrResponsibilityKey
     ];
 
     /// <summary>全量：DictKey → Value → DisplayName（含 8 个字典全部内置值）</summary>
@@ -54,6 +57,7 @@ public static class DictValueDefaults
             [FlowTargetKey] = Copy(FlowTargetKeys.KeyToChinese),
             [ProductionOverviewRowKey] = Copy(ProductionOverviewRowKeys.KeyToChinese),
             [LiabilityTypeKey] = Copy(LiabilityTypeKeys.KeyToChinese),
+            [NcrResponsibilityKey] = Copy(NcrResponsibilityKeys.KeyToChinese),
         };
 
     private static IReadOnlyDictionary<string, string> Copy(IReadOnlyDictionary<string, string> source)

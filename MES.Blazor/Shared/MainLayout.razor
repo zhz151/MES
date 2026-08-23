@@ -151,6 +151,13 @@
                 </MudNavGroup>
             </AuthorizeView>
 
+            <!-- 报表系统 -->
+            <AuthorizeView Roles="@Roles.Policies.ReportOverview">
+                <MudNavGroup Title="报表系统" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                    <MudNavLink Href="/reports/overview">报表总览</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+
             <!-- 数据工具 -->
             <MudNavLink Href="/data-exchange">数据工具</MudNavLink>
 

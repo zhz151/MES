@@ -32,6 +32,7 @@ public static class DbInitializer
         DictValueDefaults.FlowTargetKey,
         DictValueDefaults.ProductionOverviewRowKey,
         DictValueDefaults.LiabilityTypeKey,
+        DictValueDefaults.NcrResponsibilityKey,
     ];
 
     public static async Task InitializeAsync(IServiceProvider serviceProvider)

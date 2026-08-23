@@ -197,11 +197,14 @@ public class NcrServiceTests : TestBase
             BatchNo = "BATCH001",
             PipeCategory = MaterialType.OrderFinished,
             DefectiveQuantity = 5,
+            DefectiveWeight = 30,
             ProblemDescription = "表面裂纹"
         });
 
         result.Should().NotBeNull();
         result.BatchNo.Should().Be("BATCH001");
+        result.DefectiveQuantity.Should().Be(5);
+        result.DefectiveWeight.Should().Be(30);
         result.Status.Should().Be(NcrStatus.Processing);
 
         var saved = await ctx.Ncrs.FirstAsync();
@@ -260,10 +263,12 @@ public class NcrServiceTests : TestBase
         {
             ReportDate = DateTime.Today,
             DefectiveQuantity = 20,
+            DefectiveWeight = 40,
             ProblemDescription = "更新描述"
         });
 
         result.DefectiveQuantity.Should().Be(20);
+        result.DefectiveWeight.Should().Be(40);
         result.ProblemDescription.Should().Be("更新描述");
     }
 
@@ -395,6 +400,38 @@ public class NcrServiceTests : TestBase
         result.Should().BeNull();
     }
 
+    [Fact]
+    public async Task LookupBatchAsync_批次含检验记录_返回次品支数重量合计()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        // 过程检验：返整 10 支理论重 20kg + 报废 3 支理论重 6kg
+        ctx.ProcessInspections.Add(new ProcessInspection
+        {
+            ProductionBatchId = batch.Id,
+            BatchNo = "BATCH001",
+            ProcessName = "冷拔",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            InspectionItem = InspectionItem.Dimension.ToString(),
+            InspectionDate = DateTime.Today,
+            Quantity = 100,
+            DefectReworkQuantity = 10,
+            TheoreticalReworkWeight = 20,
+            DefectScrapQuantity = 3,
+            TheoreticalScrapWeight = 6,
+            Inspector = "张三"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.LookupBatchAsync("BATCH001");
+
+        result.Should().NotBeNull();
+        result!.DefectiveQuantity.Should().Be(13);
+        result.DefectiveWeight.Should().Be(26);
+    }
+
     // ========== GetFilterContextsAsync ==========
 
     [Fact]
@@ -440,6 +477,34 @@ public class NcrServiceTests : TestBase
     }
 
     // ========== GetPendingChecksAsync ==========
+
+    [Fact]
+    public async Task GetPendingChecksAsync_过程检验触发_卡片含次品重量()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        ctx.ProcessInspections.Add(new ProcessInspection
+        {
+            ProductionBatchId = batch.Id,
+            BatchNo = "BATCH001",
+            ProcessName = "冷拔",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            InspectionItem = InspectionItem.Dimension.ToString(),
+            InspectionDate = DateTime.Today,
+            Quantity = 100,
+            DefectReworkQuantity = 10,
+            TheoreticalReworkWeight = 25,
+            Inspector = "张三"
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPendingChecksAsync();
+
+        result.Should().Contain(r => r.DisposalMethod == DisposalMethod.Rework
+            && r.DefectQuantity == 10 && r.DefectiveWeight == 25);
+    }
 
     [Fact]
     public async Task GetPendingChecksAsync_无数据_返回空列表()
@@ -513,5 +578,117 @@ public class NcrServiceTests : TestBase
         var result = await svc.GetPendingChecksAsync();
 
         result.Should().BeEmpty();
+    }
+
+    // ========== GetMonthlySummaryAsync ==========
+
+    [Fact]
+    public async Task GetMonthlySummaryAsync_按反馈日期分月_三级分组聚合()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        ctx.Ncrs.AddRange(
+            new Ncr
+            {
+                ReportDate = new DateTime(year, 1, 10), BatchNo = "B1", PipeCategory = MaterialType.OrderFinished,
+                ResponsibilityCategory = NcrResponsibilityKeys.ProductionInternal, ResponsibleDept = "生产一部",
+                DisposalMethod = DisposalMethod.Rework, DefectiveQuantity = 10, DefectiveWeight = 50, Status = NcrStatus.Processing
+            },
+            new Ncr
+            {
+                ReportDate = new DateTime(year, 1, 20), BatchNo = "B2", PipeCategory = MaterialType.OrderFinished,
+                ResponsibilityCategory = NcrResponsibilityKeys.ProductionInternal, ResponsibleDept = "生产一部",
+                DisposalMethod = DisposalMethod.WarehouseEntry, DefectiveQuantity = 5, DefectiveWeight = 30, Status = NcrStatus.Processing
+            },
+            new Ncr
+            {
+                ReportDate = new DateTime(year, 2, 5), BatchNo = "B3", PipeCategory = MaterialType.OrderFinished,
+                ResponsibilityCategory = NcrResponsibilityKeys.ProductionInternal, ResponsibleDept = "生产一部",
+                DisposalMethod = DisposalMethod.Rework, DefectiveQuantity = 3, DefectiveWeight = 20, Status = NcrStatus.Processing
+            });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetMonthlySummaryAsync();
+
+        result.MonthLabels.Should().HaveCount(12);
+        result.MonthLabels[0].Should().Be($"{year}-01");
+        result.CurrentMonthIndex.Should().Be(DateTime.Today.Month - 1);
+        // 同 类别×部门 两种处置方式 → 2 行，责任类别/部门正确归一
+        result.Rows.Should().HaveCount(2);
+        result.Rows.Should().OnlyContain(r => r.CategoryDisplay == "生产-厂内");
+        result.Rows.Should().OnlyContain(r => r.ResponsibleDept == "生产一部");
+        result.Rows.Should().OnlyContain(r => !string.IsNullOrEmpty(r.DisposalMethodDisplay));
+        // 返整行：1月=10支/50kg，2月=3支/20kg，合计 13支/70kg
+        var rework = result.Rows.Single(r => r.DisposalMethod == DisposalMethod.Rework);
+        rework.Months.Should().HaveCount(12);
+        rework.Months[0].Quantity.Should().Be(10);
+        rework.Months[0].Weight.Should().Be(50);
+        rework.Months[1].Quantity.Should().Be(3);
+        rework.Months[1].Weight.Should().Be(20);
+        rework.TotalQuantity.Should().Be(13);
+        rework.TotalWeight.Should().Be(70);
+        // 入库行：1月=5支/30kg
+        var warehouse = result.Rows.Single(r => r.DisposalMethod == DisposalMethod.WarehouseEntry);
+        warehouse.TotalQuantity.Should().Be(5);
+        warehouse.TotalWeight.Should().Be(30);
+    }
+
+    [Fact]
+    public async Task GetMonthlySummaryAsync_空值归未填写_全量守恒()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        ctx.Ncrs.AddRange(
+            new Ncr
+            {
+                ReportDate = new DateTime(year, 3, 1), BatchNo = "B1", PipeCategory = MaterialType.OrderFinished,
+                ResponsibilityCategory = null, ResponsibleDept = null, DisposalMethod = null,
+                DefectiveQuantity = 7, DefectiveWeight = 25, Status = NcrStatus.Processing
+            },
+            new Ncr
+            {
+                ReportDate = new DateTime(year, 3, 2), BatchNo = "B2", PipeCategory = MaterialType.OrderFinished,
+                ResponsibilityCategory = NcrResponsibilityKeys.MaterialTubeBlank, ResponsibleDept = "原料库",
+                DisposalMethod = DisposalMethod.Scrap, DefectiveQuantity = 2, DefectiveWeight = 8, Status = NcrStatus.Processing
+            });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetMonthlySummaryAsync();
+
+        result.Rows.Should().HaveCount(2);
+        // 空值行归「未填写」
+        var emptyRow = result.Rows.Single(r => r.CategoryDisplay == "未填写");
+        emptyRow.ResponsibleDept.Should().Be("未填写");
+        emptyRow.DisposalMethodDisplay.Should().Be("未填写");
+        emptyRow.Months[2].Quantity.Should().Be(7);
+        emptyRow.TotalWeight.Should().Be(25);
+        // 全量守恒：两行次品支数/重量合计 = 录入合计
+        result.Rows.Sum(r => r.TotalQuantity).Should().Be(9);
+        result.Rows.Sum(r => r.TotalWeight ?? 0).Should().Be(33);
+    }
+
+    [Fact]
+    public async Task GetMonthlySummaryAsync_跨年不统计()
+    {
+        var ctx = CreateDbContext();
+        ctx.Ncrs.Add(new Ncr
+        {
+            ReportDate = DateTime.Today.AddYears(-1),
+            BatchNo = "OLD",
+            PipeCategory = MaterialType.OrderFinished,
+            ResponsibilityCategory = NcrResponsibilityKeys.ProductionInternal,
+            DisposalMethod = DisposalMethod.Rework,
+            DefectiveQuantity = 99,
+            DefectiveWeight = 500,
+            Status = NcrStatus.Processing
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetMonthlySummaryAsync();
+
+        result.Rows.Should().BeEmpty();
     }
 }

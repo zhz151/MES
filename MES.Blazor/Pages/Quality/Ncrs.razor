@@ -14,6 +14,14 @@
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showPendingOverview ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showPendingOverview ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="TogglePendingOverview">不合格品实时待处理</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                           Color="@(_showMonthlySummary ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showMonthlySummary ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleMonthlySummary">不合格品月度汇总</MudButton>
                 <AuthorizeView Roles="@Roles.Policies.QualityWrite">
                     <MudButton Variant="Variant.Filled" Color="Color.Error"
                                StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNew">
@@ -24,6 +32,148 @@
         </MudCardHeader>
 
         <MudCardContent>
+            @* ==================== 不合格品实时待处理汇总表（表1） ==================== *@
+
+            @if (_showPendingOverview)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_pendingItems.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无待处理数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>不合格品实时待处理</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintPendingOverviewTable">打印</MudButton>
+                            </div>
+                            <div id="ncrs-pending-overview-table" style="overflow-x: auto; max-height: 30vh;">
+                                <MudTable T="NcrPendingCheckDto"
+                                          Items="@_pendingItems"
+                                          Dense="true" Hover="true"
+                                          Elevation="0"
+                                          Class="auto-table">
+                                    <HeaderContent>
+                                        <MudTh>反馈日期</MudTh>
+                                        <MudTh>反馈部门</MudTh>
+                                        <MudTh>物料类型</MudTh>
+                                        <MudTh>工单号</MudTh>
+                                        <MudTh>生产编号</MudTh>
+                                        <MudTh>牌号</MudTh>
+                                        <MudTh>规格</MudTh>
+                                        <MudTh>次品支数</MudTh>
+                                        <MudTh>次品重量</MudTh>
+                                        <MudTh>问题描述</MudTh>
+                                        <MudTh>处置方式</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate Context="item">
+                                        <MudTd>@item.ReportDate.ToString("yyyy-MM-dd")</MudTd>
+                                        <MudTd>@GetPendingReportDepartment(item)</MudTd>
+                                        <MudTd>@GetPendingPipeCategoryText(item)</MudTd>
+                                        <MudTd>@item.WorkOrderNo</MudTd>
+                                        <MudTd>@item.BatchNo</MudTd>
+                                        <MudTd>@item.PlantGrade</MudTd>
+                                        <MudTd>@item.Specification</MudTd>
+                                        <MudTd>@item.DefectQuantity</MudTd>
+                                        <MudTd>@(item.DefectiveWeight?.ToString() ?? "-")</MudTd>
+                                        <MudTd>@item.DefectDescription</MudTd>
+                                        <MudTd>@GetDisposalMethodText(item.DisposalMethod)</MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：按（生产编号×处置方式×检验项目）聚合识别尚未创建不合格报告的待处理批次；反馈部门=来源-检验项目，物料类型按检验来源判定。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            @* ==================== 不合格品月度汇总表（表2） ==================== *@
+
+            @if (_showMonthlySummary)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_isLoadingMonthly)
+                        {
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                <span>不合格品月度汇总加载中...</span>
+                            </div>
+                        }
+                        else if (_monthlySummary == null || _monthlyRows.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无月度汇总数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>不合格品月度汇总</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintMonthlySummaryTable">打印</MudButton>
+                            </div>
+                            <div class="ncrs-monthly-table-wrap" id="ncrs-monthly-summary-table-wrap">
+                                <table id="ncrs-monthly-summary-table" class="auto-table ncrs-monthly-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="ncrs-sticky-cat">责任类别</th>
+                                            <th class="ncrs-sticky-dept">责任部门</th>
+                                            <th>处置方式</th>
+                                            @foreach (var label in _monthlySummary.MonthLabels)
+                                            {
+                                                <th class="ncrs-monthly-month-col">@label</th>
+                                            }
+                                            <th>处置方式汇总</th>
+                                            <th class="ncrs-total-col">责任部门汇总</th>
+                                            <th class="ncrs-total-col">责任类别汇总</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (var i = 0; i < _monthlyRows.Count; i++)
+                                        {
+                                            var r = _monthlyRows[i];
+                                            var catRowspan = _monthlyCategoryRowspans[i];
+                                            var deptRowspan = _monthlyDeptRowspans[i];
+                                            <tr>
+                                                @if (catRowspan > 0)
+                                                {
+                                                    <td class="ncrs-sticky-cat ncrs-monthly-cat" rowspan="@catRowspan">@r.CategoryDisplay</td>
+                                                }
+                                                @if (deptRowspan > 0)
+                                                {
+                                                    <td class="ncrs-sticky-dept ncrs-monthly-dept" rowspan="@deptRowspan">@r.ResponsibleDept</td>
+                                                }
+                                                <td class="ncrs-monthly-method">@r.DisposalMethodDisplay</td>
+                                                @for (var m = 0; m < 12; m++)
+                                                {
+                                                    <td class="ncrs-monthly-cell">@(m > _monthlySummary.CurrentMonthIndex ? string.Empty : FormatNcrCell(r.Months[m].Quantity, r.Months[m].Weight))</td>
+                                                }
+                                                <td class="ncrs-monthly-method-total">@FormatNcrCell(r.TotalQuantity, r.TotalWeight)</td>
+                                                @if (deptRowspan > 0)
+                                                {
+                                                    <td class="ncrs-total-col ncrs-monthly-dept-total" rowspan="@deptRowspan">@FormatNcrCell(_monthlyDeptTotals[i].Qty, _monthlyDeptTotals[i].Weight)</td>
+                                                }
+                                                @if (catRowspan > 0)
+                                                {
+                                                    <td class="ncrs-total-col ncrs-monthly-cat-total" rowspan="@catRowspan">@FormatNcrCell(_monthlyCategoryTotals[i].Qty, _monthlyCategoryTotals[i].Weight)</td>
+                                                }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="text-hint" Style="margin-top:4px; font-size:0.75rem;">
+                                注：按（责任类别→责任部门→处置方式）三级分组，分月基准=反馈日期（本年）；单元格「X支/YKg」，为 0 的部分省略；
+                                当前月份为 @(_monthlySummary.CurrentMonthIndex + 1) 月，之后月份尚未发生、单元格留空；责任类别/责任部门/处置方式为空归「未填写」。
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
             <!-- 待处理批次卡片 -->
             <MudPaper Elevation="0" Class="mb-4 pa-4 form-card">
                 <div style="display: flex; align-items: center; cursor: pointer;" @onclick="TogglePendingChecks">
@@ -256,3 +406,74 @@
         </MudCardContent>
     </MudCard>
 </MudContainer>
+
+<style>
+    /* 不合格品月度汇总表（表2） */
+    .ncrs-monthly-table-wrap {
+        overflow-x: auto;
+    }
+    .ncrs-monthly-table {
+        font-size: 0.8rem;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .ncrs-monthly-table th,
+    .ncrs-monthly-table td {
+        text-align: center;
+        white-space: nowrap;
+        /* 浅色表格线（独立边框模型，保证 sticky 表头/列边框不随折叠丢失） */
+        border-bottom: 1px solid #d0d0d0;
+        border-right: 1px solid #d0d0d0;
+    }
+    .ncrs-monthly-table tr:first-child th {
+        border-top: 1px solid #d0d0d0;
+    }
+    .ncrs-monthly-table th:first-child,
+    .ncrs-monthly-table td:first-child {
+        border-left: 1px solid #d0d0d0;
+    }
+    .ncrs-monthly-table .ncrs-monthly-month-col,
+    .ncrs-monthly-table .ncrs-monthly-cell {
+        min-width: 90px;
+    }
+    .ncrs-sticky-cat {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        background-color: #f5f5f5;
+        width: 110px;
+        font-weight: 600;
+    }
+    .ncrs-sticky-dept {
+        position: sticky;
+        left: 110px;
+        z-index: 2;
+        background-color: white;
+        width: 110px;
+        font-weight: 600;
+    }
+    .ncrs-monthly-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        background-color: #f5f5f5;
+    }
+    .ncrs-monthly-table thead th.ncrs-sticky-cat,
+    .ncrs-monthly-table thead th.ncrs-sticky-dept {
+        z-index: 5;
+    }
+    .ncrs-monthly-cat {
+        font-weight: 600;
+    }
+    .ncrs-monthly-method {
+        min-width: 90px;
+    }
+    .ncrs-monthly-table .ncrs-total-col {
+        min-width: 90px;
+        background-color: #fff8e1;
+    }
+    .ncrs-monthly-dept-total,
+    .ncrs-monthly-cat-total {
+        font-weight: 600;
+    }
+</style>

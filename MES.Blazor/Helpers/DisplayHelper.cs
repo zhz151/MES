@@ -249,9 +249,6 @@ public static class DisplayHelper
     /// <summary>获取酸洗状态中文文本</summary>
     public static string GetPicklingStatusText(PicklingStatus status) => EnumHelper.GetDisplayName(status);
 
-    /// <summary>获取责任类别中文文本</summary>
-    public static string GetResponsibilityCategoryText(ResponsibilityCategory category) => EnumHelper.GetDisplayName(category);
-
     /// <summary>获取严重级别中文文本</summary>
     public static string GetSeverityLevelText(SeverityLevel level) => EnumHelper.GetDisplayName(level);
 

@@ -58,6 +58,13 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "原锁计划.pdf");
     }
+
+    [HttpGet("pending-summary")]
+    public async Task<ActionResult<ApiResponse<RawMaterialLockPendingSummaryDto>>> GetPendingSummary()
+    {
+        var result = await _service.GetPendingSummaryAsync();
+        return Ok(ApiResponse<RawMaterialLockPendingSummaryDto>.Ok(result));
+    }
 }
 
 public class SetPreExecuteFlagsRequest

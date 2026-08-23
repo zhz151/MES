@@ -112,6 +112,9 @@ const LIST_PAGES = [
   { url: '/section-production-status', name: '工序生产状态', module: 'Analysis', hasPrint: false, hasSearch: true },
   { url: '/admin/users',        name: '用户管理',         module: 'Admin', hasPrint: false, hasSearch: true },
   { url: '/data-exchange',      name: '数据交换',         module: 'Tools', hasPrint: false, hasSearch: true },
+
+  // ---- 报表系统 ----
+  { url: '/reports/overview',   name: '报表总览',         module: 'Reports', hasPrint: true, hasSearch: false, customTable: true },
 ];
 
 // ============================================================
@@ -223,15 +226,15 @@ async function checkPage(page, pageConfig) {
       await page.waitForTimeout(3000);
     }
 
-    // 2. MudTable 是否存在
-    const table = await page.$('.mud-table');
+    // 2. 表格是否存在（报表总览为 Tab 汇总页，首屏业务总况是 HTML table，走 customTable）
+    const table = pageConfig.customTable ? await page.$('.mud-tabs table') : await page.$('.mud-table');
     pageResults.checks[CHECKS.tableExists] = !!table;
     console.log(`  ${table ? '✓' : '✗'} ${CHECKS.tableExists}: ${table ? '存在' : '不存在'}`);
     if (!table) { pageResults.passed = false; }
 
     // 3. 表格是否有行数据（tbody tr）
     if (table) {
-      const rows = await page.$$('.mud-table-body .mud-table-row');
+      const rows = pageConfig.customTable ? await page.$$('#report-inout-summary-table tbody tr') : await page.$$('.mud-table-body .mud-table-row');
       pageResults.checks[CHECKS.dataLoaded] = rows.length > 0;
       console.log(`  ${rows.length > 0 ? '✓' : ' '} ${CHECKS.dataLoaded}: ${rows.length} 行`);
 

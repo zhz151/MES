@@ -4,6 +4,7 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 using MES.Core.Models;
@@ -27,6 +28,7 @@ public partial class Ncrs
     [Inject] private IJSRuntime JS { get; set; } = null!;
     [Inject] private PageStateService PageState { get; set; } = null!;
     [Inject] private ColumnPrefsService ColumnPrefs { get; set; } = null!;
+    [Inject] private DictValueDefinitionService DictValueDefinitionService { get; set; } = null!;
     [Inject] private HttpClient Http { get; set; } = null!;
 
     private MudTable<NcrDto>? table;
@@ -67,9 +69,43 @@ public partial class Ncrs
     private List<NcrPendingCheckDto> _pendingItems = new();
     private bool _showPending = false;
 
+    // ========== 不合格品实时待处理折叠表（表1） ==========
+    private bool _showPendingOverview = false;
+
+    // ========== 不合格品月度汇总折叠表（表2） ==========
+    private bool _showMonthlySummary = false;
+    private bool _isLoadingMonthly = false;
+    private NcrMonthlySummaryDto? _monthlySummary;
+    private List<NcrMonthlyRowDto> _monthlyRows = new();
+    private List<int> _monthlyCategoryRowspans = new();
+    private List<int> _monthlyDeptRowspans = new();
+    private List<(int Qty, int? Weight)> _monthlyDeptTotals = new();
+    private List<(int Qty, int? Weight)> _monthlyCategoryTotals = new();
+
     // 筛选
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
+
+    // 责任类别下拉（配置表动态加载，失败兜底内置 5 值）
+    private List<(string Value, string Text)> _responsibilityOptions = new()
+    {
+        (NcrResponsibilityKeys.ProductionInternal, NcrResponsibilityKeys.ToChinese(NcrResponsibilityKeys.ProductionInternal)!),
+        (NcrResponsibilityKeys.ProductionOutsource, NcrResponsibilityKeys.ToChinese(NcrResponsibilityKeys.ProductionOutsource)!),
+        (NcrResponsibilityKeys.MaterialTubeBlank, NcrResponsibilityKeys.ToChinese(NcrResponsibilityKeys.MaterialTubeBlank)!),
+        (NcrResponsibilityKeys.MaterialPurchased, NcrResponsibilityKeys.ToChinese(NcrResponsibilityKeys.MaterialPurchased)!),
+        (NcrResponsibilityKeys.MaterialSurplus, NcrResponsibilityKeys.ToChinese(NcrResponsibilityKeys.MaterialSurplus)!),
+    };
+
+    private async Task LoadResponsibilityOptionsAsync()
+    {
+        var result = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.NcrResponsibilityKey);
+        if (result.Success && result.Data is { Count: > 0 })
+        {
+            _responsibilityOptions = result.Data
+                .Select(t => (t.Value, t.DisplayName))
+                .ToList();
+        }
+    }
 
     // 列定义
     private List<ColumnDef> _allColumns = new();
@@ -80,7 +116,7 @@ public partial class Ncrs
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "DefectiveQuantity"
+        "DefectiveQuantity", "DefectiveWeight"
     };
 
     // 扩展常量
@@ -110,7 +146,9 @@ public partial class Ncrs
                GroupKey = 1, GroupName = "G1 问题反馈" },
         new() { Key = "Specification",        Label = "规格",        SortKey = "specification",     FilterType = "string", Width = "100",
                GroupKey = 1, GroupName = "G1 问题反馈" },
-        new() { Key = "DefectiveQuantity",    Label = "不合格支数",  SortKey = "defectivequantity",                      Width = "80",
+        new() { Key = "DefectiveQuantity",    Label = "次品支数",  SortKey = "defectivequantity",                       Width = "80",
+               GroupKey = 1, GroupName = "G1 问题反馈" },
+        new() { Key = "DefectiveWeight",      Label = "次品重量",  SortKey = "defectiveweight",                        Width = "80",
                GroupKey = 1, GroupName = "G1 问题反馈" },
         new() { Key = "ProblemDescription",   Label = "问题描述",    SortKey = "problemdescription",FilterType = "string", Width = "150",
                GroupKey = 1, GroupName = "G1 问题反馈" },
@@ -139,9 +177,8 @@ public partial class Ncrs
                GroupKey = 3, GroupName = "G3 原因分析" },
 
         // G4: 责任人及处理
-        new() { Key = "ResponsibilityCategory", Label = "责任类别",  SortKey = "responsibilitycategory", FilterType = "enum", Width = "110",
-               GroupKey = 4, GroupName = "G4 责任人及处理",
-               EnumOptions = DisplayHelper.GetEnumFilterOptions<ResponsibilityCategory>() },
+        new() { Key = "ResponsibilityCategory", Label = "责任类别",  SortKey = "responsibilitycategory", FilterType = "string", Width = "110",
+               GroupKey = 4, GroupName = "G4 责任人及处理" },
         new() { Key = "ResponsibleDept",      Label = "责任部门",    SortKey = "responsibledept",     FilterType = "string", Width = "120",
                GroupKey = 4, GroupName = "G4 责任人及处理" },
         new() { Key = "ResponsiblePerson",    Label = "责任人",      SortKey = "responsibleperson",   FilterType = "string", Width = "80",
@@ -241,7 +278,8 @@ public partial class Ncrs
         // 加载筛选上下文
         await Task.WhenAll(
             LoadFilterContextsAsync(),
-            LoadPendingChecksAsync()
+            LoadPendingChecksAsync(),
+            LoadResponsibilityOptionsAsync()
         );
     }
 
@@ -422,6 +460,23 @@ public partial class Ncrs
                         opt.Display = display;
                 }
             }
+        }
+
+        // 责任类别（字典列）：后端返回英文 Key 值，映射中文显示；无后端选项时用字典下拉补齐
+        var rcMap = _responsibilityOptions.ToDictionary(o => o.Value, o => o.Text);
+        if (_filterContextOptions.TryGetValue("ResponsibilityCategory", out var rcOptions))
+        {
+            foreach (var opt in rcOptions)
+            {
+                if (rcMap.TryGetValue(opt.Value, out var rcText))
+                    opt.Display = rcText;
+            }
+        }
+        else
+        {
+            _filterContextOptions["ResponsibilityCategory"] = _responsibilityOptions
+                .Select(o => new ExcelFilterOption { Value = o.Value, Display = o.Text, Count = 0 })
+                .ToList();
         }
 
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
@@ -623,12 +678,191 @@ public partial class Ncrs
 
     private void TogglePendingChecks() => _showPending = !_showPending;
 
+    // ========== 不合格品实时待处理折叠表（表1） ==========
+
+    private void TogglePendingOverview() => _showPendingOverview = !_showPendingOverview;
+
+    /// <summary>反馈部门 = 来源 + 检验项目（中文化，与 NcrForm 自动填充口径一致）</summary>
+    private static string GetPendingReportDepartment(NcrPendingCheckDto item)
+    {
+        var sourceText = GetSourceTypeText(item.SourceType);
+        var itemText = GetInspectionItemDisplay(item.InspectionItem, item.SourceType);
+        return string.IsNullOrEmpty(itemText) ? sourceText : $"{sourceText}-{itemText}";
+    }
+
+    /// <summary>物料类型（过程检验按工序名判荒管/在制；成品检验按物料名解析，与 NcrForm 口径一致）</summary>
+    private static string GetPendingPipeCategoryText(NcrPendingCheckDto item)
+    {
+        if (item.SourceType == "ProcessInspection")
+        {
+            var category = string.Equals(item.ProcessName, ProcessKeys.RoughTubeProcessing, StringComparison.OrdinalIgnoreCase)
+                ? MaterialType.RoughTube
+                : MaterialType.WorkInProgress;
+            return DisplayHelper.GetMaterialTypeText(category);
+        }
+        if (item.SourceType == "FinalInspection")
+        {
+            var category = string.IsNullOrEmpty(item.MaterialName)
+                ? MaterialType.WorkInProgress
+                : (Enum.TryParse<MaterialType>(item.MaterialName, true, out var mt) ? mt : MaterialType.WorkInProgress);
+            return DisplayHelper.GetMaterialTypeText(category);
+        }
+        return "";
+    }
+
+    private async Task PrintPendingOverviewTable()
+    {
+        if (_pendingItems.Count == 0)
+        {
+            Snackbar.Add("暂无数据可打印", Severity.Warning);
+            return;
+        }
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#ncrs-pending-overview-table");
+            if (!string.IsNullOrEmpty(html))
+                await JS.InvokeVoidAsync("printRawHtml", html, "不合格品实时待处理");
+            else
+                Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== 不合格品月度汇总折叠表（表2） ==========
+
+    private void ToggleMonthlySummary()
+    {
+        _showMonthlySummary = !_showMonthlySummary;
+        if (_showMonthlySummary && _monthlySummary == null)
+            _ = LoadMonthlySummaryAsync();
+    }
+
+    private async Task LoadMonthlySummaryAsync()
+    {
+        _isLoadingMonthly = true;
+        StateHasChanged();
+        try
+        {
+            var result = await NcrService.GetMonthlySummaryAsync();
+            if (result.Success && result.Data != null)
+            {
+                _monthlySummary = result.Data;
+                _monthlyRows = result.Data.Rows;
+                ComputeMonthlyRowspans();
+            }
+            else
+            {
+                _monthlySummary = null;
+                _monthlyRows = new();
+                Snackbar.Add(result.Message ?? "加载失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _monthlySummary = null;
+            _monthlyRows = new();
+            Snackbar.Add($"加载异常: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingMonthly = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// 计算月度汇总三级合并 rowspan（后端已按 责任类别→责任部门→处置方式 排序，同组相邻）。
+    /// 责任类别 rowspan 合并 + 责任部门 rowspan 合并 + 部门/类别全年合计（首行非 0）。
+    /// </summary>
+    private void ComputeMonthlyRowspans()
+    {
+        _monthlyCategoryRowspans = new List<int>(new int[_monthlyRows.Count]);
+        _monthlyDeptRowspans = new List<int>(new int[_monthlyRows.Count]);
+        _monthlyDeptTotals = new List<(int, int?)>(new (int, int?)[_monthlyRows.Count]);
+        _monthlyCategoryTotals = new List<(int, int?)>(new (int, int?)[_monthlyRows.Count]);
+
+        var i = 0;
+        while (i < _monthlyRows.Count)
+        {
+            var category = _monthlyRows[i].ResponsibilityCategory;
+            var catCount = 1;
+            while (i + catCount < _monthlyRows.Count
+                   && string.Equals(_monthlyRows[i + catCount].ResponsibilityCategory, category, StringComparison.Ordinal))
+                catCount++;
+            _monthlyCategoryRowspans[i] = catCount;
+            _monthlyCategoryTotals[i] = (
+                _monthlyRows.Skip(i).Take(catCount).Sum(r => r.TotalQuantity),
+                _monthlyRows.Skip(i).Take(catCount).Sum(r => r.TotalWeight ?? 0));
+
+            var j = i;
+            var catEnd = i + catCount;
+            while (j < catEnd)
+            {
+                var dept = _monthlyRows[j].ResponsibleDept;
+                var deptCount = 1;
+                while (j + deptCount < catEnd
+                       && string.Equals(_monthlyRows[j + deptCount].ResponsibleDept, dept, StringComparison.Ordinal))
+                    deptCount++;
+                _monthlyDeptRowspans[j] = deptCount;
+                _monthlyDeptTotals[j] = (
+                    _monthlyRows.Skip(j).Take(deptCount).Sum(r => r.TotalQuantity),
+                    _monthlyRows.Skip(j).Take(deptCount).Sum(r => r.TotalWeight ?? 0));
+                j += deptCount;
+            }
+
+            i += catCount;
+        }
+    }
+
+    /// <summary>次品支数/重量单元格格式化：80支/565Kg，为 0 的部分省略，全 0 返回空串</summary>
+    private static string FormatNcrCell(int quantity, int? weight)
+    {
+        var parts = new List<string>();
+        if (quantity > 0) parts.Add($"{quantity}支");
+        if (weight is > 0) parts.Add($"{weight}Kg");
+        return string.Join("/", parts);
+    }
+
+    private async Task PrintMonthlySummaryTable()
+    {
+        if (_monthlyRows.Count == 0)
+        {
+            Snackbar.Add("暂无数据可打印", Severity.Warning);
+            return;
+        }
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#ncrs-monthly-summary-table-wrap");
+            if (!string.IsNullOrEmpty(html))
+            {
+                // 横向 A4 + 表格撑满页宽（table-layout:fixed + white-space:normal），列总宽度不超过单页界限
+                var printHtml = "<style>" +
+                    "table{width:100%!important;table-layout:fixed!important;font-size:12px!important;border-collapse:collapse!important;}" +
+                    "th,td{white-space:normal!important;padding:3px 4px!important;text-align:center!important;border:1px solid #333!important;}" +
+                    "</style>" + html;
+                await JS.InvokeVoidAsync("printRawHtml", printHtml, "不合格品月度汇总", "landscape");
+            }
+            else
+            {
+                Snackbar.Add("未找到可打印的不合格品月度汇总表格", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
     private void CreateFromPending(NcrPendingCheckDto item)
     {
         Navigation.NavigateTo($"/quality/ncr/create?batchNo={Uri.EscapeDataString(item.BatchNo)}" +
             $"&disposalMethod={item.DisposalMethod}" +
             $"&sourceType={item.SourceType}" +
             $"&defectQty={item.DefectQuantity}" +
+            $"&defectWeight={item.DefectiveWeight}" +
             $"&inspector={Uri.EscapeDataString(item.Inspector ?? "")}" +
             $"&inspectionItem={Uri.EscapeDataString(item.InspectionItem ?? "")}" +
             $"&processName={Uri.EscapeDataString(item.ProcessName ?? "")}" +
@@ -803,7 +1037,7 @@ public partial class Ncrs
                 }
                 break;
             case "ResponsibilityCategory":
-                builder.AddContent(0, GetResponsibilityCategoryText(item.ResponsibilityCategory));
+                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, item.ResponsibilityCategory) ?? "");
                 break;
             case "VerifyResult":
                 builder.AddContent(0, GetVerifyResultText(item.VerifyResult));
@@ -867,8 +1101,6 @@ public partial class Ncrs
     private string GetDisposalMethodText(DisposalMethod? method) => method.HasValue ? DisplayHelper.GetDisposalMethodText(method.Value) : "";
 
     private string GetSeverityText(SeverityLevel? severity) => severity.HasValue ? DisplayHelper.GetSeverityLevelText(severity.Value) : "";
-
-    private string GetResponsibilityCategoryText(ResponsibilityCategory? category) => category.HasValue ? DisplayHelper.GetResponsibilityCategoryText(category.Value) : "";
 
     private string GetVerifyResultText(VerifyResult? result) => result.HasValue ? DisplayHelper.GetVerifyResultText(result.Value) : "";
 

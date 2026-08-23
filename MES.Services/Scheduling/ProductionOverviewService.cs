@@ -38,6 +38,7 @@ using MES.Data.Entities.Materials;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Batch;
+using MES.Core.Helpers;
 using MES.Services.Helpers;
 
 namespace MES.Services.Scheduling;
@@ -89,7 +90,7 @@ public class ProductionOverviewService : IProductionOverviewService
         var bucket3 = (int)await GetConfigAsync("DateBucket", "Bucket3", 30m);
         var bucket4 = (int)await GetConfigAsync("DateBucket", "Bucket4", 45m);
         var bucket5 = (int)await GetConfigAsync("DateBucket", "Bucket5", 60m);
-        var buckets = GenerateDateBuckets(now, bucket1, bucket2, bucket3, bucket4, bucket5);
+        var buckets = ProductionSummaryHelper.GenerateDateBuckets(now, bucket1, bucket2, bucket3, bucket4, bucket5);
         var rows = new List<OverviewRowDto>();
 
         // ========== 查询基础数据 ==========
@@ -177,17 +178,17 @@ public class ProductionOverviewService : IProductionOverviewService
         // 其他：(总重−成购)×1.1 − 已投料；逐工单 Max(0) 后再汇总（与原锁计划待投料矩阵同口径）
         // 完善计划 = 原锁计划「待投料量汇总」中 D完善计划（ImprovePlan）工单的合计待投料重量
         var rawRatio = await GetConfigAsync("ProcessingDiscount", "RawMaterialRatio", 1.1m);
-        var row1Remaining = stage2Summaries.Sum(s => CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
+        var row1Remaining = stage2Summaries.Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
         var improvePlanSummaries = stage2Summaries
             .Where(s => RawMaterialLockRemarkKeys.ToKey(s.RawMaterialLockRemark) == RawMaterialLockRemarkKeys.ImprovePlan)
             .ToList();
-        var pendingPlanRemaining = improvePlanSummaries.Sum(s => CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
+        var pendingPlanRemaining = improvePlanSummaries.Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
         var row1BucketTons = new List<decimal>();
         foreach (var bucket in buckets)
         {
             var tons = improvePlanSummaries
                 .Where(s => IsInBucket(s.DeliveryDate, bucket))
-                .Sum(s => CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
+                .Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
             row1BucketTons.Add(ConvertToTons(tons));
         }
 
@@ -212,13 +213,13 @@ public class ProductionOverviewService : IProductionOverviewService
         var executePlanSummaries = stage2Summaries
             .Where(s => RawMaterialLockRemarkKeys.ToKey(s.RawMaterialLockRemark) == RawMaterialLockRemarkKeys.ExecutePlan)
             .ToList();
-        var executePlanRemaining = executePlanSummaries.Sum(s => CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
+        var executePlanRemaining = executePlanSummaries.Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
         var row2BucketTons = new List<decimal>();
         foreach (var bucket in buckets)
         {
             var tons = executePlanSummaries
                 .Where(s => IsInBucket(s.DeliveryDate, bucket))
-                .Sum(s => CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
+                .Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
             row2BucketTons.Add(ConvertToTons(tons));
         }
 
@@ -475,51 +476,6 @@ public class ProductionOverviewService : IProductionOverviewService
             DateBucketTons = buckets.Select(_ => 0m).ToList()
         });
 
-        // ========== 行 14: 订单延期量 ==========
-        // 每桶取工单执行状况（口径同页面 ScheduleStage>=2）中「交货日期落在本桶区间 且 主号-预计完成日 > 交货日期」的延期工单重量汇总
-        // （2026-08-19 统一延期判定：预计完成日超过交货日期，与「订单延期量[预计完结]」行同源，总量一致；原「> 桶截止日」会漏计桶中段/远日量桶工单）。
-        // 按交货日期所在桶区间统计（与页面其他行日期桶分布口径一致，各桶互斥不累加——「今日+7」桶不纳入「交期截止-今日」桶订单）。
-        var delayBucketTons = buckets
-            .Select(bucket =>
-            {
-                var tons = summaries
-                    .Where(s => IsInBucket(s.DeliveryDate, bucket)
-                                && s.EstimatedProcessCompletionDate.HasValue
-                                && s.EstimatedProcessCompletionDate.Value > s.DeliveryDate)
-                    .Sum(s => s.TotalWeight);
-                return ConvertToTons(tons);
-            })
-            .ToList();
-
-        // 副值：延期时长>1周（预计完成日−交货日期>7天）的部分，且在延期量主值条件内（严格子集，防副值越出主值）
-        var overWeekBucketTons = buckets
-            .Select(bucket =>
-            {
-                var tons = summaries
-                    .Where(s => IsInBucket(s.DeliveryDate, bucket)
-                                && s.EstimatedProcessCompletionDate.HasValue
-                                && s.EstimatedProcessCompletionDate.Value > s.DeliveryDate
-                                && (s.EstimatedProcessCompletionDate.Value - s.DeliveryDate).TotalDays > 7)
-                    .Sum(s => s.TotalWeight);
-                return ConvertToTons(tons);
-            })
-            .ToList();
-
-        rows.Add(new OverviewRowDto
-        {
-            Seq = 14,
-            Category = "订单交期负荷",
-            Section = "订单延期量",
-            InProcurementTons = null,
-            TotalRemainingTons = null,
-            EstDays = null,
-            EstDeadline = null,
-            DateBucketTons = delayBucketTons,
-            DateBucketSubTons = overWeekBucketTons.Select(x => (decimal?)x).ToList(),
-            SubValuePrefix = "超1周",
-            SubValueParenFormat = true
-        });
-
         // ========== 行 15: 订单延期-原料 ==========
         // 主值：延期量条件 + 主号关注=原料锁定(2) 的工单成品重量（TotalWeight）；
         // 副值（料）：同批工单的投料缺少量（复用 CalcPending 待投料口径，原料重转吨）。
@@ -536,7 +492,7 @@ public class ProductionOverviewService : IProductionOverviewService
                 .Where(s => IsInBucket(s.DeliveryDate, bucket)
                             && s.EstimatedProcessCompletionDate.HasValue
                             && s.EstimatedProcessCompletionDate.Value > s.DeliveryDate)
-                .Sum(s => CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight,
+                .Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight,
                     s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio))))
             .ToList();
 
@@ -551,7 +507,8 @@ public class ProductionOverviewService : IProductionOverviewService
             EstDeadline = null,
             DateBucketTons = rawMainBucketTons,
             DateBucketSubTons = rawSubBucketTons.Select(x => (decimal?)x).ToList(),
-            SubValuePrefix = "待料"
+            SubValuePrefix = "待料",
+            DateBucketSubOnly = true
         });
 
         // ========== 行 16: 订单延期-在产 ==========
@@ -593,7 +550,8 @@ public class ProductionOverviewService : IProductionOverviewService
             EstDeadline = null,
             DateBucketTons = prodMainBucketTons,
             DateBucketSubTons = prodSubBucketTons.Select(x => (decimal?)x).ToList(),
-            SubValuePrefix = "在产"
+            SubValuePrefix = "在产",
+            DateBucketSubOnly = true
         });
 
         // ========== 行 17: 订单延期-成检 ==========
@@ -634,67 +592,15 @@ public class ProductionOverviewService : IProductionOverviewService
             EstDeadline = null,
             DateBucketTons = fiMainBucketTons,
             DateBucketSubTons = fiSubBucketTons.Select(x => (decimal?)x).ToList(),
-            SubValuePrefix = "在检"
+            SubValuePrefix = "在检",
+            DateBucketSubOnly = true
         });
 
-        // ========== 行 19: 订单延期量[预计完结] ==========
-        // 针对估算需超过交货期的延期工单（预计完成日 > 交货日期），按其「预计完成日期」所在桶区间统计成品重量，
-        // 反映延期工单预计何时能够真正完结（2026-08-19 用户决策，展示在订单非延期行上方）。
-        var estCompleteBucketTons = buckets
-            .Select(bucket =>
-            {
-                var tons = summaries
-                    .Where(s => s.EstimatedProcessCompletionDate.HasValue
-                                && IsInBucket(s.EstimatedProcessCompletionDate.Value, bucket)
-                                && s.EstimatedProcessCompletionDate.Value > s.DeliveryDate)
-                    .Sum(s => s.TotalWeight);
-                return ConvertToTons(tons);
-            })
-            .ToList();
-
-        rows.Add(new OverviewRowDto
-        {
-            Seq = 19,
-            Category = "订单交期负荷",
-            Section = "订单延期量[预计完结]",
-            InProcurementTons = null,
-            TotalRemainingTons = null,
-            EstDays = null,
-            EstDeadline = null,
-            DateBucketTons = estCompleteBucketTons
-        });
-
-        // ========== 行 18: 订单非延期 ==========
-        // 与订单延期量互补：交货日期落在本桶区间 且 主号-预计完成日 <= 交货日期（预计完成日为空不计入）。
-        // （2026-08-19 统一延期判定：预计完成日不超过交货日期为非延期，与「订单延期量」行 `> 交货日期` 严格互补；原「<= 桶截止日」会与延期量行出现重叠）。
-        var onTimeBucketTons = buckets
-            .Select(bucket =>
-            {
-                var tons = summaries
-                    .Where(s => IsInBucket(s.DeliveryDate, bucket)
-                                && s.EstimatedProcessCompletionDate.HasValue
-                                && s.EstimatedProcessCompletionDate.Value <= s.DeliveryDate)
-                    .Sum(s => s.TotalWeight);
-                return ConvertToTons(tons);
-            })
-            .ToList();
-
-        rows.Add(new OverviewRowDto
-        {
-            Seq = 18,
-            Category = "订单交期负荷",
-            Section = "订单非延期",
-            InProcurementTons = null,
-            TotalRemainingTons = null,
-            EstDays = null,
-            EstDeadline = null,
-            DateBucketTons = onTimeBucketTons
-        });
-
-        // ========== 行序重排：订单交期负荷 6 行置顶（延期-原料/在产/成检/延期量/延期量[预计完结]/非延期），整体完工预计随后，其余顺延 ==========
-        // 构建顺序（原 Seq 1-19）：原料→生产→成检→整体完工预计→延期量→延期-原料/在产/成检→延期量[预计完结]→非延期；
-        // 展示顺序（新 Seq 1-19）：延期-原料/在产/成检/延期量/延期量[预计完结]/非延期/整体完工预计/原料/生产/成检。
-        var reorderSeq = new[] { 15, 16, 17, 14, 18, 19, 13, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+        // ========== 行序重排（2026-08-23 用户决策）：订单交期负荷 3 行置顶（延期-原料/在产/成检），原料→生产→成检随后，整体完工预计最后 ==========
+        // 构建顺序（列表位置 1-16）：完善计划→执行计划→外购成品→原料汇总→生产工段5行→生产汇总→成检→成检汇总→整体完工预计→延期-原料/在产/成检；
+        // 展示顺序（新 Seq 1-16）：延期-原料/在产/成检/完善计划/执行计划/外购成品/原料汇总/生产工段5行/生产汇总/成检/成检汇总/整体完工预计。
+        // （2026-08-23 删除订单延期量/订单延期量[预计完结]/订单非延期 3 行；前 3 行日期桶格仅显示副值）
+        var reorderSeq = new[] { 14, 15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
         rows = reorderSeq.Select(oldSeq => rows[oldSeq - 1]).ToList();
         for (int i = 0; i < rows.Count; i++) rows[i].Seq = i + 1;
 
@@ -758,21 +664,6 @@ public class ProductionOverviewService : IProductionOverviewService
                 _ => null
             };
         }
-    }
-
-    /// <summary>交期截止负荷量 7 桶：交期截止-今日 / 今日+7 / 今日+15 / 今日+30 / 今日+45 / 今日+60 / 远日量（2026-08-19 用户决策）</summary>
-    private static List<(DateTime Start, DateTime End, string Label)> GenerateDateBuckets(DateTime today, int bucket1 = 7, int bucket2 = 15, int bucket3 = 30, int bucket4 = 45, int bucket5 = 60)
-    {
-        return new List<(DateTime, DateTime, string)>
-        {
-            (DateTime.MinValue, today, "交期截止-今日"),
-            (today.AddDays(1), today.AddDays(bucket1), $"今日+{bucket1}"),
-            (today.AddDays(bucket1 + 1), today.AddDays(bucket2), $"今日+{bucket2}"),
-            (today.AddDays(bucket2 + 1), today.AddDays(bucket3), $"今日+{bucket3}"),
-            (today.AddDays(bucket3 + 1), today.AddDays(bucket4), $"今日+{bucket4}"),
-            (today.AddDays(bucket4 + 1), today.AddDays(bucket5), $"今日+{bucket5}"),
-            (today.AddDays(bucket5 + 1), DateTime.MaxValue, "远日量"),
-        };
     }
 
     private static bool IsInBucket(DateTime date, (DateTime Start, DateTime End, string Label) bucket)
@@ -899,20 +790,5 @@ public class ProductionOverviewService : IProductionOverviewService
     private static decimal ConvertToTons(decimal kg)
     {
         return Math.Round(kg / 1000m, 0);
-    }
-
-    /// <summary>
-    /// 单工单待投料计算（与原锁计划 RecalculateSummary.pendingCalc 口径一致）：
-    /// 成购缺口 = Max(0, 成品计划量 − 已到货量)；质量补料（A）按流转比缺口折算不减已投料，其余减已投料；逐工单 Max(0)。
-    /// </summary>
-    private static decimal CalcPending(
-        decimal totalWeight, decimal finishPlanWeight, decimal finishInWeight,
-        decimal inputWeight, decimal flowOutputRatio, string? rawMaterialLockRemark, decimal rawRatio)
-    {
-        var purchase = Math.Max(0m, finishPlanWeight - finishInWeight);
-        var baseVal = (totalWeight - purchase) * rawRatio;
-        return RawMaterialLockRemarkKeys.ToKey(rawMaterialLockRemark) == RawMaterialLockRemarkKeys.QualityReplenish
-            ? Math.Max(0m, baseVal * (1m - flowOutputRatio / 100m))
-            : Math.Max(0m, baseVal - inputWeight);
     }
 }

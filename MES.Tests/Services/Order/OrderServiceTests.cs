@@ -976,4 +976,123 @@ public class OrderServiceTests : TestBase
         // 周转总量 = 未完工订单合同重量(6000+2000+3000) − 未完工库存(800)
         result.TurnoverTotal.Should().Be(10200m);
     }
+
+    // ========== 订单交期预估（GetDeliveryEstimateAsync，2026-08-23） ==========
+
+    private static OrderListSummaryEntity SeedDeliverySummary(int orderId, string orderNo, int weight, int? scheduleStage, DateTime? deliveryEnd, DateTime? estimated)
+        => new()
+        {
+            OrderId = orderId,
+            OrderNumber = orderNo,
+            SignDate = DateTime.Today.AddDays(-30),
+            CustomerName = "客户A",
+            Salesman = "张三",
+            Status = SalesOrderStatus.Confirmed,
+            TotalContractWeight = weight,
+            ScheduleStage = scheduleStage,
+            DeliveryEnd = deliveryEnd,
+            EstimatedCompletionDate = estimated,
+            CreatedTime = DateTimeOffset.Now,
+            UpdatedTime = DateTimeOffset.Now
+        };
+
+    [Fact]
+    public async Task GetDeliveryEstimateAsync_延期非延期按桶归集_单数按订单号()
+    {
+        var ctx = CreateDbContext();
+        var today = DateTime.Today;
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            // 订单A：延期（预计完成 today+10 > 交期 today+3）
+            SeedDeliverySummary(1, "SO-01", 1000, 3, today.AddDays(3), today.AddDays(10)),
+            // 订单B：非延期（预计完成 today+3 <= 交期 today+10）
+            SeedDeliverySummary(2, "SO-02", 2000, 3, today.AddDays(10), today.AddDays(3)),
+            // 订单C：延期（预计完成 today+5 > 交期 today-1，交期已过 → 桶0）
+            SeedDeliverySummary(3, "SO-03", 3000, 2, today.AddDays(-1), today.AddDays(5)),
+            // 排除：未排产 / 无预计完成 / 已取消
+            SeedDeliverySummary(4, "SO-04", 999, null, today.AddDays(3), today.AddDays(10)),
+            SeedDeliverySummary(5, "SO-05", 999, 3, today.AddDays(3), null),
+            new OrderListSummaryEntity
+            {
+                OrderId = 6, OrderNumber = "SO-06", SignDate = today.AddDays(-30), CustomerName = "客户A", Salesman = "张三",
+                Status = SalesOrderStatus.Cancelled, TotalContractWeight = 999, ScheduleStage = 3,
+                DeliveryEnd = today.AddDays(3), EstimatedCompletionDate = today.AddDays(10),
+                CreatedTime = DateTimeOffset.Now, UpdatedTime = DateTimeOffset.Now
+            });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetDeliveryEstimateAsync();
+
+        result.Tables.Should().HaveCount(2);
+        result.Tables[0].Name.Should().Be("订单(整单)完成预估");
+        result.Tables[0].BucketLabels[0].Should().Be($"≤{today:yy/M/d}");
+        result.Tables[0].BucketLabels[1].Should().Be($"{today.AddDays(1):yy/M/d}-{today.AddDays(7):yy/M/d}");
+        result.Tables[0].BucketLabels[3].Should().Be($"{today.AddDays(16):yy/M/d}-{today.AddDays(30):yy/M/d}");
+        result.Tables[0].BucketLabels[6].Should().Be($"≥{today.AddDays(61):yy/M/d}");
+        result.Tables[1].Name.Should().Be("风险-已延期订单(整单)");
+        result.Tables[1].BucketLabels.Should().BeEquivalentTo(result.Tables[0].BucketLabels);
+
+        // 表1 订单完成预估：延期按预计完成、非延期按交期
+        // 桶1（今日+7）：订单C（预计完成 today+5）→ 1单/3.0吨
+        result.Tables[0].Buckets[1].Count.Should().Be(1);
+        result.Tables[0].Buckets[1].Weight.Should().Be(3.0m);
+        // 桶2（今日+15）：订单A（预计完成 today+10）+ 订单B（交期 today+10）→ 2单/3.0吨
+        result.Tables[0].Buckets[2].Count.Should().Be(2);
+        result.Tables[0].Buckets[2].Weight.Should().Be(3.0m);
+        // 其余桶为空
+        result.Tables[0].Buckets.Sum(b => b.Count).Should().Be(3);
+        result.Tables[0].Buckets[0].Count.Should().Be(0);
+        result.Tables[0].Buckets[3].Count.Should().Be(0);
+        result.Tables[0].Buckets[4].Count.Should().Be(0);
+        result.Tables[0].Buckets[5].Count.Should().Be(0);
+        result.Tables[0].Buckets[6].Count.Should().Be(0);
+
+        // 表2 延期交货订单预估：延期订单按交期
+        // 桶0（交期截止-今日）：订单C（交期 today-1）→ 1单/3.0吨
+        result.Tables[1].Buckets[0].Count.Should().Be(1);
+        result.Tables[1].Buckets[0].Weight.Should().Be(3.0m);
+        // 桶1（今日+7）：订单A（交期 today+3）→ 1单/1.0吨
+        result.Tables[1].Buckets[1].Count.Should().Be(1);
+        result.Tables[1].Buckets[1].Weight.Should().Be(1.0m);
+        result.Tables[1].Buckets.Sum(b => b.Count).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetDeliveryEstimateAsync_远日量桶_及无数据返回空表()
+    {
+        var ctx = CreateDbContext();
+        var today = DateTime.Today;
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            // 订单G：非延期（预计完成 = 交期 = today+100）→ 表1 按交期归桶6（>45日）
+            SeedDeliverySummary(1, "SO-01", 4000, 3, today.AddDays(100), today.AddDays(100)),
+            // 订单H：延期（预计完成 today+100 > 交期 today+80）→ 表2 按交期归桶6、表1 按预计完成归桶6
+            SeedDeliverySummary(2, "SO-02", 5000, 4, today.AddDays(80), today.AddDays(100)));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetDeliveryEstimateAsync();
+
+        result.Tables[0].Buckets[6].Count.Should().Be(2);      // 完成预估：G+H
+        result.Tables[0].Buckets[6].Weight.Should().Be(9.0m);
+        result.Tables[1].Buckets[6].Count.Should().Be(1);      // 延期预估：仅 H（G 非延期不计）
+        result.Tables[1].Buckets[6].Weight.Should().Be(5.0m);
+    }
+
+    [Fact]
+    public async Task GetDeliveryEstimateAsync_全部未排产_两表全空()
+    {
+        var ctx = CreateDbContext();
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            SeedDeliverySummary(1, "SO-01", 1000, null, DateTime.Today.AddDays(3), DateTime.Today.AddDays(10)),
+            // scheduleStage=1（主号完成）也不纳入延期统计（与现负荷 ScheduleStage>=2 口径一致）
+            SeedDeliverySummary(2, "SO-02", 2000, 1, DateTime.Today.AddDays(3), DateTime.Today.AddDays(10)));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetDeliveryEstimateAsync();
+
+        result.Tables.Should().HaveCount(2);
+        result.Tables[0].Buckets.Sum(b => b.Count).Should().Be(0);
+        result.Tables[1].Buckets.Sum(b => b.Count).Should().Be(0);
+    }
 }

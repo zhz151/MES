@@ -118,6 +118,48 @@
                                 </tbody>
                             </table>
                             </div>
+
+                            @* 两小表（订单交期预估：订单(整单)完成预估 / 风险-已延期订单(整单)），直接属于「订单接单·出库及现负荷汇总」表 *@
+                            @if (_deliveryEstimate != null)
+                            {
+                                @for (var i = 0; i < _deliveryEstimate.Tables.Count; i++)
+                                {
+                                    var estimateTable = _deliveryEstimate.Tables[i];
+                                    var tableId = $"order-delivery-estimate-{i}";
+                                    <div class="mt-3">
+                                        <div class="d-flex justify-space-between align-center mb-1">
+                                            <MudText Typo="Typo.body2"><b>@estimateTable.Name</b></MudText>
+                                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                       StartIcon="@Icons.Material.Filled.Print"
+                                                       OnClick="@(() => PrintDeliveryEstimate("#" + tableId, estimateTable.Name))">
+                                                打印
+                                            </MudButton>
+                                        </div>
+                                        <div id="@tableId" style="overflow-x:auto;">
+                                        <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">交货日期范围</th>
+                                                    @foreach (var label in estimateTable.BucketLabels)
+                                                    {
+                                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                                    }
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">单数/重量</td>
+                                                    @foreach (var bucket in estimateTable.Buckets)
+                                                    {
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatDeliveryBucket(bucket)</td>
+                                                    }
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                        </div>
+                                    </div>
+                                }
+                            }
                         }
                     </MudCardContent>
                 </MudCard>

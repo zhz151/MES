@@ -193,12 +193,6 @@ public static class EnumHelper
         Register<PicklingStatus>(("Soaking", "浸泡中"),
                                   ("Completed", "已完工"));
 
-        Register<ResponsibilityCategory>(("ProductionInternal", "生产-厂内"),
-                                          ("ProductionOutsource", "生产-外协"),
-                                          ("MaterialTubeBlank", "原料-荒管"),
-                                          ("MaterialPurchased", "原料-外购成品"),
-                                          ("MaterialSurplus", "原料-余库料"));
-
         Register<SeverityLevel>(("Critical", "严重"),
                                  ("General", "一般"));
 

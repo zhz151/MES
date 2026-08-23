@@ -1059,7 +1059,8 @@ public static class DataExchangeRegistry
             new("工单号", "WorkOrderNo", typeof(string), isRequired: false),
             new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
             new("规格", "Specification", typeof(string), isRequired: false),
-            new("不合格支数", "DefectiveQuantity", typeof(int?), isRequired: false),
+            new("次品支数", "DefectiveQuantity", typeof(int?), isRequired: false),
+            new("次品重量", "DefectiveWeight", typeof(int?), isRequired: false),
             new("问题描述", "ProblemDescription", typeof(string), isRequired: false),
             new("来源检验项目", "SourceInspectionItem", typeof(string), isRequired: false),
             // G2: 不合格品处置
@@ -1073,7 +1074,7 @@ public static class DataExchangeRegistry
             new("分析确认人", "AnalysisConfirmer", typeof(string), isRequired: false),
             new("分析确认日期", "AnalysisConfirmDate", typeof(DateTime?), isRequired: false),
             // G4: 责任人及处理
-            new("责任类别", "ResponsibilityCategory", typeof(MES.Core.Enums.ResponsibilityCategory?), isEnum: true, isRequired: false),
+            new("责任类别", "ResponsibilityCategory", typeof(string), isRequired: false),
             new("责任部门", "ResponsibleDept", typeof(string), isRequired: false),
             new("生产操作日期", "OperationDate", typeof(DateTime?), isRequired: false),
             new("生产责任人", "ResponsiblePerson", typeof(string), isRequired: false),

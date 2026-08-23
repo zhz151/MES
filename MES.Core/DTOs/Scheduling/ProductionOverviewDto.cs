@@ -50,6 +50,9 @@ public class OverviewRowDto
     /// <summary>副值是否使用括号式（主值(前缀副值)），false 用斜杠式（主值/前缀副值）。订单延期量行「超1周」用括号式，延期分类行用斜杠式。</summary>
     public bool SubValueParenFormat { get; set; }
 
+    /// <summary>日期桶格是否仅显示副值（2026-08-23 用户决策：订单延期-原料/在产/成检 3 行去掉主值与前缀，只显示待料/在产/在检量）</summary>
+    public bool DateBucketSubOnly { get; set; }
+
     /// <summary>是否为类别汇总行（原料/投料-在产/投料-成检小计）</summary>
     public bool IsSummary { get; set; }
 }

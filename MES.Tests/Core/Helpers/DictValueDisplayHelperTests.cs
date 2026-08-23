@@ -28,6 +28,16 @@ public class DictValueDisplayHelperTests
     }
 
     [Fact]
+    public void GetText_Ncr责任类别_无覆盖_Keys兜底中文()
+    {
+        DictValueDisplayHelper.OverrideMap = null;
+        DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, "ProductionInternal").Should().Be("生产-厂内");
+        DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, "MaterialSurplus").Should().Be("原料-余库料");
+        DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, "NcrRC_1").Should().Be("NcrRC_1"); // 新加值原样
+        DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, null).Should().BeNull();
+    }
+
+    [Fact]
     public void GetText_覆盖优先_未覆盖兜底()
     {
         try

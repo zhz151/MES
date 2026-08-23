@@ -502,7 +502,7 @@ public partial class RawMaterialLockPlanAndExecution
         row.Buckets[bucket] += weight;
     }
 
-    /// <summary>按理论截止投料日归桶（桶边界与订单负荷总量页同源，2026-08-19 配置化）：投料截止-今日/+7/+15/+30/+45/+60/远日量（空→末桶远日量）</summary>
+    /// <summary>按理论截止投料日归桶（桶边界与订单负荷总量页同源，2026-08-19 配置化）：绝对日期桶 ≤今日/区间/≥尾（空→末桶）</summary>
     private static int GetCutoffBucket(DateTime? cutoff, List<(DateTime Start, DateTime End, string Label)> buckets)
     {
         if (!cutoff.HasValue) return buckets.Count - 1;
@@ -535,18 +535,19 @@ public partial class RawMaterialLockPlanAndExecution
         }
     }
 
-    /// <summary>生成 7 日期桶（区间互斥：桶1=[今日+1,今日+b1]、…、末桶=(今日+b5,∞)），首桶「投料截止-今日」按投料截止日语义命名，其余标签与订单负荷总量页一致</summary>
+    /// <summary>生成 7 日期桶（区间互斥：桶1=[今日+1,今日+b1]、…、末桶=(今日+b5,∞)），标签为绝对日期样式（≤今日 / 区间 / ≥尾），与订单负荷总量页一致</summary>
     private static List<(DateTime Start, DateTime End, string Label)> BuildDateBuckets(DateTime today, int b1, int b2, int b3, int b4, int b5)
     {
+        var tailStart = today.AddDays(b5 + 1);
         return new List<(DateTime, DateTime, string)>
         {
-            (DateTime.MinValue, today, "投料截止-今日"),
-            (today.AddDays(1), today.AddDays(b1), $"今日+{b1}"),
-            (today.AddDays(b1 + 1), today.AddDays(b2), $"今日+{b2}"),
-            (today.AddDays(b2 + 1), today.AddDays(b3), $"今日+{b3}"),
-            (today.AddDays(b3 + 1), today.AddDays(b4), $"今日+{b4}"),
-            (today.AddDays(b4 + 1), today.AddDays(b5), $"今日+{b5}"),
-            (today.AddDays(b5 + 1), DateTime.MaxValue, "远日量"),
+            (DateTime.MinValue, today, $"≤{today:yy/M/d}"),
+            (today.AddDays(1), today.AddDays(b1), $"{today.AddDays(1):yy/M/d}-{today.AddDays(b1):yy/M/d}"),
+            (today.AddDays(b1 + 1), today.AddDays(b2), $"{today.AddDays(b1 + 1):yy/M/d}-{today.AddDays(b2):yy/M/d}"),
+            (today.AddDays(b2 + 1), today.AddDays(b3), $"{today.AddDays(b2 + 1):yy/M/d}-{today.AddDays(b3):yy/M/d}"),
+            (today.AddDays(b3 + 1), today.AddDays(b4), $"{today.AddDays(b3 + 1):yy/M/d}-{today.AddDays(b4):yy/M/d}"),
+            (today.AddDays(b4 + 1), today.AddDays(b5), $"{today.AddDays(b4 + 1):yy/M/d}-{today.AddDays(b5):yy/M/d}"),
+            (tailStart, DateTime.MaxValue, $"≥{tailStart:yy/M/d}"),
         };
     }
 

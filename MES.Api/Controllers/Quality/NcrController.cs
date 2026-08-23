@@ -128,6 +128,15 @@ public class NcrController : ControllerBase
         return Ok(ApiResponse<List<NcrPendingCheckDto>>.Ok(result));
     }
 
+    /// <summary>获取不合格品月度汇总（责任类别→责任部门→处置方式 三级，12 个月次品支数/重量矩阵）</summary>
+    [HttpGet("monthly-summary")]
+    [Authorize(Roles = Roles.Policies.QualityRead)]
+    public async Task<ActionResult<ApiResponse<NcrMonthlySummaryDto>>> GetMonthlySummary()
+    {
+        var result = await _ncrService.GetMonthlySummaryAsync();
+        return Ok(ApiResponse<NcrMonthlySummaryDto>.Ok(result));
+    }
+
     /// <summary>获取筛选上下文</summary>
     [HttpGet("filter-contexts")]
     [Authorize(Roles = Roles.Policies.QualityRead)]

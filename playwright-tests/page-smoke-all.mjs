@@ -164,6 +164,9 @@ const PAGES = [
   { name: 'WorkOrderRelation',       path: '/workorders/relation',           type: 'LIST' },
   { name: 'OrderDemandAdjustment',   path: '/order-demand-adjustment',       type: 'LIST' },
   { name: 'MaterialPlanOverview',    path: '/material-plan-overview',         type: 'LIST' },
+
+  // ================ Reports ================
+  { name: 'ReportOverview',      path: '/reports/overview',            type: 'SPECIAL' },
 ];
 
 // ============================================================

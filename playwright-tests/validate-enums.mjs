@@ -59,7 +59,6 @@ const ENUM_MAP = {
   DisposalMethod:          { Rework: '返整', WarehouseEntry: '入库', Scrap: '报废' },
   NcrStatus:               { Pending: '待处理', Processing: '处理中', Closed: '已关闭' },
   PicklingStatus:          { Soaking: '浸泡中', Completed: '已完工' },
-  ResponsibilityCategory:  { ProductionInternal: '生产-厂内', ProductionOutsource: '生产-外协', MaterialTubeBlank: '原料-荒管', MaterialPurchased: '原料-外购成品', MaterialSurplus: '原料-余库料' },
   SeverityLevel:           { Critical: '严重', General: '一般' },
   VerifyResult:            { Passed: '通过', NeedsRectification: '需整改', NotApplicable: '不适用' },
   PipeCategory:            { TubeBlank: '荒管', WorkInProgress: '在制品', SurplusInventory: '余库料', CriticalFinished: '临界成品', OrderFinished: '订单成品', PreparedFinished: '备料成品', SpecialDelivery: '订成-非交付态' },
@@ -121,7 +120,7 @@ const PAGE_CONFIGS = [
 
   // ---- 质量管理 ----
   { url: '/quality/ncr',        name: 'NCR 不合格品',    module: 'Quality',
-    enumCols: { Status: 'NcrStatus', PipeCategory: 'PipeCategory', DisposalMethod: 'DisposalMethod', Severity: 'SeverityLevel', Responsibility: 'ResponsibilityCategory', VerifyResult: 'VerifyResult' } },
+    enumCols: { Status: 'NcrStatus', PipeCategory: 'PipeCategory', DisposalMethod: 'DisposalMethod', Severity: 'SeverityLevel', VerifyResult: 'VerifyResult' } },
   { url: '/quality/final-inspection', name: '成品检验',  module: 'Quality',        enumCols: { InspectionItem: 'InspectionItem', Status: 'BatchStatus' } },
   { url: '/quality/material-receive-checks', name: '来料检验', module: 'Quality', enumCols: { MaterialCategory: 'MaterialCategory' } },
   { url: '/quality/process-inspection', name: '过程检验',module: 'Quality',        enumCols: { InspectionItem: 'InspectionItem', Status: 'BatchStatus' } },

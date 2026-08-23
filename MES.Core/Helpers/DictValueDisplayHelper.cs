@@ -37,6 +37,7 @@ public static class DictValueDisplayHelper
             DictValueDefaults.FlowTargetKey => FlowTargetKeys.ToChinese(value),
             DictValueDefaults.ProductionOverviewRowKey => ProductionOverviewRowKeys.ToChinese(value),
             DictValueDefaults.LiabilityTypeKey => LiabilityTypeKeys.ToChinese(value),
+            DictValueDefaults.NcrResponsibilityKey => NcrResponsibilityKeys.ToChinese(value),
             _ => value
         } ?? value;
     }

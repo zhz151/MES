@@ -1244,6 +1244,12 @@ public class DataImportService : IDataImportService
                 value = LiabilityTypeKeys.ToKey(liabilityType) ?? liabilityType;
             }
 
+            // 特殊处理：NCR ResponsibilityCategory 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
+            if (colDef.Property == "ResponsibilityCategory" && value is string responsibilityCategory)
+            {
+                value = NcrResponsibilityKeys.ToKey(responsibilityCategory) ?? responsibilityCategory;
+            }
+
             prop.SetValue(entity, value);
         }
 

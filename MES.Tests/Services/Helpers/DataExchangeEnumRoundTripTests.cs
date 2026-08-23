@@ -60,7 +60,6 @@ public class DataExchangeEnumRoundTripTests
         (typeof(DisposalMethod), "Rework", "返整"),
         (typeof(NcrStatus), "Pending", "待处理"),
         (typeof(PicklingStatus), "Soaking", "浸泡中"),
-        (typeof(ResponsibilityCategory), "ProductionInternal", "生产-厂内"),
         (typeof(SeverityLevel), "Critical", "严重"),
         (typeof(VerifyResult), "Passed", "通过"),
         (typeof(MaterialType), "RoughTube", "荒管"),

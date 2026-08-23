@@ -19,4 +19,7 @@ public interface IRawMaterialLockPlanAndExecutionService
 
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns);
+
+    /// <summary>原锁「待投料量汇总」（标量 + 待投料矩阵 + 理论待投料截日，全部数值 kg）</summary>
+    Task<RawMaterialLockPendingSummaryDto> GetPendingSummaryAsync();
 }

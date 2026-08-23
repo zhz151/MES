@@ -361,6 +361,114 @@ public class OrderService : IOrderService
         };
     }
 
+    /// <summary>
+    /// 订单交期预估（业务总况两小表，订单级口径，2026-08-23 用户决策）
+    /// 数据源：OrderListSummary（一行一订单）。单数按订单号、重量按订单总重量（合同重量 kg）。
+    /// 参与范围：已排产订单（ScheduleStage≥2 且预计完成非空）；延期判定：预计完成日 > 交期截止（DeliveryEnd）。
+    /// 表1「订单(整单)完成预估」＝延期订单按预计完成日归桶 + 非延期订单按交期截止归桶（对应现负荷「订单延期量[预计完结]+订单非延期」）；
+    /// 表2「风险-已延期订单(整单)」＝延期订单按交期截止归桶（对应现负荷「订单延期量」）。
+    /// 7 桶边界：≤今日 / +1~+7 / +8~+15 / +16~+30 / +31~+45 / +46~+60 / >+60，桶标签为绝对日期区间（yy/M/d）。
+    /// 桶边界走配置表 DateBucket（Bucket1~Bucket5，与现负荷总量表同源，2026-08-23 用户决策复用）。
+    /// </summary>
+    public async Task<OrderDeliveryEstimateDto> GetDeliveryEstimateAsync()
+    {
+        var now = DateTime.Today;
+
+        // 桶边界走配置表 DateBucket（与现负荷总量表同源）：默认 7/15/30/45/60
+        var bucket1 = (int)await GetConfigAsync("DateBucket", "Bucket1", 7m);
+        var bucket2 = (int)await GetConfigAsync("DateBucket", "Bucket2", 15m);
+        var bucket3 = (int)await GetConfigAsync("DateBucket", "Bucket3", 30m);
+        var bucket4 = (int)await GetConfigAsync("DateBucket", "Bucket4", 45m);
+        var bucket5 = (int)await GetConfigAsync("DateBucket", "Bucket5", 60m);
+
+        var orders = await _context.Set<OrderListSummary>()
+            .AsNoTracking()
+            .Where(s => s.Status != SalesOrderStatus.Cancelled
+                        && s.ScheduleStage >= 2
+                        && s.EstimatedCompletionDate != null
+                        && s.DeliveryEnd != null)
+            .Select(s => new
+            {
+                s.OrderNumber,
+                DeliveryEnd = s.DeliveryEnd!.Value,
+                Estimated = s.EstimatedCompletionDate!.Value,
+                s.TotalContractWeight
+            })
+            .ToListAsync();
+
+        var delayOrders = orders.Where(o => o.Estimated > o.DeliveryEnd).ToList();
+        var onTimeOrders = orders.Where(o => o.Estimated <= o.DeliveryEnd).ToList();
+
+        // 表2：延期交货订单预估（延期订单按交期截止归桶）
+        var delayBuckets = new List<OrderDeliveryBucketDto>();
+        for (var i = 0; i < 7; i++)
+        {
+            var subset = delayOrders.Where(o => GetDeliveryBucket(o.DeliveryEnd, now, bucket1, bucket2, bucket3, bucket4, bucket5) == i).ToList();
+            delayBuckets.Add(new OrderDeliveryBucketDto
+            {
+                Count = subset.Count,
+                Weight = subset.Sum(o => o.TotalContractWeight) / 1000m
+            });
+        }
+
+        // 表1：订单完成预估（延期订单按预计完成日 + 非延期订单按交期截止归桶）
+        var completeBuckets = new List<OrderDeliveryBucketDto>();
+        for (var i = 0; i < 7; i++)
+        {
+            var d = delayOrders.Where(o => GetDeliveryBucket(o.Estimated, now, bucket1, bucket2, bucket3, bucket4, bucket5) == i).ToList();
+            var t = onTimeOrders.Where(o => GetDeliveryBucket(o.DeliveryEnd, now, bucket1, bucket2, bucket3, bucket4, bucket5) == i).ToList();
+            completeBuckets.Add(new OrderDeliveryBucketDto
+            {
+                Count = d.Count + t.Count,
+                Weight = (d.Sum(o => o.TotalContractWeight) + t.Sum(o => o.TotalContractWeight)) / 1000m
+            });
+        }
+
+        // 绝对日期桶标签（2026-08-23 用户决策，替代相对「今日+N」，边界按配置表）：≤今日 / +1~+7 / +8~+15 / +16~+30 / +31~+45 / +46~+60 / >+60
+        var bucketLabels = new List<string> { $"≤{now:yy/M/d}" };
+        var bucketStart = now.AddDays(1);
+        foreach (var endOffset in new[] { bucket1, bucket2, bucket3, bucket4, bucket5 })
+        {
+            var bucketEnd = now.AddDays(endOffset);
+            bucketLabels.Add($"{bucketStart:yy/M/d}-{bucketEnd:yy/M/d}");
+            bucketStart = bucketEnd.AddDays(1);
+        }
+        bucketLabels.Add($"≥{bucketStart:yy/M/d}");
+
+        return new OrderDeliveryEstimateDto
+        {
+            Tables = new List<OrderDeliveryEstimateTableDto>
+            {
+                new()
+                {
+                    Name = "订单(整单)完成预估",
+                    BucketLabels = bucketLabels,
+                    Buckets = completeBuckets
+                },
+                new()
+                {
+                    Name = "风险-已延期订单(整单)",
+                    BucketLabels = bucketLabels,
+                    Buckets = delayBuckets
+                }
+            },
+            GeneratedTime = now
+        };
+    }
+
+    /// <summary>日期 → 桶索引（边界由配置表 DateBucket 驱动，默认 ≤今日=0 / 1-7 / 8-15 / 16-30 / 31-45 / 46-60 / &gt;60=6）</summary>
+    private static int GetDeliveryBucket(DateTime date, DateTime today, int bucket1, int bucket2, int bucket3, int bucket4, int bucket5)
+    {
+        var days = (date.Date - today).Days;
+        if (days <= 0) return 0;
+        if (days <= bucket1) return 1;
+        if (days <= bucket2) return 2;
+        if (days <= bucket3) return 3;
+        if (days <= bucket4) return 4;
+        if (days <= bucket5) return 5;
+        return 6;
+    }
+
     public async Task<SalesOrderDetailDto> GetByIdAsync(int id)
     {
         // 1. 查订单头（无 Include，避免 LEFT JOIN 数据重复）

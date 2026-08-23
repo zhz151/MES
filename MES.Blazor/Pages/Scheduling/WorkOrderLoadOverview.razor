@@ -58,7 +58,7 @@
                     <MudTh Class="text-center col-g100">预计完成</MudTh>
                     @foreach (var bucket in _data.DateBuckets)
                     {
-                        <MudTh Class="text-center col-g101" Style="min-width:46px;">
+                        <MudTh Class="text-center col-g101" Style="min-width:104px;">
                             <div Style="font-size:0.75em;line-height:1.2;white-space:nowrap;">@bucket.Label</div>
                         </MudTh>
                     }
@@ -76,7 +76,7 @@
                     {
                         var tons = context.DateBucketTons.Count > i ? context.DateBucketTons[i] : 0;
                         var sub = context.DateBucketSubTons.Count > i ? context.DateBucketSubTons[i] : (decimal?)null;
-                        <MudTd Class="@CellClass(context, "text-right")">@(new MarkupString(context.IsSummary ? "-" : FormatBucketTons(tons, sub, context.SubValuePrefix, context.SubValueParenFormat)))</MudTd>
+                        <MudTd Class="@CellClass(context, "text-right")">@(new MarkupString(context.IsSummary ? "-" : FormatBucketTons(tons, sub, context.SubValuePrefix, context.SubValueParenFormat, context.DateBucketSubOnly)))</MudTd>
                     }
                 </RowTemplate>
             </MudTable>

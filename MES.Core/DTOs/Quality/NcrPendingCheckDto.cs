@@ -46,8 +46,11 @@ public class NcrPendingCheckDto
     public DisposalMethod DisposalMethod { get; set; }
     public string DisposalMethodDisplay => EnumHelper.GetDisplayName(DisposalMethod);
 
-    /// <summary>不合格支数（触发条件的次品数量）</summary>
+    /// <summary>次品支数（触发条件的次品数量）</summary>
     public int DefectQuantity { get; set; }
+
+    /// <summary>次品重量(kg；成品检验取实际重量、过程检验取理论重量，对应触发处置方式)</summary>
+    public int? DefectiveWeight { get; set; }
 
     /// <summary>总检验支数</summary>
     public int TotalQuantity { get; set; }

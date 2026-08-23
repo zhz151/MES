@@ -186,6 +186,9 @@
 
                 <MudDivider Style="background: #333; margin: 4px 0;" />
 
+                <AuthorizeView Roles="@Roles.Policies.ReportOverview">
+                    <MudNavLink Href="/reports/overview" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">报表总览</MudNavLink>
+                </AuthorizeView>
                 <MudNavLink Href="/data-exchange" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">数据工具</MudNavLink>
                 <MudNavLink Href="/mobile-report" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">扫码报工</MudNavLink>
                 <MudNavLink Href="/equipment-scan" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">设备扫码</MudNavLink>

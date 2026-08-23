@@ -1,6 +1,7 @@
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 using MES.Data.Entities.Quality;
@@ -89,7 +90,7 @@ public static class NcrPrintHelper
             AppendFieldRow(table, "反馈人", n.Reporter ?? "", "钢管类别", GetMaterialTypeText(n.PipeCategory));
             AppendFieldRow(table, "生产编号", n.BatchNo, "工单号", n.WorkOrderNo ?? "");
             AppendFieldRow(table, "牌号", n.PlantGrade ?? "", "规格", n.Specification ?? "");
-            AppendFieldRow(table, "不合格支数", n.DefectiveQuantity?.ToString("G29") ?? "0", "", "");
+            AppendFieldRow(table, "次品支数", n.DefectiveQuantity?.ToString("G29") ?? "0", "次品重量", n.DefectiveWeight?.ToString("G29") ?? "0");
             AppendFieldSpan(table, "问题描述", n.ProblemDescription ?? "");
         });
 
@@ -209,7 +210,7 @@ public static class NcrPrintHelper
 
     private static string GetSeverityText(SeverityLevel? severity) => severity.HasValue ? EnumHelper.GetDisplayName(severity.Value) : "";
 
-    private static string GetResponsibilityCategoryText(ResponsibilityCategory? category) => category.HasValue ? EnumHelper.GetDisplayName(category.Value) : "";
+    private static string GetResponsibilityCategoryText(string? category) => DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, category) ?? "";
 
     private static string GetVerifyResultText(VerifyResult? result) => result.HasValue ? EnumHelper.GetDisplayName(result.Value) : "";
 

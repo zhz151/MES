@@ -52,4 +52,18 @@ public class RawMaterialLockPlanAndExecutionService
             return ApiResponse<SetPreExecuteFlagsResult>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    /// <summary>原锁「待投料量汇总」（标量 + 待投料矩阵 + 理论待投料截日，全部数值 kg）</summary>
+    public async Task<ApiResponse<RawMaterialLockPendingSummaryDto>> GetPendingSummaryAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<RawMaterialLockPendingSummaryDto>>($"{BaseUrl}/pending-summary");
+            return response ?? ApiResponse<RawMaterialLockPendingSummaryDto>.Fail("获取待投料量汇总失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<RawMaterialLockPendingSummaryDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }

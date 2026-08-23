@@ -129,7 +129,7 @@ public class ProductionOverviewServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetOverviewAsync_行重排_完善计划执行计划外购成品原料汇总_生产工段生产汇总成检成检汇总整体完工预计()
+    public async Task GetOverviewAsync_行重排_延期分类前3行_原料生产成检随后_整体完工预计最后()
     {
         using var ctx = CreateDbContext();
         SeedSummary(ctx, "WO-D1", 2, totalWeight: 10000m, finishPlanWeight: 2000m, finishInWeight: 0m,
@@ -144,88 +144,78 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        result.Rows.Should().HaveCount(19);
-        // 行 1-3: 订单延期-原料/在产/成检（订单交期负荷，序号留空）
+        result.Rows.Should().HaveCount(16);
+        // 行 1-3: 订单延期-原料/在产/成检（订单交期负荷，序号留空，日期桶格仅显示副值）
         result.Rows[0].Seq.Should().Be(1);
         result.Rows[0].Category.Should().Be("订单交期负荷");
         result.Rows[0].Section.Should().Be("订单延期-原料");
         result.Rows[0].SubValuePrefix.Should().Be("待料");
+        result.Rows[0].DateBucketSubOnly.Should().BeTrue();
         result.Rows[1].Seq.Should().Be(2);
         result.Rows[1].Category.Should().Be("订单交期负荷");
         result.Rows[1].Section.Should().Be("订单延期-在产");
         result.Rows[1].SubValuePrefix.Should().Be("在产");
+        result.Rows[1].DateBucketSubOnly.Should().BeTrue();
         result.Rows[2].Seq.Should().Be(3);
         result.Rows[2].Category.Should().Be("订单交期负荷");
         result.Rows[2].Section.Should().Be("订单延期-成检");
         result.Rows[2].SubValuePrefix.Should().Be("在检");
-        // 行 4-6: 订单延期量/订单延期量[预计完结]/订单非延期（序号留空）
+        result.Rows[2].DateBucketSubOnly.Should().BeTrue();
+        // 行 4: 完善计划（序号 1-1）
         result.Rows[3].Seq.Should().Be(4);
-        result.Rows[3].Category.Should().Be("订单交期负荷");
-        result.Rows[3].Section.Should().Be("订单延期量");
-        result.Rows[3].CategoryNo.Should().Be(0);
+        result.Rows[3].Category.Should().Be("原料");
+        result.Rows[3].Section.Should().Be("完善计划");
+        result.Rows[3].CategoryNo.Should().Be(1);
+        result.Rows[3].RowNo.Should().Be(1);
+        // 行 5: 执行计划（序号 1-2）
         result.Rows[4].Seq.Should().Be(5);
-        result.Rows[4].Category.Should().Be("订单交期负荷");
-        result.Rows[4].Section.Should().Be("订单延期量[预计完结]");
-        result.Rows[4].CategoryNo.Should().Be(0);
+        result.Rows[4].Category.Should().Be("原料");
+        result.Rows[4].Section.Should().Be("执行计划");
+        result.Rows[4].CategoryNo.Should().Be(1);
+        result.Rows[4].RowNo.Should().Be(2);
+        // 行 6: 外购成品（序号 1-3）
         result.Rows[5].Seq.Should().Be(6);
-        result.Rows[5].Category.Should().Be("订单交期负荷");
-        result.Rows[5].Section.Should().Be("订单非延期");
-        result.Rows[5].CategoryNo.Should().Be(0);
-        // 行 7: 整体完工预计（序号留空）
+        result.Rows[5].Category.Should().Be("原料");
+        result.Rows[5].Section.Should().Be("外购成品");
+        result.Rows[5].CategoryNo.Should().Be(1);
+        result.Rows[5].RowNo.Should().Be(3);
+        // 行 7: 原料汇总（序号留空）
         result.Rows[6].Seq.Should().Be(7);
-        result.Rows[6].Category.Should().Be("整体完工预计");
-        result.Rows[6].CategoryNo.Should().Be(0);
-        // 行 8: 完善计划（序号 1-1）
+        result.Rows[6].Category.Should().Be("原料");
+        result.Rows[6].Section.Should().Be("汇总");
+        result.Rows[6].IsSummary.Should().BeTrue();
+        // 行 8-12: 生产工段（序号 2-1~2-5）
         result.Rows[7].Seq.Should().Be(8);
-        result.Rows[7].Category.Should().Be("原料");
-        result.Rows[7].Section.Should().Be("完善计划");
-        result.Rows[7].CategoryNo.Should().Be(1);
+        result.Rows[7].Category.Should().Be("投料-在产");
+        result.Rows[7].CategoryNo.Should().Be(2);
         result.Rows[7].RowNo.Should().Be(1);
-        // 行 9: 执行计划（序号 1-2）
         result.Rows[8].Seq.Should().Be(9);
-        result.Rows[8].Category.Should().Be("原料");
-        result.Rows[8].Section.Should().Be("执行计划");
-        result.Rows[8].CategoryNo.Should().Be(1);
+        result.Rows[8].CategoryNo.Should().Be(2);
         result.Rows[8].RowNo.Should().Be(2);
-        // 行 10: 外购成品（序号 1-3）
         result.Rows[9].Seq.Should().Be(10);
-        result.Rows[9].Category.Should().Be("原料");
-        result.Rows[9].Section.Should().Be("外购成品");
-        result.Rows[9].CategoryNo.Should().Be(1);
         result.Rows[9].RowNo.Should().Be(3);
-        // 行 11: 原料汇总（序号留空）
         result.Rows[10].Seq.Should().Be(11);
-        result.Rows[10].Category.Should().Be("原料");
-        result.Rows[10].Section.Should().Be("汇总");
-        result.Rows[10].IsSummary.Should().BeTrue();
-        // 行 12-16: 生产工段（序号 2-1~2-5）
+        result.Rows[10].RowNo.Should().Be(4);
         result.Rows[11].Seq.Should().Be(12);
-        result.Rows[11].Category.Should().Be("投料-在产");
-        result.Rows[11].CategoryNo.Should().Be(2);
-        result.Rows[11].RowNo.Should().Be(1);
+        result.Rows[11].RowNo.Should().Be(5);
+        // 行 13: 生产汇总
         result.Rows[12].Seq.Should().Be(13);
-        result.Rows[12].CategoryNo.Should().Be(2);
-        result.Rows[12].RowNo.Should().Be(2);
+        result.Rows[12].Category.Should().Be("投料-在产");
+        result.Rows[12].Section.Should().Be("汇总");
+        result.Rows[12].IsSummary.Should().BeTrue();
+        // 行 14: 成检（序号 3-1）/ 行 15: 成检汇总（序号留空）
         result.Rows[13].Seq.Should().Be(14);
-        result.Rows[13].RowNo.Should().Be(3);
+        result.Rows[13].Category.Should().Be("投料-成检");
+        result.Rows[13].CategoryNo.Should().Be(3);
+        result.Rows[13].RowNo.Should().Be(1);
         result.Rows[14].Seq.Should().Be(15);
-        result.Rows[14].RowNo.Should().Be(4);
+        result.Rows[14].Category.Should().Be("投料-成检");
+        result.Rows[14].Section.Should().Be("汇总");
+        result.Rows[14].IsSummary.Should().BeTrue();
+        // 行 16: 整体完工预计（序号留空，最后一行）
         result.Rows[15].Seq.Should().Be(16);
-        result.Rows[15].RowNo.Should().Be(5);
-        // 行 17: 生产汇总
-        result.Rows[16].Seq.Should().Be(17);
-        result.Rows[16].Category.Should().Be("投料-在产");
-        result.Rows[16].Section.Should().Be("汇总");
-        result.Rows[16].IsSummary.Should().BeTrue();
-        // 行 18: 成检（序号 3-1）/ 行 19: 成检汇总（序号留空）
-        result.Rows[17].Seq.Should().Be(18);
-        result.Rows[17].Category.Should().Be("投料-成检");
-        result.Rows[17].CategoryNo.Should().Be(3);
-        result.Rows[17].RowNo.Should().Be(1);
-        result.Rows[18].Seq.Should().Be(19);
-        result.Rows[18].Category.Should().Be("投料-成检");
-        result.Rows[18].Section.Should().Be("汇总");
-        result.Rows[18].IsSummary.Should().BeTrue();
+        result.Rows[15].Category.Should().Be("整体完工预计");
+        result.Rows[15].CategoryNo.Should().Be(0);
     }
 
     [Fact]
@@ -245,7 +235,7 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        var row = result.Rows[7];
+        var row = result.Rows[3];
         row.PendingPlanTons.Should().Be(13m);          // (7800+5000)/1000=12.8 → 13
         row.TotalRemainingTons.Should().BeNull();       // 待产量（待投料量）已删除
         row.InProcurementTons.Should().BeNull();
@@ -269,11 +259,11 @@ public class ProductionOverviewServiceTests : TestBase
         var result = await svc.GetOverviewAsync();
 
         // 执行计划行 = C执行计划待投料 10 吨
-        result.Rows[8].PendingPlanTons.Should().Be(10m);
+        result.Rows[4].PendingPlanTons.Should().Be(10m);
         // 完善计划行 = D完善计划待投料 = 7800kg → 8 吨（与执行计划互不串行）
-        result.Rows[7].PendingPlanTons.Should().Be(8m);
+        result.Rows[3].PendingPlanTons.Should().Be(8m);
         // 外购成品行 = ΣMax(0, 成品计划量-已到货)（仅 stage2）= 2000kg → 2 吨
-        result.Rows[9].InProcurementTons.Should().Be(2m);
+        result.Rows[5].InProcurementTons.Should().Be(2m);
     }
 
     [Fact]
@@ -296,7 +286,7 @@ public class ProductionOverviewServiceTests : TestBase
 
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
-        var row = result.Rows[7];
+        var row = result.Rows[3];
 
         row.DateBucketTons.Count.Should().Be(7);
         row.DateBucketTons[0].Should().Be(8m);   // 交期截止-今日桶（≤今日）：仅 D 工单 WO-D1，A 质量补料不计入
@@ -329,15 +319,15 @@ public class ProductionOverviewServiceTests : TestBase
 
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
-        var raw = result.Rows[10];
+        var raw = result.Rows[6];
 
         raw.IsSummary.Should().BeTrue();
         // 待计划量 = 完善计划 + 执行计划 = 13 + 6 = 19 吨
         raw.PendingPlanTons.Should().Be(19m);
-        raw.PendingPlanTons.Should().Be((result.Rows[7].PendingPlanTons ?? 0) + (result.Rows[8].PendingPlanTons ?? 0));
+        raw.PendingPlanTons.Should().Be((result.Rows[3].PendingPlanTons ?? 0) + (result.Rows[4].PendingPlanTons ?? 0));
         // 在购量 = 外购成品（成购缺口）= WO-D1 的 2000kg → 2 吨
         raw.InProcurementTons.Should().Be(2m);
-        raw.InProcurementTons.Should().Be(result.Rows[9].InProcurementTons);
+        raw.InProcurementTons.Should().Be(result.Rows[5].InProcurementTons);
         // 待产量列不参与原料汇总
         raw.TotalRemainingTons.Should().BeNull();
         raw.EstDays.Should().BeNull();
@@ -345,9 +335,9 @@ public class ProductionOverviewServiceTests : TestBase
         // 日期桶 = 完善计划 + 执行计划 + 外购成品 对应桶求和
         for (int i = 0; i < result.DateBuckets.Count; i++)
         {
-            var expected = result.Rows[7].DateBucketTons[i]
-                + result.Rows[8].DateBucketTons[i]
-                + result.Rows[9].DateBucketTons[i];
+            var expected = result.Rows[3].DateBucketTons[i]
+                + result.Rows[4].DateBucketTons[i]
+                + result.Rows[5].DateBucketTons[i];
             raw.DateBucketTons[i].Should().Be(expected);
         }
         // 桶内合计校验：桶1（交期截止-今日）= 完善 8 + 外购 2 = 10；桶4（今日+16~+30）= 完善 5 + 执行 6 = 11
@@ -371,13 +361,13 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        // 冷轧5060 行（Rows[12]）：60+50 两道次各 1 吨 → 合重量 2 吨
-        var cr50_60 = result.Rows[12];
+        // 冷轧5060 行（Rows[8]）：60+50 两道次各 1 吨 → 合重量 2 吨
+        var cr50_60 = result.Rows[8];
         cr50_60.TotalRemainingTons.Should().Be(2m);
         // 冷轧2030/三辊/冷拔行无匹配工序组 → 0
-        result.Rows[13].TotalRemainingTons.Should().Be(0m);
-        result.Rows[14].TotalRemainingTons.Should().Be(0m);
-        result.Rows[15].TotalRemainingTons.Should().Be(0m);
+        result.Rows[9].TotalRemainingTons.Should().Be(0m);
+        result.Rows[10].TotalRemainingTons.Should().Be(0m);
+        result.Rows[11].TotalRemainingTons.Should().Be(0m);
     }
 
     [Fact]
@@ -398,8 +388,8 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        // 冷轧5060 行（Rows[12]）：4 道次各 1 吨 → 4 吨
-        result.Rows[12].TotalRemainingTons.Should().Be(4m);
+        // 冷轧5060 行（Rows[8]）：4 道次各 1 吨 → 4 吨
+        result.Rows[8].TotalRemainingTons.Should().Be(4m);
     }
 
     [Fact]
@@ -419,8 +409,8 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        // 拉机行（Rows[15]）：两次冷拔各计 1 吨 → 2 吨
-        result.Rows[15].TotalRemainingTons.Should().Be(2m);
+        // 拉机行（Rows[11]）：两次冷拔各计 1 吨 → 2 吨
+        result.Rows[11].TotalRemainingTons.Should().Be(2m);
     }
 
     [Fact]
@@ -448,8 +438,8 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        // 冷轧5060 行（Rows[12]）：已轧完 → 不计入
-        result.Rows[12].TotalRemainingTons.Should().Be(0m);
+        // 冷轧5060 行（Rows[8]）：已轧完 → 不计入
+        result.Rows[8].TotalRemainingTons.Should().Be(0m);
     }
 
     [Fact]
@@ -476,8 +466,8 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        // 冷轧5060 行（Rows[12]）：冷轧拔生产中 → 计入 1 吨
-        result.Rows[12].TotalRemainingTons.Should().Be(1m);
+        // 冷轧5060 行（Rows[8]）：冷轧拔生产中 → 计入 1 吨
+        result.Rows[8].TotalRemainingTons.Should().Be(1m);
     }
 
     [Fact]
@@ -495,11 +485,11 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        // 荒管抛光（行12）与冷轧5060（行13）各计入 6000kg → 6 吨
-        result.Rows[11].TotalRemainingTons.Should().Be(6m);
-        result.Rows[12].TotalRemainingTons.Should().Be(6m);
-        // 生产汇总（行17）= 批次去重 6000kg → 6 吨（非两节点之和 12）
-        var prod = result.Rows[16];
+        // 荒管抛光（行7）与冷轧5060（行8）各计入 6000kg → 6 吨
+        result.Rows[7].TotalRemainingTons.Should().Be(6m);
+        result.Rows[8].TotalRemainingTons.Should().Be(6m);
+        // 生产汇总（行12）= 批次去重 6000kg → 6 吨（非两节点之和 12）
+        var prod = result.Rows[12];
         prod.IsSummary.Should().BeTrue();
         prod.TotalRemainingTons.Should().Be(6m);
         // 生产汇总行预计天数/完成日留空（用户决策），防与工段行口径混淆
@@ -525,19 +515,19 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        // 冷轧2030 行（序号 2-3，Rows[13]）：总量 10 吨，在制 5 吨，成品 5 吨
-        var cr20_30 = result.Rows[13];
+        // 冷轧2030 行（序号 2-3，Rows[9]）：总量 10 吨，在制 5 吨，成品 5 吨
+        var cr20_30 = result.Rows[9];
         cr20_30.TotalRemainingTons.Should().Be(10m);
         cr20_30.PendingInProgressTons.Should().Be(5m);
         cr20_30.PendingFinishedTons.Should().Be(5m);
-        // 冷轧5060 行（序号 2-2，Rows[11]）：无匹配批次 → 总量 0，附加量 0（前端不显示）
-        var cr50_60 = result.Rows[12];
+        // 冷轧5060 行（序号 2-2，Rows[8]）：无匹配批次 → 总量 0，附加量 0（前端不显示）
+        var cr50_60 = result.Rows[8];
         cr50_60.TotalRemainingTons.Should().Be(0m);
         cr50_60.PendingInProgressTons.Should().Be(0m);
         cr50_60.PendingFinishedTons.Should().Be(0m);
         // 荒管抛光行（序号 2-1）不拆分产类 → 附加量恒 null（区别于冷轧行的 0）
-        result.Rows[11].PendingInProgressTons.Should().BeNull();
-        result.Rows[11].PendingFinishedTons.Should().BeNull();
+        result.Rows[7].PendingInProgressTons.Should().BeNull();
+        result.Rows[7].PendingFinishedTons.Should().BeNull();
     }
 
     [Fact]
@@ -557,8 +547,8 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        // 冷轧5060 行（序号 2-2，Rows[12]）：两个批次均判在制 → 在制 10 吨、成品 0
-        var cr50_60 = result.Rows[12];
+        // 冷轧5060 行（序号 2-2，Rows[8]）：两个批次均判在制 → 在制 10 吨、成品 0
+        var cr50_60 = result.Rows[8];
         cr50_60.TotalRemainingTons.Should().Be(10m);
         cr50_60.PendingInProgressTons.Should().Be(10m);
         cr50_60.PendingFinishedTons.Should().Be(0m);
@@ -576,7 +566,7 @@ public class ProductionOverviewServiceTests : TestBase
 
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
-        var prod = result.Rows[16];
+        var prod = result.Rows[12];
 
         prod.TotalRemainingTons.Should().Be(10m); // (6000+4000)/1000 = 10
     }
@@ -592,7 +582,7 @@ public class ProductionOverviewServiceTests : TestBase
 
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
-        var prod = result.Rows[16];
+        var prod = result.Rows[12];
 
         prod.DateBucketTons.Count.Should().Be(7);
         prod.DateBucketTons[0].Should().Be(6m);
@@ -616,206 +606,12 @@ public class ProductionOverviewServiceTests : TestBase
         var svc = CreateService(ctx, kanban);
         var result = await svc.GetOverviewAsync();
 
-        // 成检行（行18）与成检汇总（行19）均为 (3000+2000)/1000 = 5 吨
-        var fi = result.Rows[17];
+        // 成检行（行13）与成检汇总（行14）均为 (3000+2000)/1000 = 5 吨
+        var fi = result.Rows[13];
         fi.TotalRemainingTons.Should().Be(5m);
-        var fiSum = result.Rows[18];
+        var fiSum = result.Rows[14];
         fiSum.IsSummary.Should().BeTrue();
         fiSum.TotalRemainingTons.Should().Be(5m);
-    }
-
-    [Fact]
-    public async Task GetOverviewAsync_订单延期量_按交货日期所在桶区间统计不累加()
-    {
-        using var ctx = CreateDbContext();
-        // WO-1：交期今天、预计完成 +10 天 → 交货在桶1区间 [MinValue,今日]，预计完成>今日 → 仅桶1计入；桶2（今日+7）交期不在区间不计
-        SeedSummary(ctx, "WO-1", 3, totalWeight: 2000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(10));
-        // WO-2：交期 +5 天、预计完成 +20 天 → 交货在桶2区间 [今日+1,今日+7]，预计完成>今日+7 → 仅桶2计入；桶3（今日+15）交期不在区间不计
-        SeedSummary(ctx, "WO-2", 3, totalWeight: 3000m, deliveryDate: DateTime.Today.AddDays(5),
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(20));
-        // WO-3：交期今天、预计完成今天（已完成）→ 预计完成>今日 不成立，不计
-        SeedSummary(ctx, "WO-3", 3, totalWeight: 5000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today);
-        // WO-4：预计完成日 null → 不计
-        SeedSummary(ctx, "WO-4", 3, totalWeight: 9000m, deliveryDate: DateTime.Today);
-        // WO-5：主号完成(1)，页面口径排除 → 不计
-        SeedSummary(ctx, "WO-5", 1, totalWeight: 8000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(10));
-        // WO-6：交期今天、预计完成 +5 天 → 延期 5 天≤7，主值桶1含 2000kg，副值（超1周）不含
-        SeedSummary(ctx, "WO-6", 3, totalWeight: 2000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(5));
-        await ctx.SaveChangesAsync();
-
-        var svc = CreateService(ctx);
-        var result = await svc.GetOverviewAsync();
-
-        var delay = result.Rows[3];
-        delay.Seq.Should().Be(4);
-        delay.Category.Should().Be("订单交期负荷");
-        delay.Section.Should().Be("订单延期量");
-        delay.CategoryNo.Should().Be(0);
-        delay.SubValuePrefix.Should().Be("超1周");
-        delay.SubValueParenFormat.Should().BeTrue();
-        delay.DateBucketTons.Count.Should().Be(7);
-        delay.DateBucketSubTons.Count.Should().Be(7);
-        // 桶1（交期截止-今日）：WO-1（延期10天）+ WO-6（延期5天） = 4000kg → 4 吨
-        delay.DateBucketTons[0].Should().Be(4m);
-        // 桶1 副值（超1周）：仅 WO-1（延期 10 天>7）= 2000kg → 2 吨（WO-6 延期 5 天≤7 不计）
-        delay.DateBucketSubTons[0].Should().Be(2m);
-        // 桶2（今日+7）：仅 WO-2 = 3000kg → 3 吨（WO-1 交期今日不在 [今日+1,今日+7]，不累加）
-        delay.DateBucketTons[1].Should().Be(3m);
-        // 桶2 副值（超1周）：WO-2（延期 15 天>7）= 3000kg → 3 吨
-        delay.DateBucketSubTons[1].Should().Be(3m);
-        // 桶3（今日+15）起均 0
-        delay.DateBucketTons[2].Should().Be(0m);
-        delay.DateBucketSubTons[2].Should().Be(0m);
-        delay.DateBucketTons[3].Should().Be(0m);
-        delay.DateBucketTons[4].Should().Be(0m);
-        delay.DateBucketTons[5].Should().Be(0m);
-        // 桶7（远日量）截止无穷大 → 恒 0
-        delay.DateBucketTons[6].Should().Be(0m);
-        delay.DateBucketSubTons[6].Should().Be(0m);
-    }
-
-    [Fact]
-    public async Task GetOverviewAsync_订单延期量预计完结_按预计完成日期所在桶统计()
-    {
-        using var ctx = CreateDbContext();
-        // WO-1：交期今天、预计完成 +10 天（延期）→ 预计完结桶2（今日+8~+15）
-        SeedSummary(ctx, "WO-1", 3, totalWeight: 2000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(10));
-        // WO-2：交期 +5 天、预计完成 +20 天（延期）→ 预计完结桶3（今日+16~+30）
-        SeedSummary(ctx, "WO-2", 3, totalWeight: 3000m, deliveryDate: DateTime.Today.AddDays(5),
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(20));
-        // WO-3：交期今天、预计完成今天（非延期）→ 不计
-        SeedSummary(ctx, "WO-3", 3, totalWeight: 5000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today);
-        // WO-4：预计完成日 null → 不计
-        SeedSummary(ctx, "WO-4", 3, totalWeight: 9000m, deliveryDate: DateTime.Today);
-        // WO-5：主号完成(1)，页面口径排除 → 不计
-        SeedSummary(ctx, "WO-5", 1, totalWeight: 8000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(10));
-        // WO-6：交期今天、预计完成 +5 天（延期）→ 预计完结桶1（今日+1~+7）
-        SeedSummary(ctx, "WO-6", 3, totalWeight: 2000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(5));
-        await ctx.SaveChangesAsync();
-
-        var svc = CreateService(ctx);
-        var result = await svc.GetOverviewAsync();
-
-        var row = result.Rows[4];
-        row.Seq.Should().Be(5);
-        row.Category.Should().Be("订单交期负荷");
-        row.Section.Should().Be("订单延期量[预计完结]");
-        row.CategoryNo.Should().Be(0);
-        row.DateBucketTons.Count.Should().Be(7);
-        // 桶1（交期截止-今日）：无预计完结日落在今日 → 0
-        row.DateBucketTons[0].Should().Be(0m);
-        // 桶2（今日+1~+7）：WO-6（+5 天）→ 2 吨
-        row.DateBucketTons[1].Should().Be(2m);
-        // 桶3（今日+8~+15）：WO-1（+10 天）→ 2 吨
-        row.DateBucketTons[2].Should().Be(2m);
-        // 桶4（今日+16~+30）：WO-2（+20 天）→ 3 吨
-        row.DateBucketTons[3].Should().Be(3m);
-        // 其余桶 0
-        row.DateBucketTons[4].Should().Be(0m);
-        row.DateBucketTons[5].Should().Be(0m);
-        row.DateBucketTons[6].Should().Be(0m);
-    }
-
-    [Fact]
-    public async Task GetOverviewAsync_延期量与预计完结_总量一致按不同维度分桶()
-    {
-        // 2026-08-19 统一延期判定为「预计完成日 > 交货日期」后，延期量行（按交货日期分桶）与预计完结行（按预计完成日分桶）
-        // 统计的是同一批延期工单，逐桶分布不同但总量必须一致。
-        // 旧口径「> 桶截止日」会漏计：①交期在桶中段、完成略晚未超桶截止的工单（WO-1）；②交期在远日量桶的工单（WO-3，EstComp>MaxValue 恒 false）。
-        using var ctx = CreateDbContext();
-        // WO-1：交期今天、预计完成 +3 天（延期，未超 1 周）→ 延期量桶1（今日）；预计完结桶2（今日+1~+7）
-        SeedSummary(ctx, "WO-1", 3, totalWeight: 2000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(3));
-        // WO-2：交期 +5 天、预计完成 +9 天（延期，未超 1 周）→ 延期量桶2（今日+1~+7）；预计完结桶3（今日+8~+15）
-        SeedSummary(ctx, "WO-2", 3, totalWeight: 3000m, deliveryDate: DateTime.Today.AddDays(5),
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(9));
-        // WO-4：交期 +10 天、预计完成 +25 天（延期，超 1 周）→ 延期量桶3（今日+8~+15）主值+副值；预计完结桶4（今日+16~+30）
-        SeedSummary(ctx, "WO-4", 3, totalWeight: 4000m, deliveryDate: DateTime.Today.AddDays(10),
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(25));
-        // WO-3：交期 +70 天（远日量桶）、预计完成 +75 天（延期）→ 延期量桶7（远日量，旧口径漏计）；预计完结桶7
-        SeedSummary(ctx, "WO-3", 3, totalWeight: 5000m, deliveryDate: DateTime.Today.AddDays(70),
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(75));
-        await ctx.SaveChangesAsync();
-
-        var svc = CreateService(ctx);
-        var result = await svc.GetOverviewAsync();
-
-        var delay = result.Rows[3];
-        var estComplete = result.Rows[4];
-        // 延期量行按交货日期所在桶（桶0=交期截止-今日/桶6=远日量）：桶0 WO-1=2、桶1 WO-2=3、桶2 WO-4=4、桶6 WO-3=5
-        delay.DateBucketTons[0].Should().Be(2m);
-        delay.DateBucketTons[1].Should().Be(3m);
-        delay.DateBucketTons[2].Should().Be(4m);
-        delay.DateBucketTons[3].Should().Be(0m);
-        delay.DateBucketTons[4].Should().Be(0m);
-        delay.DateBucketTons[5].Should().Be(0m);
-        delay.DateBucketTons[6].Should().Be(5m);   // 远日量桶：WO-3 新口径计入（旧口径漏计）
-        // 延期量副值（超 1 周）：仅 WO-4（延期 15 天）→ 桶2 = 4
-        delay.DateBucketSubTons[0].Should().Be(0m);
-        delay.DateBucketSubTons[1].Should().Be(0m);
-        delay.DateBucketSubTons[2].Should().Be(4m);
-        delay.DateBucketSubTons[3].Should().Be(0m);
-        delay.DateBucketSubTons[4].Should().Be(0m);
-        delay.DateBucketSubTons[5].Should().Be(0m);
-        delay.DateBucketSubTons[6].Should().Be(0m);
-        // 预计完结行按预计完成日所在桶：桶1 WO-1=2、桶2 WO-2=3、桶3 WO-4=4、桶6 WO-3=5
-        estComplete.DateBucketTons[0].Should().Be(0m);
-        estComplete.DateBucketTons[1].Should().Be(2m);
-        estComplete.DateBucketTons[2].Should().Be(3m);
-        estComplete.DateBucketTons[3].Should().Be(4m);
-        estComplete.DateBucketTons[4].Should().Be(0m);
-        estComplete.DateBucketTons[5].Should().Be(0m);
-        estComplete.DateBucketTons[6].Should().Be(5m);
-        // 总量一致（同一批延期工单）：2+3+4+5 = 14
-        delay.DateBucketTons.Sum().Should().Be(estComplete.DateBucketTons.Sum());
-        delay.DateBucketTons.Sum().Should().Be(14m);
-    }
-
-    [Fact]
-    public async Task GetOverviewAsync_订单非延期_按桶区间预计完成日未超截止统计()
-    {
-        using var ctx = CreateDbContext();
-        // WO-A：交期今天、预计完成今天 → 非延期桶1 = 5 吨
-        SeedSummary(ctx, "WO-A", 3, totalWeight: 5000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today);
-        // WO-B：交期 +5 天、预计完成 +3 天（提前）→ 非延期桶2（今日+7）= 3 吨
-        SeedSummary(ctx, "WO-B", 3, totalWeight: 3000m, deliveryDate: DateTime.Today.AddDays(5),
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(3));
-        // WO-C：交期 +20 天、预计完成 +18 天（提前完成）→ 交期在桶4区间 [今日+16,今日+30]，预计完成≤交货日期 → 非延期桶4 = 8 吨
-        //（2026-08-19 统一延期判定为「预计完成日≤交货日期」非延期，与延期量行「>交货日期」严格互补；原「预计完成≤桶截止」口径下 WO-C 预计+25 也算非延期，新口径算延期）
-        SeedSummary(ctx, "WO-C", 3, totalWeight: 8000m, deliveryDate: DateTime.Today.AddDays(20),
-            estimatedProcessCompletionDate: DateTime.Today.AddDays(18));
-        // WO-D：预计完成日 null → 不计
-        SeedSummary(ctx, "WO-D", 3, totalWeight: 9000m, deliveryDate: DateTime.Today.AddDays(5));
-        // WO-E：主号完成(1)，页面口径排除 → 不计
-        SeedSummary(ctx, "WO-E", 1, totalWeight: 7000m, deliveryDate: DateTime.Today,
-            estimatedProcessCompletionDate: DateTime.Today);
-        await ctx.SaveChangesAsync();
-
-        var svc = CreateService(ctx);
-        var result = await svc.GetOverviewAsync();
-
-        var onTime = result.Rows[5];
-        onTime.Seq.Should().Be(6);
-        onTime.Category.Should().Be("订单交期负荷");
-        onTime.Section.Should().Be("订单非延期");
-        onTime.CategoryNo.Should().Be(0);
-        onTime.DateBucketTons.Count.Should().Be(7);
-        onTime.DateBucketTons[0].Should().Be(5m);
-        onTime.DateBucketTons[1].Should().Be(3m);
-        onTime.DateBucketTons[2].Should().Be(0m);
-        onTime.DateBucketTons[3].Should().Be(8m);   // 桶4 今日+16~+30：WO-C
-        onTime.DateBucketTons[4].Should().Be(0m);
-        onTime.DateBucketTons[5].Should().Be(0m);
-        onTime.DateBucketTons[6].Should().Be(0m);
     }
 
     [Fact]
@@ -844,6 +640,7 @@ public class ProductionOverviewServiceTests : TestBase
         row.Category.Should().Be("订单交期负荷");
         row.Section.Should().Be("订单延期-原料");
         row.SubValuePrefix.Should().Be("待料");
+        row.DateBucketSubOnly.Should().BeTrue();
         row.DateBucketTons.Count.Should().Be(7);
         row.DateBucketTons[0].Should().Be(10m);
         row.DateBucketSubTons[0].Should().Be(9m);
@@ -871,6 +668,7 @@ public class ProductionOverviewServiceTests : TestBase
         row.Seq.Should().Be(2);
         row.Section.Should().Be("订单延期-在产");
         row.SubValuePrefix.Should().Be("在产");
+        row.DateBucketSubOnly.Should().BeTrue();
         row.DateBucketTons[1].Should().Be(5m);    // 主值 5000kg → 5 吨
         row.DateBucketSubTons[1].Should().Be(6m); // 4000+2000 → 6 吨
         row.DateBucketTons[0].Should().Be(0m);    // WO-P1 交期+5 不在桶1区间
@@ -896,6 +694,7 @@ public class ProductionOverviewServiceTests : TestBase
         row.Seq.Should().Be(3);
         row.Section.Should().Be("订单延期-成检");
         row.SubValuePrefix.Should().Be("在检");
+        row.DateBucketSubOnly.Should().BeTrue();
         row.DateBucketTons[0].Should().Be(6m);
         row.DateBucketSubTons[0].Should().Be(2m);
         row.DateBucketTons[1].Should().Be(0m);

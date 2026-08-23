@@ -39,6 +39,7 @@ using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Scheduling;
+using MES.Core.Helpers;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using MES.Services.WorkOrder;
@@ -51,10 +52,12 @@ namespace MES.Services.Scheduling;
 public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExecutionService
 {
     private readonly AppDbContext _context;
+    private readonly IConfigParameterService _configService;
 
-    public RawMaterialLockPlanAndExecutionService(AppDbContext context)
+    public RawMaterialLockPlanAndExecutionService(AppDbContext context, IConfigParameterService configService)
     {
         _context = context;
+        _configService = configService;
     }
 
     public async Task<PagedResult<RawMaterialLockPlanAndExecutionDto>> GetPagedAsync(QueryParams query)
@@ -300,5 +303,159 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
     {
         var pdfBytes = RawMaterialLockPlanPrintHelper.GeneratePdf(title, items, columns);
         return Task.FromResult(pdfBytes);
+    }
+
+    /// <summary>
+    /// 原锁「待投料量汇总」：标量 + 待投料矩阵（备注 × 计划性）+ 理论待投料截日（类别 × 日期桶）。
+    /// 口径 = 前端 RawMaterialLockPlanAndExecution.RecalculateSummary/RecalculateCutoffSummary（2026-08-19 配置化后）：
+    /// - PendingCalc 走 ProductionSummaryHelper.CalcPending（质量补料 A 按流转比缺口折算不减已投料，其余减已投料，倍率走 ProcessingDiscount/RawMaterialRatio 默认 1.1）；
+    /// - PurchaseCalc = Max(0, 成品计划量 − 成品到货量)；
+    /// - 桶边界走 DateBucket 配置（默认 7/15/30/45/60），桶标签为绝对日期样式（与订单负荷总量页同源）。
+    /// 全部数值 kg，前端 /1000 转吨 F1。
+    /// </summary>
+    public async Task<RawMaterialLockPendingSummaryDto> GetPendingSummaryAsync()
+    {
+        var summaries = await _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
+            .Where(e => e.ScheduleStage == 2)
+            .Select(e => new
+            {
+                e.TotalWeight,
+                e.FinishPlanWeight,
+                e.FinishInWeight,
+                e.InputWeight,
+                e.FlowOutputRatio,
+                e.RawMaterialLockRemark,
+                e.UrgencyLevel,
+                e.TheoreticalCutoffDate,
+            })
+            .ToListAsync();
+
+        // 配置：桶边界 + 投料倍率
+        var dateBucketMap = await _configService.GetConfigMapAsync("DateBucket");
+        var bucket1 = (int)dateBucketMap.GetValueOrDefault("Bucket1", 7m);
+        var bucket2 = (int)dateBucketMap.GetValueOrDefault("Bucket2", 15m);
+        var bucket3 = (int)dateBucketMap.GetValueOrDefault("Bucket3", 30m);
+        var bucket4 = (int)dateBucketMap.GetValueOrDefault("Bucket4", 45m);
+        var bucket5 = (int)dateBucketMap.GetValueOrDefault("Bucket5", 60m);
+        var rawRatioMap = await _configService.GetConfigMapAsync("ProcessingDiscount");
+        var rawRatio = rawRatioMap.GetValueOrDefault("RawMaterialRatio", 1.1m);
+        var today = DateTime.Today;
+        var buckets = ProductionSummaryHelper.GenerateDateBuckets(today, bucket1, bucket2, bucket3, bucket4, bucket5);
+
+        // 标量（口径 = 前端 RecalculateSummary）
+        var totalWeight = summaries.Sum(s => s.TotalWeight);
+        var purchaseCount = summaries.Count(s => s.FinishPlanWeight > s.FinishInWeight);
+        var purchaseWeight = summaries.Sum(s => Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight));
+        var pendingWeight = summaries.Sum(s => ProductionSummaryHelper.CalcPending(
+            s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
+
+        // 矩阵：备注 × 计划性（列排除 EPaused 暂停档）
+        var matrix = new Dictionary<string, PendingMatrixCellDto>(StringComparer.Ordinal);
+        foreach (var s in summaries)
+        {
+            var remarkKey = RawMaterialLockRemarkKeys.ToKey(s.RawMaterialLockRemark) ?? "";
+            var urgencyKey = UrgencyLevelKeys.ToKey(s.UrgencyLevel) ?? "";
+            var key = $"{remarkKey}|{urgencyKey}";
+            if (!matrix.TryGetValue(key, out var cell))
+            {
+                cell = new PendingMatrixCellDto();
+                matrix[key] = cell;
+            }
+            var purchase = Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight);
+            cell.Count++;
+            cell.PendingWeight += ProductionSummaryHelper.CalcPending(
+                s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio);
+            cell.PurchaseCount += purchase > 0 ? 1 : 0;
+            cell.PurchaseWeight += purchase;
+        }
+
+        var remarkRows = RawMaterialLockRemarkKeys.All;
+        var urgencyColumns = UrgencyLevelKeys.All.Where(k => k != UrgencyLevelKeys.EPaused).ToArray();
+        var matrixRows = new List<PendingMatrixRowDto>();
+        foreach (var r in remarkRows)
+        {
+            var row = new PendingMatrixRowDto();
+            foreach (var u in urgencyColumns)
+            {
+                var cell = matrix.GetValueOrDefault($"{r}|{u}") ?? new PendingMatrixCellDto();
+                row.Cells.Add(cell);
+                row.RowCount += cell.Count;
+                row.RowPendingWeight += cell.PendingWeight;
+                row.RowPurchaseCount += cell.PurchaseCount;
+                row.RowPurchaseWeight += cell.PurchaseWeight;
+            }
+            matrixRows.Add(row);
+        }
+
+        var columnTotals = urgencyColumns.Select(_ => new PendingMatrixTotalsDto()).ToList();
+        var grandTotals = new PendingMatrixTotalsDto();
+        foreach (var row in matrixRows)
+        {
+            for (var ci = 0; ci < row.Cells.Count; ci++)
+            {
+                var c = row.Cells[ci];
+                var col = columnTotals[ci];
+                col.Count += c.Count;
+                col.PendingWeight += c.PendingWeight;
+                col.PurchaseCount += c.PurchaseCount;
+                col.PurchaseWeight += c.PurchaseWeight;
+            }
+            grandTotals.Count += row.RowCount;
+            grandTotals.PendingWeight += row.RowPendingWeight;
+            grandTotals.PurchaseCount += row.RowPurchaseCount;
+            grandTotals.PurchaseWeight += row.RowPurchaseWeight;
+        }
+
+        // 理论待投料截日：完善计划/执行计划（各加 PendingCalc）+ 外购成品（全工单 PurchaseCalc）+ 合计
+        var cutoffRows = new List<CutoffRowDto>
+        {
+            new() { Category = "完善计划", Buckets = new List<decimal>(new decimal[buckets.Count]) },
+            new() { Category = "执行计划", Buckets = new List<decimal>(new decimal[buckets.Count]) },
+            new() { Category = "外购成品", Buckets = new List<decimal>(new decimal[buckets.Count]) },
+        };
+        foreach (var s in summaries)
+        {
+            var remarkKey = RawMaterialLockRemarkKeys.ToKey(s.RawMaterialLockRemark);
+            var bucket = ProductionSummaryHelper.GetCutoffBucket(s.TheoreticalCutoffDate, buckets);
+            var pending = ProductionSummaryHelper.CalcPending(
+                s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio);
+            if (remarkKey == RawMaterialLockRemarkKeys.ImprovePlan)
+                AddCutoffWeight(cutoffRows[0], pending, bucket);
+            else if (remarkKey == RawMaterialLockRemarkKeys.ExecutePlan)
+                AddCutoffWeight(cutoffRows[1], pending, bucket);
+            // 外购成品 = 全部工单成购缺口（与标量 _purchaseWeight 同口径）
+            AddCutoffWeight(cutoffRows[2], Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight), bucket);
+        }
+        var totalRow = new CutoffRowDto { Category = "合计", Buckets = new List<decimal>(new decimal[buckets.Count]) };
+        foreach (var r in cutoffRows)
+        {
+            totalRow.Total += r.Total;
+            for (var i = 0; i < r.Buckets.Count; i++)
+                totalRow.Buckets[i] += r.Buckets[i];
+        }
+        cutoffRows.Add(totalRow);
+
+        return new RawMaterialLockPendingSummaryDto
+        {
+            TotalOrderCount = summaries.Count,
+            TotalWeight = totalWeight,
+            PendingWeight = pendingWeight,
+            PurchaseCount = purchaseCount,
+            PurchaseWeight = purchaseWeight,
+            HasPurchaseData = purchaseCount > 0,
+            MatrixRowLabels = remarkRows.Select(k => RawMaterialLockRemarkKeys.KeyToChinese.GetValueOrDefault(k, k)).ToList(),
+            MatrixColumnLabels = urgencyColumns.Select(k => UrgencyLevelKeys.KeyToChinese.GetValueOrDefault(k, k)).ToList(),
+            MatrixRows = matrixRows,
+            MatrixColumnTotals = columnTotals,
+            MatrixGrandTotals = grandTotals,
+            CutoffBucketLabels = buckets.Select(b => b.Label).ToList(),
+            CutoffRows = cutoffRows,
+        };
+    }
+
+    private static void AddCutoffWeight(CutoffRowDto row, decimal weight, int bucket)
+    {
+        row.Total += weight;
+        row.Buckets[bucket] += weight;
     }
 }
