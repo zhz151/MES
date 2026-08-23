@@ -144,4 +144,9 @@ public interface IInventoryService
     /// 获取库存批次筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetInventoryFilterContextsAsync();
+
+    /// <summary>
+    /// 月度库存变化汇总（行=材料，列=期初+12月入/出/结+合计；结存为真实全口径，入/出按来源/类型 5 分）
+    /// </summary>
+    Task<MonthlyStockSummaryResultDto> GetMonthlyStockSummaryAsync();
 }

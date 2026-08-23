@@ -801,4 +801,234 @@ public class InventoryService : IInventoryService
     /// 全量回填定尺切割长度匹配标识，返回更新条数（委托写服务）
     /// </summary>
     public async Task<int> RefreshAllCutLengthMatchAsync() => await _batchWriteService.RefreshAllCutLengthMatchAsync();
+
+    // ========== 物料进出存报表行排序：库房固定顺序 + 物料类型固定顺序 + 来源/类型固定顺序 ==========
+
+    private static readonly Dictionary<string, int> WarehouseDisplayOrder = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["原料库"] = 1,
+        ["成品库"] = 2,
+        ["在制品库"] = 3,
+        ["次品库"] = 4
+    };
+
+    private static readonly Dictionary<string, int> MaterialTypeDisplayOrder = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [MaterialType.RoundBar.ToString()] = 1,             // 圆棒
+        [MaterialType.RoughTube.ToString()] = 2,            // 荒管
+        [MaterialType.CriticalFinished.ToString()] = 3,     // 临界成品
+        [MaterialType.OrderFinished.ToString()] = 4,        // 订单成品
+        [MaterialType.SpecialDeliveryStatus.ToString()] = 5, // 订成-非交付态
+        [MaterialType.Finished.ToString()] = 6,             // 备料成品
+        [MaterialType.Surplus.ToString()] = 7,              // 余库料
+        [MaterialType.SemiFinished.ToString()] = 8,         // 半成品
+        [MaterialType.WorkInProgress.ToString()] = 9,       // 在制品
+        [MaterialType.DefectRoundBar.ToString()] = 10,      // 次品圆棒
+        [MaterialType.DefectRoughTube.ToString()] = 11,     // 次品荒管
+        [MaterialType.DefectFinished.ToString()] = 12,      // 次品成品
+        [MaterialType.DefectSemi.ToString()] = 13,          // 次品半成品
+        [MaterialType.DefectWIP.ToString()] = 14,           // 次品在制
+        [MaterialType.Scrap.ToString()] = 15                // 报废品
+    };
+
+    private static readonly Dictionary<string, int> InboundSourceDisplayOrder = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [InboundSource.Purchase.ToString()] = 1,             // 外购
+        [InboundSource.Subcontract.ToString()] = 2,          // 委外
+        [InboundSource.ProductionInbound.ToString()] = 3,    // 生产入库
+        [InboundSource.InspectionInbound.ToString()] = 4,    // 检验入库
+        [InboundSource.Other.ToString()] = 5                 // 其它
+    };
+
+    private static readonly Dictionary<string, int> OutboundTypeDisplayOrder = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [OutboundType.ProductionPick.ToString()] = 1,        // 生产领用
+        [OutboundType.SalesOut.ToString()] = 2,              // 销售出库
+        [OutboundType.ReturnOut.ToString()] = 3,             // 退货出库
+        [OutboundType.SubcontractOut.ToString()] = 4,        // 委外出库
+        [OutboundType.OtherOut.ToString()] = 5               // 其它出库
+    };
+
+    /// <summary>
+    /// 物料进出存报表（月度库存变化）汇总：行=库房×物料类型（库房合并单元格），
+    /// 列=期初（上年末全口径结存）+ 12月×（入/出/结）+ 全年合计。
+    /// 同一数据集支撑 4 报表切换（入库/出库/库存/物料进出存，仅展示列不同）。
+    /// 入库/出库报表额外返回来源/类型粒度行（InboundSourceRows/OutboundTypeRows）。
+    /// 结存为真实库存余额（全口径），无入/出筛选维度、无合计行。
+    /// </summary>
+    public async Task<MonthlyStockSummaryResultDto> GetMonthlyStockSummaryAsync()
+    {
+        var year = DateTime.Today.Year;
+        var start = new DateTime(year, 1, 1);
+
+        // ===== 1. 加载库房名 + 全部入库批次（期初需截至去年底的累计）/ 出库记录 =====
+        var warehouseNames = await _context.Warehouses.AsNoTracking()
+            .ToDictionaryAsync(w => w.Id, w => w.Name ?? string.Empty);
+
+        var inboundRows = await _context.InventoryBatches
+            .AsNoTracking()
+            .Select(b => new { b.WarehouseId, b.MaterialType, b.InboundSource, b.InboundDate, b.InitialWeight })
+            .ToListAsync();
+
+        var outboundRows = await _context.OutboundRecords
+            .AsNoTracking()
+            .Join(_context.InventoryBatches.AsNoTracking(),
+                r => r.InventoryBatchId,
+                b => b.Id,
+                (r, b) => new { b.WarehouseId, b.MaterialType, r.OutboundType, r.OutboundDate, r.OutboundWeight })
+            .ToListAsync();
+
+        // ===== 2. 按 (库房, 物料类型) 归行聚合 =====
+        var rows = new Dictionary<string, MonthlyStockRowDto>(StringComparer.OrdinalIgnoreCase);
+
+        MonthlyStockRowDto GetOrAdd(int warehouseId, string materialType)
+        {
+            var key = warehouseId + "|" + materialType;
+            if (!rows.TryGetValue(key, out var row))
+            {
+                row = new MonthlyStockRowDto
+                {
+                    WarehouseName = warehouseNames.TryGetValue(warehouseId, out var name) ? name : string.Empty,
+                    MaterialType = materialType,
+                    Months = Enumerable.Range(0, 12).Select(_ => new MonthlyStockMonthValueDto()).ToList()
+                };
+                rows[key] = row;
+            }
+            return row;
+        }
+
+        // 期初 = 截至上年末的入−出
+        foreach (var r in inboundRows.Where(r => r.InboundDate < start))
+            GetOrAdd(r.WarehouseId, Norm(r.MaterialType)).OpeningWeight += r.InitialWeight;
+        foreach (var r in outboundRows.Where(r => r.OutboundDate < start))
+            GetOrAdd(r.WarehouseId, Norm(r.MaterialType)).OpeningWeight -= r.OutboundWeight;
+
+        // 本年各月入/出
+        foreach (var r in inboundRows.Where(r => r.InboundDate >= start))
+            GetOrAdd(r.WarehouseId, Norm(r.MaterialType)).Months[r.InboundDate.Month - 1].In += r.InitialWeight;
+        foreach (var r in outboundRows.Where(r => r.OutboundDate >= start))
+            GetOrAdd(r.WarehouseId, Norm(r.MaterialType)).Months[r.OutboundDate.Month - 1].Out += r.OutboundWeight;
+
+        // ===== 3. 逐月递推真实结存 + 全年合计 + 整行全 0 隐藏 =====
+        var result = new List<MonthlyStockRowDto>();
+        foreach (var row in rows.Values)
+        {
+            decimal closing = row.OpeningWeight;
+            for (var i = 0; i < 12; i++)
+            {
+                var mv = row.Months[i];
+                closing += mv.In - mv.Out;
+                mv.Closing = closing;
+                row.TotalIn += mv.In;
+                row.TotalOut += mv.Out;
+            }
+            row.ClosingWeight = closing;
+            if (row.OpeningWeight == 0m && row.TotalIn == 0m && row.TotalOut == 0m) continue;
+            result.Add(row);
+        }
+
+        // ===== 4. 排序：库房固定顺序（原料库→成品库→在制品库→次品库）+ 物料类型固定顺序 =====
+        result = result
+            .OrderBy(r => GetWarehouseOrder(r.WarehouseName))
+            .ThenBy(r => r.WarehouseName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => GetMaterialOrder(r.MaterialType))
+            .ThenBy(r => r.MaterialType, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // ===== 5. 入库报表粒度行：库房×物料类型×入库来源（仅本年入，来源固定顺序，全 0 隐藏）=====
+        var sourceRows = new Dictionary<string, MonthlyStockRowDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in inboundRows.Where(r => r.InboundDate >= start))
+        {
+            var key = r.WarehouseId + "|" + Norm(r.MaterialType) + "|" + Norm(r.InboundSource);
+            if (!sourceRows.TryGetValue(key, out var row))
+            {
+                row = new MonthlyStockRowDto
+                {
+                    WarehouseName = warehouseNames.TryGetValue(r.WarehouseId, out var name) ? name : string.Empty,
+                    MaterialType = Norm(r.MaterialType),
+                    InboundSource = Norm(r.InboundSource),
+                    Months = Enumerable.Range(0, 12).Select(_ => new MonthlyStockMonthValueDto()).ToList()
+                };
+                sourceRows[key] = row;
+            }
+            row.Months[r.InboundDate.Month - 1].In += r.InitialWeight;
+        }
+        var inboundSourceResult = new List<MonthlyStockRowDto>();
+        foreach (var row in sourceRows.Values)
+        {
+            for (var i = 0; i < 12; i++) row.TotalIn += row.Months[i].In;
+            if (row.TotalIn == 0m) continue;
+            inboundSourceResult.Add(row);
+        }
+        inboundSourceResult = inboundSourceResult
+            .OrderBy(r => GetWarehouseOrder(r.WarehouseName))
+            .ThenBy(r => r.WarehouseName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => GetMaterialOrder(r.MaterialType))
+            .ThenBy(r => r.MaterialType, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => GetInboundSourceOrder(r.InboundSource))
+            .ThenBy(r => r.InboundSource, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // ===== 6. 出库报表粒度行：库房×物料类型×出库类型（仅本年出，类型固定顺序，全 0 隐藏）=====
+        var typeRows = new Dictionary<string, MonthlyStockRowDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in outboundRows.Where(r => r.OutboundDate >= start))
+        {
+            var key = r.WarehouseId + "|" + Norm(r.MaterialType) + "|" + r.OutboundType.ToString();
+            if (!typeRows.TryGetValue(key, out var row))
+            {
+                row = new MonthlyStockRowDto
+                {
+                    WarehouseName = warehouseNames.TryGetValue(r.WarehouseId, out var name) ? name : string.Empty,
+                    MaterialType = Norm(r.MaterialType),
+                    OutboundType = r.OutboundType.ToString(),
+                    Months = Enumerable.Range(0, 12).Select(_ => new MonthlyStockMonthValueDto()).ToList()
+                };
+                typeRows[key] = row;
+            }
+            row.Months[r.OutboundDate.Month - 1].Out += r.OutboundWeight;
+        }
+        var outboundTypeResult = new List<MonthlyStockRowDto>();
+        foreach (var row in typeRows.Values)
+        {
+            for (var i = 0; i < 12; i++) row.TotalOut += row.Months[i].Out;
+            if (row.TotalOut == 0m) continue;
+            outboundTypeResult.Add(row);
+        }
+        outboundTypeResult = outboundTypeResult
+            .OrderBy(r => GetWarehouseOrder(r.WarehouseName))
+            .ThenBy(r => r.WarehouseName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => GetMaterialOrder(r.MaterialType))
+            .ThenBy(r => r.MaterialType, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => GetOutboundTypeOrder(r.OutboundType))
+            .ThenBy(r => r.OutboundType, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new MonthlyStockSummaryResultDto
+        {
+            Year = year,
+            MonthLabels = Enumerable.Range(1, 12).Select(m => new DateTime(year, m, 1).ToString("yyyy-MM")).ToList(),
+            Rows = result,
+            InboundSourceRows = inboundSourceResult,
+            OutboundTypeRows = outboundTypeResult
+        };
+    }
+
+    private static int GetWarehouseOrder(string name)
+        => WarehouseDisplayOrder.TryGetValue(name, out var o) ? o : int.MaxValue;
+
+    private static int GetMaterialOrder(string type)
+    {
+        if (MaterialTypeDisplayOrder.TryGetValue(type, out var o)) return o;
+        if (EnumHelper.TryParse<MaterialType>(type) is { } parsed
+            && MaterialTypeDisplayOrder.TryGetValue(parsed.ToString(), out var o2)) return o2;
+        return int.MaxValue;
+    }
+
+    private static int GetInboundSourceOrder(string? source)
+        => InboundSourceDisplayOrder.TryGetValue(Norm(source), out var o) ? o : int.MaxValue;
+
+    private static int GetOutboundTypeOrder(string? type)
+        => OutboundTypeDisplayOrder.TryGetValue(Norm(type), out var o) ? o : int.MaxValue;
+
+    private static string Norm(string? s) => string.IsNullOrEmpty(s) ? string.Empty : s;
 }

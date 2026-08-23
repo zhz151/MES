@@ -2097,4 +2097,211 @@ public class InventoryServiceTests : TestBase
         var act = async () => await svc.HardDeleteOutboundRecordAsync(record.Id);
         await act.Should().ThrowAsync<BusinessException>().WithMessage("该出库记录已被生产批次合并投料领用，不可删除");
     }
+
+    // ========== 物料进出存报表 ==========
+
+    [Fact]
+    public async Task GetMonthlyStockSummaryAsync_期初及逐月递推结存()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx, "原料库");
+        var year = DateTime.Today.Year;
+
+        ctx.InventoryBatches.AddRange(
+            new InventoryBatch { BatchNo = "CK-OP", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = new DateTime(year - 1, 12, 15), InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, CreatedBy = "u1" },
+            new InventoryBatch { BatchNo = "CK-JAN", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = new DateTime(year, 1, 10), InitialQuantity = 5, InitialWeight = 500m, RemainingQuantity = 5, RemainingWeight = 500m, CreatedBy = "u1" });
+        await ctx.SaveChangesAsync();
+
+        var opBatch = ctx.InventoryBatches.Single(b => b.BatchNo == "CK-OP");
+        ctx.OutboundRecords.Add(new OutboundRecord { InventoryBatchId = opBatch.Id, BatchNo = opBatch.BatchNo, OutboundType = OutboundType.ProductionPick, OutboundQuantity = 2, OutboundWeight = 200m, OutboundDate = new DateTime(year, 2, 5), CreatedBy = "u1" });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMonthlyStockSummaryAsync();
+
+        result.Year.Should().Be(year);
+
+        var row = result.Rows.Single();
+        row.WarehouseName.Should().Be("原料库");
+        row.MaterialType.Should().Be(MaterialType.OrderFinished.ToString());
+        row.OpeningWeight.Should().Be(1000m);
+        row.Months[0].In.Should().Be(500m);
+        row.Months[0].Closing.Should().Be(1500m);
+        row.Months[1].Out.Should().Be(200m);
+        row.Months[1].Closing.Should().Be(1300m);
+        row.TotalIn.Should().Be(500m);
+        row.TotalOut.Should().Be(200m);
+        row.ClosingWeight.Should().Be(1300m);
+        result.Rows.Should().NotContain(r => r.MaterialType == "合计");
+    }
+
+    [Fact]
+    public async Task GetMonthlyStockSummaryAsync_库房固定顺序_组内物料类型固定顺序()
+    {
+        var ctx = CreateDbContext();
+        var raw = await SeedWarehouseAsync(ctx, "原料库");
+        var defect = new Warehouse { Name = "次品库", Code = "WH002" };
+        ctx.Warehouses.Add(defect);
+        await ctx.SaveChangesAsync();
+        var year = DateTime.Today.Year;
+
+        ctx.InventoryBatches.AddRange(
+            new InventoryBatch { BatchNo = "CK-R1", WarehouseId = raw.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = new DateTime(year, 1, 1), InitialQuantity = 1, InitialWeight = 100m, RemainingQuantity = 1, RemainingWeight = 100m, CreatedBy = "u1" },
+            new InventoryBatch { BatchNo = "CK-R2", WarehouseId = raw.Id, MaterialType = MaterialType.RoundBar.ToString(), PlantGrade = "Q235B", Specification = "159*6", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = new DateTime(year, 1, 2), InitialQuantity = 1, InitialWeight = 50m, RemainingQuantity = 1, RemainingWeight = 50m, CreatedBy = "u1" },
+            new InventoryBatch { BatchNo = "CK-D1", WarehouseId = defect.Id, MaterialType = MaterialType.Scrap.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Other.ToString(), SourceName = "其他", InboundDate = new DateTime(year, 1, 3), InitialQuantity = 1, InitialWeight = 30m, RemainingQuantity = 1, RemainingWeight = 30m, CreatedBy = "u1" });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMonthlyStockSummaryAsync();
+
+        result.Rows.Select(r => r.WarehouseName + "|" + r.MaterialType)
+            .Should().BeEquivalentTo(new[]
+            {
+                "原料库|RoundBar",
+                "原料库|OrderFinished",
+                "次品库|Scrap"
+            }, o => o.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task GetMonthlyStockSummaryAsync_整行全0隐藏()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx, "在制品库");
+        var year = DateTime.Today.Year;
+
+        ctx.InventoryBatches.AddRange(
+            new InventoryBatch { BatchNo = "CK-Z", WarehouseId = wh.Id, MaterialType = MaterialType.WorkInProgress.ToString(), PlantGrade = "Q235B", Specification = "159*6", InboundSource = InboundSource.Other.ToString(), SourceName = "其他", InboundDate = new DateTime(year, 5, 1), InitialQuantity = 0, InitialWeight = 0m, RemainingQuantity = 0, RemainingWeight = 0m, CreatedBy = "u1" },
+            new InventoryBatch { BatchNo = "CK-N", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = new DateTime(year, 5, 2), InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, CreatedBy = "u1" });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMonthlyStockSummaryAsync();
+
+        result.Rows.Should().NotContain(r => r.MaterialType == MaterialType.WorkInProgress.ToString());
+        result.Rows.Should().Contain(r => r.MaterialType == MaterialType.OrderFinished.ToString());
+        result.Rows.Should().NotContain(r => r.MaterialType == "合计");
+    }
+
+    [Fact]
+    public async Task GetMonthlyStockSummaryAsync_入出全口径单值_同库房不同物料类型分行()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx, "成品库");
+        var year = DateTime.Today.Year;
+
+        ctx.InventoryBatches.AddRange(
+            new InventoryBatch { BatchNo = "CK-P", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = new DateTime(year, 3, 1), InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, CreatedBy = "u1" },
+            new InventoryBatch { BatchNo = "CK-S", WarehouseId = wh.Id, MaterialType = MaterialType.Surplus.ToString(), PlantGrade = "Q235B", Specification = "159*6", InboundSource = InboundSource.Subcontract.ToString(), SourceName = "委外A", InboundDate = new DateTime(year, 3, 15), InitialQuantity = 5, InitialWeight = 300m, RemainingQuantity = 5, RemainingWeight = 300m, CreatedBy = "u1" });
+        await ctx.SaveChangesAsync();
+
+        var pBatch = ctx.InventoryBatches.Single(b => b.BatchNo == "CK-P");
+        var sBatch = ctx.InventoryBatches.Single(b => b.BatchNo == "CK-S");
+        ctx.OutboundRecords.AddRange(
+            new OutboundRecord { InventoryBatchId = pBatch.Id, BatchNo = pBatch.BatchNo, OutboundType = OutboundType.SalesOut, OutboundQuantity = 2, OutboundWeight = 200m, OutboundDate = new DateTime(year, 3, 20), CreatedBy = "u1" },
+            new OutboundRecord { InventoryBatchId = sBatch.Id, BatchNo = sBatch.BatchNo, OutboundType = OutboundType.ReturnOut, OutboundQuantity = 1, OutboundWeight = 100m, OutboundDate = new DateTime(year, 3, 25), CreatedBy = "u1" });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMonthlyStockSummaryAsync();
+
+        var finished = result.Rows.Single(r => r.MaterialType == MaterialType.OrderFinished.ToString());
+        var surplus = result.Rows.Single(r => r.MaterialType == MaterialType.Surplus.ToString());
+        finished.WarehouseName.Should().Be("成品库");
+        surplus.WarehouseName.Should().Be("成品库");
+        finished.Months[2].In.Should().Be(1000m);
+        surplus.Months[2].In.Should().Be(300m);
+        finished.Months[2].Out.Should().Be(200m);
+        surplus.Months[2].Out.Should().Be(100m);
+        finished.Months[2].Closing.Should().Be(1000m - 200m);
+        surplus.Months[2].Closing.Should().Be(300m - 100m);
+        result.Rows.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task GetMonthlyStockSummaryAsync_入库报表来源粒度_按来源聚合固定顺序_全0来源隐藏()
+    {
+        var ctx = CreateDbContext();
+        var raw = await SeedWarehouseAsync(ctx, "原料库");
+        var finishedWh = new Warehouse { Name = "成品库", Code = "WH002" };
+        ctx.Warehouses.Add(finishedWh);
+        await ctx.SaveChangesAsync();
+        var year = DateTime.Today.Year;
+
+        ctx.InventoryBatches.AddRange(
+            new InventoryBatch { BatchNo = "SR-1", WarehouseId = raw.Id, MaterialType = MaterialType.RoundBar.ToString(), PlantGrade = "Q235B", Specification = "159*6", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = new DateTime(year, 1, 5), InitialQuantity = 10, InitialWeight = 100m, RemainingQuantity = 10, RemainingWeight = 100m, CreatedBy = "u1" },
+            new InventoryBatch { BatchNo = "SR-2", WarehouseId = raw.Id, MaterialType = MaterialType.RoundBar.ToString(), PlantGrade = "Q235B", Specification = "159*6", InboundSource = InboundSource.Subcontract.ToString(), SourceName = "委外A", InboundDate = new DateTime(year, 2, 5), InitialQuantity = 5, InitialWeight = 50m, RemainingQuantity = 5, RemainingWeight = 50m, CreatedBy = "u1" },
+            new InventoryBatch { BatchNo = "SR-3", WarehouseId = raw.Id, MaterialType = MaterialType.RoundBar.ToString(), PlantGrade = "Q235B", Specification = "159*6", InboundSource = InboundSource.Other.ToString(), SourceName = "其他", InboundDate = new DateTime(year, 3, 5), InitialQuantity = 0, InitialWeight = 0m, RemainingQuantity = 0, RemainingWeight = 0m, CreatedBy = "u1" },
+            new InventoryBatch { BatchNo = "SR-4", WarehouseId = finishedWh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.InspectionInbound.ToString(), SourceName = "检验", InboundDate = new DateTime(year, 3, 6), InitialQuantity = 20, InitialWeight = 200m, RemainingQuantity = 20, RemainingWeight = 200m, CreatedBy = "u1" },
+            new InventoryBatch { BatchNo = "SR-5", WarehouseId = finishedWh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商B", InboundDate = new DateTime(year, 4, 6), InitialQuantity = 30, InitialWeight = 300m, RemainingQuantity = 30, RemainingWeight = 300m, CreatedBy = "u1" });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMonthlyStockSummaryAsync();
+
+        // 全口径行不受影响
+        result.Rows.Select(r => r.WarehouseName + "|" + r.MaterialType)
+            .Should().BeEquivalentTo(new[] { "原料库|RoundBar", "成品库|OrderFinished" }, o => o.WithStrictOrdering());
+
+        // 来源粒度：库房固定顺序→物料固定顺序→来源固定顺序，全 0 来源行隐藏
+        result.InboundSourceRows.Select(r => r.WarehouseName + "|" + r.MaterialType + "|" + r.InboundSource)
+            .Should().BeEquivalentTo(new[]
+            {
+                "原料库|RoundBar|Purchase",
+                "原料库|RoundBar|Subcontract",
+                "成品库|OrderFinished|Purchase",
+                "成品库|OrderFinished|InspectionInbound"
+            }, o => o.WithStrictOrdering());
+
+        var rawRound = result.InboundSourceRows[0];
+        rawRound.TotalIn.Should().Be(100m);
+        rawRound.Months[0].In.Should().Be(100m);
+        result.InboundSourceRows[1].TotalIn.Should().Be(50m);
+        result.InboundSourceRows[1].Months[1].In.Should().Be(50m);
+        result.InboundSourceRows[2].TotalIn.Should().Be(300m);
+        result.InboundSourceRows[3].TotalIn.Should().Be(200m);
+        result.InboundSourceRows.Should().NotContain(r => r.InboundSource == InboundSource.Other.ToString());
+    }
+
+    [Fact]
+    public async Task GetMonthlyStockSummaryAsync_出库报表类型粒度_按类型聚合固定顺序_全0类型隐藏()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedWarehouseAsync(ctx, "原料库");
+        var year = DateTime.Today.Year;
+
+        ctx.InventoryBatches.AddRange(
+            new InventoryBatch { BatchNo = "OT-1", WarehouseId = wh.Id, MaterialType = MaterialType.RoundBar.ToString(), PlantGrade = "Q235B", Specification = "159*6", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = new DateTime(year, 1, 1), InitialQuantity = 100, InitialWeight = 1000m, RemainingQuantity = 100, RemainingWeight = 1000m, CreatedBy = "u1" },
+            new InventoryBatch { BatchNo = "OT-2", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商B", InboundDate = new DateTime(year, 1, 2), InitialQuantity = 50, InitialWeight = 500m, RemainingQuantity = 50, RemainingWeight = 500m, CreatedBy = "u1" });
+        await ctx.SaveChangesAsync();
+
+        var round = ctx.InventoryBatches.Single(b => b.BatchNo == "OT-1");
+        var finished = ctx.InventoryBatches.Single(b => b.BatchNo == "OT-2");
+        ctx.OutboundRecords.AddRange(
+            new OutboundRecord { InventoryBatchId = round.Id, BatchNo = round.BatchNo, OutboundType = OutboundType.ProductionPick, OutboundQuantity = 10, OutboundWeight = 100m, OutboundDate = new DateTime(year, 1, 10), CreatedBy = "u1" },
+            new OutboundRecord { InventoryBatchId = round.Id, BatchNo = round.BatchNo, OutboundType = OutboundType.SalesOut, OutboundQuantity = 20, OutboundWeight = 200m, OutboundDate = new DateTime(year, 2, 10), CreatedBy = "u1" },
+            new OutboundRecord { InventoryBatchId = finished.Id, BatchNo = finished.BatchNo, OutboundType = OutboundType.ReturnOut, OutboundQuantity = 5, OutboundWeight = 50m, OutboundDate = new DateTime(year, 3, 10), CreatedBy = "u1" },
+            new OutboundRecord { InventoryBatchId = finished.Id, BatchNo = finished.BatchNo, OutboundType = OutboundType.SubcontractOut, OutboundQuantity = 0, OutboundWeight = 0m, OutboundDate = new DateTime(year, 4, 10), CreatedBy = "u1" });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMonthlyStockSummaryAsync();
+
+        // 类型粒度：库房固定顺序→物料固定顺序→类型固定顺序，全 0 类型行隐藏
+        result.OutboundTypeRows.Select(r => r.WarehouseName + "|" + r.MaterialType + "|" + r.OutboundType)
+            .Should().BeEquivalentTo(new[]
+            {
+                "原料库|RoundBar|ProductionPick",
+                "原料库|RoundBar|SalesOut",
+                "原料库|OrderFinished|ReturnOut"
+            }, o => o.WithStrictOrdering());
+
+        result.OutboundTypeRows[0].TotalOut.Should().Be(100m);
+        result.OutboundTypeRows[0].Months[0].Out.Should().Be(100m);
+        result.OutboundTypeRows[1].TotalOut.Should().Be(200m);
+        result.OutboundTypeRows[1].Months[1].Out.Should().Be(200m);
+        result.OutboundTypeRows[2].TotalOut.Should().Be(50m);
+        result.OutboundTypeRows[2].Months[2].Out.Should().Be(50m);
+        result.OutboundTypeRows.Should().NotContain(r => r.OutboundType == OutboundType.SubcontractOut.ToString());
+    }
 }

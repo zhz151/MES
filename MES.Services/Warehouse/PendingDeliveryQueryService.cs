@@ -190,6 +190,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         AddDistinct("SourceName", dtos.Select(d => d.SourceName));
         AddDistinct("ProductionMainNo", dtos.Select(d => d.ProductionMainNo));
         AddDistinct("WorkOrderNo", dtos.Select(d => d.WorkOrderNo));
+        AddDistinct("WorkOrderAttention", dtos.Select(d => d.WorkOrderAttention?.ToString()));
         AddDistinct("LengthStatus", dtos.Select(d => d.LengthStatus?.ToString()));
         AddDistinct("Salesman", dtos.Select(d => d.Salesman));
         AddDistinct("EndCustomer", dtos.Select(d => d.EndCustomer));
@@ -392,6 +393,21 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                 .ToDictionaryAsync(pb => pb.BatchNo, pb => pb.SourceHeatNo, StringComparer.OrdinalIgnoreCase);
         }
 
+        // 5. WorkOrderExecutionSummary — 补充「工单关注」（主号-关注档位），按工单号关联
+        if (woNos.Count > 0)
+        {
+            var summaries = await _context.Set<MES.Data.Entities.WorkOrder.WorkOrderExecutionSummary>()
+                .AsNoTracking()
+                .Where(s => woNos.Contains(s.WorkOrderNo))
+                .Select(s => new { s.WorkOrderNo, s.ScheduleStage })
+                .ToListAsync();
+
+            result.WorkOrderAttentionDict = summaries.ToDictionary(
+                s => s.WorkOrderNo,
+                s => s.ScheduleStage,
+                StringComparer.OrdinalIgnoreCase);
+        }
+
         return result;
     }
 
@@ -489,6 +505,10 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
                 SalesOrderNo = resolvedSalesOrderNo,
                 ProductionMainNo = resolvedProductionMainNo,
                 WorkOrderNo = batch.WorkOrderNo,
+                WorkOrderAttention = !string.IsNullOrEmpty(batch.WorkOrderNo)
+                    && refData.WorkOrderAttentionDict.TryGetValue(batch.WorkOrderNo, out var attentionStage)
+                    ? attentionStage
+                    : (int?)null,
                 CustomerName = customerName,
                 Salesman = salesman,
                 EndCustomer = endCustomer,
@@ -529,6 +549,8 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         public Dictionary<string, OrderItemInfo> ItemDict
             = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, string?> ProductionBatchHeatMap
+            = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> WorkOrderAttentionDict
             = new(StringComparer.OrdinalIgnoreCase);
     }
 

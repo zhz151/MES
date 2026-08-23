@@ -1,0 +1,228 @@
+@page "/warehouse/monthly-stock"
+@attribute [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+@inject InventoryService InventorySvc
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudText Typo="Typo.h5" Class="mb-4 font-weight-bold">
+        <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" Color="Color.Primary" />
+        物料进出存报表
+    </MudText>
+
+    <!-- 报表切换工具栏 -->
+    <MudPaper Class="pa-3 mb-4" Elevation="0">
+        <MudGrid>
+            <MudItem xs="12" md="8" Class="d-flex align-center">
+                @foreach (var opt in ReportOptions)
+                {
+                    <MudButton Variant="@(_reportType == opt.Value ? Variant.Filled : Variant.Text)"
+                               Color="@(_reportType == opt.Value ? Color.Primary : Color.Default)"
+                               OnClick="@(() => OnReportTypeChanged(opt.Value))"
+                               Class="mr-2">
+                        @opt.Label
+                    </MudButton>
+                }
+            </MudItem>
+            <MudItem xs="12" md="4" Class="d-flex align-center justify-end">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="LoadDataAsync"
+                           Disabled="_loading"
+                           StartIcon="@Icons.Material.Filled.Search">
+                    刷新
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Info"
+                           OnClick="Print"
+                           Class="ml-2"
+                           StartIcon="@Icons.Material.Filled.Print">
+                    打印
+                </MudButton>
+                <MudText Typo="Typo.body2" Class="ml-4">
+                    共 @(_rows.Count) 行
+                </MudText>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (_loading)
+    {
+        <MudPaper Class="pa-8 text-center" Elevation="0">
+            <MudProgressCircular Indeterminate="true" />
+            <MudText Class="mt-4">加载中...</MudText>
+        </MudPaper>
+    }
+    else if (_rows.Count > 0)
+    {
+        <div class="monthly-stock-table-wrap" id="monthly-stock-table-wrap">
+            <table id="monthly-stock-table" class="auto-table monthly-stock-table">
+                <thead>
+                    <tr>
+                        <th class="sticky-col-wh">库房</th>
+                        <th class="sticky-col-mat">物料类型</th>
+                        @if (_reportType == "in")
+                        {
+                            <th>入库来源</th>
+                        }
+                        @if (_reportType == "out")
+                        {
+                            <th>出库类型</th>
+                        }
+                        @if (_reportType == "inout" || _reportType == "stock")
+                        {
+                            <th>期初(t)</th>
+                        }
+                        @if (_result != null)
+                        {
+                            @foreach (var label in _result.MonthLabels)
+                            {
+                                <th class="monthly-stock-month-col">@label</th>
+                            }
+                        }
+                        <th>@TotalHeader</th>
+                        @if (_reportType == "in" || _reportType == "out")
+                        {
+                            <th>物料汇总(t)</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < _rows.Count; i++)
+                    {
+                        var r = _rows[i];
+                        var whRowspan = _warehouseRowspans[i];
+                        var matRowspan = _materialRowspans[i];
+                        <tr>
+                            @if (whRowspan > 0)
+                            {
+                                <td class="sticky-col-wh monthly-stock-wh" rowspan="@whRowspan">@r.WarehouseName</td>
+                            }
+                            @if (_reportType == "in" || _reportType == "out")
+                            {
+                                @if (matRowspan > 0)
+                                {
+                                    <td class="sticky-col-mat monthly-stock-material" rowspan="@matRowspan">@DisplayMaterial(r)</td>
+                                }
+                                <td class="monthly-stock-source">
+                                    @(_reportType == "in" ? DisplayInboundSource(r) : DisplayOutboundType(r))
+                                </td>
+                                @for (var m = 0; m < 12; m++)
+                                {
+                                    <td class="monthly-stock-cell">@(m > _currentMonthIndex ? string.Empty : FormatMonthCell(r.Months[m]))</td>
+                                }
+                                <td>@FormatTotalCell(r)</td>
+                                @if (matRowspan > 0)
+                                {
+                                    <td class="monthly-stock-material-total" rowspan="@matRowspan">@FormatWeight(_materialTotals[i])</td>
+                                }
+                            }
+                            else
+                            {
+                                <td class="sticky-col-mat monthly-stock-material">@DisplayMaterial(r)</td>
+                                @if (_reportType == "inout" || _reportType == "stock")
+                                {
+                                    <td>@FormatWeight(r.OpeningWeight)</td>
+                                }
+                                @for (var m = 0; m < 12; m++)
+                                {
+                                    <td class="monthly-stock-cell">@(m > _currentMonthIndex ? string.Empty : FormatMonthCell(r.Months[m]))</td>
+                                }
+                                <td>@FormatTotalCell(r)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <MudText Typo="Typo.caption" Class="mt-3 text-medium">
+            注：单位为吨（kg/1000，保留 1 位小数）。「入/出」为当月全口径流量；「结」为对应月份末真实库存余额（期初+累计入−累计出，全口径）。当前月份为 @(_currentMonthIndex + 1) 月，之后月份尚未发生、单元格留空。
+            @if (_reportType == "in")
+            {
+                <text>入库报表按「入库来源」展开，「来源汇总(t)」为该来源截至当前月的合计，「物料汇总(t)」为该物料类型截至当前月的合计（合并单元格）。</text>
+            }
+            else if (_reportType == "out")
+            {
+                <text>出库报表按「出库类型」展开，「出库类型汇总(t)」为该类型截至当前月的合计，「物料汇总(t)」为该物料类型截至当前月的合计（合并单元格）。</text>
+            }
+            else if (_reportType == "stock")
+            {
+                <text>「实时结存」= 截至当前月的真实库存余额（期初+累计入−累计出，全口径）。</text>
+            }
+            else
+            {
+                <text>「实时数据」= 截至当前月的 入/出/结 合计。每格格式为「入/出,[结]」，如 80/15,[65] 表示当月入 80t、出 15t、月末结存 65t；为 0 的部分省略。</text>
+            }
+        </MudText>
+    }
+    else
+    {
+        <MudPaper Class="pa-8 text-center" Elevation="0">
+            <MudText>暂无数据</MudText>
+        </MudPaper>
+    }
+</MudContainer>
+
+<style>
+    .monthly-stock-table-wrap {
+        overflow-x: auto;
+    }
+    .monthly-stock-table {
+        font-size: 0.8rem;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .monthly-stock-table th,
+    .monthly-stock-table td {
+        text-align: center;
+        white-space: nowrap;
+        /* 浅色表格线（独立边框模型，保证 sticky 表头/列边框不随折叠丢失） */
+        border-bottom: 1px solid #d0d0d0;
+        border-right: 1px solid #d0d0d0;
+    }
+    .monthly-stock-table tr:first-child th,
+    .monthly-stock-table tr:first-child td {
+        border-top: 1px solid #d0d0d0;
+    }
+    .monthly-stock-table th:first-child,
+    .monthly-stock-table td:first-child {
+        border-left: 1px solid #d0d0d0;
+    }
+    .monthly-stock-table .monthly-stock-month-col,
+    .monthly-stock-table .monthly-stock-cell {
+        min-width: 90px;
+    }
+    .sticky-col-wh {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        background-color: #f5f5f5;
+        width: 110px;
+        font-weight: 600;
+    }
+    .sticky-col-mat {
+        position: sticky;
+        left: 110px;
+        z-index: 2;
+        background-color: white;
+        width: 110px;
+        font-weight: 600;
+    }
+    .monthly-stock-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        background-color: #f5f5f5;
+    }
+    .monthly-stock-table thead th.sticky-col-wh,
+    .monthly-stock-table thead th.sticky-col-mat {
+        z-index: 5;
+    }
+    .monthly-stock-wh {
+        font-weight: 600;
+    }
+    .monthly-stock-source {
+        min-width: 90px;
+    }
+</style>

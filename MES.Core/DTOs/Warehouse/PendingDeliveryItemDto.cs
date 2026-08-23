@@ -51,6 +51,8 @@ public class PendingDeliveryItemDto
     public string? ProductionMainNo { get; set; }
     /// <summary>工单号</summary>
     public string? WorkOrderNo { get; set; }
+    /// <summary>工单关注：工单执行状况读模型「实时关注」组的「主号-关注」档位（0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验），按工单号关联，无读模型记录为 null</summary>
+    public int? WorkOrderAttention { get; set; }
     /// <summary>客户名称</summary>
     public string? CustomerName { get; set; }
     /// <summary>业务员</summary>

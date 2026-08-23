@@ -10,6 +10,7 @@ using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Shared;
+using MES.Core.Helpers;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Warehouse;
@@ -57,6 +58,7 @@ public partial class PendingDelivery
         new() { Key = "salesorderno",       Label = "订单号",     SortKey = "SalesOrderNo",    FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "productionmainno",   Label = "主号",       SortKey = "ProductionMainNo",FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "workorderno",        Label = "工单号",     SortKey = "WorkOrderNo",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 订单关联" },
+        new() { Key = "workorderattention", Label = "工单关注",   SortKey = "WorkOrderAttention", FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "salesman",           Label = "业务员",     SortKey = "Salesman",        FilterType = "string", Width = "60",  GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "customername",       Label = "客户名称",   SortKey = "CustomerName",    FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "endcustomer",        Label = "最终客户",   SortKey = "EndCustomer",     FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
@@ -339,6 +341,13 @@ public partial class PendingDelivery
                 opt.Display = DisplayHelper.GetDeliveryStateText(opt.Value);
         }
 
+        // WorkOrderAttention 列显示中文（档位数字 → 中文）
+        if (_filterContextOptions.TryGetValue("workorderattention", out var attentionOptions))
+        {
+            foreach (var opt in attentionOptions)
+                opt.Display = IntStatusDisplayHelper.GetScheduleStageText(int.TryParse(opt.Value, out var st) ? st : (int?)null);
+        }
+
         // LengthStatus 列显示中文
         if (_filterContextOptions.TryGetValue("lengthstatus", out var lengthOptions))
         {
@@ -500,6 +509,7 @@ public partial class PendingDelivery
             "inbounddate" => item.InboundDate.ToString("yyyy-MM-dd"),
             "materialtype" => DisplayHelper.GetMaterialTypeText(item.MaterialType),
             "deliverystatus" => DisplayHelper.GetDeliveryStateText(item.DeliveryStatus),
+            "workorderattention" => IntStatusDisplayHelper.GetScheduleStageText(item.WorkOrderAttention),
             _ => GetRawPropertyValue(item, col.Key) ?? "-"
         };
     }
@@ -524,6 +534,7 @@ public partial class PendingDelivery
         "salesorderno" => item.SalesOrderNo,
         "productionmainno" => item.ProductionMainNo,
         "workorderno" => item.WorkOrderNo,
+        "workorderattention" => item.WorkOrderAttention,
         "customername" => item.CustomerName,
         "salesman" => item.Salesman,
         "endcustomer" => item.EndCustomer,
@@ -640,6 +651,9 @@ public partial class PendingDelivery
                 break;
             case "workorderno":
                 builder.AddContent(0, item.WorkOrderNo ?? "-");
+                break;
+            case "workorderattention":
+                builder.AddContent(0, IntStatusDisplayHelper.GetScheduleStageText(item.WorkOrderAttention));
                 break;
             case "productionbatchno":
                 builder.AddContent(0, item.ProductionBatchNo ?? "-");

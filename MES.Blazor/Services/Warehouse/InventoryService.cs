@@ -342,4 +342,20 @@ public class InventoryService
             return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// 月度库存变化汇总（行=材料，列=期初+12月入/出/结+合计；结存为真实全口径，入/出按来源/类型 5 分）
+    /// </summary>
+    public async Task<ApiResponse<MonthlyStockSummaryResultDto>> GetMonthlyStockSummaryAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<MonthlyStockSummaryResultDto>>($"{BaseUrl}/monthly-stock-summary");
+            return response ?? ApiResponse<MonthlyStockSummaryResultDto>.Fail("获取月度库存汇总失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<MonthlyStockSummaryResultDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }

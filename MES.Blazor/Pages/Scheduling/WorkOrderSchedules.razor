@@ -25,14 +25,16 @@
             <MudIcon Icon="@Icons.Material.Filled.Schedule" Class="mr-2" Color="Color.Primary" />
             工单排程
         </MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@OnPlanAllAsync" Class="mr-6">
-            <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd" Class="mr-1" />
-            全量计划
-        </MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="@OnPlanAdjustmentKeepAsync" Class="mr-6">
-            <MudIcon Icon="@Icons.Material.Filled.SaveAlt" Class="mr-1" />
-            进度调整保留计划
-        </MudButton>
+        <div class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@OnPlanAllAsync">
+                <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd" Class="mr-1" />
+                全量计划
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="@OnPlanAdjustmentKeepAsync" Class="ml-4">
+                <MudIcon Icon="@Icons.Material.Filled.SaveAlt" Class="mr-1" />
+                进度调整保留计划
+            </MudButton>
+        </div>
     </div>
 
     <MudCard>

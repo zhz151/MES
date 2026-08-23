@@ -388,6 +388,17 @@ public class InventoryController : ControllerBase
         return Ok(ApiResponse<List<string>>.Ok(result, "查询成功"));
     }
 
+    /// <summary>
+    /// 月度库存变化汇总（行=材料，列=期初+12月入/出/结+合计；结存为真实全口径，入/出按来源/类型 5 分）
+    /// </summary>
+    [HttpGet("monthly-stock-summary")]
+    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    public async Task<ActionResult<ApiResponse<MonthlyStockSummaryResultDto>>> GetMonthlyStockSummary()
+    {
+        var result = await _service.GetMonthlyStockSummaryAsync();
+        return Ok(ApiResponse<MonthlyStockSummaryResultDto>.Ok(result, "查询成功"));
+    }
+
     // ========== 打印 ==========
 
     /// <summary>
