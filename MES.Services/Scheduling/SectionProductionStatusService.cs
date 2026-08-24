@@ -46,7 +46,7 @@ namespace MES.Services.Scheduling;
 
 /// <summary>
 /// 生产工段待产量现况服务 — 按(工序组, 工段, 产类)三维汇总批次现有效原料重量。
-/// 维度由配置表驱动：启用工序组（生产-工序组定义 ProcessDefinitions）× 启用工段（生产-工段工量天数 StandardWorkDays，排除"入库"）全笛卡尔 × 产类三态；
+/// 维度由配置表驱动：启用工序组（工序组定义 ProcessDefinitions）× 启用工段（工段工量天数 StandardWorkDays，排除"入库"）全笛卡尔 × 产类三态；
 /// 每个(工序组,工段)输出产类三态行（RoughTube/InProgress/Finished，与组合归类表前 3 字段口径一致）。
 /// 产类按批次粒度复用 <see cref="ProductStatusHelper.Calculate"/> 判定（各批次 Specification 不同，产类不可降级到维度级硬编码）。
 /// </summary>

@@ -1293,7 +1293,7 @@ public static class DataExchangeRegistry
             new(SectionDefs.Extra2, "Extra2", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "InProcessReworkPlanId", "SequenceNumber" }),
 
-        ["Workstation"] = new EntityDef("配置-工位管理", "配置-工位管理", typeof(MES.Data.Entities.Configuration.Workstation), 1, "Code", new List<ColumnDef>
+        ["Workstation"] = new EntityDef("工位管理", "工位管理", typeof(MES.Data.Entities.Configuration.Workstation), 1, "Code", new List<ColumnDef>
         {
             new("工位编码", "Code"),
             new("工位名称", "Name", typeof(string), isRequired: false),
@@ -1303,7 +1303,7 @@ public static class DataExchangeRegistry
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
 
-        ["Employee"] = new EntityDef("配置-员工管理", "配置-员工管理", typeof(MES.Data.Entities.Configuration.Employee), 1, "Code", new List<ColumnDef>
+        ["Employee"] = new EntityDef("员工管理", "员工管理", typeof(MES.Data.Entities.Configuration.Employee), 1, "Code", new List<ColumnDef>
         {
             new("工号", "Code"),
             new("姓名", "Name"),
@@ -1315,8 +1315,8 @@ public static class DataExchangeRegistry
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
 
-        // === 配置-参数配置（独立配置表） ===
-        ["ConfigParameter"] = new EntityDef("配置-参数配置", "配置-参数配置", typeof(MES.Data.Entities.Configuration.ConfigParameter), 1, null, new List<ColumnDef>
+        // === 系统参数(全局参数)（独立配置表） ===
+        ["ConfigParameter"] = new EntityDef("系统参数(全局参数)", "系统参数(全局参数)", typeof(MES.Data.Entities.Configuration.ConfigParameter), 1, null, new List<ColumnDef>
         {
             new("英文分类代码", "Category"),
             new("分类及用途", "CategoryDisplay", typeof(string), isRequired: false),
@@ -1478,8 +1478,8 @@ public static class DataExchangeRegistry
             new("低倍组织", "Macrostructure", typeof(string), isRequired: false),
         }),
 
-        // === 生产-工段工量天数（独立配置表） ===
-        ["StandardWorkDay"] = new EntityDef("生产-工段工量天数", "生产-工段工量天数", typeof(MES.Data.Entities.Configuration.StandardWorkDay), 1, null, new List<ColumnDef>
+        // === 工段工量天数(排程/用料)（独立配置表） ===
+        ["StandardWorkDay"] = new EntityDef("工段工量天数(排程/用料)", "工段工量天数(排程/用料)", typeof(MES.Data.Entities.Configuration.StandardWorkDay), 1, null, new List<ColumnDef>
         {
             new("工段名称", "SectionName"),
             new("牌号前缀", "PlantGradePrefix", typeof(string), isRequired: false),
@@ -1487,8 +1487,8 @@ public static class DataExchangeRegistry
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        // === 生产-交态附加天数（独立配置表） ===
-        ["StandardWorkDayDeliveryState"] = new EntityDef("生产-交态附加天数", "生产-交态附加天数", typeof(MES.Data.Entities.Configuration.StandardWorkDayDeliveryState), 1, null, new List<ColumnDef>
+        // === 交货状态附加天数(排程/用料)（独立配置表） ===
+        ["StandardWorkDayDeliveryState"] = new EntityDef("交货状态附加天数(排程/用料)", "交货状态附加天数(排程/用料)", typeof(MES.Data.Entities.Configuration.StandardWorkDayDeliveryState), 1, null, new List<ColumnDef>
         {
             new("交货状态", "DeliveryState", typeof(MES.Core.Enums.DeliveryState), isEnum: true),
             new("附加天数", "ExtraDays", typeof(double)),
@@ -1496,24 +1496,24 @@ public static class DataExchangeRegistry
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        // === 生产-规格日产预估（独立配置表） ===
-        ["DailyOutputEstimate"] = new EntityDef("生产-规格日产预估", "生产-规格日产预估", typeof(MES.Data.Entities.Configuration.DailyOutputEstimate), 1, null, new List<ColumnDef>
+        // === 规格日产预估(工单执行)（独立配置表） ===
+        ["DailyOutputEstimate"] = new EntityDef("规格日产预估(工单执行)", "规格日产预估(工单执行)", typeof(MES.Data.Entities.Configuration.DailyOutputEstimate), 1, null, new List<ColumnDef>
         {
             new("最小外径(mm)", "MinOuterDiameter", typeof(decimal)),
             new("日产能力(吨)", "DailyOutputTons", typeof(decimal)),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        // === 生产-重点工段日产（独立配置表） ===
-        ["DailyProductionCapacity"] = new EntityDef("生产-重点工段日产", "生产-重点工段日产", typeof(MES.Data.Entities.Configuration.DailyProductionCapacity), 1, null, new List<ColumnDef>
+        // === 重点工段日产(生产总览)（独立配置表） ===
+        ["DailyProductionCapacity"] = new EntityDef("重点工段日产(生产总览)", "重点工段日产(生产总览)", typeof(MES.Data.Entities.Configuration.DailyProductionCapacity), 1, null, new List<ColumnDef>
         {
             new("工序名称", "ProcessName"),
             new("日产能力(吨/天)", "DailyCapacity", typeof(decimal)),
             new("说明", "Remark", typeof(string), isRequired: false),
         }),
 
-        // === 生产-流转类别日产配置（独立配置表，流转类别唯一；组合明细由组合归类表 CombinationGroups 承载，另行管理） ===
-        ["SectionFlowCategorySetting"] = new EntityDef("生产-流转类别日产配置", "生产-流转类别日产配置", typeof(MES.Data.Entities.Configuration.SectionFlowCategorySetting), 1, "CategoryName", new List<ColumnDef>
+        // === 流转类别日产配置(流转分析)（独立配置表，流转类别唯一；组合明细由组合归类表 CombinationGroups 承载，另行管理） ===
+        ["SectionFlowCategorySetting"] = new EntityDef("流转类别日产配置(流转分析)", "流转类别日产配置(流转分析)", typeof(MES.Data.Entities.Configuration.SectionFlowCategorySetting), 1, "CategoryName", new List<ColumnDef>
         {
             new("流转类别", "CategoryName"),
             new("日产设定", "DailyProductionTarget", typeof(decimal), isRequired: false),
@@ -1522,8 +1522,8 @@ public static class DataExchangeRegistry
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        // === 生产-段落日产配置（独立配置表，段落类别唯一；组合明细由组合归类表「归属段落」承载，另行管理） ===
-        ["SectionParagraphConfig"] = new EntityDef("生产-段落日产配置", "生产-段落日产配置", typeof(MES.Data.Entities.Configuration.SectionParagraphConfig), 1, "ParagraphName", new List<ColumnDef>
+        // === 段落日产配置(段落流转)（独立配置表，段落类别唯一；组合明细由组合归类表「归属段落」承载，另行管理） ===
+        ["SectionParagraphConfig"] = new EntityDef("段落日产配置(段落流转)", "段落日产配置(段落流转)", typeof(MES.Data.Entities.Configuration.SectionParagraphConfig), 1, "ParagraphName", new List<ColumnDef>
         {
             new("段落类别", "ParagraphName"),
             new("日流转设定", "DailyFlowTarget", typeof(decimal), isRequired: false),
@@ -1532,8 +1532,8 @@ public static class DataExchangeRegistry
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        // === 生产-组合归类表（工序组×工段×产类三维唯一归属；第4列归属流转类别由用户导出Excel填中文后上传建立FK，第5列归属段落=中文段落名直接存储） ===
-        ["CombinationGroup"] = new EntityDef("生产-组合归类", "生产-组合归类", typeof(MES.Data.Entities.Configuration.CombinationGroup), 1, null, new List<ColumnDef>
+        // === 组合段落归类(段落流转)表（工序组×工段×产类三维唯一归属；第4列归属流转类别由用户导出Excel填中文后上传建立FK，第5列归属段落=中文段落名直接存储） ===
+        ["CombinationGroup"] = new EntityDef("组合段落归类(段落流转)", "组合段落归类(段落流转)", typeof(MES.Data.Entities.Configuration.CombinationGroup), 1, null, new List<ColumnDef>
         {
             new("工序组", "ProcessGroupName"),
             new("工段", "SectionName"),
