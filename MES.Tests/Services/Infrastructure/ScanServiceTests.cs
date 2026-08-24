@@ -86,11 +86,7 @@ public class ScanServiceTests : TestBase
 
         result.Should().NotBeNull();
         result.BatchNo.Should().Be(batch.BatchNo);
-        result.Status.Should().Be(BatchStatus.None);
         result.PlantGrade.Should().Be("304");
-        result.Specification.Should().Be("219*8");
-        result.TagNo.Should().Be("TAG001");
-        result.ProductionType.Should().Be(ProductionType.InProcess);
         result.ProcessGroupId.Should().Be(group.Id);
         result.ProcessName.Should().Be("60冷轧");
         result.ManufacturingSpec.Should().Be("219*8");
@@ -260,67 +256,68 @@ public class ScanServiceTests : TestBase
     }
 
     [Fact]
-    public async Task ResolveAsync_状态中文映射验证()
+    public async Task GetBatchProcessGroupsAsync_返回单支重量()
     {
         using var ctx = CreateDbContext();
+        var (batch, _) = await SeedBatchWithGroupAsync(ctx); // TotalWeight=2500 / TotalQuantity=100 → 25
+        var svc = CreateService(ctx);
 
-        // Test all status mappings
-        var statusMappings = new Dictionary<BatchStatus, string>
+        var result = await svc.GetBatchProcessGroupsAsync(batch.BatchNo);
+
+        result.UnitWeight.Should().Be(25m);
+    }
+
+    [Fact]
+    public async Task GetBatchProcessGroupsAsync_有效重量优先_计算单支重量()
+    {
+        using var ctx = CreateDbContext();
+        var (batch, _) = await SeedBatchWithGroupAsync(ctx);
+        batch.CurrentValidWeight = 2000; // 有效重量优先于总重量（int?）
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetBatchProcessGroupsAsync(batch.BatchNo);
+
+        result.UnitWeight.Should().Be(20m); // 2000/100
+    }
+
+    [Fact]
+    public async Task ResolveAsync_新工段包装_命中工段列表()
+    {
+        using var ctx = CreateDbContext();
+        var (batch, group) = await SeedBatchWithGroupAsync(ctx, configureGroup: g =>
         {
-            [BatchStatus.None] = "未产",
-            [BatchStatus.InProgress] = "在产",
-            [BatchStatus.Completed] = "完成",
-            [BatchStatus.Suspended] = "挂起",
-        };
+            g.ColdRollDraw = null;
+            g.Solution = null;
+            g.Straighten = null;
+            g.Inspection = null;
+            g.Packing = 5; // 26 工段补齐后的新工段
+        });
+        var svc = CreateService(ctx);
 
-        foreach (var (status, expectedText) in statusMappings)
+        var result = await svc.ResolveAsync(batch.BatchNo, group.Id);
+
+        result.AvailableSections.Should().HaveCount(1);
+        result.AvailableSections[0].SectionName.Should().Be("包装");
+        result.AvailableSections[0].SequenceNumber.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task GetBatchProcessGroupsAsync_新工段包装_返回工段名()
+    {
+        using var ctx = CreateDbContext();
+        var (batch, group) = await SeedBatchWithGroupAsync(ctx, configureGroup: g =>
         {
-            var batchNo = $"SCAN-STATUS-{Guid.NewGuid():N}"[..15];
-            var batch = new ProductionBatch
-            {
-                BatchNo = batchNo,
-                Status = status,
-                PlantGrade = "304",
-                Specification = "219*8",
-                ManufacturingItem = "OrderFinished",
-                WorkOrderNo = "GD250101003",
-                SalesOrderNo = "SO003",
-                ProductionMainNo = "D01",
-                OrderItemIds = "1",
-                SignDate = DateTime.Today,
-                Salesman = "测试",
-                DeliveryDate = DateTime.Today.AddMonths(1),
-                MaterialName = "无缝管",
-                SettlementMethod = "Theoretical",
-                StandardCode = "GB/T 8163",
-                DeliveryState = "SolutionAnnealedAndPickled",
-                LengthStatus = "Fixed",
-                TotalQuantity = 100,
-                TotalMeters = 600,
-                TotalWeight = 2500m,
-                TotalItemCount = 1,
-                TechnicalRequirements = "NORMAL",
-                RowVersion = new byte[8]
-            };
-            ctx.ProductionBatches.Add(batch);
-            var group = new ProcessGroup
-            {
-                ProductionBatchId = batch.Id,
-                SequenceNumber = 1,
-                ProcessName = "60冷轧",
-                ColdRollDraw = 1
-            };
-            ctx.ProcessGroups.Add(group);
-            await ctx.SaveChangesAsync();
+            g.ColdRollDraw = null;
+            g.Solution = null;
+            g.Straighten = null;
+            g.Inspection = null;
+            g.Packing = 1;
+        });
+        var svc = CreateService(ctx);
 
-            var svc = CreateService(ctx);
-            var result = await svc.ResolveAsync(batchNo, group.Id);
-            result.Status.Should().Be(status, $"批次状态 {status} 应映射为 \"{status}\"");
+        var result = await svc.GetBatchProcessGroupsAsync(batch.BatchNo);
 
-            // Clean up for next iteration
-            ctx.ProductionBatches.Remove(batch);
-            ctx.ProcessGroups.Remove(group);
-            await ctx.SaveChangesAsync();
-        }
+        result.ProcessGroups[0].SectionNames.Should().Contain("包装");
     }
 }

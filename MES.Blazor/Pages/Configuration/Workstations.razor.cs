@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
+using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
@@ -35,6 +36,10 @@ public partial class Workstations
     private string sortColumn = "Code";
     private bool sortDescending = false;
 
+    // ========== ExcelFilter 列头筛选 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
+
     // ========== 选择/打印 ==========
     private HashSet<int> selectedIds = new();
     private bool allSelected => _pageItems.Count > 0 && _pageItems.All(i => selectedIds.Contains(i.Id));
@@ -50,6 +55,17 @@ public partial class Workstations
         if (v) selectedIds.Add(id); else selectedIds.Remove(id);
         StateHasChanged();
     }
+
+    /// <summary>成品检验工位——扫码按工位绑定的检验项目过滤操作人，需绑定检验项目；过程检验/成检到料为布尔开关匹配</summary>
+    private static bool IsInspectionWorkstation(ReportTemplateType? reportType)
+        => reportType == ReportTemplateType.FinalInspection;
+
+    /// <summary>
+    /// 工段是否必填：成检到料/成品检验工位业务不消费工段（扫码按项目/布尔开关分派，不读工段），选填可空；
+    /// 其余类型（普通生产/入缸/出缸/委外/过程检验）必填，与后端 WorkstationService.SaveAsync 校验口径一致
+    /// </summary>
+    private static bool IsSectionRequired(ReportTemplateType? reportType)
+        => reportType is not (ReportTemplateType.MaterialReceiveCheck or ReportTemplateType.FinalInspection);
 
     private List<PrintColumnDef> GetPrintColumnDefs() =>
         _allColumns.Where(c => c.Visible).Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
@@ -85,19 +101,37 @@ public partial class Workstations
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
 
+    // ========== 二维码打印 ==========
+
+    private async Task PrintQrCodes()
+    {
+        var items = _pageItems.Where(i => selectedIds.Contains(i.Id)).ToList();
+        if (items.Count == 0) return;
+        var codes = items.Select(i => i.Code).ToList();
+        await JS.InvokeVoidAsync("MES.printQrCodes", codes);
+    }
+
+    private async Task PrintSingleQrCode(WorkstationDto item)
+    {
+        await JS.InvokeVoidAsync("MES.printQrCodes", new List<string> { item.Code });
+    }
+
     // ========== 列选择管理 ==========
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    // 默认列顺序=用户定稿：工位名称 工位编码* 报工模板类型 生产工段 组类 成检项目 启用 设备名称
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "Code",           Label = "工位编码",     SortKey = "code",           FilterType = null, IsRequired = true },
-        new() { Key = "Name",           Label = "工位名称",     SortKey = "name",           FilterType = null },
-        new() { Key = "EquipmentName",  Label = "设备名称",     SortKey = "equipmentname",  FilterType = null },
-        new() { Key = "SectionName",    Label = "工段",         SortKey = "sectionname",    FilterType = null, IsRequired = true },
-        new() { Key = "ReportType",     Label = "报工模板类型", SortKey = "reporttype",     FilterType = null },
-        new() { Key = "IsActive",       Label = "启用",         SortKey = "isactive",       FilterType = "bool" },
+        new() { Key = "Name",           Label = "工位名称",     SortKey = "name",           FilterType = "string" },
+        new() { Key = "Code",           Label = "工位编码",     SortKey = "code",           FilterType = "string", IsRequired = true },
+        new() { Key = "ReportType",     Label = "报工模板类型", SortKey = "reporttype",     FilterType = "string" },
+        new() { Key = "SectionName",    Label = "生产工段",     SortKey = "sectionname",    FilterType = "string" },
+        new() { Key = "GroupNames",     Label = "组类",         SortKey = "groupnames",     FilterType = "string" },
+        new() { Key = "InspectionItem", Label = "成检项目",     SortKey = "inspectionitem", FilterType = "string" },
+        new() { Key = "IsActive",       Label = "启用",         SortKey = "isactive",       FilterType = "boolean" },
+        new() { Key = "EquipmentName",  Label = "设备名称",     SortKey = "equipmentname",  FilterType = "string" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -124,6 +158,15 @@ public partial class Workstations
                 SortBy = sortBy,
                 IsDescending = sortDescending
             };
+
+            // 列头 ExcelFilter 多选（in）
+            var columnFiltersJson = SerializeFilters();
+            if (columnFiltersJson != null)
+            {
+                var descriptors = JsonSerializer.Deserialize<List<FilterDescriptor>>(columnFiltersJson);
+                if (descriptors is { Count: > 0 })
+                    query.Filters = descriptors;
+            }
 
             var result = await WorkstationService.GetPagedAsync(query);
 
@@ -176,6 +219,72 @@ public partial class Workstations
         if (table != null) await table.ReloadServerData();
     }
 
+    // ========== ExcelFilter 筛选 ==========
+
+    private string? SerializeFilters()
+    {
+        if (_columnFilters.Count == 0) return null;
+        var descriptors = new List<FilterDescriptor>();
+        foreach (var kvp in _columnFilters)
+        {
+            if (kvp.Value.Count == 0) continue;
+            descriptors.Add(new FilterDescriptor
+            {
+                Field = kvp.Key,
+                Operator = "in",
+                Values = kvp.Value.ToList()
+            });
+        }
+        return descriptors.Count > 0 ? JsonSerializer.Serialize(descriptors) : null;
+    }
+
+    private async Task LoadFilterContextsAsync()
+    {
+        try
+        {
+            var result = await WorkstationService.GetFilterContextsAsync();
+            if (result.Success && result.Data != null)
+            {
+                BuildFilterContextOptions(result.Data);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
+    {
+        _filterContextOptions.Clear();
+        foreach (var kvp in filterContexts)
+        {
+            _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
+            {
+                Value = v,
+                Display = kvp.Key switch
+                {
+                    "ReportType" => DisplayHelper.GetReportTypeText(v),
+                    "SectionName" => SectionDisplayHelper.GetSectionNameText(v),
+                    "InspectionItem" => DisplayHelper.GetInspectionItemText(Enum.Parse<InspectionItem>(v)),
+                    "IsActive" => v == "True" ? "启用" : "停用",
+                    _ => v
+                },
+                Count = 0
+            }).ToList();
+        }
+    }
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== 列选择操作 ==========
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -183,9 +292,12 @@ public partial class Workstations
         await SaveColumnPrefs();
     }
 
+    // 版本化列偏好 key：列顺序/默认显隐调整后，已保存过 localStorage 的用户也能看到新默认
+    private const string ColumnPrefsVersion = "v2";
+
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("workstations", null, _allColumns);
+        await ColumnPrefs.SaveAsync("workstations", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -221,7 +333,7 @@ public partial class Workstations
     {
         await LoadSectionOptionsAsync();
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("workstations", null);
+        var saved = await ColumnPrefs.LoadAsync("workstations", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -253,7 +365,21 @@ public partial class Workstations
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
+            if (savedState.Extras?.ContainsKey("columnFilters") == true)
+            {
+                try
+                {
+                    var raw = savedState.Extras["columnFilters"];
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(raw);
+                    if (dict != null)
+                        _columnFilters = dict.ToDictionary(kv => kv.Key, kv => new HashSet<string>(kv.Value));
+                }
+                catch { }
+            }
         }
+
+        // 加载筛选上下文（ExcelFilter 下拉选项）
+        await LoadFilterContextsAsync();
 
         if (savedState != null && table != null)
             await table.ReloadServerData();
@@ -309,8 +435,10 @@ public partial class Workstations
         public string Code { get; set; } = string.Empty;
         public string? Name { get; set; }
         public string? EquipmentName { get; set; }
-        public string SectionName { get; set; } = null!;
-        public ReportTemplateType ReportType { get; set; }
+        public string? SectionName { get; set; }
+        public string? GroupNames { get; set; }
+        public ReportTemplateType? ReportType { get; set; }
+        public InspectionItem? InspectionItem { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
@@ -325,7 +453,9 @@ public partial class Workstations
             Name = item.Name,
             EquipmentName = item.EquipmentName,
             SectionName = item.SectionName,
+            GroupNames = item.GroupNames,
             ReportType = item.ReportType,
+            InspectionItem = item.InspectionItem,
             IsActive = item.IsActive
         };
     }
@@ -348,8 +478,10 @@ public partial class Workstations
 
         var errors = new List<string>();
         if (string.IsNullOrWhiteSpace(cache.Code)) errors.Add("工位编码不能为空");
-        if (string.IsNullOrWhiteSpace(cache.SectionName)) errors.Add("工段不能为空");
-        if (cache.ReportType == default) errors.Add("报工模板类型不能为空");
+        if (cache.ReportType == null) errors.Add("报工模板类型不能为空");
+        else if (IsSectionRequired(cache.ReportType) && string.IsNullOrWhiteSpace(cache.SectionName)) errors.Add("工段不能为空");
+        else if (cache.ReportType == ReportTemplateType.ProcessInspection && cache.SectionName != SectionKeys.Inspection) errors.Add("过程检验工位必须绑定「检验」工段");
+        if (IsInspectionWorkstation(cache.ReportType) && !cache.InspectionItem.HasValue) errors.Add("成品检验工位必须选择检验项目");
         if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
 
         _isSaving = true;
@@ -364,7 +496,9 @@ public partial class Workstations
                 Name = cache.Name,
                 EquipmentName = cache.EquipmentName,
                 SectionName = cache.SectionName,
-                ReportType = cache.ReportType,
+                GroupNames = cache.GroupNames,
+                ReportType = cache.ReportType!.Value,
+                InspectionItem = cache.InspectionItem,
                 IsActive = cache.IsActive
             };
 
@@ -436,12 +570,16 @@ public partial class Workstations
 
     private async Task SavePageStateAsync()
     {
+        var extras = new Dictionary<string, string>();
+        if (_columnFilters.Count > 0)
+            extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         var state = new PageState
         {
             SortBy = sortColumn,
             IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPage
+            PageIndex = _currentPage,
+            Extras = extras
         };
         await PageState.SaveAsync("workstations", state);
     }

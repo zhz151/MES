@@ -21,6 +21,9 @@ public interface IEmployeeService
     /// <summary>删除</summary>
     Task<bool> DeleteAsync(int id);
 
+    /// <summary>列头筛选上下文（自由文本列取存量去重值，工段/成检项目列取标准选项）</summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
+
     /// <summary>批量打印（按ID）</summary>
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
 

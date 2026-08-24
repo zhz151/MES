@@ -1,5 +1,6 @@
 @page "/mobile-report"
 @using MES.Blazor.Helpers
+@using MES.Core.Helpers
 @using MES.Core.Enums
 @using MES.Core.Constants
 @using MES.Blazor.Services
@@ -146,7 +147,7 @@
                     </MudText>
 
                     <MudText Typo="Typo.body2" Class="mb-2" Color="Color.Secondary">
-                        扫描操作员工号二维码，可添加多人。单人作业可直接点击"下一步"。
+                        操作人必选（可多人）。请从下方下拉选择，或扫描操作员工号二维码。
                     </MudText>
 
                     @* 已添加的员工列表 *@
@@ -166,6 +167,37 @@
                             }
                         </MudPaper>
                     }
+
+                    @* 组类筛选（工位配置组类选项时显示：先选组再选人；「全部组」= 该工段全部候选） *@
+                    @if (_groupOptions.Count > 0)
+                    {
+                        <MudSelect T="string?"
+                                   Dense="true"
+                                   Variant="Variant.Outlined"
+                                   Value="_selectedGroup"
+                                   ValueChanged="@(v => _ = ReloadOperatorsForGroupAsync(v))"
+                                   Label="组类筛选"
+                                   Class="mb-3"
+                                   Style="font-size: 0.875rem;">
+                            <MudSelectItem Value="@((string?)null)">全部组</MudSelectItem>
+                            @foreach (var g in _groupOptions)
+                            {
+                                <MudSelectItem Value="@g">@g</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+
+                    @* 下拉选择操作人（按工位工段优先过滤，可搜索全量） *@
+                    <MudAutocomplete T="EmployeeDto"
+                                     Value="_operatorSearchValue"
+                                     ValueChanged="@(EventCallback.Factory.Create<EmployeeDto?>(this, AddOperatorFromSearch))"
+                                     SearchFunc="@SearchOperatorsAsync"
+                                     ToStringFunc="@(e => e == null ? "" : $"{e.Name}（{e.Code}）")"
+                                     Label="选择操作人"
+                                     MinCharacters="0"
+                                     Variant="Variant.Outlined"
+                                     Class="mb-3"
+                                     Style="font-size: 0.875rem;" />
 
                     @* 扫码/输入 *@
                     <div class="d-flex flex-column align-center">
@@ -216,12 +248,9 @@
                     <div class="d-flex mt-4" style="gap: 8px;">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                    FullWidth="true"
-                                   OnClick="GoToScanBatch">
+                                   OnClick="GoToScanBatch"
+                                   Disabled="@(_operators.Count == 0)">
                             下一步
-                        </MudButton>
-                        <MudButton Variant="Variant.Text" Color="Color.Default"
-                                   OnClick="SkipEmployeeStep">
-                            跳过
                         </MudButton>
                     </div>
                 </div>
@@ -462,41 +491,6 @@
                         </div>
                     }
 
-                    @* 成品检验：选择检验项目 *@
-                    @if (_workstationContext!.ReportType == ReportTemplateType.FinalInspection)
-                    {
-                        <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2 font-weight-bold">
-                            选择检验项目
-                        </MudText>
-                        <div class="d-flex flex-column" style="gap: 6px;">
-                            @foreach (var item in GetInspectionItems())
-                            {
-                                var isSelected = _finalInspectionItem == item.Value;
-                                <MudPaper @onclick="@(() => SelectFinalInspectionItem(item.Value))"
-                                          Class="@GetGroupPaperClass(isSelected)"
-                                          Elevation="@(isSelected ? 4 : 1)">
-                                    <div class="d-flex align-center" style="gap: 8px;">
-                                        <MudIcon Icon="@(isSelected ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Size="Size.Small" Color="Color.Primary" />
-                                        <MudText Typo="Typo.body2">@item.Text</MudText>
-                                    </div>
-                                </MudPaper>
-                            }
-                        </div>
-
-                        <div class="d-flex mt-3" style="gap: 8px;">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                       FullWidth="true"
-                                       OnClick="ConfirmFinalInspection"
-                                       Disabled="@(string.IsNullOrEmpty(_finalInspectionItem))">
-                                确认检验项目
-                            </MudButton>
-                            <MudButton Variant="Variant.Text" Color="Color.Default"
-                                       OnClick="ResetBatchScan">
-                                重新扫描
-                            </MudButton>
-                        </div>
-                    }
-
                     @* 委外回收：选择待回收的委外记录 *@
                     @if (_workstationContext!.ReportType == ReportTemplateType.OutsourceRecovery)
                     {
@@ -592,21 +586,16 @@
                             </div>
                         </MudPaper>
 
-                        @* 表单字段 — 通用字段 *@
+                        @* 表单字段 — 通用字段（班次按当前时刻自动判定，无需手工选择） *@
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <MudSelect T="ShiftType" @bind-Value="_shift"
-                                       Label="班次"
-                                       Variant="Variant.Outlined"
-                                       Style="font-size: 0.875rem; height: 44px;">
-                                @foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
-                                {
-                                    <MudSelectItem Value="@(Enum.Parse<ShiftType>(opt.Value))">@opt.Display</MudSelectItem>
-                                }
-                            </MudSelect>
-
                             <MudTextField @bind-Value="_execDateText"
                                           Label="执行日期"
                                           Placeholder="yyyy-MM-dd"
+                                          Variant="Variant.Outlined"
+                                          Style="font-size: 0.875rem; height: 44px;" />
+                            <MudTextField Value="@($"班次：{DisplayHelper.GetShiftTypeText(ShiftHelper.GetShiftByTime())}（自动判定）")"
+                                          Label="班次"
+                                          ReadOnly="true"
                                           Variant="Variant.Outlined"
                                           Style="font-size: 0.875rem; height: 44px;" />
                         </div>
@@ -634,13 +623,6 @@
                                 自动算重：@_quantity 支 × @_resolveResult.UnitWeight kg/支 = @_weight kg（可手动修正）
                             </MudText>
                         }
-
-                        @* 是否成品 *@
-                        <div class="mt-2">
-                            <MudCheckBox @bind-Value="_isFinished"
-                                         Label="@($"是否成品（系统自动{( _resolveResult?.IsFinished == true ? "判定为是" : "判定为否")}，可手动修正）")"
-                                         Color="Color.Primary" />
-                        </div>
 
                         @* ========== 固溶专用字段（仅普通报工） ========== *@
                         @if (_workstationContext!.ReportType == ReportTemplateType.ProductionRecord && _selectedSection == SectionKeys.Solution)
@@ -801,18 +783,19 @@
                                 <MudText Typo="Typo.body2">@_resolveResult.PlantGrade</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">规格：</MudText>
                                 <MudText Typo="Typo.body2">@_resolveResult.ManufacturingSpec</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">操作人：</MudText>
-                                <MudText Typo="Typo.body2">
-                                    @(string.Join("、", _operators.Select(o => $"{o.Name}({o.Code})")))
-                                </MudText>
                             </div>
                         </MudPaper>
 
-                        @* 委外表单字段 *@
-                        <MudTextField @bind-Value="_sectionOutsourceVendor"
-                                      Label="委外单位 *"
-                                      Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 44px;" />
+                        @* 委外表单字段（委外单位 Autocomplete：历史 Distinct + 手输新增） *@
+                        <MudAutocomplete T="string"
+                                         Value="@_sectionOutsourceVendor"
+                                         ValueChanged="@(EventCallback.Factory.Create<string?>(this, v => _sectionOutsourceVendor = v))"
+                                         SearchFunc="@SearchVendorsAsync"
+                                         MinCharacters="1"
+                                         CoerceValue="true"
+                                         Label="委外单位 *"
+                                         Variant="Variant.Outlined"
+                                         Style="font-size: 0.875rem; height: 44px;" />
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                             <MudTextField @bind-Value="_sectionOutsourceSendOutDate"
@@ -829,18 +812,26 @@
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                             <MudNumericField T="int?"
-                                             @bind-Value="_sectionOutsourceSendQuantity"
+                                             Value="@_sectionOutsourceSendQuantity"
+                                             ValueChanged="@(EventCallback.Factory.Create<int?>(this, OnSectionOutsourceSendQuantityChanged))"
                                              Label="发出支数"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                             <MudNumericField T="decimal?" Format="G29"
-                                             @bind-Value="_sectionOutsourceSendWeight"
+                                             Value="@_sectionOutsourceSendWeight"
+                                             ValueChanged="@(EventCallback.Factory.Create<decimal?>(this, OnSectionOutsourceSendWeightChanged))"
                                              Label="发出重量(kg)"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                         </div>
+                        @if (_resolveResult?.UnitWeight > 0 && _sectionOutsourceSendWeightAuto)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
+                                自动算重：@_sectionOutsourceSendQuantity 支 × @_resolveResult.UnitWeight kg/支 = @_sectionOutsourceSendWeight kg（可手动修正）
+                            </MudText>
+                        }
 
                         <MudTextField @bind-Value="_sectionOutsourceSpec"
                                       Label="委外规格"
@@ -925,34 +916,50 @@
                         <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-3 mb-1 font-weight-bold">正常回收</MudText>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                             <MudNumericField T="int?"
-                                             @bind-Value="_recoveryQuantity"
+                                             Value="@_recoveryQuantity"
+                                             ValueChanged="@(EventCallback.Factory.Create<int?>(this, OnRecoveryQuantityChanged))"
                                              Label="回收支数"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                             <MudNumericField T="decimal?" Format="G29"
-                                             @bind-Value="_recoveryWeight"
+                                             Value="@_recoveryWeight"
+                                             ValueChanged="@(EventCallback.Factory.Create<decimal?>(this, OnRecoveryWeightChanged))"
                                              Label="回收重量(kg)"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                         </div>
+                        @if (_recoveryWeightAuto && GetOutsourceUnitWeight() > 0)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
+                                自动算重：@_recoveryQuantity 支 × @GetOutsourceUnitWeight() kg/支 = @_recoveryWeight kg（可手动修正）
+                            </MudText>
+                        }
 
                         <MudText Typo="Typo.body2" Color="Color.Warning" Class="mt-3 mb-1 font-weight-bold">非正常回收（未加工）</MudText>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                             <MudNumericField T="int?"
-                                             @bind-Value="_unprocessedQuantity"
+                                             Value="@_unprocessedQuantity"
+                                             ValueChanged="@(EventCallback.Factory.Create<int?>(this, OnUnprocessedQuantityChanged))"
                                              Label="未加工支数"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                             <MudNumericField T="decimal?" Format="G29"
-                                             @bind-Value="_unprocessedWeight"
+                                             Value="@_unprocessedWeight"
+                                             ValueChanged="@(EventCallback.Factory.Create<decimal?>(this, OnUnprocessedWeightChanged))"
                                              Label="未加工重量(kg)"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                         </div>
+                        @if (_unprocessedWeightAuto && GetOutsourceUnitWeight() > 0)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
+                                自动算重：@_unprocessedQuantity 支 × @GetOutsourceUnitWeight() kg/支 = @_unprocessedWeight kg（可手动修正）
+                            </MudText>
+                        }
 
                         <MudTextField @bind-Value="_recoveryRemark"
                                       Label="备注（可选）"
@@ -1014,31 +1021,35 @@
                                           Placeholder="yyyy-MM-dd"
                                           Variant="Variant.Outlined"
                                           Style="font-size: 0.875rem; height: 44px;" />
-                            <MudSelect T="ShiftType" @bind-Value="_shift"
-                                       Label="班次"
-                                       Variant="Variant.Outlined"
-                                       Style="font-size: 0.875rem; height: 44px;">
-                                @foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
-                                {
-                                    <MudSelectItem Value="@(Enum.Parse<ShiftType>(opt.Value))">@opt.Display</MudSelectItem>
-                                }
-                            </MudSelect>
+                            <MudTextField Value="@($"班次：{DisplayHelper.GetShiftTypeText(ShiftHelper.GetShiftByTime())}（自动判定）")"
+                                          Label="班次"
+                                          ReadOnly="true"
+                                          Variant="Variant.Outlined"
+                                          Style="font-size: 0.875rem; height: 44px;" />
                         </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                             <MudNumericField T="int?"
-                                             @bind-Value="_inspectionQuantity"
+                                             Value="@_inspectionQuantity"
+                                             ValueChanged="@(EventCallback.Factory.Create<int?>(this, OnInspectionQuantityChanged))"
                                              Label="检验支数"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                             <MudNumericField T="decimal?" Format="G29"
-                                             @bind-Value="_inspectionWeight"
+                                             Value="@_inspectionWeight"
+                                             ValueChanged="@(EventCallback.Factory.Create<decimal?>(this, OnInspectionWeightChanged))"
                                              Label="检验重量(kg)"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                         </div>
+                        @if (_resolveResult?.UnitWeight > 0 && _inspectionWeightAuto)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
+                                自动算重：@_inspectionQuantity 支 × @_resolveResult.UnitWeight kg/支 = @_inspectionWeight kg（可手动修正）
+                            </MudText>
+                        }
 
                         <MudSelect T="string" @bind-Value="_inspectionItem"
                                       Label="检验项目"
@@ -1163,22 +1174,12 @@
                                           Placeholder="yyyy-MM-dd"
                                           Variant="Variant.Outlined"
                                           Style="font-size: 0.875rem; height: 44px;" />
-                            <MudSelect T="ShiftType" @bind-Value="_shift"
-                                       Label="班次"
-                                       Variant="Variant.Outlined"
-                                       Style="font-size: 0.875rem; height: 44px;">
-                                @foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
-                                {
-                                    <MudSelectItem Value="@(Enum.Parse<ShiftType>(opt.Value))">@opt.Display</MudSelectItem>
-                                }
-                            </MudSelect>
+                            <MudTextField Value="@($"班次：{DisplayHelper.GetShiftTypeText(ShiftHelper.GetShiftByTime())}（自动判定）")"
+                                          Label="班次"
+                                          ReadOnly="true"
+                                          Variant="Variant.Outlined"
+                                          Style="font-size: 0.875rem; height: 44px;" />
                         </div>
-
-                        <MudTextField @bind-Value="_materialChecker"
-                                      Label="检验员"
-                                      Variant="Variant.Outlined"
-                                      Style="font-size: 0.875rem; height: 44px;"
-                                      Class="mt-2" />
 
                         <MudTextField @bind-Value="_materialRemark"
                                       Label="备注（可选）"
@@ -1250,31 +1251,35 @@
                                           Placeholder="yyyy-MM-dd"
                                           Variant="Variant.Outlined"
                                           Style="font-size: 0.875rem; height: 44px;" />
-                            <MudSelect T="ShiftType" @bind-Value="_shift"
-                                       Label="班次"
-                                       Variant="Variant.Outlined"
-                                       Style="font-size: 0.875rem; height: 44px;">
-                                @foreach (var opt in DisplayHelper.GetEnumOptions<ShiftType>())
-                                {
-                                    <MudSelectItem Value="@(Enum.Parse<ShiftType>(opt.Value))">@opt.Display</MudSelectItem>
-                                }
-                            </MudSelect>
+                            <MudTextField Value="@($"班次：{DisplayHelper.GetShiftTypeText(ShiftHelper.GetShiftByTime())}（自动判定）")"
+                                          Label="班次"
+                                          ReadOnly="true"
+                                          Variant="Variant.Outlined"
+                                          Style="font-size: 0.875rem; height: 44px;" />
                         </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                             <MudNumericField T="int?"
-                                             @bind-Value="_finalInspectionQuantity"
+                                             Value="@_finalInspectionQuantity"
+                                             ValueChanged="@(EventCallback.Factory.Create<int?>(this, OnFinalInspectionQuantityChanged))"
                                              Label="检验支数"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                             <MudNumericField T="decimal?" Format="G29"
-                                             @bind-Value="_finalInspectionWeight"
+                                             Value="@_finalInspectionWeight"
+                                             ValueChanged="@(EventCallback.Factory.Create<decimal?>(this, OnFinalInspectionWeightChanged))"
                                              Label="检验重量(kg)"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                         </div>
+                        @if (_batchGroupResult?.UnitWeight > 0 && _finalInspectionWeightAuto)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
+                                自动算重：@_finalInspectionQuantity 支 × @_batchGroupResult.UnitWeight kg/支 = @_finalInspectionWeight kg（可手动修正）
+                            </MudText>
+                        }
 
                         <MudText Typo="Typo.body2" Color="Color.Success" Class="mt-2 mb-1 font-weight-bold">合格</MudText>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -1372,6 +1377,31 @@
                             </div>
                         }
 
+                        @* 涡流/超声波探伤核心参数 *@
+                        @if (_finalInspectionItem == DisplayHelper.GetInspectionItemText(InspectionItem.EddyCurrent)
+                            || _finalInspectionItem == DisplayHelper.GetInspectionItemText(InspectionItem.Ultrasonic))
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-2 mb-1 font-weight-bold">探伤参数</MudText>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <MudTextField @bind-Value="_finalInspectionQualificationLevel"
+                                              Label="资格等级"
+                                              Variant="Variant.Outlined"
+                                              Style="font-size: 0.875rem; height: 44px;" />
+                                <MudTextField @bind-Value="_finalInspectionInspectionStandard"
+                                              Label="检验标准"
+                                              Variant="Variant.Outlined"
+                                              Style="font-size: 0.875rem; height: 44px;" />
+                                <MudTextField @bind-Value="_finalInspectionInspectionGrade"
+                                              Label="验收等级"
+                                              Variant="Variant.Outlined"
+                                              Style="font-size: 0.875rem; height: 44px;" />
+                                <MudTextField @bind-Value="_finalInspectionInstrumentModel"
+                                              Label="仪器型号"
+                                              Variant="Variant.Outlined"
+                                              Style="font-size: 0.875rem; height: 44px;" />
+                            </div>
+                        }
+
                         <MudTextField @bind-Value="_finalInspectionRemark"
                                       Label="备注（可选）"
                                       Variant="Variant.Outlined"
@@ -1450,6 +1480,12 @@
     private WorkstationDto? _workstationContext;
     private bool _hasWorkstation => _workstationContext != null;
     private List<EmployeeDto> _operators = new();
+    private List<EmployeeDto> _allOperators = new();      // 操作人下拉候选（按工位工段过滤，进入工位时加载）
+    private EmployeeDto? _operatorSearchValue;            // 操作人下拉当前选中（选中后立即加入并清空）
+
+    // 组类筛选（普通生产/入缸/出缸/委外工位按工段选人；工位配置组类选项后先选组再选人）
+    private List<string> _groupOptions = new();           // 工位组类选项（逗号串拆分，空 = 该工位不分组）
+    private string? _selectedGroup;                       // 当前选中组类（null = 全部组）
 
     // ========== 当前批次解析结果 ==========
     private ScanBatchResolveResultDto? _batchGroupResult;
@@ -1460,11 +1496,14 @@
     // ========== 表单字段 ==========
     private string? _selectedSection;
     private string _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
-    private ShiftType _shift = ShiftType.DayShift;
     private int? _quantity;
     private decimal? _weight;
     private bool _weightAutoCalculated;  // 跟踪重量是否由系统自动计算
-    private bool _isFinished;  // 是否成品（系统自动计算，可手动修正）
+    private bool _sectionOutsourceSendWeightAuto;
+    private bool _recoveryWeightAuto;
+    private bool _unprocessedWeightAuto;
+    private bool _inspectionWeightAuto;
+    private bool _finalInspectionWeightAuto;
     private string? _remark;
     private bool _isSubmitting;
 
@@ -1541,11 +1580,15 @@
     private decimal? _finalInspectionPressure;
     private int? _finalInspectionHoldTime;
     private string? _finalInspectionRemark;
+    // 涡流/超声波探伤核心参数
+    private string? _finalInspectionQualificationLevel;
+    private string? _finalInspectionInspectionStandard;
+    private string? _finalInspectionInspectionGrade;
+    private string? _finalInspectionInstrumentModel;
     private BatchLookupResultDto? _batchLookupResult;
 
     // ========== 成检到料专用状态 ==========
     private string _materialReceiveDate = DateTime.Today.ToString("yyyy-MM-dd");
-    private string? _materialChecker;
     private string? _materialRemark;
 
     private DotNetObjectReference<ScanExecute>? _dotNetRef;
@@ -1652,7 +1695,46 @@
         await StopCamera();
         _manualInput = null;
 
-        // 普通报工：直接进入扫员工码
+        // 加载操作人候选：
+        //  成品检验 → 员工「成检项目」（InspectionItems）按工位绑定项目过滤
+        //  过程检验 → 员工「过程检验」=是 的启用员工（不按项目/工段）
+        //  成检到料 → 员工「成检到料」=是 的启用员工（不按项目/工段）
+        //  其余类型 → 员工「生产工段」（SectionName）按工位工段过滤
+        _operators.Clear();
+        _groupOptions = new();
+        _selectedGroup = null;
+        switch (_workstationContext.ReportType)
+        {
+            case ReportTemplateType.FinalInspection:
+                _finalInspectionItem = _workstationContext.InspectionItemDisplay;
+                var finalResp = await EmployeeService.GetByInspectionItemAsync(_workstationContext.InspectionItem?.ToString());
+                _allOperators = finalResp.Success && finalResp.Data != null ? finalResp.Data : new();
+                break;
+            case ReportTemplateType.ProcessInspection:
+                var procResp = await EmployeeService.GetByProcessInspectionAsync();
+                _allOperators = procResp.Success && procResp.Data != null ? procResp.Data : new();
+                break;
+            case ReportTemplateType.MaterialReceiveCheck:
+                var mrcResp = await EmployeeService.GetByMaterialReceiveCheckAsync();
+                _allOperators = mrcResp.Success && mrcResp.Data != null ? mrcResp.Data : new();
+                break;
+            default:
+                // 普通生产/入缸/出缸/委外：按工位工段过滤操作人；工位配置组类选项则先选组再选人
+                _groupOptions = SplitGroupOptions(_workstationContext.GroupNames);
+                await ReloadOperatorsForGroupAsync(null);
+                break;
+        }
+        _operatorSearchValue = null;
+
+        // 委外类（发出/回收）不选操作人，直接进入扫批次
+        if (_workstationContext.ReportType is ReportTemplateType.SectionOutsource or ReportTemplateType.OutsourceRecovery)
+        {
+            _step = ScanStep.ScanBatch;
+            StateHasChanged();
+            return;
+        }
+
+        // 其余类型：进入扫员工码
         _step = ScanStep.ScanEmployee;
         StateHasChanged();
     }
@@ -1699,11 +1781,72 @@
         StateHasChanged();
     }
 
-    private async Task SkipEmployeeStep()
+    // ========== 操作人下拉（MudAutocomplete，从该工段员工中过滤）==========
+
+    /// <summary>工位组类选项拆分（逗号串 → 去重列表，空 = 该工位不分组）</summary>
+    private static List<string> SplitGroupOptions(string? groupNames)
     {
-        await StopCamera();
-        _manualInput = null;
-        _step = ScanStep.ScanBatch;
+        if (string.IsNullOrWhiteSpace(groupNames)) return new();
+        return groupNames.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(g => g.Trim())
+            .Where(g => g.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    /// <summary>
+    /// 按组类重新加载操作人候选：组类空 → 该工位工段全部启用员工；非空 → 工段 ∩ 组类任一匹配
+    /// （扫码添加员工不受组类限制，仅候选下拉过滤）
+    /// </summary>
+    private async Task ReloadOperatorsForGroupAsync(string? group)
+    {
+        _selectedGroup = group;
+        if (string.IsNullOrWhiteSpace(group))
+        {
+            var secResp = await EmployeeService.GetBySectionAsync(_workstationContext?.SectionName);
+            _allOperators = secResp.Success && secResp.Data != null ? secResp.Data : new();
+        }
+        else
+        {
+            var grpResp = await EmployeeService.GetBySectionAndGroupAsync(_workstationContext?.SectionName, group);
+            _allOperators = grpResp.Success && grpResp.Data != null ? grpResp.Data : new();
+        }
+        _operatorSearchValue = null;
+        StateHasChanged();
+    }
+
+    /// <summary>操作人下拉搜索：按姓名/工号从该工段员工中内存过滤</summary>
+    private Task<IEnumerable<EmployeeDto>> SearchOperatorsAsync(string? keyword)
+    {
+        IEnumerable<EmployeeDto> result;
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            result = _allOperators;
+        }
+        else
+        {
+            var kw = keyword.Trim();
+            result = _allOperators.Where(e =>
+                (e.Name?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (e.Code?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+        return Task.FromResult(result.Take(50));
+    }
+
+    /// <summary>下拉选中操作人：去重加入列表并清空选中值</summary>
+    private void AddOperatorFromSearch(EmployeeDto? emp)
+    {
+        if (emp == null) return;
+        if (_operators.Any(o => o.Code == emp.Code))
+        {
+            Snackbar.Add($"员工 {emp.Name} 已在列表中", Severity.Normal);
+        }
+        else
+        {
+            _operators.Add(emp);
+            Snackbar.Add($"已添加操作人：{emp.Name}", Severity.Success);
+        }
+        _operatorSearchValue = null;
         StateHasChanged();
     }
 
@@ -1792,7 +1935,7 @@
             return;
         }
 
-        // ====== 成品检验：解析后加载批次详细信息 ======
+        // ====== 成品检验：解析后加载批次详细信息，检验项目由工位绑定直击 ======
         if (_workstationContext?.ReportType == ReportTemplateType.FinalInspection)
         {
             var lookupResponse = await FinalInspectionService.LookupBatchAsync(batchNo);
@@ -1803,7 +1946,17 @@
 
             await StopCamera();
             _manualInput = null;
-            StateHasChanged();
+
+            // 检验项目由工位绑定（扫工位即确定），直接进入表单
+            if (!string.IsNullOrEmpty(_finalInspectionItem))
+            {
+                await ConfirmFinalInspection();
+            }
+            else
+            {
+                Snackbar.Add("该成品检验工位未绑定检验项目，请在工位配置中设置", Severity.Warning);
+                StateHasChanged();
+            }
             return;
         }
 
@@ -1912,8 +2065,6 @@
 
         // 设置默认值
         _materialReceiveDate = DateTime.Today.ToString("yyyy-MM-dd");
-        _shift = ShiftType.DayShift;
-        _materialChecker = null;
         _materialRemark = null;
 
         await StopCamera();
@@ -1922,19 +2073,10 @@
         StateHasChanged();
     }
 
-    private void SelectFinalInspectionItem(string item)
-    {
-        _finalInspectionItem = item;
-        StateHasChanged();
-    }
-
     private async Task ConfirmFinalInspection()
     {
-        if (_batchGroupResult == null || string.IsNullOrEmpty(_finalInspectionItem)) return;
-
         // 设置默认值
         _finalInspectionDate = DateTime.Today.ToString("yyyy-MM-dd");
-        _shift = ShiftType.DayShift;
         _finalInspectionQuantity = null;
         _finalInspectionWeight = null;
         _finalInspectionQualifiedQty = null;
@@ -1951,18 +2093,15 @@
         _finalInspectionPressure = null;
         _finalInspectionHoldTime = null;
         _finalInspectionRemark = null;
+        _finalInspectionQualificationLevel = null;
+        _finalInspectionInspectionStandard = null;
+        _finalInspectionInspectionGrade = null;
+        _finalInspectionInstrumentModel = null;
 
         await StopCamera();
         _manualInput = null;
         _step = ScanStep.FillForm;
         StateHasChanged();
-    }
-
-    private List<(string Value, string Text)> GetInspectionItems()
-    {
-        return DisplayHelper.GetEnumOptions<InspectionItem>()
-            .Select(o => (o.Value, o.Display))
-            .ToList();
     }
 
     private async Task GoToFillForm(string batchNo, ProcessGroupOption group)
@@ -1987,11 +2126,9 @@
 
         // 重置表单
         _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
-        _shift = ShiftType.DayShift;
         _quantity = null;
         _weight = null;
         _weightAutoCalculated = false;
-        _isFinished = _resolveResult.IsFinished;
         _solutionTemperature = null;
         _soakTime = null;
         _cuttingMultiple = null;
@@ -2014,6 +2151,7 @@
         _inspectionItem = null;
         _inspectionQuantity = null;
         _inspectionWeight = null;
+        _inspectionWeightAuto = false;
         _inspectionQualifiedQty = null;
         _inspectionQualifiedWeight = null;
         _inspectionConcessionQty = null;
@@ -2064,12 +2202,136 @@
         StateHasChanged();
     }
 
+    // ========== 全类型自动算重（委外发出/回收、过程检验、成品检验） ==========
+
+    // ---- 委外发出 ----
+    private void OnSectionOutsourceSendQuantityChanged(int? value)
+    {
+        _sectionOutsourceSendQuantity = value;
+        if (value.HasValue && _resolveResult?.UnitWeight > 0)
+        {
+            _sectionOutsourceSendWeight = Math.Round(value.Value * _resolveResult.UnitWeight.Value, 2);
+            _sectionOutsourceSendWeightAuto = true;
+        }
+        else
+        {
+            _sectionOutsourceSendWeightAuto = false;
+        }
+        StateHasChanged();
+    }
+
+    private void OnSectionOutsourceSendWeightChanged(decimal? value)
+    {
+        _sectionOutsourceSendWeight = value;
+        _sectionOutsourceSendWeightAuto = false;
+        StateHasChanged();
+    }
+
+    // ---- 委外回收（单位重按发出重量/发出支数推算） ----
+    private decimal GetOutsourceUnitWeight()
+    {
+        if (_selectedOutsourceRecord?.SendQuantity is > 0)
+            return Math.Round((_selectedOutsourceRecord.SendWeight ?? 0) / _selectedOutsourceRecord.SendQuantity.Value, 4);
+        return 0;
+    }
+
+    private void OnRecoveryQuantityChanged(int? value)
+    {
+        _recoveryQuantity = value;
+        var unitWeight = GetOutsourceUnitWeight();
+        if (value.HasValue && unitWeight > 0)
+        {
+            _recoveryWeight = Math.Round(value.Value * unitWeight, 2);
+            _recoveryWeightAuto = true;
+        }
+        else
+        {
+            _recoveryWeightAuto = false;
+        }
+        StateHasChanged();
+    }
+
+    private void OnRecoveryWeightChanged(decimal? value)
+    {
+        _recoveryWeight = value;
+        _recoveryWeightAuto = false;
+        StateHasChanged();
+    }
+
+    private void OnUnprocessedQuantityChanged(int? value)
+    {
+        _unprocessedQuantity = value;
+        var unitWeight = GetOutsourceUnitWeight();
+        if (value.HasValue && unitWeight > 0)
+        {
+            _unprocessedWeight = Math.Round(value.Value * unitWeight, 2);
+            _unprocessedWeightAuto = true;
+        }
+        else
+        {
+            _unprocessedWeightAuto = false;
+        }
+        StateHasChanged();
+    }
+
+    private void OnUnprocessedWeightChanged(decimal? value)
+    {
+        _unprocessedWeight = value;
+        _unprocessedWeightAuto = false;
+        StateHasChanged();
+    }
+
+    // ---- 过程检验 ----
+    private void OnInspectionQuantityChanged(int? value)
+    {
+        _inspectionQuantity = value;
+        if (value.HasValue && _resolveResult?.UnitWeight > 0)
+        {
+            _inspectionWeight = Math.Round(value.Value * _resolveResult.UnitWeight.Value, 2);
+            _inspectionWeightAuto = true;
+        }
+        else
+        {
+            _inspectionWeightAuto = false;
+        }
+        StateHasChanged();
+    }
+
+    private void OnInspectionWeightChanged(decimal? value)
+    {
+        _inspectionWeight = value;
+        _inspectionWeightAuto = false;
+        StateHasChanged();
+    }
+
+    // ---- 成品检验（重量 int? 取整） ----
+    private void OnFinalInspectionQuantityChanged(int? value)
+    {
+        _finalInspectionQuantity = value;
+        if (value.HasValue && _batchGroupResult?.UnitWeight > 0)
+        {
+            _finalInspectionWeight = (int)Math.Round(value.Value * _batchGroupResult.UnitWeight.Value);
+            _finalInspectionWeightAuto = true;
+        }
+        else
+        {
+            _finalInspectionWeightAuto = false;
+        }
+        StateHasChanged();
+    }
+
+    private void OnFinalInspectionWeightChanged(decimal? value)
+    {
+        _finalInspectionWeight = value;
+        _finalInspectionWeightAuto = false;
+        StateHasChanged();
+    }
+
     // ========== 步骤4：提交 ==========
 
     private async Task SubmitAndContinue()
     {
-        await SubmitCurrentRecord();
-        if (!_isSubmitting) // 提交成功
+        if (await SubmitCurrentRecord())
         {
             ResetFormForNextBatch();
         }
@@ -2077,8 +2339,7 @@
 
     private async Task SubmitAndFinish()
     {
-        await SubmitCurrentRecord();
-        if (!_isSubmitting) // 提交成功
+        if (await SubmitCurrentRecord())
         {
             await StopCamera();
             _step = ScanStep.Done;
@@ -2086,13 +2347,14 @@
         }
     }
 
-    private async Task SubmitCurrentRecord()
+    private async Task<bool> SubmitCurrentRecord()
     {
         _isSubmitting = true;
         StateHasChanged();
 
         try
         {
+            var submitted = false;
             var operatorText = _operators.Count > 0
                 ? string.Join("、", _operators.Select(o => $"{o.Name}({o.Code})"))
                 : null;
@@ -2101,7 +2363,7 @@
             if (_workstationContext?.ReportType == ReportTemplateType.ProductionRecord)
             {
                 if (string.IsNullOrWhiteSpace(_selectedSection) || _resolveResult == null || _quantity == null)
-                    return;
+                    return false;
 
                 var section = _resolveResult.AvailableSections
                     .FirstOrDefault(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_selectedSection));
@@ -2113,12 +2375,13 @@
                     ProcessGroupId = _resolveResult.ProcessGroupId,
                     ProcessName = _resolveResult.ProcessName,
                     ManufacturingSpec = _resolveResult.ManufacturingSpec ?? "",
+                    PlantGrade = _resolveResult.PlantGrade,
                     SectionName = _selectedSection,
                     SequenceNumber = section?.SequenceNumber ?? 0,
                     ExecDate = DateTime.TryParse(_execDateText, out var execDate) ? execDate : DateTime.Today,
                     EquipmentName = _workstationContext?.EquipmentName,
                     Operator = operatorText,
-                    Shift = _shift,
+                    Shift = ShiftHelper.GetShiftByTime(),
                     Quantity = _quantity,
                     Weight = _weight,
                     SolutionTemperature = _solutionTemperature,
@@ -2136,6 +2399,7 @@
                     _submittedBatchNo = _resolveResult.BatchNo;
                     _submittedSection = _selectedSection;
                     Snackbar.Add("报工提交成功", Severity.Success);
+                    submitted = true;
                 }
                 else
                 {
@@ -2146,7 +2410,7 @@
             else if (_workstationContext?.ReportType == ReportTemplateType.PicklingInRecord)
             {
                 if (string.IsNullOrWhiteSpace(_selectedSection) || _resolveResult == null || _quantity == null)
-                    return;
+                    return false;
 
                 var section = _resolveResult.AvailableSections
                     .FirstOrDefault(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_selectedSection));
@@ -2157,12 +2421,13 @@
                     ProcessGroupId = _resolveResult.ProcessGroupId,
                     ProcessName = _resolveResult.ProcessName,
                     ManufacturingSpec = _resolveResult.ManufacturingSpec ?? "",
+                    PlantGrade = _resolveResult.PlantGrade,
                     SectionName = _selectedSection,
                     SequenceNumber = section?.SequenceNumber ?? 0,
                     InDate = DateTime.TryParse(_execDateText, out var execDate) ? execDate : DateTime.Today,
                     EquipmentName = _workstationContext?.EquipmentName,
                     Operator = operatorText,
-                    Shift = _shift,
+                    Shift = ShiftHelper.GetShiftByTime(),
                     Quantity = _quantity,
                     Weight = _weight,
                     Remark = _remark,
@@ -2175,6 +2440,7 @@
                     _submittedBatchNo = _resolveResult.BatchNo;
                     _submittedSection = _selectedSection;
                     Snackbar.Add("入缸报工提交成功", Severity.Success);
+                    submitted = true;
                 }
                 else
                 {
@@ -2185,12 +2451,13 @@
             else if (_workstationContext?.ReportType == ReportTemplateType.PicklingOutRecord)
             {
                 if (_selectedPicklingInRecord == null || string.IsNullOrWhiteSpace(_picklingOutCompleteDate))
-                    return;
+                    return false;
 
                 var request = new CreatePicklingOutRecordRequest
                 {
                     PicklingInRecordId = _selectedPicklingInRecord.Id,
                     CompleteDate = DateTime.TryParse(_picklingOutCompleteDate, out var compDate) ? compDate : DateTime.Today,
+                    Operator = operatorText,
                     Remark = _picklingOutRemark,
                     DataSource = "SCAN"
                 };
@@ -2201,6 +2468,7 @@
                     _submittedBatchNo = _selectedPicklingInRecord.BatchNo;
                     _submittedSection = _selectedPicklingInRecord.SectionName;
                     Snackbar.Add("出缸报工提交成功", Severity.Success);
+                    submitted = true;
                 }
                 else
                 {
@@ -2211,7 +2479,7 @@
             else if (_workstationContext?.ReportType == ReportTemplateType.SectionOutsource)
             {
                 if (_resolveResult == null || string.IsNullOrWhiteSpace(_sectionOutsourceVendor))
-                    return;
+                    return false;
 
                 var request = new CreateSectionOutsourceRequest
                 {
@@ -2238,6 +2506,7 @@
                     _submittedBatchNo = _resolveResult.BatchNo;
                     _submittedSection = _workstationContext!.SectionName;
                     Snackbar.Add("工段委外提交成功", Severity.Success);
+                    submitted = true;
                 }
                 else
                 {
@@ -2248,7 +2517,7 @@
             else if (_workstationContext?.ReportType == ReportTemplateType.OutsourceRecovery)
             {
                 if (_selectedOutsourceRecord == null || string.IsNullOrWhiteSpace(_recoveryDate))
-                    return;
+                    return false;
 
                 var request = new CreateOutsourceRecoveryRequest
                 {
@@ -2268,6 +2537,7 @@
                     _submittedBatchNo = _selectedOutsourceRecord.BatchNo ?? "";
                     _submittedSection = _selectedOutsourceRecord.SectionName;
                     Snackbar.Add("委外回收提交成功", Severity.Success);
+                    submitted = true;
                 }
                 else
                 {
@@ -2277,20 +2547,21 @@
             // ====== 过程检验 ======
             else if (_workstationContext?.ReportType == ReportTemplateType.ProcessInspection)
             {
-                if (_resolveResult == null) return;
+                if (_resolveResult == null) return false;
 
                 var request = new CreateProcessInspectionRequest
                 {
                     BatchNo = _resolveResult.BatchNo,
                     ProcessName = _resolveResult.ProcessName,
                     ManufacturingSpec = _resolveResult.ManufacturingSpec ?? "",
+                    PlantGrade = _resolveResult.PlantGrade,
                     SectionName = _workstationContext!.SectionName,
                     SequenceNumber = _resolveResult.AvailableSections
                         .FirstOrDefault(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName))?.SequenceNumber ?? 0,
                     InspectionDate = DateTime.TryParse(_inspectionDate, out var id) ? id : DateTime.Today,
                     EquipmentName = _workstationContext?.EquipmentName,
                     Inspector = string.Join("、", _operators.Select(o => $"{o.Name}({o.Code})")),
-                    Shift = _shift,
+                    Shift = ShiftHelper.GetShiftByTime(),
                     Quantity = _inspectionQuantity,
                     Weight = _inspectionWeight,
                     InspectionItem = string.IsNullOrEmpty(_inspectionItem) ? null : Enum.Parse<InspectionItem>(_inspectionItem),
@@ -2312,6 +2583,7 @@
                     _submittedBatchNo = _resolveResult.BatchNo;
                     _submittedSection = _workstationContext!.SectionName;
                     Snackbar.Add("过程检验提交成功", Severity.Success);
+                    submitted = true;
                 }
                 else
                 {
@@ -2321,14 +2593,14 @@
             // ====== 成检到料 ======
             else if (_workstationContext?.ReportType == ReportTemplateType.MaterialReceiveCheck)
             {
-                if (_batchGroupResult == null) return;
+                if (_batchGroupResult == null) return false;
 
                 var request = new CreateMaterialReceiveCheckRequest
                 {
                     BatchNo = _batchGroupResult.BatchNo,
                     ReceiveDate = DateTime.TryParse(_materialReceiveDate, out var rd) ? rd : DateTime.Today,
-                    Shift = _shift,
-                    Checker = _materialChecker ?? string.Join("、", _operators.Select(o => $"{o.Name}({o.Code})")),
+                    Shift = ShiftHelper.GetShiftByTime(),
+                    Checker = string.Join("、", _operators.Select(o => $"{o.Name}({o.Code})")),
                     Remark = _materialRemark,
                     DataSource = "SCAN"
                 };
@@ -2339,6 +2611,7 @@
                     _submittedBatchNo = _batchGroupResult.BatchNo;
                     _submittedSection = "成检到料";
                     Snackbar.Add("成检到料提交成功", Severity.Success);
+                    submitted = true;
                 }
                 else
                 {
@@ -2348,7 +2621,7 @@
             // ====== 成品检验 ======
             else if (_workstationContext?.ReportType == ReportTemplateType.FinalInspection)
             {
-                if (_batchGroupResult == null || string.IsNullOrEmpty(_finalInspectionItem)) return;
+                if (_batchGroupResult == null || string.IsNullOrEmpty(_finalInspectionItem)) return false;
 
                 // 从中文显示名反查枚举值
                 var inspectionItem = InspectionItem.PMIInspection; // 默认
@@ -2364,11 +2637,13 @@
                 var request = new CreateFinalInspectionRequest
                 {
                     BatchNo = _batchGroupResult.BatchNo,
+                    PlantGrade = _batchGroupResult.PlantGrade,
+                    FixedLength = _batchLookupResult?.FixedLength,
                     InspectionItem = inspectionItem,
                     InspectionDate = DateTime.TryParse(_finalInspectionDate, out var fid) ? fid : DateTime.Today,
                     EquipmentName = _workstationContext?.EquipmentName,
                     Operator = string.Join("、", _operators.Select(o => $"{o.Name}({o.Code})")),
-                    Shift = _shift,
+                    Shift = ShiftHelper.GetShiftByTime(),
                     Quantity = _finalInspectionQuantity,
                     Weight = (int?)_finalInspectionWeight,
                     QualifiedQuantity = _finalInspectionQualifiedQty,
@@ -2384,6 +2659,10 @@
                     LengthAllowanceRange = _finalInspectionLengthAllowanceRange,
                     Pressure = _finalInspectionPressure,
                     HoldTime = _finalInspectionHoldTime,
+                    QualificationLevel = _finalInspectionQualificationLevel,
+                    InspectionStandard = _finalInspectionInspectionStandard,
+                    InspectionGrade = _finalInspectionInspectionGrade,
+                    InstrumentModel = _finalInspectionInstrumentModel,
                     Remark = _finalInspectionRemark,
                     DataSource = "SCAN"
                 };
@@ -2394,16 +2673,20 @@
                     _submittedBatchNo = _batchGroupResult.BatchNo;
                     _submittedSection = $"成品检验-{_finalInspectionItem}";
                     Snackbar.Add("成品检验提交成功", Severity.Success);
+                    submitted = true;
                 }
                 else
                 {
                     Snackbar.Add(response.Message ?? "提交失败", Severity.Error);
                 }
             }
+
+            return submitted;
         }
         catch (Exception ex)
         {
             Snackbar.Add($"提交失败：{ex.Message}", Severity.Error);
+            return false;
         }
         finally
         {
@@ -2421,7 +2704,6 @@
         _quantity = null;
         _weight = null;
         _weightAutoCalculated = false;
-        _isFinished = false;
         _solutionTemperature = null;
         _soakTime = null;
         _cuttingMultiple = null;
@@ -2429,7 +2711,6 @@
         _postCutQuantity = null;
         _remark = null;
         _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
-        _shift = ShiftType.DayShift;
         _manualInput = null;
         ResetPicklingOutState();
         ResetSectionOutsourceState();
@@ -2459,7 +2740,6 @@
         _quantity = null;
         _weight = null;
         _weightAutoCalculated = false;
-        _isFinished = false;
         _solutionTemperature = null;
         _soakTime = null;
         _cuttingMultiple = null;
@@ -2467,7 +2747,6 @@
         _postCutQuantity = null;
         _remark = null;
         _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
-        _shift = ShiftType.DayShift;
         _manualInput = null;
         ResetPicklingOutState();
         ResetSectionOutsourceState();
@@ -2491,7 +2770,6 @@
         _quantity = null;
         _weight = null;
         _weightAutoCalculated = false;
-        _isFinished = false;
         _solutionTemperature = null;
         _soakTime = null;
         _cuttingMultiple = null;
@@ -2518,6 +2796,22 @@
         _picklingOutRemark = null;
     }
 
+    // ========== 搜索委外单位（MudAutocomplete，支持手输新增）==========
+
+    private async Task<IEnumerable<string>> SearchVendorsAsync(string? keyword)
+    {
+        var result = (await SectionOutsourceService.SearchVendorsAsync(keyword)) ?? new List<string>();
+        // 输入的新单位名不在历史列表中时，作为首项呈现，便于新建委外单位（配合 CoerceValue 点选确认）
+        if (!string.IsNullOrWhiteSpace(keyword)
+            && !result.Any(v => string.Equals(v, keyword, StringComparison.OrdinalIgnoreCase)))
+        {
+            var list = result.ToList();
+            list.Insert(0, keyword.Trim());
+            return list;
+        }
+        return result;
+    }
+
     private void ResetSectionOutsourceState()
     {
         _sectionOutsourceVendor = null;
@@ -2525,6 +2819,7 @@
         _sectionOutsourceExpectedReturnDate = null;
         _sectionOutsourceSendQuantity = null;
         _sectionOutsourceSendWeight = null;
+        _sectionOutsourceSendWeightAuto = false;
         _sectionOutsourceSpec = null;
         _sectionOutsourceIsUrgent = false;
         _sectionOutsourceRemark = null;
@@ -2537,8 +2832,10 @@
         _recoveryDate = DateTime.Today.ToString("yyyy-MM-dd");
         _recoveryQuantity = null;
         _recoveryWeight = null;
+        _recoveryWeightAuto = false;
         _unprocessedQuantity = null;
         _unprocessedWeight = null;
+        _unprocessedWeightAuto = false;
         _recoveryRemark = null;
     }
 
@@ -2548,6 +2845,7 @@
         _inspectionItem = null;
         _inspectionQuantity = null;
         _inspectionWeight = null;
+        _inspectionWeightAuto = false;
         _inspectionQualifiedQty = null;
         _inspectionQualifiedWeight = null;
         _inspectionConcessionQty = null;
@@ -2561,10 +2859,12 @@
 
     private void ResetFinalInspectionState()
     {
-        _finalInspectionItem = null;
+        // 检验项目由工位绑定直击，跨批次保留；切换工位时由 ResolveWorkstationCode 重新赋值
+        _finalInspectionItem = _workstationContext?.InspectionItemDisplay;
         _finalInspectionDate = DateTime.Today.ToString("yyyy-MM-dd");
         _finalInspectionQuantity = null;
         _finalInspectionWeight = null;
+        _finalInspectionWeightAuto = false;
         _finalInspectionQualifiedQty = null;
         _finalInspectionQualifiedWeight = null;
         _finalInspectionConcessionQty = null;
@@ -2578,6 +2878,10 @@
         _finalInspectionLengthAllowanceRange = null;
         _finalInspectionPressure = null;
         _finalInspectionHoldTime = null;
+        _finalInspectionQualificationLevel = null;
+        _finalInspectionInspectionStandard = null;
+        _finalInspectionInspectionGrade = null;
+        _finalInspectionInstrumentModel = null;
         _finalInspectionRemark = null;
         _batchLookupResult = null;
     }
@@ -2585,8 +2889,6 @@
     private void ResetMaterialReceiveCheckState()
     {
         _materialReceiveDate = DateTime.Today.ToString("yyyy-MM-dd");
-        _shift = ShiftType.DayShift;
-        _materialChecker = null;
         _materialRemark = null;
     }
 

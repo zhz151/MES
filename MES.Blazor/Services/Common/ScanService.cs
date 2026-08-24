@@ -31,20 +31,6 @@ public class ScanService
     }
 
     /// <summary>
-    /// 按批次号+工段名自动匹配工序组
-    /// </summary>
-    public async Task<ApiResponse<ScanResolveResultDto>> ResolveByBatchAndSectionAsync(string batchNo, string sectionName)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/resolve-by-section?batchNo={Uri.EscapeDataString(batchNo)}&sectionName={Uri.EscapeDataString(sectionName)}";
-            return await _http.GetFromJsonAsync<ApiResponse<ScanResolveResultDto>>(url)
-                   ?? ApiResponse<ScanResolveResultDto>.Fail("请求失败");
-        }
-        catch (Exception ex) { return ApiResponse<ScanResolveResultDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    /// <summary>
     /// 按批次号解析，返回批次信息和该批次下所有工序组选项
     /// </summary>
     public async Task<ApiResponse<ScanBatchResolveResultDto>> GetBatchProcessGroupsAsync(string batchNo)

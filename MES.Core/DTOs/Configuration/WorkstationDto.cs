@@ -12,8 +12,18 @@ public class WorkstationDto
     public string Code { get; set; } = null!;
     public string? Name { get; set; }
     public string? EquipmentName { get; set; }
-    public string SectionName { get; set; } = null!;
+    /// <summary>工段英文 Key（成检到料/成品检验工位选填可空）</summary>
+    public string? SectionName { get; set; }
     public ReportTemplateType ReportType { get; set; }
     public string ReportTypeDisplay => EnumHelper.GetDisplayName(ReportType);
+
+    /// <summary>成品检验项目（仅 ReportType=FinalInspection 时非空）</summary>
+    public InspectionItem? InspectionItem { get; set; }
+
+    /// <summary>检验项目中文显示</summary>
+    public string? InspectionItemDisplay => InspectionItem.HasValue ? EnumHelper.GetDisplayName(InspectionItem.Value) : null;
     public bool IsActive { get; set; } = true;
+
+    /// <summary>组类选项集合（逗号串，如 "甲班,乙班"）— 有值则扫码该工位先选组类再选操作人</summary>
+    public string? GroupNames { get; set; }
 }

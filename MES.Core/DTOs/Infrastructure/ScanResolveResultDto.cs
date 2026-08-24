@@ -1,6 +1,3 @@
-using MES.Core.Enums;
-using MES.Core.Helpers;
-
 namespace MES.Core.DTOs.Infrastructure;
 
 /// <summary>
@@ -11,23 +8,8 @@ public class ScanResolveResultDto
     /// <summary>批次号</summary>
     public string BatchNo { get; set; } = null!;
 
-    /// <summary>批次状态</summary>
-    public BatchStatus Status { get; set; }
-
-    /// <summary>批次状态中文显示</summary>
-    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
-
     /// <summary>工厂牌号（钢种）</summary>
     public string PlantGrade { get; set; } = null!;
-
-    /// <summary>规格</summary>
-    public string Specification { get; set; } = null!;
-
-    /// <summary>挂牌号</summary>
-    public string? TagNo { get; set; }
-
-    /// <summary>生产类型</summary>
-    public ProductionType? ProductionType { get; set; }
 
     /// <summary>工序组ID</summary>
     public int ProcessGroupId { get; set; }
@@ -43,9 +25,6 @@ public class ScanResolveResultDto
 
     /// <summary>单支重量(kg)，用于扫码报工自动计算总重量 = 支数 × UnitWeight</summary>
     public decimal? UnitWeight { get; set; }
-
-    /// <summary>是否成品（系统自动计算：制造物品含'成品' + 当前工序组序号最大）</summary>
-    public bool IsFinished { get; set; }
 }
 
 /// <summary>

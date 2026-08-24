@@ -26,8 +26,8 @@ public class ScanBatchResolveResultDto
     /// <summary>挂牌号</summary>
     public string? TagNo { get; set; }
 
-    /// <summary>生产类型</summary>
-    public ProductionType? ProductionType { get; set; }
+    /// <summary>单支重量（总重量/总支数，Round 4），用于扫码自动算重</summary>
+    public decimal? UnitWeight { get; set; }
 
     /// <summary>该批次下的所有工序组选项</summary>
     public List<ProcessGroupOption> ProcessGroups { get; set; } = new();

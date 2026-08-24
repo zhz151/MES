@@ -66,4 +66,18 @@ public class WorkstationService
             return ApiResponse<bool>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    /// <summary>列头筛选上下文（ExcelFilter 下拉选项）</summary>
+    public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<Dictionary<string, List<string>>>>($"{BaseUrl}/filter-contexts")
+                   ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }

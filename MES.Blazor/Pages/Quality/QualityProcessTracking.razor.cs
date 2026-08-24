@@ -740,7 +740,7 @@ public partial class QualityProcessTracking
             // === G5: 执行状态 ===
             case "QualityStatus":
                 {
-                    // 预成检不参与执行状态跟踪，统一显示"略"
+                    // 预检不参与执行状态跟踪，统一显示"略"
                     if (item.InspectionType == InspectionType.PreInspection)
                     {
                         builder.OpenComponent<MudChip>(0);

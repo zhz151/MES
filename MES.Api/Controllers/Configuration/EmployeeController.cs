@@ -43,6 +43,17 @@ public class EmployeeController : ControllerBase
     }
 
     /// <summary>
+    /// 列头筛选上下文（ExcelFilter 下拉选项）
+    /// </summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _employeeService.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
     /// 按工号查询（扫码用）
     /// </summary>
     [HttpGet("{code}")]

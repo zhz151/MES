@@ -56,27 +56,6 @@ public class ScanController : ControllerBase
     }
 
     /// <summary>
-    /// 按批次号+工段名匹配工序组（工位扫码后自动匹配）
-    /// </summary>
-    [HttpGet("resolve-by-section")]
-    [Authorize]
-    public async Task<ActionResult<ApiResponse<ScanResolveResultDto>>> ResolveBySection(
-        [FromQuery] string batchNo,
-        [FromQuery] string sectionName)
-    {
-        if (string.IsNullOrWhiteSpace(batchNo))
-            return BadRequest(ApiResponse<ScanResolveResultDto>.Fail("批次号不能为空"));
-        if (string.IsNullOrWhiteSpace(sectionName))
-            return BadRequest(ApiResponse<ScanResolveResultDto>.Fail("工段名不能为空"));
-
-        var result = await _scanService.ResolveByBatchAndSectionAsync(batchNo, sectionName);
-        if (result == null)
-            return NotFound(ApiResponse<ScanResolveResultDto>.Fail($"批次 {batchNo} 中未找到工段：{sectionName}"));
-
-        return Ok(ApiResponse<ScanResolveResultDto>.Ok(result, "解析成功"));
-    }
-
-    /// <summary>
     /// 解析设备码，返回设备信息，用于扫码报修
     /// </summary>
     [HttpGet("resolve-equipment")]

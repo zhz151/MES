@@ -74,27 +74,8 @@ public class ScanService : IScanService
             .FirstOrDefaultAsync(pg => pg.Id == processGroupId && pg.ProductionBatchId == batch.Id)
             ?? throw new BusinessException($"未找到工序组（ID={processGroupId}）");
 
-        // 查询该批次最大工序组序号，用于判断是否成品
-        var maxSequenceNumber = await _context.ProcessGroups
-            .Where(pg => pg.ProductionBatchId == batch.Id)
-            .MaxAsync(pg => (int?)pg.SequenceNumber) ?? 0;
-
-        var result = BuildResult(batch, group);
-        result.IsFinished = IsFinishedManufacturingItem(batch.ManufacturingItem)
-            && group.SequenceNumber >= maxSequenceNumber;
-        return result;
+        return BuildResult(batch, group);
     }
-
-    /// <summary>
-    /// 判断制造物品是否属于'成品'类别（中文含"成品"的3类）
-    /// </summary>
-    private static bool IsFinishedManufacturingItem(string? manufacturingItem) => manufacturingItem switch
-    {
-        nameof(MaterialType.OrderFinished) => true,
-        nameof(MaterialType.Finished) => true,
-        nameof(MaterialType.SpecialDeliveryStatus) => true,
-        _ => false
-    };
 
     public async Task<ScanBatchResolveResultDto> GetBatchProcessGroupsAsync(string batchNo)
     {
@@ -115,6 +96,14 @@ public class ScanService : IScanService
             SectionNames = GetAvailableSectionNames(g)
         }).ToList();
 
+        // 计算单支重量（总重量/总支数，Round 4），用于扫码自动算重（同 BuildResult 口径）
+        decimal? unitWeight = null;
+        if (batch.TotalQuantity > 0)
+        {
+            var weight = batch.CurrentValidWeight ?? batch.TotalWeight;
+            unitWeight = Math.Round(weight / batch.TotalQuantity, 4);
+        }
+
         return new ScanBatchResolveResultDto
         {
             BatchNo = batch.BatchNo,
@@ -122,7 +111,7 @@ public class ScanService : IScanService
             PlantGrade = batch.PlantGrade,
             Specification = batch.Specification,
             TagNo = batch.TagNo,
-            ProductionType = EnumHelper.TryParse<ProductionType>(batch.ProductionType),
+            UnitWeight = unitWeight,
             ProcessGroups = groupOptions
         };
     }
@@ -164,37 +153,6 @@ public class ScanService : IScanService
         };
     }
 
-    public async Task<ScanResolveResultDto?> ResolveByBatchAndSectionAsync(string batchNo, string sectionName)
-    {
-        var batch = await FindBatchAsync(batchNo);
-
-        var groups = await _context.ProcessGroups
-            .AsNoTracking()
-            .Where(pg => pg.ProductionBatchId == batch.Id)
-            .OrderBy(pg => pg.SequenceNumber)
-            .ToListAsync();
-
-        // 归一为稳定 Key（兼容中文/别名/Key 入参），作为 ProcessGroup 属性名直接使用
-        var propertyName = SectionKeys.ToKey(sectionName);
-        if (propertyName == null)
-            return null;
-
-        // 找到第一个有此工段的工序组
-        foreach (var group in groups)
-        {
-            var value = GetSectionValue(group, propertyName);
-            if (value.HasValue)
-            {
-                var result = BuildResult(batch, group);
-                result.IsFinished = IsFinishedManufacturingItem(batch.ManufacturingItem)
-                    && group.SequenceNumber >= groups.Max(g => g.SequenceNumber);
-                return result;
-            }
-        }
-
-        return null;
-    }
-
     private async Task<ProductionBatch> FindBatchAsync(string batchNo)
     {
         return await _context.ProductionBatches
@@ -232,11 +190,7 @@ public class ScanService : IScanService
         return new ScanResolveResultDto
         {
             BatchNo = batch.BatchNo,
-            Status = batch.Status,
             PlantGrade = batch.PlantGrade,
-            Specification = batch.Specification,
-            TagNo = batch.TagNo,
-            ProductionType = EnumHelper.TryParse<ProductionType>(batch.ProductionType),
             ProcessGroupId = group.Id,
             ProcessName = group.ProcessName,
             ManufacturingSpec = group.ManufacturingSpec,
@@ -252,18 +206,29 @@ public class ScanService : IScanService
             nameof(ProcessGroup.ColdRollDraw) => group.ColdRollDraw,
             nameof(ProcessGroup.OilPipeCut) => group.OilPipeCut,
             nameof(ProcessGroup.Degrease) => group.Degrease,
+            nameof(ProcessGroup.EmulsionWash) => group.EmulsionWash,
+            nameof(ProcessGroup.UltrasonicWash) => group.UltrasonicWash,
+            nameof(ProcessGroup.ClothPolish) => group.ClothPolish,
+            nameof(ProcessGroup.BrightAnnealing) => group.BrightAnnealing,
             nameof(ProcessGroup.Solution) => group.Solution,
             nameof(ProcessGroup.Straighten) => group.Straighten,
             nameof(ProcessGroup.Cut) => group.Cut,
             nameof(ProcessGroup.ThicknessMeasure) => group.ThicknessMeasure,
             nameof(ProcessGroup.Pickle) => group.Pickle,
             nameof(ProcessGroup.OuterPolish) => group.OuterPolish,
+            nameof(ProcessGroup.InnerPolish) => group.InnerPolish,
             nameof(ProcessGroup.InnerGrinding) => group.InnerGrinding,
             nameof(ProcessGroup.OuterSpotGrinding) => group.OuterSpotGrinding,
+            nameof(ProcessGroup.SandBlasting) => group.SandBlasting,
+            nameof(ProcessGroup.ShotBlasting) => group.ShotBlasting,
             nameof(ProcessGroup.Inspection) => group.Inspection,
             nameof(ProcessGroup.WeldingHead) => group.WeldingHead,
+            nameof(ProcessGroup.Welding) => group.Welding,
             nameof(ProcessGroup.Lubrication) => group.Lubrication,
+            nameof(ProcessGroup.Packing) => group.Packing,
             nameof(ProcessGroup.Warehouse) => group.Warehouse,
+            nameof(ProcessGroup.Extra1) => group.Extra1,
+            nameof(ProcessGroup.Extra2) => group.Extra2,
             _ => null
         };
     }

@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
@@ -13,6 +14,8 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
+using MES.Core.Constants;
+using MES.Core.Enums;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -64,8 +67,8 @@ public class EmployeeService : IEmployeeService
             }
         }
 
-        // 通用筛选
-        queryable = queryable.ApplyFilters(query.Filters);
+        // 通用筛选（SectionName 为逗号分隔的多工段串，equals 按列表任一元素匹配）
+        queryable = ApplyEmployeeFilters(queryable, query.Filters);
 
         // 排序
         var sortBy = string.IsNullOrEmpty(query.SortBy) || query.SortBy.Equals("CreatedTime", StringComparison.OrdinalIgnoreCase)
@@ -87,6 +90,11 @@ public class EmployeeService : IEmployeeService
                 PositionRemark = e.PositionRemark,
                 SalaryMode = e.SalaryMode,
                 SalaryRemark = e.SalaryRemark,
+                SectionName = e.SectionName,
+                GroupName = e.GroupName,
+                InspectionItems = e.InspectionItems,
+                ProcessInspectionItems = e.ProcessInspectionItems,
+                MaterialReceiveCheckItems = e.MaterialReceiveCheckItems,
                 IsActive = e.IsActive
             })
             .ToListAsync();
@@ -98,6 +106,91 @@ public class EmployeeService : IEmployeeService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    /// <summary>
+    /// 逗号分隔列表字段：SectionName（生产工段）/ GroupName（组类，可多组）/ InspectionItems（成检项目资质）
+    /// ProcessInspectionItems / MaterialReceiveCheckItems 为布尔开关（是否属于对应环节操作人），走通用 bool 筛选
+    /// </summary>
+    private static readonly string[] CommaListFields =
+    {
+        nameof(Employee.SectionName),
+        nameof(Employee.GroupName),
+        nameof(Employee.InspectionItems)
+    };
+
+    /// <summary>
+    /// 员工通用筛选：逗号分隔列表字段（SectionName 多工段、GroupName 组类、InspectionItems 多检验项目资质）
+    /// 的 equals/in 均按「任一元素精确匹配」，避免子串误匹配（如 Welding ⊂ WeldingHead）。
+    /// </summary>
+    private static IQueryable<Employee> ApplyEmployeeFilters(IQueryable<Employee> queryable, List<FilterDescriptor>? filters)
+    {
+        if (filters == null || filters.Count == 0)
+            return queryable;
+
+        var remaining = filters.ToList();
+        foreach (var field in CommaListFields)
+        {
+            var listFilter = remaining.FirstOrDefault(f =>
+                string.Equals(f.Field, field, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(f.Operator, "equals", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(f.Value));
+            if (listFilter != null)
+            {
+                queryable = queryable.Where(BuildCommaListContains(field, listFilter.Value!.Trim()));
+                remaining.Remove(listFilter);
+                continue;
+            }
+
+            // ExcelFilter 列头多选（in）：任一选项命中逗号列表任一元素即可
+            var inFilter = remaining.FirstOrDefault(f =>
+                string.Equals(f.Field, field, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(f.Operator, "in", StringComparison.OrdinalIgnoreCase)
+                && f.Values is { Count: > 0 });
+            if (inFilter != null)
+            {
+                queryable = queryable.Where(BuildCommaListIn(field, inFilter.Values!));
+                remaining.Remove(inFilter);
+            }
+        }
+
+        if (remaining.Count > 0)
+            queryable = queryable.ApplyFilters(remaining);
+
+        return queryable;
+    }
+
+    /// <summary>构造逗号列表字段「任一元素精确匹配」表达式（== 或 StartsWith/Contains/EndsWith 逗号边界）</summary>
+    private static Expression<Func<Employee, bool>> BuildCommaListContains(string field, string value)
+    {
+        var e = Expression.Parameter(typeof(Employee), "e");
+        var body = BuildCommaListContainsBody(Expression.Property(e, field), value);
+        return Expression.Lambda<Func<Employee, bool>>(body, e);
+    }
+
+    /// <summary>构造逗号列表字段「任一选项命中任一元素」表达式（多个单值匹配取 OrElse）</summary>
+    private static Expression<Func<Employee, bool>> BuildCommaListIn(string field, List<string> values)
+    {
+        var e = Expression.Parameter(typeof(Employee), "e");
+        var member = Expression.Property(e, field);
+        var body = values
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => BuildCommaListContainsBody(member, v.Trim()))
+            .Aggregate((acc, next) => Expression.OrElse(acc, next));
+        return Expression.Lambda<Func<Employee, bool>>(body, e);
+    }
+
+    private static Expression BuildCommaListContainsBody(Expression member, string value)
+    {
+        var notNull = Expression.NotEqual(member, Expression.Constant(null, typeof(string)));
+        var eq = Expression.Equal(member, Expression.Constant(value));
+        Expression startsWith = Expression.AndAlso(notNull,
+            Expression.Call(member, typeof(string).GetMethod("StartsWith", [typeof(string)])!, Expression.Constant(value + ",")));
+        Expression contains = Expression.AndAlso(notNull,
+            Expression.Call(member, typeof(string).GetMethod("Contains", [typeof(string)])!, Expression.Constant("," + value + ",")));
+        Expression endsWith = Expression.AndAlso(notNull,
+            Expression.Call(member, typeof(string).GetMethod("EndsWith", [typeof(string)])!, Expression.Constant("," + value)));
+        return Expression.OrElse(eq, Expression.OrElse(startsWith, Expression.OrElse(contains, endsWith)));
     }
 
     public async Task<EmployeeDto?> GetByCodeAsync(string code)
@@ -114,6 +207,11 @@ public class EmployeeService : IEmployeeService
                 PositionRemark = e.PositionRemark,
                 SalaryMode = e.SalaryMode,
                 SalaryRemark = e.SalaryRemark,
+                SectionName = e.SectionName,
+                GroupName = e.GroupName,
+                InspectionItems = e.InspectionItems,
+                ProcessInspectionItems = e.ProcessInspectionItems,
+                MaterialReceiveCheckItems = e.MaterialReceiveCheckItems,
                 IsActive = e.IsActive
             })
             .FirstOrDefaultAsync();
@@ -137,6 +235,11 @@ public class EmployeeService : IEmployeeService
             entity.PositionRemark = dto.PositionRemark;
             entity.SalaryMode = dto.SalaryMode;
             entity.SalaryRemark = dto.SalaryRemark;
+            entity.SectionName = dto.SectionName;
+            entity.GroupName = dto.GroupName;
+            entity.InspectionItems = dto.InspectionItems;
+            entity.ProcessInspectionItems = dto.ProcessInspectionItems;
+            entity.MaterialReceiveCheckItems = dto.MaterialReceiveCheckItems;
             entity.IsActive = dto.IsActive;
         }
         else
@@ -151,6 +254,11 @@ public class EmployeeService : IEmployeeService
                 PositionRemark = dto.PositionRemark,
                 SalaryMode = dto.SalaryMode,
                 SalaryRemark = dto.SalaryRemark,
+                SectionName = dto.SectionName,
+                GroupName = dto.GroupName,
+                InspectionItems = dto.InspectionItems,
+                ProcessInspectionItems = dto.ProcessInspectionItems,
+                MaterialReceiveCheckItems = dto.MaterialReceiveCheckItems,
                 IsActive = dto.IsActive
             };
             _context.Employees.Add(entity);
@@ -172,6 +280,55 @@ public class EmployeeService : IEmployeeService
         await _context.SaveChangesAsync();
         return true;
     }
+
+    /// <summary>
+    /// 列头筛选上下文：自由文本列取存量去重值；工段/成检项目取标准选项（前端转中文显示）；
+    /// 过程检验/成检到料/启用列固定 是/否。筛选值=存储值（英文 Key/枚举名/bool 串），与 GetPagedAsync 筛选匹配
+    /// </summary>
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var rows = await _context.Employees
+            .AsNoTracking()
+            .Select(e => new { e.Code, e.Name, e.Department, e.Position, e.PositionRemark, e.SalaryMode, e.SalaryRemark, e.SectionName, e.GroupName })
+            .ToListAsync();
+
+        // 工段选项 = 26 标准工段 + 存量工段片段中非标准值（员工工段为逗号串多工段）
+        var sectionValues = rows.Select(r => r.SectionName)
+            .Where(v => !string.IsNullOrEmpty(v))
+            .SelectMany(v => v!.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            .Select(s => s.Trim())
+            .Where(s => s.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+        var sectionOptions = SectionKeys.All
+            .Concat(sectionValues.Where(v => !SectionKeys.All.Contains(v, StringComparer.OrdinalIgnoreCase)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(v => v)
+            .ToList();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["Department"] = Distinct(rows.Select(r => r.Department)),
+            ["Position"] = Distinct(rows.Select(r => r.Position)),
+            ["Code"] = Distinct(rows.Select(r => r.Code)),
+            ["Name"] = Distinct(rows.Select(r => r.Name)),
+            ["SectionName"] = sectionOptions,
+            ["GroupName"] = Distinct(rows.Select(r => r.GroupName)),
+            ["ProcessInspectionItems"] = new List<string> { "True", "False" },
+            ["MaterialReceiveCheckItems"] = new List<string> { "True", "False" },
+            ["InspectionItems"] = Enum.GetValues<InspectionItem>().Select(e => e.ToString()).ToList(),
+            ["IsActive"] = new List<string> { "True", "False" },
+            ["PositionRemark"] = Distinct(rows.Select(r => r.PositionRemark)),
+            ["SalaryMode"] = Distinct(rows.Select(r => r.SalaryMode)),
+            ["SalaryRemark"] = Distinct(rows.Select(r => r.SalaryRemark))
+        };
+    }
+
+    private static List<string> Distinct(IEnumerable<string?> values)
+        => values.Where(v => !string.IsNullOrEmpty(v))
+            .Select(v => v!)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(v => v)
+            .ToList();
 
     public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {

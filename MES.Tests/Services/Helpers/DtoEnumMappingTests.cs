@@ -23,13 +23,6 @@ public class DtoEnumMappingTests
     }
 
     [Fact]
-    public void ScanResolveResultDto_Status_默认值为None()
-    {
-        var dto = new ScanResolveResultDto();
-        dto.Status.Should().Be(BatchStatus.None);
-    }
-
-    [Fact]
     public void ScanBatchResolveResultDto_Status_默认值为None()
     {
         var dto = new ScanBatchResolveResultDto();

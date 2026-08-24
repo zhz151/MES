@@ -7,6 +7,7 @@
 @using MES.Blazor.Shared
 @using MES.Core.DTOs.Configuration
 @inject EmployeeService EmployeeService
+@inject StandardWorkDayService StandardWorkDayService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -78,6 +79,13 @@
                                OnClick="PrintAll" Class="ml-2">
                         打印全部
                     </MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.QrCode"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintQrCodes" Class="ml-2">
+                        打印二维码
+                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
@@ -102,10 +110,19 @@
                         <MudTh>
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="EmployeeDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                                }
                             </div>
                         </MudTh>
                     }
-                    <MudTh Style="width: 90px;">操作</MudTh>
+                    <MudTh Style="width: 130px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
                     @{
@@ -240,6 +257,113 @@
                                 @item.SalaryRemark
                             }
                         }
+                        else if (col.Key == "SectionName")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           MultiSelection="true"
+                                           Variant="Variant.Outlined"
+                                           SelectedValues="@SplitSections(rowCache.SectionName)"
+                                           SelectedValuesChanged="@(v => rowCache.SectionName = string.Join(",", v))"
+                                           Class="compact-input"
+                                           Label="生产工段（可多选）">
+                                    @foreach (var opt in _sectionOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.Key">@opt.Text</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                @FormatSections(item.SectionName)
+                            }
+                        }
+                        else if (col.Key == "GroupName")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.GroupName"
+                                              ValueChanged="@(v => rowCache.GroupName = v)"
+                                              Class="compact-input"
+                                              Label="组类（多个逗号分隔，可空）" />
+                            }
+                            else
+                            {
+                                @item.GroupName
+                            }
+                        }
+                        else if (col.Key == "ProcessInspectionItems")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSwitch T="bool?"
+                                           Dense="true"
+                                           Value="@rowCache.ProcessInspectionItems"
+                                           ValueChanged="@(v => rowCache.ProcessInspectionItems = v)"
+                                           Color="Color.Primary" />
+                            }
+                            else
+                            {
+                                if (item.ProcessInspectionItems == true)
+                                {
+                                    <MudChip Size="Size.Small" Color="Color.Success">是</MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip Size="Size.Small" Color="Color.Default">否</MudChip>
+                                }
+                            }
+                        }
+                        else if (col.Key == "MaterialReceiveCheckItems")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSwitch T="bool?"
+                                           Dense="true"
+                                           Value="@rowCache.MaterialReceiveCheckItems"
+                                           ValueChanged="@(v => rowCache.MaterialReceiveCheckItems = v)"
+                                           Color="Color.Primary" />
+                            }
+                            else
+                            {
+                                if (item.MaterialReceiveCheckItems == true)
+                                {
+                                    <MudChip Size="Size.Small" Color="Color.Success">是</MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip Size="Size.Small" Color="Color.Default">否</MudChip>
+                                }
+                            }
+                        }
+                        else if (col.Key == "InspectionItems")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           MultiSelection="true"
+                                           Variant="Variant.Outlined"
+                                           SelectedValues="@SplitInspectionItems(rowCache.InspectionItems)"
+                                           SelectedValuesChanged="@(v => rowCache.InspectionItems = string.Join(",", v))"
+                                           Class="compact-input"
+                                           Label="成检项目（可多选）">
+                                    @foreach (var opt in _inspectionItemOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.Key">@opt.Text</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                @FormatInspectionItems(item.InspectionItems)
+                            }
+                        }
                         else if (col.Key == "IsActive")
                         {
                             if (rowEditing && rowCache != null)
@@ -267,7 +391,7 @@
                         }
                         </MudTd>
                     }
-                    <MudTd Style="white-space: nowrap; width: 90px;">
+                    <MudTd Style="white-space: nowrap; width: 130px;">
                         @if (rowEditing)
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
@@ -275,6 +399,7 @@
                         }
                         else
                         {
+                            <MudIconButton Icon="@Icons.Material.Filled.QrCode" Color="Color.Default" Size="Size.Small" Title="二维码" OnClick="() => PrintSingleQrCode(item)" />
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
                         }

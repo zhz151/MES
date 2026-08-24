@@ -511,14 +511,15 @@ public class ProcessInspectionService : IProcessInspectionService
                     errors.Add($"第{i + 1}行：执行序号({seqNum})超过该日期前已执行最大值({prevMax})+{sequenceMaxJump}={maxAllowed}");
             }
 
-            // 重复校验：同批次+同工序组+同工段 → 重复
+            // 重复校验：同批次+同工序组+同工段+同检验项目 → 重复（不同检验项目可分别记录）
             if (pgId > 0)
             {
                 var batchRecords = recordsByBatch.GetValueOrDefault(batchId, new List<ProcessInspection>());
                 var dup = batchRecords.Any(r =>
-                    r.ProcessGroupId == pgId.Value && r.SectionName == request.SectionName);
+                    r.ProcessGroupId == pgId.Value && r.SectionName == request.SectionName
+                    && r.InspectionItem == request.InspectionItem?.ToString());
                 if (dup)
-                    errors.Add($"第{i + 1}行：工段「{SectionKeys.ToChinese(request.SectionName)}」在该批次该工序组中已存在过程检验记录，不能重复创建");
+                    errors.Add($"第{i + 1}行：工段「{SectionKeys.ToChinese(request.SectionName)}」在该批次该工序组中已存在检验项目「{request.InspectionItem?.ToString() ?? "未指定"}」的过程检验记录，不能重复创建");
             }
 
             // 冷轧/冷拔前置校验：工序组为冷轧/冷拔的，必须先有冷轧拔记录
@@ -572,7 +573,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 InspectionDate = request.InspectionDate,
                 EquipmentName = request.EquipmentName,
                 Inspector = request.Inspector,
-                Shift = request.Shift?.ToString(),
+                Shift = (request.Shift ?? ShiftHelper.GetShiftByTime()).ToString(),
                 Quantity = request.Quantity ?? 0,
                 Weight = request.Weight ?? 0,
                 InspectionItem = request.InspectionItem?.ToString(),

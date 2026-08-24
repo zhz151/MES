@@ -1300,6 +1300,7 @@ public static class DataExchangeRegistry
             new("设备名称", "EquipmentName", typeof(string), isRequired: false),
             new("工段", "SectionName", typeof(string), isRequired: true),
             new("报工模板类型", "ReportType", typeof(string), isRequired: true),
+            new("组类", "GroupNames", typeof(string), isRequired: false),
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
 
@@ -1312,6 +1313,7 @@ public static class DataExchangeRegistry
             new("岗位备注", "PositionRemark", typeof(string), isRequired: false),
             new("工资结算模式", "SalaryMode", typeof(string), isRequired: false),
             new("工资结算备注", "SalaryRemark", typeof(string), isRequired: false),
+            new("组类", "GroupName", typeof(string), isRequired: false),
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
 

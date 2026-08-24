@@ -211,7 +211,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         {
             ProductionBatchId = request.ProductionBatchId,
             ReceiveDate = request.ReceiveDate,
-            Shift = request.Shift,
+            Shift = request.Shift ?? ShiftHelper.GetShiftByTime(),
             Checker = request.Checker,
             Remark = request.Remark,
             DataSource = request.DataSource ?? "MANUAL",

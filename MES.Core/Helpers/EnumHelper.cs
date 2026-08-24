@@ -33,7 +33,7 @@ public static class EnumHelper
         ["InspectionType"] = "成检类型",
         ["CutDoubtType"] = "成切存疑类型（疑问-数量 / 疑问-缺少 / 正常）",
         ["BatchInputType"] = "批次投料类型",
-        ["InspectionRequirementStage"] = "技术要求检验项阶段（终=仅正式成检；预=仅预成检；预+终=预成检与正式成检均需；-=不要求）",
+        ["InspectionRequirementStage"] = "技术要求检验项阶段（终=仅终检；预=仅预检；预+终=预检与终检均需；-=不要求）",
         ["ReportTemplateType"] = "报工模板类型（决定报工写入哪张表及使用哪个表单模板）",
         ["ShiftType"] = "班次",
         ["EquipmentTaskStatus"] = "设备点检/保养状况（物化存储到设备表）",

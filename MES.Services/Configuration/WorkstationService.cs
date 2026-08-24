@@ -61,7 +61,7 @@ public class WorkstationService : IWorkstationService
                     w.Code.Contains(keyword) ||
                     (w.Name != null && w.Name.Contains(keyword)) ||
                     (w.EquipmentName != null && w.EquipmentName.Contains(keyword)) ||
-                    w.SectionName.Contains(keyword) ||
+                    (w.SectionName != null && w.SectionName.Contains(keyword)) ||
                     (w.ReportType != null && w.ReportType.Contains(keyword)));
             }
         }
@@ -87,6 +87,8 @@ public class WorkstationService : IWorkstationService
                 w.EquipmentName,
                 w.SectionName,
                 w.ReportType,
+                w.InspectionItem,
+                w.GroupNames,
                 w.IsActive
             })
             .ToListAsync();
@@ -99,6 +101,8 @@ public class WorkstationService : IWorkstationService
             EquipmentName = w.EquipmentName,
             SectionName = w.SectionName,
             ReportType = Enum.Parse<ReportTemplateType>(w.ReportType),
+            InspectionItem = w.InspectionItem == null ? null : Enum.Parse<InspectionItem>(w.InspectionItem),
+            GroupNames = w.GroupNames,
             IsActive = w.IsActive
         }).ToList();
 
@@ -123,6 +127,8 @@ public class WorkstationService : IWorkstationService
                 ws.EquipmentName,
                 ws.SectionName,
                 ws.ReportType,
+                ws.InspectionItem,
+                ws.GroupNames,
                 ws.IsActive
             })
             .FirstOrDefaultAsync();
@@ -137,15 +143,29 @@ public class WorkstationService : IWorkstationService
             EquipmentName = entity.EquipmentName,
             SectionName = entity.SectionName,
             ReportType = Enum.Parse<ReportTemplateType>(entity.ReportType),
+            InspectionItem = entity.InspectionItem == null ? null : Enum.Parse<InspectionItem>(entity.InspectionItem),
+            GroupNames = entity.GroupNames,
             IsActive = entity.IsActive
         };
     }
 
     public async Task<bool> SaveAsync(WorkstationDto dto)
     {
-        // 工段必须是标准工段英文 Key（对齐 SectionKeys），防止手输/历史中文等非法值污染存储
-        if (!SectionKeys.IsKey(dto.SectionName))
+        // 工段必须是标准工段英文 Key（对齐 SectionKeys），防止手输/历史中文等非法值污染存储；
+        // 成检到料/成品检验工位业务不消费工段（扫码按项目/布尔开关分派，不读工段），选填可空
+        var sectionExempt = dto.ReportType is ReportTemplateType.MaterialReceiveCheck or ReportTemplateType.FinalInspection;
+        if (!sectionExempt && !SectionKeys.IsKey(dto.SectionName))
             throw new BusinessException($"工段必须是标准工段，当前值「{SectionKeys.ToChinese(dto.SectionName)}」不合法，请从工段下拉选择");
+
+        // 成品检验工位必须绑定检验项目（扫码按工位绑定的检验项目过滤操作人）；
+        // 过程检验/成检到料为布尔开关匹配，无需绑定检验项目
+        if (dto.ReportType == ReportTemplateType.FinalInspection
+            && (!dto.InspectionItem.HasValue || !Enum.IsDefined(dto.InspectionItem.Value)))
+            throw new BusinessException("成品检验工位必须绑定检验项目，请选择检验项目");
+
+        // 过程检验工位必须配置「检验」工段（扫码过程检验按工段「检验」写记录，ProcessInspectionService 强校验工段=检验）
+        if (dto.ReportType == ReportTemplateType.ProcessInspection && dto.SectionName != SectionKeys.Inspection)
+            throw new BusinessException("过程检验工位必须绑定「检验」工段，请在生产工段中选择「检验」");
 
         if (dto.Id > 0)
         {
@@ -161,6 +181,8 @@ public class WorkstationService : IWorkstationService
             entity.EquipmentName = dto.EquipmentName;
             entity.SectionName = dto.SectionName;
             entity.ReportType = dto.ReportType.ToString();
+            entity.InspectionItem = dto.InspectionItem?.ToString();
+            entity.GroupNames = dto.GroupNames;
             entity.IsActive = dto.IsActive;
         }
         else
@@ -173,6 +195,8 @@ public class WorkstationService : IWorkstationService
                 EquipmentName = dto.EquipmentName,
                 SectionName = dto.SectionName,
                 ReportType = dto.ReportType.ToString(),
+                InspectionItem = dto.InspectionItem?.ToString(),
+                GroupNames = dto.GroupNames,
                 IsActive = dto.IsActive
             };
             _context.Workstations.Add(entity);
@@ -194,6 +218,48 @@ public class WorkstationService : IWorkstationService
         await _context.SaveChangesAsync();
         return true;
     }
+
+    /// <summary>
+    /// 列头筛选上下文：自由文本列取存量去重值；工段/报工模板类型/检验项目取标准选项（前端转中文显示）；
+    /// 启用列固定 是/否。筛选值=存储值（英文 Key/枚举名），与 GetPagedAsync 通用筛选匹配
+    /// </summary>
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var rows = await _context.Workstations
+            .AsNoTracking()
+            .Select(w => new { w.Name, w.Code, w.EquipmentName, w.SectionName, w.GroupNames })
+            .ToListAsync();
+
+        // 工段选项 = 26 标准工段 + 存量非标准值补充（成检到料/成品检验工段选填可任意值）
+        var sectionValues = rows.Select(r => r.SectionName)
+            .Where(v => !string.IsNullOrEmpty(v))
+            .Select(v => v!)
+            .Distinct();
+        var sectionOptions = SectionKeys.All
+            .Concat(sectionValues.Where(v => !SectionKeys.All.Contains(v, StringComparer.OrdinalIgnoreCase)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(v => v)
+            .ToList();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["Name"] = Distinct(rows.Select(r => r.Name)),
+            ["Code"] = Distinct(rows.Select(r => r.Code)),
+            ["ReportType"] = Enum.GetValues<ReportTemplateType>().Select(e => e.ToString()).ToList(),
+            ["SectionName"] = sectionOptions,
+            ["GroupNames"] = Distinct(rows.Select(r => r.GroupNames)),
+            ["InspectionItem"] = Enum.GetValues<InspectionItem>().Select(e => e.ToString()).ToList(),
+            ["IsActive"] = new List<string> { "True", "False" },
+            ["EquipmentName"] = Distinct(rows.Select(r => r.EquipmentName))
+        };
+    }
+
+    private static List<string> Distinct(IEnumerable<string?> values)
+        => values.Where(v => !string.IsNullOrEmpty(v))
+            .Select(v => v!)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(v => v)
+            .ToList();
 
     public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {

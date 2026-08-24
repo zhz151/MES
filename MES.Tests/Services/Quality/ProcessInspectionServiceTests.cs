@@ -314,6 +314,130 @@ public class ProcessInspectionServiceTests : TestBase
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
     }
 
+    [Fact]
+    public async Task BatchCreateAsync_同工序组不同检验项目_可分别创建()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var pg = await SeedProcessGroupAsync(ctx, batch.Id);
+        // 冷轧/冷拔前置校验：先创建一条冷轧拔生产记录
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            SectionName = SectionKeys.ColdRollDraw,
+            ProductStatus = ProductStatuses.Finished
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var result = await svc.BatchCreateAsync(new List<CreateProcessInspectionRequest>
+        {
+            new()
+            {
+                BatchNo = "BATCH001",
+                ProcessName = "60冷轧",
+                ManufacturingSpec = "219*8",
+                SectionName = SectionKeys.Inspection,
+                InspectionDate = DateTime.Today,
+                InspectionItem = InspectionItem.Dimension,
+                Quantity = 10,
+                QualifiedQuantity = 10,
+                Weight = 1000m
+            },
+            new()
+            {
+                BatchNo = "BATCH001",
+                ProcessName = "60冷轧",
+                ManufacturingSpec = "219*8",
+                SectionName = SectionKeys.Inspection,
+                InspectionDate = DateTime.Today,
+                InspectionItem = InspectionItem.VisualInspection,
+                Quantity = 10,
+                QualifiedQuantity = 10,
+                Weight = 1000m
+            }
+        });
+
+        result.Should().HaveCount(2);
+        result.Select(r => r.InspectionItem).Should().Contain(InspectionItem.Dimension);
+        result.Select(r => r.InspectionItem).Should().Contain(InspectionItem.VisualInspection);
+    }
+
+    [Fact]
+    public async Task BatchCreateAsync_同工序组同检验项目_判重复_抛出()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var pg = await SeedProcessGroupAsync(ctx, batch.Id);
+        // 冷轧/冷拔前置校验：先创建一条冷轧拔生产记录
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "60冷轧",
+            SectionName = SectionKeys.ColdRollDraw,
+            ProductStatus = ProductStatuses.Finished
+        });
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        // 先落库一条「尺寸」过程检验
+        var first = await svc.BatchCreateAsync(new List<CreateProcessInspectionRequest>
+        {
+            new()
+            {
+                BatchNo = "BATCH001",
+                ProcessName = "60冷轧",
+                ManufacturingSpec = "219*8",
+                SectionName = SectionKeys.Inspection,
+                InspectionDate = DateTime.Today,
+                InspectionItem = InspectionItem.Dimension,
+                Quantity = 10,
+                QualifiedQuantity = 10,
+                Weight = 1000m
+            }
+        });
+        first.Should().HaveCount(1);
+
+        // 同工序组同检验项目再次提交 → 判重
+        var actDup = () => svc.BatchCreateAsync(new List<CreateProcessInspectionRequest>
+        {
+            new()
+            {
+                BatchNo = "BATCH001",
+                ProcessName = "60冷轧",
+                ManufacturingSpec = "219*8",
+                SectionName = SectionKeys.Inspection,
+                InspectionDate = DateTime.Today,
+                InspectionItem = InspectionItem.Dimension,
+                Quantity = 10,
+                QualifiedQuantity = 10,
+                Weight = 1000m
+            }
+        });
+        await actDup.Should().ThrowAsync<BusinessException>().WithMessage("*已存在*");
+
+        // 同工序组换检验项目 → 可创建
+        var second = await svc.BatchCreateAsync(new List<CreateProcessInspectionRequest>
+        {
+            new()
+            {
+                BatchNo = "BATCH001",
+                ProcessName = "60冷轧",
+                ManufacturingSpec = "219*8",
+                SectionName = SectionKeys.Inspection,
+                InspectionDate = DateTime.Today,
+                InspectionItem = InspectionItem.VisualInspection,
+                Quantity = 10,
+                QualifiedQuantity = 10,
+                Weight = 1000m
+            }
+        });
+        second.Should().HaveCount(1);
+    }
+
     // ========== UpdateAsync ==========
 
     [Fact]

@@ -80,6 +80,13 @@
                                OnClick="PrintAll" Class="ml-2">
                         打印全部
                     </MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.QrCode"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintQrCodes" Class="ml-2">
+                        打印二维码
+                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
@@ -104,10 +111,19 @@
                         <MudTh>
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                                @if (col.FilterType != null)
+                                {
+                                    <ExcelFilter T="WorkstationDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                                }
                             </div>
                         </MudTh>
                     }
-                    <MudTh Style="width: 90px;">操作</MudTh>
+                    <MudTh Style="width: 130px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
                     @{
@@ -160,21 +176,70 @@
                         {
                             if (rowEditing && rowCache != null)
                             {
-                                <MudSelect T="ReportTemplateType"
+                                <MudSelect T="ReportTemplateType?"
                                            Dense="true"
                                            Variant="Variant.Outlined"
-                                           @bind-Value="rowCache.ReportType"
+                                           Value="@rowCache.ReportType"
+                                           ValueChanged="@(EventCallback.Factory.Create<ReportTemplateType?>(this, v => { rowCache.ReportType = v; if (!IsInspectionWorkstation(v)) rowCache.InspectionItem = null; }))"
                                            Class="compact-input"
                                            Label="报工模板类型">
+                                    <MudSelectItem Value="@((ReportTemplateType?)null)">请选择</MudSelectItem>
                                     @foreach (var opt in DisplayHelper.GetEnumOptions<ReportTemplateType>())
                                     {
-                                        <MudSelectItem Value="@(Enum.Parse<ReportTemplateType>(opt.Value))">@opt.Display</MudSelectItem>
+                                        <MudSelectItem Value="@((ReportTemplateType?)Enum.Parse<ReportTemplateType>(opt.Value))">@opt.Display</MudSelectItem>
                                     }
                                 </MudSelect>
                             }
                             else
                             {
                                 @DisplayHelper.GetReportTypeText(item.ReportType)
+                            }
+                        }
+                        else if (col.Key == "GroupNames")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.GroupNames"
+                                              ValueChanged="@(v => rowCache.GroupNames = v)"
+                                              Class="compact-input"
+                                              Label="组类（多个逗号分隔，可空）" />
+                            }
+                            else
+                            {
+                                @item.GroupNames
+                            }
+                        }
+                        else if (col.Key == "InspectionItem")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                if (IsInspectionWorkstation(rowCache.ReportType))
+                                {
+                                    <MudSelect T="InspectionItem?"
+                                               Dense="true"
+                                               Variant="Variant.Outlined"
+                                               Value="@rowCache.InspectionItem"
+                                               ValueChanged="@(EventCallback.Factory.Create<InspectionItem?>(this, v => rowCache.InspectionItem = v))"
+                                               Class="compact-input"
+                                               Label="检验项目">
+                                        <MudSelectItem Value="@((InspectionItem?)null)">请选择</MudSelectItem>
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<InspectionItem>())
+                                        {
+                                            <MudSelectItem Value="@((InspectionItem?)Enum.Parse<InspectionItem>(opt.Value))">@opt.Display</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2" Class="text-disabled">—</MudText>
+                                }
+                            }
+                            else
+                            {
+                                @item.InspectionItemDisplay
                             }
                         }
                         else if (col.Key == "EquipmentName")
@@ -198,13 +263,14 @@
                         {
                             if (rowEditing && rowCache != null)
                             {
-                                <MudSelect T="string"
+                                <MudSelect T="string?"
                                            Dense="true"
                                            Variant="Variant.Outlined"
                                            Value="@rowCache.SectionName"
                                            ValueChanged="@(v => rowCache.SectionName = v)"
                                            Class="compact-input"
                                            Label="工段">
+                                    <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
                                     @foreach (var opt in _sectionOptions)
                                     {
                                         <MudSelectItem Value="@opt.Key">@opt.Text</MudSelectItem>
@@ -243,7 +309,7 @@
                         }
                         </MudTd>
                     }
-                    <MudTd Style="white-space: nowrap; width: 90px;">
+                    <MudTd Style="white-space: nowrap; width: 130px;">
                         @if (rowEditing)
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
@@ -251,6 +317,7 @@
                         }
                         else
                         {
+                            <MudIconButton Icon="@Icons.Material.Filled.QrCode" Color="Color.Default" Size="Size.Small" Title="二维码" OnClick="() => PrintSingleQrCode(item)" />
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
                         }

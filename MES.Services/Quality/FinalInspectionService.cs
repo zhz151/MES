@@ -844,7 +844,7 @@ public class FinalInspectionService : IFinalInspectionService
             CutLengthMatchType = cutLengthMatchType,
             NonFixedLengthRange = request.NonFixedLengthRange,
             EquipmentName = request.EquipmentName,
-            Shift = request.Shift,
+            Shift = request.Shift ?? ShiftHelper.GetShiftByTime(),
             Operator = request.Operator,
             Quantity = request.Quantity ?? 0,
             Weight = request.Weight ?? (unitWeight.HasValue && request.Quantity.HasValue ? (int?)(unitWeight.Value * request.Quantity.Value) : 0),

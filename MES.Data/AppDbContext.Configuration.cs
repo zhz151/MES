@@ -226,6 +226,10 @@ public partial class AppDbContext
             entity.Property(e => e.PositionRemark).HasMaxLength(200);
             entity.Property(e => e.SalaryMode).HasMaxLength(50);
             entity.Property(e => e.SalaryRemark).HasMaxLength(200);
+            entity.Property(e => e.SectionName).HasMaxLength(200);
+            entity.Property(e => e.InspectionItems).HasMaxLength(200);
+            entity.Property(e => e.GroupName).HasMaxLength(200);
+            // 过程检验/成检到料为布尔开关（是否属于该环节操作人），存 bit
             entity.HasIndex(e => e.Code)
                 .IsUnique()
                 .HasDatabaseName("UK_Emp_Code");
@@ -258,8 +262,11 @@ public partial class AppDbContext
             entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Name).HasMaxLength(100);
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
-            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            // 工段可空：成检到料/成品检验工位业务不消费工段，选填；其余类型由 Service 校验必填
+            entity.Property(e => e.SectionName).HasMaxLength(50);
             entity.Property(e => e.ReportType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.InspectionItem).HasMaxLength(30);
+            entity.Property(e => e.GroupNames).HasMaxLength(200);
             entity.HasIndex(e => e.Code)
                 .IsUnique()
                 .HasDatabaseName("UK_WS_Code");
