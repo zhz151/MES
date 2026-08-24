@@ -172,19 +172,19 @@
             <!-- 参数表 -->
             <AuthorizeView Roles="@Roles.Policies.ConfigurationRead">
                 <MudNavGroup Title="参数表" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                    <MudNavLink Href="/section-flow-category-settings">生产-流转类别日产配置</MudNavLink>
-                    <MudNavLink Href="/section-paragraph-config-settings">生产-段落日产配置</MudNavLink>
-                    <MudNavLink Href="/combination-groups">生产-组合段落归类</MudNavLink>
-                    <MudNavLink Href="/daily-production-capacities">生产-重点工段日产</MudNavLink>
-                    <MudNavLink Href="/daily-output-estimates">生产-规格日产预估</MudNavLink>
-                    <MudNavLink Href="/cold-roll-capacities">生产-冷轧产能档案</MudNavLink>
-                    <MudNavLink Href="/cold-roll-machine-configs">生产-冷轧机台数配置</MudNavLink>
-                    <MudNavLink Href="/standard-work-days">生产-工段工量天数</MudNavLink>
-                    <MudNavLink Href="/standard-work-day-delivery-states">生产-交货状态附加天数</MudNavLink>
-                    <MudNavLink Href="/process-definitions">生产-工序组定义</MudNavLink>
-                    <MudNavLink Href="/enum-display-definitions">参数-枚举显示配置</MudNavLink>
-                    <MudNavLink Href="/dict-value-definitions">参数-字典显示配置</MudNavLink>
-                    <MudNavLink Href="/config-parameters">系统参数</MudNavLink>
+                    <MudNavLink Href="/process-definitions">工序组定义(批次/工艺)</MudNavLink>
+                    <MudNavLink Href="/standard-work-days">工段工量天数(排程/用料)</MudNavLink>
+                    <MudNavLink Href="/standard-work-day-delivery-states">交货状态附加天数(排程/用料)</MudNavLink>
+                    <MudNavLink Href="/daily-output-estimates">规格日产预估(工单执行)</MudNavLink>
+                    <MudNavLink Href="/cold-roll-capacities">冷轧产能档案(冷轧排程)</MudNavLink>
+                    <MudNavLink Href="/cold-roll-machine-configs">冷轧机台数配置(冷轧排程)</MudNavLink>
+                    <MudNavLink Href="/daily-production-capacities">重点工段日产(生产总览)</MudNavLink>
+                    <MudNavLink Href="/section-paragraph-config-settings">段落日产配置(段落流转)</MudNavLink>
+                    <MudNavLink Href="/combination-groups">组合段落归类(段落流转)</MudNavLink>
+                    <MudNavLink Href="/section-flow-category-settings">流转类别日产配置(流转分析)</MudNavLink>
+                    <MudNavLink Href="/enum-display-definitions">枚举显示配置(全局显示)</MudNavLink>
+                    <MudNavLink Href="/dict-value-definitions">字典显示配置(全局显示)</MudNavLink>
+                    <MudNavLink Href="/config-parameters">系统参数(全局参数)</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 
