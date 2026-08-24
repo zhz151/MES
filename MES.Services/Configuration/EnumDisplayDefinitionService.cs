@@ -84,6 +84,25 @@ public class EnumDisplayDefinitionService : IEnumDisplayDefinitionService
         };
     }
 
+    /// <summary>
+    /// 列筛选上下文：返回可筛列的 DISTINCT 值（EnumKey/Value/DisplayName/Remark），供前端列头 ExcelFilter 下拉加载。
+    /// </summary>
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var rows = await _context.EnumDisplayDefinitions
+            .AsNoTracking()
+            .Select(x => new { x.EnumKey, x.Value, x.DisplayName, x.Remark })
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["EnumKey"] = rows.Select(x => x.EnumKey).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x).ToList(),
+            ["Value"] = rows.Select(x => x.Value).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x).ToList(),
+            ["DisplayName"] = rows.Select(x => x.DisplayName).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x).ToList(),
+            ["Remark"] = rows.Select(x => x.Remark).Where(x => !string.IsNullOrEmpty(x)).Select(x => x!).Distinct().OrderBy(x => x).ToList()
+        };
+    }
+
     public async Task<EnumDisplayDefinitionDto?> GetByIdAsync(int id)
     {
         var entity = await _context.EnumDisplayDefinitions

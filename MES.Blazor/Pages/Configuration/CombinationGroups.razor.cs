@@ -253,10 +253,10 @@ public partial class CombinationGroups
         => string.IsNullOrEmpty(paragraphName) ? "-" : paragraphName;
 
     private static string GetProcessDisplay(string key)
-        => ProcessKeys.ToChinese(key) ?? key;
+        => ProcessDisplayHelper.GetProcessNameText(key);
 
     private static string GetSectionDisplay(string key)
-        => SectionKeys.ToChinese(key) ?? key;
+        => SectionDisplayHelper.GetSectionNameText(key);
 
     private static string GetProductStatusDisplay(string productStatus)
         => DisplayHelper.GetCombinationProductStatusText(productStatus);

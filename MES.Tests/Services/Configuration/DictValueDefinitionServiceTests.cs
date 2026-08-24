@@ -182,4 +182,43 @@ public class DictValueDefinitionServiceTests : TestBase, IDisposable
         DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, LiabilityTypeKeys.FactoryDepartment)
             .Should().Be("厂部（保存即生效）");
     }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回可筛列DISTINCT值()
+    {
+        var ctx = CreateDbContext();
+        ctx.DictValueDefinitions.Add(Row(DictValueDefaults.LiabilityTypeKey, LiabilityTypeKeys.FactoryDepartment, "厂部", 1));
+        ctx.DictValueDefinitions.Add(Row(DictValueDefaults.LiabilityTypeKey, LiabilityTypeKeys.OutsourcedPurchase, "外购", 2, enabled: false));
+        ctx.DictValueDefinitions.Add(Row(DictValueDefaults.NcrResponsibilityKey, NcrResponsibilityKeys.ProductionInternal, "生产-厂内", 1));
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["DictKey"].Should().Equal(DictValueDefaults.LiabilityTypeKey, DictValueDefaults.NcrResponsibilityKey);
+        contexts["Value"].Should().Equal(
+            LiabilityTypeKeys.FactoryDepartment, LiabilityTypeKeys.OutsourcedPurchase, NcrResponsibilityKeys.ProductionInternal);
+        // 中文按 CurrentCulture 拼音序（厂c/生sh/外w）
+        contexts["DisplayName"].Should().Equal("厂部", "生产-厂内", "外购");
+        contexts["IsEnabled"].Should().Equal("False", "True");
+        contexts["Remark"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_空Remark_不包含()
+    {
+        var ctx = CreateDbContext();
+        var withRemark = Row(DictValueDefaults.LiabilityTypeKey, LiabilityTypeKeys.FactoryDepartment, "厂部", 1);
+        withRemark.Remark = "责任类型";
+        ctx.DictValueDefinitions.Add(withRemark);
+        ctx.DictValueDefinitions.Add(Row(DictValueDefaults.LiabilityTypeKey, LiabilityTypeKeys.OutsourcedPurchase, "外购", 2));
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["Remark"].Should().Equal("责任类型");
+    }
 }

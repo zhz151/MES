@@ -55,6 +55,15 @@ public class DictValueDefinitionController : ControllerBase
         return Ok(ApiResponse<List<DictValueInfoDto>>.Ok(result));
     }
 
+    /// <summary>列筛选上下文：可筛列的 DISTINCT 值，供前端 ExcelFilter 下拉加载</summary>
+    [HttpGet("filter-contexts")]
+    [Authorize(Roles = Roles.Policies.ConfigurationRead)]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
     /// <summary>恢复默认：为该 DictKey 生成静态兜底（DictValueDefaults）中缺失的默认行，返回新增行数</summary>
     [HttpPost("restore-defaults")]
     [Authorize(Roles = Roles.Policies.ConfigurationWrite)]

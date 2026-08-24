@@ -38,4 +38,7 @@ public interface IEnumDisplayDefinitionService
     /// 已存在（含用户改过的中文）不覆盖，返回新增行数。
     /// </summary>
     Task<int> RestoreDefaultsAsync(string enumKey);
+
+    /// <summary>列筛选上下文：可筛列的 DISTINCT 值（EnumKey/Value/DisplayName/Remark），供前端 ExcelFilter 下拉加载</summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }

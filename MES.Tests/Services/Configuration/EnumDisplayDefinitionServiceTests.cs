@@ -232,4 +232,42 @@ public class EnumDisplayDefinitionServiceTests : TestBase, IDisposable
         // 保存后进程内静态覆盖已刷新，后端打印/DataExchange 免重启即用新中文
         EnumHelper.GetDisplayName<BatchStatus>(BatchStatus.None).Should().Be("未产（保存即生效）");
     }
+
+    // ========== GetFilterContextsAsync ==========
+
+    [Fact]
+    public async Task GetFilterContextsAsync_返回可筛列DISTINCT值()
+    {
+        var ctx = CreateDbContext();
+        ctx.EnumDisplayDefinitions.Add(Row("BatchStatus", "None", "未产", 1));
+        ctx.EnumDisplayDefinitions.Add(Row("BatchStatus", "InProgress", "在产", 2));
+        ctx.EnumDisplayDefinitions.Add(Row("LengthStatus", "Fixed", "定尺", 1));
+        ctx.EnumDisplayDefinitions.Add(Row("LengthStatus", "NonFixed", "非定尺", 2));
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["EnumKey"].Should().Equal("BatchStatus", "LengthStatus");
+        contexts["Value"].Should().Equal("Fixed", "InProgress", "None", "NonFixed");
+        // 中文按 CurrentCulture 拼音序（定d/非f/未w/在z）
+        contexts["DisplayName"].Should().Equal("定尺", "非定尺", "未产", "在产");
+        contexts["Remark"].Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetFilterContextsAsync_空Remark_不包含()
+    {
+        var ctx = CreateDbContext();
+        var withRemark = Row("BatchStatus", "None", "未产", 1);
+        withRemark.Remark = "批次状态";
+        ctx.EnumDisplayDefinitions.Add(withRemark);
+        ctx.EnumDisplayDefinitions.Add(Row("BatchStatus", "InProgress", "在产", 2));
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var contexts = await svc.GetFilterContextsAsync();
+
+        contexts["Remark"].Should().Equal("批次状态");
+    }
 }

@@ -174,17 +174,17 @@ public class ConfigParameterService : IConfigParameterService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        var contexts = await _context.ConfigParameters
+        var rows = await _context.ConfigParameters
             .AsNoTracking()
-            .Where(c => c.Context != null)
-            .Select(c => c.Context!)
-            .Distinct()
-            .OrderBy(x => x)
+            .Select(c => new { c.Context, c.CategoryDisplay, c.ParamKey, c.Remark })
             .ToListAsync();
 
         return new Dictionary<string, List<string>>
         {
-            ["Context"] = contexts
+            ["Context"] = rows.Select(c => c.Context).Where(x => !string.IsNullOrEmpty(x)).Select(x => x!).Distinct().OrderBy(x => x).ToList(),
+            ["CategoryDisplay"] = rows.Select(c => c.CategoryDisplay).Where(x => !string.IsNullOrEmpty(x)).Select(x => x!).Distinct().OrderBy(x => x).ToList(),
+            ["ParamKey"] = rows.Select(c => c.ParamKey).Where(x => !string.IsNullOrEmpty(x)).Distinct().OrderBy(x => x).ToList(),
+            ["Remark"] = rows.Select(c => c.Remark).Where(x => !string.IsNullOrEmpty(x)).Select(x => x!).Distinct().OrderBy(x => x).ToList()
         };
     }
 

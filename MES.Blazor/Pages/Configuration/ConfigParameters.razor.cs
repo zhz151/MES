@@ -41,10 +41,10 @@ public partial class ConfigParameters
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "Context",        Label = "所属上下文", SortKey = "context",        FilterType = "string" },
-        new() { Key = "CategoryDisplay",Label = "分类及用途", SortKey = "categorydisplay",FilterType = null, IsRequired = true },
-        new() { Key = "ParamKey",       Label = "参数键",     SortKey = "paramkey",       FilterType = null, IsRequired = true },
+        new() { Key = "CategoryDisplay",Label = "分类及用途", SortKey = "categorydisplay",FilterType = "string", IsRequired = true },
+        new() { Key = "ParamKey",       Label = "参数键",     SortKey = "paramkey",       FilterType = "string", IsRequired = true },
         new() { Key = "ParamValue",     Label = "参数值",     SortKey = "paramvalue",     FilterType = null, IsRequired = true },
-        new() { Key = "Remark",         Label = "用途说明",   SortKey = "remark",         FilterType = null },
+        new() { Key = "Remark",         Label = "用途说明",   SortKey = "remark",         FilterType = "string" },
     };
 
     // ========== 服务端数据加载 ==========

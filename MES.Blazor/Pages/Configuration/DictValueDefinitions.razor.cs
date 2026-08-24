@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
+using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
@@ -8,6 +9,7 @@ using MES.Blazor.Shared;
 using MES.Core.Models;
 using MES.Core.DTOs.Configuration;
 using MES.Core.Constants;
+using System.Text.Json;
 
 namespace MES.Blazor.Pages.Configuration;
 
@@ -32,6 +34,10 @@ public partial class DictValueDefinitions
     private string sortColumn = "DictKey";
     private bool sortDescending = false;
 
+    // ========== ExcelFilter 筛选 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
+
     // ========== 列选择管理 ==========
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
@@ -39,12 +45,12 @@ public partial class DictValueDefinitions
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "DictKey",     Label = "字典标识", SortKey = "dictkey",     FilterType = null, IsRequired = true },
-        new() { Key = "Value",       Label = "英文 Key", SortKey = "value",       FilterType = null, IsRequired = true },
-        new() { Key = "DisplayName", Label = "中文显示", SortKey = "displayname", FilterType = null, IsRequired = true },
+        new() { Key = "DictKey",     Label = "字典标识", SortKey = "dictkey",     FilterType = "string", IsRequired = true },
+        new() { Key = "Value",       Label = "英文 Key", SortKey = "value",       FilterType = "string", IsRequired = true },
+        new() { Key = "DisplayName", Label = "中文显示", SortKey = "displayname", FilterType = "string", IsRequired = true },
         new() { Key = "DisplayOrder",Label = "显示顺序", SortKey = "displayorder",FilterType = null, IsRequired = true },
-        new() { Key = "IsEnabled",   Label = "启用",     SortKey = "isenabled",   FilterType = null },
-        new() { Key = "Remark",      Label = "说明",     SortKey = "remark",      FilterType = null },
+        new() { Key = "IsEnabled",   Label = "启用",     SortKey = "isenabled",   FilterType = "boolean" },
+        new() { Key = "Remark",      Label = "说明",     SortKey = "remark",      FilterType = "string" },
     };
 
     /// <summary>字典标识 → 中文说明（下拉/表格展示用）；工段/工序由专门配置表管理不在此列</summary>
@@ -89,14 +95,25 @@ public partial class DictValueDefinitions
                 IsDescending = sortDescending
             };
 
+            var filters = new List<FilterDescriptor>();
+
             // 按字典筛选（equals 精确匹配 DictKey）
             if (!string.IsNullOrEmpty(_selectedDictKey))
             {
-                query.Filters = new List<FilterDescriptor>
-                {
-                    new() { Field = "DictKey", Operator = "equals", Value = _selectedDictKey }
-                };
+                filters.Add(new FilterDescriptor { Field = "DictKey", Operator = "equals", Value = _selectedDictKey });
             }
+
+            // 列头 ExcelFilter 多选（in）
+            var columnFiltersJson = SerializeFilters();
+            if (columnFiltersJson != null)
+            {
+                var descriptors = JsonSerializer.Deserialize<List<FilterDescriptor>>(columnFiltersJson);
+                if (descriptors is { Count: > 0 })
+                    filters.AddRange(descriptors);
+            }
+
+            if (filters.Count > 0)
+                query.Filters = filters;
 
             var result = await DictValueDefinitionService.GetPagedAsync(query);
 
@@ -154,6 +171,70 @@ public partial class DictValueDefinitions
         _selectedDictKey = string.IsNullOrEmpty(value) ? null : value;
         _restoredPageIndex = 0;
         _isFirstLoad = true;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    // ========== ExcelFilter 筛选 ==========
+
+    private string? SerializeFilters()
+    {
+        if (_columnFilters.Count == 0) return null;
+        var descriptors = new List<FilterDescriptor>();
+        foreach (var kvp in _columnFilters)
+        {
+            if (kvp.Value.Count == 0) continue;
+            descriptors.Add(new FilterDescriptor
+            {
+                Field = kvp.Key,
+                Operator = "in",
+                Values = kvp.Value.ToList()
+            });
+        }
+        return descriptors.Count > 0 ? JsonSerializer.Serialize(descriptors) : null;
+    }
+
+    private async Task LoadFilterContextsAsync()
+    {
+        try
+        {
+            var result = await DictValueDefinitionService.GetFilterContextsAsync();
+            if (result.Success && result.Data != null)
+            {
+                BuildFilterContextOptions(result.Data);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
+    {
+        _filterContextOptions.Clear();
+        foreach (var kvp in filterContexts)
+        {
+            _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
+            {
+                Value = v,
+                Display = kvp.Key switch
+                {
+                    "DictKey" => GetDictKeyText(v),
+                    "IsEnabled" => v == "True" ? "启用" : "隐藏",
+                    _ => v
+                },
+                Count = 0
+            }).ToList();
+        }
+    }
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -307,7 +388,21 @@ public partial class DictValueDefinitions
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
+            if (savedState.Extras?.ContainsKey("columnFilters") == true)
+            {
+                try
+                {
+                    var raw = savedState.Extras["columnFilters"];
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(raw);
+                    if (dict != null)
+                        _columnFilters = dict.ToDictionary(kv => kv.Key, kv => new HashSet<string>(kv.Value));
+                }
+                catch { }
+            }
         }
+
+        // 加载筛选上下文（ExcelFilter 下拉选项）
+        await LoadFilterContextsAsync();
 
         if (savedState != null && table != null)
             await table.ReloadServerData();
@@ -464,12 +559,16 @@ public partial class DictValueDefinitions
 
     private async Task SavePageStateAsync()
     {
+        var extras = new Dictionary<string, string>();
+        if (_columnFilters.Count > 0)
+            extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         var state = new PageState
         {
             SortBy = sortColumn,
             IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPage
+            PageIndex = _currentPage,
+            Extras = extras
         };
         await PageState.SaveAsync("dict_value_definitions", state);
     }
