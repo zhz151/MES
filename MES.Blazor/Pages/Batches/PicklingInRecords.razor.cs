@@ -13,6 +13,7 @@ using MES.Core.DTOs.Shared;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
 using MES.Core.Enums;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Batches;
 
@@ -425,11 +426,7 @@ public partial class PicklingInRecords
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -795,7 +792,7 @@ public partial class PicklingInRecords
             .ToList();
 
         var request = new PicklingInRecordPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = columns };
-        var apiUrl = $"{Http.BaseAddress}api/pickling/print-selected-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Pickling}/print-selected-file";
         var json = JsonSerializer.Serialize(request);
         Snackbar.Add("正在生成PDF...", Severity.Info);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -818,7 +815,7 @@ public partial class PicklingInRecords
             CompleteDateTo = DateTime.TryParse(_completeDateTo, out var cdt) ? cdt : null,
             Columns = columns
         };
-        var apiUrl = $"{Http.BaseAddress}api/pickling/print-all-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Pickling}/print-all-file";
         var json = JsonSerializer.Serialize(request);
         Snackbar.Add("正在生成PDF...", Severity.Info);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

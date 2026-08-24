@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Blazor.Components;
+using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.Models;
@@ -9,6 +10,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.StandardRegister;
 
@@ -204,11 +206,7 @@ public partial class ChemicalValidationRules
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -734,7 +732,7 @@ public partial class ChemicalValidationRules
     private async Task PrintSelected()
     {
         if (!selectedIds.Any()) return;
-        var apiUrl = $"{Http.BaseAddress}api/chemical-validation-rule/print-batch-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ChemicalValidationRule}/print-batch-file";
         var request = new ChemicalValidationRulePrintBatchRequest
         {
             Ids = selectedIds.ToArray(),
@@ -746,7 +744,7 @@ public partial class ChemicalValidationRules
 
     private async Task PrintAll()
     {
-        var apiUrl = $"{Http.BaseAddress}api/chemical-validation-rule/print-all-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ChemicalValidationRule}/print-all-file";
         var request = new ChemicalValidationRulePrintAllRequest
         {
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,

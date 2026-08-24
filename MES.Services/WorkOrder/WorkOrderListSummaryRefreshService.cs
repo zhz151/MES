@@ -326,9 +326,9 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
             var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
             var completedOutputByMainNo = batches
                 .Where(b => b.Status == BatchStatus.Completed
-                         && b.ProductionType != "Rework"
+                         && b.ProductionType != ProductionTypeKeys.Rework
                          && !IsExternalOrStockBatch(b)
-                         && (b.ManufacturingItem == "OrderFinished" || b.ManufacturingItem == "SpecialDeliveryStatus"))
+                         && (b.ManufacturingItem == InventoryMaterialTypes.OrderFinished || b.ManufacturingItem == InventoryMaterialTypes.SpecialDeliveryStatus))
                 .GroupBy(b => (b.SalesOrderNo, b.ProductionMainNo))
                 .ToDictionary(
                     g => g.Key,
@@ -777,7 +777,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
     /// 批次投料完成后不再经 completedOutput 重复扣减，否则外购/库存重量被扣除两次造成负值低估。
     /// </summary>
     private static bool IsExternalOrStockBatch(ProductionBatch b)
-        => b.ProductionType == "OutsourcedPurchased" || b.ProductionType == "Inventory";
+        => b.ProductionType == ProductionTypeKeys.OutsourcedPurchased || b.ProductionType == ProductionTypeKeys.Inventory;
 
     /// <summary>
     /// 判断工序组是否含有效工段（"在制修检"和"附加成检"不计入有效工序组）

@@ -116,6 +116,24 @@ public class ProductRequirementServiceTests : TestBase
     }
 
     [Fact]
+    public async Task CreateOrUpdateAsync_交货状态同步写入订单项次()
+    {
+        var ctx = CreateDbContext();
+        var (_, itemId) = await SeedOrderItemAsync(ctx);
+        var svc = CreateService(ctx);
+
+        await svc.CreateOrUpdateAsync(itemId, new CreateProductRequirementRequest
+        {
+            RequirementType = RequirementType.Normal,
+            ChemicalComposition = true,
+            DeliveryState = DeliveryState.Bright
+        });
+
+        var item = await ctx.OrderItems.FirstAsync(oi => oi.Id == itemId);
+        item.DeliveryState.Should().Be(DeliveryState.Bright);
+    }
+
+    [Fact]
     public async Task CreateOrUpdateAsync_更新已存在的要求_成功()
     {
         var ctx = CreateDbContext();

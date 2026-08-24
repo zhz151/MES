@@ -60,6 +60,35 @@ public class DictValueDisplayHelperTests
     }
 
     [Fact]
+    public void GetText_原锁备注_无覆盖_Keys兜底中文()
+    {
+        DictValueDisplayHelper.OverrideMap = null;
+        DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, "QualityReplenish").Should().Be("A质量补料");
+        DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, "ImprovePlan").Should().Be("D完善计划");
+        DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, null).Should().BeNull();
+    }
+
+    [Fact]
+    public void GetText_生产关注_无覆盖_Keys兜底中文()
+    {
+        DictValueDisplayHelper.OverrideMap = null;
+        DictValueDisplayHelper.GetText(DictValueDefaults.ProductionAttentionKey, "ProductionFinish").Should().Be("生产收尾");
+        DictValueDisplayHelper.GetText(DictValueDefaults.ProductionAttentionKey, "UnknownKey").Should().Be("UnknownKey");
+    }
+
+    [Fact]
+    public void DictKeys_不含工段工序_防配置页双入口()
+    {
+        // 工段/工序由专门配置表管理，不得在配置页下拉暴露（否则恢复默认会注入死行）
+        DictValueDefaults.DictKeys.Should().NotContain(DictValueDefaults.SectionKey);
+        DictValueDefaults.DictKeys.Should().NotContain(DictValueDefaults.ProcessKey);
+        // 新增 2 字典必须可配置
+        DictValueDefaults.DictKeys.Should().Contain(DictValueDefaults.RawMaterialLockRemarkKey);
+        DictValueDefaults.DictKeys.Should().Contain(DictValueDefaults.ProductionAttentionKey);
+        DictValueDefaults.DictKeys.Should().Contain(DictValueDefaults.NcrResponsibilityKey);
+    }
+
+    [Fact]
     public void GetText_覆盖含新加值()
     {
         try

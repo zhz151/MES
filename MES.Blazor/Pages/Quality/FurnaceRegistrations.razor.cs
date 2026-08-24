@@ -12,6 +12,7 @@ using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -216,11 +217,7 @@ public partial class FurnaceRegistrations
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -649,7 +646,7 @@ public partial class FurnaceRegistrations
     private async Task PrintSelected()
     {
         if (!selectedIds.Any()) return;
-        var apiUrl = $"{Http.BaseAddress}api/furnace-registration/print-batch-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.FurnaceRegistration}/print-batch-file";
         var request = new FurnaceRegistrationPrintBatchRequest
         {
             Ids = selectedIds.ToArray(),
@@ -661,7 +658,7 @@ public partial class FurnaceRegistrations
 
     private async Task PrintAll()
     {
-        var apiUrl = $"{Http.BaseAddress}api/furnace-registration/print-all-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.FurnaceRegistration}/print-all-file";
 
         DateTime? dateFrom = null;
         DateTime? dateTo = null;

@@ -13,6 +13,7 @@ using MES.Core.DTOs.WorkOrder;
 using MES.Core.DTOs.Shared;
 using System.Reflection;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.WorkOrders;
 
@@ -253,7 +254,7 @@ public partial class OrderDemandAdjustment
                 Display = kvp.Key switch
                 {
                     "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, v) ?? v,
-                    "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(v) ?? v,
+                    "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, v) ?? v,
                     _ => v
                 },
                 Count = 0
@@ -286,11 +287,7 @@ public partial class OrderDemandAdjustment
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -694,7 +691,7 @@ public partial class OrderDemandAdjustment
                 builder.AddContent(0, item.DaysDiffFromDelivery.HasValue ? $"{item.DaysDiffFromDelivery}天" : "-");
                 break;
             case "RawMaterialLockRemark":
-                builder.AddContent(0, RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "-");
+                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "-");
                 break;
             case "IsUrging":
                 // 内联编辑：Switch 切换催单状态
@@ -810,7 +807,7 @@ public partial class OrderDemandAdjustment
             };
 
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/order-demand-adjustment/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.OrderDemandAdjustment}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -855,7 +852,7 @@ public partial class OrderDemandAdjustment
             };
 
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/order-demand-adjustment/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.OrderDemandAdjustment}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -906,7 +903,7 @@ public partial class OrderDemandAdjustment
         "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "",
         "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
         "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
-        "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "",
+        "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "",
         _ => ""
     })!;
 

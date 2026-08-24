@@ -10,6 +10,7 @@ using MES.Core.Models;
 using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.StandardRegister;
 
@@ -42,7 +43,7 @@ public partial class StandardInspectionRequirements
         try
         {
             var request = new StandardInspectionRequirementPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
-            var apiUrl = $"{Http.BaseAddress}api/standard-inspection-requirement/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.StandardInspectionRequirement}/print-batch-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }
@@ -60,7 +61,7 @@ public partial class StandardInspectionRequirements
                 IsDescending = sortDescending,
                 Columns = GetPrintColumnDefs()
             };
-            var apiUrl = $"{Http.BaseAddress}api/standard-inspection-requirement/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.StandardInspectionRequirement}/print-all-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }

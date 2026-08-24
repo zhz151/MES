@@ -38,6 +38,8 @@ public static class DictValueDisplayHelper
             DictValueDefaults.ProductionOverviewRowKey => ProductionOverviewRowKeys.ToChinese(value),
             DictValueDefaults.LiabilityTypeKey => LiabilityTypeKeys.ToChinese(value),
             DictValueDefaults.NcrResponsibilityKey => NcrResponsibilityKeys.ToChinese(value),
+            DictValueDefaults.RawMaterialLockRemarkKey => RawMaterialLockRemarkKeys.ToChinese(value),
+            DictValueDefaults.ProductionAttentionKey => ProductionAttentionKeys.ToChinese(value),
             _ => value
         } ?? value;
     }

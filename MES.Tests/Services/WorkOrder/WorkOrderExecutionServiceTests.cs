@@ -15,6 +15,7 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
@@ -718,6 +719,44 @@ public class WorkOrderExecutionServiceTests : TestBase
     private static void AssertConsistency(WorkOrderExecutionSummaryDto dto, int expected)
     {
         dto.PlanInputConsistency.Should().Be(expected);
+    }
+
+    [Fact]
+    public void PlanInputConsistency_Provider容差调整_排序表达式与DTO档位一致()
+    {
+        // 第三期：±3% 容差可配置（ConfigParameter.MaterialPlanTolerance.InputConsistencyTolerance 键）。
+        // 三处消费（排序表达式 BuildPlanInputConsistencyExpr / 筛选 ApplyComputedFilters / DTO 计算属性 PlanInputConsistency）
+        // 读 MaterialPlanToleranceProvider 统一快照，改配置表保存即生效。
+        // 此测试验证：Provider 容差变更后，排序表达式求值与 DTO 判定结果一致且按新容差。
+        var original = MaterialPlanToleranceProvider.InputConsistencyTolerance;
+        try
+        {
+            // 默认容差 0.03：InputWeight=105 vs SemiInWeight=100 → 105 > 103 → 档 3（疑问-到料超投）
+            MaterialPlanToleranceProvider.Apply(0.03m);
+            var dto1 = new WorkOrderExecutionSummaryDto { ScheduleStage = 0, InputWeight = 105m, SemiInWeight = 100m };
+            dto1.PlanInputConsistency.Should().Be(3);
+            BuildPlanInputConsistencyValue(new WorkOrderExecutionSummary { ScheduleStage = 0, InputWeight = 105m, SemiInWeight = 100m })
+                .Should().Be(3);
+
+            // 放宽容差到 0.10：105 < 110 → 档 0（一致）；表达式与 DTO 同步变化（同快照值）
+            MaterialPlanToleranceProvider.Apply(0.10m);
+            var dto2 = new WorkOrderExecutionSummaryDto { ScheduleStage = 0, InputWeight = 105m, SemiInWeight = 100m };
+            dto2.PlanInputConsistency.Should().Be(0);
+            BuildPlanInputConsistencyValue(new WorkOrderExecutionSummary { ScheduleStage = 0, InputWeight = 105m, SemiInWeight = 100m })
+                .Should().Be(0);
+        }
+        finally
+        {
+            MaterialPlanToleranceProvider.Apply(original);
+        }
+    }
+
+    private static int BuildPlanInputConsistencyValue(WorkOrderExecutionSummary entity)
+    {
+        var method = typeof(WorkOrderExecutionService)
+            .GetMethod("BuildPlanInputConsistencyExpr", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var expr = (System.Linq.Expressions.Expression<Func<WorkOrderExecutionSummary, int>>)method.Invoke(null, null)!;
+        return expr.Compile()(entity);
     }
 
     [Fact]

@@ -633,7 +633,7 @@ public partial class RawMaterialLockPlanAndExecution
                         Display = col.Key switch
                         {
                             "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, val) ?? val!,
-                            "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(val) ?? val!,
+                            "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, val) ?? val!,
                             _ => val!
                         },
                         Count = _allItems.Count(x => string.Equals(GetFilterValue(x, col.Key), val, StringComparison.OrdinalIgnoreCase))
@@ -1023,7 +1023,7 @@ public partial class RawMaterialLockPlanAndExecution
             };
 
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/raw-material-lock-plan/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.RawMaterialLockPlan}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -1143,7 +1143,7 @@ public partial class RawMaterialLockPlanAndExecution
             "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "",
             "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
             "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
-            "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "",
+            "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "",
             "IsUrging" => item.IsUrging,
             "IsBatchDelivery" => item.IsBatchDelivery,
             "IsPaused" => item.IsPaused,
@@ -1639,7 +1639,7 @@ public partial class RawMaterialLockPlanAndExecution
                 builder.AddContent(0, item.DaysDiffFromDelivery.HasValue ? $"{item.DaysDiffFromDelivery}天" : "-");
                 break;
             case "RawMaterialLockRemark":
-                builder.AddContent(0, RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "-");
+                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "-");
                 break;
 
             // G6

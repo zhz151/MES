@@ -12,6 +12,7 @@ using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Scheduling;
 
@@ -1858,7 +1859,7 @@ public partial class BatchPlans
                 Items = printItems,
                 Columns = printColumns
             };
-            var apiUrl = $"{Http.BaseAddress}api/section-paragraph-flow-analysis/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.SectionParagraphFlowAnalysis}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -1898,7 +1899,7 @@ public partial class BatchPlans
                 Items = printItems,
                 Columns = printColumns
             };
-            var apiUrl = $"{Http.BaseAddress}api/section-flow-analysis/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.SectionFlowAnalysis}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -1941,7 +1942,7 @@ public partial class BatchPlans
             };
 
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/batch-plan/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.BatchPlan}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

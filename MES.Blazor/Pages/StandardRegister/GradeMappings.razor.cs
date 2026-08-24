@@ -12,6 +12,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Order;
 using MES.Core.DTOs.StandardRegister;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.StandardRegister;
 
@@ -190,11 +191,7 @@ public partial class GradeMappings
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -645,7 +642,7 @@ public partial class GradeMappings
         {
             var ids = selectedIds.ToArray();
             var request = new OrderPrintBatchRequest { Ids = ids, Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList() };
-            var apiUrl = $"{Http.BaseAddress}api/grade-mapping/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.GradeMapping}/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -666,7 +663,7 @@ public partial class GradeMappings
                 IsDescending = sortDescending,
                 Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
             };
-            var apiUrl = $"{Http.BaseAddress}api/grade-mapping/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.GradeMapping}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

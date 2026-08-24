@@ -12,6 +12,7 @@ using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Equipment;
 
@@ -799,7 +800,7 @@ public partial class RepairOrders
             var ids = selectedIds.ToArray();
             var columns = GetPrintColumnDefs();
             var request = new RepairOrderPrintBatchRequest { Ids = ids, Columns = columns };
-            var apiUrl = $"{Http.BaseAddress}api/repair-order/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.RepairOrder}/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -822,7 +823,7 @@ public partial class RepairOrders
                 IsDescending = sortDescending,
                 Columns = columns
             };
-            var apiUrl = $"{Http.BaseAddress}api/repair-order/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.RepairOrder}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

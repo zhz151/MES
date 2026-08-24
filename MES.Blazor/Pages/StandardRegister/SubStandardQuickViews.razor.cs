@@ -12,6 +12,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.StandardRegister;
 
@@ -44,7 +45,7 @@ public partial class SubStandardQuickViews
         try
         {
             var request = new SubStandardQuickViewPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
-            var apiUrl = $"{Http.BaseAddress}api/sub-standard-quick-view/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.SubStandardQuickView}/print-batch-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }
@@ -62,7 +63,7 @@ public partial class SubStandardQuickViews
                 IsDescending = sortDescending,
                 Columns = GetPrintColumnDefs()
             };
-            var apiUrl = $"{Http.BaseAddress}api/sub-standard-quick-view/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.SubStandardQuickView}/print-all-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }

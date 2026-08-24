@@ -11,6 +11,7 @@ using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
 using MES.Core.Enums;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Configuration;
 
@@ -59,7 +60,7 @@ public partial class Workstations
         try
         {
             var request = new WorkstationPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
-            var apiUrl = $"{Http.BaseAddress}api/workstation/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Workstation}/print-batch-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }
@@ -77,7 +78,7 @@ public partial class Workstations
                 IsDescending = sortDescending,
                 Columns = GetPrintColumnDefs()
             };
-            var apiUrl = $"{Http.BaseAddress}api/workstation/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Workstation}/print-all-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }

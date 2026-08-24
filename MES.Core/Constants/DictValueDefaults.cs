@@ -4,9 +4,11 @@ namespace MES.Core.Constants;
 
 /// <summary>
 /// 字典值默认显示映射聚合：DictKey → Value → DisplayName。
-/// 覆盖 8 个 string 字典 Keys 常量类（工段/工序/紧急度/产类/流转/关注目标/汇总行/责任类别），
+/// 覆盖 string 字典 Keys 常量类（紧急度/产类/流转/关注目标/汇总行/责任类别/NCR责任类别/原锁备注/生产关注），
 /// 供 DictValueDefinitionService 的 GetDisplayMapAsync 兜底与 RestoreDefaultsAsync 恢复默认行使用。
 /// DictKey 为该字典在 DictValueDefinition 表中的稳定标识（配置页按此分组管理）。
+/// 注意：工段/工序由各自专门配置表（StandardWorkDays/ProcessDefinitions）管理，其映射保留在 All 中
+/// 仅供 GetText/display-map 兜底，但不在 DictKeys（配置页下拉）暴露，避免与专门表双入口。
 /// </summary>
 public static class DictValueDefaults
 {
@@ -38,14 +40,24 @@ public static class DictValueDefaults
     /// <summary>NCR 责任类别（NcrResponsibilityKeys）</summary>
     public const string NcrResponsibilityKey = "NcrResponsibilityKey";
 
-    /// <summary>全部字典标识有序列表（配置页下拉/列表用）</summary>
+    /// <summary>原锁备注（RawMaterialLockRemarkKeys）</summary>
+    public const string RawMaterialLockRemarkKey = "RawMaterialLockRemarkKey";
+
+    /// <summary>生产关注工序特殊值（ProductionAttentionKeys）</summary>
+    public const string ProductionAttentionKey = "ProductionAttentionKey";
+
+    /// <summary>
+    /// 全部字典标识有序列表（配置页下拉/列表用）。
+    /// 不含工段/工序（由专门配置表管理，见类注释）。
+    /// </summary>
     public static readonly string[] DictKeys =
     [
-        SectionKey, ProcessKey, UrgencyLevelKey, ProductStatus, ProductionFlowKey,
-        FlowTargetKey, ProductionOverviewRowKey, LiabilityTypeKey, NcrResponsibilityKey
+        UrgencyLevelKey, ProductStatus, ProductionFlowKey, FlowTargetKey,
+        ProductionOverviewRowKey, LiabilityTypeKey, NcrResponsibilityKey,
+        RawMaterialLockRemarkKey, ProductionAttentionKey
     ];
 
-    /// <summary>全量：DictKey → Value → DisplayName（含 8 个字典全部内置值）</summary>
+    /// <summary>全量：DictKey → Value → DisplayName（工段/工序专门表 + 9 个可配置字典全部内置值）</summary>
     public static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> All =
         new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
         {
@@ -58,6 +70,8 @@ public static class DictValueDefaults
             [ProductionOverviewRowKey] = Copy(ProductionOverviewRowKeys.KeyToChinese),
             [LiabilityTypeKey] = Copy(LiabilityTypeKeys.KeyToChinese),
             [NcrResponsibilityKey] = Copy(NcrResponsibilityKeys.KeyToChinese),
+            [RawMaterialLockRemarkKey] = Copy(RawMaterialLockRemarkKeys.KeyToChinese),
+            [ProductionAttentionKey] = Copy(ProductionAttentionKeys.KeyToChinese),
         };
 
     private static IReadOnlyDictionary<string, string> Copy(IReadOnlyDictionary<string, string> source)

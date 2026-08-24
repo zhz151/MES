@@ -154,7 +154,7 @@ public partial class PurchaseOrders : IAsyncDisposable
             new() { Key = "Received",            Label = "已到货量",     Width = "100", GroupKey = 3, GroupName = "执行状态" },
             new() { Key = "Returned",            Label = "退货量",       Width = "100", GroupKey = 3, GroupName = "执行状态" },
             new() { Key = "IsForceCompleted",    Label = "属强制完成",   SortKey = "isforcecompleted", FilterType = "enum", Width = "100", GroupKey = 3, GroupName = "执行状态",
-                EnumOptions = new() { new("True", "是"), new("False", "否") } },
+                EnumOptions = DisplayHelper.GetBoolOptions() },
         };
 
         // G3: 来源销售订单（默认隐藏）
@@ -168,7 +168,7 @@ public partial class PurchaseOrders : IAsyncDisposable
             new() { Key = "WoEndCustomer",       Label = "最终用户",     SortKey = "woendcustomer", FilterType = "string", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
             new() { Key = "WoDeliveryDate",      Label = "交货日期",     SortKey = "wodeliverydate", FilterType = "date", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
             new() { Key = "WoDelayPenalty",      Label = "延期罚款",     SortKey = "wodelaypenalty", FilterType = "enum", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false,
-                EnumOptions = new() { new("True", "是"), new("False", "否") } },
+                EnumOptions = DisplayHelper.GetBoolOptions() },
             new() { Key = "WoSettlementMethod",  Label = "结算方式",     SortKey = "wosettlementmethod", FilterType = "enum", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false,
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
             new() { Key = "WoPlantGrade",        Label = "工厂牌号",     SortKey = "woplantgrade", FilterType = "string", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
@@ -445,7 +445,7 @@ public partial class PurchaseOrders : IAsyncDisposable
         if (_filterContextOptions.TryGetValue("ExecutionRawMaterialLockRemark", out var execLockOptions))
         {
             foreach (var opt in execLockOptions)
-                opt.Display = RawMaterialLockRemarkKeys.ToChinese(opt.Value) ?? opt.Value;
+                opt.Display = DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, opt.Value) ?? opt.Value;
         }
 
         // 补充枚举列筛选选项（后端不返回枚举列 DISTINCT 值）
@@ -593,7 +593,7 @@ public partial class PurchaseOrders : IAsyncDisposable
                 }
                 break;
             case "ExecutionRawMaterialLockRemark":
-                builder.AddContent(0, string.IsNullOrEmpty(item.ExecutionRawMaterialLockRemark) ? "-" : (RawMaterialLockRemarkKeys.ToChinese(item.ExecutionRawMaterialLockRemark) ?? "-"));
+                builder.AddContent(0, string.IsNullOrEmpty(item.ExecutionRawMaterialLockRemark) ? "-" : (DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.ExecutionRawMaterialLockRemark) ?? "-"));
                 break;
             case "ExecutionUrgencyLevel":
                 builder.AddContent(0, string.IsNullOrEmpty(item.ExecutionUrgencyLevel) ? "-" : (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.ExecutionUrgencyLevel) ?? "-"));
@@ -1120,7 +1120,7 @@ public partial class PurchaseOrders : IAsyncDisposable
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var ids = selectedIds.ToArray();
             var request = new OrderPrintBatchRequest { Ids = ids, Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList() };
-            var apiUrl = $"{Navigation.BaseUri}api/purchase-order/print-batch-file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.PurchaseOrder}/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -1143,7 +1143,7 @@ public partial class PurchaseOrders : IAsyncDisposable
                 DateTo = dateTo,
                 Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
             };
-            var apiUrl = $"{Navigation.BaseUri}api/purchase-order/print-all-file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.PurchaseOrder}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

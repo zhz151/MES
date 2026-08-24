@@ -392,22 +392,26 @@ public class OrderService : IOrderService
                 s.OrderNumber,
                 DeliveryEnd = s.DeliveryEnd!.Value,
                 Estimated = s.EstimatedCompletionDate!.Value,
-                s.TotalContractWeight
+                s.TotalContractWeight,
+                s.HasDelayPenalty
             })
             .ToListAsync();
 
         var delayOrders = orders.Where(o => o.Estimated > o.DeliveryEnd).ToList();
         var onTimeOrders = orders.Where(o => o.Estimated <= o.DeliveryEnd).ToList();
 
-        // 表2：延期交货订单预估（延期订单按交期截止归桶）
+        // 表2：延期交货订单预估（延期订单按交期截止归桶；急中急=其中延期罚款=是的订单子集）
         var delayBuckets = new List<OrderDeliveryBucketDto>();
         for (var i = 0; i < 7; i++)
         {
             var subset = delayOrders.Where(o => GetDeliveryBucket(o.DeliveryEnd, now, bucket1, bucket2, bucket3, bucket4, bucket5) == i).ToList();
+            var urgent = subset.Where(o => o.HasDelayPenalty).ToList();
             delayBuckets.Add(new OrderDeliveryBucketDto
             {
                 Count = subset.Count,
-                Weight = subset.Sum(o => o.TotalContractWeight) / 1000m
+                Weight = subset.Sum(o => o.TotalContractWeight) / 1000m,
+                UrgentCount = urgent.Count,
+                UrgentWeight = urgent.Sum(o => o.TotalContractWeight) / 1000m
             });
         }
 

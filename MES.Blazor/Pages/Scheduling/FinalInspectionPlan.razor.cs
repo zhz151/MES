@@ -12,6 +12,7 @@ using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Scheduling;
 
@@ -30,8 +31,8 @@ public partial class FinalInspectionPlan
     private bool sortDescending;
 
     // 四档 Tab
-    private string? _selectedTab = "待到料";
-    private static readonly string[] _tabs = { "全部", "待到料", "待检验", "检验中", "完成检验待入库" };
+    private string? _selectedTab = KanbanStageKeys.WaitingMaterial;
+    private static readonly string[] _tabs = { "全部", KanbanStageKeys.WaitingMaterial, KanbanStageKeys.WaitingInspection, KanbanStageKeys.Inspecting, KanbanStageKeys.CompletedAwaitingInbound };
 
     // Tab 汇总
     private int _tabCount;
@@ -135,7 +136,7 @@ public partial class FinalInspectionPlan
         // G3: 成检状态
         var g3 = new List<ColumnDef>
         {
-            new() { Key = "KanbanStage",           Label = "成检阶段",   FilterType = "enum", Width = "100", EnumOptions = new() { new("待到料","待到料"), new("待检验","待检验"), new("检验中","检验中"), new("完成检验待入库","完成检验待入库") }, GroupKey = 3, GroupName = "成检状态" },
+            new() { Key = "KanbanStage",           Label = "成检阶段",   FilterType = "enum", Width = "100", EnumOptions = new() { new(KanbanStageKeys.WaitingMaterial, KanbanStageKeys.WaitingMaterial), new(KanbanStageKeys.WaitingInspection, KanbanStageKeys.WaitingInspection), new(KanbanStageKeys.Inspecting, KanbanStageKeys.Inspecting), new(KanbanStageKeys.CompletedAwaitingInbound, KanbanStageKeys.CompletedAwaitingInbound) }, GroupKey = 3, GroupName = "成检状态" },
             new() { Key = "ReceiveDate",           Label = "到料日期",   SortKey = "ReceiveDate",           Width = "110", GroupKey = 3, GroupName = "成检状态" },
             new() { Key = "MaxInspectionDate",     Label = "最晚检验",   SortKey = "MaxInspectionDate",     Width = "110", GroupKey = 3, GroupName = "成检状态" },
         };
@@ -406,11 +407,7 @@ public partial class FinalInspectionPlan
             }
             else if (col.FilterType == "boolean")
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -1105,7 +1102,7 @@ public partial class FinalInspectionPlan
             Columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList()
         };
 
-        var apiUrl = $"{Http.BaseAddress}api/final-inspection-plan/print-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.FinalInspectionPlan}/print-file";
         var json = JsonSerializer.Serialize(request);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }

@@ -8,6 +8,7 @@
 @using MES.Core.Constants
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
+@using MES.Shared.Constants
 @inject BatchService BatchService
 @inject ProductionRecordService ProdRecordService
 @inject WorkOrderService WorkOrderService
@@ -747,7 +748,7 @@
         try
         {
             var request = new PrintBatchFileRequest { Id = Id };
-            var apiUrl = $"{Http.BaseAddress}api/batch/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Batch}/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

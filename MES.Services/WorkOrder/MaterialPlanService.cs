@@ -2621,7 +2621,7 @@ public class MaterialPlanService : IMaterialPlanService
                      && (b.Status == BatchStatus.None
                       || b.Status == BatchStatus.InProgress
                       || b.Status == BatchStatus.InFinalInspection)
-                     && b.ManufacturingItem == "OrderFinished"
+                     && b.ManufacturingItem == InventoryMaterialTypes.OrderFinished
                      && b.CurrentValidWeight.HasValue && b.CurrentValidWeight > 0)
             .ToListAsync();
 
@@ -2871,7 +2871,7 @@ public class MaterialPlanService : IMaterialPlanService
             .Where(b => b.Status == BatchStatus.None
                      || b.Status == BatchStatus.InProgress
                      || b.Status == BatchStatus.InFinalInspection)
-            .Where(b => b.ManufacturingItem == "OrderFinished")
+            .Where(b => b.ManufacturingItem == InventoryMaterialTypes.OrderFinished)
             .Where(b => b.CurrentValidWeight.HasValue && b.CurrentValidWeight > 0);
 
         var batches = await batchQuery.ToListAsync();

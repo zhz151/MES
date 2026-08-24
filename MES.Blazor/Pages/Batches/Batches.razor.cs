@@ -14,6 +14,7 @@ using MES.Core.Enums;
 using MES.Core.Constants;
 using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Batches;
 
@@ -109,7 +110,7 @@ public partial class Batches
         new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "现执行状态",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<BatchStatus>() },
         new() { Key = "IsForceCompleted",   Label = "强制完成", SortKey = "isforcecompleted", FilterType = "enum", Width = "90", GroupKey = 2, GroupName = "现执行状态",
-            EnumOptions = new() { new("True", "是"), new("False", "否") } },
+            EnumOptions = DisplayHelper.GetBoolOptions() },
         new() { Key = "InspectionStage",    Label = "成检附加", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 2, GroupName = "现执行状态",
             EnumOptions = new() { new("PreInspection", "预检"), new("FormalInspection", "终检") } },
 
@@ -133,9 +134,9 @@ public partial class Batches
         new() { Key = "CutDoubt",       Label = "成切存疑", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 4, GroupName = "成品切割跟踪",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<CutDoubtType>() },
         new() { Key = "CutRequirement", Label = "成切需求", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 4, GroupName = "成品切割跟踪",
-            EnumOptions = new() { new("True", "是"), new("False", "否") } },
+            EnumOptions = DisplayHelper.GetBoolOptions() },
         new() { Key = "CutExecution",   Label = "成切执行", SortKey = null, FilterType = "enum", Width = "90", GroupKey = 4, GroupName = "成品切割跟踪",
-            EnumOptions = new() { new("True", "是"), new("False", "否") } },
+            EnumOptions = DisplayHelper.GetBoolOptions() },
         new() { Key = "CutQuantity",    Label = "成切支数", SortKey = null, Width = "90", GroupKey = 4, GroupName = "成品切割跟踪" },
 
         // ===== G5: 生产执行 =====
@@ -181,7 +182,7 @@ public partial class Batches
         new() { Key = "Salesman",           Label = "业务员",   SortKey = "salesman", FilterType = "string", Width = "120", GroupKey = 7, GroupName = "工单信息" },
         new() { Key = "EndCustomer",        Label = "最终用户", SortKey = "endcustomer", FilterType = "string", Width = "120", GroupKey = 7, GroupName = "工单信息" },
         new() { Key = "DelayPenalty",       Label = "延期罚款", SortKey = "delaypenalty", FilterType = "enum", Width = "120", GroupKey = 7, GroupName = "工单信息",
-            EnumOptions = new() { new("True", "是"), new("False", "否") } },
+            EnumOptions = DisplayHelper.GetBoolOptions() },
         new() { Key = "SettlementMethod",   Label = "结算方式", SortKey = "settlementmethod", FilterType = "enum", Width = "120", GroupKey = 7, GroupName = "工单信息",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
 
@@ -427,11 +428,7 @@ public partial class Batches
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -1051,7 +1048,7 @@ public partial class Batches
                 Ids = ids,
                 Columns = GetPrintColumnDefs()
             };
-            var apiUrl = $"{Http.BaseAddress}api/batch/print-selected-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Batch}/print-selected-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -1073,7 +1070,7 @@ public partial class Batches
                 StartDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
                 Columns = GetPrintColumnDefs()
             };
-            var apiUrl = $"{Http.BaseAddress}api/batch/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Batch}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

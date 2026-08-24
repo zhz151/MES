@@ -116,6 +116,9 @@ public class ProductRequirementService : IProductRequirementService
             existing.OrderNo = orderNo;
             existing.ItemSequence = orderItem.Sequence;
 
+            // 交货状态同步到订单项次（OrderItem.DeliveryState）
+            orderItem.DeliveryState = request.DeliveryState;
+
             await _context.SaveChangesAsync();
             await _orderService.RefreshByOrderIdAsync(orderItem.SalesOrderId);
             return await MapToDtoWithSequenceAsync(existing, orderItem.Sequence);
@@ -160,6 +163,9 @@ public class ProductRequirementService : IProductRequirementService
                 Macrostructure = request.Macrostructure,
                 OtherRequirement = request.OtherRequirement
             };
+
+            // 交货状态同步到订单项次（OrderItem.DeliveryState）
+            orderItem.DeliveryState = request.DeliveryState;
 
             _context.ProductRequirements.Add(entity);
             await _context.SaveChangesAsync();

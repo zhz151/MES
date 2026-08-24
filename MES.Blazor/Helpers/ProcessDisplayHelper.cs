@@ -1,4 +1,5 @@
 using MES.Core.Constants;
+using MES.Core.Helpers;
 
 namespace MES.Blazor.Helpers;
 
@@ -17,8 +18,9 @@ public static class ProcessDisplayHelper
     public static string GetProcessNameText(string? value)
     {
         if (string.IsNullOrEmpty(value)) return value ?? string.Empty;
-        // 关注工序特殊值（生产收尾）优先于工序映射
-        if (ProductionAttentionKeys.IsKey(value)) return ProductionAttentionKeys.ToChinese(value)!;
+        // 关注工序特殊值（生产收尾）优先于工序映射（显示名可经 DictValueDefinition 配置表调整）
+        if (ProductionAttentionKeys.IsKey(value))
+            return DictValueDisplayHelper.GetText(DictValueDefaults.ProductionAttentionKey, value) ?? value;
         if (OverrideMap != null && OverrideMap.TryGetValue(value, out var cn))
             return cn;
         return ProcessKeys.ToChinese(value) ?? value;

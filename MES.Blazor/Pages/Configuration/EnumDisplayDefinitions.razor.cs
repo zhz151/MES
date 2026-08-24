@@ -89,6 +89,7 @@ public partial class EnumDisplayDefinitions
         ["ReportTemplateType"] = "报工模板类型",
         ["BatchInputType"] = "批次投料方式",
         ["CutDoubtType"] = "成切疑问",
+        ["InspectionRequirementStage"] = "技术要求检验阶段",
     };
 
     private static string GetEnumKeyText(string enumKey)

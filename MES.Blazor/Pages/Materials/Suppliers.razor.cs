@@ -13,6 +13,7 @@ using MES.Core.DTOs.Order;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Materials;
 
@@ -221,11 +222,7 @@ public partial class Suppliers
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -670,7 +667,7 @@ public partial class Suppliers
                 Ids = ids,
                 Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
             };
-            var apiUrl = $"{Navigation.BaseUri}api/supplier/print-batch-file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Supplier}/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -692,7 +689,7 @@ public partial class Suppliers
                 IsDescending = sortDescending,
                 Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
             };
-            var apiUrl = $"{Navigation.BaseUri}api/supplier/print-all-file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Supplier}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

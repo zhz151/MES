@@ -317,6 +317,12 @@ using (var scope = app.Services.CreateScope())
     var dictDisplayMap = await dictDisplayService.GetDisplayMapAsync();
     DictValueDisplayHelper.OverrideMap = dictDisplayMap;
 
+    // 用料计划执行容差静态快照注入 MaterialPlanToleranceProvider（读 MaterialPlanTolerance 类目 InputConsistencyTolerance 键），
+    // 三处消费（排序/筛选表达式 + DTO 计算属性）口径一致；改配置表由 ConfigParameterService 写操作即时刷新，无需重启
+    var configParamService = scope.ServiceProvider.GetRequiredService<IConfigParameterService>();
+    var configMap = await configParamService.GetConfigMapAsync("MaterialPlanTolerance");
+    MaterialPlanToleranceProvider.Apply(configMap.GetValueOrDefault("InputConsistencyTolerance"));
+
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("读模型刷新已移除，使用实时查询模式");
 }

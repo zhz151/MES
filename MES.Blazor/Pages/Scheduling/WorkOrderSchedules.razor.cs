@@ -13,6 +13,7 @@ using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Scheduling;
 
@@ -345,7 +346,7 @@ public partial class WorkOrderSchedules
                             "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" or "PendingProcess" or "ProductionAttentionProcess" or "MainNoAttentionProcess" or "PlanProductionAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(val!),
                             "UrgencyLevel" or "PlanUrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,val!),
                             "ProductionFlowProperty" or "PlanProductionFlowProperty" => DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey,val!),
-                            "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(val!),
+                            "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, val!),
                             _ => val!
                         }) ?? val!,
                         Count = _allItems.Count(x => string.Equals(GetFilterValue(x, col.Key), val, StringComparison.OrdinalIgnoreCase))
@@ -974,7 +975,7 @@ public partial class WorkOrderSchedules
                 builder.AddContent(0, item.DaysDiffFromDelivery.HasValue ? $"{item.DaysDiffFromDelivery}天" : "-");
                 break;
             case "RawMaterialLockRemark":
-                builder.AddContent(0, RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "-");
+                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "-");
                 break;
 
             // G13
@@ -1400,7 +1401,7 @@ public partial class WorkOrderSchedules
             };
 
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/workorder-schedule/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.WorkOrderSchedule}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -1461,7 +1462,7 @@ public partial class WorkOrderSchedules
             "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,item.UrgencyLevel) ?? "",
             "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
             "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
-            "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "",
+            "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "",
             "IsUrging" => item.IsUrging,
             "IsBatchDelivery" => item.IsBatchDelivery,
             "IsPaused" => item.IsPaused,

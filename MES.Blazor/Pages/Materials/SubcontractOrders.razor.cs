@@ -360,11 +360,7 @@ public partial class SubcontractOrders : IAsyncDisposable
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -621,7 +617,7 @@ public partial class SubcontractOrders : IAsyncDisposable
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var ids = selectedIds.ToArray();
             var request = new OrderPrintBatchRequest { Ids = ids };
-            var apiUrl = $"{Navigation.BaseUri}api/subcontract/print-batch-file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Subcontract}/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -643,7 +639,7 @@ public partial class SubcontractOrders : IAsyncDisposable
                 DateFrom = dateFrom,
                 DateTo = dateTo
             };
-            var apiUrl = $"{Navigation.BaseUri}api/subcontract/print-all-file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Subcontract}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

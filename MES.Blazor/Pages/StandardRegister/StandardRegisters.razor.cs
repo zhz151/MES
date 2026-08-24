@@ -11,6 +11,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.StandardRegister;
 
@@ -44,7 +45,7 @@ public partial class StandardRegisters
         try
         {
             var request = new StandardRegisterPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
-            var apiUrl = $"{Http.BaseAddress}api/standard-register/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.StandardRegister}/print-batch-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }
@@ -62,7 +63,7 @@ public partial class StandardRegisters
                 IsDescending = sortDescending,
                 Columns = GetPrintColumnDefs()
             };
-            var apiUrl = $"{Http.BaseAddress}api/standard-register/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.StandardRegister}/print-all-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }
@@ -261,11 +262,7 @@ public partial class StandardRegisters
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }

@@ -1,6 +1,7 @@
 using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
+using MES.Blazor.Components;
 using MES.Blazor.Services;
 using MudBlazor;
 
@@ -270,6 +271,20 @@ public static class DisplayHelper
     /// 获取布尔值中文显示
     /// </summary>
     public static string GetYesNoText(bool value) => value ? "是" : "否";
+
+    /// <summary>布尔列筛选选项统一出口（Value="True"/"False"，Display=是/否），供列定义 EnumOptions 使用</summary>
+    public static List<EnumOption> GetBoolOptions() => new()
+    {
+        new("True", "是"),
+        new("False", "否"),
+    };
+
+    /// <summary>布尔列筛选上下文选项统一出口：Value="True"/"False"，显示走列参数化标签（BoolTrueLabel/BoolFalseLabel，兜底是/否）</summary>
+    public static List<ExcelFilterOption> GetBoolFilterOptions(ColumnDef col) => new()
+    {
+        new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
+        new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 },
+    };
 
     /// <summary>
     /// 获取工段完工状态中文文本

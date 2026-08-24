@@ -558,14 +558,8 @@ public class ColdRollPlanService : IColdRollPlanService
             .Where(a => a.PositionDiff <= 6)
             .ToList();
 
-        // 轧机类型归并（ProcessType 英文 Key）
-        var machineTypeGroups = new[]
-        {
-            (Display: "冷轧5060", Keys: new[] { ProcessKeys.ColdRoll50, ProcessKeys.ColdRoll60 }),
-            (Display: "冷轧2030", Keys: new[] { ProcessKeys.ColdRoll20, ProcessKeys.ColdRoll30 }),
-            (Display: "冷轧三辊", Keys: new[] { ProcessKeys.ThreeRollColdRoll }),
-            (Display: "冷拔", Keys: new[] { ProcessKeys.ColdDraw }),
-        };
+        // 轧机类型归并（ProcessType 英文 Key，机台组定义见 ColdRollMachineGroupKeys）
+        var machineTypeGroups = ColdRollMachineGroupKeys.Groups;
 
         var result = new List<ColdRollMachineEstimateDto>();
         foreach (var group in machineTypeGroups)
@@ -578,19 +572,28 @@ public class ColdRollPlanService : IColdRollPlanService
 
             // 机台需求：Σ(规格流转量 ÷ 单机单日量) ÷ 6天，四舍五入；单机单日量为空/≤0 的规格贡献 0
             // 单机单日量取值：产能档案（参数表）优先，缺失/无效回退排程小表
-            decimal machineDays = 0m;
-            foreach (var a in groupAlloc)
+            // 5060 组与排程建议同口径：在制/成品分档各自四舍五入再相加（其余组整组一次取整）
+            int MachineCountOf(IEnumerable<BatchAllocation> allocs)
             {
-                var key = $"{a.ProcessType}|{a.BilletSpec}|{a.RollingSpec}|{a.IsFinished}";
-                decimal? dailyOutput = null;
-                if (capacityDict.TryGetValue(key, out var capOutput) && capOutput.HasValue && capOutput.Value > 0)
-                    dailyOutput = capOutput;
-                else if (scheduleDict.TryGetValue(key, out var sched) && sched.DailyOutput.HasValue && sched.DailyOutput.Value > 0)
-                    dailyOutput = sched.DailyOutput;
+                decimal machineDays = 0m;
+                foreach (var a in allocs)
+                {
+                    var key = $"{a.ProcessType}|{a.BilletSpec}|{a.RollingSpec}|{a.IsFinished}";
+                    decimal? dailyOutput = null;
+                    if (capacityDict.TryGetValue(key, out var capOutput) && capOutput.HasValue && capOutput.Value > 0)
+                        dailyOutput = capOutput;
+                    else if (scheduleDict.TryGetValue(key, out var sched) && sched.DailyOutput.HasValue && sched.DailyOutput.Value > 0)
+                        dailyOutput = sched.DailyOutput;
 
-                if (dailyOutput.HasValue)
-                    machineDays += a.Weight / (dailyOutput.Value * 6m);
+                    if (dailyOutput.HasValue)
+                        machineDays += a.Weight / (dailyOutput.Value * 6m);
+                }
+                return (int)Math.Round(machineDays, MidpointRounding.AwayFromZero);
             }
+
+            var machineCount = group.Key == ColdRollMachineGroupKeys.Roll5060
+                ? MachineCountOf(groupAlloc.Where(a => !a.IsFinished)) + MachineCountOf(groupAlloc.Where(a => a.IsFinished))
+                : MachineCountOf(groupAlloc);
 
             result.Add(new ColdRollMachineEstimateDto
             {
@@ -598,7 +601,7 @@ public class ColdRollPlanService : IColdRollPlanService
                 FlowTotalWeight = flowTotal,
                 InProcessWeight = inProcess,
                 FinishedWeight = finished,
-                MachineCount = (int)Math.Round(machineDays, MidpointRounding.AwayFromZero),
+                MachineCount = machineCount,
             });
         }
 
@@ -653,13 +656,7 @@ public class ColdRollPlanService : IColdRollPlanService
             .ToDictionary(c => c.ProcessType, StringComparer.OrdinalIgnoreCase);
 
         // 轧机类型归并（覆盖关系：60 可干 50、30 覆盖 20，机台需求按组聚合）
-        var machineTypeGroups = new[]
-        {
-            (Display: "冷轧5060", Keys: new[] { ProcessKeys.ColdRoll50, ProcessKeys.ColdRoll60 }),
-            (Display: "冷轧2030", Keys: new[] { ProcessKeys.ColdRoll20, ProcessKeys.ColdRoll30 }),
-            (Display: "冷轧三辊", Keys: new[] { ProcessKeys.ThreeRollColdRoll }),
-            (Display: "冷拔", Keys: new[] { ProcessKeys.ColdDraw }),
-        };
+        var machineTypeGroups = ColdRollMachineGroupKeys.Groups;
 
         // 四维 key 合并：scheduleDict 现有行必保（save-all 按 incoming 删僵尸）+ allocations 新维度必提（尤其急+行）
         var allKeys = scheduleDict.Keys
@@ -668,7 +665,7 @@ public class ColdRollPlanService : IColdRollPlanService
             .ToList();
 
         // 2030 组最小机台数（流转保底矛盾 B 判定基准，5060/2030 两源组共用）
-        int minMachines2030 = machineTypeGroups.First(g => g.Display == "冷轧2030").Keys
+        int minMachines2030 = machineTypeGroups.First(g => g.Key == ColdRollMachineGroupKeys.Roll2030).Keys
             .Sum(k => machineConfigDict.GetValueOrDefault(k)?.MinMachines ?? 0);
 
         // 流转保底（方式 B → 方式 A）：2030 下次承接需求 = 5060 流入（档位命中延伸，flowFrom5060）+ 2030 本组本次未定流转（当前档位不命中）。

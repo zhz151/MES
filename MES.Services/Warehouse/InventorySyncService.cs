@@ -29,12 +29,12 @@ public class InventorySyncService : IInventorySyncService
     /// </summary>
     private static readonly Dictionary<string, string> MaterialTypeNameMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["OrderFinishedProduct"] = "OrderFinished",
-        ["PreparedMaterial"] = "Finished",
-        ["PreparedFinished"] = "Finished",
-        ["SurplusStock"] = "Surplus",
-        ["IntermediateProduct"] = "SemiFinished",
-        ["StockFinished"] = "Finished",
+        ["OrderFinishedProduct"] = InventoryMaterialTypes.OrderFinished,
+        ["PreparedMaterial"] = InventoryMaterialTypes.Finished,
+        ["PreparedFinished"] = InventoryMaterialTypes.Finished,
+        ["SurplusStock"] = InventoryMaterialTypes.Surplus,
+        ["IntermediateProduct"] = InventoryMaterialTypes.SemiFinished,
+        ["StockFinished"] = InventoryMaterialTypes.Finished,
     };
 
     /// <summary>映射旧 MaterialType 枚举名为新名称</summary>

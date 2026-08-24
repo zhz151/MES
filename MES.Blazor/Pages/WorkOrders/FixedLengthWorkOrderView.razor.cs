@@ -11,6 +11,7 @@ using MES.Core.Enums;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.WorkOrders;
 
@@ -1017,7 +1018,7 @@ public partial class FixedLengthWorkOrderView
             };
 
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/fixed-length-work-order/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.FixedLengthWorkOrder}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

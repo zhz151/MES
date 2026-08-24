@@ -924,6 +924,29 @@ public class ColdRollPlanServiceTests : TestBase
         row.MachineCount.Should().Be(1);
     }
 
+    [Fact]
+    public async Task GetMachineEstimateAsync_5060拆档_在制成品各自四舍五入再相加()
+    {
+        using var ctx = CreateDbContext();
+        // 与排程建议同口径：5060 组在制/成品分档各自取整再相加（非整组一次取整）
+        // 在制 156000/(10000×6)=2.6 → Round=3；成品 78000/(5000×6)=2.6 → Round=3 → 3+3=6
+        // （整组一次取整 Round(2.6+2.6)=Round(5.2)=5，两处会不一致——本次修正为拆档）
+        CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 156000);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 78000, spec: "273*8");
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false, dailyOutput: 10000m);
+        SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: true, dailyOutput: 5000m);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetMachineEstimateAsync();
+
+        var row = result.Single(r => r.MachineType == "冷轧5060");
+        row.FlowTotalWeight.Should().Be(234000m);
+        row.InProcessWeight.Should().Be(156000m);
+        row.FinishedWeight.Should().Be(78000m);
+        row.MachineCount.Should().Be(6);
+    }
+
     // ==================== GetScheduleSuggestionAsync 测试 ====================
 
     /// <summary>机台数配置：按单冷轧类型（排程建议产能平衡输入）</summary>

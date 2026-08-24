@@ -13,6 +13,7 @@ using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Batches;
 
@@ -109,7 +110,7 @@ public partial class ProductionRecords
         new() { Key = "FaceCutCount",      Label = "平头数",     SortKey = "facecutcount", Width = "60", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "CuttingMultiple",   Label = "断切倍数",   SortKey = "cuttingmultiple", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "IsPreCut",           Label = "预成切",     SortKey = "isprecut",             FilterType = "enum", Width = "70", GroupKey = 2, GroupName = "产出数据",
-            EnumOptions = new() { new("true", "是") } },
+            EnumOptions = DisplayHelper.GetBoolOptions() },
         new() { Key = "LengthStatus",       Label = "长度状态",   SortKey = "lengthstatus",         FilterType = "string", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "FinishedCutLength", Label = "成品长度",   SortKey = "finishedcutlength", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "CutLengthMatchType", Label = "符合工单长度", SortKey = "cutlengthmatchtype", FilterType = "enum", Width = "100", GroupKey = 2, GroupName = "产出数据",
@@ -1121,7 +1122,7 @@ public partial class ProductionRecords
             var ids = selectedIds.ToArray();
             var cols = GetPrintColumnDefs();
             var request = new ProductionRecordPrintBatchRequest { Ids = ids, Columns = cols };
-            var apiUrl = $"{Http.BaseAddress}api/production-record/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ProductionRecord}/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -1148,7 +1149,7 @@ public partial class ProductionRecords
                 ExecDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
                 Columns = cols
             };
-            var apiUrl = $"{Http.BaseAddress}api/production-record/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ProductionRecord}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

@@ -16,6 +16,7 @@ using MES.Core.DTOs.Warehouse;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Warehouse;
 
@@ -813,11 +814,7 @@ public partial class InboundHistory
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -1577,7 +1574,7 @@ public partial class InboundHistory
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inbound-selected-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Inventory}/print-inbound-selected-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -1601,7 +1598,7 @@ public partial class InboundHistory
                 Columns = columns
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/inventory/print-inbound-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Inventory}/print-inbound-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

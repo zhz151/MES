@@ -124,7 +124,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
             new() { Key = "ReturnedWeight",      Label = "回收重量(kg)",   SortKey = "returnedweight",                         Width = "100", GroupKey = 3, GroupName = "执行状态" },
             new() { Key = "ReturnQuantity",      Label = "退货量",                                                   Width = "100", GroupKey = 3, GroupName = "执行状态" },
             new() { Key = "IsForceCompleted",    Label = "属强制完成",     SortKey = "isforcecompleted",   FilterType = "enum",  Width = "100", GroupKey = 3, GroupName = "执行状态",
-                EnumOptions = new() { new("True", "是"), new("False", "否") } },
+                EnumOptions = DisplayHelper.GetBoolOptions() },
         };
 
         var all = new List<ColumnDef>();
@@ -257,7 +257,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
         if (_filterContextOptions.TryGetValue("ExecutionRawMaterialLockRemark", out var execLockOptions))
         {
             foreach (var opt in execLockOptions)
-                opt.Display = RawMaterialLockRemarkKeys.ToChinese(opt.Value) ?? opt.Value;
+                opt.Display = DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, opt.Value) ?? opt.Value;
         }
 
         // 空值选项统一显示「空值」（哨兵 "__EXCEL_FILTER_NULL__"，须在各项中文映射之后执行）
@@ -624,7 +624,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
                 }
                 break;
             case "ExecutionRawMaterialLockRemark":
-                builder.AddContent(0, string.IsNullOrEmpty(item.ExecutionRawMaterialLockRemark) ? "-" : (RawMaterialLockRemarkKeys.ToChinese(item.ExecutionRawMaterialLockRemark) ?? "-"));
+                builder.AddContent(0, string.IsNullOrEmpty(item.ExecutionRawMaterialLockRemark) ? "-" : (DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.ExecutionRawMaterialLockRemark) ?? "-"));
                 break;
             case "ExecutionUrgencyLevel":
                 builder.AddContent(0, string.IsNullOrEmpty(item.ExecutionUrgencyLevel) ? "-" : (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.ExecutionUrgencyLevel) ?? "-"));

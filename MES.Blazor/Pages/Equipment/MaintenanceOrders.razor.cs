@@ -11,6 +11,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Equipment;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Equipment;
 
@@ -182,11 +183,7 @@ public partial class MaintenanceOrders
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -564,7 +561,7 @@ public partial class MaintenanceOrders
             var ids = selectedIds.ToArray();
             var columns = GetPrintColumnDefs();
             var request = new MaintenanceOrderPrintBatchRequest { Ids = ids, Columns = columns };
-            var apiUrl = $"{Http.BaseAddress}api/maintenance-order/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.MaintenanceOrder}/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -587,7 +584,7 @@ public partial class MaintenanceOrders
                 IsDescending = sortDescending,
                 Columns = columns
             };
-            var apiUrl = $"{Http.BaseAddress}api/maintenance-order/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.MaintenanceOrder}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

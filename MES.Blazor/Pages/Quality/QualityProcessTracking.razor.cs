@@ -11,6 +11,7 @@ using MES.Core.Models;
 using MES.Core.Enums;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -318,11 +319,7 @@ public partial class QualityProcessTracking
             {
                 if (!_filterContextOptions.ContainsKey(col.Key))
                 {
-                    _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                    {
-                        new() { Value = "true", Display = col.BoolTrueLabel, Count = 0 },
-                        new() { Value = "false", Display = col.BoolFalseLabel, Count = 0 }
-                    };
+                    _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
                 }
             }
             else if (col.FilterType == "enum" && col.EnumOptions != null)
@@ -788,7 +785,7 @@ public partial class QualityProcessTracking
     private async Task PrintSelected()
     {
         if (!_selectedIds.Any()) return;
-        var apiUrl = $"{Http.BaseAddress}api/quality-process-tracking/print-batch-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.QualityProcessTracking}/print-batch-file";
         var request = new QualityProcessTrackingPrintBatchRequest
         {
             Ids = _selectedIds.ToArray(),
@@ -800,7 +797,7 @@ public partial class QualityProcessTracking
 
     private async Task PrintAll()
     {
-        var apiUrl = $"{Http.BaseAddress}api/quality-process-tracking/print-all-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.QualityProcessTracking}/print-all-file";
         var request = new QualityProcessTrackingPrintAllRequest
         {
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,

@@ -1,3 +1,4 @@
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 
@@ -253,15 +254,15 @@ public class WorkOrderExecutionSummaryDto
         {
             // 阶段门控：主号关注=生产执行(3)/成品检验(4)/主号完成(1) → 已过投料期，仅按缺失量判定（缺口率>计划×3% 才标错误，容差内归略）
             if (ScheduleStage is 1 or 3 or 4)
-                return TotalMissingWeight > TotalPlanWeight * 0.03m ? 5 : 6;
+                return TotalMissingWeight > TotalPlanWeight * MaterialPlanToleranceProvider.InputConsistencyTolerance ? 5 : 6;
             // 错误-无料已投(4)：实际已投料量>0 但 现可投料总重=0 —— 无到料/无执行动作却投了料（计划外投料，最异常）
             if (ActualInputWeight > 0 && TotalAvailableWeight <= 0) return 4;
             // 现可=0 且 已投=0 → 一致（无执行、无投料，无矛盾）
             if (TotalAvailableWeight <= 0) return 0;
             // 疑问-到料超投(3)：已投 > 现可×1.03（超投）
-            if (ActualInputWeight > TotalAvailableWeight * 1.03m) return 3;
+            if (ActualInputWeight > TotalAvailableWeight * MaterialPlanToleranceProvider.InputConsistencyUpper) return 3;
             // 投料滞后（已投 < 现可×0.97）：按下料到位时点细分
-            if (ActualInputWeight < TotalAvailableWeight * 0.97m)
+            if (ActualInputWeight < TotalAvailableWeight * MaterialPlanToleranceProvider.InputConsistencyLower)
             {
                 if (!CutoffArrivalDate.HasValue) return 0;          // 空 → 一致（料未到位，投料滞后正常）
                 var d = CutoffArrivalDate.Value.Date;

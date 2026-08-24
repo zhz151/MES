@@ -6,6 +6,7 @@
 @using MES.Core.DTOs.Materials
 @using MES.Core.DTOs.WorkOrder
 @using Microsoft.AspNetCore.Authorization
+@using MES.Shared.Constants
 @inject MaterialPlanService MaterialPlanService
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
@@ -661,7 +662,7 @@
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/semi/{planId}/file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.MaterialPlan}/print/semi/{planId}/file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
@@ -723,7 +724,7 @@
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/finished/{planId}/file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.MaterialPlan}/print/finished/{planId}/file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
@@ -839,7 +840,7 @@
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/inventory/{planId}/file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.MaterialPlan}/print/inventory/{planId}/file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
@@ -889,7 +890,7 @@
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/rework/{planId}/file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.MaterialPlan}/print/rework/{planId}/file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
@@ -946,7 +947,7 @@
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/piercing/{planId}/file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.MaterialPlan}/print/piercing/{planId}/file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
@@ -1008,7 +1009,7 @@
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/in-process-rework/{planId}/file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.MaterialPlan}/print/in-process-rework/{planId}/file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)
@@ -1065,7 +1066,7 @@
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Navigation.BaseUri}api/material-plan/print/in-main-work-order/{planId}/file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.MaterialPlan}/print/in-main-work-order/{planId}/file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)

@@ -14,6 +14,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.WorkOrders;
 
@@ -539,7 +540,7 @@ public partial class WorkOrderExecution
                     "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" or "PendingProcess" or "ProductionAttentionProcess" or "MainNoAttentionProcess" or "PlanProductionAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(v),
                     "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, v) ?? v,
                     "ProductionFlowProperty" => DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey, v) ?? v,
-                    "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(v) ?? v,
+                    "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, v) ?? v,
                     _ => v
                 },
                 Count = 0
@@ -584,11 +585,7 @@ public partial class WorkOrderExecution
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
 
@@ -1282,7 +1279,7 @@ public partial class WorkOrderExecution
                 builder.AddContent(0, item.DaysDiffFromDelivery.HasValue ? $"{item.DaysDiffFromDelivery}天" : "-");
                 break;
             case "RawMaterialLockRemark":
-                builder.AddContent(0, RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "-");
+                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "-");
                 break;
 
             // ========== G18: 在产节点待量 ==========
@@ -1613,7 +1610,7 @@ public partial class WorkOrderExecution
             };
 
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/workorder-execution/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.WorkOrderExecution}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -1657,7 +1654,7 @@ public partial class WorkOrderExecution
             };
 
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/workorder-execution/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.WorkOrderExecution}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -1785,7 +1782,7 @@ public partial class WorkOrderExecution
         "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "",
         "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
         "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
-        "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(item.RawMaterialLockRemark) ?? "",
+        "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "",
         "AdjustmentRemark" => item.AdjustmentRemark ?? "",
         "PendingSectionRoughTube" => item.PendingSectionRoughTube,
         "PendingSectionWarehouseFix" => item.PendingSectionWarehouseFix,

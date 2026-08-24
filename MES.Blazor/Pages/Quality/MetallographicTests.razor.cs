@@ -11,6 +11,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -405,7 +406,7 @@ public partial class MetallographicTests
     private async Task PrintSelected()
     {
         if (!selectedIds.Any()) return;
-        var apiUrl = $"{Http.BaseAddress}api/metallographic-test/print-batch-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.MetallographicTest}/print-batch-file";
         var request = new MetallographicTestPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
         var json = JsonSerializer.Serialize(request);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -413,7 +414,7 @@ public partial class MetallographicTests
 
     private async Task PrintAll()
     {
-        var apiUrl = $"{Http.BaseAddress}api/metallographic-test/print-all-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.MetallographicTest}/print-all-file";
         var request = new MetallographicTestPrintAllRequest
         {
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,

@@ -6,6 +6,7 @@
 @using MES.Core.DTOs.WorkOrder
 @using MES.Core.DTOs.Infrastructure
 @using Microsoft.AspNetCore.Authorization
+@using MES.Shared.Constants
 @inject WorkOrderService WorkOrderService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -217,7 +218,7 @@
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Navigation.BaseUri}api/workorder/{Id}/print-file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.WorkOrder}/{Id}/print-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}");
         }
         catch (Exception ex)

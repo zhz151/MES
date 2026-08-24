@@ -41,6 +41,10 @@ public static class ApiEndpoints
     public const string GrainSizeTest = "api/grain-size-test";
     public const string FlatteningTest = "api/flattening-test";
     public const string FlaringTest = "api/flaring-test";
+    public const string IntergranularCorrosionTest = "api/intergranular-corrosion-test";
+    public const string MetallographicTest = "api/metallographic-test";
+    public const string PittingCorrosionTest = "api/pitting-corrosion-test";
+    public const string TensileTest = "api/tensile-test";
 
     // ===== Equipment 设备 =====
     public const string Equipment = "api/equipment";

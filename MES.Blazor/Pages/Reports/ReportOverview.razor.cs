@@ -517,9 +517,15 @@ public partial class ReportOverview
     // Tab1 接单/出库/库存（t）
     private static string FormatInOutWeight(decimal kg) => kg == 0m ? "-" : $"{kg / 1000m:F1}";
 
-    // Tab1 订单交期预估（两小表，x单/y吨）
-    private static string FormatDeliveryBucket(OrderDeliveryBucketDto b)
-        => b.Count > 0 || b.Weight > 0 ? $"{b.Count}单/{b.Weight.ToString("F1")}吨" : "-";
+    // Tab1 订单交期预估（两小表，x单/y吨，急中急子集 [*a/b] 标红）
+    private static MarkupString FormatDeliveryBucket(OrderDeliveryBucketDto b)
+    {
+        if (b.Count <= 0 && b.Weight <= 0) return new MarkupString("-");
+        var s = $"{b.Count}单/{b.Weight.ToString("F1")}吨";
+        if (b.UrgentCount > 0 || b.UrgentWeight > 0)
+            s += $"[<span style=\"color:#d32f2f;font-weight:700;\">*{b.UrgentCount}/{b.UrgentWeight.ToString("F1")}</span>]";
+        return new MarkupString(s);
+    }
 
     // Tab4 采购待购（kg 取整，0 空）
     private static string FormatPendingWeight(decimal kg) => kg > 0 ? ((int)kg).ToString() : string.Empty;

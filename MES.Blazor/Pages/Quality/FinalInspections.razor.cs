@@ -13,6 +13,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -110,7 +111,7 @@ public partial class FinalInspections
             EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionType>() },
         new() { Key = "IsDeliveryStatus",      Label = "是否交付态", SortKey = "isdeliverystatus", FilterType = "enum", Width = "100",
             GroupKey = 1, GroupName = "G1 检验执行",
-            EnumOptions = new() { new("是","是"), new("否","否") } },
+            EnumOptions = DisplayHelper.GetBoolOptions() },
         new() { Key = "QualificationLevel",    Label = "资格等级",   SortKey = "qualificationlevel", FilterType = "string", Width = "100",
             GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "BatchNo",                Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120",
@@ -397,11 +398,7 @@ public partial class FinalInspections
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -1208,7 +1205,7 @@ public partial class FinalInspections
     private async Task PrintSelected()
     {
         if (!selectedIds.Any()) return;
-        var apiUrl = $"{Http.BaseAddress}api/final-inspection/print-batch-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.FinalInspection}/print-batch-file";
         var request = new FinalInspectionPrintBatchRequest
         {
             Ids = selectedIds.ToArray(),
@@ -1220,7 +1217,7 @@ public partial class FinalInspections
 
     private async Task PrintAll()
     {
-        var apiUrl = $"{Http.BaseAddress}api/final-inspection/print-all-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.FinalInspection}/print-all-file";
         var request = new FinalInspectionPrintAllRequest
         {
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,

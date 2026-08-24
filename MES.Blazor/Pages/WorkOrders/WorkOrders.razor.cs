@@ -342,11 +342,7 @@ public partial class WorkOrders : IAsyncDisposable
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -800,7 +796,7 @@ public partial class WorkOrders : IAsyncDisposable
         {
             var salesOrderNos = selectedSalesOrderNos.ToArray();
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.WorkOrder}/order-print-batch-file";
             var json = JsonSerializer.Serialize(salesOrderNos);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -823,7 +819,7 @@ public partial class WorkOrders : IAsyncDisposable
                 DeliveryDateEnd = DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt : (DateTime?)null,
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.WorkOrder}/order-print-all-file";
             var json = JsonSerializer.Serialize(queryParams);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -838,7 +834,7 @@ public partial class WorkOrders : IAsyncDisposable
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/workorder/order-print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.WorkOrder}/order-print-file";
             var json = JsonSerializer.Serialize(salesOrderNo);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

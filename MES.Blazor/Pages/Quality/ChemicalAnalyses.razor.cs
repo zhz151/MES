@@ -11,6 +11,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -748,7 +749,7 @@ public partial class ChemicalAnalyses
     private async Task PrintSelected()
     {
         if (!selectedIds.Any()) return;
-        var apiUrl = $"{Http.BaseAddress}api/chemical-analysis/print-batch-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ChemicalAnalysis}/print-batch-file";
         var request = new ChemicalAnalysisPrintBatchRequest
         {
             Ids = selectedIds.ToArray(),
@@ -760,7 +761,7 @@ public partial class ChemicalAnalyses
 
     private async Task PrintAll()
     {
-        var apiUrl = $"{Http.BaseAddress}api/chemical-analysis/print-all-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ChemicalAnalysis}/print-all-file";
         var request = new ChemicalAnalysisPrintAllRequest
         {
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,

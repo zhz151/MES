@@ -13,6 +13,7 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Batch;
 using System.Text.Json;
 using MES.Core.Enums;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -271,11 +272,7 @@ public partial class MaterialReceiveChecks
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -846,7 +843,7 @@ public partial class MaterialReceiveChecks
             var ids = selectedIds.ToArray();
             var columns = GetPrintColumnDefs();
             var request = new MaterialCheckPrintBatchRequest { Ids = ids, Columns = columns };
-            var apiUrl = $"{Http.BaseAddress}api/material-receive-check/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.MaterialReceiveCheck}/print-batch-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -872,7 +869,7 @@ public partial class MaterialReceiveChecks
                 Columns = columns,
                 Filters = SerializeFilters()
             };
-            var apiUrl = $"{Http.BaseAddress}api/material-receive-check/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.MaterialReceiveCheck}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

@@ -1195,18 +1195,18 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             expanded.Add(v);
             switch (v)
             {
-                case "OrderFinished":
+                case InventoryMaterialTypes.OrderFinished:
                     expanded.Add("OrderFinishedProduct");
                     break;
-                case "Finished":
+                case InventoryMaterialTypes.Finished:
                     expanded.Add("PreparedMaterial");
                     expanded.Add("PreparedFinished");
                     expanded.Add("StockFinished");
                     break;
-                case "Surplus":
+                case InventoryMaterialTypes.Surplus:
                     expanded.Add("SurplusStock");
                     break;
-                case "SemiFinished":
+                case InventoryMaterialTypes.SemiFinished:
                     expanded.Add("IntermediateProduct");
                     break;
             }

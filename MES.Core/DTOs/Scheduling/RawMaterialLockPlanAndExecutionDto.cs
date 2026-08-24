@@ -1,3 +1,4 @@
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 
@@ -192,11 +193,11 @@ public class RawMaterialLockPlanAndExecutionDto
         {
             // 阶段门控：主号关注=生产执行(3)/成品检验(4)/主号完成(1) → 已过投料期，仅按缺失量判定（缺口率>计划×3% 才标错误，容差内归略）
             if (ScheduleStage is 1 or 3 or 4)
-                return TotalMissingWeight > TotalPlanWeight * 0.03m ? 5 : 6;
+                return TotalMissingWeight > TotalPlanWeight * MaterialPlanToleranceProvider.InputConsistencyTolerance ? 5 : 6;
             if (ActualInputWeight > 0 && TotalAvailableWeight <= 0) return 4;
             if (TotalAvailableWeight <= 0) return 0;
-            if (ActualInputWeight > TotalAvailableWeight * 1.03m) return 3;
-            if (ActualInputWeight < TotalAvailableWeight * 0.97m)
+            if (ActualInputWeight > TotalAvailableWeight * MaterialPlanToleranceProvider.InputConsistencyUpper) return 3;
+            if (ActualInputWeight < TotalAvailableWeight * MaterialPlanToleranceProvider.InputConsistencyLower)
             {
                 if (!CutoffArrivalDate.HasValue) return 0;
                 var d = CutoffArrivalDate.Value.Date;

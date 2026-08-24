@@ -202,18 +202,18 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
             {
                 if (b.BatchNo != null && warehousedSet.Contains(b.BatchNo))
                     continue; // 已入库，脱离看板
-                dto.KanbanStage = "检验中";
+                dto.KanbanStage = KanbanStageKeys.Inspecting;
                 // 该行全部要求项均有本成检类型的检验记录且未入库 → 完成检验待入库
                 if (IsAllRequiredInspected(required, batchInspections!, typeStr))
-                    dto.KanbanStage = "完成检验待入库";
+                    dto.KanbanStage = KanbanStageKeys.CompletedAwaitingInbound;
             }
             else if (receivedKeys.Contains(key))
             {
-                dto.KanbanStage = "待检验";
+                dto.KanbanStage = KanbanStageKeys.WaitingInspection;
             }
             else
             {
-                dto.KanbanStage = "待到料";
+                dto.KanbanStage = KanbanStageKeys.WaitingMaterial;
             }
 
             result.Add(dto);
@@ -675,9 +675,9 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
             // 待检批次 = 要求该检验项 且 尚未完成该检验（日期为空）
             var pending = kanban.Where(x => req(x) && !inspected(x)).ToList();
 
-            var (wmC, wmQ, wmW) = SummarizePending(pending, "待到料");
-            var (wiC, wiQ, wiW) = SummarizePending(pending, "待检验");
-            var (iC, iQ, iW) = SummarizePending(pending, "检验中");
+            var (wmC, wmQ, wmW) = SummarizePending(pending, KanbanStageKeys.WaitingMaterial);
+            var (wiC, wiQ, wiW) = SummarizePending(pending, KanbanStageKeys.WaitingInspection);
+            var (iC, iQ, iW) = SummarizePending(pending, KanbanStageKeys.Inspecting);
 
             rows.Add(new FinalInspectionPlanSummaryRowDto
             {

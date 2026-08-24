@@ -871,7 +871,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Select(g => new
             {
                 g.Key.WorkOrderId,
-                CategoryName = g.Key.RawMaterialType == MaterialType.RoughTube ? "RoughTube" : "SemiFinished",
+                CategoryName = g.Key.RawMaterialType == MaterialType.RoughTube ? InventoryMaterialTypes.RoughTube : InventoryMaterialTypes.SemiFinished,
                 PlanWeight = g.Sum(p => p.RequiredWeight)
             })
             .ToListAsync();
@@ -884,9 +884,9 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Select(g => new
             {
                 g.Key.WorkOrderId,
-                CategoryName = g.Key.ProductType == FinishedProductType.Critical ? "CriticalFinished"
-                    : g.Key.ProductType == FinishedProductType.SpecialDeliveryStatus ? "SpecialDeliveryStatus"
-                    : "OrderFinished",
+                CategoryName = g.Key.ProductType == FinishedProductType.Critical ? InventoryMaterialTypes.CriticalFinished
+                    : g.Key.ProductType == FinishedProductType.SpecialDeliveryStatus ? InventoryMaterialTypes.SpecialDeliveryStatus
+                    : InventoryMaterialTypes.OrderFinished,
                 PlanWeight = g.Sum(p => p.RequiredWeight)
             })
             .ToListAsync();
@@ -1004,7 +1004,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 {
                     WorkOrderNo = workOrderNo,
                     MaterialName = workOrderNo,
-                    MaterialCategory = EnumHelper.TryParse<MaterialType>("RoundBar"),
+                    MaterialCategory = EnumHelper.TryParse<MaterialType>(InventoryMaterialTypes.RoundBar),
                     PlanWeight = x.PlanWeight,
                     PurchaseWeight = 0,
                     SubcontractWeight = subW,
@@ -1049,10 +1049,10 @@ public class PurchaseOrderService : IPurchaseOrderService
     // ========== 采购首页汇总（荒管/成品） ==========
 
     // 荒管物料分类（采购单 MaterialCategory 存储值）
-    private static readonly string[] SemiCategories = { "RoughTube", "SemiFinished" };
+    private static readonly string[] SemiCategories = { InventoryMaterialTypes.RoughTube, InventoryMaterialTypes.SemiFinished };
 
     // 成品物料分类（采购单 MaterialCategory 存储值 = MaterialType 枚举名）
-    private static readonly string[] FinishedCategories = { "CriticalFinished", "OrderFinished", "SpecialDeliveryStatus" };
+    private static readonly string[] FinishedCategories = { InventoryMaterialTypes.CriticalFinished, InventoryMaterialTypes.OrderFinished, InventoryMaterialTypes.SpecialDeliveryStatus };
 
     private static HashSet<string> GetCategorySet(bool isFinished)
         => new(isFinished ? FinishedCategories : SemiCategories, StringComparer.OrdinalIgnoreCase);
@@ -1075,9 +1075,9 @@ public class PurchaseOrderService : IPurchaseOrderService
                 .ToListAsync();
             planRows = rows.Select(p => (
                 p.WorkOrderId,
-                CategoryName: p.ProductType == FinishedProductType.Critical ? "CriticalFinished"
-                    : p.ProductType == FinishedProductType.SpecialDeliveryStatus ? "SpecialDeliveryStatus"
-                    : "OrderFinished",
+                CategoryName: p.ProductType == FinishedProductType.Critical ? InventoryMaterialTypes.CriticalFinished
+                    : p.ProductType == FinishedProductType.SpecialDeliveryStatus ? InventoryMaterialTypes.SpecialDeliveryStatus
+                    : InventoryMaterialTypes.OrderFinished,
                 p.PlantGrade, p.Specification, p.RequiredWeight)).ToList();
         }
         else
@@ -1088,7 +1088,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 .ToListAsync();
             planRows = rows.Select(p => (
                 p.WorkOrderId,
-                CategoryName: p.RawMaterialType == MaterialType.RoughTube ? "RoughTube" : "SemiFinished",
+                CategoryName: p.RawMaterialType == MaterialType.RoughTube ? InventoryMaterialTypes.RoughTube : InventoryMaterialTypes.SemiFinished,
                 p.PlantGrade, p.Spec, p.RequiredWeight)).ToList();
         }
         if (planRows.Count == 0)
@@ -1394,7 +1394,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (workOrder == null) return null;
 
         // 原料采购（荒管/半成品）
-        if (materialCategory == "RoughTube" || materialCategory == "SemiFinished")
+        if (materialCategory == InventoryMaterialTypes.RoughTube || materialCategory == InventoryMaterialTypes.SemiFinished)
         {
             var semiPlan = await _context.PurchaseSemiPlans
                 .AsNoTracking()
@@ -1418,7 +1418,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
 
         // 成品采购（临界成品/订单成品/订成-非交付态）
-        if (materialCategory == "CriticalFinished" || materialCategory == "OrderFinished" || materialCategory == "SpecialDeliveryStatus")
+        if (materialCategory == InventoryMaterialTypes.CriticalFinished || materialCategory == InventoryMaterialTypes.OrderFinished || materialCategory == InventoryMaterialTypes.SpecialDeliveryStatus)
         {
             var finishedPlan = await _context.PurchaseFinishedPlans
                 .AsNoTracking()
@@ -1450,7 +1450,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         return new PlanDetailDto
         {
             WorkOrderNo = workOrderNo,
-            MaterialCategory = EnumHelper.TryParse<MaterialType>("RoughTube"), // 圆棒穿孔实际消耗的是荒管
+            MaterialCategory = EnumHelper.TryParse<MaterialType>(InventoryMaterialTypes.RoughTube), // 圆棒穿孔实际消耗的是荒管
             PlantGrade = piercingPlan.PlantGrade,
             Specification = piercingPlan.PiercingSpec,
             UnitWeight = piercingPlan.RequiredUnitWeight,

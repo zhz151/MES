@@ -12,6 +12,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Shared;
 using MES.Core.Helpers;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Warehouse;
 
@@ -381,11 +382,7 @@ public partial class PendingDelivery
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -563,7 +560,7 @@ public partial class PendingDelivery
                 columns = GetPrintColumnDefs()
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/pending-delivery/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.PendingDelivery}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -599,7 +596,7 @@ public partial class PendingDelivery
                 columns = GetPrintColumnDefs()
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/pending-delivery/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.PendingDelivery}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

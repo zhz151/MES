@@ -29,6 +29,7 @@ using MES.Data;
 using MES.Data.Entities.Configuration;
 using MES.Services.Helpers;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 
 namespace MES.Services.Configuration;
 
@@ -145,6 +146,7 @@ public class ConfigParameterService : IConfigParameterService
         }
 
         await _context.SaveChangesAsync();
+        await RefreshMaterialPlanToleranceSnapshotAsync(dto.Category);
         return true;
     }
 
@@ -155,8 +157,10 @@ public class ConfigParameterService : IConfigParameterService
         if (entity == null)
             throw new BusinessException("参数配置不存在");
 
+        var category = entity.Category;
         _context.ConfigParameters.Remove(entity);
         await _context.SaveChangesAsync();
+        await RefreshMaterialPlanToleranceSnapshotAsync(category);
         return true;
     }
 
@@ -166,5 +170,19 @@ public class ConfigParameterService : IConfigParameterService
             .AsNoTracking()
             .Where(c => c.Category == category)
             .ToDictionaryAsync(c => c.ParamKey, c => c.ParamValue, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private const string MaterialPlanToleranceCategory = "MaterialPlanTolerance";
+
+    /// <summary>
+    /// MaterialPlanTolerance 类目写操作后刷新 MaterialPlanToleranceProvider 静态快照，
+    /// 使到料实投一致性容差改配置表保存即生效（与 DictValueDefinitionService.RefreshStaticSnapshotAsync 同模式）。
+    /// </summary>
+    private async Task RefreshMaterialPlanToleranceSnapshotAsync(string? category)
+    {
+        if (!string.Equals(category, MaterialPlanToleranceCategory, StringComparison.OrdinalIgnoreCase))
+            return;
+        var map = await GetConfigMapAsync(MaterialPlanToleranceCategory);
+        MaterialPlanToleranceProvider.Apply(map.GetValueOrDefault("InputConsistencyTolerance"));
     }
 }

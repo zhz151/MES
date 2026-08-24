@@ -11,6 +11,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -380,7 +381,7 @@ public partial class GrainSizeTests
     private async Task PrintSelected()
     {
         if (!selectedIds.Any()) return;
-        var apiUrl = $"{Http.BaseAddress}api/grain-size-test/print-batch-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.GrainSizeTest}/print-batch-file";
         var request = new GrainSizeTestPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
         var json = JsonSerializer.Serialize(request);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -388,7 +389,7 @@ public partial class GrainSizeTests
 
     private async Task PrintAll()
     {
-        var apiUrl = $"{Http.BaseAddress}api/grain-size-test/print-all-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.GrainSizeTest}/print-all-file";
         var request = new GrainSizeTestPrintAllRequest
         {
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,

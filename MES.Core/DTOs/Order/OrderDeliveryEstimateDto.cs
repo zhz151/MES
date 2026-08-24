@@ -39,4 +39,10 @@ public class OrderDeliveryBucketDto
 
     /// <summary>重量（吨，kg 已换算）</summary>
     public decimal Weight { get; set; }
+
+    /// <summary>「急中急」单数（桶内延期罚款=是的订单子集，订单级 HasDelayPenalty；仅表2 统计）</summary>
+    public int UrgentCount { get; set; }
+
+    /// <summary>「急中急」重量（吨，kg 已换算；仅表2 统计）</summary>
+    public decimal UrgentWeight { get; set; }
 }

@@ -240,21 +240,21 @@ public partial class Index
             var kanbanItems = await FinalInspectionSvc.GetKanbanAsync();
 
             // 待到料
-            var material = kanbanItems.Where(x => x.KanbanStage == "待到料").ToList();
+            var material = kanbanItems.Where(x => x.KanbanStage == KanbanStageKeys.WaitingMaterial).ToList();
             _card3AwaitingMaterialCount = material.Count;
             _card3AwaitingMaterialWeight = material.Sum(x => x.ProductionWeight ?? 0m) / 1000m;
             _card3AwaitingMaterialUrgentCount = material.Count(x => UrgencyLevelKeys.IsUrgent(x.UrgencyLevel));
             _card3AwaitingMaterialUrgentWeight = material.Where(x => UrgencyLevelKeys.IsUrgent(x.UrgencyLevel)).Sum(x => x.ProductionWeight ?? 0m) / 1000m;
 
             // 待检验
-            var awaiting = kanbanItems.Where(x => x.KanbanStage == "待检验").ToList();
+            var awaiting = kanbanItems.Where(x => x.KanbanStage == KanbanStageKeys.WaitingInspection).ToList();
             _card3AwaitingInspectionCount = awaiting.Count;
             _card3AwaitingInspectionWeight = awaiting.Sum(x => x.ProductionWeight ?? 0m) / 1000m;
             _card3AwaitingInspectionUrgentCount = awaiting.Count(x => UrgencyLevelKeys.IsUrgent(x.UrgencyLevel));
             _card3AwaitingInspectionUrgentWeight = awaiting.Where(x => UrgencyLevelKeys.IsUrgent(x.UrgencyLevel)).Sum(x => x.ProductionWeight ?? 0m) / 1000m;
 
             // 检验中
-            var inProg = kanbanItems.Where(x => x.KanbanStage == "检验中").ToList();
+            var inProg = kanbanItems.Where(x => x.KanbanStage == KanbanStageKeys.Inspecting).ToList();
             _card3InInspectionCount = inProg.Count;
             _card3InInspectionWeight = inProg.Sum(x => x.ProductionWeight ?? 0m) / 1000m;
             _card3InInspectionUrgentCount = inProg.Count(x => UrgencyLevelKeys.IsUrgent(x.UrgencyLevel));

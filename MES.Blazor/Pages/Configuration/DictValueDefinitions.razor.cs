@@ -47,17 +47,18 @@ public partial class DictValueDefinitions
         new() { Key = "Remark",      Label = "说明",     SortKey = "remark",      FilterType = null },
     };
 
-    /// <summary>字典标识 → 中文说明（下拉/表格展示用）</summary>
+    /// <summary>字典标识 → 中文说明（下拉/表格展示用）；工段/工序由专门配置表管理不在此列</summary>
     private static readonly Dictionary<string, string> DictKeyTexts = new(StringComparer.Ordinal)
     {
-        [DictValueDefaults.SectionKey] = "工段",
-        [DictValueDefaults.ProcessKey] = "工序",
         [DictValueDefaults.UrgencyLevelKey] = "紧急度",
         [DictValueDefaults.ProductStatus] = "产类",
         [DictValueDefaults.ProductionFlowKey] = "流转",
         [DictValueDefaults.FlowTargetKey] = "关注目标",
         [DictValueDefaults.ProductionOverviewRowKey] = "汇总行",
         [DictValueDefaults.LiabilityTypeKey] = "责任类别",
+        [DictValueDefaults.NcrResponsibilityKey] = "NCR 责任类别",
+        [DictValueDefaults.RawMaterialLockRemarkKey] = "原锁备注",
+        [DictValueDefaults.ProductionAttentionKey] = "生产关注",
     };
 
     private static string GetDictKeyText(string dictKey)
@@ -293,7 +294,7 @@ public partial class DictValueDefinitions
             _allColumns = reordered;
         }
 
-        // 字典标识下拉（8 个已注册字典）
+        // 字典标识下拉（9 个可配置字典，不含工段/工序专门配置表）
         _dictKeyOptions = DictValueDefaults.DictKeys
             .Select(k => (k, GetDictKeyText(k)))
             .ToList();

@@ -5,6 +5,7 @@
 @using MES.Core.DTOs.Order
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
+@using MES.Shared.Constants
 @inject ProductRequirementService RequirementService
 @inject OrderService OrderService
 @inject NavigationManager Navigation
@@ -168,6 +169,7 @@
         public int Sequence { get; set; }
         public bool HasExisting { get; set; }
         public string? StandardNo { get; set; }
+        public DeliveryState DeliveryState { get; set; }
         public string StandardGrade { get; set; } = null!;
         public decimal OuterDiameter { get; set; }
         public decimal WallThickness { get; set; }
@@ -235,6 +237,7 @@
             new() { Key = "quantity", Label = "支数", Visible = true, Width = "70", GroupKey = 1, GroupName = "项次基础信息" },
             new() { Key = "contractweight", Label = "合同重量", Visible = true, Width = "100", GroupKey = 1, GroupName = "项次基础信息" },
             new() { Key = "standardno", Label = "产品标准", Visible = true, Width = "130", GroupKey = 1, GroupName = "项次基础信息" },
+            new() { Key = "deliverystate", Label = "交货状态", Visible = true, Width = "130", GroupKey = 1, GroupName = "项次基础信息" },
             // === 技术要求 ===
             new() { Key = "requirementtype", Label = "要求类型", Visible = true, Width = "110", GroupKey = 2, GroupName = "技术要求" },
             new() { Key = "otherrequirement", Label = "其他要求", Visible = true, Width = "200", GroupKey = 2, GroupName = "技术要求" },
@@ -354,6 +357,7 @@
                     Sequence = i.Sequence,
                     HasExisting = req != null,
                     StandardNo = i.StandardNo,
+                    DeliveryState = i.DeliveryState,
                     StandardGrade = i.StandardGrade,
                     OuterDiameter = i.OuterDiameter,
                     WallThickness = i.WallThickness,
@@ -402,6 +406,7 @@
                 Sequence = v.Sequence,
                 HasExisting = v.HasExisting,
                 StandardNo = v.StandardNo,
+                DeliveryState = v.DeliveryState,
                 StandardGrade = v.StandardGrade,
                 OuterDiameter = v.OuterDiameter,
                 WallThickness = v.WallThickness,
@@ -449,6 +454,7 @@
                 Sequence = v.Sequence,
                 HasExisting = v.HasExisting,
                 StandardNo = v.StandardNo,
+                DeliveryState = v.DeliveryState,
                 StandardGrade = v.StandardGrade,
                 OuterDiameter = v.OuterDiameter,
                 WallThickness = v.WallThickness,
@@ -568,6 +574,7 @@
             Sequence = v.Sequence,
             HasExisting = v.HasExisting,
             StandardNo = v.StandardNo,
+            DeliveryState = v.DeliveryState,
             RequirementType = v.RequirementType,
             ChemicalComposition = v.ChemicalComposition,
             PmiInspection = v.PmiInspection,
@@ -627,6 +634,7 @@
                 var request = new CreateProductRequirementRequest
                 {
                     RequirementType = item.RequirementType,
+                    DeliveryState = item.DeliveryState,
                     ChemicalComposition = item.ChemicalComposition,
                     PmiInspection = item.PmiInspection,
                     SurfaceInspection = item.SurfaceInspection,
@@ -705,7 +713,7 @@
     {
         try
         {
-            var apiUrl = $"{Http.BaseAddress}api/order/{orderId}/requirements/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Order}/{orderId}/requirements/print-file";
             var json = JsonSerializer.Serialize(new { });
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -834,6 +842,30 @@
                 break;
             case "standardno":
                 builder.AddContent(0, item.StandardNo);
+                break;
+            case "deliverystate":
+                if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)
+                {
+                    builder.OpenComponent<MudSelect<DeliveryState>>(0);
+                    builder.AddAttribute(1, "Value", item.DeliveryState);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<DeliveryState>(this, v => item.DeliveryState = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
+                    {
+                        foreach (var opt in DisplayHelper.GetEnumOptions<DeliveryState>())
+                        {
+                            cb.OpenComponent<MudSelectItem<DeliveryState>>(0);
+                            cb.AddAttribute(1, "Value", Enum.Parse<DeliveryState>(opt.Value));
+                            cb.AddAttribute(2, "Text", opt.Display);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.CloseComponent();
+                        }
+                    }));
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState)); }
                 break;
             case "requirementtype":
                 if (_isEditMode && _orderStatus != SalesOrderStatus.Cancelled)

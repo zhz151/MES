@@ -23,7 +23,7 @@ namespace MES.Data.Seed;
 
 public static class DbInitializer
 {
-    /// <summary>DictValueDefinition 种子字典：除专门配置表（工段/工序）外的 6 个（责任类别已并入字典表）</summary>
+    /// <summary>DictValueDefinition 种子字典：除专门配置表（工段/工序）外的 9 个（含责任类别/NCR责任类别/原锁备注/生产关注）</summary>
     private static readonly string[] DictValueSeedKeys =
     [
         DictValueDefaults.UrgencyLevelKey,
@@ -33,6 +33,8 @@ public static class DbInitializer
         DictValueDefaults.ProductionOverviewRowKey,
         DictValueDefaults.LiabilityTypeKey,
         DictValueDefaults.NcrResponsibilityKey,
+        DictValueDefaults.RawMaterialLockRemarkKey,
+        DictValueDefaults.ProductionAttentionKey,
     ];
 
     public static async Task InitializeAsync(IServiceProvider serviceProvider)
@@ -390,7 +392,7 @@ public static class DbInitializer
         }
 
         // ========== 8f. Initialize Dict Value Definitions（字典显示配置）——幂等 ==========
-        // 仅含无专门配置表的 6 个字典（紧急度/产类/流转/关注目标/汇总行/责任类别）；
+        // 仅含无专门配置表的 9 个字典（紧急度/产类/流转/关注目标/汇总行/责任类别/NCR责任类别/原锁备注/生产关注）；
         // 工段/工序由各自专门配置表管理（StandardWorkDays/ProcessDefinitions），不在此重复 seed，避免双入口。
         if (!context.DictValueDefinitions.Any())
         {
@@ -463,8 +465,6 @@ public static class DbInitializer
 
                 // ===== ProductionThreshold 生产阈值 =====
                 new() { Category = "ProductionThreshold", CategoryDisplay = "批次-生产阈值", Context = "批次", ParamKey = "ColdRollCompleteRatio", ParamValue = 0.95m, Remark = "冷轧拔完工比率" },
-                new() { Category = "ProductionThreshold", CategoryDisplay = "批次-生产阈值", Context = "批次", ParamKey = "ValidInputUpper", ParamValue = 1.03m, Remark = "有效投料比率上限" },
-                new() { Category = "ProductionThreshold", CategoryDisplay = "批次-生产阈值", Context = "批次", ParamKey = "ValidInputLower", ParamValue = 0.97m, Remark = "有效投料比率下限" },
 
                 // ===== MaterialPlanRatio 物料计划系数 =====
                 new() { Category = "MaterialPlanRatio", CategoryDisplay = "工单-用料计划比率", Context = "工单", ParamKey = "FixedFinishRatio", ParamValue = 1.02m, Remark = "定尺成品采购系数" },
@@ -542,7 +542,6 @@ public static class DbInitializer
                 new() { Category = "DefaultValue", CategoryDisplay = "工单-默认工艺周期", Context = "工单", ParamKey = "DefaultProcessCycle", ParamValue = 22m, Remark = "默认工艺周期(天)，主号/库料改制无工时默认使用" },
                 new() { Category = "DefaultValue", CategoryDisplay = "工单-标准周期", Context = "工单", ParamKey = "StandardCycle", ParamValue = 3m, Remark = "默认标准周期(天)" },
                 new() { Category = "DefaultValue", CategoryDisplay = "批次-最大序号", Context = "批次", ParamKey = "BatchMaxSequence", ParamValue = 9999m, Remark = "批次号最大序号" },
-                new() { Category = "DefaultValue", CategoryDisplay = "工单-荒管成品系数", Context = "工单", ParamKey = "RoughTubeFinishRatio", ParamValue = 0.92m, Remark = "荒管转成品系数" },
 
                 // ===== MaterialPlanTolerance 用料计划执行容差 =====
                 new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "ExternalLower", ParamValue = 0.97m, Remark = "对外计划下限(97%)，圆棒穿孔/荒管采购/成品采购" },
@@ -551,6 +550,7 @@ public static class DbInitializer
                 new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "WarehouseUpper", ParamValue = 1.50m, Remark = "对内-仓库上限(150%)，库存使用/库料改制" },
                 new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "ProductionLower", ParamValue = 0.90m, Remark = "对内-生产下限(90%)，在产改制/在产主工单" },
                 new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "ProductionUpper", ParamValue = 1.50m, Remark = "对内-生产上限(150%)，在产改制/在产主工单" },
+                new() { Category = "MaterialPlanTolerance", CategoryDisplay = "工单-用料计划执行容差", Context = "工单", ParamKey = "InputConsistencyTolerance", ParamValue = 0.03m, Remark = "到料实投一致性容差(±3%)与档5缺口率阈值" },
             };
 
             await context.ConfigParameters.AddRangeAsync(configParams);

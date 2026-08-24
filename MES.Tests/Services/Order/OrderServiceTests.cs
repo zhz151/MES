@@ -979,7 +979,7 @@ public class OrderServiceTests : TestBase
 
     // ========== 订单交期预估（GetDeliveryEstimateAsync，2026-08-23） ==========
 
-    private static OrderListSummaryEntity SeedDeliverySummary(int orderId, string orderNo, int weight, int? scheduleStage, DateTime? deliveryEnd, DateTime? estimated)
+    private static OrderListSummaryEntity SeedDeliverySummary(int orderId, string orderNo, int weight, int? scheduleStage, DateTime? deliveryEnd, DateTime? estimated, bool hasDelayPenalty = false)
         => new()
         {
             OrderId = orderId,
@@ -992,6 +992,7 @@ public class OrderServiceTests : TestBase
             ScheduleStage = scheduleStage,
             DeliveryEnd = deliveryEnd,
             EstimatedCompletionDate = estimated,
+            HasDelayPenalty = hasDelayPenalty,
             CreatedTime = DateTimeOffset.Now,
             UpdatedTime = DateTimeOffset.Now
         };
@@ -1002,8 +1003,8 @@ public class OrderServiceTests : TestBase
         var ctx = CreateDbContext();
         var today = DateTime.Today;
         ctx.Set<OrderListSummaryEntity>().AddRange(
-            // 订单A：延期（预计完成 today+10 > 交期 today+3）
-            SeedDeliverySummary(1, "SO-01", 1000, 3, today.AddDays(3), today.AddDays(10)),
+            // 订单A：延期（预计完成 today+10 > 交期 today+3），延期罚款=是（急中急）
+            SeedDeliverySummary(1, "SO-01", 1000, 3, today.AddDays(3), today.AddDays(10), hasDelayPenalty: true),
             // 订单B：非延期（预计完成 today+3 <= 交期 today+10）
             SeedDeliverySummary(2, "SO-02", 2000, 3, today.AddDays(10), today.AddDays(3)),
             // 订单C：延期（预计完成 today+5 > 交期 today-1，交期已过 → 桶0）
@@ -1055,6 +1056,15 @@ public class OrderServiceTests : TestBase
         result.Tables[1].Buckets[1].Count.Should().Be(1);
         result.Tables[1].Buckets[1].Weight.Should().Be(1.0m);
         result.Tables[1].Buckets.Sum(b => b.Count).Should().Be(2);
+
+        // 表2 急中急子集（延期罚款=是）：桶0 订单C 无延期罚款 → 0；桶1 订单A 有延期罚款 → 1单/1.0吨
+        result.Tables[1].Buckets[0].UrgentCount.Should().Be(0);
+        result.Tables[1].Buckets[0].UrgentWeight.Should().Be(0m);
+        result.Tables[1].Buckets[1].UrgentCount.Should().Be(1);
+        result.Tables[1].Buckets[1].UrgentWeight.Should().Be(1.0m);
+        result.Tables[1].Buckets.Sum(b => b.UrgentCount).Should().Be(1);
+        // 表1 完成预估不统计急中急（恒 0）
+        result.Tables[0].Buckets.Sum(b => b.UrgentCount).Should().Be(0);
     }
 
     [Fact]

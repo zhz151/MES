@@ -13,6 +13,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.WorkOrders;
 
@@ -97,7 +98,7 @@ public partial class MaterialPlanOverview
         new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "SettlementMethod", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false,
             EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
         new() { Key = "DelayPenalty",       Label = "延期罚款",   SortKey = "DelayPenalty", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false,
-            EnumOptions = new() { new("True", "是"), new("False", "否") } },
+            EnumOptions = DisplayHelper.GetBoolOptions() },
         new() { Key = "SignDate",           Label = "签订日期",   SortKey = "SignDate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false },
         new() { Key = "DeliveryDate",       Label = "交货日期",   SortKey = "DeliveryDate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
         new() { Key = "DeliveryState",      Label = "交货状态",   SortKey = "DeliveryState", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "基础数据",
@@ -296,7 +297,7 @@ public partial class MaterialPlanOverview
                         Display = kvp.Key switch
                         {
                             "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, v) ?? v,
-                            "RawMaterialLockRemark" => RawMaterialLockRemarkKeys.ToChinese(v) ?? v,
+                            "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, v) ?? v,
                             _ => v
                         },
                         Count = 0
@@ -322,11 +323,7 @@ public partial class MaterialPlanOverview
                 {
                     if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
                     {
-                        _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                        {
-                            new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                            new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                        };
+                        _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
                     }
                 }
             }
@@ -811,7 +808,7 @@ public partial class MaterialPlanOverview
                 }
                 break;
             case "RawMaterialLockRemark":
-                builder.AddContent(0, RawMaterialLockRemarkKeys.ToChinese(wo.RawMaterialLockRemark) ?? "-");
+                builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, wo.RawMaterialLockRemark) ?? "-");
                 break;
             case "LatestPlanDate":
                 builder.OpenComponent<MudChip>(0);
@@ -922,7 +919,7 @@ public partial class MaterialPlanOverview
         try
         {
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/material-plan/print/batch";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.MaterialPlan}/print/batch";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

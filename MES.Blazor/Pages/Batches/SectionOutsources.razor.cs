@@ -14,6 +14,7 @@ using MES.Core.DTOs.Scheduling;
 using MES.Core.Enums;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Batches;
 
@@ -360,11 +361,7 @@ public partial class SectionOutsources
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -880,7 +877,7 @@ public partial class SectionOutsources
             .ToList();
 
         var request = new SectionOutsourcePrintBatchRequest { Ids = selectedIds.ToArray(), Columns = columns };
-        var apiUrl = $"{Http.BaseAddress}api/section-outsource/print-selected-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.SectionOutsource}/print-selected-file";
         var json = JsonSerializer.Serialize(request);
         Snackbar.Add("正在生成PDF...", Severity.Info);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -903,7 +900,7 @@ public partial class SectionOutsources
             ActualRecoveryDateTo = DateTime.TryParse(_recoveryDateTo, out var art) ? art : null,
             Columns = columns
         };
-        var apiUrl = $"{Http.BaseAddress}api/section-outsource/print-all-file";
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.SectionOutsource}/print-all-file";
         var json = JsonSerializer.Serialize(request);
         Snackbar.Add("正在生成PDF...", Severity.Info);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

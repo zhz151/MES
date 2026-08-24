@@ -7,6 +7,7 @@
 @using MES.Core.Constants
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
+@using MES.Shared.Constants
 @inject BatchService BatchService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -1041,7 +1042,7 @@
                 Ids = selectedIds.ToArray(),
                 Columns = allColumns.ToList()
             };
-            var apiUrl = $"{Http.BaseAddress}api/batch/print-process-card-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Batch}/print-process-card-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
@@ -1067,7 +1068,7 @@
                 Ids = Array.Empty<int>(),
                 Columns = allColumns.ToList()
             };
-            var apiUrl = $"{Http.BaseAddress}api/batch/print-process-card-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Batch}/print-process-card-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

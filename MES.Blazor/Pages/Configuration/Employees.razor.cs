@@ -9,6 +9,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Configuration;
 
@@ -54,7 +55,7 @@ public partial class Employees
         try
         {
             var request = new EmployeePrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
-            var apiUrl = $"{Http.BaseAddress}api/employee/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Employee}/print-batch-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }
@@ -72,7 +73,7 @@ public partial class Employees
                 IsDescending = sortDescending,
                 Columns = GetPrintColumnDefs()
             };
-            var apiUrl = $"{Http.BaseAddress}api/employee/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Employee}/print-all-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }

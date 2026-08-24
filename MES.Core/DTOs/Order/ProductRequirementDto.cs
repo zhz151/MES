@@ -97,6 +97,11 @@ public class CreateProductRequirementRequest
     public bool FerriteContent { get; set; }
     public bool Macrostructure { get; set; }
     public string? OtherRequirement { get; set; }
+
+    /// <summary>
+    /// 交货状态（同步保存到订单项次 OrderItem.DeliveryState）
+    /// </summary>
+    public DeliveryState DeliveryState { get; set; }
 }
 
 /// <summary>

@@ -12,6 +12,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.StandardRegister;
 
@@ -44,7 +45,7 @@ public partial class GradeChemicalCompositions
         try
         {
             var request = new GradeChemicalCompositionPrintBatchRequest { Ids = selectedIds.ToArray(), Columns = GetPrintColumnDefs() };
-            var apiUrl = $"{Http.BaseAddress}api/grade-chemical-composition/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.GradeChemicalComposition}/print-batch-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }
@@ -62,7 +63,7 @@ public partial class GradeChemicalCompositions
                 IsDescending = sortDescending,
                 Columns = GetPrintColumnDefs()
             };
-            var apiUrl = $"{Http.BaseAddress}api/grade-chemical-composition/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.GradeChemicalComposition}/print-all-file";
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
             Snackbar.Add("正在生成PDF...", Severity.Info);
         }

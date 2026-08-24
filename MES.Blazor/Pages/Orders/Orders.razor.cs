@@ -13,6 +13,7 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Order;
 using System.Text.Json;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Orders;
 
@@ -386,11 +387,7 @@ public partial class Orders
         {
             if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
             {
-                _filterContextOptions[col.Key] = new List<ExcelFilterOption>
-                {
-                    new() { Value = "True", Display = col.BoolTrueLabel ?? "是", Count = 0 },
-                    new() { Value = "False", Display = col.BoolFalseLabel ?? "否", Count = 0 }
-                };
+                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
             }
         }
     }
@@ -838,9 +835,15 @@ public partial class Orders
 
     private static string FormatInOutWeight(decimal kg) => kg == 0m ? "-" : $"{kg / 1000m:F1}";
 
-    /// <summary>订单交期预估小表单元格（x单/y吨）</summary>
-    private static string FormatDeliveryBucket(OrderDeliveryBucketDto b)
-        => b.Count > 0 || b.Weight > 0 ? $"{b.Count}单/{b.Weight.ToString("F1")}吨" : "-";
+    /// <summary>订单交期预估小表单元格（x单/y吨，急中急子集 [*a/b] 标红）</summary>
+    private static MarkupString FormatDeliveryBucket(OrderDeliveryBucketDto b)
+    {
+        if (b.Count <= 0 && b.Weight <= 0) return new MarkupString("-");
+        var s = $"{b.Count}单/{b.Weight.ToString("F1")}吨";
+        if (b.UrgentCount > 0 || b.UrgentWeight > 0)
+            s += $"[<span style=\"color:#d32f2f;font-weight:700;\">*{b.UrgentCount}/{b.UrgentWeight.ToString("F1")}</span>]";
+        return new MarkupString(s);
+    }
 
     /// <summary>打印「订单接单·出库及现负荷汇总」卡片（前端 printRawHtml 打印汇总表）</summary>
     private async Task PrintInOutSummary()
@@ -896,7 +899,7 @@ public partial class Orders
                 dateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo.ToString("yyyy-MM-dd") : null
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/order/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Order}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -912,7 +915,7 @@ public partial class Orders
         {
             var request = new OrderPrintBatchRequest { Ids = new[] { id } };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/order/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Order}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -933,7 +936,7 @@ public partial class Orders
         {
             var request = new OrderPrintBatchRequest { Ids = selectedOrderIds.ToArray() };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}api/order/print-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Order}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

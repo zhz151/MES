@@ -9,6 +9,7 @@
 @using MES.Core.DTOs.Order
 @using MES.Core.DTOs.StandardRegister
 @using MES.Core.DTOs.Infrastructure
+@using MES.Shared.Constants
 @inject OrderService OrderService
 @inject CustomerService CustomerService
 @inject ProductRequirementService RequirementService
@@ -1013,7 +1014,7 @@
         {
             var request = new OrderPrintBatchRequest { Ids = new[] { Id } };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Navigation.BaseUri}api/order/print-file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Order}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

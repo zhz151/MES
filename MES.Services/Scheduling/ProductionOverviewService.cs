@@ -292,13 +292,16 @@ public class ProductionOverviewService : IProductionOverviewService
         var dailyMill20_30 = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.Mill20_30, 9m);
         var dailyThreeRoll = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.ThreeRollMill, 0.5m);
         var dailyDrawBench = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.DrawBench, 3m);
+        // 行名显示：DictValueDefinitions 配置表（DictKey=ProductionOverviewRowKey）优先，未配置回退 KeyToChinese 规范中文；
+        // "[累]" 为投料-在产行固定口径前缀（与配置表行名本体分离），改配置表即可改前端行名。
+        string RowDisplay(string key) => "[累]" + (DictValueDisplayHelper.GetText(DictValueDefaults.ProductionOverviewRowKey, key) ?? key);
         var sections = new[]
         {
-            (Seq: 5, RowNo: 1, Key: "荒管抛光", Section: "[累]荒管抛光", DailyCapacity: dailyPolish),
-            (Seq: 6, RowNo: 2, Key: "50,60轧机", Section: "[累]冷轧5060", DailyCapacity: dailyMill50_60),
-            (Seq: 7, RowNo: 3, Key: "20,30轧机", Section: "[累]冷轧2030", DailyCapacity: dailyMill20_30),
-            (Seq: 8, RowNo: 4, Key: "三辊轧机", Section: "[累]冷轧三辊", DailyCapacity: dailyThreeRoll),
-            (Seq: 9, RowNo: 5, Key: "拉机", Section: "[累]冷拔", DailyCapacity: dailyDrawBench),
+            (Seq: 5, RowNo: 1, Key: ProductionOverviewRowKeys.Polish, Section: RowDisplay(ProductionOverviewRowKeys.Polish), DailyCapacity: dailyPolish),
+            (Seq: 6, RowNo: 2, Key: ProductionOverviewRowKeys.Mill50_60, Section: RowDisplay(ProductionOverviewRowKeys.Mill50_60), DailyCapacity: dailyMill50_60),
+            (Seq: 7, RowNo: 3, Key: ProductionOverviewRowKeys.Mill20_30, Section: RowDisplay(ProductionOverviewRowKeys.Mill20_30), DailyCapacity: dailyMill20_30),
+            (Seq: 8, RowNo: 4, Key: ProductionOverviewRowKeys.ThreeRollMill, Section: RowDisplay(ProductionOverviewRowKeys.ThreeRollMill), DailyCapacity: dailyThreeRoll),
+            (Seq: 9, RowNo: 5, Key: ProductionOverviewRowKeys.DrawBench, Section: RowDisplay(ProductionOverviewRowKeys.DrawBench), DailyCapacity: dailyDrawBench),
         };
 
         int maxProdEstDays = 0;
@@ -311,7 +314,7 @@ public class ProductionOverviewService : IProductionOverviewService
             var matchedBatchData = new List<(DateTime DeliveryDate, decimal Weight)>();
 
             // 荒管抛光行按原始口径不拆分产类（无冷轧/冷拔产类逻辑）
-            bool splitByProductStatus = sectionKey != "荒管抛光";
+            bool splitByProductStatus = sectionKey != ProductionOverviewRowKeys.Polish;
 
             foreach (var batch in batches)
             {
@@ -327,7 +330,7 @@ public class ProductionOverviewService : IProductionOverviewService
 
                     // 判断是否尚未到达此工段
                     // 荒管抛光使用工段级比较（不依赖 CurrentSectionCompleted）
-                    bool isNotReached = sectionKey == "荒管抛光"
+                    bool isNotReached = sectionKey == ProductionOverviewRowKeys.Polish
                         ? IsNotReachedBySection(
                             batch.CurrentGroupName, batch.CurrentSectionName,
                             pgs, pg, SectionDefs.OuterPolish)
@@ -420,7 +423,7 @@ public class ProductionOverviewService : IProductionOverviewService
         // 预/正式合并、按批次去重——与成检计划 GetSummaryAsync.SummarizePending 完全同口径。
         var kanban = await _finalInspectionPlanService.GetKanbanAsync();
         var fiPendingWeight = kanban
-            .Where(x => x.KanbanStage is "待检验" or "检验中")
+            .Where(x => x.KanbanStage is KanbanStageKeys.WaitingInspection or KanbanStageKeys.Inspecting)
             .GroupBy(x => x.ProductionBatchId)
             .Select(g => g.First())
             .Sum(x => x.ProductionWeight ?? 0m);
@@ -679,11 +682,11 @@ public class ProductionOverviewService : IProductionOverviewService
     private static bool ClassifySection(ProcessGroupInfo pg, string sectionName, HashSet<string> coldRollKeys)
     {
         // 荒管抛光
-        if (sectionName == "荒管抛光")
+        if (sectionName == ProductionOverviewRowKeys.Polish)
             return pg.ProcessName == ProcessKeys.RoughTubeProcessing && pg.OuterPolish.HasValue;
 
         // 拉机
-        if (sectionName == "拉机")
+        if (sectionName == ProductionOverviewRowKeys.DrawBench)
             return pg.ProcessName == ProcessKeys.ColdDraw && pg.ColdRollDraw.HasValue;
 
         // 以下仅适用于冷轧（配置表 IsColdRoll 判定）
@@ -692,9 +695,9 @@ public class ProductionOverviewService : IProductionOverviewService
 
         return sectionName switch
         {
-            "50,60轧机" => key is ProcessKeys.ColdRoll50 or ProcessKeys.ColdRoll60,
-            "20,30轧机" => key is ProcessKeys.ColdRoll20 or ProcessKeys.ColdRoll30,
-            "三辊轧机" => key == ProcessKeys.ThreeRollColdRoll,
+            ProductionOverviewRowKeys.Mill50_60 => key is ProcessKeys.ColdRoll50 or ProcessKeys.ColdRoll60,
+            ProductionOverviewRowKeys.Mill20_30 => key is ProcessKeys.ColdRoll20 or ProcessKeys.ColdRoll30,
+            ProductionOverviewRowKeys.ThreeRollMill => key == ProcessKeys.ThreeRollColdRoll,
             _ => false
         };
     }
