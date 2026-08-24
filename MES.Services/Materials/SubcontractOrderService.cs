@@ -1585,34 +1585,6 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
         return summary.TryGetValue(orderNo, out var rs) ? rs.BySequence.Values.Sum(x => x.Weight) : 0m;
     }
 
-    public async Task<byte[]> PrintReturnItemListAsync(string? keyword, string? sortBy, bool isDescending, string? status, string? filters, List<PrintColumnDef>? columns)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = 10000,
-            Keyword = keyword,
-            SortBy = sortBy ?? "Id",
-            IsDescending = isDescending
-        };
-        if (!string.IsNullOrEmpty(filters))
-        {
-            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
-            catch { }
-        }
-
-        var result = await GetReturnItemListAsync(query, status);
-
-        var resolvers = new Dictionary<string, Func<object?, string>>
-        {
-            ["ProcessStatus"] = v => v is SubcontractOrderStatus ps
-                ? EnumHelper.GetDisplayName(ps)
-                : "-"
-        };
-
-        return TablePrintHelper.GeneratePdf("子项查询", result.Items, columns ?? new List<PrintColumnDef>(), resolvers);
-    }
-
     public async Task<byte[]> PrintReturnItemSelectedAsync(int[] ids, List<PrintColumnDef>? columns)
     {
         var rawItems = await _context.SubcontractReturnItems

@@ -241,16 +241,6 @@ public class BatchController : ControllerBase
         return Ok(ApiResponse<List<ForcedCompletedInspectionBatchDto>>.Ok(result, "查询成功"));
     }
 
-    // ========== 制造状态回填 ==========
-
-    [HttpPost("populate-manufacturing-status")]
-    [Authorize(Roles = Roles.Admin)]
-    public async Task<ActionResult<ApiResponse<int>>> PopulateManufacturingStatus()
-    {
-        var count = await _service.PopulateManufacturingStatusAsync();
-        return Ok(ApiResponse<int>.Ok(count, $"已回填 {count} 个批次的制造状态"));
-    }
-
     // ========== 工单号验证 ==========
 
     [HttpGet("verify-workorders")]
@@ -259,17 +249,6 @@ public class BatchController : ControllerBase
     {
         var result = await _service.VerifyWorkOrderNosAsync();
         return Ok(ApiResponse<List<BatchWorkOrderMismatchDto>>.Ok(result, "验证完成"));
-    }
-
-    // ========== 按工单号查询 ==========
-
-    [HttpGet("by-work-order/{workOrderNo}")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<List<ProductionBatchListDto>>>> GetByWorkOrderNo(string workOrderNo)
-    {
-        var query = new BatchQueryParams { WorkOrderNo = workOrderNo, PageSize = 5000 };
-        var result = await _service.GetPagedAsync(query);
-        return Ok(ApiResponse<List<ProductionBatchListDto>>.Ok(result.Items.ToList(), "查询成功"));
     }
 
     // ========== 批次跟踪可视化 ==========

@@ -31,14 +31,6 @@ public class CertificatePrintSettingController : ControllerBase
         return Ok(ApiResponse<List<CertificatePrintSettingDto>>.Ok(result));
     }
 
-    /// <summary>配置映射：Key → Value（打印链路覆盖企业信息/页脚/字体用）</summary>
-    [HttpGet("setting-map")]
-    public async Task<ActionResult<ApiResponse<Dictionary<string, string>>>> GetSettingMap()
-    {
-        var result = await _service.GetSettingMapAsync();
-        return Ok(ApiResponse<Dictionary<string, string>>.Ok(result));
-    }
-
     /// <summary>批量新增/更新（锚点 Key），返回写入行数</summary>
     [HttpPost("save-all")]
     [Authorize(Roles = Roles.Policies.QualityWrite)]

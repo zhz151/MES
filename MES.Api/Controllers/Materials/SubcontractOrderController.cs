@@ -206,18 +206,6 @@ public class SubcontractOrderController : ControllerBase
         return Ok(ApiResponse<SubcontractPiercingMonthlyResultDto>.Ok(result, "查询成功"));
     }
 
-    [HttpPost("return-items/print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
-    public async Task<IActionResult> PrintReturnItemListFile([FromBody] OrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintReturnItemListAsync(
-            request.Keyword, request.SortBy, request.IsDescending, null, null, request.Columns);
-        return File(pdfBytes, "application/pdf", $"子项查询.pdf");
-    }
-
     [HttpPost("return-items/print-selected-file")]
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<IActionResult> PrintReturnItemSelectedFile([FromBody] OrderPrintBatchRequest request)

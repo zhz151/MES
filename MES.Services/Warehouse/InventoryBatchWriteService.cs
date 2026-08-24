@@ -791,64 +791,6 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         }
     }
 
-    public async Task<int> RefreshAllCutLengthMatchAsync()
-    {
-        // 跟踪加载全部入库批次（直接赋值 + SaveChanges 持久化）
-        var batches = await _context.InventoryBatches.ToListAsync();
-
-        // 预载生产批次字典 + 工单字典 + 定尺长度映射（Chunk 防 SQL Server 2100 参数上限）
-        var batchNos = batches.Select(b => b.ProductionBatchNo)
-            .Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
-        var productionBatches = new Dictionary<string, ProductionBatch>(StringComparer.OrdinalIgnoreCase);
-        foreach (var chunk in batchNos.Chunk(1000))
-        {
-            foreach (var pb in await _context.ProductionBatches.AsNoTracking()
-                .Where(b => chunk.Contains(b.BatchNo))
-                .ToListAsync())
-            {
-                productionBatches[pb.BatchNo] = pb;
-            }
-        }
-
-        var woNos = batches.Select(b => b.WorkOrderNo)
-            .Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
-        var workOrders = new Dictionary<string, WoEntity>(StringComparer.OrdinalIgnoreCase);
-        foreach (var chunk in woNos.Chunk(1000))
-        {
-            foreach (var wo in await _context.WorkOrders.AsNoTracking()
-                .Where(w => chunk.Contains(w.WorkOrderNo))
-                .ToListAsync())
-            {
-                workOrders[wo.WorkOrderNo] = wo;
-            }
-        }
-
-        // 预载库房代码字典（仅成品库 FG 核查）
-        var warehouseCodes = await _context.Warehouses.AsNoTracking()
-            .Where(w => batches.Select(b => b.WarehouseId).Contains(w.Id))
-            .ToDictionaryAsync(w => w.Id, w => w.Code);
-
-        var lengthMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
-
-        var updated = 0;
-        foreach (var batch in batches)
-        {
-            var assoc = await ResolveAssociationAsync(batch, productionBatches, workOrders);
-            warehouseCodes.TryGetValue(batch.WarehouseId, out var whCode);
-            var value = ComputeCutLengthMatch(whCode, batch.MaterialType, batch.LengthStatus, batch.MinLength, lengthMaps, assoc);
-            if (batch.CutLengthMatchType != value)
-            {
-                batch.CutLengthMatchType = value;
-                updated++;
-            }
-        }
-
-        if (updated > 0)
-            await _context.SaveChangesAsync();
-
-        return updated;
-    }
-
     private async Task<string> GenerateBatchNoAsync()
     {
         await _batchNoLock.WaitAsync();

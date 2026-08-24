@@ -1553,39 +1553,8 @@ public class FinalInspectionService : IFinalInspectionService
     }
 
     /// <summary>
-    /// 回填全部成品检验记录的定尺切割长度匹配标识（CutLengthMatchType）
-    /// 仅正式成检记录计算；预成检/非定尺/无定尺长度一律置 null（显示空白）
-    /// </summary>
-    public async Task<int> RefreshAllCutLengthMatchAsync()
-    {
-        var records = await _context.FinalInspections
-            .Include(r => r.ProductionBatch)
-            .ToListAsync();
-        if (records.Count == 0) return 0;
-
-        var maps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
-        var updated = 0;
-        foreach (var r in records)
-        {
-            var batch = r.ProductionBatch;
-            if (batch == null) continue;
-            var newValue = ComputeCutLengthMatch(
-                r.InspectionType, batch.LengthStatus, r.FixedLength,
-                maps.ByWorkOrderNo.GetValueOrDefault(batch.WorkOrderNo ?? "", new HashSet<decimal>()),
-                maps.ByMainKey.GetValueOrDefault($"{batch.SalesOrderNo?.Trim()}|{batch.ProductionMainNo?.Trim()}", new HashSet<decimal>()));
-            if (r.CutLengthMatchType != newValue)
-            {
-                r.CutLengthMatchType = newValue;
-                updated++;
-            }
-        }
-        await _context.SaveChangesAsync();
-        return updated;
-    }
-
-    /// <summary>
     /// 重算某批次全部成品检验记录的定尺切割长度匹配标识（CutLengthMatchType）
-    /// 供批次编辑（LengthStatus/工单号等上游字段变更）后级联调用，与 RefreshAllCutLengthMatchAsync 口径一致
+    /// 供批次编辑（LengthStatus/工单号等上游字段变更）后级联调用
     /// </summary>
     public async Task<int> RecomputeCutLengthMatchByBatchAsync(int batchId)
     {

@@ -251,21 +251,6 @@ public class WorkOrderControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task CheckOrderChange_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.CheckAndUpdateWorkOrderStatusAsync(1)).Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _controller.CheckOrderChange(1);
-
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<ApiResponse>(okResult.Value);
-        Assert.True(response.Success);
-    }
-
-    [Fact]
     public async Task CheckAllOrderChange_ReturnsOk()
     {
         // Arrange

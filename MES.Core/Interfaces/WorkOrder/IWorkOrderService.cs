@@ -123,9 +123,4 @@ public interface IWorkOrderService
     /// 获取工单筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
-
-    /// <summary>
-    /// 回填 WorkOrder.OrderItemIds 字段（通过工单字段匹配 OrderItem.Sequence）
-    /// </summary>
-    Task<ApiResponse<BackfillResultDto>> BackfillOrderItemIdsAsync();
 }

@@ -198,11 +198,6 @@ public interface IMaterialPlanService
     Task<List<InProcessReworkPlanDto>> GetInProcessReworkPlansAsync(int workOrderId);
 
     /// <summary>
-    /// 获取单个在产改制计划详情
-    /// </summary>
-    Task<InProcessReworkPlanDto> GetInProcessReworkPlanByIdAsync(int id);
-
-    /// <summary>
     /// 创建在产改制计划
     /// </summary>
     Task<InProcessReworkPlanDto> CreateInProcessReworkPlanAsync(CreateInProcessReworkPlanRequest request);
@@ -227,11 +222,6 @@ public interface IMaterialPlanService
     /// 获取工单的在产主工单计划列表
     /// </summary>
     Task<List<InMainWorkOrderPlanDto>> GetInMainWorkOrderPlansAsync(int workOrderId);
-
-    /// <summary>
-    /// 获取单个在产主工单计划详情
-    /// </summary>
-    Task<InMainWorkOrderPlanDto> GetInMainWorkOrderPlanByIdAsync(int id);
 
     /// <summary>
     /// 创建在产主工单计划

@@ -20,11 +20,6 @@ public interface IProductRequirementService
     Task<ProductRequirementDefaultsDto> GetDefaultRequirementsByStandardNoAsync(string? standardNo);
 
     /// <summary>
-    /// 按工厂检验项要求全面回填所有技术要求（按订单项次标准号规范化匹配，含"必检"→true；液压检验仅定尺）
-    /// </summary>
-    Task<int> RefreshDefaultsAllAsync();
-
-    /// <summary>
     /// 按销售订单号 + 工单关联订单项次序号列表（逗号分隔）取质量备注：
     /// OrderItemIds 存的是「项次序号 Sequence」（非 OrderItem.Id），须结合订单号唯一定位 OrderItem；
     /// 各项次技术要求的「其他要求」按项次号拼接（多行时带项次前缀）

@@ -85,17 +85,6 @@ public class ProductRequirementController : ControllerBase
     }
 
     /// <summary>
-    /// 按工厂检验项要求全面回填所有技术要求（按订单项次标准号匹配，含"必检"→true；液压检验仅定尺）
-    /// </summary>
-    [HttpPost("~/api/order/requirements/refresh-all-defaults")]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<int>>> RefreshDefaultsAll()
-    {
-        var count = await _service.RefreshDefaultsAllAsync();
-        return Ok(ApiResponse<int>.Ok(count, $"已回填 {count} 条技术要求"));
-    }
-
-    /// <summary>
     /// 按销售订单号 + 工单关联订单项次序号列表（逗号分隔）取质量备注（各项次技术要求「其他要求」按项次号拼接）
     /// </summary>
     /// <param name="salesOrderNo">销售订单号（结合项次序号唯一定位订单项次）</param>

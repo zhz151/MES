@@ -309,43 +309,6 @@ public class ProductRequirementService : IProductRequirementService
     }
 
     /// <summary>
-    /// 按工厂检验项要求全面回填所有技术要求：
-    /// 订单项次标准号（去空格规范化）→ 工厂检验项要求匹配，字段含"必检"→true；液压检验仅定尺钢管带出，非定尺→false。
-    /// 匹配不到标准号/标准号为空的项次保持现状不动。
-    /// </summary>
-    public async Task<int> RefreshDefaultsAllAsync()
-    {
-        // 工厂检验项要求：按"去空格标准号"规范化建字典（SQL collation 忽略大小写，内存用 OrdinalIgnoreCase）
-        var factoryList = await _context.FactoryInspectionRequirements.AsNoTracking().ToListAsync();
-        var factoryMap = factoryList
-            .Where(x => !string.IsNullOrWhiteSpace(x.StandardNo))
-            .GroupBy(x => x.StandardNo.Replace(" ", ""), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-        // 订单项次：Id → (标准号, 长度状态)
-        var itemMap = (await _context.OrderItems.AsNoTracking()
-                .Select(oi => new { oi.Id, oi.StandardNo, oi.LengthStatus })
-                .ToListAsync())
-            .Where(oi => !string.IsNullOrWhiteSpace(oi.StandardNo))
-            .ToDictionary(oi => oi.Id);
-
-        var requirements = await _context.ProductRequirements.ToListAsync();
-
-        var updated = 0;
-        foreach (var pr in requirements)
-        {
-            if (!itemMap.TryGetValue(pr.OrderItemId, out var item)) continue;
-            if (!factoryMap.TryGetValue(item.StandardNo!.Replace(" ", ""), out var req)) continue;
-
-            ApplyFactoryDefaults(pr, req, item.LengthStatus);
-            updated++;
-        }
-
-        await _context.SaveChangesAsync();
-        return updated;
-    }
-
-    /// <summary>
     /// 按销售订单号 + 工单关联订单项次序号列表（逗号分隔）取质量备注：
     /// ⚠️ OrderItemIds 存的是「项次序号 Sequence」（非 OrderItem.Id），须结合订单号唯一定位 OrderItem；
     /// 取各项次技术要求的「其他要求」，按项次号排序；多条时换行分隔并带项次前缀，单条时直接返回。
@@ -375,45 +338,6 @@ public class ProductRequirementService : IProductRequirementService
         if (remarks.Count == 1) return remarks[0].OtherRequirement;
 
         return string.Join(Environment.NewLine, remarks.Select(r => $"项次{r.Sequence}：{r.OtherRequirement}"));
-    }
-
-    /// <summary>
-    /// 将工厂检验项要求默认值覆盖写入技术要求实体（含"必检"→true）
-    /// </summary>
-    private static void ApplyFactoryDefaults(ProductRequirement pr, FactoryInspectionRequirement req, LengthStatus lengthStatus)
-    {
-        pr.ChemicalComposition = IsMandatory(req.ChemicalComposition);
-        pr.PmiInspection = MapFactoryRequirement(req.PmiInspection);
-        pr.SurfaceInspection = MapFactoryRequirement(req.SurfaceInspection);
-        pr.Dimension = MapFactoryRequirement(req.Dimension);
-        pr.Endoscopy = MapFactoryRequirement(req.Endoscopy);
-        // 液压检验仅定尺钢管按标准号带出；非定尺默认"-"（不适用）
-        pr.HydrostaticTest = lengthStatus == LengthStatus.Fixed
-            ? MapFactoryRequirement(req.HydrostaticTest)
-            : InspectionRequirementStage.None;
-        pr.UnderwaterPressure = MapFactoryRequirement(req.UnderwaterPressure);
-        pr.EddyCurrent = MapFactoryRequirement(req.EddyCurrent);
-        pr.UltrasonicTest = MapFactoryRequirement(req.UltrasonicTest);
-        pr.PortColoring = MapFactoryRequirement(req.PortColoring);
-        pr.RadiographicTest = MapFactoryRequirement(req.RadiographicTest);
-        pr.HardnessRockwell = IsMandatory(req.HardnessRockwell);
-        pr.HardnessBrinell = IsMandatory(req.HardnessBrinell);
-        pr.HardnessVickers = IsMandatory(req.HardnessVickers);
-        pr.TensileRoomTemp = IsMandatory(req.TensileRoomTemp);
-        pr.TensileHighTemp = IsMandatory(req.TensileHighTemp);
-        pr.WeldJointTensile = IsMandatory(req.WeldJointTensile);
-        pr.ImpactTest = IsMandatory(req.ImpactTest);
-        pr.WeldJointImpact = IsMandatory(req.WeldJointImpact);
-        pr.FlatteningTest = IsMandatory(req.FlatteningTest);
-        pr.FlaringTest = IsMandatory(req.FlaringTest);
-        pr.ExpandingTest = IsMandatory(req.ExpandingTest);
-        pr.BendTest = IsMandatory(req.BendTest);
-        pr.WeldJointBend = IsMandatory(req.WeldJointBend);
-        pr.GrainSize = IsMandatory(req.GrainSize);
-        pr.IntergranularCorrosion = IsMandatory(req.IntergranularCorrosion);
-        pr.PittingCorrosion = IsMandatory(req.PittingCorrosion);
-        pr.FerriteContent = IsMandatory(req.FerriteContent);
-        pr.Macrostructure = IsMandatory(req.Macrostructure);
     }
 
     /// <summary>

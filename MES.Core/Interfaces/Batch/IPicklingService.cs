@@ -55,11 +55,6 @@ public interface IPicklingService
     /// 删除完工记录（自动恢复入缸状态为 Soaking�?    /// </summary>
     Task DeleteOutRecordAsync(int id);
 
-    /// <summary>
-    /// 回填完工记录的入缸冗余字段（历史存量补齐），返回更新条数
-    /// </summary>
-    Task<int> BackfillOutRecordInDataAsync();
-
     // ========== 打印 ==========
 
     /// <summary>

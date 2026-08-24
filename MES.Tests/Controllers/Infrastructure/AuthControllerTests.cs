@@ -52,22 +52,6 @@ public class AuthControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task Logout_ReturnsOk()
-    {
-        // Arrange
-        var response = ApiResponse<object>.Ok(null!, "退出成功");
-        _serviceMock.Setup(x => x.LogoutAsync()).ReturnsAsync(response);
-
-        // Act
-        var result = await _controller.Logout();
-
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var apiResponse = Assert.IsType<ApiResponse<object>>(okResult.Value);
-        Assert.True(apiResponse.Success);
-    }
-
-    [Fact]
     public async Task RefreshToken_ReturnsOk()
     {
         // Arrange
@@ -98,19 +82,4 @@ public class AuthControllerTests : ControllerTestBase
         Assert.False(response.Success);
     }
 
-    [Fact]
-    public async Task GetCurrentUser_ReturnsOk()
-    {
-        // Arrange
-        var response = ApiResponse<UserInfoResponse>.Ok(new UserInfoResponse { UserName = "admin" }, "查询成功");
-        _serviceMock.Setup(x => x.GetCurrentUserAsync()).ReturnsAsync(response);
-
-        // Act
-        var result = await _controller.GetCurrentUser();
-
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var apiResponse = Assert.IsType<ApiResponse<UserInfoResponse>>(okResult.Value);
-        Assert.True(apiResponse.Success);
-    }
 }

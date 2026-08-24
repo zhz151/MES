@@ -145,24 +145,6 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Get current user information
-    /// </summary>
-    public async Task<ApiResponse<UserInfoResponse>> GetCurrentUserAsync()
-    {
-        await Task.CompletedTask;
-        return ApiResponse<UserInfoResponse>.Fail("Get current user information feature to be implemented");
-    }
-
-    /// <summary>
-    /// Logout
-    /// </summary>
-    public async Task<ApiResponse<object>> LogoutAsync()
-    {
-        await _signInManager.SignOutAsync();
-        return ApiResponse<object>.Ok(new object(), "Logout successful");
-    }
-
-    /// <summary>
     /// Refresh token
     /// </summary>
     public async Task<ApiResponse<LoginResponse>> RefreshTokenAsync(string refreshToken)

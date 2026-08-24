@@ -797,11 +797,6 @@ public class InventoryService : IInventoryService
         }) ?? new Dictionary<string, List<string>>();
     }
 
-    /// <summary>
-    /// 全量回填定尺切割长度匹配标识，返回更新条数（委托写服务）
-    /// </summary>
-    public async Task<int> RefreshAllCutLengthMatchAsync() => await _batchWriteService.RefreshAllCutLengthMatchAsync();
-
     // ========== 物料进出存报表行排序：库房固定顺序 + 物料类型固定顺序 + 来源/类型固定顺序 ==========
 
     private static readonly Dictionary<string, int> WarehouseDisplayOrder = new(StringComparer.OrdinalIgnoreCase)

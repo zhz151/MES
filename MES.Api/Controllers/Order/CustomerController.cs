@@ -139,26 +139,6 @@ public class CustomerController : ControllerBase
     // ========== 打印 ==========
 
     /// <summary>
-    /// 打印单个客户
-    /// </summary>
-    [HttpPost("print-single")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<string>>> PrintCustomerSingle([FromBody] OrderPrintSingleRequest request)
-    {
-        var pdfBytes = await _customerService.PrintCustomerAsync(request.Id, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    [HttpPost("print-single-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
-    public async Task<IActionResult> PrintCustomerSingleFile([FromBody] OrderPrintSingleRequest request)
-    {
-        var pdfBytes = await _customerService.PrintCustomerAsync(request.Id, request.Columns);
-        return File(pdfBytes, "application/pdf", "客户打印.pdf");
-    }
-
-    /// <summary>
     /// 批量打印客户
     /// </summary>
     [HttpPost("print-batch")]

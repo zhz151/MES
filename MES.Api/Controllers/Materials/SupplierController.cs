@@ -122,23 +122,6 @@ public class SupplierController : ControllerBase
 
     // ========== 打印 ==========
 
-    [HttpPost("print-single")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<string>>> PrintSupplierSingle([FromBody] OrderPrintSingleRequest request)
-    {
-        var pdfBytes = await _service.PrintSupplierAsync(request.Id, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    [HttpPost("print-single-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
-    public async Task<IActionResult> PrintSupplierSingleFile([FromBody] OrderPrintSingleRequest request)
-    {
-        var pdfBytes = await _service.PrintSupplierAsync(request.Id, request.Columns);
-        return File(pdfBytes, "application/pdf", $"供应商_{request.Id}.pdf");
-    }
-
     [HttpPost("print-batch")]
     [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<string>>> PrintSupplierBatch([FromBody] OrderPrintBatchRequest request)

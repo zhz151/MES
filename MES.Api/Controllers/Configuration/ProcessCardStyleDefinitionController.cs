@@ -31,14 +31,6 @@ public class ProcessCardStyleDefinitionController : ControllerBase
         return Ok(ApiResponse<List<ProcessCardStyleDefinitionDto>>.Ok(result));
     }
 
-    /// <summary>配置映射：Key → Value（打印链路覆盖字体/字号用）</summary>
-    [HttpGet("style-map")]
-    public async Task<ActionResult<ApiResponse<Dictionary<string, string>>>> GetStyleMap()
-    {
-        var result = await _service.GetStyleMapAsync();
-        return Ok(ApiResponse<Dictionary<string, string>>.Ok(result));
-    }
-
     /// <summary>批量新增/更新（锚点 Key），返回写入行数</summary>
     [HttpPost("save-all")]
     [Authorize(Roles = Roles.Policies.ConfigurationWrite)]

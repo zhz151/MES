@@ -56,11 +56,6 @@ public interface IInventoryService
     Task HardDeleteInventoryBatchAsync(int id);
 
     /// <summary>
-    /// 全量回填定尺切割长度匹配标识，返回更新条数
-    /// </summary>
-    Task<int> RefreshAllCutLengthMatchAsync();
-
-    /// <summary>
     /// 更新出库记录
     /// </summary>
     Task<OutboundRecordDto> UpdateOutboundRecordAsync(long id, UpdateOutboundRecordRequest request);

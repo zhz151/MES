@@ -310,24 +310,6 @@ public class BatchControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task GetByWorkOrderNo_ReturnsOk()
-    {
-        // Arrange
-        var pagedResult = new PagedResult<ProductionBatchListDto>
-        {
-            Items = new List<ProductionBatchListDto> { new() { Id = 1, BatchNo = "BATCH001" } }
-        };
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<BatchQueryParams>())).ReturnsAsync(pagedResult);
-
-        // Act
-        var result = await _controller.GetByWorkOrderNo("WO001");
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<List<ProductionBatchListDto>>>(result);
-        Assert.Single(response.Data!);
-    }
-
-    [Fact]
     public async Task GetTrackingVisual_ReturnsOk()
     {
         // Arrange

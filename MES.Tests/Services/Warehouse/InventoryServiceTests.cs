@@ -357,36 +357,6 @@ public class InventoryServiceTests : TestBase
     }
 
     [Fact]
-    public async Task RefreshAllCutLengthMatchAsync_回填_生产批号为主工单号兜底()
-    {
-        var ctx = CreateDbContext();
-        var wh = await SeedFgWarehouseAsync(ctx);
-        await SeedProductionBatchAsync(ctx, "PB-003", "SO-X01-01", "SO-X01", "X01");
-        await SeedWorkOrderAsync(ctx, "SO-Y01-01", "SO-Y01", "Y01");
-
-        // 已有入库批次（CutLengthMatchType 留空待回填）
-        ctx.InventoryBatches.AddRange(
-            new InventoryBatch { BatchNo = "CK100", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, LengthStatus = "Fixed", MinLength = 6000m, MaxLength = 6000m, ProductionBatchNo = "PB-003" },
-            new InventoryBatch { BatchNo = "CK101", WarehouseId = wh.Id, MaterialType = MaterialType.OrderFinished.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, LengthStatus = "Fixed", MinLength = 6000m, MaxLength = 6000m, WorkOrderNo = "SO-Y01-01" },
-            new InventoryBatch { BatchNo = "CK102", WarehouseId = wh.Id, MaterialType = MaterialType.Surplus.ToString(), PlantGrade = "Q345B", Specification = "219*8", InboundSource = InboundSource.Purchase.ToString(), SourceName = "供应商A", InboundDate = DateTime.Today, InitialQuantity = 10, InitialWeight = 1000m, RemainingQuantity = 10, RemainingWeight = 1000m, LengthStatus = "Fixed", MinLength = 6000m, MaxLength = 6000m, ProductionBatchNo = "PB-003" }
-        );
-        await ctx.SaveChangesAsync();
-
-        var maps = BuildLengthMaps(("SO-X01-01", 6000m), ("SO-Y01-01", 6000m));
-        maps.ByMainKey["SO-X01|X01"] = new HashSet<decimal> { 6000m };
-        maps.ByMainKey["SO-Y01|Y01"] = new HashSet<decimal> { 6000m };
-        var svc = CreateService(ctx, FixedLenMockWith(maps));
-
-        var count = await svc.RefreshAllCutLengthMatchAsync();
-
-        count.Should().Be(2); // CK100 生产批号主路径 + CK101 工单号兜底路径，CK102 非成品不改
-        var after = await ctx.InventoryBatches.AsNoTracking().ToListAsync();
-        after.Single(b => b.BatchNo == "CK100").CutLengthMatchType.Should().Be("FullMatch");
-        after.Single(b => b.BatchNo == "CK101").CutLengthMatchType.Should().Be("FullMatch");
-        after.Single(b => b.BatchNo == "CK102").CutLengthMatchType.Should().BeNull();
-    }
-
-    [Fact]
     public async Task InboundAsync_非成品库_即使关联可解析_不核查()
     {
         // 用户强调：核查仅针对成品库(FG)，次品库等其他库房即使有生产批号关联的定尺入库也不核查

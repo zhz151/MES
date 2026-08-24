@@ -11,14 +11,12 @@ namespace MES.Tests.Controllers;
 public class WorkOrderExecutionControllerTests : ControllerTestBase
 {
     private readonly Mock<IWorkOrderExecutionService> _serviceMock;
-    private readonly Mock<IWorkOrderListSummaryRefreshService> _listSummaryServiceMock;
     private readonly WorkOrderExecutionController _controller;
 
     public WorkOrderExecutionControllerTests()
     {
         _serviceMock = new Mock<IWorkOrderExecutionService>();
-        _listSummaryServiceMock = new Mock<IWorkOrderListSummaryRefreshService>();
-        _controller = new WorkOrderExecutionController(_serviceMock.Object, _listSummaryServiceMock.Object);
+        _controller = new WorkOrderExecutionController(_serviceMock.Object);
     }
 
     [Fact]

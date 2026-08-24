@@ -63,19 +63,3 @@ public class OrderPrintAllRequest
     /// </summary>
     public DateTime? DateTo { get; set; }
 }
-
-/// <summary>
-/// 单条打印请求
-/// </summary>
-public class OrderPrintSingleRequest
-{
-    /// <summary>
-    /// 记录 ID
-    /// </summary>
-    public int Id { get; set; }
-
-    /// <summary>
-    /// 打印列定义列表（为空则打印全部列）
-    /// </summary>
-    public List<PrintColumnDef>? Columns { get; set; }
-}

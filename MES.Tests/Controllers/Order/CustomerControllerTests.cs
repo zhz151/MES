@@ -150,21 +150,6 @@ public class CustomerControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task PrintCustomer_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintCustomerAsync(1, null)).ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintCustomerSingle(new OrderPrintSingleRequest { Id = 1 });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
     public async Task PrintCustomerBatch_ReturnsBadRequest_WhenModelInvalid()
     {
         // Arrange

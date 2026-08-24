@@ -388,14 +388,6 @@ public class WorkOrderController : ControllerBase
 
     #region 定时任务接口
 
-    [HttpPost("check-order-change/{salesOrderId}")]
-    [Authorize(Roles = Roles.Admin)]
-    public async Task<ActionResult<ApiResponse>> CheckOrderChange(int salesOrderId)
-    {
-        await _workOrderService.CheckAndUpdateWorkOrderStatusAsync(salesOrderId);
-        return Ok(ApiResponse.Ok("检测完成"));
-    }
-
     [HttpPost("check-all-order-change")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse>> CheckAllOrderChange()
@@ -443,18 +435,6 @@ public class WorkOrderController : ControllerBase
     {
         var result = await _operationLogService.GetLogsAsync("WorkOrder", id);
         return Ok(ApiResponse<List<OperationLogDto>>.Ok(result, "查询成功"));
-    }
-
-    #endregion
-
-    #region 数据维护
-
-    [HttpPost("backfill-order-item-ids")]
-    [Authorize(Roles = Roles.Admin)]
-    public async Task<ActionResult<ApiResponse<BackfillResultDto>>> BackfillOrderItemIds()
-    {
-        var result = await _workOrderService.BackfillOrderItemIdsAsync();
-        return Ok(result);
     }
 
     #endregion

@@ -94,26 +94,6 @@ public class GradeMappingController : ControllerBase
     // ========== 打印 ==========
 
     /// <summary>
-    /// 打印单个牌号对照
-    /// </summary>
-    [HttpPost("print-single")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<string>>> PrintGradeMappingSingle([FromBody] OrderPrintSingleRequest request)
-    {
-        var pdfBytes = await _service.PrintGradeMappingAsync(request.Id, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    [HttpPost("print-single-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
-    public async Task<IActionResult> PrintGradeMappingSingleFile([FromBody] OrderPrintSingleRequest request)
-    {
-        var pdfBytes = await _service.PrintGradeMappingAsync(request.Id, request.Columns);
-        return File(pdfBytes, "application/pdf", "牌号对照打印.pdf");
-    }
-
-    /// <summary>
     /// 批量打印牌号对照
     /// </summary>
     [HttpPost("print-batch")]

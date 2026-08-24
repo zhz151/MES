@@ -132,9 +132,4 @@ public interface IBatchService
     /// 获取成检到料「强制完成」的批次通知（批次仍处于成检状态，待转「完成」）
     /// </summary>
     Task<List<ForcedCompletedInspectionBatchDto>> GetForcedCompletedInspectionBatchesAsync();
-
-    /// <summary>
-    /// 将未设置制造状态的批次的 ManufacturingStatus 回填为 DeliveryState 的值
-    /// </summary>
-    Task<int> PopulateManufacturingStatusAsync();
 }

@@ -30,27 +30,12 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpPost("logout")]
-    public async Task<ActionResult<ApiResponse<object>>> Logout()
-    {
-        var result = await _authService.LogoutAsync();
-        return Ok(result);
-    }
-
-    [AllowAnonymous]
     [HttpPost("refresh-token")]
     public async Task<ActionResult<ApiResponse<LoginResponse>>> RefreshToken([FromBody] RefreshTokenRequest refreshTokenRequest)
     {
         if (!ModelState.IsValid)
             return BadRequest(ApiResponse<LoginResponse>.Fail("请求参数无效"));
         var result = await _authService.RefreshTokenAsync(refreshTokenRequest.RefreshToken);
-        return Ok(result);
-    }
-
-    [HttpGet("current-user")]
-    public async Task<ActionResult<ApiResponse<UserInfoResponse>>> GetCurrentUser()
-    {
-        var result = await _authService.GetCurrentUserAsync();
         return Ok(result);
     }
 }

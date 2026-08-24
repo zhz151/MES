@@ -54,10 +54,6 @@ public partial class Suppliers
 
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
-    private static readonly HashSet<string> _summableColumnKeys = new()
-    {
-        // Suppliers 无非数值汇总字段，保留空集合
-    };
 
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();

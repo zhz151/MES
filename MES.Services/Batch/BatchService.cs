@@ -2609,22 +2609,6 @@ public class BatchService : IBatchService
         return result;
     }
 
-    public async Task<int> PopulateManufacturingStatusAsync()
-    {
-        var batches = await _context.ProductionBatches
-            .Where(b => string.IsNullOrEmpty(b.ManufacturingStatus) && !string.IsNullOrEmpty(b.DeliveryState))
-            .ToListAsync();
-
-        foreach (var batch in batches)
-        {
-            batch.ManufacturingStatus = batch.DeliveryState;
-        }
-
-        var count = await _context.SaveChangesAsync();
-        _logger.LogInformation("批量回填制造状态完成: 更新 {Count} 个批次的 ManufacturingStatus", count);
-        return count;
-    }
-
     public async Task<List<BatchWorkOrderMismatchDto>> VerifyWorkOrderNosAsync()
     {
         // 获取所有生产批次中非空的工单号（排除NotWorkOrder标记）

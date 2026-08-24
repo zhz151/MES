@@ -2474,8 +2474,8 @@ public class MaterialPlanServiceTests : TestBase
 
         await svc.DeleteInProcessReworkPlanAsync(created.Id);
 
-        var act = () => svc.GetInProcessReworkPlanByIdAsync(created.Id);
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+        var deleted = await ctx.InProcessReworkPlans.FindAsync(created.Id);
+        deleted.Should().BeNull();
     }
 
     // ========== 第7类 在产主工单计划：部分预留共享 + 已投料禁改 ==========
@@ -2793,8 +2793,8 @@ public class MaterialPlanServiceTests : TestBase
 
         await svc.DeleteInMainWorkOrderPlanAsync(created.Id);
 
-        var act = () => svc.GetInMainWorkOrderPlanByIdAsync(created.Id);
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*不存在*");
+        var deleted = await ctx.InMainWorkOrderPlans.FindAsync(created.Id);
+        deleted.Should().BeNull();
     }
 
     [Fact]

@@ -867,42 +867,6 @@ public class ProductionRecordServiceTests : TestBase
     }
 
     [Fact]
-    public async Task RefreshAllCutLengthMatchAsync_回填并修正全部记录()
-    {
-        var ctx = CreateDbContext();
-        var batch = await SeedBatchAsync(ctx, "BATCH-REFRESH");
-        batch.LengthStatus = nameof(LengthStatus.Fixed);
-        await ctx.SaveChangesAsync();
-        var pg = await SeedProcessGroupAsync(ctx, batch.Id);
-
-        // 4000 应判定完全匹配（先置错值 MainNoMatch），6000 应判定主号匹配（待回填）
-        ctx.ProductionRecords.Add(new ProductionRecord
-        {
-            ProductionBatchId = batch.Id, ProcessGroupId = pg.Id, ProcessName = "60冷轧", ManufacturingSpec = "219*8",
-            SectionName = SectionKeys.Cut, SequenceNumber = 5, ExecDate = DateTime.Today,
-            ProductStatus = ProductStatuses.Finished, LengthStatus = nameof(LengthStatus.Fixed),
-            FinishedCutLength = 4000m, CutLengthMatchType = nameof(CutLengthMatchType.MainNoMatch)
-        });
-        ctx.ProductionRecords.Add(new ProductionRecord
-        {
-            ProductionBatchId = batch.Id, ProcessGroupId = pg.Id, ProcessName = "60冷轧", ManufacturingSpec = "219*8",
-            SectionName = SectionKeys.Cut, SequenceNumber = 6, ExecDate = DateTime.Today,
-            ProductStatus = ProductStatuses.Finished, LengthStatus = nameof(LengthStatus.Fixed),
-            FinishedCutLength = 6000m, CutLengthMatchType = null
-        });
-        await ctx.SaveChangesAsync();
-
-        var svc = CreateService(ctx, CreateCutMatchSvcMock(
-            woLengths: new[] { 4000m, 8000m }, mainNoLengths: new[] { 4000m, 8000m, 6000m }));
-        var updated = await svc.RefreshAllCutLengthMatchAsync();
-
-        updated.Should().Be(2);
-        var records = await ctx.ProductionRecords.OrderBy(r => r.FinishedCutLength).ToListAsync();
-        records[0].CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.FullMatch));
-        records[1].CutLengthMatchType.Should().Be(nameof(CutLengthMatchType.MainNoMatch));
-    }
-
-    [Fact]
     public async Task RecomputeCutLengthMatchByBatchAsync_批次工单号变更_重算匹配标识()
     {
         var ctx = CreateDbContext();

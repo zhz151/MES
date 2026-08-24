@@ -773,36 +773,6 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
     }
 
     /// <summary>
-    /// 全量刷新所有 WorkOrderListSummary 读模型
-    /// </summary>
-    public async Task RefreshAllAsync()
-    {
-        _logger.LogInformation("开始全量刷新用料计划总览读模型");
-
-        var salesOrderNos = await _context.WorkOrders
-            .Where(wo => wo.Status != Core.Enums.WorkOrderStatus.NotGenerated)
-            .Select(wo => wo.SalesOrderNo)
-            .Distinct()
-            .ToListAsync();
-
-        _logger.LogInformation("共发现 {Count} 个需要刷新的订单", salesOrderNos.Count);
-
-        foreach (var salesOrderNo in salesOrderNos)
-        {
-            try
-            {
-                await RefreshBySalesOrderAsync(salesOrderNo);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "刷新订单 {SalesOrderNo} 失败", salesOrderNo);
-            }
-        }
-
-        _logger.LogInformation("全量刷新用料计划总览读模型完成");
-    }
-
-    /// <summary>
     /// 是否为外购/库存投料批次：其重量已由成品采购/库存使用计划扣减（产能工量主公式），
     /// 批次投料完成后不再经 completedOutput 重复扣减，否则外购/库存重量被扣除两次造成负值低估。
     /// </summary>

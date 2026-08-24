@@ -1069,68 +1069,8 @@ public class ProductionRecordService : IProductionRecordService
     }
 
     /// <summary>
-    /// 删除生产记录中所有"去油"和"酸洗"的旧数据（已被 PicklingInRecord 替代）
-    /// </summary>
-    public async Task<int> CleanupDegreasePickleRecordsAsync()
-    {
-        var records = await _context.ProductionRecords
-            .Where(r => r.SectionName == SectionKeys.Degrease || r.SectionName == SectionKeys.Pickle)
-            .ToListAsync();
-        var count = records.Count;
-        if (count > 0)
-        {
-            _context.ProductionRecords.RemoveRange(records);
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("已删除 {Count} 条去油/酸洗生产记录", count);
-        }
-        return count;
-    }
-
-    public async Task<int> RefreshAllBatchTrackingAsync()
-    {
-        var batchIds = await _context.ProductionBatches
-            .Where(b => !b.IsForceCompleted)
-            .Select(b => b.Id)
-            .ToListAsync();
-        await BatchUpdateTrackingFromRecordsAsync(batchIds);
-        await TryRefreshExecutionSummaryByBatchIdsAsync(batchIds);
-        return batchIds.Count;
-    }
-
-    /// <summary>
-    /// 回填全部生产记录的定尺切割长度匹配标识（CutLengthMatchType）
-    /// 全量加载记录 + 批次导航，一次取定尺长度映射后逐条重算
-    /// </summary>
-    public async Task<int> RefreshAllCutLengthMatchAsync()
-    {
-        var records = await _context.ProductionRecords
-            .Include(r => r.ProductionBatch)
-            .ToListAsync();
-        if (records.Count == 0) return 0;
-
-        var maps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
-        var updated = 0;
-        foreach (var r in records)
-        {
-            var batch = r.ProductionBatch;
-            if (batch == null) continue;
-            var newValue = ComputeCutLengthMatch(
-                r.ProductStatus, r.LengthStatus, r.IsPreCut == true, r.FinishedCutLength,
-                maps.ByWorkOrderNo.GetValueOrDefault(batch.WorkOrderNo, new HashSet<decimal>()),
-                maps.ByMainKey.GetValueOrDefault($"{batch.SalesOrderNo.Trim()}|{batch.ProductionMainNo.Trim()}", new HashSet<decimal>()));
-            if (r.CutLengthMatchType != newValue)
-            {
-                r.CutLengthMatchType = newValue;
-                updated++;
-            }
-        }
-        await _context.SaveChangesAsync();
-        return updated;
-    }
-
-    /// <summary>
     /// 重算某批次全部生产记录的定尺切割长度匹配标识（CutLengthMatchType）
-    /// 供批次编辑（LengthStatus/工单号等上游字段变更）后级联调用，与 RefreshAllCutLengthMatchAsync 口径一致
+    /// 供批次编辑（LengthStatus/工单号等上游字段变更）后级联调用
     /// </summary>
     public async Task<int> RecomputeCutLengthMatchByBatchAsync(int batchId)
     {
@@ -1162,21 +1102,6 @@ public class ProductionRecordService : IProductionRecordService
         if (updated > 0)
             await _context.SaveChangesAsync();
         return updated;
-    }
-
-    /// <summary>
-    /// 回填所有批次的理论成品量（含强制完成批次）
-    /// 仅计算 TheoreticalOutputQty/Weight/UnitWeight，不修改其他跟踪字段
-    /// </summary>
-    public async Task<int> BackfillTheoreticalOutputAsync()
-    {
-        var batchIds = await _context.ProductionBatches
-            .Select(b => b.Id)
-            .ToListAsync();
-        if (batchIds.Count == 0) return 0;
-
-        await BatchUpdateTrackingFromRecordsAsync(batchIds);
-        return batchIds.Count;
     }
 
     // ========== 批次跟踪可视化 ==========

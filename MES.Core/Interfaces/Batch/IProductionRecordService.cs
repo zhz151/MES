@@ -47,21 +47,6 @@ public interface IProductionRecordService
     Task BatchUpdateBatchTrackingAsync(ICollection<int> batchIds);
 
     /// <summary>
-    /// 刷新全部未强制完成批次的跟踪字段，返回刷新的批次数量
-    /// </summary>
-    Task<int> RefreshAllBatchTrackingAsync();
-
-    /// <summary>
-    /// 回填所有批次的理论成品量（含强制完成批次）
-    /// </summary>
-    Task<int> BackfillTheoreticalOutputAsync();
-
-    /// <summary>
-    /// 回填全部生产记录的定尺切割长度匹配标识（CutLengthMatchType），返回更新条数
-    /// </summary>
-    Task<int> RefreshAllCutLengthMatchAsync();
-
-    /// <summary>
     /// 重算某批次全部生产记录的定尺切割长度匹配标识（CutLengthMatchType），返回更新条数
     /// 供批次编辑（LengthStatus/工单号等上游字段变更）后级联调用，保持派生列一致
     /// </summary>
@@ -114,9 +99,4 @@ public interface IProductionRecordService
     /// <summary>
     /// 按筛选条件打印全部生产记�?    /// </summary>
     Task<byte[]> PrintProductionRecordAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? execDateFrom, DateTime? execDateTo);
-
-    /// <summary>
-    /// 删除生产记录中所�?去油"�?酸洗"的旧数据
-    /// </summary>
-    Task<int> CleanupDegreasePickleRecordsAsync();
 }

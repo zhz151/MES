@@ -160,22 +160,6 @@ public class SupplierControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task PrintSupplier_ReturnsOk()
-    {
-        // Arrange
-        var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 };
-        _serviceMock.Setup(x => x.PrintSupplierAsync(1, null)).ReturnsAsync(pdfBytes);
-
-        // Act
-        var result = await _controller.PrintSupplierSingle(new OrderPrintSingleRequest { Id = 1 });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
     public async Task GetActive_ReturnsOk()
     {
         // Arrange

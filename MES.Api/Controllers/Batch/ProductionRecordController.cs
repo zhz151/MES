@@ -134,50 +134,6 @@ public class ProductionRecordController : ControllerBase
         return Ok(ApiResponse.Ok("跟踪字段已刷新"));
     }
 
-    /// <summary>
-    /// 刷新全部批次跟踪字段（一次查询 + 一次保存）
-    /// </summary>
-    [HttpPost("refresh-all-tracking")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse>> RefreshAllBatchTracking()
-    {
-        var count = await _service.RefreshAllBatchTrackingAsync();
-        return Ok(ApiResponse.Ok($"已刷新 {count} 个批次跟踪字段"));
-    }
-
-    /// <summary>
-    /// 回填所有批次的理论成品量（TheoreticalOutputQty/Weight/UnitWeight）
-    /// </summary>
-    [HttpPost("backfill-theoretical-output")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse>> BackfillTheoreticalOutput()
-    {
-        var count = await _service.BackfillTheoreticalOutputAsync();
-        return Ok(ApiResponse.Ok($"已回填 {count} 个批次的理论成品量"));
-    }
-
-    /// <summary>
-    /// 回填全部生产记录的定尺切割长度匹配标识（CutLengthMatchType）
-    /// </summary>
-    [HttpPost("refresh-all-cut-length-match")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse>> RefreshAllCutLengthMatch()
-    {
-        var count = await _service.RefreshAllCutLengthMatchAsync();
-        return Ok(ApiResponse.Ok($"已回填 {count} 条生产记录的定尺切割长度匹配标识"));
-    }
-
-    /// <summary>
-    /// 删除生产记录中所有"去油"和"酸洗"的旧数据（已被 PicklingInRecord 替代）
-    /// </summary>
-    [HttpDelete("cleanup-degrease-pickle")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse>> CleanupDegreasePickleRecords()
-    {
-        var count = await _service.CleanupDegreasePickleRecordsAsync();
-        return Ok(ApiResponse.Ok($"已删除 {count} 条去油/酸洗生产记录"));
-    }
-
     // ========== 跨批次查询（用于独立页面） ==========
 
     /// <summary>

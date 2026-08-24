@@ -118,16 +118,6 @@ public partial class BatchPlans
         (1, "急+"), (2, "急"), (3, "急-"), (4, "一般"), (5, "略"),
     };
 
-    /// <summary>冷轧类型工序下拉（9 工序 + 生产收尾，Value=英文 Key / Text=中文）</summary>
-    private List<(string Value, string Text)> _flowCRTypeOptions = BuildFlowCRTypeOptions();
-
-    private static List<(string Value, string Text)> BuildFlowCRTypeOptions()
-    {
-        var list = ProcessKeys.KeyToChinese.Select(kv => (kv.Key, kv.Value)).ToList();
-        list.Add((ProductionAttentionKeys.Finish, ProductionAttentionKeys.ToChinese(ProductionAttentionKeys.Finish) ?? "生产收尾"));
-        return list;
-    }
-
     private async Task LoadDictOptionsAsync()
     {
         var flowTarget = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.FlowTargetKey);

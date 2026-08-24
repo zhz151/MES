@@ -34,7 +34,6 @@ public interface ISubcontractOrderService
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     // ========== 打印 ==========
-    Task<byte[]> PrintReturnItemListAsync(string? keyword, string? sortBy, bool isDescending, string? status, string? filters, List<PrintColumnDef>? columns);
     Task<byte[]> PrintReturnItemSelectedAsync(int[] ids, List<PrintColumnDef>? columns);
     Task<byte[]> PrintOrderAsync(int id);
     Task<byte[]> PrintOrderBatchAsync(int[] ids);

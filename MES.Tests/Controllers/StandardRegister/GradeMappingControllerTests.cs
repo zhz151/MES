@@ -153,21 +153,6 @@ public class GradeMappingControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task PrintGradeMapping_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintGradeMappingAsync(1, null)).ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintGradeMappingSingle(new OrderPrintSingleRequest { Id = 1 });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
     public async Task PrintGradeMappingBatch_ReturnsBadRequest_WhenModelInvalid()
     {
         // Arrange

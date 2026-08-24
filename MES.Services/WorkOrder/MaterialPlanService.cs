@@ -2187,15 +2187,6 @@ public class MaterialPlanService : IMaterialPlanService
         return plans.Select(p => p.ToDto()).ToList();
     }
 
-    public async Task<InProcessReworkPlanDto> GetInProcessReworkPlanByIdAsync(int id)
-    {
-        var plan = await _context.InProcessReworkPlans.FindAsync(id);
-        if (plan == null)
-            throw new BusinessException("在产改制计划不存在");
-
-        return plan.ToDto();
-    }
-
     public async Task<InProcessReworkPlanDto> CreateInProcessReworkPlanAsync(CreateInProcessReworkPlanRequest request)
     {
         var workOrder = await _context.WorkOrders.FindAsync(request.WorkOrderId);
@@ -2727,15 +2718,6 @@ public class MaterialPlanService : IMaterialPlanService
             .ToListAsync();
 
         return plans.Select(p => p.ToDto()).ToList();
-    }
-
-    public async Task<InMainWorkOrderPlanDto> GetInMainWorkOrderPlanByIdAsync(int id)
-    {
-        var plan = await _context.InMainWorkOrderPlans.FindAsync(id);
-        if (plan == null)
-            throw new BusinessException("在产主工单计划不存在");
-
-        return plan.ToDto();
     }
 
     public async Task<InMainWorkOrderPlanDto> CreateInMainWorkOrderPlanAsync(CreateInMainWorkOrderPlanRequest request)

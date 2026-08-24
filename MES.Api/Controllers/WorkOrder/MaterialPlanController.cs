@@ -237,14 +237,6 @@ public class MaterialPlanController : ControllerBase
         return Ok(ApiResponse<List<InProcessReworkPlanDto>>.Ok(result, "查询成功"));
     }
 
-    [HttpGet("in-process-rework/detail/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<InProcessReworkPlanDto>>> GetInProcessReworkPlanById(int id)
-    {
-        var result = await _materialPlanService.GetInProcessReworkPlanByIdAsync(id);
-        return Ok(ApiResponse<InProcessReworkPlanDto>.Ok(result, "查询成功"));
-    }
-
     [HttpPost("in-process-rework")]
     [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
     public async Task<ActionResult<ApiResponse<InProcessReworkPlanDto>>> CreateInProcessReworkPlan(
@@ -307,14 +299,6 @@ public class MaterialPlanController : ControllerBase
     {
         var result = await _materialPlanService.GetInMainWorkOrderPlansAsync(workOrderId);
         return Ok(ApiResponse<List<InMainWorkOrderPlanDto>>.Ok(result, "查询成功"));
-    }
-
-    [HttpGet("in-main-work-order/detail/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
-    public async Task<ActionResult<ApiResponse<InMainWorkOrderPlanDto>>> GetInMainWorkOrderPlanById(int id)
-    {
-        var result = await _materialPlanService.GetInMainWorkOrderPlanByIdAsync(id);
-        return Ok(ApiResponse<InMainWorkOrderPlanDto>.Ok(result, "查询成功"));
     }
 
     [HttpPost("in-main-work-order")]
