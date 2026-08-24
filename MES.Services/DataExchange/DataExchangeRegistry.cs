@@ -322,7 +322,7 @@ public static class DataExchangeRegistry
             new("关联项次", "OrderItemIds", typeof(string), isRequired: false),
             // 仓库冗余字段
             new("来源库存批次号", "SourceBatchNo", typeof(string), isRequired: false),
-            new("原料类型", "SourceMaterialType", typeof(string), isRequired: false),
+            new("原料类型", "SourceMaterialType", typeof(MES.Core.Enums.MaterialType), isEnum: true, isRequired: false),
             new("来料单位", "SourceName", typeof(string), isRequired: false),
             new("炉号", "SourceHeatNo", typeof(string), isRequired: false),
             new("来源工厂牌号", "SourcePlantGrade", typeof(string), isRequired: false),
@@ -1021,7 +1021,7 @@ public static class DataExchangeRegistry
         {
             new("来料日期", "IncomingDate", typeof(DateTime)),
             new("原料单位", "RawMaterialUnit"),
-            new("原料类型", "RawMaterialType"),
+            new("原料类型", "RawMaterialType", typeof(MES.Core.Enums.MaterialType), isEnum: true),
             new("登记牌号", "RegisteredGrade"),
             new("关联工厂牌号", "RelatedPlantGrade", typeof(string), isRequired: false),
             new("炉号", "FurnaceNumber"),

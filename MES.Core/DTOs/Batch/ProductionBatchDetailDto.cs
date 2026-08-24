@@ -125,13 +125,7 @@ public class ProductionBatchDetailDto
 
     /// <summary>成切存疑：略/正常/疑问-数量/疑问-缺少</summary>
     public CutDoubtType? CutDoubt { get; set; }
-    public string? CutDoubtDisplay => CutDoubt switch
-    {
-        CutDoubtType.QuantityMismatch => "疑问-数量",
-        CutDoubtType.MissingRecords => "疑问-缺少",
-        CutDoubtType.Normal => "正常",
-        _ => "略"
-    };
+    public string? CutDoubtDisplay => CutDoubt.HasValue ? EnumHelper.GetDisplayName(CutDoubt.Value) : "略";
 
     // ========== 审计字段 ==========
     public DateTimeOffset CreatedTime { get; set; }

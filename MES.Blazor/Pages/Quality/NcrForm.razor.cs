@@ -319,7 +319,7 @@ public partial class NcrForm
                 .Select(k => new DictValueInfoDto
                 {
                     Value = k,
-                    DisplayName = NcrResponsibilityKeys.ToChinese(k)!,
+                    DisplayName = DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, k) ?? k,
                     DisplayOrder = 0,
                     IsEnabled = true
                 })

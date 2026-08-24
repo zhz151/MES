@@ -40,6 +40,33 @@ public class DataImportService : IDataImportService
     protected readonly AppDbContext _context;
     private readonly ILogger<DataImportService> _logger;
 
+    /// <summary>字典配置表反向映射（DictKey → DisplayName → Value），供导入 Excel 中文 → 英文 Key；可加值字典的加值项也能转回 Key</summary>
+    private Dictionary<string, Dictionary<string, string>>? _dictReverseMaps;
+
+    /// <summary>字典配置表反向映射（懒加载，配置表优先；与导出 GetText 配置表优先语义对称）</summary>
+    private Dictionary<string, Dictionary<string, string>> GetDictReverseMaps()
+    {
+        if (_dictReverseMaps == null)
+        {
+            _dictReverseMaps = _context.DictValueDefinitions
+                .AsNoTracking()
+                .GroupBy(x => x.DictKey)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.ToDictionary(x => x.DisplayName, x => x.Value, StringComparer.OrdinalIgnoreCase),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+        return _dictReverseMaps;
+    }
+
+    /// <summary>把 Excel 中文（或英文）经字典配置表反向解析为英文 Key；未命中返回 null（调用方再静态兜底）</summary>
+    private string? ResolveDictValueKey(string dictKey, string value)
+    {
+        if (GetDictReverseMaps().TryGetValue(dictKey, out var map) && map.TryGetValue(value, out var key))
+            return key;
+        return null;
+    }
+
     public DataImportService(AppDbContext context, ILogger<DataImportService> logger)
     {
         _context = context;
@@ -1232,22 +1259,25 @@ public class DataImportService : IDataImportService
                 value = SectionKeys.ToKey(currentSectionName) ?? currentSectionName;
             }
 
-            // 特殊处理：ProductStatus 存储改英文 Key（Excel 中文 → Key）
+            // 特殊处理：ProductStatus 存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
             if (colDef.Property == "ProductStatus" && value is string productStatus)
             {
-                value = ProductStatuses.ToKey(productStatus) ?? productStatus;
+                value = ResolveDictValueKey(DictValueDefaults.ProductStatus, productStatus)
+                    ?? ProductStatuses.ToKey(productStatus) ?? productStatus;
             }
 
-            // 特殊处理：LiabilityType 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
+            // 特殊处理：LiabilityType 存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
             if (colDef.Property == "LiabilityType" && value is string liabilityType)
             {
-                value = LiabilityTypeKeys.ToKey(liabilityType) ?? liabilityType;
+                value = ResolveDictValueKey(DictValueDefaults.LiabilityTypeKey, liabilityType)
+                    ?? LiabilityTypeKeys.ToKey(liabilityType) ?? liabilityType;
             }
 
-            // 特殊处理：NCR ResponsibilityCategory 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
+            // 特殊处理：NCR ResponsibilityCategory 存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
             if (colDef.Property == "ResponsibilityCategory" && value is string responsibilityCategory)
             {
-                value = NcrResponsibilityKeys.ToKey(responsibilityCategory) ?? responsibilityCategory;
+                value = ResolveDictValueKey(DictValueDefaults.NcrResponsibilityKey, responsibilityCategory)
+                    ?? NcrResponsibilityKeys.ToKey(responsibilityCategory) ?? responsibilityCategory;
             }
 
             prop.SetValue(entity, value);

@@ -582,7 +582,7 @@
                 errors.Add($"第{i + 1}行：制造规格不能为空");
             if (string.IsNullOrWhiteSpace(r.PlantGrade))
                 errors.Add($"第{i + 1}行：工厂牌号不能为空");
-            if (r.LengthStatus == "定尺")
+            if (r.LengthStatus == EnumHelper.GetDisplayName(LengthStatus.Fixed))
             {
                 if (r.FinishedCutLength == null)
                     errors.Add($"第{i + 1}行：长度状态为定尺时，成品长度不能为空");
@@ -961,7 +961,7 @@
                 builder.AddAttribute(6, "Value", r.FinishedCutLength);
                 builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.FinishedCutLength = v));
                 // 仅长度状态为"定尺"时可填写，否则只读（始终绑定，确保定尺时解除只读）
-                builder.AddAttribute(8, "ReadOnly", r.LengthStatus != "定尺");
+                builder.AddAttribute(8, "ReadOnly", r.LengthStatus != EnumHelper.GetDisplayName(LengthStatus.Fixed));
                 builder.CloseComponent();
                 break;
             case "PostCutQuantity":
@@ -973,7 +973,7 @@
                 builder.AddAttribute(5, "Value", r.PostCutQuantity);
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.PostCutQuantity = v));
                 // 仅长度状态为"定尺"时可填写，否则只读（始终绑定，确保定尺时解除只读）
-                builder.AddAttribute(8, "ReadOnly", r.LengthStatus != "定尺");
+                builder.AddAttribute(8, "ReadOnly", r.LengthStatus != EnumHelper.GetDisplayName(LengthStatus.Fixed));
                 builder.CloseComponent();
                 break;
             case "IsPreCut":

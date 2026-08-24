@@ -96,7 +96,7 @@
                                                 <span>-</span>
                                             }
                                         </MudTd>
-                                        <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (RawMaterialLockRemarkKeys.ToChinese(context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
+                                        <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
                                         <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
                                         <MudTd>@context.PlantGrade</MudTd>
                                         <MudTd>@context.PiercingSpec</MudTd>

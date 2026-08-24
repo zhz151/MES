@@ -185,8 +185,8 @@ public partial class InboundHistory
     // 责任类型下拉（配置表动态加载，失败兜底内置两值）
     private List<(string Value, string Text)> _liabilityTypeOptions = new()
     {
-        (LiabilityTypeKeys.FactoryDepartment, LiabilityTypeKeys.ToChinese(LiabilityTypeKeys.FactoryDepartment)!),
-        (LiabilityTypeKeys.OutsourcedPurchase, LiabilityTypeKeys.ToChinese(LiabilityTypeKeys.OutsourcedPurchase)!),
+        (LiabilityTypeKeys.FactoryDepartment, DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, LiabilityTypeKeys.FactoryDepartment) ?? ""),
+        (LiabilityTypeKeys.OutsourcedPurchase, DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, LiabilityTypeKeys.OutsourcedPurchase) ?? ""),
     };
 
     private async Task LoadLiabilityTypeOptionsAsync()

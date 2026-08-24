@@ -3998,7 +3998,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         "WarehousingTotalWeight" => item.WarehousingTotalWeight,
         "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
         "CapacityWorkDays" => item.CapacityWorkDays,
-        "UrgencyLevel" => UrgencyLevelKeys.ToChinese(item.UrgencyLevel) ?? "",
+        "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "",
         "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
         "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "",
         "AdjustmentRemark" => item.AdjustmentRemark ?? "",
@@ -4010,10 +4010,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         "PendingSection20Roll" => item.PendingSection20Roll,
         "PendingSectionThreeRoll" => item.PendingSectionThreeRoll,
         "PendingSectionDrawBench" => item.PendingSectionDrawBench,
-        "ProductionAttentionProcess" => ProcessKeys.ToChinese(item.ProductionAttentionProcess) ?? "",
-        "ProductionFlowProperty" => ProductionFlowKeys.ToChinese(item.ProductionFlowProperty) ?? "",
+        "ProductionAttentionProcess" => GetProcessNameText(item.ProductionAttentionProcess),
+        "ProductionFlowProperty" => DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey, item.ProductionFlowProperty) ?? "",
         "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays,
-        "MainNoAttentionProcess" => ProcessKeys.ToChinese(item.MainNoAttentionProcess) ?? "",
+        "MainNoAttentionProcess" => GetProcessNameText(item.MainNoAttentionProcess),
         // 主号流转比（ColumnDef Key 与 DTO 属性名不一致：Key=MainNoFlowRatio, DTO=MainNoFlowOutputRatio）
         "MainNoFlowRatio" => item.MainNoFlowOutputRatio,
         _ => ""
@@ -4026,6 +4026,12 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     private static string GetSettlementMethodText(string? method) => EnumHelper.GetDisplayName<SettlementMethod>(method);
 
     private static string GetLengthStatusText(string? lengthStatus) => EnumHelper.GetDisplayName<LengthStatus>(lengthStatus);
+
+    /// <summary>工序/关注工序 → 中文：生产收尾特殊值（ProductionFinish）优先经字典配置表显示，其余走工序映射</summary>
+    private static string GetProcessNameText(string? value)
+        => value is not null && ProductionAttentionKeys.IsKey(value)
+            ? (DictValueDisplayHelper.GetText(DictValueDefaults.ProductionAttentionKey, value) ?? value)
+            : (ProcessKeys.ToChinese(value) ?? "");
 
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     public Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)

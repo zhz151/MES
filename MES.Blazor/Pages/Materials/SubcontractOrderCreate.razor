@@ -90,7 +90,7 @@
                                         <MudTd Class="text-right">@context.SubcontractWeight.ToString("G29")</MudTd>
                                         <MudTd Class="text-right">@context.MissingWeight.ToString("G29")</MudTd>
                                         <MudTd>@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage, "-")</MudTd>
-                                        <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (RawMaterialLockRemarkKeys.ToChinese(context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
+                                        <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
                                         <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
                                         <MudTd>
                                             <MudChip Size="Size.Small" Color="@(context.StatusText == "未穿孔" ? Color.Error : Color.Warning)">

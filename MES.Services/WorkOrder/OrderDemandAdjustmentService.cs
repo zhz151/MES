@@ -444,7 +444,7 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         "TotalItemCount" => item.TotalItemCount.ToString(),
         "TotalMeters" => ((int)item.TotalMeters).ToString(),
         "TotalQuantity" => item.TotalQuantity.ToString(),
-        "UrgencyLevel" => UrgencyLevelKeys.ToChinese(item.UrgencyLevel) ?? "",
+        "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "",
         "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "",
         _ => ""
     };

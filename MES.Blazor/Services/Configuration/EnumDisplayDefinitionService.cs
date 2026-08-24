@@ -2,6 +2,7 @@ using System.Text.Json;
 using MES.Shared.Constants;
 using MES.Core.Models;
 using MES.Core.DTOs.Configuration;
+using MES.Core.Helpers;
 
 namespace MES.Blazor.Services;
 
@@ -77,6 +78,8 @@ public class EnumDisplayDefinitionService
         {
             var url = $"{BaseUrl}/restore-defaults?key={Uri.EscapeDataString(enumKey)}";
             var response = await _http.PostAsJsonAsync<object?, ApiResponse<int>>(url, null);
+            if (response?.Success == true)
+                await RefreshEnumSnapshotAsync(); // 恢复默认后同步刷新前端静态覆盖，SPA 内即时生效
             return response ?? ApiResponse<int>.Fail("恢复默认失败");
         }
         catch (Exception ex)
@@ -103,6 +106,8 @@ public class EnumDisplayDefinitionService
         try
         {
             var response = await _http.PostAsJsonAsync<EnumDisplayDefinitionDto, ApiResponse<bool>>($"{BaseUrl}/save", dto);
+            if (response?.Success == true)
+                await RefreshEnumSnapshotAsync(); // 保存即刷新前端静态覆盖，SPA 内改名/排序后全站显示免 F5 生效
             return response ?? ApiResponse<bool>.Fail("保存失败");
         }
         catch (Exception ex)
@@ -116,11 +121,39 @@ public class EnumDisplayDefinitionService
         try
         {
             var response = await _http.PostAsJsonAsync<object?, ApiResponse<bool>>($"{BaseUrl}/delete/{id}", null);
+            if (response?.Success == true)
+                await RefreshEnumSnapshotAsync(); // 删除后同步刷新前端静态覆盖
             return response ?? ApiResponse<bool>.Fail("删除失败");
         }
         catch (Exception ex)
         {
             return ApiResponse<bool>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 重新拉取 display-map/options-map 并注入前端静态 EnumHelper 覆盖，
+    /// 保证枚举改名/排序后 SPA 内全站显示即时生效（与后端 RefreshStaticSnapshotAsync、字典 RefreshDisplayMapAsync 同模式）。
+    /// </summary>
+    private async Task RefreshEnumSnapshotAsync()
+    {
+        var displayMap = await GetDisplayMapAsync();
+        if (displayMap != null)
+        {
+            foreach (var kvp in displayMap)
+                EnumHelper.ApplyEnumOverrides(kvp.Key, kvp.Value);
+        }
+
+        var optionsMap = await GetOptionsMapAsync();
+        if (optionsMap != null)
+        {
+            foreach (var kvp in optionsMap)
+            {
+                var order = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var opt in kvp.Value)
+                    order[opt.Value] = opt.DisplayOrder;
+                EnumHelper.ApplyEnumOrder(kvp.Key, order);
+            }
         }
     }
 }

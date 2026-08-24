@@ -160,6 +160,11 @@ public class DataExportService : IDataExportService
                     // LiabilityType 存储为英文 Key，导出显示中文（配置表优先，兜底 LiabilityTypeKeys）
                     sheet.Cells[row, col + 1].Value = DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, liabilityType) ?? liabilityType;
                 }
+                else if (colDef.Property == "ResponsibilityCategory" && value is string responsibilityCategory)
+                {
+                    // ResponsibilityCategory 存储为英文 Key（NCR 责任类别字典），导出显示中文（配置表优先，兜底 NcrResponsibilityKeys）
+                    sheet.Cells[row, col + 1].Value = DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, responsibilityCategory) ?? responsibilityCategory;
+                }
                 else
                 {
                     sheet.Cells[row, col + 1].Value = value.ToString();

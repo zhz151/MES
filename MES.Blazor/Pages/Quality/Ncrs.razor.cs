@@ -89,11 +89,11 @@ public partial class Ncrs
     // 责任类别下拉（配置表动态加载，失败兜底内置 5 值）
     private List<(string Value, string Text)> _responsibilityOptions = new()
     {
-        (NcrResponsibilityKeys.ProductionInternal, NcrResponsibilityKeys.ToChinese(NcrResponsibilityKeys.ProductionInternal)!),
-        (NcrResponsibilityKeys.ProductionOutsource, NcrResponsibilityKeys.ToChinese(NcrResponsibilityKeys.ProductionOutsource)!),
-        (NcrResponsibilityKeys.MaterialTubeBlank, NcrResponsibilityKeys.ToChinese(NcrResponsibilityKeys.MaterialTubeBlank)!),
-        (NcrResponsibilityKeys.MaterialPurchased, NcrResponsibilityKeys.ToChinese(NcrResponsibilityKeys.MaterialPurchased)!),
-        (NcrResponsibilityKeys.MaterialSurplus, NcrResponsibilityKeys.ToChinese(NcrResponsibilityKeys.MaterialSurplus)!),
+        (NcrResponsibilityKeys.ProductionInternal, DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, NcrResponsibilityKeys.ProductionInternal) ?? ""),
+        (NcrResponsibilityKeys.ProductionOutsource, DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, NcrResponsibilityKeys.ProductionOutsource) ?? ""),
+        (NcrResponsibilityKeys.MaterialTubeBlank, DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, NcrResponsibilityKeys.MaterialTubeBlank) ?? ""),
+        (NcrResponsibilityKeys.MaterialPurchased, DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, NcrResponsibilityKeys.MaterialPurchased) ?? ""),
+        (NcrResponsibilityKeys.MaterialSurplus, DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, NcrResponsibilityKeys.MaterialSurplus) ?? ""),
     };
 
     private async Task LoadResponsibilityOptionsAsync()
