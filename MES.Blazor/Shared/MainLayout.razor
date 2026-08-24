@@ -161,30 +161,30 @@
             <!-- 数据工具 -->
             <MudNavLink Href="/data-exchange">数据工具</MudNavLink>
 
-            <!-- 扫码报工 -->
-            <MudNavLink Href="/mobile-report">扫码报工</MudNavLink>
-
-            <!-- 设备扫码 -->
-            <MudNavLink Href="/equipment-scan">设备扫码</MudNavLink>
+            <!-- 扫码管理 -->
+            <MudNavGroup Title="扫码管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                <MudNavLink Href="/mobile-report">扫码报工</MudNavLink>
+                <MudNavLink Href="/equipment-scan">设备扫码</MudNavLink>
+                <MudNavLink Href="/workstations">工位管理</MudNavLink>
+                <MudNavLink Href="/employees">员工管理</MudNavLink>
+            </MudNavGroup>
 
             <!-- 参数表 -->
             <AuthorizeView Roles="@Roles.Policies.ConfigurationRead">
                 <MudNavGroup Title="参数表" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/section-flow-category-settings">生产-流转类别日产配置</MudNavLink>
                     <MudNavLink Href="/section-paragraph-config-settings">生产-段落日产配置</MudNavLink>
-                    <MudNavLink Href="/combination-groups">生产-组合归类表</MudNavLink>
+                    <MudNavLink Href="/combination-groups">生产-组合段落归类</MudNavLink>
                     <MudNavLink Href="/daily-production-capacities">生产-重点工段日产</MudNavLink>
                     <MudNavLink Href="/daily-output-estimates">生产-规格日产预估</MudNavLink>
                     <MudNavLink Href="/cold-roll-capacities">生产-冷轧产能档案</MudNavLink>
                     <MudNavLink Href="/cold-roll-machine-configs">生产-冷轧机台数配置</MudNavLink>
                     <MudNavLink Href="/standard-work-days">生产-工段工量天数</MudNavLink>
-                    <MudNavLink Href="/standard-work-day-delivery-states">生产-交态附加天数</MudNavLink>
+                    <MudNavLink Href="/standard-work-day-delivery-states">生产-交货状态附加天数</MudNavLink>
                     <MudNavLink Href="/process-definitions">生产-工序组定义</MudNavLink>
                     <MudNavLink Href="/enum-display-definitions">参数-枚举显示配置</MudNavLink>
                     <MudNavLink Href="/dict-value-definitions">参数-字典显示配置</MudNavLink>
-                    <MudNavLink Href="/config-parameters">默认配置-系统参数</MudNavLink>
-                    <MudNavLink Href="/workstations">扫码-工位管理</MudNavLink>
-                    <MudNavLink Href="/employees">扫码-员工管理</MudNavLink>
+                    <MudNavLink Href="/config-parameters">系统参数</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 

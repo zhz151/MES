@@ -172,14 +172,12 @@
                         <div style="padding-left: 16px;">
                             <MudNavLink Href="/section-flow-category-settings" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-流转类别日产配置</MudNavLink>
                             <MudNavLink Href="/section-paragraph-config-settings" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-段落日产配置</MudNavLink>
-                            <MudNavLink Href="/combination-groups" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-组合归类表</MudNavLink>
+                            <MudNavLink Href="/combination-groups" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-组合段落归类</MudNavLink>
                             <MudNavLink Href="/daily-production-capacities" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-重点工段日产</MudNavLink>
                             <MudNavLink Href="/daily-output-estimates" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-规格日产预估</MudNavLink>
                             <MudNavLink Href="/standard-work-days" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-工段工量天数</MudNavLink>
-                            <MudNavLink Href="/standard-work-day-delivery-states" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-交态附加天数</MudNavLink>
-                            <MudNavLink Href="/config-parameters" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">默认配置-系统参数</MudNavLink>
-                            <MudNavLink Href="/workstations" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">扫码-工位管理</MudNavLink>
-                            <MudNavLink Href="/employees" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">扫码-员工管理</MudNavLink>
+                            <MudNavLink Href="/standard-work-day-delivery-states" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">生产-交货状态附加天数</MudNavLink>
+                            <MudNavLink Href="/config-parameters" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">系统参数</MudNavLink>
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
@@ -190,8 +188,17 @@
                     <MudNavLink Href="/reports/overview" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">报表总览</MudNavLink>
                 </AuthorizeView>
                 <MudNavLink Href="/data-exchange" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">数据工具</MudNavLink>
-                <MudNavLink Href="/mobile-report" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">扫码报工</MudNavLink>
-                <MudNavLink Href="/equipment-scan" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">设备扫码</MudNavLink>
+                <MudExpansionPanel Style="background: transparent; color: #ccc;">
+                    <TitleContent><div style="padding: 10px 16px; color: #ccc;">扫码管理</div></TitleContent>
+                    <ChildContent>
+                        <div style="padding-left: 16px;">
+                            <MudNavLink Href="/mobile-report" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">扫码报工</MudNavLink>
+                            <MudNavLink Href="/equipment-scan" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">设备扫码</MudNavLink>
+                            <MudNavLink Href="/workstations" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工位管理</MudNavLink>
+                            <MudNavLink Href="/employees" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">员工管理</MudNavLink>
+                        </div>
+                    </ChildContent>
+                </MudExpansionPanel>
                 <MudNavLink Href="/admin/users" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">用户管理</MudNavLink>
             </MudExpansionPanels>
 
