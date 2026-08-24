@@ -289,7 +289,7 @@ public class FinalInspectionPlanServiceTests : TestBase
         row.KanbanStage.Should().Be("待到料");
         // 成检附加为空默认正式成检 + 合并字段基础映射
         row.InspectionType.Should().Be(InspectionType.FormalInspection);
-        row.InspectionTypeDisplay.Should().Be("正式成检");
+        row.InspectionTypeDisplay.Should().Be("终检");
         row.ManufacturingItem.Should().Be(MaterialType.OrderFinished);
         row.ManufacturingStatusDisplay.Should().Be("-");
         row.IsDeliveryStatusDisplay.Should().Be("否");
@@ -382,7 +382,7 @@ public class FinalInspectionPlanServiceTests : TestBase
         var row = result.Single();
         row.KanbanStage.Should().Be("待检验");
         row.InspectionType.Should().Be(InspectionType.PreInspection);
-        row.InspectionTypeDisplay.Should().Be("预成检");
+        row.InspectionTypeDisplay.Should().Be("预检");
         row.IsDeliveryStatusDisplay.Should().Be("-");
         row.ManufacturingStatusDisplay.Should().Be("-");
     }

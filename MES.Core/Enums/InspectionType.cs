@@ -7,11 +7,11 @@ namespace MES.Core.Enums;
 /// </summary>
 public enum InspectionType
 {
-    /// <summary>预成检</summary>
-    [Display(Name = "预成检")]
+    /// <summary>预检</summary>
+    [Display(Name = "预检")]
     PreInspection,
 
-    /// <summary>正式成检</summary>
-    [Display(Name = "正式成检")]
+    /// <summary>终检</summary>
+    [Display(Name = "终检")]
     FormalInspection,
 }

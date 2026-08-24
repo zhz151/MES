@@ -80,7 +80,7 @@ public partial class MaterialReceiveChecks
         new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname", FilterType = "string", Width = "100", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "SequenceNumber",    Label = "执行序",     SortKey = "sequencenumber", FilterType = "string", Width = "80", GroupKey = 1, GroupName = "检验到料" },
-        new() { Key = "InspectionType",    Label = "成检类型",   SortKey = "inspectiontype", FilterType = "enum", Width = "100", GroupKey = 1, GroupName = "检验到料", EnumOptions = new() { new("PreInspection","预成检"), new("FormalInspection","正式成检") } },
+        new() { Key = "InspectionType",    Label = "成检类型",   SortKey = "inspectiontype", FilterType = "enum", Width = "100", GroupKey = 1, GroupName = "检验到料", EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionType>() },
         new() { Key = "Shift",             Label = "班次",        SortKey = "shift", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "检验到料", EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
         new() { Key = "Checker",           Label = "确认人",     SortKey = "checker", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "检验到料", EnumOptions = DisplayHelper.GetDataSourceOptions() },

@@ -374,8 +374,8 @@ public class NcrService : INcrService
 
             var queryable = _context.Ncrs.AsNoTracking();
 
-            // 注意：枚举列（PipeCategory/DisposalMethod/Severity/ResponsibilityCategory/VerifyResult/Status 等）
-            // 不在此处返回，由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
+            // 注意：枚举列（PipeCategory/DisposalMethod/Severity/VerifyResult/Status 等）与字典列（ResponsibilityCategory 责任类别走 NcrResponsibilityKey）
+            // 不在此处返回，由前端 EnumOptions/字典 options fallback 直接提供带中文 Display 的选项，避免映射丢失。
             var results = await queryable
                 .Select(r => new
                 {

@@ -135,15 +135,9 @@ public class ProductionBatchListDto
     public int? CutQuantity { get; set; }
     public string? CutQuantityDisplay => CutQuantity.HasValue ? CutQuantity.Value.ToString() : "略";
 
-    /// <summary>成切存疑：略/正常/疑问-数量/疑问-缺少</summary>
+    /// <summary>成切存疑：略/正常/疑问-数量/疑问-缺少（统一走 EnumHelper，与详情版 CutDoubtDisplay 同口径）</summary>
     public CutDoubtType? CutDoubt { get; set; }
-    public string? CutDoubtDisplay => CutDoubt switch
-    {
-        CutDoubtType.QuantityMismatch => "疑问-数量",
-        CutDoubtType.MissingRecords => "疑问-缺少",
-        CutDoubtType.Normal => "正常",
-        _ => "略"
-    };
+    public string? CutDoubtDisplay => CutDoubt.HasValue ? EnumHelper.GetDisplayName(CutDoubt.Value) : "略";
 
     // ========== 扩展字段（从 Entity 补充） ==========
     public string? Remark { get; set; }

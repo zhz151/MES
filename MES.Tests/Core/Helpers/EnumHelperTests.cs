@@ -125,4 +125,40 @@ public class EnumHelperTests
             EnumHelper.ClearEnumOverrides();
         }
     }
+
+    [Fact]
+    public void GetEnumRemark_已注册说明枚举_返回定义说明()
+    {
+        EnumHelper.GetEnumRemark("VerifyResult").Should().Be("纠正预防措施验证结论");
+        EnumHelper.GetEnumRemark("NcrStatus").Should().Be("NCR 不合格品报告状态");
+    }
+
+    [Fact]
+    public void GetEnumRemark_未定义说明枚举_返回null()
+    {
+        EnumHelper.GetEnumRemark("DeliveryState").Should().BeNull();
+        EnumHelper.GetEnumRemark("NotExistEnum").Should().BeNull();
+    }
+
+    [Fact]
+    public void EnumDisplayDefinitionDto_RemarkDisplay_Remark优先于静态兜底()
+    {
+        var withRemark = new MES.Core.DTOs.Configuration.EnumDisplayDefinitionDto
+        {
+            EnumKey = "VerifyResult",
+            Value = "Passed",
+            DisplayName = "通过",
+            Remark = "自定义说明"
+        };
+        withRemark.RemarkDisplay.Should().Be("自定义说明");
+
+        var emptyRemark = new MES.Core.DTOs.Configuration.EnumDisplayDefinitionDto
+        {
+            EnumKey = "VerifyResult",
+            Value = "Passed",
+            DisplayName = "通过",
+            Remark = null
+        };
+        emptyRemark.RemarkDisplay.Should().Be("纠正预防措施验证结论");
+    }
 }

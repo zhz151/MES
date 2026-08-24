@@ -217,4 +217,29 @@ public static class IntStatusDisplayHelper
         new EnumDisplayOptionDto { Value = "3", DisplayName = "计划落实" }
     };
 
+    // ========== 批次排程档位（6 档：急+/急/急-/顺/带/略，ScheduleTier；V5.26 档位序） ==========
+
+    /// <summary>批次实际排程档位显示文本（1=急+ 2=急 3=急- 4=顺 5=带 6=略）</summary>
+    public static string GetScheduleTierText(int tier) => tier switch
+    {
+        1 => "急+",
+        2 => "急",
+        3 => "急-",
+        4 => "顺",
+        5 => "带",
+        _ => "略",
+    };
+
+    // ========== 批次计划薄表等级（5 档：急+/急/急-/一般/略，PlanFlowLevel；V5.28 五档） ==========
+
+    /// <summary>薄表计划等级显示文本（1=急+ 2=急 3=急- 4=一般 5=略；V5.28 特急A/B 手工档已删，急+ 直接透传实时档位）</summary>
+    public static string GetPlanFlowLevelText(int level) => level switch
+    {
+        1 => "急+",
+        2 => "急",
+        3 => "急-",
+        4 => "一般",
+        5 => "略",
+        _ => level.ToString(),
+    };
 }

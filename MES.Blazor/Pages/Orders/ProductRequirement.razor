@@ -741,15 +741,9 @@
         => typeof(OrderItemRequirement).GetProperty(key, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase)?.SetValue(item, value);
 
     /// <summary>
-    /// 检验阶段中文文本（终/预/预+终/-），与枚举 [Display(Name)] 一致
+    /// 检验阶段中文文本（终/预/预+终/-），统一走 EnumHelper 注册（防散落 switch 漂移）
     /// </summary>
-    private static string StageText(InspectionRequirementStage value) => value switch
-    {
-        InspectionRequirementStage.FinalOnly => "终",
-        InspectionRequirementStage.PreOnly => "预",
-        InspectionRequirementStage.PreAndFinal => "预+终",
-        _ => "-"
-    };
+    private static string StageText(InspectionRequirementStage value) => MES.Core.Helpers.EnumHelper.GetDisplayName(value);
 
     // ========== 分组表头 ==========
     private class GroupHeaderInfo

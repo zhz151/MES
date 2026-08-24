@@ -24,6 +24,47 @@ public static class EnumHelper
     /// <summary>配置表排序覆盖：EnumKey → Value → DisplayOrder（下拉/筛选选项按此排序）</summary>
     private static readonly ConcurrentDictionary<string, Dictionary<string, int>> _displayOrders = new(StringComparer.Ordinal);
 
+    /// <summary>枚举定义说明兜底：EnumKey(枚举类型名) → 枚举 XML 注释说明（枚举显示配置表 Remark 为空时显示）</summary>
+    private static readonly Dictionary<string, string> _enumRemarks = new(StringComparer.Ordinal)
+    {
+        ["InboundSource"] = "入库来源",
+        ["MaterialType"] = "物料类型（对应库存批次 MaterialType / 生产批次 SourceMaterialType）",
+        ["PipeManufacturingType"] = "钢管制造类别",
+        ["InspectionType"] = "成检类型",
+        ["CutDoubtType"] = "成切存疑类型（疑问-数量 / 疑问-缺少 / 正常）",
+        ["BatchInputType"] = "批次投料类型",
+        ["InspectionRequirementStage"] = "技术要求检验项阶段（终=仅正式成检；预=仅预成检；预+终=预成检与正式成检均需；-=不要求）",
+        ["ReportTemplateType"] = "报工模板类型（决定报工写入哪张表及使用哪个表单模板）",
+        ["ShiftType"] = "班次",
+        ["EquipmentTaskStatus"] = "设备点检/保养状况（物化存储到设备表）",
+        ["NotificationType"] = "通知类型",
+        ["PicklingStatus"] = "去油/酸洗入缸状态",
+        ["LifecycleStatus"] = "设备生命周期状态",
+        ["PurchaseOrderStatus"] = "采购订单状态",
+        ["OutboundType"] = "出库类型",
+        ["DisposalMethod"] = "不合格品处置方式",
+        ["RepairOrderStatus"] = "维修工单状态（由字段完整度自动推导）",
+        ["ProductionType"] = "生产类型",
+        ["MaterialPlanStatus"] = "用料计划状态（4档，已取消理论满足并入满足）",
+        ["RepairPriority"] = "维修优先级",
+        ["InventoryPlanStatus"] = "库存使用计划状态",
+        ["ReworkType"] = "库料生产改制类型",
+        ["FinishedProductType"] = "成品类型（外购成品计划）",
+        ["NcrStatus"] = "NCR 不合格品报告状态",
+        ["InspectionItem"] = "成品检验项目",
+        ["RunningStatus"] = "设备运行状态（由维修记录自动驱动）",
+        ["SalesOrderStatus"] = "订单状态（三态）",
+        ["BatchStatus"] = "批次状态",
+        ["SectionOutsourceStatus"] = "工段委外状态",
+        ["SectionStatus"] = "工段可视化状态",
+        ["SeverityLevel"] = "事故严重程度",
+        ["SubcontractOrderStatus"] = "委外加工单状态",
+        ["WorkOrderStatus"] = "工单状态（3态，不含已取消——工单物理删除）",
+        ["VerifyResult"] = "纠正预防措施验证结论",
+        ["TaskOrderStatus"] = "点检/保养工单共用状态",
+        ["UsageType"] = "设备作用类型（使用分类）"
+    };
+
     static EnumHelper()
     {
         _enumToDisplay = new Dictionary<Type, Dictionary<string, string>>();
@@ -174,8 +215,8 @@ public static class EnumHelper
                                   ("Ultrasonic", "超声波"),
                                   ("PortColoring", "端口着色"));
 
-        Register<InspectionType>(("PreInspection", "预成检"),
-                                  ("FormalInspection", "正式成检"));
+        Register<InspectionType>(("PreInspection", "预检"),
+                                  ("FormalInspection", "终检"));
 
         Register<InspectionRequirementStage>(("None", "-"),
                                               ("FinalOnly", "终"),
@@ -461,4 +502,8 @@ public static class EnumHelper
 
     /// <summary>指定枚举是否已注册静态映射</summary>
     public static bool IsRegistered(Type enumType) => _enumToDisplay.ContainsKey(enumType);
+
+    /// <summary>取枚举定义说明（枚举显示配置表 Remark 为空时兜底显示；未定义返回 null）</summary>
+    public static string? GetEnumRemark(string enumKey)
+        => _enumRemarks.TryGetValue(enumKey, out var remark) ? remark : null;
 }

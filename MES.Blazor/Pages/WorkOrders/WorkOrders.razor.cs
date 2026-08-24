@@ -102,7 +102,7 @@ public partial class WorkOrders : IAsyncDisposable
                EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
         new() { Key = "TotalItemCount",    Label = "含项次数", SortKey = "TotalItemCount", Width = "80" },
         new() { Key = "Status",            Label = "状态",     SortKey = "Status",            FilterType = "enum", Width = "120",
-               EnumOptions = new List<EnumOption> { new("Confirmed", "已确定"), new("Pending", "待修正") } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<WorkOrderStatus>() },
     };
 
     // ========== 分页汇总 ==========

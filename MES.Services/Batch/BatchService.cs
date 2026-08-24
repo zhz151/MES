@@ -2196,11 +2196,7 @@ public class BatchService : IBatchService
             "UpdatedBy" => b.UpdatedBy,
             "CurrentExecDate" => (object?)b.CurrentExecDate ?? DBNull.Value,
             "CurrentSectionCompleted" => (object?)b.CurrentSectionCompleted ?? DBNull.Value,
-            "InspectionStage" => string.Equals(b.InspectionStage, nameof(InspectionType.PreInspection), StringComparison.OrdinalIgnoreCase)
-                ? "预检"
-                : string.Equals(b.InspectionStage, nameof(InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase)
-                    ? "终检"
-                    : "",
+            "InspectionStage" => EnumHelper.GetDisplayName<InspectionType>(b.InspectionStage),
             "CutRequirement" => b.CutRequirement,
             "CutExecution" => (object?)b.CutExecution ?? DBNull.Value,
             "CutQuantity" => (object?)b.CutQuantity ?? DBNull.Value,
@@ -2239,15 +2235,15 @@ public class BatchService : IBatchService
             "ItemDetails" => (object?)b.ItemDetails ?? "",
             "TechnicalRequirements" => TryGetEnumDisplay<RequirementType>(b.TechnicalRequirements),
 
-            // 生产执行
-            "CurrentGroupName" => (object?)b.CurrentGroupName ?? "",
-            "CurrentSectionName" => (object?)b.CurrentSectionName ?? "",
+            // 生产执行（工序/工段英文 Key → 中文，与单条打印 ProcessDisplayText/SectionDisplayText 兜底口径一致）
+            "CurrentGroupName" => ProcessKeys.ToChinese(b.CurrentGroupName) ?? "",
+            "CurrentSectionName" => SectionKeys.ToChinese(b.CurrentSectionName) ?? "",
             "CurrentEquipmentName" => (object?)b.CurrentEquipmentName ?? "",
             "CurrentOutsource" => (object?)b.CurrentOutsource ?? "",
             "CurrentSpec" => (object?)b.CurrentSpec ?? "",
-            "NextSectionName" => (object?)b.NextSectionName ?? "",
+            "NextSectionName" => SectionKeys.ToChinese(b.NextSectionName) ?? "",
             "CorrespondingSpec" => (object?)b.CorrespondingSpec ?? "",
-            "NextProcess" => (object?)b.NextProcess ?? "",
+            "NextProcess" => ProcessKeys.ToChinese(b.NextProcess) ?? "",
 
             // 仓库信息
             "SourceBatchNo" => (object?)b.SourceBatchNo ?? "",

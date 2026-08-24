@@ -160,7 +160,7 @@ public partial class Orders
         // ========== ③ 订单确认 ==========
         new() { Key = "notech",        Label = "技术要求", SortKey = "hastechnicalrequirement", FilterType = "boolean", Width = "120", BoolTrueLabel = "已编辑", BoolFalseLabel = "未编辑", GroupKey = 3, GroupName = "③ 订单确认" },
         new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "③ 订单确认",
-               EnumOptions = new List<EnumOption> { new("Pending", "待处理"), new("Confirmed", "已确认") },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<SalesOrderStatus>(),
                DisplayConverter = v => v is SalesOrderStatus s ? DisplayHelper.GetSalesOrderStatusText(s) : "-" },
         new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "③ 订单确认" },
         // ========== ④ 订单执行 ==========

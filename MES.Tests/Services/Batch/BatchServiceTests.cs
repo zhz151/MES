@@ -1861,7 +1861,7 @@ public class BatchServiceTests : TestBase
         item.BatchNo.Should().Be("B-FC-1");
         item.WorkOrderNo.Should().Be("WO-001");
         item.InspectionType.Should().Be("FormalInspection");
-        item.InspectionTypeDisplay.Should().Be("正式成检");
+        item.InspectionTypeDisplay.Should().Be("终检");
     }
 
     [Fact]

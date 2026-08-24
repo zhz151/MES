@@ -213,10 +213,7 @@ public partial class Ncrs
         // 状态
         new() { Key = "Status",               Label = "状态",        SortKey = "status",              FilterType = "enum",   Width = "80",
                GroupKey = 6, GroupName = "状态",
-               EnumOptions = new List<EnumOption>
-               {
-                   new("Processing", "处理中"), new("Closed", "已关闭"),
-               } },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<NcrStatus>() },
 
         // 审计
         new() { Key = "UpdatedTime",          Label = "更新日期",    SortKey = "updatedtime",         Width = "120",

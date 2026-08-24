@@ -19,8 +19,11 @@ public class EnumDisplayDefinitionDto
     /// <summary>显示顺序（升序，1 排最前）</summary>
     public int DisplayOrder { get; set; }
 
-    /// <summary>说明</summary>
+    /// <summary>说明（配置页可编辑，持久化）</summary>
     public string? Remark { get; set; }
+
+    /// <summary>说明显示值：配置表 Remark 有值用 Remark，为空时从枚举定义说明（XML 注释）兜底</summary>
+    public string? RemarkDisplay => !string.IsNullOrWhiteSpace(Remark) ? Remark : MES.Core.Helpers.EnumHelper.GetEnumRemark(EnumKey);
 }
 
 /// <summary>

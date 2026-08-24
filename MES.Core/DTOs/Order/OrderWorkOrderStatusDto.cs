@@ -81,21 +81,9 @@ public class OrderWorkOrderStatusDto
     public string WorkOrderStatusDisplay => EnumHelper.GetDisplayName(WorkOrderStatus);
 
     /// <summary>
-    /// 工单状态文本
+    /// 工单状态文本（统一委托 WorkOrderStatusDisplay 走 EnumHelper，消除散落 switch）
     /// </summary>
-    public string WorkOrderStatusText
-    {
-        get
-        {
-            return WorkOrderStatus switch
-            {
-                WorkOrderStatus.NotGenerated => "未编制",
-                WorkOrderStatus.Pending => "待修正",
-                WorkOrderStatus.Confirmed => "已确定",
-                _ => "未知"
-            };
-        }
-    }
+    public string WorkOrderStatusText => WorkOrderStatusDisplay;
 
     /// <summary>
     /// 是否存在工单

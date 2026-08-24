@@ -55,7 +55,7 @@ public partial class QualityProcessTracking
             new() { Key = "BatchNo",              Label = "生产编号",       SortKey = "batchno",              FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "TagNo",                Label = "挂牌号",         SortKey = "tagno",                FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "InspectionType",       Label = "成检类型",       SortKey = "inspectiontype",       FilterType = "enum",    Width = "100", GroupKey = 1, GroupName = "批次信息",
-                EnumOptions = new() { new("PreInspection", "预成检"), new("FormalInspection", "正式成检") } },
+                EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionType>() },
             new() { Key = "IsDeliveryStatus",     Label = "是否交付态",     SortKey = "isdeliverystatus",     FilterType = "enum",    Width = "90",  GroupKey = 1, GroupName = "批次信息",
                 EnumOptions = new() { new("是", "是"), new("否", "否") } },
             new() { Key = "ProductionType",       Label = "生产类型",       SortKey = "productiontype",       FilterType = "enum",    Width = "120", GroupKey = 1, GroupName = "批次信息",

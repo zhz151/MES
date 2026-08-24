@@ -468,19 +468,17 @@ public static class DisplayHelper
         new("Partial3", "急+/急/急-/顺"), new("All", "全量"), new("None", "-")
     };
 
-    /// <summary>排程档位筛选选项（批次实际档位，V5.26 档位序 急+ &gt; 急 &gt; 急- &gt; 顺 &gt; 带 &gt; 略，对应 ScheduleTierDisplay）</summary>
-    public static List<EnumOption> GetScheduleTierOptions() => new()
-    {
-        new("急+", "急+"), new("急", "急"), new("急-", "急-"),
-        new("顺", "顺"), new("带", "带"), new("略", "略")
-    };
+    /// <summary>排程档位筛选选项（批次实际档位，V5.26 档位序 急+ &gt; 急 &gt; 急- &gt; 顺 &gt; 带 &gt; 略，文本统一走 IntStatusDisplayHelper）</summary>
+    public static List<EnumOption> GetScheduleTierOptions() =>
+        new[] { 1, 2, 3, 4, 5, 6 }
+            .Select(t => new EnumOption(IntStatusDisplayHelper.GetScheduleTierText(t), IntStatusDisplayHelper.GetScheduleTierText(t)))
+            .ToList();
 
-    /// <summary>批次计划薄表等级筛选选项（档位序：急+/急/急-/一般/略，对应 PlanFlowLevelDisplay 五档）</summary>
-    public static List<EnumOption> GetPlanFlowLevelOptions() => new()
-    {
-        new("急+", "急+"), new("急", "急"), new("急-", "急-"),
-        new("一般", "一般"), new("略", "略")
-    };
+    /// <summary>批次计划薄表等级筛选选项（档位序：急+/急/急-/一般/略，对应 PlanFlowLevelDisplay 五档，文本统一走 IntStatusDisplayHelper）</summary>
+    public static List<EnumOption> GetPlanFlowLevelOptions() =>
+        new[] { 1, 2, 3, 4, 5 }
+            .Select(l => new EnumOption(IntStatusDisplayHelper.GetPlanFlowLevelText(l), IntStatusDisplayHelper.GetPlanFlowLevelText(l)))
+            .ToList();
 
     // ========== 公差格式化 ==========
 

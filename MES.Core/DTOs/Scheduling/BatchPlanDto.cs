@@ -209,17 +209,9 @@ public class BatchPlanDto
         }
     }
 
-    /// <summary>排程档位显示文本：急+/急/急-/顺/带/略</summary>
+    /// <summary>排程档位显示文本：急+/急/急-/顺/带/略（统一走 IntStatusDisplayHelper）</summary>
     [JsonIgnore]
-    public string ScheduleTierDisplay => ScheduleTier switch
-    {
-        1 => "急+",
-        2 => "急",
-        3 => "急-",
-        4 => "顺",
-        5 => "带",
-        _ => "略",
-    };
+    public string ScheduleTierDisplay => IntStatusDisplayHelper.GetScheduleTierText(ScheduleTier);
 
     /// <summary>流转目标</summary>
     public string? FlowTarget => _trigger switch
@@ -360,15 +352,7 @@ public class BatchPlanDto
     /// 1=急+ / 2=急 / 3=急- / 4=一般 / 5=略（特急A/B 手工档已删除，急+ 直接透传实时档位）
     /// </summary>
     [JsonIgnore]
-    public string PlanFlowLevelDisplay => PlanFlowLevel switch
-    {
-        1 => "急+",
-        2 => "急",
-        3 => "急-",
-        4 => "一般",
-        5 => "略",
-        _ => PlanFlowLevel.ToString(),
-    };
+    public string PlanFlowLevelDisplay => IntStatusDisplayHelper.GetPlanFlowLevelText(PlanFlowLevel);
     public string? PlanFlowTarget { get; set; }
     public string? PlanFlowCRType { get; set; }
     public string? PlanOuterDiameterSpan { get; set; }
