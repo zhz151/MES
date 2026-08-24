@@ -172,6 +172,22 @@ public class ConfigParameterService : IConfigParameterService
             .ToDictionaryAsync(c => c.ParamKey, c => c.ParamValue, StringComparer.OrdinalIgnoreCase);
     }
 
+    public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
+    {
+        var contexts = await _context.ConfigParameters
+            .AsNoTracking()
+            .Where(c => c.Context != null)
+            .Select(c => c.Context!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+
+        return new Dictionary<string, List<string>>
+        {
+            ["Context"] = contexts
+        };
+    }
+
     private const string MaterialPlanToleranceCategory = "MaterialPlanTolerance";
 
     /// <summary>

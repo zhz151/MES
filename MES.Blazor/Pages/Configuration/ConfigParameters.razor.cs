@@ -4,6 +4,7 @@ using MudBlazor;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
+using MES.Blazor.Components;
 using MES.Core.Constants;
 using MES.Core.Models;
 using MES.Blazor.Shared;
@@ -28,6 +29,10 @@ public partial class ConfigParameters
     private string sortColumn = "Category";
     private bool sortDescending = false;
 
+    // ========== ExcelFilter 筛选 ==========
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+    private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
+
     // ========== 列选择管理 ==========
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
@@ -35,7 +40,7 @@ public partial class ConfigParameters
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "Context",        Label = "所属上下文", SortKey = "context",        FilterType = null },
+        new() { Key = "Context",        Label = "所属上下文", SortKey = "context",        FilterType = "string" },
         new() { Key = "CategoryDisplay",Label = "分类及用途", SortKey = "categorydisplay",FilterType = null, IsRequired = true },
         new() { Key = "ParamKey",       Label = "参数键",     SortKey = "paramkey",       FilterType = null, IsRequired = true },
         new() { Key = "ParamValue",     Label = "参数值",     SortKey = "paramvalue",     FilterType = null, IsRequired = true },
@@ -50,6 +55,7 @@ public partial class ConfigParameters
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "category";
+            var filtersJson = SerializeFilters();
 
             // 首次加载覆盖页码
             if (_isFirstLoad)
@@ -66,6 +72,10 @@ public partial class ConfigParameters
                 SortBy = sortBy,
                 IsDescending = sortDescending
             };
+            if (filtersJson != null)
+            {
+                query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
+            }
 
             var result = await ConfigParameterService.GetPagedAsync(query);
 
@@ -114,6 +124,65 @@ public partial class ConfigParameters
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    // ========== ExcelFilter 筛选 ==========
+
+    private string? SerializeFilters()
+    {
+        if (_columnFilters.Count == 0) return null;
+        var descriptors = new List<FilterDescriptor>();
+        foreach (var kvp in _columnFilters)
+        {
+            if (kvp.Value.Count == 0) continue;
+            descriptors.Add(new FilterDescriptor
+            {
+                Field = kvp.Key,
+                Operator = "in",
+                Values = kvp.Value.ToList()
+            });
+        }
+        return descriptors.Count > 0 ? JsonSerializer.Serialize(descriptors) : null;
+    }
+
+    private async Task LoadFilterContextsAsync()
+    {
+        try
+        {
+            var result = await ConfigParameterService.GetFilterContextsAsync();
+            if (result.Success && result.Data != null)
+            {
+                BuildFilterContextOptions(result.Data);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载筛选上下文失败: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    private void BuildFilterContextOptions(Dictionary<string, List<string>> filterContexts)
+    {
+        _filterContextOptions.Clear();
+        foreach (var kvp in filterContexts)
+        {
+            _filterContextOptions[kvp.Key] = kvp.Value.Select(v => new ExcelFilterOption
+            {
+                Value = v,
+                Display = v,
+                Count = 0
+            }).ToList();
+        }
+    }
+
+    private async Task OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -184,7 +253,21 @@ public partial class ConfigParameters
             sortDescending = savedState.IsDescending;
             _searchKeyword = savedState.Keyword ?? string.Empty;
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
+            if (savedState.Extras?.ContainsKey("columnFilters") == true)
+            {
+                try
+                {
+                    var raw = savedState.Extras["columnFilters"];
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(raw);
+                    if (dict != null)
+                        _columnFilters = dict.ToDictionary(kv => kv.Key, kv => new HashSet<string>(kv.Value));
+                }
+                catch { }
+            }
         }
+
+        // 加载筛选上下文（ExcelFilter 下拉选项）
+        await LoadFilterContextsAsync();
 
         if (savedState != null && table != null)
             await table.ReloadServerData();
@@ -374,12 +457,16 @@ public partial class ConfigParameters
 
     private async Task SavePageStateAsync()
     {
+        var extras = new Dictionary<string, string>();
+        if (_columnFilters.Count > 0)
+            extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
         var state = new PageState
         {
             SortBy = sortColumn,
             IsDescending = sortDescending,
             Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            PageIndex = _currentPage
+            PageIndex = _currentPage,
+            Extras = extras
         };
         await PageState.SaveAsync("config_parameters", state);
     }

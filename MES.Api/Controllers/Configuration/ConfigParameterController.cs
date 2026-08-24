@@ -26,6 +26,13 @@ public class ConfigParameterController : ControllerBase
         return Ok(ApiResponse<Dictionary<string, decimal>>.Ok(result));
     }
 
+    [HttpGet("filter-contexts")]
+    public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
+    {
+        var result = await _service.GetFilterContextsAsync();
+        return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
+    }
+
     [HttpGet("list")]
     public async Task<ActionResult<ApiResponse<PagedResult<ConfigParameterDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,

@@ -32,6 +32,10 @@ public partial class CombinationGroups
     private bool _isSaving;
     private int _nextTempId = -1;
 
+    // ========== 列筛选（内存模式） ==========
+    private List<CombinationGroupDto> _visibleItems = new();
+    private Dictionary<string, HashSet<string>> _columnFilters = new();
+
     // ========== 编辑状态 ==========
     private HashSet<int> _editingIds = new();
     private Dictionary<int, CombinationGroupDto> _editCache = new();
@@ -65,7 +69,10 @@ public partial class CombinationGroups
         {
             var result = await Service.GetListAsync();
             if (result.Success && result.Data != null)
+            {
                 _items = result.Data;
+                ApplyColumnFilters();
+            }
             else
                 Snackbar.Add(result.Message ?? "获取数据失败", Severity.Error);
         }
@@ -77,6 +84,33 @@ public partial class CombinationGroups
         {
             _isLoading = false;
         }
+    }
+
+    // ========== 列筛选（内存过滤，三维：工序组/工段/产类） ==========
+
+    private void OnColumnFilterChanged(string fieldKey, HashSet<string> selectedValues)
+    {
+        if (selectedValues.Count > 0)
+            _columnFilters[fieldKey] = selectedValues;
+        else
+            _columnFilters.Remove(fieldKey);
+        ApplyColumnFilters();
+        StateHasChanged();
+    }
+
+    private void ApplyColumnFilters()
+    {
+        _visibleItems = _items.Where(item =>
+            MatchesFilter("ProcessGroupName", item.ProcessGroupName) &&
+            MatchesFilter("SectionName", item.SectionName) &&
+            MatchesFilter("ProductStatus", item.ProductStatus)
+        ).ToList();
+    }
+
+    private bool MatchesFilter(string field, string? value)
+    {
+        if (!_columnFilters.TryGetValue(field, out var selected) || selected.Count == 0) return true;
+        return value != null && selected.Contains(value);
     }
 
     // ========== 编辑 ==========
@@ -114,6 +148,7 @@ public partial class CombinationGroups
             ParagraphName = null,
         });
         StartEdit(_items[^1]);
+        ApplyColumnFilters();
         StateHasChanged();
     }
 
@@ -150,6 +185,7 @@ public partial class CombinationGroups
                     item.ParagraphName = cache.ParagraphName;
                     _editingIds.Remove(item.Id);
                     _editCache.Remove(item.Id);
+                    ApplyColumnFilters();
                 }
                 Snackbar.Add("保存成功", Severity.Success);
             }
@@ -175,6 +211,7 @@ public partial class CombinationGroups
             _items.Remove(item);
             _editingIds.Remove(item.Id);
             _editCache.Remove(item.Id);
+            ApplyColumnFilters();
             StateHasChanged();
             return;
         }
@@ -194,6 +231,7 @@ public partial class CombinationGroups
             if (result.Success)
             {
                 _items.Remove(item);
+                ApplyColumnFilters();
                 Snackbar.Add("删除成功", Severity.Success);
                 StateHasChanged();
             }

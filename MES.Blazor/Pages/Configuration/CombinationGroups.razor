@@ -41,13 +41,49 @@
 
         <MudCardContent>
             <MudTable T="CombinationGroupDto"
-                      Items="@_items"
+                      Items="@_visibleItems"
                       Dense="true" Hover="true" Elevation="0" Class="auto-table"
                       RowsPerPage="25" RowsPerPageLabel="每页行数:">
                 <HeaderContent>
-                    <MudTh><span class="th-label">工序组<span class="required-star">*</span></span></MudTh>
-                    <MudTh><span class="th-label">工段<span class="required-star">*</span></span></MudTh>
-                    <MudTh><span class="th-label">产类<span class="required-star">*</span></span></MudTh>
+                    <MudTh>
+                        <div style="display:inline-flex; align-items:center; gap:4px;">
+                            <span class="th-label">工序组<span class="required-star">*</span></span>
+                            <ExcelFilter T="CombinationGroupDto"
+                                         Label="工序组"
+                                         FieldKey="ProcessGroupName"
+                                         AllItems="@_items"
+                                         DisplaySelector="@(i => GetProcessDisplay(i.ProcessGroupName))"
+                                         RawValueSelector="@(i => i.ProcessGroupName)"
+                                         ActiveFilterValues="@(_columnFilters.GetValueOrDefault("ProcessGroupName"))"
+                                         FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                        </div>
+                    </MudTh>
+                    <MudTh>
+                        <div style="display:inline-flex; align-items:center; gap:4px;">
+                            <span class="th-label">工段<span class="required-star">*</span></span>
+                            <ExcelFilter T="CombinationGroupDto"
+                                         Label="工段"
+                                         FieldKey="SectionName"
+                                         AllItems="@_items"
+                                         DisplaySelector="@(i => GetSectionDisplay(i.SectionName))"
+                                         RawValueSelector="@(i => i.SectionName)"
+                                         ActiveFilterValues="@(_columnFilters.GetValueOrDefault("SectionName"))"
+                                         FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                        </div>
+                    </MudTh>
+                    <MudTh>
+                        <div style="display:inline-flex; align-items:center; gap:4px;">
+                            <span class="th-label">产类<span class="required-star">*</span></span>
+                            <ExcelFilter T="CombinationGroupDto"
+                                         Label="产类"
+                                         FieldKey="ProductStatus"
+                                         AllItems="@_items"
+                                         DisplaySelector="@(i => GetProductStatusDisplay(i.ProductStatus))"
+                                         RawValueSelector="@(i => i.ProductStatus)"
+                                         ActiveFilterValues="@(_columnFilters.GetValueOrDefault("ProductStatus"))"
+                                         FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+                        </div>
+                    </MudTh>
                     <MudTh><span class="th-label">归属流转类别<span class="required-star">*</span></span></MudTh>
                     <MudTh><span class="th-label">归属段落</span></MudTh>
                     <MudTh Style="width: 120px;">操作</MudTh>

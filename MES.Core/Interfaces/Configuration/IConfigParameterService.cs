@@ -19,7 +19,7 @@ public interface IConfigParameterService
     Task<ConfigParameterDto?> GetByIdAsync(int id);
 
     /// <summary>
-    /// 保存（新增或更新�?    /// </summary>
+    /// 保存（新增或更新�?    /// </summary>
     Task<bool> SaveAsync(ConfigParameterDto dto);
 
     /// <summary>
@@ -28,6 +28,11 @@ public interface IConfigParameterService
     Task<bool> DeleteAsync(int id);
 
     /// <summary>
-    /// 获取指定分类下的参数映射（ParamKey �?ParamValue�?    /// </summary>
+    /// 获取指定分类下的参数映射（ParamKey �?ParamValue�?    /// </summary>
     Task<Dictionary<string, decimal>> GetConfigMapAsync(string category);
+
+    /// <summary>
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
+    /// </summary>
+    Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 }
