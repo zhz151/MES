@@ -187,10 +187,6 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                     // G15: 实时 LEFT JOIN RawMaterialLockPreExecution
                     IsPreInput = p != null && p.IsPreInput,
                     BudgetInputDate = p != null ? p.BudgetInputDate : null,
-
-                    // 看板筛选 - 异常标记
-                    HasAbnormality = e.DaysDiffFromDelivery != null && e.DaysDiffFromDelivery < 0
-                        || e.TotalRemainingWorkDays != null && e.TotalRemainingWorkDays < 0,
                 };
 
         // 关键词搜索

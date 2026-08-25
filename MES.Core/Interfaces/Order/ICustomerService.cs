@@ -20,13 +20,13 @@ public interface ICustomerService
     Task<List<CustomerProfileDto>> GetAllListAsync();
 
     /// <summary>
-    /// 获取客户下拉列表（仅含级联选择所需字段，不分页�?    /// </summary>
+    /// 获取客户下拉列表（仅含级联选择所需字段，不分页）
+    /// </summary>
     Task<List<CustomerSelectDto>> GetSelectListAsync();
 
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     // ========== 打印 ==========
-    Task<byte[]> PrintCustomerAsync(int id, List<PrintColumnDef>? columns = null);
     Task<byte[]> PrintCustomerBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
     Task<byte[]> PrintCustomerAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null);
 }

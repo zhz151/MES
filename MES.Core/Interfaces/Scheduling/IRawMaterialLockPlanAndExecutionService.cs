@@ -5,7 +5,8 @@ using MES.Core.DTOs.Scheduling;
 namespace MES.Core.Interfaces.Scheduling;
 
 /// <summary>
-/// 原锁计划服务接口（LEFT JOIN 实时查询�?/// </summary>
+/// 原锁计划服务接口（LEFT JOIN 实时查询）
+/// </summary>
 public interface IRawMaterialLockPlanAndExecutionService
 {
     /// <summary>分页查询</summary>

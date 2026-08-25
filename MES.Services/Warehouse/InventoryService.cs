@@ -568,34 +568,6 @@ public class InventoryService : IInventoryService
 
     // ========== 打印 ==========
 
-    public async Task<byte[]> PrintInventoryAllAsync(InventoryPrintAllRequest request)
-    {
-        var query = new InventoryQueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = request.Keyword,
-            SortBy = request.SortBy ?? "inbounddate",
-            IsDescending = request.IsDescending,
-            WarehouseId = request.WarehouseId,
-            OnlyWithStock = request.OnlyWithStock
-        };
-        var paged = await GetPagedAsync(query);
-        var title = request.OnlyWithStock ? "仓 库 库 存 列 表" : "入 库 历 史 列 表";
-        return TablePrintHelper.GeneratePdf(title, paged.Items, request.Columns);
-    }
-
-    public async Task<byte[]> PrintInventorySelectedAsync(InventoryPrintSelectedRequest request)
-    {
-        var entities = await _context.InventoryBatches
-            .AsNoTracking()
-            .Where(b => request.Ids.Contains(b.Id))
-            .ToListAsync();
-
-        var items = entities.Select(ToDto).ToList();
-        return TablePrintHelper.GeneratePdf("入 库 批 次 打 印", items, request.Columns);
-    }
-
     public async Task<byte[]> PrintStockAllAsync(InventoryPrintAllRequest request)
     {
         var query = new InventoryQueryParams

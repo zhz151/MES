@@ -290,12 +290,6 @@ public class GradeMappingService : IGradeMappingService
 
     // ========== 打印 ==========
 
-    public async Task<byte[]> PrintGradeMappingAsync(int id, List<PrintColumnDef>? columns = null)
-    {
-        var dto = await GetByIdAsync(id);
-        return TablePrintHelper.GeneratePdf("牌号对照列表", new List<Dictionary<string, object>> { ToPrintDict(dto) }, columns ?? []);
-    }
-
     public async Task<byte[]> PrintGradeMappingBatchAsync(int[] ids, List<PrintColumnDef>? columns = null)
     {
         var result = new List<StandardGradeMappingDto>();

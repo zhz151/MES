@@ -21,13 +21,16 @@ public interface IQualityProcessTrackingService
     /// <summary>按条件打印全部记录</summary>
     Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom = null, DateTime? receiveDateTo = null, string? filters = null);
 
-    /// <summary>按成检到料ID刷新物化�?/summary>
+    /// <summary>按成检到料ID刷新物化行
+    /// </summary>
     Task RefreshByMrCheckIdAsync(int mrCheckId);
 
-    /// <summary>按批次ID刷新物化�?/summary>
+    /// <summary>按批次ID刷新物化行
+    /// </summary>
     Task RefreshByProductionBatchIdAsync(int productionBatchId);
 
-    /// <summary>按批次号刷新物化�?/summary>
+    /// <summary>按批次号刷新物化行
+    /// </summary>
     Task RefreshByBatchNoAsync(string batchNo);
 
     /// <summary>全量刷新所有物化行</summary>

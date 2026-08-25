@@ -5,13 +5,15 @@ using MES.Core.DTOs.Batch;
 namespace MES.Core.Interfaces.Batch;
 
 /// <summary>
-/// 工段委外服务接口（委外发�?+ 委外回收�?/// </summary>
+/// 工段委外服务接口（委外发出 + 委外回收）
+/// </summary>
 public interface ISectionOutsourceService
 {
     // ========== 工段委外 ==========
 
     /// <summary>
-    /// 跨批次分页查询委外发出记�?    /// </summary>
+    /// 跨批次分页查询委外发出记录
+    /// </summary>
     Task<PagedResult<SectionOutsourceDto>> GetPagedAsync(QueryParams query);
 
     /// <summary>
@@ -20,7 +22,8 @@ public interface ISectionOutsourceService
     Task<List<SectionOutsourceDto>> GetByIdsAsync(string ids);
 
     /// <summary>
-    /// 创建委外发出（使�?BatchNo 模式�?    /// </summary>
+    /// 创建委外发出（使用 BatchNo 模式）
+    /// </summary>
     Task<SectionOutsourceDto> CreateAsync(CreateSectionOutsourceRequest request);
 
     /// <summary>
@@ -34,17 +37,20 @@ public interface ISectionOutsourceService
     Task<SectionOutsourceDto> UpdateAsync(int id, UpdateSectionOutsourceRequest request);
 
     /// <summary>
-    /// 删除委外发出（已有回收时禁止删除�?    /// </summary>
+    /// 删除委外发出（已有回收时禁止删除）
+    /// </summary>
     Task DeleteAsync(int id);
 
     // ========== 委外回收 ==========
 
     /// <summary>
-    /// 获取指定委外发出的回收明细列�?    /// </summary>
+    /// 获取指定委外发出的回收明细列表
+    /// </summary>
     Task<List<OutsourceRecoveryDto>> GetRecoveriesAsync(int outsourceId);
 
     /// <summary>
-    /// 跨批次分页查询回收记�?    /// </summary>
+    /// 跨批次分页查询回收记录
+    /// </summary>
     Task<PagedResult<OutsourceRecoveryDto>> GetRecoveriesPagedAsync(QueryParams query);
 
     /// <summary>
@@ -70,33 +76,37 @@ public interface ISectionOutsourceService
     // ========== 打印 ==========
 
     /// <summary>
-    /// 批量打印委外发出记录（选中�?    /// </summary>
+    /// 批量打印委外发出记录（选中）
+    /// </summary>
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
 
     /// <summary>
-    /// 按筛选条件打印全部委外发�?    /// </summary>
+    /// 按筛选条件打印全部委外发出
+    /// </summary>
     Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending,
         DateTime? sendOutDateFrom, DateTime? sendOutDateTo,
         DateTime? actualRecoveryDateFrom, DateTime? actualRecoveryDateTo,
         List<PrintColumnDef> columns);
 
     /// <summary>
-    /// 批量打印回收记录（选中�?    /// </summary>
+    /// 批量打印回收记录（选中）
+    /// </summary>
     Task<byte[]> PrintRecoveryBatchAsync(int[] ids, List<PrintColumnDef> columns);
 
     /// <summary>
-    /// 按筛选条件打印全部回收记�?    /// </summary>
+    /// 按筛选条件打印全部回收记录
+    /// </summary>
     Task<byte[]> PrintRecoveryAllAsync(string? keyword, string? sortBy, bool isDescending,
         DateTime? recoveryDateFrom, DateTime? recoveryDateTo,
         List<PrintColumnDef> columns);
 
     /// <summary>
-    /// 获取委外回收筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
+    /// 获取委外回收筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetOutsourceRecoveryFilterContextsAsync();
 
     /// <summary>
-    /// 获取工段委外发出筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
+    /// 获取工段委外发出筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 

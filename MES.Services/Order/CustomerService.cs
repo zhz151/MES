@@ -355,12 +355,6 @@ public class CustomerService : ICustomerService
 
     // ========== 打印 ==========
 
-    public async Task<byte[]> PrintCustomerAsync(int id, List<PrintColumnDef>? columns = null)
-    {
-        var dto = await GetByIdAsync(id);
-        return TablePrintHelper.GeneratePdf("客户档案列表", new List<CustomerProfileDto> { dto }, columns ?? []);
-    }
-
     public async Task<byte[]> PrintCustomerBatchAsync(int[] ids, List<PrintColumnDef>? columns = null)
     {
         var result = new List<CustomerProfileDto>();

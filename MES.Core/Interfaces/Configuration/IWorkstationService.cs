@@ -12,10 +12,12 @@ public interface IWorkstationService
     /// <summary>分页查询</summary>
     Task<PagedResult<WorkstationDto>> GetPagedAsync(QueryParams query);
 
-    /// <summary>按工位编码查�?/summary>
+    /// <summary>按工位编码查询
+    /// </summary>
     Task<WorkstationDto?> GetByCodeAsync(string code);
 
-    /// <summary>新增或更�?/summary>
+    /// <summary>新增或更新
+    /// </summary>
     Task<bool> SaveAsync(WorkstationDto dto);
 
     /// <summary>删除</summary>

@@ -25,9 +25,6 @@ public class CertificateCreateRequest
     /// <summary>备注</summary>
     public string? Remark { get; set; }
 
-    /// <summary>选中的库存批次号列表（用于生成 CertificateItem）</summary>
-    public List<string> InventoryBatchNos { get; set; } = new();
-
     /// <summary>子项完整数据（含检查数据），一次性创建</summary>
     public List<CertificateItemUpdateDto> Items { get; set; } = new();
 }

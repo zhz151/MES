@@ -315,12 +315,6 @@ public class SupplierService : ISupplierService
         }) ?? new Dictionary<string, List<string>>();
     }
 
-    public async Task<byte[]> PrintSupplierAsync(int id, List<PrintColumnDef>? columns = null)
-    {
-        var dto = await GetByIdAsync(id);
-        return TablePrintHelper.GeneratePdf("供应商档案列表", new List<Dictionary<string, object>> { ToPrintDict(dto) }, columns ?? []);
-    }
-
     public async Task<byte[]> PrintSupplierBatchAsync(int[] ids, List<PrintColumnDef>? columns = null)
     {
         var result = new List<SupplierProfileDto>();

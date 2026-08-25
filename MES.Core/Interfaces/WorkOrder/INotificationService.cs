@@ -21,11 +21,13 @@ public interface INotificationService
     Task<PagedResult<NotificationDto>> GetPagedNotificationsAsync(int pageIndex, int pageSize);
 
     /// <summary>
-    /// 标记单条通知为已�?    /// </summary>
+    /// 标记单条通知为已读
+    /// </summary>
     Task MarkAsReadAsync(int id);
 
     /// <summary>
-    /// 标记所有通知为已�?    /// </summary>
+    /// 标记所有通知为已读
+    /// </summary>
     Task MarkAllAsReadAsync();
 
     /// <summary>
@@ -44,6 +46,7 @@ public interface INotificationService
     Task<List<NotificationDto>> GetUnreadByTypeAsync(string notificationType);
 
     /// <summary>
-    /// 标记指定类型的所有通知为已�?    /// </summary>
+    /// 标记指定类型的所有通知为已读
+    /// </summary>
     Task MarkAllByTypeAsReadAsync(string notificationType);
 }

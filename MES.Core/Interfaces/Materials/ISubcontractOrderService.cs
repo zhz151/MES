@@ -16,7 +16,7 @@ public interface ISubcontractOrderService
     Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request);
     Task DeleteAsync(int id);
 
-    // ========== 用料计划执行状�?==========
+    // ========== 用料计划执行状态 ==========
     Task<List<ProcurementStatusDto>> GetProcurementStatusAsync();
     Task<List<OrderMismatchInfo>> GetMismatchedSubcontractOrdersAsync();
     Task<PlanDetailDto?> GetPlanDetailAsync(string workOrderNo, string materialCategory);

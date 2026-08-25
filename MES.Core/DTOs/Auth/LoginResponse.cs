@@ -7,8 +7,6 @@ public class LoginResponse
 
     public string RefreshToken { get; set; } = string.Empty;
 
-    public DateTime RefreshTokenExpires { get; set; }
-
     public string Email { get; set; } = string.Empty;
 
 

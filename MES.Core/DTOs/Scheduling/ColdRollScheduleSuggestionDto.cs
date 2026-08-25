@@ -87,12 +87,6 @@ public class ColdRollScheduleSuggestionItemDto
     /// <summary>有待轧批次（PositionDiff 1~6）</summary>
     public bool InWaitExists { get; set; }
 
-    /// <summary>可流转在轧量（该规格全部在轧批次重量，待流转总量，不过滤档位）</summary>
-    public decimal FlowInProdWeight { get; set; }
-
-    /// <summary>可流转待轧量（该规格全部待轧批次重量，待流转总量，不过滤档位）</summary>
-    public decimal FlowInWaitWeight { get; set; }
-
     /// <summary>计划在轧量（在轧批次中命中「建议在轧要求」档位的重量，本次计划流转分侧）</summary>
     public decimal PlannedInProdWeight { get; set; }
 
@@ -129,14 +123,8 @@ public class FlowStateDto
     /// <summary>5060在制折算 2030 机台需求（方式B→方式A）</summary>
     public int SupplyMachines { get; set; }
 
-    /// <summary>5060 流入机台（仅部分二，对倒判据）</summary>
-    public int From5060Machines { get; set; }
-
     /// <summary>2030 下次承接总料重（kg：5060 流入 + 2030 本组本次未定流转，同机台数口径）</summary>
     public decimal TotalWeight { get; set; }
-
-    /// <summary>5060 流入料重（kg，仅部分二）</summary>
-    public decimal From5060Weight { get; set; }
 
     /// <summary>2030 组最小机台数</summary>
     public int NeedMachines { get; set; }

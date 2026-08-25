@@ -706,9 +706,7 @@ public class ColdRollPlanService : IColdRollPlanService
                 {
                     Role = "Demander",
                     SupplyMachines = flowDemand2030,
-                    From5060Machines = flowFrom5060,
                     TotalWeight = flowDemand2030Weight,
-                    From5060Weight = flowFrom5060Weight,
                     NeedMachines = minMachines2030,
                     Balanced = flowDemand2030 >= minMachines2030,
                     Text = $"2030 下次承接流转 {flowDemand2030} 台 / {flowDemand2030Weight.ToString("G29")}kg（5060 流入 {flowFrom5060} 台 / {flowFrom5060Weight.ToString("G29")}kg + 本次未定流转 {flowDemand2030 - flowFrom5060} 台 / {(flowDemand2030Weight - flowFrom5060Weight).ToString("G29")}kg），2030 最小需 {minMachines2030} 台，流转{(flowDemand2030 >= minMachines2030 ? "平衡" : "不足")}",
@@ -720,9 +718,7 @@ public class ColdRollPlanService : IColdRollPlanService
                 {
                     Role = "Supplier",
                     SupplyMachines = flowDemand2030,
-                    From5060Machines = flowFrom5060,
                     TotalWeight = flowDemand2030Weight,
-                    From5060Weight = flowFrom5060Weight,
                     NeedMachines = minMachines2030,
                     Balanced = flowDemand2030 >= minMachines2030,
                     Text = $"5060 本次流转可供给 2030 流入 {flowFrom5060} 台 / {flowFrom5060Weight.ToString("G29")}kg（2030 下次总承接 {flowDemand2030} 台 / {flowDemand2030Weight.ToString("G29")}kg 含本次未定流转），2030 最小需 {minMachines2030} 台，流转{(flowDemand2030 >= minMachines2030 ? "平衡" : "不足")}",
@@ -1322,8 +1318,6 @@ public class ColdRollPlanService : IColdRollPlanService
             HasUrgentPlus = hasUrgentPlus,
             InProdExists = inProd.Count > 0,
             InWaitExists = inWait.Count > 0,
-            FlowInProdWeight = inProd.Sum(a => a.Weight),
-            FlowInWaitWeight = inWait.Sum(a => a.Weight),
             DailyOutput = existing?.DailyOutput,
             MachineNo = existing?.MachineNo,
             Remark = existing?.Remark,

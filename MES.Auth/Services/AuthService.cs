@@ -106,7 +106,6 @@ public class AuthService : IAuthService
         {
             Token = token,
             RefreshToken = refreshToken.Token,
-            RefreshTokenExpires = refreshToken.Expires,
             Email = user.Email ?? string.Empty,
             UserName = user.UserName ?? string.Empty,
             Roles = roles.ToList(),
@@ -207,7 +206,6 @@ public class AuthService : IAuthService
         {
             Token = token,
             RefreshToken = newRefreshToken.Token,
-            RefreshTokenExpires = newRefreshToken.Expires,
             Email = user.Email ?? string.Empty,
             UserName = user.UserName ?? string.Empty,
             Roles = roles.ToList(),

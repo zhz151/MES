@@ -15,12 +15,11 @@ public interface ISupplierService
     Task DeleteAsync(int id);
 
     /// <summary>
-    /// 获取筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     // ========== 打印 ==========
-    Task<byte[]> PrintSupplierAsync(int id, List<PrintColumnDef>? columns = null);
     Task<byte[]> PrintSupplierBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
     Task<byte[]> PrintSupplierAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null);
 }

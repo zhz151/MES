@@ -3,7 +3,8 @@ using MES.Core.DTOs.Scheduling;
 namespace MES.Core.Interfaces.Scheduling;
 
 /// <summary>
-/// 冷轧计划看板服务 �?按规格维度聚合生产批次的时间桶重量分�?/// </summary>
+/// 冷轧计划看板服务 — 按规格维度聚合生产批次的时间桶重量分布
+/// </summary>
 public interface IColdRollPlanService
 {
     /// <summary>

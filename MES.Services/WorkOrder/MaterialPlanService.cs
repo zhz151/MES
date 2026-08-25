@@ -2506,7 +2506,6 @@ public class MaterialPlanService : IMaterialPlanService
                     BatchNo = j.p.BatchNo,
                     WorkOrderNo = wo.WorkOrderNo,
                     PlanType = "在产改制",
-                    PlanId = j.p.Id,
                     RequiredQuantity = j.p.UsedQuantity,
                     RequiredWeight = j.p.UsedWeight
                 })
@@ -2980,7 +2979,6 @@ public class MaterialPlanService : IMaterialPlanService
                     BatchNo = j.b.BatchNo,
                     WorkOrderNo = wo.WorkOrderNo,
                     PlanType = "在产工单分配",
-                    PlanId = j.p.Id,
                     RequiredQuantity = j.p.AllocatedQuantity,
                     RequiredWeight = j.p.AllocatedWeight
                 })
@@ -3161,7 +3159,6 @@ public class MaterialPlanService : IMaterialPlanService
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Semi",
-                PlanTypeText = "原料采购",
                 RecordCount = semiPlans.Count,
                 Summary = $"{semiPlans.First().RawMaterialSpec} × {semiPlans.Sum(p => p.RequiredPieces ?? 0)}支 / {semiPlans.Sum(p => p.RequiredWeight):G29}kg",
                 RequiredDate = semiPlans.Min(p => p.RequiredDate),
@@ -3180,7 +3177,6 @@ public class MaterialPlanService : IMaterialPlanService
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Finished",
-                PlanTypeText = "成品采购",
                 RecordCount = finishPlans.Count,
                 Summary = $"{finishPlans.First().ProductType} × {finishPlans.Sum(p => p.RequiredPiece ?? 0)}支 / {finishPlans.Sum(p => p.RequiredWeight):G29}kg",
                 RequiredDate = finishPlans.Min(p => p.RequiredDate),
@@ -3203,7 +3199,6 @@ public class MaterialPlanService : IMaterialPlanService
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Inventory",
-                PlanTypeText = "库存使用",
                 RecordCount = regularInventory.Count,
                 Summary = $"{regularInventory.First().BatchNo} × {regularInventory.Sum(p => p.UsedQuantity ?? 0)}支 / {regularInventory.Sum(p => p.UsedWeight):G29}kg",
                 RequiredDate = regularInventory.Min(p => p.RequiredDate),
@@ -3218,7 +3213,6 @@ public class MaterialPlanService : IMaterialPlanService
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Rework",
-                PlanTypeText = "库料改制",
                 RecordCount = reworkPlans.Count,
                 Summary = $"{reworkPlans.First().BatchNo} × {reworkPlans.Sum(p => p.UsedQuantity ?? 0)}支 / {reworkPlans.Sum(p => p.UsedWeight):G29}kg",
                 RequiredDate = reworkPlans.Min(p => p.RequiredDate),
@@ -3237,7 +3231,6 @@ public class MaterialPlanService : IMaterialPlanService
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "Piercing",
-                PlanTypeText = "圆棒穿孔",
                 RecordCount = piercingPlans.Count,
                 Summary = $"{piercingPlans.First().RoundBarSpec} → {piercingPlans.First().PiercingSpec} × {piercingPlans.Sum(p => p.RequiredPieces ?? 0)}支 / {piercingPlans.Sum(p => p.RequiredWeight):G29}kg",
                 RequiredDate = piercingPlans.Min(p => p.RequiredDate),
@@ -3257,7 +3250,6 @@ public class MaterialPlanService : IMaterialPlanService
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "InProcessRework",
-                PlanTypeText = "在产改制",
                 RecordCount = inProcessReworkPlans.Count,
                 Summary = $"{inProcessReworkPlans.First().BatchNo} × {inProcessReworkPlans.Sum(p => p.UsedQuantity ?? 0)}支 / {inProcessReworkPlans.Sum(p => p.UsedWeight):G29}kg",
                 RequiredDate = inProcessReworkPlans.Min(p => p.RequiredDate),
@@ -3277,7 +3269,6 @@ public class MaterialPlanService : IMaterialPlanService
             dto.Items.Add(new MaterialPlanItemDto
             {
                 PlanType = "InMainWorkOrder",
-                PlanTypeText = "在产主工单",
                 RecordCount = inMainWorkOrderPlans.Count,
                 Summary = $"{inMainWorkOrderPlans.First().MainWorkOrderNo} × {inMainWorkOrderPlans.Sum(p => p.AllocatedQuantity ?? 0)}支 / {inMainWorkOrderPlans.Sum(p => p.AllocatedWeight):G29}kg",
                 RequiredDate = inMainWorkOrderPlans.Min(p => p.RequiredDate),
@@ -3948,7 +3939,6 @@ public class MaterialPlanService : IMaterialPlanService
                 BatchNo = j.p.BatchNo,
                 WorkOrderNo = j.wo.WorkOrderNo,
                 PlanType = j.p.ReworkType != null ? "库料改制" : "库存使用",
-                PlanId = j.p.Id,
                 RequiredQuantity = j.p.UsedQuantity,
                 RequiredWeight = j.p.UsedWeight
             })
@@ -4067,7 +4057,6 @@ internal static class MaterialPlanMappingExtensions
             UsedWeight = entity.UsedWeight,
             RequiredDate = entity.RequiredDate,
             PlanStatus = entity.PlanStatus,
-            PlanStatusText = EnumHelper.GetDisplayName(entity.PlanStatus),
             Remark = entity.Remark,
             ReworkType = entity.ReworkType,
             ReworkTypeText = entity.ReworkType.HasValue ? EnumHelper.GetDisplayName(entity.ReworkType.Value) : null,

@@ -5,13 +5,15 @@ using MES.Core.DTOs.Batch;
 namespace MES.Core.Interfaces.Batch;
 
 /// <summary>
-/// 生产记录服务接口（内部生产记�?工段委外/委外回收�?/// </summary>
+/// 生产记录服务接口（内部生产记录/工段委外/委外回收）
+/// </summary>
 public interface IProductionRecordService
 {
     // ========== 内部生产记录 ==========
 
     /// <summary>
-    /// 获取批次的生产记录列�?    /// </summary>
+    /// 获取批次的生产记录列表
+    /// </summary>
     Task<PagedResult<ProductionRecordDto>> GetProductionRecordsAsync(int batchId, QueryParams query);
 
     /// <summary>
@@ -37,13 +39,15 @@ public interface IProductionRecordService
     // ========== 工段委外 ==========
 
     /// <summary>
-    /// 获取批次的工段委外列�?    /// </summary>
+    /// 获取批次的工段委外列表
+    /// </summary>
     Task<PagedResult<SectionOutsourceDto>> GetSectionOutsourcesAsync(int batchId, QueryParams query);
 
     Task RefreshBatchTrackingFieldsAsync(int batchId);
 
     /// <summary>
-    /// 批量刷新多个批次的实时跟踪字段（一次查�?+ 一次SaveChanges�?    /// </summary>
+    /// 批量刷新多个批次的实时跟踪字段（一次查询 + 一次SaveChanges）
+    /// </summary>
     Task BatchUpdateBatchTrackingAsync(ICollection<int> batchIds);
 
     /// <summary>
@@ -53,39 +57,46 @@ public interface IProductionRecordService
     Task<int> RecomputeCutLengthMatchByBatchAsync(int batchId);
 
     /// <summary>
-    /// 获取批次跟踪可视化数据（前端进度图展示用�?    /// </summary>
+    /// 获取批次跟踪可视化数据（前端进度图展示用）
+    /// </summary>
     Task<BatchTrackingVisualDto> GetTrackingVisualAsync(int batchId);
 
-    // ========== 跨批次查询（用于独立页面�?==========
+    // ========== 跨批次查询（用于独立页面） ==========
 
     /// <summary>
-    /// 跨批次查询所有内部生产记�?    /// </summary>
+    /// 跨批次查询所有内部生产记录
+    /// </summary>
     Task<PagedResult<ProductionRecordDto>> GetAllProductionRecordsAsync(QueryParams query);
 
     /// <summary>
-    /// 跨批次查询所有工段委外记�?    /// </summary>
+    /// 跨批次查询所有工段委外记录
+    /// </summary>
     Task<PagedResult<SectionOutsourceDto>> GetAllSectionOutsourcesAsync(QueryParams query);
 
     /// <summary>
-    /// 跨批次查询所有委外回收记�?    /// </summary>
+    /// 跨批次查询所有委外回收记录
+    /// </summary>
     Task<PagedResult<OutsourceRecoveryDto>> GetAllOutsourceRecoveriesAsync(QueryParams query);
 
     /// <summary>
-    /// 获取所有内部生产记录（不含分页，用�?ProductionRecords 页面列表展示�?    /// </summary>
+    /// 获取所有内部生产记录（不含分页，用于 ProductionRecords 页面列表展示）
+    /// </summary>
     Task<List<ProductionRecordDto>> GetAllProductionRecordListAsync();
 
     /// <summary>
-    /// 获取所有工段委外记录（不含分页，用�?SectionOutsources 页面列表展示�?    /// </summary>
+    /// 获取所有工段委外记录（不含分页，用于 SectionOutsources 页面列表展示）
+    /// </summary>
     Task<List<SectionOutsourceDto>> GetAllSectionOutsourceListAsync();
 
     /// <summary>
-    /// 获取所有委外回收记录（不含分页，用�?OutsourceRecoveries 页面列表展示�?    /// </summary>
+    /// 获取所有委外回收记录（不含分页，用于 OutsourceRecoveries 页面列表展示）
+    /// </summary>
     Task<List<OutsourceRecoveryDto>> GetAllOutsourceRecoveryListAsync();
 
     // ========== 筛选上下文 ==========
 
     /// <summary>
-    /// 获取生产记录筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
+    /// 获取生产记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
@@ -97,6 +108,7 @@ public interface IProductionRecordService
     Task<byte[]> PrintProductionRecordBatchAsync(int[] ids, List<PrintColumnDef> columns);
 
     /// <summary>
-    /// 按筛选条件打印全部生产记�?    /// </summary>
+    /// 按筛选条件打印全部生产记录
+    /// </summary>
     Task<byte[]> PrintProductionRecordAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? execDateFrom, DateTime? execDateTo);
 }

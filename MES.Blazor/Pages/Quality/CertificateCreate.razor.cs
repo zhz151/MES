@@ -564,10 +564,6 @@ public partial class CertificateCreate
                 ProductName = _certProductName,
                 DeliveryStatus = string.IsNullOrEmpty(_certDeliveryStatus) ? null : Enum.Parse<DeliveryState>(_certDeliveryStatus),
                 Remark = _certRemark,
-                InventoryBatchNos = _subItems
-                    .Where(s => !string.IsNullOrEmpty(s.InventoryBatchNo))
-                    .Select(s => s.InventoryBatchNo!)
-                    .ToList(),
                 Items = _subItems.Select(s => new CertificateItemUpdateDto
                 {
                     SeqNo = s.SeqNo,

@@ -23,11 +23,6 @@ public class PendingPlanBatchDto
     public string PlanType { get; set; } = null!;
 
     /// <summary>
-    /// 计划ID（用于dismiss操作）
-    /// </summary>
-    public int PlanId { get; set; }
-
-    /// <summary>
     /// 需出库支数
     /// </summary>
     public int? RequiredQuantity { get; set; }

@@ -86,11 +86,6 @@ public class OrderWorkOrderStatusDto
     public string WorkOrderStatusText => WorkOrderStatusDisplay;
 
     /// <summary>
-    /// 是否存在工单
-    /// </summary>
-    public bool HasWorkOrder { get; set; }
-
-    /// <summary>
     /// 工单ID（如有）
     /// </summary>
     public int? WorkOrderId { get; set; }

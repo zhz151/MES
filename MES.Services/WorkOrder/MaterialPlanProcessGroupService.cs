@@ -64,7 +64,6 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
     private static readonly Expression<Func<SemiPlanProcessGroup, MaterialPlanProcessGroupDto>> SemiToDtoExpr = e => new MaterialPlanProcessGroupDto
     {
         Id = e.Id,
-        ParentPlanId = e.PurchaseSemiPlanId,
         SequenceNumber = e.SequenceNumber,
         ProcessName = e.ProcessName,
         ManufacturingSpec = e.ManufacturingSpec,
@@ -105,7 +104,6 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
     private static readonly Expression<Func<InventoryPlanProcessGroup, MaterialPlanProcessGroupDto>> InventoryToDtoExpr = e => new MaterialPlanProcessGroupDto
     {
         Id = e.Id,
-        ParentPlanId = e.InventoryPlanId,
         SequenceNumber = e.SequenceNumber,
         ProcessName = e.ProcessName,
         ManufacturingSpec = e.ManufacturingSpec,
@@ -146,7 +144,6 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
     private static readonly Expression<Func<InProcessReworkPlanProcessGroup, MaterialPlanProcessGroupDto>> ReworkToDtoExpr = e => new MaterialPlanProcessGroupDto
     {
         Id = e.Id,
-        ParentPlanId = e.InProcessReworkPlanId,
         SequenceNumber = e.SequenceNumber,
         ProcessName = e.ProcessName,
         ManufacturingSpec = e.ManufacturingSpec,
@@ -187,7 +184,6 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
     private static readonly Expression<Func<PiercingPlanProcessGroup, MaterialPlanProcessGroupDto>> PiercingToDtoExpr = e => new MaterialPlanProcessGroupDto
     {
         Id = e.Id,
-        ParentPlanId = e.RoundBarPiercingPlanId,
         SequenceNumber = e.SequenceNumber,
         ProcessName = e.ProcessName,
         ManufacturingSpec = e.ManufacturingSpec,

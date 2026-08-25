@@ -90,11 +90,6 @@ public class InventoryPlanDto
     public string PlanStatusDisplay => EnumHelper.GetDisplayName(PlanStatus);
 
     /// <summary>
-    /// 计划状态文本
-    /// </summary>
-    public string PlanStatusText { get; set; } = null!;
-
-    /// <summary>
     /// 备注
     /// </summary>
     public string? Remark { get; set; }

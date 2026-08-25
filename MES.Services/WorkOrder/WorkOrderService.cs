@@ -242,7 +242,6 @@ public class WorkOrderService : IWorkOrderService
             var woInfo = workOrderDict.GetValueOrDefault(order.OrderNumber);
             var agg = itemAggDict.GetValueOrDefault(order.Id);
 
-            var hasWorkOrder = woInfo != null && woInfo.WorkOrderCount > 0;
             WorkOrderStatus workOrderStatus;
             int? workOrderId = null;
 
@@ -276,7 +275,6 @@ public class WorkOrderService : IWorkOrderService
                 ItemCount = agg?.ItemCount ?? 0,
                 WorkOrderCount = woInfo?.WorkOrderCount ?? 0,
                 WorkOrderStatus = workOrderStatus,
-                HasWorkOrder = hasWorkOrder,
                 WorkOrderId = workOrderId
             };
         }).ToList();
@@ -530,7 +528,6 @@ public class WorkOrderService : IWorkOrderService
             var woInfo = workOrderDict.GetValueOrDefault(order.OrderNumber);
             var agg = itemAggDict.GetValueOrDefault(order.Id);
 
-            var hasWorkOrder = woInfo != null && woInfo.WorkOrderCount > 0;
             WorkOrderStatus workOrderStatus;
             int? workOrderId = null;
 
@@ -564,7 +561,6 @@ public class WorkOrderService : IWorkOrderService
                 ItemCount = agg?.ItemCount ?? 0,
                 WorkOrderCount = woInfo?.WorkOrderCount ?? 0,
                 WorkOrderStatus = workOrderStatus,
-                HasWorkOrder = hasWorkOrder,
                 WorkOrderId = workOrderId
             };
         }).ToList();

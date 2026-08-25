@@ -445,60 +445,6 @@ public class MaterialPlanController : ControllerBase
 
     #region 打印
 
-    [HttpGet("print/semi/{id}")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintSemiPlan(int id)
-    {
-        var bytes = await _materialPlanService.PrintSemiPlanAsync(id);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
-    }
-
-    [HttpGet("print/finished/{id}")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintFinishedPlan(int id)
-    {
-        var bytes = await _materialPlanService.PrintFinishedPlanAsync(id);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
-    }
-
-    [HttpGet("print/inventory/{id}")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintInventoryPlan(int id)
-    {
-        var bytes = await _materialPlanService.PrintInventoryPlanAsync(id);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
-    }
-
-    [HttpGet("print/rework/{id}")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintReworkPlan(int id)
-    {
-        var bytes = await _materialPlanService.PrintReworkPlanAsync(id);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
-    }
-
-    [HttpGet("print/piercing/{id}")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintPiercingPlan(int id)
-    {
-        var bytes = await _materialPlanService.PrintPiercingPlanAsync(id);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
-    }
-
-    [HttpGet("print/in-process-rework/{id}")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintInProcessReworkPlan(int id)
-    {
-        var bytes = await _materialPlanService.PrintInProcessReworkPlanAsync(id);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
-    }
-
     [HttpPost("print/batch")]
     [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] MaterialPlanBatchPrintRequest request)
@@ -568,15 +514,6 @@ public class MaterialPlanController : ControllerBase
     {
         var bytes = await _materialPlanService.PrintInProcessReworkPlanAsync(id);
         return File(bytes, "application/pdf", $"在产改制_{id}.pdf");
-    }
-
-    [HttpGet("print/in-main-work-order/{id}")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintInMainWorkOrderPlan(int id)
-    {
-        var bytes = await _materialPlanService.PrintInMainWorkOrderPlanAsync(id);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
     }
 
     [HttpPost("print/in-main-work-order/{id}/file")]

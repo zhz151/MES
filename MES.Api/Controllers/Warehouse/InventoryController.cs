@@ -390,56 +390,6 @@ public class InventoryController : ControllerBase
 
     // ========== 打印 ==========
 
-    /// <summary>
-    /// 打印全部库存/入库记录
-    /// </summary>
-    [HttpPost("print-inventory-all")]
-    [Authorize(Roles = Roles.Policies.WarehouseView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintInventoryAll([FromBody] InventoryPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintInventoryAllAsync(request);
-        return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
-    }
-
-    [HttpPost("print-inventory-all-file")]
-    [Authorize(Roles = Roles.Policies.WarehouseView)]
-    public async Task<IActionResult> PrintInventoryAllFile([FromBody] InventoryPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintInventoryAllAsync(request);
-        return File(pdfBytes, "application/pdf", request.OnlyWithStock ? "仓库库存列表.pdf" : "入库历史列表.pdf");
-    }
-
-    /// <summary>
-    /// 打印选中库存/入库记录
-    /// </summary>
-    [HttpPost("print-inventory-selected")]
-    [Authorize(Roles = Roles.Policies.WarehouseView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintInventorySelected([FromBody] InventoryPrintSelectedRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintInventorySelectedAsync(request);
-        return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
-    }
-
-    [HttpPost("print-inventory-selected-file")]
-    [Authorize(Roles = Roles.Policies.WarehouseView)]
-    public async Task<IActionResult> PrintInventorySelectedFile([FromBody] InventoryPrintSelectedRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintInventorySelectedAsync(request);
-        return File(pdfBytes, "application/pdf", "入库批次打印.pdf");
-    }
-
     [HttpPost("print-stock-all-file")]
     [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintStockAllFile([FromBody] InventoryPrintAllRequest request)
@@ -484,20 +434,6 @@ public class InventoryController : ControllerBase
         return File(pdfBytes, "application/pdf", "入库批次打印.pdf");
     }
 
-    /// <summary>
-    /// 打印全部出库记录
-    /// </summary>
-    [HttpPost("print-outbound-all")]
-    [Authorize(Roles = Roles.Policies.WarehouseView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOutboundAll([FromBody] OutboundPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintOutboundAllAsync(request);
-        return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
-    }
-
     [HttpPost("print-outbound-all-file")]
     [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintOutboundAllFile([FromBody] OutboundPrintAllRequest request)
@@ -507,20 +443,6 @@ public class InventoryController : ControllerBase
 
         var pdfBytes = await _service.PrintOutboundAllAsync(request);
         return File(pdfBytes, "application/pdf", "出库历史列表.pdf");
-    }
-
-    /// <summary>
-    /// 打印选中出库记录
-    /// </summary>
-    [HttpPost("print-outbound-selected")]
-    [Authorize(Roles = Roles.Policies.WarehouseView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOutboundSelected([FromBody] OutboundPrintSelectedRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintOutboundSelectedAsync(request);
-        return Ok(ApiResponse<string>.Ok(Convert.ToBase64String(pdfBytes), "打印成功"));
     }
 
     [HttpPost("print-outbound-selected-file")]

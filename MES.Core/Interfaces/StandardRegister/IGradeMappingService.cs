@@ -25,7 +25,6 @@ public interface IGradeMappingService
     Task DeleteAsync(int id);
 
     // ========== 打印 ==========
-    Task<byte[]> PrintGradeMappingAsync(int id, List<PrintColumnDef>? columns = null);
     Task<byte[]> PrintGradeMappingBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
     Task<byte[]> PrintGradeMappingAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null);
 

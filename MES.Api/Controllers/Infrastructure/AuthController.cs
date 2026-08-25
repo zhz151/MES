@@ -1,4 +1,4 @@
-// �ļ�·��: MES.Api/Controllers/AuthController.cs
+// 文件路径: MES.Api/Controllers/AuthController.cs
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Interfaces.Auth;

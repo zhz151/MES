@@ -155,9 +155,6 @@ public class RawMaterialLockPlanAndExecutionDto
     /// <summary>预算投料日</summary>
     public DateTime? BudgetInputDate { get; set; }
 
-    /// <summary>是否存在异常（逾期、锁定未齐全等）</summary>
-    public bool HasAbnormality { get; set; }
-
     // ========== G4 计算列 ==========
 
     /// <summary>计划投料总重量(kg)：G5~G11 七个计划量之和</summary>

@@ -15,7 +15,8 @@ public interface IEmployeeService
     /// <summary>按工号查询（扫码用）</summary>
     Task<EmployeeDto?> GetByCodeAsync(string code);
 
-    /// <summary>新增或更�?/summary>
+    /// <summary>新增或更新
+    /// </summary>
     Task<bool> SaveAsync(EmployeeDto dto);
 
     /// <summary>删除</summary>

@@ -7,8 +7,6 @@ namespace MES.Core.DTOs.WorkOrder;
 public class MaterialPlanProcessGroupDto
 {
     public int Id { get; set; }
-    /// <summary>所属父表行ID（如 PurchaseSemiPlanId / InventoryPlanId 等）</summary>
-    public int ParentPlanId { get; set; }
     public int SequenceNumber { get; set; }
     public string ProcessName { get; set; } = null!;
     public string? ManufacturingSpec { get; set; }

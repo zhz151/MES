@@ -12,7 +12,8 @@ public interface INcrService
     /// <summary>分页查询</summary>
     Task<PagedResult<NcrDto>> GetAllAsync(QueryParams query);
 
-    /// <summary>获取全部（无分页�?/summary>
+    /// <summary>获取全部（无分页）
+    /// </summary>
     Task<List<NcrDto>> GetAllListAsync();
 
     /// <summary>获取详情</summary>
@@ -27,16 +28,18 @@ public interface INcrService
     /// <summary>删除</summary>
     Task DeleteAsync(int id);
 
-    /// <summary>状态变�?/summary>
+    /// <summary>状态变更
+    /// </summary>
     Task<NcrDto> UpdateStatusAsync(int id, UpdateNcrStatusRequest request);
 
-    /// <summary>根据生产编号调取批次信息（用于新建页自动填充�?/summary>
+    /// <summary>根据生产编号调取批次信息（用于新建页自动填充）
+    /// </summary>
     Task<NcrLookupResultDto?> LookupBatchAsync(string batchNo);
 
     /// <summary>获取筛选上下文</summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
-    /// <summary>获取待处理批次卡片数据（分析过程检�?成品检验）</summary>
+    /// <summary>获取待处理批次卡片数据（分析过程检验和成品检验）</summary>
     Task<List<NcrPendingCheckDto>> GetPendingChecksAsync();
 
     /// <summary>获取不合格品月度汇总（责任类别→责任部门→处置方式 三级，12 个月次品支数/重量矩阵）</summary>

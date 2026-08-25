@@ -22,7 +22,8 @@ public interface IOrderService
     Task<SalesOrderDetailDto> GetByIdAsync(int id);
 
     /// <summary>
-    /// 根据订单号获取订单ID（用于跳转详情页�?    /// </summary>
+    /// 根据订单号获取订单ID（用于跳转详情页）
+    /// </summary>
     Task<int?> GetIdByOrderNumberAsync(string orderNo);
 
     /// <summary>
@@ -100,12 +101,13 @@ public interface IOrderService
     Task<byte[]> PrintOrderRequirementsAsync(int orderId);
 
     /// <summary>
-    /// 获取筛选上下文（各列去重值），用�?ExcelFilter 下拉选项
+    /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     /// <summary>
-    /// 刷新全部订单读模型（从源表重新聚�?OrderListSummary�?    /// </summary>
+    /// 刷新全部订单读模型（从源表重新聚合 OrderListSummary）
+    /// </summary>
     /// <summary>
     /// 获取订单接单·出库及现负荷汇总（本年按月：接单量/出库量/库存完工/库存未完工）
     /// </summary>

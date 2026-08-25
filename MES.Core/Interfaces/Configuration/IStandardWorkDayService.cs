@@ -14,7 +14,8 @@ public interface IStandardWorkDayService
     /// <summary>根据 ID 获取</summary>
     Task<StandardWorkDayDto?> GetByIdAsync(int id);
 
-    /// <summary>新增或更�?/summary>
+    /// <summary>新增或更新
+    /// </summary>
     Task<bool> SaveAsync(StandardWorkDayDto dto);
 
     /// <summary>删除</summary>
@@ -22,7 +23,7 @@ public interface IStandardWorkDayService
 
     /// <summary>
     /// 获取标准天数映射表：key=SectionName, value=StandardDays
-    /// 按牌号前缀优先级匹配（精确匹配 &gt; 通用 null），�?MemoryCache
+    /// 按牌号前缀优先级匹配（精确匹配 &gt; 通用 null），并使用 MemoryCache
     /// </summary>
     Task<Dictionary<string, double>> GetStandardDaysMapAsync(string? plantGrade);
 

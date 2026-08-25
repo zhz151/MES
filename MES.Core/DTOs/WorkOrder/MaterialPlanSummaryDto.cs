@@ -29,8 +29,6 @@ public class MaterialPlanItemDto
 {
     /// <summary>计划类型：Semi=原料采购, Finished=成品采购, Inventory=自有料, Rework=改制</summary>
     public string PlanType { get; set; } = null!;
-
-    public string PlanTypeText { get; set; } = null!;
     public int RecordCount { get; set; }
     public string Summary { get; set; } = null!;
     public DateTime? RequiredDate { get; set; }
