@@ -16,7 +16,7 @@
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @inject HttpClient Http
-@attribute [Authorize(Roles = Roles.Policies.StandardRead)]
+@attribute [Authorize(Roles = Roles.Policies.StandardView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -134,11 +134,13 @@
                                        Size="Size.Small"
                                        OnClick="@(() => ViewDetail(item.Id))"
                                        Title="编辑" />
+                        <AuthorizeView Roles="@Roles.Policies.StandardDelete">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                        Color="Color.Error"
                                        Size="Size.Small"
                                        OnClick="@(() => DeleteItem(item))"
                                        Title="删除" />
+                        </AuthorizeView>
                     </MudTd>
                 </RowTemplate>
                 <FooterContent>

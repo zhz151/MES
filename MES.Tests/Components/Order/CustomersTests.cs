@@ -20,14 +20,14 @@ public class CustomersTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<Customers>();
+        var cut = RenderPage<Customers>();
         cut.Markup.Should().Contain("客户管理");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<Customers>();
+        var cut = RenderPage<Customers>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -37,7 +37,7 @@ public class CustomersTests : TestBase
     public void StatusColumn_DisplaysCorrectText(CustomerStatus status, string expectedText)
     {
         ConfigureListResponse(status);
-        var cut = Ctx.RenderComponent<Customers>();
+        var cut = RenderPage<Customers>();
         cut.WaitForState(() => cut.Markup.Contains(expectedText));
         cut.Markup.Should().Contain(expectedText);
     }

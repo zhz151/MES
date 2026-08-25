@@ -6,7 +6,7 @@
 @inject IJSRuntime JSRuntime
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthProvider
-@attribute [Authorize]
+@attribute [Authorize(Roles = Roles.Policies.DataToolView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudText Typo="Typo.h5" Class="font-weight-bold mb-4">

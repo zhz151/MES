@@ -20,14 +20,14 @@ public class OutboundHistoryTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<OutboundHistory>();
+        var cut = RenderPage<OutboundHistory>();
         cut.Markup.Should().Contain("出库历史记录查询及更正");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<OutboundHistory>();
+        var cut = RenderPage<OutboundHistory>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -35,7 +35,7 @@ public class OutboundHistoryTests : TestBase
     public void Render_DisplaysData()
     {
         ConfigureListResponse();
-        var cut = Ctx.RenderComponent<OutboundHistory>();
+        var cut = RenderPage<OutboundHistory>();
         cut.WaitForState(() => cut.Markup.Contains("BATCH-OB-001"));
         cut.Markup.Should().Contain("BATCH-OB-001");
     }

@@ -21,14 +21,14 @@ public class SectionOutsourcesTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<SectionOutsources>();
+        var cut = RenderPage<SectionOutsources>();
         cut.Markup.Should().Contain("工段委外");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<SectionOutsources>();
+        var cut = RenderPage<SectionOutsources>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -39,7 +39,7 @@ public class SectionOutsourcesTests : TestBase
     public void StatusColumn_DisplaysCorrectText(SectionOutsourceStatus status, string expectedText)
     {
         ConfigureListResponse(status);
-        var cut = Ctx.RenderComponent<SectionOutsources>();
+        var cut = RenderPage<SectionOutsources>();
         cut.WaitForState(() => cut.Markup.Contains(expectedText));
         cut.Markup.Should().Contain(expectedText);
     }
@@ -96,7 +96,7 @@ public class SectionOutsourcesTests : TestBase
             }
         });
 
-        var cut = Ctx.RenderComponent<SectionOutsources>();
+        var cut = RenderPage<SectionOutsources>();
         cut.FindAll("button").First(b => b.TextContent.Contains("实时委外在产")).Click();
 
         cut.WaitForAssertion(() =>
@@ -140,7 +140,7 @@ public class SectionOutsourcesTests : TestBase
             }
         });
 
-        var cut = Ctx.RenderComponent<SectionOutsources>();
+        var cut = RenderPage<SectionOutsources>();
         cut.FindAll("button").First(b => b.TextContent.Contains("月度委外数据")).Click();
 
         cut.WaitForAssertion(() =>

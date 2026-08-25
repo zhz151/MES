@@ -20,14 +20,14 @@ public class RepairOrdersTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<RepairOrders>();
+        var cut = RenderPage<RepairOrders>();
         cut.Markup.Should().Contain("维修工单");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<RepairOrders>();
+        var cut = RenderPage<RepairOrders>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 

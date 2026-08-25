@@ -28,6 +28,8 @@ public partial class StandardRegisters
     private string _searchKeyword = string.Empty;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
 
     private string sortColumn = "standardno";
     private bool sortDescending = false;
@@ -141,12 +143,19 @@ public partial class StandardRegisters
     private async Task<TableData<StandardRegisterDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             if (_isFirstLoad)
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "standardno";
@@ -168,6 +177,10 @@ public partial class StandardRegisters
             }
 
             var result = await Svc.GetPagedAsync(query);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<StandardRegisterDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -295,6 +308,7 @@ public partial class StandardRegisters
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

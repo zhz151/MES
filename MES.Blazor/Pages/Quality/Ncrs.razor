@@ -22,7 +22,7 @@
                            Color="@(_showMonthlySummary ? Color.Primary : Color.Default)"
                            StartIcon="@(_showMonthlySummary ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
                            OnClick="ToggleMonthlySummary">不合格品月度汇总</MudButton>
-                <AuthorizeView Roles="@Roles.Policies.QualityWrite">
+                <AuthorizeView Roles="@Roles.Policies.QualityEdit">
                     <MudButton Variant="Variant.Filled" Color="Color.Error"
                                StartIcon="@Icons.Material.Filled.Add" OnClick="CreateNew">
                         新建
@@ -370,7 +370,7 @@
                         </MudTd>
                     }
                     <MudTd Class="@GetCellGroupCss(null, false)">
-                        <AuthorizeView Roles="@Roles.Policies.QualityWrite">
+                        <AuthorizeView Roles="@Roles.Policies.QualityDelete">
                             <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                            Size="Size.Small" Color="Color.Warning"
                                            Title="编辑"

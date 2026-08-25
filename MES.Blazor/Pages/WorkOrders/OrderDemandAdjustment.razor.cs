@@ -25,6 +25,8 @@ public partial class OrderDemandAdjustment
     private int _restoredPageIndex;
     private int _currentPageIndex = 1;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private int _pageSize = 10;
 
     // 选中行（WorkOrderId）
@@ -131,6 +133,10 @@ public partial class OrderDemandAdjustment
             new() { Key = "IsPaused",               Label = "暂停",          SortKey = "IsPaused",               FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
             new() { Key = "IsForceCompleted",       Label = "强制完成",      SortKey = "IsForceCompleted",       FilterType = "boolean", Width = "80", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "工单需求调整" },
             new() { Key = "AdjustmentRemark",       Label = "调整备注",      SortKey = "AdjustmentRemark",       FilterType = "string", Width = "120", GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "CreatedBy",              Label = "创建人",        SortKey = "CreatedBy",              FilterType = "string", Width = "100", Visible = false, GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "CreatedTime",            Label = "创建时间",      SortKey = "CreatedTime",            FilterType = "date", Width = "130", Visible = false, GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "UpdatedBy",              Label = "更新人",        SortKey = "UpdatedBy",              FilterType = "string", Width = "100", Visible = false, GroupKey = 13, GroupName = "工单需求调整" },
+            new() { Key = "UpdatedTime",            Label = "更新时间",      SortKey = "UpdatedTime",            FilterType = "date", Width = "130", Visible = false, GroupKey = 13, GroupName = "工单需求调整" },
         };
 
         var all = new List<ColumnDef>();
@@ -146,12 +152,19 @@ public partial class OrderDemandAdjustment
     {
         // 保持 RowsPerPage 与用户选择同步，避免排序/筛选后复位
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
 
         // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
         if (_isFirstLoad)
         {
             state.Page = _restoredPageIndex;
             _isFirstLoad = false;
+        }
+
+        if (_resetToFirstPage)
+        {
+            state.Page = 0;
+            _resetToFirstPage = false;
         }
 
         try
@@ -178,6 +191,10 @@ public partial class OrderDemandAdjustment
                 dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null,
                 deliveryDateFrom: DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf : null,
                 deliveryDateTo: DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt : null);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<OrderDemandAdjustmentDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -344,6 +361,7 @@ public partial class OrderDemandAdjustment
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -778,6 +796,18 @@ public partial class OrderDemandAdjustment
                 builder.AddAttribute(7, "Style", "min-width:120px;");
                 builder.CloseComponent();
                 break;
+            case "CreatedBy":
+                builder.AddContent(0, string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy);
+                break;
+            case "CreatedTime":
+                builder.AddContent(0, item.CreatedTime == default ? "-" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "UpdatedBy":
+                builder.AddContent(0, string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy);
+                break;
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime == default ? "-" : item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
         }
     };
 
@@ -876,6 +906,10 @@ public partial class OrderDemandAdjustment
         "IsPaused" => item.IsPaused ? "是" : "否",
         "IsForceCompleted" => item.IsForceCompleted ? "是" : "否",
         "AdjustmentRemark" => item.AdjustmentRemark ?? "",
+        "CreatedBy" => item.CreatedBy ?? "",
+        "CreatedTime" => item.CreatedTime == default ? "" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedBy" => item.UpdatedBy ?? "",
+        "UpdatedTime" => item.UpdatedTime == default ? "" : item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => GetRawPropertyValue(item, key)
     };
 

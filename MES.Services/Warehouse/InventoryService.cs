@@ -67,7 +67,11 @@ public class InventoryService : IInventoryService
         ProductionMainNo = b.ProductionMainNo,
         OrderItemIds = b.OrderItemIds,
         SourceOrderNo = b.SourceOrderNo,
-        SourceOrderSequence = b.SourceOrderSequence
+        SourceOrderSequence = b.SourceOrderSequence,
+        CreatedBy = b.CreatedBy,
+        CreatedTime = b.CreatedTime,
+        UpdatedBy = b.UpdatedBy,
+        UpdatedTime = b.UpdatedTime
     };
 
     private static readonly Expression<Func<OutboundRecord, OutboundRecordDto>> OutboundToDtoExpr = r => new OutboundRecordDto
@@ -86,7 +90,9 @@ public class InventoryService : IInventoryService
         OutboundDate = r.OutboundDate,
         Remark = r.Remark,
         CreatedBy = r.CreatedBy,
-        CreatedTime = r.CreatedTime
+        CreatedTime = r.CreatedTime,
+        UpdatedBy = r.UpdatedBy,
+        UpdatedTime = r.UpdatedTime
     };
     private static readonly Func<OutboundRecord, OutboundRecordDto> OutboundToDto = OutboundToDtoExpr.Compile();
 

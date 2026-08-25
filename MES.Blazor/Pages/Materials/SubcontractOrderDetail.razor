@@ -10,7 +10,7 @@
 @inject ISnackbar Snackbar
 @inject ColumnPrefsService ColumnPrefs
 @inject IJSRuntime JS
-@attribute [Authorize(Roles = Roles.Policies.MaterialRead)]
+@attribute [Authorize(Roles = Roles.Policies.MaterialView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     @if (_isLoading) { <MudProgressCircular Indeterminate Size="Size.Large" Class="d-flex justify-center ma-8" /> }
@@ -36,7 +36,7 @@
                     }
                     else
                     {
-                        <AuthorizeView Roles="@Roles.Policies.MaterialWrite">
+                        <AuthorizeView Roles="@Roles.Policies.MaterialEdit">
                             <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
                         </AuthorizeView>
                     }

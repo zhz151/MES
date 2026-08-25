@@ -26,6 +26,8 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     private bool _isFirstLoad = true;
     private int _currentPage = 1;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private string _searchKeyword = string.Empty;
 
     // ========== 圆钢穿孔汇总折叠卡片（懒加载） ==========
@@ -278,6 +280,14 @@ public partial class SubcontractReturnItems : IAsyncDisposable
                 tableState.Page = _restoredPageIndex;
             }
         }
+        var version = ++_loadVersion;
+
+        if (_resetToFirstPage)
+        {
+            tableState.Page = 0;
+            _resetToFirstPage = false;
+        }
+
         _pageSize = tableState.PageSize == 0 ? 10 : tableState.PageSize;
         _currentPage = tableState.Page + 1;
 
@@ -292,6 +302,11 @@ public partial class SubcontractReturnItems : IAsyncDisposable
         };
 
         var resp = await SubcontractService.GetReturnItemListAsync(query, null);
+
+        // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+        if (version != _loadVersion)
+            return new TableData<SubcontractReturnItemListDto> { Items = _pageItems, TotalItems = _totalCount };
+
         if (resp?.Data != null)
         {
             _pageItems = resp.Data.Items;
@@ -408,6 +423,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value;
+        _resetToFirstPage = true;
         _currentPage = 1;
         if (table != null) await table.ReloadServerData();
     }

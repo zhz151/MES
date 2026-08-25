@@ -18,14 +18,14 @@ public class ChemicalCompositionsTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<ChemicalCompositions>();
+        var cut = RenderPage<ChemicalCompositions>();
         cut.Markup.Should().Contain("工厂牌号化学成分");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<ChemicalCompositions>();
+        var cut = RenderPage<ChemicalCompositions>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -33,7 +33,7 @@ public class ChemicalCompositionsTests : TestBase
     public void Render_DisplaysData()
     {
         ConfigureResponse();
-        var cut = Ctx.RenderComponent<ChemicalCompositions>();
+        var cut = RenderPage<ChemicalCompositions>();
         cut.WaitForState(() => cut.Markup.Contains("304"));
         cut.Markup.Should().Contain("304");
     }

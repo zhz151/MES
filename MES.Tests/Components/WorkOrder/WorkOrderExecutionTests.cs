@@ -19,14 +19,14 @@ public class WorkOrderExecutionTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<WorkOrderExecution>();
+        var cut = RenderPage<WorkOrderExecution>();
         cut.Markup.Should().Contain("工单执行状况");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<WorkOrderExecution>();
+        var cut = RenderPage<WorkOrderExecution>();
         cut.Markup.Should().Contain("工单号/订单号/业务员/客户/牌号/规格/主号");
     }
 
@@ -34,7 +34,7 @@ public class WorkOrderExecutionTests : TestBase
     public void Render_DisplaysData()
     {
         ConfigureListResponse();
-        var cut = Ctx.RenderComponent<WorkOrderExecution>();
+        var cut = RenderPage<WorkOrderExecution>();
         cut.WaitForState(() => cut.Markup.Contains("WO001"));
         cut.Markup.Should().Contain("WO001");
     }

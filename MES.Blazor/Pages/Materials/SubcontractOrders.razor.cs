@@ -51,6 +51,8 @@ public partial class SubcontractOrders : IAsyncDisposable
     }
     private int _currentPage = 1;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private string _searchKeyword = string.Empty;
 
     // 日期范围搜索
@@ -103,6 +105,10 @@ public partial class SubcontractOrders : IAsyncDisposable
         new() { Key = "ActualOutboundWeight",Label = "实发量",                                                                 Width = "90"  },
         new() { Key = "Returned",            Label = "已回收",                                                                 Width = "130" },
         new() { Key = "ReturnQuantity",      Label = "已退货",                                                                 Width = "130" },
+        new() { Key = "CreatedBy",           Label = "创建人",     SortKey = "createdby",   FilterType = "string", Width = "100", Visible = false },
+        new() { Key = "CreatedTime",         Label = "创建时间",   SortKey = "createdtime",  FilterType = "date",   Width = "130", Visible = false },
+        new() { Key = "UpdatedBy",           Label = "更新人",     SortKey = "updatedby",   FilterType = "string", Width = "100", Visible = false },
+        new() { Key = "UpdatedTime",         Label = "更新时间",   SortKey = "updatedtime",  FilterType = "date",   Width = "130", Visible = false },
     };
 
     // ========== 列选择操作 ==========
@@ -218,6 +224,7 @@ public partial class SubcontractOrders : IAsyncDisposable
     private async Task<TableData<SubcontractOrderDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "OrderDate";
@@ -228,6 +235,12 @@ public partial class SubcontractOrders : IAsyncDisposable
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var query = new QueryParams
@@ -247,6 +260,10 @@ public partial class SubcontractOrders : IAsyncDisposable
             DateTime? dateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo : null;
 
             var result = await SubcontractService.GetPagedAsync(query, status: null, dateFrom: dateFrom, dateTo: dateTo);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<SubcontractOrderDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -394,6 +411,7 @@ public partial class SubcontractOrders : IAsyncDisposable
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -478,6 +496,18 @@ public partial class SubcontractOrders : IAsyncDisposable
                 break;
             case "ReturnQuantity":
                 builder.AddContent(0, $"{item.ReturnQuantity}支/{((int)item.ReturnWeight).ToString()}kg");
+                break;
+            case "CreatedBy":
+                builder.AddContent(0, string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy);
+                break;
+            case "CreatedTime":
+                builder.AddContent(0, item.CreatedTime == default ? "-" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "UpdatedBy":
+                builder.AddContent(0, string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy);
+                break;
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime == default ? "-" : item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
         }
     };

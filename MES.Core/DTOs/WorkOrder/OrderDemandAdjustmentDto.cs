@@ -63,6 +63,12 @@ public class OrderDemandAdjustmentDto
     /// <summary>调整备注（手工填写）</summary>
     public string? AdjustmentRemark { get; set; }
 
+    // ========== 审计字段（取自源头 WorkOrder） ==========
+    public string? CreatedBy { get; set; }
+    public DateTimeOffset CreatedTime { get; set; }
+    public string? UpdatedBy { get; set; }
+    public DateTimeOffset UpdatedTime { get; set; }
+
     // ========== 显示文本 ==========
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
     public string ScheduleStageText => IntStatusDisplayHelper.GetScheduleStageText(ScheduleStage);

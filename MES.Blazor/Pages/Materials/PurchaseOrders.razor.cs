@@ -26,6 +26,8 @@ public partial class PurchaseOrders : IAsyncDisposable
     private int _totalCount;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
 
     private string _searchKeyword = string.Empty;
     private bool _isArrowNavSetup;
@@ -181,6 +183,10 @@ public partial class PurchaseOrders : IAsyncDisposable
             new() { Key = "WoDeliveryState",     Label = "交货状态",     SortKey = "wodeliverystate", FilterType = "enum", Width = "120", GroupKey = 4, GroupName = "来源销售订单", Visible = false,
                 EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
             new() { Key = "WoTotalItemCount",    Label = "含项次数",     SortKey = "wototalitemcount", Width = "80", GroupKey = 4, GroupName = "来源销售订单", Visible = false },
+            new() { Key = "CreatedBy",           Label = "创建人",       SortKey = "createdby", FilterType = "string", Width = "100", GroupKey = 5, GroupName = "审计信息", Visible = false },
+            new() { Key = "CreatedTime",         Label = "创建时间",     SortKey = "createdtime", FilterType = "date", Width = "130", GroupKey = 5, GroupName = "审计信息", Visible = false },
+            new() { Key = "UpdatedBy",           Label = "更新人",       SortKey = "updatedby", FilterType = "string", Width = "100", GroupKey = 5, GroupName = "审计信息", Visible = false },
+            new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime", FilterType = "date", Width = "130", GroupKey = 5, GroupName = "审计信息", Visible = false },
         };
 
         var all = new List<ColumnDef>();
@@ -249,6 +255,7 @@ public partial class PurchaseOrders : IAsyncDisposable
     private async Task<TableData<PurchaseOrderDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "orderdate";
@@ -259,6 +266,12 @@ public partial class PurchaseOrders : IAsyncDisposable
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             DateTime? dateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null;
@@ -277,6 +290,10 @@ public partial class PurchaseOrders : IAsyncDisposable
                 status: null,
                 dateFrom: dateFrom,
                 dateTo: dateTo);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<PurchaseOrderDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -510,6 +527,7 @@ public partial class PurchaseOrders : IAsyncDisposable
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -707,6 +725,18 @@ public partial class PurchaseOrders : IAsyncDisposable
                 break;
             case "IsForceCompleted":
                 builder.AddContent(0, item.IsForceCompleted ? "是" : "-");
+                break;
+            case "CreatedBy":
+                builder.AddContent(0, string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy);
+                break;
+            case "CreatedTime":
+                builder.AddContent(0, item.CreatedTime == default ? "-" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "UpdatedBy":
+                builder.AddContent(0, string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy);
+                break;
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime == default ? "-" : item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
         }
     };

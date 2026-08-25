@@ -12,7 +12,7 @@ using MES.Core.DTOs.Configuration;
 
 namespace MES.Blazor.Pages.Quality;
 
-[Authorize(Roles = Roles.Policies.QualityRead)]
+[Authorize(Roles = Roles.Policies.QualityView)]
 public partial class NcrForm
 {
     [Inject] private NcrService NcrService { get; set; } = null!;

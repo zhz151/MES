@@ -22,6 +22,8 @@ public partial class ColdRollPlans
     private int _restoredPageIndex;
     private int _currentPageIndex = 1;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private bool _isSimplifiedView = false;
     private string _searchKeyword = string.Empty;
     private int _pageSize = 10;
@@ -798,6 +800,7 @@ public partial class ColdRollPlans
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null)
             await table.ReloadServerData();
@@ -939,6 +942,7 @@ public partial class ColdRollPlans
     private async Task<TableData<ColdRollPlanRowDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
 
         if (_isFirstLoad)
         {
@@ -946,9 +950,20 @@ public partial class ColdRollPlans
             _isFirstLoad = false;
         }
 
+        if (_resetToFirstPage)
+        {
+            state.Page = 0;
+            _resetToFirstPage = false;
+        }
+
         try
         {
             var data = await ColdRollSvc.GetPlanAsync(_selectedSection);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<ColdRollPlanRowDto> { Items = _pageItems, TotalItems = _totalCount };
+
             _rawAllItems = data;     // 保存原始明细数据（简化排程展开用）
             _allItems = data;
 

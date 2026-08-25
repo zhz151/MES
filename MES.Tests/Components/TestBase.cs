@@ -101,6 +101,19 @@ public abstract class TestBase : IDisposable
     }
 
     /// <summary>
+    /// 渲染页面组件：自动包裹 CascadingAuthenticationState，
+    /// 供页面内的 AuthorizeView（角色门控按钮）在 bUnit 中正常解析。
+    /// </summary>
+    protected IRenderedComponent<TComponent> RenderPage<TComponent>(
+        Action<ComponentParameterCollectionBuilder<TComponent>>? parameterBuilder = null)
+        where TComponent : IComponent
+    {
+        var wrapper = Ctx.RenderComponent<CascadingAuthenticationState>(ps =>
+            ps.AddChildContent<TComponent>(parameterBuilder));
+        return wrapper.FindComponent<TComponent>();
+    }
+
+    /// <summary>
     /// 配置 HTTP 响应路由：路径前缀 → 响应内容
     /// </summary>
     protected void ConfigureResponse(string pathPrefix, object response, string method = "GET")

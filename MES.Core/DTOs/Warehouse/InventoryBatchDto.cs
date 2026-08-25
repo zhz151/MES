@@ -71,4 +71,10 @@ public class InventoryBatchDto
     // 跨上下文关联
     public string? SourceOrderNo { get; set; }
     public int? SourceOrderSequence { get; set; }
+
+    // ========== 审计字段 ==========
+    public string? CreatedBy { get; set; }
+    public DateTimeOffset CreatedTime { get; set; }
+    public string? UpdatedBy { get; set; }
+    public DateTimeOffset UpdatedTime { get; set; }
 }

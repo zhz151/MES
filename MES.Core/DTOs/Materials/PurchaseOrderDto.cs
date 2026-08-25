@@ -31,7 +31,10 @@ public class PurchaseOrderDto
     public int? InputMultiple { get; set; }
     public string? SourceWorkOrderNo { get; set; }
     public string? Remark { get; set; }
+    public string? CreatedBy { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
+    public string? UpdatedBy { get; set; }
+    public DateTimeOffset UpdatedTime { get; set; }
 
     // ========== 工单来源字段（从 WorkOrder 关联查询） ==========
     public string? WoSalesOrderNo { get; set; }

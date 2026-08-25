@@ -18,14 +18,14 @@ public class GradeMappingsTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<GradeMappings>();
+        var cut = RenderPage<GradeMappings>();
         cut.Markup.Should().Contain("牌号对照管理");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<GradeMappings>();
+        var cut = RenderPage<GradeMappings>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -35,7 +35,7 @@ public class GradeMappingsTests : TestBase
     public void SpecialMaterialColumn_DisplaysCorrectText(bool specialMaterial, string expectedText)
     {
         ConfigureListResponse(specialMaterial);
-        var cut = Ctx.RenderComponent<GradeMappings>();
+        var cut = RenderPage<GradeMappings>();
         cut.WaitForState(() => cut.Markup.Contains(expectedText));
         cut.Markup.Should().Contain(expectedText);
     }

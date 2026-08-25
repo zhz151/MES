@@ -14,7 +14,7 @@
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
-@attribute [Authorize(Roles = Roles.Policies.QualityRead)]
+@attribute [Authorize(Roles = Roles.Policies.QualityView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -26,7 +26,7 @@
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
-                <AuthorizeView Roles="@Roles.Policies.QualityWrite">
+                <AuthorizeView Roles="@Roles.Policies.QualityEdit">
                     <MudButton Variant="Variant.Filled"
                                Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Add"
@@ -141,11 +141,13 @@
                                        Size="Size.Small"
                                        OnClick="@(() => ViewDetail(item.Id))"
                                        Title="编辑" />
+                        <AuthorizeView Roles="@Roles.Policies.QualityDelete">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                        Color="Color.Error"
                                        Size="Size.Small"
                                        OnClick="@(() => DeleteItem(item))"
                                        Title="删除" />
+                        </AuthorizeView>
                     </MudTd>
                 </RowTemplate>
                 <FooterContent>

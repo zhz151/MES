@@ -18,14 +18,14 @@ public class SuppliersTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<Suppliers>();
+        var cut = RenderPage<Suppliers>();
         cut.Markup.Should().Contain("供应商管理");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<Suppliers>();
+        var cut = RenderPage<Suppliers>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -35,7 +35,7 @@ public class SuppliersTests : TestBase
     public void StatusColumn_DisplaysCorrectText(bool isActive, string expectedText)
     {
         ConfigureListResponse(isActive);
-        var cut = Ctx.RenderComponent<Suppliers>();
+        var cut = RenderPage<Suppliers>();
         cut.WaitForState(() => cut.Markup.Contains(expectedText));
         cut.Markup.Should().Contain(expectedText);
     }

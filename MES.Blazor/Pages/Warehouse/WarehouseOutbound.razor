@@ -12,7 +12,8 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
-@attribute [Authorize]
+@inject AuthenticationStateProvider AuthProvider
+@attribute [Authorize(Roles = Roles.Policies.WarehouseView)]
 
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">

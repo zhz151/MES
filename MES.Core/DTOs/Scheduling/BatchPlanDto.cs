@@ -97,7 +97,7 @@ public class BatchPlanDto
             && (!string.IsNullOrEmpty(CurrentEquipmentName) || !string.IsNullOrEmpty(CurrentOutsource));
 
     /// <summary>
-    /// 重点生产批次（Service 计算字段，G4 工单计划列显示用，仅工单计划概念，冷轧排程逻辑不再使用）：
+    /// 重点生产批次（Service 计算字段，工单计划 G4 列显示 + 冷轧排程 Model B 判定共用）：
     /// 前置条件：UrgencyLevel==A+急/A急 + ProductionFlowProperty==正常 + MainNoAttentionProcess非空
     ///   生产收尾（变形工序已完成，与成品检验衔接）→ 直接重点（不要求序号比较）
     ///   其余：ExecutionSequence 与 AttentionProcessSectionSequence 序号比较（未产批次执行序视为 0）：

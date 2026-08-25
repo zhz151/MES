@@ -50,6 +50,8 @@ public partial class MaterialReceiveChecks
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
@@ -109,6 +111,7 @@ public partial class MaterialReceiveChecks
     private async Task<TableData<MaterialReceiveCheckDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             // 首次加载覆盖页码（MudTable 初始化时始终传 page=0）
@@ -116,6 +119,12 @@ public partial class MaterialReceiveChecks
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var sortBy = _allColumns.FirstOrDefault(c => c.SortKey == sortColumn)?.SortKey ?? "receivedate";
@@ -136,6 +145,10 @@ public partial class MaterialReceiveChecks
                 receiveDateTo: dateTo,
                 filters: filtersJson
             );
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<MaterialReceiveCheckDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -306,6 +319,7 @@ public partial class MaterialReceiveChecks
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

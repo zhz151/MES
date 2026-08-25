@@ -29,14 +29,14 @@ public class PurchaseOrdersTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<PurchaseOrders>();
+        var cut = RenderPage<PurchaseOrders>();
         cut.Markup.Should().Contain("采购订单");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<PurchaseOrders>();
+        var cut = RenderPage<PurchaseOrders>();
         cut.Markup.Should().Contain("状态");
     }
 
@@ -56,7 +56,7 @@ public class PurchaseOrdersTests : TestBase
             }
         });
 
-        var cut = Ctx.RenderComponent<PurchaseOrders>();
+        var cut = RenderPage<PurchaseOrders>();
         cut.Markup.Should().Contain("已下单");
     }
 
@@ -76,7 +76,7 @@ public class PurchaseOrdersTests : TestBase
             }
         });
 
-        var cut = Ctx.RenderComponent<PurchaseOrders>();
+        var cut = RenderPage<PurchaseOrders>();
         cut.Markup.Should().Contain("部分到货");
     }
 
@@ -96,7 +96,7 @@ public class PurchaseOrdersTests : TestBase
             }
         });
 
-        var cut = Ctx.RenderComponent<PurchaseOrders>();
+        var cut = RenderPage<PurchaseOrders>();
         cut.Markup.Should().Contain("已完成");
     }
 
@@ -121,7 +121,7 @@ public class PurchaseOrdersTests : TestBase
             }
         });
 
-        var cut = Ctx.RenderComponent<PurchaseOrders>();
+        var cut = RenderPage<PurchaseOrders>();
         cut.Markup.Should().Contain("工单实时关注");
         cut.Markup.Should().Contain("生产执行");      // 工单关注（ScheduleStage=3）
         cut.Markup.Should().Contain("A急");           // 计划性（AUrgent → 字典中文）

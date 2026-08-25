@@ -17,7 +17,7 @@
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
 @inject HttpClient Http
-@attribute [Authorize(Roles = Roles.Policies.BatchRead)]
+@attribute [Authorize(Roles = Roles.Policies.BatchView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -231,10 +231,12 @@
                                            OnClick="() => StartEdit(item)"
                                            Title="编辑" />
                         }
+                        <AuthorizeView Roles="@Roles.Policies.BatchDelete">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
                                        Color="Color.Error"
                                        OnClick="() => ConfirmDelete(item)"
                                        Title="删除" />
+                        </AuthorizeView>
                     </MudTd>
                 </RowTemplate>
                 <FooterContent>

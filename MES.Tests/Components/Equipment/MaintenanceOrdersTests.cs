@@ -18,21 +18,21 @@ public class MaintenanceOrdersTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<MaintenanceOrders>();
+        var cut = RenderPage<MaintenanceOrders>();
         cut.Markup.Should().Contain("保养工单");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<MaintenanceOrders>();
+        var cut = RenderPage<MaintenanceOrders>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
     [Fact]
     public void Render_HasColumns()
     {
-        var cut = Ctx.RenderComponent<MaintenanceOrders>();
+        var cut = RenderPage<MaintenanceOrders>();
         cut.Markup.Should().ContainAll("保养单号", "设备名称", "执行人");
     }
 }

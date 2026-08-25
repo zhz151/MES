@@ -23,6 +23,8 @@ public partial class StandardWorkDays
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
 
     // 排序状态
     private string sortColumn = "SectionName";
@@ -49,6 +51,7 @@ public partial class StandardWorkDays
     private async Task<TableData<StandardWorkDayDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "sectionname";
@@ -58,6 +61,12 @@ public partial class StandardWorkDays
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var query = new QueryParams
@@ -70,6 +79,10 @@ public partial class StandardWorkDays
             };
 
             var result = await StandardWorkDayService.GetPagedAsync(query);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<StandardWorkDayDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -116,6 +129,7 @@ public partial class StandardWorkDays
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

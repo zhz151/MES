@@ -23,6 +23,8 @@ public partial class EnumDisplayDefinitions
     private int _currentPage = 1;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private int _pageSize = 10;
 
     // 枚举筛选
@@ -106,6 +108,7 @@ public partial class EnumDisplayDefinitions
     private async Task<TableData<EnumDisplayDefinitionDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "enumkey";
@@ -115,6 +118,12 @@ public partial class EnumDisplayDefinitions
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var query = new QueryParams
@@ -147,6 +156,10 @@ public partial class EnumDisplayDefinitions
                 query.Filters = filters;
 
             var result = await EnumDisplayDefinitionService.GetPagedAsync(query);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<EnumDisplayDefinitionDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -193,6 +206,7 @@ public partial class EnumDisplayDefinitions
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

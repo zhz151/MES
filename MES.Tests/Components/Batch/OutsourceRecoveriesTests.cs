@@ -18,14 +18,14 @@ public class OutsourceRecoveriesTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<OutsourceRecoveries>();
+        var cut = RenderPage<OutsourceRecoveries>();
         cut.Markup.Should().Contain("委外回收");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<OutsourceRecoveries>();
+        var cut = RenderPage<OutsourceRecoveries>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -33,7 +33,7 @@ public class OutsourceRecoveriesTests : TestBase
     public void Render_DisplaysData()
     {
         ConfigureListResponse();
-        var cut = Ctx.RenderComponent<OutsourceRecoveries>();
+        var cut = RenderPage<OutsourceRecoveries>();
         cut.WaitForState(() => cut.Markup.Contains("BATCH-OR-001"));
         cut.Markup.Should().Contain("BATCH-OR-001");
     }

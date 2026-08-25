@@ -4,7 +4,7 @@
 @using MES.Core.DTOs.StandardRegister
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
-@attribute [Authorize(Roles = Roles.Policies.StandardWrite)]
+@attribute [Authorize(Roles = Roles.Policies.StandardEdit)]
 @inject FactoryInspectionRequirementService FactoryInspectionRequirementService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar

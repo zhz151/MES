@@ -29,7 +29,7 @@ function formatPrintDate(d) {
     return y + '-' + m + '-' + day;
 }
 
-// 打印设备二维码标签
+// 打印二维码标签（工位/设备/员工通用；二维码放大便于张贴，无标题/打印日期）
 window.MES = window.MES || {};
 window.MES.printQrCodes = function (codes) {
     if (!codes || codes.length === 0) return;
@@ -37,18 +37,16 @@ window.MES.printQrCodes = function (codes) {
     var rows = codes.map(function (code) {
         var encoded = encodeURIComponent(code);
         return '<div style="display:inline-block; text-align:center; margin:10px; padding:10px; border:1px dashed #999;">' +
-            '<img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' + encoded + '" alt="' + code + '" style="width:120px;height:120px;" />' +
-            '<div style="margin-top:6px; font-size:12px; font-weight:bold;">' + code + '</div>' +
+            '<img src="https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=' + encoded + '" alt="' + code + '" style="width:480px;height:480px;" />' +
+            '<div style="margin-top:8px; font-size:14px; font-weight:bold;">' + code + '</div>' +
             '</div>';
     }).join('');
 
-    var html = '<html><head><title>设备二维码</title>' +
+    var html = '<html><head>' +
         '<style>' +
         '@page{size:landscape;margin:10mm;}' +
         'body{text-align:center;font-family:sans-serif;}' +
         '</style></head><body>' +
-        '<h2 style="font-size:16px;margin-bottom:20px;">设备二维码标签</h2>' +
-        '<div style="font-size:12px;margin-bottom:10px;">打印日期：' + formatPrintDate(new Date()) + '</div>' +
         '<div>' + rows + '</div>' +
         '<script>window.onload=function(){window.print();}<' + '/script>' +
         '</body></html>';

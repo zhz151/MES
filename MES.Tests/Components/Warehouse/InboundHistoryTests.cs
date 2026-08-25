@@ -22,14 +22,14 @@ public class InboundHistoryTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<InboundHistory>();
+        var cut = RenderPage<InboundHistory>();
         cut.Markup.Should().Contain("入库历史记录查询及更正");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<InboundHistory>();
+        var cut = RenderPage<InboundHistory>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -37,7 +37,7 @@ public class InboundHistoryTests : TestBase
     public void Render_DisplaysData_WhenCodeProvided()
     {
         ConfigureWarehouseAndListResponse();
-        var cut = Ctx.RenderComponent<InboundHistory>(p => p.Add(x => x.Code, "WH01"));
+        var cut = RenderPage<InboundHistory>(p => p.Add(x => x.Code, "WH01"));
         cut.WaitForState(() => cut.Markup.Contains("BATCH-IB-001"), TimeSpan.FromSeconds(10));
         cut.Markup.Should().Contain("BATCH-IB-001");
     }

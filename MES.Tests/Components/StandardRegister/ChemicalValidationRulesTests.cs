@@ -20,14 +20,14 @@ public class ChemicalValidationRulesTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<ChemicalValidationRules>();
+        var cut = RenderPage<ChemicalValidationRules>();
         cut.Markup.Should().Contain("工厂牌号化分验证");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<ChemicalValidationRules>();
+        var cut = RenderPage<ChemicalValidationRules>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -35,7 +35,7 @@ public class ChemicalValidationRulesTests : TestBase
     public void Render_DisplaysData()
     {
         ConfigureListResponse();
-        var cut = Ctx.RenderComponent<ChemicalValidationRules>();
+        var cut = RenderPage<ChemicalValidationRules>();
         cut.WaitForState(() => cut.Markup.Contains("S30408"));
         cut.Markup.Should().Contain("S30408");
     }

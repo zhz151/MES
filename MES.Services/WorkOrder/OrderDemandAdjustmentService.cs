@@ -68,6 +68,8 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         var q = from e in summaryQuery
                 join u in urgingQuery on e.WorkOrderId equals u.WorkOrderId into uj
                 from u in uj.DefaultIfEmpty()
+                join wo in _context.WorkOrders.AsNoTracking() on e.WorkOrderId equals wo.Id into woj
+                from wo in woj.DefaultIfEmpty()
                 select new OrderDemandAdjustmentDto
                 {
                     Id = e.Id,
@@ -106,6 +108,10 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     IsPaused = u != null && u.IsPaused,
                     IsForceCompleted = u != null && u.IsForceCompleted,
                     AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
+                    CreatedBy = wo != null ? wo.CreatedBy : null,
+                    CreatedTime = wo != null ? wo.CreatedTime : default,
+                    UpdatedBy = wo != null ? wo.UpdatedBy : null,
+                    UpdatedTime = wo != null ? wo.UpdatedTime : default,
                 };
 
         // 订单日期范围筛选（签订日期）
@@ -319,6 +325,8 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         var q = from e in summaryQuery
                 join u in urgingQuery on e.WorkOrderId equals u.WorkOrderId into uj
                 from u in uj.DefaultIfEmpty()
+                join wo in _context.WorkOrders.AsNoTracking() on e.WorkOrderId equals wo.Id into woj
+                from wo in woj.DefaultIfEmpty()
                 select new OrderDemandAdjustmentDto
                 {
                     Id = e.Id,
@@ -357,6 +365,10 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
                     IsPaused = u != null && u.IsPaused,
                     IsForceCompleted = u != null && u.IsForceCompleted,
                     AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
+                    CreatedBy = wo != null ? wo.CreatedBy : null,
+                    CreatedTime = wo != null ? wo.CreatedTime : default,
+                    UpdatedBy = wo != null ? wo.UpdatedBy : null,
+                    UpdatedTime = wo != null ? wo.UpdatedTime : default,
                 };
 
         if (signDateFrom.HasValue)

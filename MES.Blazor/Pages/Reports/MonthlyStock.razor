@@ -1,5 +1,5 @@
 @page "/warehouse/monthly-stock"
-@attribute [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+@attribute [Authorize(Roles = Roles.Policies.WarehouseView)]
 @inject InventoryService InventorySvc
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS

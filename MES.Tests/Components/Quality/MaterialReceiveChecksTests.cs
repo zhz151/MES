@@ -18,14 +18,14 @@ public class MaterialReceiveChecksTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<MaterialReceiveChecks>();
+        var cut = RenderPage<MaterialReceiveChecks>();
         cut.Markup.Should().Contain("成检到料");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<MaterialReceiveChecks>();
+        var cut = RenderPage<MaterialReceiveChecks>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -33,7 +33,7 @@ public class MaterialReceiveChecksTests : TestBase
     public void Render_DisplaysData()
     {
         ConfigureListResponse();
-        var cut = Ctx.RenderComponent<MaterialReceiveChecks>();
+        var cut = RenderPage<MaterialReceiveChecks>();
         cut.WaitForState(() => cut.Markup.Contains("BATCH-MC-001"));
         cut.Markup.Should().Contain("BATCH-MC-001");
     }

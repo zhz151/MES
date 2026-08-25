@@ -18,21 +18,21 @@ public class InspectionRecordsTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<InspectionRecords>();
+        var cut = RenderPage<InspectionRecords>();
         cut.Markup.Should().Contain("点检记录");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<InspectionRecords>();
+        var cut = RenderPage<InspectionRecords>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
     [Fact]
     public void Render_HasColumns()
     {
-        var cut = Ctx.RenderComponent<InspectionRecords>();
+        var cut = RenderPage<InspectionRecords>();
         cut.Markup.Should().ContainAll("记录号", "设备名称", "点检人");
     }
 }

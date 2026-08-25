@@ -28,14 +28,14 @@ public class ProductionRecordsTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<ProductionRecords>();
+        var cut = RenderPage<ProductionRecords>();
         cut.Markup.Should().Contain("生产记录");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<ProductionRecords>();
+        var cut = RenderPage<ProductionRecords>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -46,7 +46,7 @@ public class ProductionRecordsTests : TestBase
     public void StatusColumn_DisplaysCorrectText(string productStatus)
     {
         ConfigureListResponse(productStatus);
-        var cut = Ctx.RenderComponent<ProductionRecords>();
+        var cut = RenderPage<ProductionRecords>();
         cut.WaitForState(() => cut.Markup.Contains(productStatus));
         cut.Markup.Should().Contain(productStatus);
     }

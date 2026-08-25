@@ -16,7 +16,7 @@
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
 @inject HttpClient Http
-@attribute [Authorize(Roles = Roles.Policies.StandardRead)]
+@attribute [Authorize(Roles = Roles.Policies.StandardView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -144,7 +144,9 @@
                         else
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
+                        <AuthorizeView Roles="@Roles.Policies.StandardDelete">
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
+                        </AuthorizeView>
                         }
                     </MudTd>
                 </RowTemplate>

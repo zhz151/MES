@@ -21,9 +21,9 @@
 
         <MudForm Model="@model" @ref="form">
             <MudTextField @bind-Value="model.Email"
-                          Label="邮箱"
+                          Label="用户名/邮箱"
                           Variant="Variant.Outlined"
-                          StartAdornment="@Icons.Material.Filled.Email" />
+                          StartAdornment="@Icons.Material.Filled.Person" />
 
             <MudTextField @bind-Value="model.Password"
                           Label="密码"
@@ -125,8 +125,7 @@
 
     public class LoginModel
     {
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "邮箱不能为空")]
-        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "请输入有效的邮箱地址")]
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "用户名/邮箱不能为空")]
         public string Email { get; set; } = "";
 
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "密码不能为空")]

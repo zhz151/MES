@@ -29,7 +29,7 @@ public class WorkOrdersTests : TestBase
     public void Render_HasTitle()
     {
         ConfigureEmptyListResponse();
-        var cut = Ctx.RenderComponent<WorkOrders>();
+        var cut = RenderPage<WorkOrders>();
         cut.WaitForState(() => cut.Markup.Contains("工单管理"), timeout: TimeSpan.FromSeconds(2));
         cut.Markup.Should().Contain("工单管理");
     }
@@ -38,7 +38,7 @@ public class WorkOrdersTests : TestBase
     public void Render_HasFilter()
     {
         ConfigureEmptyListResponse();
-        var cut = Ctx.RenderComponent<WorkOrders>();
+        var cut = RenderPage<WorkOrders>();
         cut.WaitForState(() => cut.Markup.Contains("模糊搜索"), timeout: TimeSpan.FromSeconds(2));
         cut.Markup.Should().Contain("模糊搜索");
     }
@@ -50,7 +50,7 @@ public class WorkOrdersTests : TestBase
     public void StatusColumn_DisplaysCorrectText(WorkOrderStatus status, string expectedText)
     {
         ConfigureListResponse(status);
-        var cut = Ctx.RenderComponent<WorkOrders>();
+        var cut = RenderPage<WorkOrders>();
         cut.WaitForState(() => cut.Markup.Contains(expectedText), timeout: TimeSpan.FromSeconds(2));
         cut.Markup.Should().Contain(expectedText);
     }

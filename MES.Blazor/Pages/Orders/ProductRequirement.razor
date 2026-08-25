@@ -13,7 +13,7 @@
 @inject IJSRuntime JS
 @inject HttpClient Http
 @inject ColumnPrefsService ColumnPrefs
-@attribute [Authorize(Roles = Roles.Policies.OrderRead)]
+@attribute [Authorize(Roles = Roles.Policies.OrderView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     @if (_isLoading)
@@ -72,7 +72,7 @@
                     {
                         @if (_orderStatus != SalesOrderStatus.Cancelled)
                         {
-                            <AuthorizeView Roles="@Roles.Policies.OrderWrite">
+                            <AuthorizeView Roles="@Roles.Policies.OrderEdit">
                                 <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑技术要求</MudButton>
                             </AuthorizeView>
                         }
@@ -209,6 +209,8 @@
         public string? OtherRequirement { get; set; }
         public DateTimeOffset CreatedTime { get; set; }
         public DateTimeOffset UpdatedTime { get; set; }
+        public string CreatedBy { get; set; } = "";
+        public string UpdatedBy { get; set; } = "";
     }
 
     // ========== 列定义 ==========
@@ -273,7 +275,9 @@
             new() { Key = "ferritecontent", Label = "金相检验", Visible = true, Width = "100", GroupKey = 4, GroupName = "理化要求" },
             new() { Key = "macrostructure", Label = "低倍组织", Visible = false, Width = "100", GroupKey = 4, GroupName = "理化要求" },
             // === 记录信息 ===
+            new() { Key = "createdby", Label = "创建人", Visible = false, Width = "100", GroupKey = 5, GroupName = "记录信息" },
             new() { Key = "createdtime", Label = "创建时间", Visible = false, Width = "140", GroupKey = 5, GroupName = "记录信息" },
+            new() { Key = "updatedby", Label = "更新人", Visible = false, Width = "100", GroupKey = 5, GroupName = "记录信息" },
             new() { Key = "updatedtime", Label = "更新时间", Visible = false, Width = "140", GroupKey = 5, GroupName = "记录信息" },
         };
     }
@@ -396,7 +400,9 @@
                     Macrostructure = req?.Macrostructure ?? false,
                     OtherRequirement = req?.OtherRequirement,
                     CreatedTime = req?.CreatedTime ?? DateTimeOffset.MinValue,
-                    UpdatedTime = req?.UpdatedTime ?? DateTimeOffset.MinValue
+                    UpdatedTime = req?.UpdatedTime ?? DateTimeOffset.MinValue,
+                    CreatedBy = req?.CreatedBy ?? "",
+                    UpdatedBy = req?.UpdatedBy ?? ""
                 };
             }).ToList();
 
@@ -445,7 +451,9 @@
                 Macrostructure = v.Macrostructure,
                 OtherRequirement = v.OtherRequirement,
                 CreatedTime = v.CreatedTime,
-                UpdatedTime = v.UpdatedTime
+                UpdatedTime = v.UpdatedTime,
+                CreatedBy = v.CreatedBy,
+                UpdatedBy = v.UpdatedBy
             }).ToList();
 
             _editItems = viewList.Select(v => new OrderItemRequirement
@@ -493,7 +501,9 @@
                 Macrostructure = v.Macrostructure,
                 OtherRequirement = v.OtherRequirement,
                 CreatedTime = v.CreatedTime,
-                UpdatedTime = v.UpdatedTime
+                UpdatedTime = v.UpdatedTime,
+                CreatedBy = v.CreatedBy,
+                UpdatedBy = v.UpdatedBy
             }).ToList();
         }
         catch (Exception ex)
@@ -965,8 +975,14 @@
                 }
                 else { builder.AddContent(0, item.OtherRequirement); }
                 break;
+            case "createdby":
+                builder.AddContent(0, string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy);
+                break;
             case "createdtime":
                 builder.AddContent(0, FormatDateTime(item.CreatedTime));
+                break;
+            case "updatedby":
+                builder.AddContent(0, string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy);
                 break;
             case "updatedtime":
                 builder.AddContent(0, FormatDateTime(item.UpdatedTime));

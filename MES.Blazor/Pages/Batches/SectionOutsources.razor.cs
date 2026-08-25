@@ -47,6 +47,8 @@ public partial class SectionOutsources
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
@@ -209,6 +211,7 @@ public partial class SectionOutsources
     private async Task<TableData<SectionOutsourceDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             // 首次加载覆盖页码（MudTable 初始化时始终传 page=0）
@@ -216,6 +219,12 @@ public partial class SectionOutsources
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var sortCol = _allColumns.FirstOrDefault(c => c.Key == sortColumn);
@@ -248,6 +257,10 @@ public partial class SectionOutsources
                 actualRecoveryDateFrom: DateTime.TryParse(_recoveryDateFrom, out var arf) ? arf : null,
                 actualRecoveryDateTo: DateTime.TryParse(_recoveryDateTo, out var art) ? art : null,
                 filters: filtersJson);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<SectionOutsourceDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -395,6 +408,7 @@ public partial class SectionOutsources
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

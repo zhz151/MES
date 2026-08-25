@@ -14,7 +14,7 @@
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
 @inject HttpClient Http
-@attribute [Authorize(Roles = Roles.Policies.EquipmentRead)]
+@attribute [Authorize(Roles = Roles.Policies.EquipmentView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -138,10 +138,10 @@
                         }
                         else
                         {
-                            <AuthorizeView Roles="@Roles.Policies.EquipmentWrite">
+                            <AuthorizeView Roles="@Roles.Policies.EquipmentEdit">
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" Title="编辑" OnClick="() => StartEdit(item)" />
                             </AuthorizeView>
-                            <AuthorizeView Roles="@Roles.Policies.EquipmentWrite">
+                            <AuthorizeView Roles="@Roles.Policies.EquipmentDelete">
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
                             </AuthorizeView>
                         }

@@ -48,6 +48,8 @@ public partial class ProductionRecords
     private int _restoredPageIndex;
     private int _currentPageIndex;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
 
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
@@ -186,12 +188,19 @@ public partial class ProductionRecords
     private async Task<TableData<ProductionRecordDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
 
         // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
         if (_isFirstLoad)
         {
             state.Page = _restoredPageIndex;
             _isFirstLoad = false;
+        }
+
+        if (_resetToFirstPage)
+        {
+            state.Page = 0;
+            _resetToFirstPage = false;
         }
 
         try
@@ -212,6 +221,10 @@ public partial class ProductionRecords
                 execDateTo: DateTime.TryParse(_dateTo, out var dt) ? dt : null,
                 filters: filtersJson
             );
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<ProductionRecordDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -344,6 +357,7 @@ public partial class ProductionRecords
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         selectedIds.Clear();
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();

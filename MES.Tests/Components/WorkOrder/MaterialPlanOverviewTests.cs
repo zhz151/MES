@@ -37,7 +37,7 @@ public class MaterialPlanOverviewTests : IDisposable
         var identity = new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.Name, "TestUser"),
-            new Claim(ClaimTypes.Role, "WorkOrderStaff")
+            new Claim(ClaimTypes.Role, "WorkOrderEditor")
         }, "TestAuth");
         var principal = new ClaimsPrincipal(identity);
         _ctx.Services.AddSingleton<AuthenticationStateProvider>(

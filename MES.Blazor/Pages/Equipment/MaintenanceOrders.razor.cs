@@ -44,6 +44,8 @@ public partial class MaintenanceOrders
     }
     private int _currentPage = 1;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private string _searchKeyword = string.Empty;
 
     private string sortColumn = "id";
@@ -76,8 +78,14 @@ public partial class MaintenanceOrders
     private async Task<TableData<MaintenanceOrderListDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
+            }
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "id";
             var filtersJson = SerializeFilters();
 
@@ -89,6 +97,10 @@ public partial class MaintenanceOrders
                 isDescending: sortDescending,
                 filters: filtersJson
             );
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<MaintenanceOrderListDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -217,6 +229,7 @@ public partial class MaintenanceOrders
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

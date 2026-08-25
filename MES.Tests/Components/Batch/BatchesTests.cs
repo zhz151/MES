@@ -21,14 +21,14 @@ public class BatchesTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<Batches>();
+        var cut = RenderPage<Batches>();
         cut.Markup.Should().Contain("生产批次");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<Batches>();
+        var cut = RenderPage<Batches>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -41,7 +41,7 @@ public class BatchesTests : TestBase
     public void StatusColumn_DisplaysCorrectText(BatchStatus status, string expectedText)
     {
         ConfigureListResponse(status);
-        var cut = Ctx.RenderComponent<Batches>();
+        var cut = RenderPage<Batches>();
         cut.Markup.Should().Contain(expectedText);
     }
 

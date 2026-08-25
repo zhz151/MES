@@ -18,7 +18,8 @@
 @inject HttpClient Http
 @inject MaterialPlanService MaterialPlanService
 @inject NotificationService NotificationService
-@attribute [Authorize]
+@inject AuthenticationStateProvider AuthProvider
+@attribute [Authorize(Roles = Roles.Policies.WarehouseView)]
 
 @if (string.IsNullOrEmpty(Code))
 {
@@ -41,15 +42,15 @@
                     @foreach (var wh in warehouses)
                     {
                         <MudItem xs="12" sm="6" md="3">
-                            <MudCard Class="warehouse-card" Style="@GetCardStyle(wh.IsActive)"
-                                     @onclick="() => NavigateToWarehouse(wh.Code)">
-                                <MudCardContent Class="text-center pa-6">
-                                    <MudIcon Icon="@GetWarehouseIcon(wh.Code)" Size="Size.Large" Color="Color.Primary" Class="mb-4" />
-                                    <MudText Typo="Typo.h6" Class="font-weight-bold">@wh.Name</MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@wh.Code</MudText>
-                                </MudCardContent>
-                            </MudCard>
-                        </MudItem>
+                                <MudCard Class="warehouse-card" Style="@GetCardStyle(wh.IsActive)"
+                                         @onclick="() => NavigateToWarehouse(wh.Code)">
+                                    <MudCardContent Class="text-center pa-6">
+                                        <MudIcon Icon="@GetWarehouseIcon(wh.Code)" Size="Size.Large" Color="Color.Primary" Class="mb-4" />
+                                        <MudText Typo="Typo.h6" Class="font-weight-bold">@wh.Name</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@wh.Code</MudText>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
                     }
                 </MudGrid>
             </MudCardContent>

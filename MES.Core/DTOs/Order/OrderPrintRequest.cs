@@ -29,11 +29,6 @@ public class OrderPrintAllRequest
     public string? Keyword { get; set; }
 
     /// <summary>
-    /// 技术要求状态：Edited / NotEdited
-    /// </summary>
-    public string? TechnicalStatus { get; set; }
-
-    /// <summary>
     /// 订单状态：Pending / Confirmed 可用逗号分隔多选
     /// </summary>
     public string? OrderStatus { get; set; }

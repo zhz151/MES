@@ -17,7 +17,8 @@
 @inject HttpClient Http
 @inject PageStateService PageState
 @inject DictValueDefinitionService DictValueDefinitionService
-@attribute [Authorize]
+@inject AuthenticationStateProvider AuthProvider
+@attribute [Authorize(Roles = Roles.Policies.WarehouseView)]
 
 <style>
     .inbound-history-edit-table td.mud-table-cell,
@@ -244,9 +245,11 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
                                            Size="Size.Small" Title="更改"
                                            OnClick="() => StartEdit(item)" />
+                        <AuthorizeView Roles="@Roles.Policies.WarehouseDelete">
                             <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error"
                                            Size="Size.Small" Title="物理删除"
                                            OnClick="() => ConfirmDelete(item)" />
+                        </AuthorizeView>
                         </MudTd>
                     }
                 </RowTemplate>

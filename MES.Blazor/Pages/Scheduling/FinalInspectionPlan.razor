@@ -6,7 +6,7 @@
 @using MES.Core.DTOs.Scheduling
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
-@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
+@attribute [Authorize(Roles = Roles.Policies.SchedulingView)]
 @inject FinalInspectionPlanService KanbanSvc
 @inject DictValueDefinitionService DictValueDefinitionService
 @inject FinalInspectionService FinalInspectionService

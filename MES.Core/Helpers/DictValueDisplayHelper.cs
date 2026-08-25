@@ -9,7 +9,7 @@ namespace MES.Core.Helpers;
 /// 否则回退各 Keys 常量类规范中文；空值返回 null（调用方可用 ?? 兜底）；未知值原样返回（不崩）。
 /// 工段/工序有各自专门配置表与 Helper（SectionDisplayHelper/ProcessDisplayHelper）；
 /// 责任类别已并入字典表（DictValueDefinitions，DictKey=LiabilityTypeKey），本类统一管辖无专门表的字典，
-/// 但对 8 个 DictKey 均提供兜底解析以保持通用。
+/// 但对 11 个 DictKey 均提供兜底解析以保持通用。
 /// 覆盖由启动方注入：API 启动/前端 MainLayout 从 DictValueDefinitionService.GetDisplayMapAsync() 填充 OverrideMap。
 /// </summary>
 public static class DictValueDisplayHelper

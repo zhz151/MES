@@ -16,7 +16,7 @@
 @inject IDialogService DialogService
 @inject StandardWorkDayService StandardWorkDayService
 @inject ProcessDefinitionService ProcessDefinitionService
-@attribute [Authorize(Roles = Roles.Policies.BatchWrite)]
+@attribute [Authorize(Roles = Roles.Policies.BatchEdit)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4" id="batch-create-table">
     <MudCard Class="mb-4 compact-card">

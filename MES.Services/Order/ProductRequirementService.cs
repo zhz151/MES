@@ -266,7 +266,9 @@ public class ProductRequirementService : IProductRequirementService
         Macrostructure = entity.Macrostructure,
         OtherRequirement = entity.OtherRequirement,
         CreatedTime = entity.CreatedTime,
-        UpdatedTime = entity.UpdatedTime
+        UpdatedTime = entity.UpdatedTime,
+        CreatedBy = entity.CreatedBy,
+        UpdatedBy = entity.UpdatedBy
     };
 
     public async Task<ProductRequirementDefaultsDto> GetDefaultRequirementsByStandardNoAsync(string? standardNo)

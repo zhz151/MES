@@ -19,14 +19,14 @@ public class FinalInspectionsTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<FinalInspections>();
+        var cut = RenderPage<FinalInspections>();
         cut.Markup.Should().Contain("成品检验");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<FinalInspections>();
+        var cut = RenderPage<FinalInspections>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -34,7 +34,7 @@ public class FinalInspectionsTests : TestBase
     public void Render_DisplaysData()
     {
         ConfigureListResponse();
-        var cut = Ctx.RenderComponent<FinalInspections>();
+        var cut = RenderPage<FinalInspections>();
         cut.WaitForState(() => cut.Markup.Contains("BATCH-FI-001"));
         cut.Markup.Should().Contain("BATCH-FI-001");
     }

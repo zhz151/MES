@@ -14,7 +14,7 @@
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
-@attribute [Authorize(Roles = Roles.Policies.AdminOnly)]
+@attribute [Authorize(Roles = Roles.Policies.ConfigurationView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -191,7 +191,9 @@
                         else
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
+                        <AuthorizeView Roles="@Roles.Policies.ConfigurationDelete">
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
+                        </AuthorizeView>
                         }
                     </MudTd>
                 </RowTemplate>

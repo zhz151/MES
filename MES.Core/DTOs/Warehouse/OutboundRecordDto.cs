@@ -23,4 +23,6 @@ public class OutboundRecordDto
     public string? Remark { get; set; }
     public string? CreatedBy { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
+    public string? UpdatedBy { get; set; }
+    public DateTimeOffset UpdatedTime { get; set; }
 }

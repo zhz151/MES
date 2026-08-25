@@ -30,7 +30,7 @@ public class PurchaseOrderControllerTests : ControllerTestBase
                 User = new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
                 {
                     new(ClaimTypes.Name, "testuser"),
-                    new(ClaimTypes.Role, "MaterialDirector"),
+                    new(ClaimTypes.Role, "MaterialFull"),
                 }, "test"))
             }
         };

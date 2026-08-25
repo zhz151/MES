@@ -35,5 +35,8 @@ public class WorkOrderListItemDto
     public int TotalItemCount { get; set; }
     public WorkOrderStatus Status { get; set; }
     public string StatusDisplay => EnumHelper.GetDisplayName(Status);
+    public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedTime { get; set; }
+    public string UpdatedBy { get; set; } = "";
+    public DateTimeOffset UpdatedTime { get; set; }
 }

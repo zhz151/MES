@@ -35,7 +35,10 @@ public class SubcontractOrderDto
     public decimal ReturnWeight { get; set; }
     public string? Remark { get; set; }
     public List<SubcontractReturnItemDto> ReturnItems { get; set; } = new();
+    public string? CreatedBy { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
+    public string? UpdatedBy { get; set; }
+    public DateTimeOffset UpdatedTime { get; set; }
 
     // ========== 工单来源字段（从 ReturnItems 首个 SourceWorkOrderNo 关联 WorkOrder 查询） ==========
     public string? SourceWorkOrderNo { get; set; }

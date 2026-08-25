@@ -19,7 +19,7 @@
 @inject IDialogService DialogService
 @inject HttpClient Http
 @inject StandardWorkDayService StandardWorkDayService
-@attribute [Authorize(Roles = Roles.Policies.BatchRead)]
+@attribute [Authorize(Roles = Roles.Policies.BatchView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     @if (isLoading)
@@ -61,8 +61,10 @@
                     }
                     @if (CanDelete)
                     {
+                        <AuthorizeView Roles="@Roles.Policies.BatchDelete">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
                                        Size="Size.Small" OnClick="DeleteAsync" Title="删除" />
+                        </AuthorizeView>
                     }
                     <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="GoBack" Class="ml-1">返回列表</MudButton>
                 </div>
@@ -617,8 +619,8 @@
     private string? _prevBatchNo;
     private string? _nextBatchNo;
 
-    private bool CanEdit => IsInRole(Roles.Policies.BatchWrite);
-    private bool CanDelete => IsInRole(Roles.Admin);
+    private bool CanEdit => IsInRole(Roles.Policies.BatchEdit);
+    private bool CanDelete => IsInRole(Roles.Policies.BatchDelete);
 
     // 工单字段空值显示辅助
     private static string FmtDate(DateTime dt) => dt.Year <= 1900 ? "" : dt.ToString("yyyy-MM-dd");

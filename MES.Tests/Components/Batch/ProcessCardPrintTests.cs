@@ -26,14 +26,14 @@ public class ProcessCardPrintTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<ProcessCardPrint>();
+        var cut = RenderPage<ProcessCardPrint>();
         cut.Markup.Should().Contain("工艺流转卡打印");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<ProcessCardPrint>();
+        var cut = RenderPage<ProcessCardPrint>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -41,7 +41,7 @@ public class ProcessCardPrintTests : TestBase
     public void Render_DisplaysData()
     {
         ConfigureListResponse();
-        var cut = Ctx.RenderComponent<ProcessCardPrint>();
+        var cut = RenderPage<ProcessCardPrint>();
         cut.WaitForState(() => cut.Markup.Contains("BATCH001"));
         cut.Markup.Should().Contain("BATCH001");
     }
@@ -69,7 +69,7 @@ public class ProcessCardPrintTests : TestBase
                 }
             }
         });
-        var cut = Ctx.RenderComponent<ProcessCardPrint>();
+        var cut = RenderPage<ProcessCardPrint>();
 
         // 展开格式设置面板
         var expandBtn = cut.FindAll("button").First(b => b.TextContent.Contains("展开"));
@@ -94,7 +94,7 @@ public class ProcessCardPrintTests : TestBase
                 new() { Id = 2, Key = "HeaderFontSize", Value = "24", DisplayName = "主标题字号", Remark = "工艺流转卡标题" }
             }
         });
-        var cut = Ctx.RenderComponent<ProcessCardPrint>();
+        var cut = RenderPage<ProcessCardPrint>();
 
         // 展开格式设置面板，应出现「打印版式」Tab
         var expandBtn = cut.FindAll("button").First(b => b.TextContent.Contains("展开"));

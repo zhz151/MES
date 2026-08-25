@@ -23,6 +23,8 @@ public partial class PittingCorrosionTests
     private int _currentPage = 1, _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private string _searchKeyword = string.Empty, _dateFrom = string.Empty, _dateTo = string.Empty;
     private string sortColumn = "inspectiondate";
     private bool sortDescending = true;
@@ -74,9 +76,15 @@ public partial class PittingCorrosionTests
     private async Task<TableData<PittingCorrosionTestDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             if (_isFirstLoad) { state.Page = _restoredPageIndex; _isFirstLoad = false; }
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
+            }
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "inspectiondate";
             DateTime? df = DateTime.TryParse(_dateFrom, out var d) ? d : null;
             DateTime? dt = DateTime.TryParse(_dateTo, out var dd) ? dd : null;
@@ -86,6 +94,9 @@ public partial class PittingCorrosionTests
                 sortBy: sortBy, isDescending: sortDescending,
                 inspectionDateFrom: df, inspectionDateTo: dt,
                 filters: SerializeFilters());
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<PittingCorrosionTestDto> { Items = _pageItems, TotalItems = _totalCount };
             if (result.Success && result.Data != null)
             {
                 _pageItems = result.Data.Items; _totalCount = result.Data.TotalCount;
@@ -134,7 +145,7 @@ public partial class PittingCorrosionTests
     }
 
     private async Task OnSearchChanged(string value)
-    { _searchKeyword = value ?? string.Empty; await SavePageStateAsync(); if (table != null) await table.ReloadServerData(); }
+    { _searchKeyword = value ?? string.Empty; _resetToFirstPage = true; await SavePageStateAsync(); if (table != null) await table.ReloadServerData(); }
 
     private async Task OnDateFromChanged(string value)
     { _dateFrom = value ?? string.Empty; await SavePageStateAsync(); if (table != null) await table.ReloadServerData(); }

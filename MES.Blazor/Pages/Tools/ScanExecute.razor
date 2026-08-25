@@ -2486,7 +2486,7 @@
                     BatchNo = _resolveResult.BatchNo,
                     ProcessName = _resolveResult.ProcessName,
                     ManufacturingSpec = _resolveResult.ManufacturingSpec ?? "",
-                    SectionName = _workstationContext!.SectionName,
+                    SectionName = _workstationContext!.SectionName ?? "",
                     SequenceNumber = _resolveResult.AvailableSections
                         .FirstOrDefault(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName))?.SequenceNumber ?? 0,
                     OutsourceVendor = _sectionOutsourceVendor,
@@ -2555,7 +2555,7 @@
                     ProcessName = _resolveResult.ProcessName,
                     ManufacturingSpec = _resolveResult.ManufacturingSpec ?? "",
                     PlantGrade = _resolveResult.PlantGrade,
-                    SectionName = _workstationContext!.SectionName,
+                    SectionName = _workstationContext!.SectionName ?? "",
                     SequenceNumber = _resolveResult.AvailableSections
                         .FirstOrDefault(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName))?.SequenceNumber ?? 0,
                     InspectionDate = DateTime.TryParse(_inspectionDate, out var id) ? id : DateTime.Today,

@@ -27,6 +27,8 @@ public partial class Workstations
     private int _currentPage = 1;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private int _pageSize = 10;
 
     // 工段下拉选项（从参数表加载启用工段，失败降级为预置 26 工段）
@@ -139,6 +141,7 @@ public partial class Workstations
     private async Task<TableData<WorkstationDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "code";
@@ -148,6 +151,13 @@ public partial class Workstations
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            // 搜索重置到第 1 页
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var query = new QueryParams
@@ -169,6 +179,10 @@ public partial class Workstations
             }
 
             var result = await WorkstationService.GetPagedAsync(query);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<WorkstationDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -215,6 +229,7 @@ public partial class Workstations
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

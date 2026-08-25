@@ -1827,7 +1827,10 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
         InQuantity = entity.InQuantity,
         InWeight = entity.InWeight,
         Remark = entity.Remark,
-        CreatedTime = entity.CreatedTime
+        CreatedBy = entity.CreatedBy,
+        CreatedTime = entity.CreatedTime,
+        UpdatedBy = entity.UpdatedBy,
+        UpdatedTime = entity.UpdatedTime
     };
 
     private static void FillWorkOrderFields(SubcontractOrderDto dto, WoEntity wo)

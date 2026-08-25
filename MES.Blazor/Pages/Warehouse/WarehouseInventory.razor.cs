@@ -7,6 +7,7 @@ using MES.Blazor.Components;
 using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
+using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Shared;
@@ -14,7 +15,6 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
-using MES.Core.Enums;
 using MES.Core.Constants;
 using MES.Core.Helpers;
 using MES.Shared.Constants;
@@ -34,6 +34,8 @@ public partial class WarehouseInventory
     private bool _isFirstLoad = true;
     private bool _isArrowNavSetup;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private string _lastResolvedWarehouseCode = string.Empty;
     private List<WarehouseDto> warehouses = new();
     private List<NotificationDto>? _warehouseWorkOrderChangedNotices;
@@ -155,7 +157,7 @@ public partial class WarehouseInventory
                     SetNotApplicable(cols, "OriginalSupplier");
                     SetNotApplicable(cols, "TagNo");
                     SetNotApplicable(cols, "DefectRemark");
-                    // 项次已弃用，统一标记不适用（待阶段二删除）；主号列加入但默认隐藏（可手动开启列显隐）
+                    // 项次序号列：成品/缺陷类型无有效项次关联，标记不适用；主号列加入但默认隐藏（可手动开启列显隐）
                     SetNotApplicable(cols, "OrderItemIds");
                     var fgMainNo = cols.FirstOrDefault(x => x.Key == "ProductionMainNo");
                     if (fgMainNo != null) fgMainNo.Visible = false;
@@ -166,7 +168,7 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "RemainingMeters");
                 SetNotApplicable(cols, "ActualSpecification");
-                // 项次已弃用，统一标记不适用（待阶段二删除）
+                // 项次序号列：成品/缺陷类型无有效项次关联，标记不适用
                 SetNotApplicable(cols, "OrderItemIds");
                 AssignGroups(cols, whCode);
                 break;
@@ -433,6 +435,7 @@ public partial class WarehouseInventory
         try
         {
             _pageSize = state.PageSize;
+            var version = ++_loadVersion;
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "InboundDate";
             var filtersJson = SerializeFilters();
 
@@ -440,6 +443,12 @@ public partial class WarehouseInventory
             if (_isFirstLoad)
             {
                 state.Page = _restoredPageIndex;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var query = new InventoryQueryParams
@@ -456,6 +465,10 @@ public partial class WarehouseInventory
             };
 
             var result = await InventoryService.GetPagedAsync(query, filtersJson);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<InventoryBatchDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -776,6 +789,7 @@ public partial class WarehouseInventory
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         _selectedItems.Clear();
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();

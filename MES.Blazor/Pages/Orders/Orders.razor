@@ -18,7 +18,7 @@
 @inject IJSRuntime JS
 @inject HttpClient Http
 @inject ColumnPrefsService ColumnPrefs
-@attribute [Authorize]
+@attribute [Authorize(Roles = Roles.Policies.OrderView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -321,7 +321,7 @@
                     <MudTd>
                         @if (order.Status == SalesOrderStatus.Pending)
                         {
-                            <AuthorizeView Roles="@Roles.Policies.OrderWrite">
+                            <AuthorizeView Roles="@Roles.Policies.OrderEdit">
                                 <MudIconButton Icon="@Icons.Material.Filled.CheckCircle"
                                                Color="Color.Success"
                                                Size="Size.Small"
@@ -336,7 +336,7 @@
                                        OnClick="() => EditOrder(order.Id)"
                                        Title="编辑" />
 
-                        <AuthorizeView Roles="@Roles.Policies.OrderWrite">
+                        <AuthorizeView Roles="@Roles.Policies.OrderEdit">
                             <MudIconButton Icon="@Icons.Material.Filled.Cancel"
                                            Color="Color.Error"
                                            Size="Size.Small"

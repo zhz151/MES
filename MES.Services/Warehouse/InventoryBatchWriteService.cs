@@ -73,7 +73,11 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         ProductionMainNo = b.ProductionMainNo,
         OrderItemIds = b.OrderItemIds,
         SourceOrderNo = b.SourceOrderNo,
-        SourceOrderSequence = b.SourceOrderSequence
+        SourceOrderSequence = b.SourceOrderSequence,
+        CreatedBy = b.CreatedBy,
+        CreatedTime = b.CreatedTime,
+        UpdatedBy = b.UpdatedBy,
+        UpdatedTime = b.UpdatedTime
     };
 
     // ========== 定尺切割长度匹配标识 ==========

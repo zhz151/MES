@@ -19,7 +19,7 @@
 @inject ColumnPrefsService ColumnPrefs
 @inject HttpClient Http
 @inject PageStateService PageState
-@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
+@attribute [Authorize(Roles = Roles.Policies.WorkOrderView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 页面顶部工具栏（铃铛图标和刷新） -->
@@ -259,11 +259,13 @@ else if (item.Status == WorkOrderStatus.Confirmed)
                        OnClick="() => NavigateToUpdate(item.SalesOrderNo, item.Status.ToString())" />
         @if (_isAdmin)
         {
+                        <AuthorizeView Roles="@Roles.Policies.WorkOrderDelete">
             <MudIconButton Icon="@Icons.Material.Filled.Delete"
                            Color="Color.Error"
                            Size="Size.Small"
                            Title="删除"
                            OnClick="() => DeleteWorkOrder(item.Id, item.WorkOrderNo)" />
+                        </AuthorizeView>
         }
     </div>
 }
@@ -282,11 +284,13 @@ else if (item.Status == WorkOrderStatus.Pending)
                        OnClick="() => NavigateToUpdate(item.SalesOrderNo, item.Status.ToString())" />
         @if (_isAdmin)
         {
+                        <AuthorizeView Roles="@Roles.Policies.WorkOrderDelete">
             <MudIconButton Icon="@Icons.Material.Filled.Delete"
                            Color="Color.Error"
                            Size="Size.Small"
                            Title="删除"
                            OnClick="() => DeleteWorkOrder(item.Id, item.WorkOrderNo)" />
+                        </AuthorizeView>
         }
     </div>
 }

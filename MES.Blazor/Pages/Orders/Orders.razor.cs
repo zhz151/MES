@@ -35,6 +35,8 @@ public partial class Orders
     private string _deliveryDateTo = string.Empty;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
 
     // ========== 订单接单·出库及现负荷汇总 ==========
     private bool _showInOutSummaryCard;
@@ -162,6 +164,9 @@ public partial class Orders
         new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "③ 订单确认",
                EnumOptions = DisplayHelper.GetEnumFilterOptions<SalesOrderStatus>(),
                DisplayConverter = v => v is SalesOrderStatus s ? DisplayHelper.GetSalesOrderStatusText(s) : "-" },
+        new() { Key = "createdby",   Label = "创建人",   Width = "100", GroupKey = 3, GroupName = "③ 订单确认", Visible = false },
+        new() { Key = "createdtime", Label = "创建时间", Width = "120", GroupKey = 3, GroupName = "③ 订单确认", Visible = false },
+        new() { Key = "updatedby",   Label = "更新人",   Width = "100", GroupKey = 3, GroupName = "③ 订单确认", Visible = false },
         new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "③ 订单确认" },
         // ========== ④ 订单执行 ==========
         new() { Key = "schedulestage",     Label = "执行关注", SortKey = "schedulestage",     FilterType = "enum", Width = "100", GroupKey = 4, GroupName = "④ 订单执行",
@@ -229,6 +234,7 @@ public partial class Orders
     private async Task<TableData<SalesOrderListDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             // 首次加载覆盖页码（MudTable 初始化时始终传 page=0）
@@ -236,6 +242,12 @@ public partial class Orders
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "signdate";
@@ -262,6 +274,10 @@ public partial class Orders
                 dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null,
                 deliveryDateFrom: DateTime.TryParse(_deliveryDateFrom, out var ddFrom) ? ddFrom : null,
                 deliveryDateTo: DateTime.TryParse(_deliveryDateTo, out var ddTo) ? ddTo : null);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<SalesOrderListDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -421,6 +437,7 @@ public partial class Orders
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -637,6 +654,15 @@ public partial class Orders
             case "lastchangedate":
                 builder.AddContent(0, order.LastChangeDate?.ToString("yyyy-MM-dd HH:mm") ?? "-");
                 break;
+            case "createdby":
+                builder.AddContent(0, order.CreatedBy);
+                break;
+            case "createdtime":
+                builder.AddContent(0, order.CreatedTime?.LocalDateTime.ToString("yyyy-MM-dd HH:mm") ?? "-");
+                break;
+            case "updatedby":
+                builder.AddContent(0, order.UpdatedBy);
+                break;
             case "schedulestage":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Size", Size.Small);
@@ -702,6 +728,9 @@ public partial class Orders
         "notech" => item.HasTechnicalRequirement.ToString(),
         "status" => GetStatusText(item.Status),
         "lastchangedate" => item.LastChangeDate?.ToString("yyyy-MM-dd HH:mm"),
+        "createdby" => item.CreatedBy,
+        "createdtime" => item.CreatedTime?.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "updatedby" => item.UpdatedBy,
         "schedulestage" => item.ScheduleStage?.ToString(),
         "urgencylevel" => item.UrgencyLevel,
         "estimatedcompletiondate" => item.EstimatedCompletionDate?.ToString("yyyy-MM-dd"),

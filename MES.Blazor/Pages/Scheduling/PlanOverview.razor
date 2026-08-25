@@ -1,5 +1,5 @@
 @page "/plan-overview"
-@attribute [Authorize]
+@attribute [Authorize(Roles = Roles.Policies.SchedulingView)]
 @using Microsoft.AspNetCore.Authorization
 
 <WorkOrderLoadOverview />

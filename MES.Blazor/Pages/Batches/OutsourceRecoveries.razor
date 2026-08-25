@@ -17,7 +17,7 @@
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @inject HttpClient Http
-@attribute [Authorize(Roles = Roles.Policies.BatchRead)]
+@attribute [Authorize(Roles = Roles.Policies.BatchView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -176,7 +176,9 @@
                         <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd>
+                        <AuthorizeView Roles="@Roles.Policies.BatchDelete">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
+                        </AuthorizeView>
                     </MudTd>
                 </RowTemplate>
                 <FooterContent>

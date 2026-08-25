@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
@@ -6,6 +7,7 @@ using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Warehouse;
+using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
@@ -18,12 +20,16 @@ namespace MES.Blazor.Pages.Warehouse;
 
 public partial class PendingDelivery
 {
+    [Inject] private AuthenticationStateProvider AuthProvider { get; set; } = default!;
+
     private MudTable<PendingDeliveryItemDto>? table;
     private List<PendingDeliveryItemDto> _pageItems = new();
     private int _totalCount;
     private bool _isArrowNavSetup;
     private int _currentPage = 1;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private string _searchKeyword = string.Empty;
     private string _inboundDateFrom = string.Empty;
     private string _inboundDateTo = string.Empty;
@@ -214,12 +220,19 @@ public partial class PendingDelivery
     private async Task<TableData<PendingDeliveryItemDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             if (_isFirstLoad)
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "InventoryBatchNo";
@@ -244,6 +257,10 @@ public partial class PendingDelivery
                 query,
                 inboundDateFrom: DateTime.TryParse(_inboundDateFrom, out var df) ? df : null,
                 inboundDateTo: DateTime.TryParse(_inboundDateTo, out var dt) ? dt : null);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<PendingDeliveryItemDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -415,6 +432,7 @@ public partial class PendingDelivery
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

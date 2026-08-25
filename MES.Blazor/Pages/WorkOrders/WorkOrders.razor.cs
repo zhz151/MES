@@ -34,6 +34,8 @@ public partial class WorkOrders : IAsyncDisposable
     private int _pageSize = 10;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private bool _isAdmin;
 
     // ========== 通知定时轮询 ==========
@@ -103,6 +105,10 @@ public partial class WorkOrders : IAsyncDisposable
         new() { Key = "TotalItemCount",    Label = "含项次数", SortKey = "TotalItemCount", Width = "80" },
         new() { Key = "Status",            Label = "状态",     SortKey = "Status",            FilterType = "enum", Width = "120",
                EnumOptions = DisplayHelper.GetEnumFilterOptions<WorkOrderStatus>() },
+        new() { Key = "CreatedBy",         Label = "创建人",   SortKey = "CreatedBy",         FilterType = "string", Width = "100", Visible = false },
+        new() { Key = "CreatedTime",       Label = "创建时间", SortKey = "CreatedTime",       FilterType = "date", Width = "130", Visible = false },
+        new() { Key = "UpdatedBy",         Label = "更新人",   SortKey = "UpdatedBy",         FilterType = "string", Width = "100", Visible = false },
+        new() { Key = "UpdatedTime",       Label = "更新时间", SortKey = "UpdatedTime",       FilterType = "date", Width = "130", Visible = false },
     };
 
     // ========== 分页汇总 ==========
@@ -156,6 +162,7 @@ public partial class WorkOrders : IAsyncDisposable
     private async Task<TableData<WorkOrderListItemDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             // 首次加载覆盖页码（MudTable 初始化时始终传 page=0）
@@ -163,6 +170,12 @@ public partial class WorkOrders : IAsyncDisposable
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "SignDate";
@@ -179,6 +192,10 @@ public partial class WorkOrders : IAsyncDisposable
                 dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null,
                 deliveryDateFrom: DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf : null,
                 deliveryDateTo: DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt : null);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<WorkOrderListItemDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -376,6 +393,7 @@ public partial class WorkOrders : IAsyncDisposable
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -517,6 +535,18 @@ public partial class WorkOrders : IAsyncDisposable
                 builder.AddAttribute(2, "Color", DisplayHelper.GetWorkOrderStatusColor(item.Status));
                 builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, DisplayHelper.GetWorkOrderStatusText(item.Status))));
                 builder.CloseComponent();
+                break;
+            case "CreatedBy":
+                builder.AddContent(0, string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy);
+                break;
+            case "CreatedTime":
+                builder.AddContent(0, item.CreatedTime == default ? "-" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "UpdatedBy":
+                builder.AddContent(0, string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy);
+                break;
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime == default ? "-" : item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
         }
     };

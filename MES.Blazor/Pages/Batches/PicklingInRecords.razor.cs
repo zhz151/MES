@@ -45,6 +45,8 @@ public partial class PicklingInRecords
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
@@ -300,12 +302,19 @@ public partial class PicklingInRecords
     private async Task<TableData<PicklingInRecordDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             if (_isFirstLoad)
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var sortCol = _allColumns.FirstOrDefault(c => c.Key == sortColumn);
@@ -323,6 +332,10 @@ public partial class PicklingInRecords
                 completeDateFrom: DateTime.TryParse(_completeDateFrom, out var cdf) ? cdf : null,
                 completeDateTo: DateTime.TryParse(_completeDateTo, out var cdt) ? cdt : null,
                 filters: filtersJson);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<PicklingInRecordDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -459,6 +472,7 @@ public partial class PicklingInRecords
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         selectedIds.Clear();
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();

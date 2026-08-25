@@ -255,12 +255,13 @@ public class OrderService : IOrderService
             .Take(query.PageSize)
             .ToListAsync();
 
-        // 批量加载 SalesOrder 的 RowVersion（OrderListSummary 的 RowVersion 是读模型自身的 rowversion，与业务表不同）
+        // 批量加载 SalesOrder 的 RowVersion + 审计字段（OrderListSummary 的 RowVersion 是读模型自身的 rowversion，与业务表不同；
+        // 创建人/更新人审计字段同样须取自源头 SalesOrder，读模型的 CreatedBy 为刷新任务写入）
         var orderIds = summaries.Select(s => s.OrderId).ToList();
-        var salesOrderRowVersions = await _context.SalesOrders
+        var salesOrderAudits = await _context.SalesOrders
             .AsNoTracking()
             .Where(so => orderIds.Contains(so.Id))
-            .ToDictionaryAsync(so => so.Id, so => so.RowVersion);
+            .ToDictionaryAsync(so => so.Id, so => new { so.RowVersion, so.CreatedBy, so.CreatedTime, so.UpdatedBy });
 
         var items = summaries.Select(s => new SalesOrderListDto
         {
@@ -276,7 +277,10 @@ public class OrderService : IOrderService
             TotalContractWeight = s.TotalContractWeight,
             ItemCount = s.ItemCount,
             Status = s.Status,
-            RowVersion = salesOrderRowVersions.GetValueOrDefault(s.OrderId) ?? Array.Empty<byte>(),
+            RowVersion = salesOrderAudits.GetValueOrDefault(s.OrderId)?.RowVersion ?? Array.Empty<byte>(),
+            CreatedBy = salesOrderAudits.GetValueOrDefault(s.OrderId)?.CreatedBy ?? "",
+            CreatedTime = salesOrderAudits.GetValueOrDefault(s.OrderId)?.CreatedTime,
+            UpdatedBy = salesOrderAudits.GetValueOrDefault(s.OrderId)?.UpdatedBy ?? "",
             HasTechnicalRequirement = s.ItemCount > 0 && s.HasTechReqCount == s.ItemCount,
             FirstOrderItemId = s.FirstOrderItemId,
             LastChangeDate = s.LastChangeDate,
@@ -1026,7 +1030,7 @@ public class OrderService : IOrderService
         // 项次变更后先标记工单为"待修正"，再刷新读模型
         await MarkWorkOrdersPendingAsync(salesOrder.OrderNumber);
 
-        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
+        // 读模型刷新（由原 RefreshByOrderAsync 整单批量刷新改为按订单 RefreshByOrderIdAsync 增量刷新）
         await RefreshByOrderIdAsync(orderId);
 
         // 刷新用料计划总览读模型（工单状态变更后同步）

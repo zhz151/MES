@@ -35,7 +35,9 @@ public class OutboundWriteService : IOutboundWriteService
         OutboundDate = r.OutboundDate,
         Remark = r.Remark,
         CreatedBy = r.CreatedBy,
-        CreatedTime = r.CreatedTime
+        CreatedTime = r.CreatedTime,
+        UpdatedBy = r.UpdatedBy,
+        UpdatedTime = r.UpdatedTime
     };
     private static readonly Func<OutboundRecord, OutboundRecordDto> OutboundToDto = OutboundToDtoExpr.Compile();
 

@@ -18,7 +18,7 @@
 @inject MaterialPlanService MaterialPlanService
 @inject HttpClient Http
 @inject NotificationService NotificationService
-@attribute [Authorize(Roles = Roles.Policies.BatchRead)]
+@attribute [Authorize(Roles = Roles.Policies.BatchView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 工单号不匹配通知 -->
@@ -280,11 +280,13 @@
                                        Size="Size.Small"
                                        OnClick="@(() => GoToEdit(item.Id))"
                                        Title="编辑" />
+                        <AuthorizeView Roles="@Roles.Policies.BatchDelete">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                        Color="Color.Error"
                                        Size="Size.Small"
                                        OnClick="@(() => DeleteItem(item))"
                                        Title="删除" />
+                        </AuthorizeView>
                     </MudTd>
                 </RowTemplate>
                 <FooterContent>

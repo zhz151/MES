@@ -59,6 +59,16 @@ public class ProductRequirementDto
     /// 更新时间
     /// </summary>
     public DateTimeOffset UpdatedTime { get; set; }
+
+    /// <summary>
+    /// 创建人
+    /// </summary>
+    public string CreatedBy { get; set; } = "";
+
+    /// <summary>
+    /// 更新人
+    /// </summary>
+    public string UpdatedBy { get; set; } = "";
 }
 
 /// <summary>

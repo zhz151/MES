@@ -44,6 +44,8 @@ public partial class InboundHistory
     private bool _isFirstLoad = true;
     private bool _isArrowNavSetup;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     // B33 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
@@ -283,6 +285,10 @@ public partial class InboundHistory
         new() { Key = "OriginalSupplier",    Label = "原始来料", SortKey = "OriginalSupplier", FilterType = "string", Width = "120" },
         new() { Key = "TagNo",               Label = "挂牌号", SortKey = "TagNo", FilterType = "string", Width = "120" },
         new() { Key = "DefectRemark",        Label = "次品备注", SortKey = "DefectRemark", FilterType = "string", Width = "120" },
+        new() { Key = "CreatedBy",           Label = "创建人", SortKey = "CreatedBy", FilterType = "string", Width = "100", GroupKey = 8, GroupName = "审计信息", Visible = false },
+        new() { Key = "CreatedTime",         Label = "创建时间", SortKey = "CreatedTime", FilterType = "string", Width = "130", GroupKey = 8, GroupName = "审计信息", Visible = false },
+        new() { Key = "UpdatedBy",           Label = "更新人", SortKey = "UpdatedBy", FilterType = "string", Width = "100", GroupKey = 8, GroupName = "审计信息", Visible = false },
+        new() { Key = "UpdatedTime",         Label = "更新时间", SortKey = "UpdatedTime", FilterType = "string", Width = "130", GroupKey = 8, GroupName = "审计信息", Visible = false },
     };
 
     private static void ApplyWarehouseDefaults(List<ColumnDef> cols, string whCode)
@@ -320,7 +326,7 @@ public partial class InboundHistory
                     SetNotApplicable(cols, "TagNo");
                     SetNotApplicable(cols, "DefectRemark");
                     SetNotApplicable(cols, "SourceOrderSequence");
-                    // 项次已弃用，统一标记不适用（待阶段二删除）；主号列加入但默认隐藏（可手动开启列显隐）
+                    // 项次序号列：成品/缺陷类型无有效项次关联，标记不适用；主号列加入但默认隐藏（可手动开启列显隐）
                     SetNotApplicable(cols, "OrderItemIds");
                     var fgMainNo = cols.FirstOrDefault(x => x.Key == "ProductionMainNo");
                     if (fgMainNo != null) fgMainNo.Visible = false;
@@ -332,7 +338,7 @@ public partial class InboundHistory
                 SetNotApplicable(cols, "ActualSpecification");
                 SetNotApplicable(cols, "SourceOrderSequence");
                 SetNotApplicable(cols, "CutLengthMatchType");
-                // 项次已弃用，统一标记不适用（待阶段二删除）
+                // 项次序号列：成品/缺陷类型无有效项次关联，标记不适用
                 SetNotApplicable(cols, "OrderItemIds");
                 AssignDefectGroups(cols);
                 break;
@@ -354,6 +360,13 @@ public partial class InboundHistory
                 SetNotApplicable(cols, "CutLengthMatchType");
                 AssignWipGroups(cols);
                 break;
+        }
+
+        // 审计字段列独立成组，始终默认隐藏（用户可手动开启）
+        foreach (var c in cols)
+        {
+            if (c.Key is "CreatedBy" or "CreatedTime" or "UpdatedBy" or "UpdatedTime")
+                c.Visible = false;
         }
 
         // 按分组排序以确保表格列顺序与分组一致
@@ -622,6 +635,7 @@ public partial class InboundHistory
         try
         {
             _pageSize = state.PageSize;
+            var version = ++_loadVersion;
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "InboundDate";
             var filtersJson = SerializeFilters();
 
@@ -630,6 +644,12 @@ public partial class InboundHistory
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var query = new InventoryQueryParams
@@ -646,6 +666,10 @@ public partial class InboundHistory
             };
 
             var result = await InventoryService.GetPagedAsync(query, filtersJson);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<InventoryBatchDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -852,6 +876,7 @@ public partial class InboundHistory
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         ClearEditState();
         _selectedItems.Clear();
         await SavePageStateAsync();
@@ -1116,6 +1141,18 @@ public partial class InboundHistory
                 if (!string.IsNullOrEmpty(item.LiabilityType))
                     builder.AddContent(0, DictValueDisplayHelper.GetText(DictValueDefaults.LiabilityTypeKey, item.LiabilityType) ?? item.LiabilityType);
                 break;
+            case "CreatedBy":
+                builder.AddContent(0, string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy);
+                break;
+            case "CreatedTime":
+                builder.AddContent(0, item.CreatedTime == default ? "-" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "UpdatedBy":
+                builder.AddContent(0, string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy);
+                break;
+            case "UpdatedTime":
+                builder.AddContent(0, item.UpdatedTime == default ? "-" : item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
             default:
                 var val = GetCellStringValue(item, col.Key);
                 if (!string.IsNullOrEmpty(val))
@@ -1179,6 +1216,10 @@ public partial class InboundHistory
         "OrderItemIds" => item.OrderItemIds,
         "SourceOrderNo" => item.SourceOrderNo,
         "SourceOrderSequence" => item.SourceOrderSequence?.ToString(),
+        "CreatedBy" => item.CreatedBy,
+        "CreatedTime" => item.CreatedTime == default ? "" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedBy" => item.UpdatedBy,
+        "UpdatedTime" => item.UpdatedTime == default ? "" : item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         _ => null
     };
 

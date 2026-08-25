@@ -13,7 +13,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JS
-@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
+@attribute [Authorize(Roles = Roles.Policies.WorkOrderView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <MudCard>
@@ -115,9 +115,11 @@
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
                                                    Color="Color.Info" OnClick="() => PrintPiercingPlan(plan.Id)"
                                                    Title="打印采购申请单" />
+                        <AuthorizeView Roles="@Roles.Policies.WorkOrderDelete">
                                     <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
                                                    Color="Color.Error" OnClick="() => DeletePiercingPlan(plan.Id)"
                                                    Title="取消" />
+                        </AuthorizeView>
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
@@ -168,9 +170,11 @@
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
                                                    Color="Color.Info" OnClick="() => PrintSemiPlan(plan.Id)"
                                                    Title="打印采购申请单" />
+                        <AuthorizeView Roles="@Roles.Policies.WorkOrderDelete">
                                     <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
                                                    Color="Color.Error" OnClick="() => DeleteSemiPlan(plan.Id)"
                                                    Title="取消" />
+                        </AuthorizeView>
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
@@ -229,9 +233,11 @@
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
                                                    Color="Color.Info" OnClick="() => PrintFinishedPlan(plan.Id)"
                                                    Title="打印采购申请单" />
+                        <AuthorizeView Roles="@Roles.Policies.WorkOrderDelete">
                                     <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
                                                    Color="Color.Error" OnClick="() => DeleteFinishedPlan(plan.Id)"
                                                    Title="取消" />
+                        </AuthorizeView>
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
@@ -336,9 +342,11 @@
                                         <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
                                                        Color="Color.Info" OnClick="() => PrintInventoryPlan(plan.Id)"
                                                        Title="打印" />
+                        <AuthorizeView Roles="@Roles.Policies.WorkOrderDelete">
                                         <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
                                                        Color="Color.Error" OnClick="() => DeleteInventoryPlan(plan.Id)"
                                                        Title="取消" />
+                        </AuthorizeView>
                                     }
                                 </MudTd>
                             </RowTemplate>
@@ -400,9 +408,11 @@
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
                                                    Color="Color.Info" OnClick="() => PrintReworkPlan(plan.Id)"
                                                    Title="打印" />
+                        <AuthorizeView Roles="@Roles.Policies.WorkOrderDelete">
                                     <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
                                                    Color="Color.Error" OnClick="() => DeleteReworkPlan(plan.Id)"
                                                    Title="取消" />
+                        </AuthorizeView>
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
@@ -444,9 +454,11 @@
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
                                                    Color="Color.Info" OnClick="() => PrintInProcessReworkPlan(plan.Id)"
                                                    Title="打印" />
+                        <AuthorizeView Roles="@Roles.Policies.WorkOrderDelete">
                                     <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
                                                    Color="Color.Error" OnClick="() => DeleteInProcessReworkPlan(plan.Id)"
                                                    Title="取消" />
+                        </AuthorizeView>
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
@@ -483,9 +495,11 @@
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
                                                    Color="Color.Info" OnClick="() => PrintInMainWorkOrderPlan(plan.Id)"
                                                    Title="打印" />
+                        <AuthorizeView Roles="@Roles.Policies.WorkOrderDelete">
                                     <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small"
                                                    Color="Color.Error" OnClick="() => DeleteInMainWorkOrderPlan(plan.Id)"
                                                    Title="取消" />
+                        </AuthorizeView>
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>

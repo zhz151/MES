@@ -27,7 +27,7 @@ public class SubcontractOrdersTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<SubcontractOrders>();
+        var cut = RenderPage<SubcontractOrders>();
         cut.Markup.Should().Contain("圆棒穿孔");
     }
 
@@ -47,7 +47,7 @@ public class SubcontractOrdersTests : TestBase
             }
         });
 
-        var cut = Ctx.RenderComponent<SubcontractOrders>();
+        var cut = RenderPage<SubcontractOrders>();
         cut.Markup.Should().Contain("已发出");
     }
 
@@ -67,7 +67,7 @@ public class SubcontractOrdersTests : TestBase
             }
         });
 
-        var cut = Ctx.RenderComponent<SubcontractOrders>();
+        var cut = RenderPage<SubcontractOrders>();
         cut.Markup.Should().Contain("部分收回");
     }
 
@@ -87,7 +87,7 @@ public class SubcontractOrdersTests : TestBase
             }
         });
 
-        var cut = Ctx.RenderComponent<SubcontractOrders>();
+        var cut = RenderPage<SubcontractOrders>();
         cut.Markup.Should().Contain("已完成");
     }
 

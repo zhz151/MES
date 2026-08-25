@@ -7,7 +7,7 @@
 @using MES.Core.DTOs.Scheduling
 @using Microsoft.AspNetCore.Authorization
 @using System.Text.Json
-@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
+@attribute [Authorize(Roles = Roles.Policies.SchedulingView)]
 @inject BatchPlanService BatchPlanSvc
 @inject BatchPlanScheduleService BatchPlanScheduleSvc
 @inject SectionFlowAnalysisService SectionFlowAnalysisSvc

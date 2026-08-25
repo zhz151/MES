@@ -45,6 +45,8 @@ public partial class ChemicalCompositions
     private int _currentPage = 1;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
 
     private string _searchKeyword = string.Empty;
 
@@ -89,6 +91,7 @@ public partial class ChemicalCompositions
     private async Task<TableData<ChemicalCompositionDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
 
         try
         {
@@ -97,6 +100,12 @@ public partial class ChemicalCompositions
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "plantgrade";
@@ -110,6 +119,10 @@ public partial class ChemicalCompositions
                 isDescending: sortDescending,
                 filters: filters
             );
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<ChemicalCompositionDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -235,6 +248,7 @@ public partial class ChemicalCompositions
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

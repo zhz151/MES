@@ -27,6 +27,8 @@ public partial class WorkOrderExecution
     private int _restoredPageIndex;
     private int _currentPageIndex = 1;
     private bool _isFirstLoad = true;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
@@ -428,11 +430,18 @@ public partial class WorkOrderExecution
     private async Task<TableData<WorkOrderExecutionSummaryDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         // 恢复持久化的页码（MudTable 初始化时始终传 page=0）
         if (_isFirstLoad)
         {
             state.Page = _restoredPageIndex;
             _isFirstLoad = false;
+        }
+
+        if (_resetToFirstPage)
+        {
+            state.Page = 0;
+            _resetToFirstPage = false;
         }
 
         try
@@ -458,6 +467,10 @@ public partial class WorkOrderExecution
                 signDateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null,
                 deliveryDateStart: DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf : null,
                 deliveryDateEnd: DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt : null);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<WorkOrderExecutionSummaryDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -648,6 +661,7 @@ public partial class WorkOrderExecution
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

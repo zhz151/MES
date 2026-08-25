@@ -19,14 +19,14 @@ public class FurnaceRegistrationsTests : TestBase
     [Fact]
     public void Render_HasTitle()
     {
-        var cut = Ctx.RenderComponent<FurnaceRegistrations>();
+        var cut = RenderPage<FurnaceRegistrations>();
         cut.Markup.Should().Contain("来料炉号登记");
     }
 
     [Fact]
     public void Render_HasFilter()
     {
-        var cut = Ctx.RenderComponent<FurnaceRegistrations>();
+        var cut = RenderPage<FurnaceRegistrations>();
         cut.Markup.Should().Contain("模糊搜索");
     }
 
@@ -34,7 +34,7 @@ public class FurnaceRegistrationsTests : TestBase
     public void Render_DisplaysData()
     {
         ConfigureListResponse();
-        var cut = Ctx.RenderComponent<FurnaceRegistrations>();
+        var cut = RenderPage<FurnaceRegistrations>();
         cut.WaitForState(() => cut.Markup.Contains("FUR-001"));
         cut.Markup.Should().Contain("FUR-001");
     }

@@ -15,7 +15,7 @@
 @inject PageStateService PageState
 @inject ColumnPrefsService ColumnPrefs
 @inject HttpClient Http
-@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
+@attribute [Authorize(Roles = Roles.Policies.SchedulingView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 页面标题 + 右上角「待投料量汇总」按钮（与其他排程计划统一） -->

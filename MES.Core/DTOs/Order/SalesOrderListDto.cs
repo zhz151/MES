@@ -93,6 +93,21 @@ public class SalesOrderListDto
     /// </summary>
     public DateTime? LastChangeDate { get; set; }
 
+    /// <summary>
+    /// 创建人（取自源头 SalesOrder，非读模型）
+    /// </summary>
+    public string CreatedBy { get; set; } = "";
+
+    /// <summary>
+    /// 创建时间（取自源头 SalesOrder，非读模型）
+    /// </summary>
+    public DateTimeOffset? CreatedTime { get; set; }
+
+    /// <summary>
+    /// 更新人（取自源头 SalesOrder，非读模型）
+    /// </summary>
+    public string UpdatedBy { get; set; } = "";
+
     // ========== 工单执行聚合字段 ==========
 
     /// <summary>

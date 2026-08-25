@@ -4,7 +4,7 @@
 @using MES.Core.DTOs.Quality
 @using MES.Core.Enums
 @using MES.Blazor.Helpers
-@attribute [Authorize(Roles = Roles.Policies.QualityRead)]
+@attribute [Authorize(Roles = Roles.Policies.QualityView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     @if (_isLoading)
@@ -39,7 +39,7 @@
                                    Disabled="@(_dto == null)">
                             打印PDF
                         </MudButton>
-                        <AuthorizeView Roles="@Roles.Policies.QualityWrite">
+                        <AuthorizeView Roles="@Roles.Policies.QualityEdit">
                             <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
                         </AuthorizeView>
                     }

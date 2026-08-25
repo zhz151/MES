@@ -27,6 +27,8 @@ public partial class SubStandardQuickViews
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
 
     // 排序状态
     private string sortColumn = "StandardNo";
@@ -112,6 +114,7 @@ public partial class SubStandardQuickViews
     private async Task<TableData<SubStandardQuickViewDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "standardno";
@@ -121,6 +124,12 @@ public partial class SubStandardQuickViews
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var query = new QueryParams
@@ -134,6 +143,10 @@ public partial class SubStandardQuickViews
             };
 
             var result = await SubStandardQuickViewService.GetPagedAsync(query);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<SubStandardQuickViewDto> { Items = _pageItems, TotalItems = _totalCount };
 
             if (result.Success && result.Data != null)
             {
@@ -235,6 +248,7 @@ public partial class SubStandardQuickViews
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }

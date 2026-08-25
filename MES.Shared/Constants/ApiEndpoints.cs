@@ -67,7 +67,6 @@ public static class ApiEndpoints
     public const string Scan = "api/scan";
 
     // ===== Scheduling 排程 =====
-    public const string SectionProductionStatus = "api/section-production-status";
     public const string SectionFlowAnalysis = "api/section-flow-analysis";
     public const string SectionParagraphFlowAnalysis = "api/section-paragraph-flow-analysis";
     public const string WorkOrderSchedule = "api/workorder-schedule";

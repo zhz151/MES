@@ -594,6 +594,9 @@ public class WorkOrderService : IWorkOrderService
                 so.OrderNumber,
                 so.SignDate,
                 so.CreatedTime,
+                so.CreatedBy,
+                so.UpdatedBy,
+                so.UpdatedTime,
                 so.Salesman,
                 so.EndCustomer
             })
@@ -623,7 +626,10 @@ public class WorkOrderService : IWorkOrderService
             DeliveryState = default,
             TotalItemCount = 0,
             Status = WorkOrderStatus.NotGenerated,
-            CreatedTime = r.CreatedTime
+            CreatedBy = r.CreatedBy,
+            CreatedTime = r.CreatedTime,
+            UpdatedBy = r.UpdatedBy,
+            UpdatedTime = r.UpdatedTime
         }).ToList();
     }
 
@@ -2583,7 +2589,10 @@ public class WorkOrderService : IWorkOrderService
         DeliveryState = entity.DeliveryState,
         TotalItemCount = entity.TotalItemCount,
         Status = entity.Status,
-        CreatedTime = entity.CreatedTime
+        CreatedBy = entity.CreatedBy,
+        CreatedTime = entity.CreatedTime,
+        UpdatedBy = entity.UpdatedBy,
+        UpdatedTime = entity.UpdatedTime
     };
 
     private static WorkOrderDetailDto ToDetailDto(WoEntity entity) => new()

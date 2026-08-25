@@ -20,7 +20,7 @@
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
-@attribute [Authorize]
+@attribute [Authorize(Roles = Roles.Policies.OrderView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     @if (_isLoading)
@@ -82,7 +82,7 @@
                     }
                     else
                     {
-                        <AuthorizeView Roles="@Roles.Policies.OrderWrite">
+                        <AuthorizeView Roles="@Roles.Policies.OrderEdit">
                             <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="EnterEditMode">编辑</MudButton>
                         </AuthorizeView>
                     }

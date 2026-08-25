@@ -24,6 +24,8 @@ public partial class Certificates
     private bool _isArrowNavSetup;
     private int _currentPage = 1;
     private int _pageSize = 10;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
     private string _searchKeyword = string.Empty;
     private int _restoredPageIndex;
     private bool _isFirstLoad = true;
@@ -72,6 +74,10 @@ public partial class Certificates
         new() { Key = "productstandard",Label = "产品标准",   SortKey = "productstandard", FilterType = "string" },
         new() { Key = "productname",    Label = "产品名称",   SortKey = "productname",    FilterType = "string" },
         new() { Key = "deliverystatus", Label = "交货状态",   SortKey = "deliverystatus", FilterType = "string" },
+        new() { Key = "createdby",     Label = "创建人",     SortKey = "createdby",     FilterType = "string", Width = "100", Visible = false },
+        new() { Key = "createdtime",   Label = "创建时间",   SortKey = "createdtime",   FilterType = "string", Width = "130", Visible = false },
+        new() { Key = "updatedby",     Label = "更新人",     SortKey = "updatedby",     FilterType = "string", Width = "100", Visible = false },
+        new() { Key = "updatedtime",   Label = "更新时间",   SortKey = "updatedtime",   FilterType = "string", Width = "130", Visible = false },
     };
 
     // ========== 分页汇总 ==========
@@ -125,12 +131,18 @@ public partial class Certificates
     private async Task<TableData<CertificateDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
             if (_isFirstLoad)
             {
                 state.Page = _restoredPageIndex;
                 _isFirstLoad = false;
+            }
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
             }
 
             var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "issuedate";
@@ -144,6 +156,9 @@ public partial class Certificates
                 isDescending: sortDescending,
                 filters: filtersJson);
 
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<CertificateDto> { Items = _pageItems, TotalItems = _totalCount };
             if (result.Success && result.Data != null)
             {
                 _pageItems = result.Data.Items;
@@ -279,6 +294,7 @@ public partial class Certificates
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
@@ -412,6 +428,18 @@ public partial class Certificates
                 break;
             case "deliverystatus":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryStatus));
+                break;
+            case "createdby":
+                builder.AddContent(0, string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy);
+                break;
+            case "createdtime":
+                builder.AddContent(0, item.CreatedTime == default ? "-" : item.CreatedTime.ToString("yyyy-MM-dd HH:mm"));
+                break;
+            case "updatedby":
+                builder.AddContent(0, string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy);
+                break;
+            case "updatedtime":
+                builder.AddContent(0, item.UpdatedTime == default ? "-" : item.UpdatedTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
         }
     };

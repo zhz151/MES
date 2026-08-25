@@ -16,7 +16,7 @@
 @inject PageStateService PageState
 @inject ColumnPrefsService ColumnPrefs
 @inject HttpClient Http
-@attribute [Authorize(Roles = Roles.Policies.WorkOrderRead)]
+@attribute [Authorize(Roles = Roles.Policies.SchedulingView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 页面顶部工具栏 -->

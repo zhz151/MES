@@ -13,7 +13,7 @@
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
-@attribute [Authorize(Roles = Roles.Policies.MaterialRead)]
+@attribute [Authorize(Roles = Roles.Policies.MaterialView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -153,10 +153,12 @@
                                            Color="Color.Warning" Size="Size.Small"
                                            Title="编辑"
                                            OnClick="() => StartEdit(item)" />
+                        <AuthorizeView Roles="@Roles.Policies.MaterialDelete">
                             <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                            Color="Color.Error" Size="Size.Small"
                                            Title="删除"
                                            OnClick="() => DeleteItem(item)" />
+                        </AuthorizeView>
                         }
                     </MudTd>
                 </RowTemplate>
