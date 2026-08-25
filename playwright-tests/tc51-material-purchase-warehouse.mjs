@@ -1,16 +1,15 @@
 /**
- * TC51 E2E — 物料 → 采购 → 入库 → 库存
+ * TC51 E2E — 采购 → 入库 → 库存
  *
  * 流程:
- *   1. API 创建物料 (POST /api/material)
- *   2. API 创建供应商 (POST /api/supplier)
- *   3. API 创建采购订单 (POST /api/purchase-order)
- *   4. API 获取仓库 (GET /api/warehouse/all)
- *   5. API 批量入库 (POST /api/inventory/batch-inbound)
- *   6. Playwright 验证采购列表 (/purchase-orders)
- *   7. Playwright 验证仓库库存 (/warehouse/{Code})
- *   8. Playwright 验证入库记录 (/warehouse/inbound-history)
- *   9. 清理
+ *   1. API 创建供应商 (POST /api/supplier)
+ *   2. API 创建采购订单 (POST /api/purchase-order)
+ *   3. API 获取仓库 (GET /api/warehouse/all)
+ *   4. API 批量入库 (POST /api/inventory/batch-inbound)
+ *   5. Playwright 验证采购列表 (/purchase-orders)
+ *   6. Playwright 验证仓库库存 (/warehouse/{Code})
+ *   7. Playwright 验证入库记录 (/warehouse/inbound-history)
+ *   8. 清理
  *
  * 使用: node playwright-tests/tc51-material-purchase-warehouse.mjs
  * 前提: MES.Api -> localhost:7000, MES.Blazor -> localhost:5000
@@ -106,7 +105,7 @@ async function checkPageContains(page, path, text, timeout = 30000) {
 // ============================================================
 async function main() {
   console.log('============================================');
-  console.log('  TC51 — 物料 → 采购 → 入库 → 库存 E2E');
+  console.log('  TC51 — 采购 → 入库 → 库存 E2E');
   console.log('============================================\n');
 
   await login();
@@ -115,21 +114,8 @@ async function main() {
   const suffix = ts();
   const steps = [];
 
-  // ---- 1. 创建物料 ----
-  p('  1. 创建物料... ');
-  const matRes = await api('POST', `${API_URL}/api/material`, {
-    materialCategory: 0,
-    plantGrade: '304',
-    specification: '50x3.0',
-    isActive: true,
-    remark: `TC51测试物料-${suffix}`,
-  });
-  const materialId = matRes.body?.data?.id;
-  p(`${matRes.ok && materialId > 0 ? '✓' : '✗'} id=${materialId}\n`);
-  steps.push({ step: '创建物料', pass: matRes.ok && materialId > 0 });
-
-  // ---- 2. 创建供应商 ----
-  p('  2. 创建供应商... ');
+  // ---- 1. 创建供应商 ----
+  p('  1. 创建供应商... ');
   const supRes = await api('POST', `${API_URL}/api/supplier`, {
     supplierName: `TC51供应商-${suffix}`,
     isActive: true,
@@ -140,8 +126,8 @@ async function main() {
 
   if (!supplierId) return finish(steps);
 
-  // ---- 3. 创建采购订单 ----
-  p('  3. 创建采购订单... ');
+  // ---- 2. 创建采购订单 ----
+  p('  2. 创建采购订单... ');
   const poRes = await api('POST', `${API_URL}/api/purchase-order`, {
     supplierId,
     orderDate: '2026-07-16T00:00:00',
@@ -160,8 +146,8 @@ async function main() {
 
   if (!poId) return finish(steps);
 
-  // ---- 4. 获取仓库 ----
-  p('  4. 获取仓库... ');
+  // ---- 3. 获取仓库 ----
+  p('  3. 获取仓库... ');
   const whRes = await api('GET', `${API_URL}/api/warehouse/all?onlyActive=true`);
   const warehouses = whRes.body?.data || [];
   const wh = warehouses.length > 0 ? warehouses[0] : null;
@@ -170,8 +156,8 @@ async function main() {
 
   if (!wh) return finish(steps);
 
-  // ---- 5. 批量入库 ----
-  p('  5. 批量入库... ');
+  // ---- 4. 批量入库 ----
+  p('  4. 批量入库... ');
   const inboundRes = await api('POST', `${API_URL}/api/inventory/batch-inbound`, {
     warehouseId: wh.id,
     inboundSource: '采购',
@@ -190,20 +176,20 @@ async function main() {
   p(`${inboundOk ? '✓' : '✗'} (批次号: ${batchNos.join(',') || '无'})\n`);
   steps.push({ step: '批量入库', pass: inboundOk });
 
-  // ---- 6-8. Playwright 验证 ----
+  // ---- 5-7. Playwright 验证 ----
   try {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     await loadWasm(page, _token);
 
-    // 6. 采购列表
-    p('  6. 页面验证: 采购列表... ');
+    // 5. 采购列表
+    p('  5. 页面验证: 采购列表... ');
     const poListOk = await checkPageContains(page, '/purchase-orders', poNo);
     p(`${poListOk ? '✓' : '✗'}\n`);
     steps.push({ step: '采购列表验证', pass: poListOk });
 
-    // 7. 仓库库存
-    p('  7. 页面验证: 仓库库存... ');
+    // 6. 仓库库存
+    p('  6. 页面验证: 仓库库存... ');
     const whCode = wh.code || '';
     console.log(`\n     [debug] warehouse: code="${whCode}" name="${wh.name}"`);
     let whInventoryOk = false;
@@ -213,8 +199,8 @@ async function main() {
     p(`${whInventoryOk ? '✓' : '✗'}\n`);
     steps.push({ step: '仓库库存验证', pass: whInventoryOk });
 
-    // 8. 入库记录（验证页面加载即可，数据量大时不保证在首页可见）
-    p('  8. 页面验证: 入库记录... ');
+    // 7. 入库记录（验证页面加载即可，数据量大时不保证在首页可见）
+    p('  7. 页面验证: 入库记录... ');
     await page.goto(BLZ_URL + '/warehouse/inbound-history', { waitUntil: 'networkidle', timeout: 60000 });
     await page.waitForTimeout(5000);
     const hasInboundTable = await page.evaluate(() => {
@@ -231,8 +217,8 @@ async function main() {
     p(`  ✗ 浏览器错误: ${e.message?.substring(0, 50)}\n`);
   }
 
-  // ---- 9. 清理 ----
-  p('  9. 清理... ');
+  // ---- 8. 清理 ----
+  p('  8. 清理... ');
   let cleanOk = true;
   // 删库存记录
   if (poNo) {
@@ -251,11 +237,6 @@ async function main() {
   if (supplierId) {
     const delSup = await api('DELETE', `${API_URL}/api/supplier/${supplierId}`);
     if (!delSup.ok) cleanOk = false;
-  }
-  // 删物料
-  if (materialId) {
-    const delMat = await api('DELETE', `${API_URL}/api/material/${materialId}`);
-    if (!delMat.ok) cleanOk = false;
   }
   p(`${cleanOk ? '✓' : '✗（部分失败）'}\n`);
 

@@ -1,6 +1,7 @@
 # MES 前端页面结构参考
 
 > 生成日期：2026-08-19（V25）
+> 最后更新：2026-08-23（V27）
 > 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
 
 ---
@@ -12,20 +13,21 @@
 | 上下文 | 导航标签 | RBAC 角色 | 页面数 | 列表页数 |
 |-------|---------|----------|-------|---------|
 | 首页 | 首页 | 所有 | 1 | 0 |
-| 订单 | 订单管理 | OrderStaff/Director | 7 | 3 |
-| 工单 | 工单管理 | WorkOrderStaff/Director | 17 | 5 |
-| 计划排程 | 计划排程 | 所有 | 6 | 5 |
-| 批次 | 批次管理 | BatchStaff/Director | 14 | 6 |
-| 质量 | 质量管理 | QualityStaff/Director | 32 | 16 |
-| 物料 | 物料管理 | MaterialStaff/Director | 9 | 4 |
-| 仓库 | 仓库管理 | WarehouseStaff/Director | 7 | 4 |
-| 设备 | 设备管理 | EquipmentStaff/Director | 8 | 4 |
-| 生产标准 | 生产标准 | StandardRead/StandardWrite | 18 | 9 |
-| 数据工具 | (独立按钮) | 所有 | 2 | 0 |
-| 扫码报工 | (独立按钮) | 所有 | 1 | 0 |
-| 设备扫码 | (独立按钮) | 所有 | 1 | 0 |
-| 配置 | 参数表 | Admin | 13 | 13 |
-| 用户管理 | (Admin按钮) | Admin | 1 | 0 |
+| 订单 | 订单管理 | OrderViewer/Editor/Full + Admin | 7 | 3 |
+| 工单 | 工单管理 | WorkOrderViewer/Editor/Full + Admin | 17 | 5 |
+| 计划排程 | 计划排程 | SchedulingViewer/Editor/Full + Admin | 6 | 5 |
+| 批次 | 批次管理 | BatchViewer/Editor/Full + Admin | 14 | 6 |
+| 质量 | 质量管理 | QualityViewer/Editor/Full + Admin | 32 | 16 |
+| 物料 | 物料管理 | MaterialViewer/Editor/Full + Admin | 9 | 4 |
+| 仓库 | 仓库管理 | WarehouseViewer/Editor/Full + Admin | 7 | 4 |
+| 设备 | 设备管理 | EquipmentViewer/Editor/Full + Admin | 8 | 4 |
+| 生产标准 | 生产标准 | StandardViewer/Editor/Full + Admin | 18 | 9 |
+| 报表系统 | (已并入仓库管理) | ReportViewer/Editor/Full + Admin | 0 | 0 |
+| 数据工具 | (独立按钮) | DataToolViewer/Editor/Full + Admin | 2 | 0 |
+| 扫码报工 | (独立按钮) | 所有（仅登录） | 1 | 0 |
+| 设备扫码 | (独立按钮) | 所有（仅登录） | 1 | 0 |
+| 配置 | 参数表 | ConfigurationViewer/Editor/Full + Admin | 13 | 13 |
+| 用户管理 | (Admin按钮) | UserViewer/Editor/Full + Admin | 1 | 0 |
 
 ---
 
