@@ -24,7 +24,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<PagedResult<EquipmentListDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -66,7 +66,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<List<EquipmentListDto>>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -74,7 +74,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<List<EquipmentListDto>>>> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -82,7 +82,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<EquipmentDetailDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -90,7 +90,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<EquipmentDetailDto>>> Create([FromBody] CreateEquipmentRequest request)
     {
         if (!ModelState.IsValid)
@@ -100,7 +100,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<EquipmentDetailDto>>> Update(int id, [FromBody] UpdateEquipmentRequest request)
     {
         if (!ModelState.IsValid)
@@ -110,7 +110,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -121,7 +121,7 @@ public class EquipmentController : ControllerBase
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -132,7 +132,7 @@ public class EquipmentController : ControllerBase
     /// 批量打印设备台账
     /// </summary>
     [HttpPost("print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] EquipmentPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -147,7 +147,7 @@ public class EquipmentController : ControllerBase
     /// 按筛选条件打印全部设备台账
     /// </summary>
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] EquipmentPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -172,7 +172,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] EquipmentPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -183,7 +183,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<IActionResult> PrintAllFile([FromBody] EquipmentPrintAllRequest request)
     {
         if (!ModelState.IsValid)

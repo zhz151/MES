@@ -9,7 +9,7 @@ namespace MES.Api.Controllers.Infrastructure;
 
 [ApiController]
 [Route("api/users")]
-[Authorize(Roles = Roles.Admin)]
+[Authorize(Roles = Roles.Policies.UserView)]
 public class UserController : ControllerBase
 {
     private readonly IUserManagementService _userManagementService;
@@ -33,6 +33,7 @@ public class UserController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = Roles.Policies.UserEdit)]
     public async Task<ActionResult<ApiResponse<UserDto>>> Create([FromBody] CreateUserRequest request)
     {
         if (!ModelState.IsValid)
@@ -44,6 +45,7 @@ public class UserController : ControllerBase
     }
 
     [HttpPut("{userId}")]
+    [Authorize(Roles = Roles.Policies.UserEdit)]
     public async Task<ActionResult<ApiResponse<UserDto>>> Update(string userId, [FromBody] UpdateUserRequest request)
     {
         if (!ModelState.IsValid)
@@ -55,6 +57,7 @@ public class UserController : ControllerBase
     }
 
     [HttpPut("{userId}/reset-password")]
+    [Authorize(Roles = Roles.Policies.UserEdit)]
     public async Task<ActionResult<ApiResponse<object>>> ResetPassword(string userId, [FromBody] ResetPasswordRequest request)
     {
         if (!ModelState.IsValid)
@@ -66,6 +69,7 @@ public class UserController : ControllerBase
     }
 
     [HttpDelete("{userId}")]
+    [Authorize(Roles = Roles.Policies.UserDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(string userId)
     {
         var result = await _userManagementService.DeleteAsync(userId);

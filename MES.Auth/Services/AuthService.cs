@@ -47,35 +47,37 @@ public class AuthService : IAuthService
     /// </summary>
     public async Task<ApiResponse<LoginResponse>> LoginAsync(LoginRequest request)
     {
-        // Parameter validation
+        // Parameter validation（标识字段 Email 语义 = 用户名或邮箱）
         if (string.IsNullOrEmpty(request.Email))
         {
-            return ApiResponse<LoginResponse>.Fail("Email cannot be empty");
+            return ApiResponse<LoginResponse>.Fail("用户名/邮箱不能为空");
         }
 
         if (string.IsNullOrEmpty(request.Password))
         {
-            return ApiResponse<LoginResponse>.Fail("Password cannot be empty");
+            return ApiResponse<LoginResponse>.Fail("密码不能为空");
         }
 
-        // Find user
-        var user = await _userManager.FindByEmailAsync(request.Email);
+        // Find user：先按用户名、再按邮箱匹配（用户名为主标识，存量邮箱用户兼容）
+        var identifier = request.Email.Trim();
+        var user = await _userManager.FindByNameAsync(identifier);
+        user ??= await _userManager.FindByEmailAsync(identifier);
         if (user == null)
         {
-            return ApiResponse<LoginResponse>.Fail("Invalid username or password");
+            return ApiResponse<LoginResponse>.Fail("用户名或密码错误");
         }
 
         // Verify password
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
         if (!result.Succeeded)
         {
-            return ApiResponse<LoginResponse>.Fail("Invalid username or password");
+            return ApiResponse<LoginResponse>.Fail("用户名或密码错误");
         }
 
         // Check user status
         if (!user.IsActive)
         {
-            return ApiResponse<LoginResponse>.Fail("User account has been disabled, please contact administrator");
+            return ApiResponse<LoginResponse>.Fail("账号已被停用，请联系管理员");
         }
 
         // Get user roles

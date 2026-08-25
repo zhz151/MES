@@ -24,7 +24,7 @@ public class NcrController : ControllerBase
 
     /// <summary>分页查询</summary>
     [HttpGet("all")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<NcrDto>>>> GetAll(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -56,7 +56,7 @@ public class NcrController : ControllerBase
 
     /// <summary>获取全部（无分页）</summary>
     [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<List<NcrDto>>>> GetAllList()
     {
         var result = await _ncrService.GetAllListAsync();
@@ -65,7 +65,7 @@ public class NcrController : ControllerBase
 
     /// <summary>获取详情</summary>
     [HttpGet("{id}")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<NcrDto>>> GetById(int id)
     {
         var result = await _ncrService.GetByIdAsync(id);
@@ -76,7 +76,7 @@ public class NcrController : ControllerBase
 
     /// <summary>创建</summary>
     [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<NcrDto>>> Create([FromBody] CreateNcrRequest request)
     {
         var result = await _ncrService.CreateAsync(request);
@@ -85,7 +85,7 @@ public class NcrController : ControllerBase
 
     /// <summary>更新</summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<NcrDto>>> Update(int id, [FromBody] UpdateNcrRequest request)
     {
         var result = await _ncrService.UpdateAsync(id, request);
@@ -94,7 +94,7 @@ public class NcrController : ControllerBase
 
     /// <summary>删除</summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize(Roles = Roles.Policies.QualityDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _ncrService.DeleteAsync(id);
@@ -103,7 +103,7 @@ public class NcrController : ControllerBase
 
     /// <summary>状态变更</summary>
     [HttpPut("{id}/status")]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<NcrDto>>> UpdateStatus(int id, [FromBody] UpdateNcrStatusRequest request)
     {
         var result = await _ncrService.UpdateStatusAsync(id, request);
@@ -112,7 +112,7 @@ public class NcrController : ControllerBase
 
     /// <summary>根据生产编号调取批次信息</summary>
     [HttpGet("lookup-batch")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<NcrLookupResultDto?>>> LookupBatch([FromQuery] string batchNo)
     {
         var result = await _ncrService.LookupBatchAsync(batchNo);
@@ -121,7 +121,7 @@ public class NcrController : ControllerBase
 
     /// <summary>获取待处理批次卡片数据</summary>
     [HttpGet("pending-checks")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<List<NcrPendingCheckDto>>>> GetPendingChecks()
     {
         var result = await _ncrService.GetPendingChecksAsync();
@@ -130,7 +130,7 @@ public class NcrController : ControllerBase
 
     /// <summary>获取不合格品月度汇总（责任类别→责任部门→处置方式 三级，12 个月次品支数/重量矩阵）</summary>
     [HttpGet("monthly-summary")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<NcrMonthlySummaryDto>>> GetMonthlySummary()
     {
         var result = await _ncrService.GetMonthlySummaryAsync();
@@ -139,7 +139,7 @@ public class NcrController : ControllerBase
 
     /// <summary>获取筛选上下文</summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _ncrService.GetFilterContextsAsync();
@@ -148,7 +148,7 @@ public class NcrController : ControllerBase
 
     /// <summary>打印选中 NCR（生成 PDF）</summary>
     [HttpPost("print-selected-file")]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintSelectedFile([FromBody] NcrPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
@@ -159,7 +159,7 @@ public class NcrController : ControllerBase
 
     /// <summary>打印全部 NCR（生成 PDF）</summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintAllFile([FromBody] NcrPrintAllRequest request)
     {
         if (!ModelState.IsValid)

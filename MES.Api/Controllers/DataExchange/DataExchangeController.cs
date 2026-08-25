@@ -27,7 +27,7 @@ public class DataExchangeController : ControllerBase
     /// 获取所有支持的实体类型列表
     /// </summary>
     [HttpGet("entities")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.DataToolView)]
     public async Task<ActionResult<ApiResponse<List<EntityInfo>>>> GetEntities()
     {
         var entities = await _service.GetEntitiesAsync();
@@ -38,7 +38,7 @@ public class DataExchangeController : ControllerBase
     /// 导出实体数据为 Excel
     /// </summary>
     [HttpGet("export/{entityKey}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.DataToolView)]
     public async Task<IActionResult> Export(string entityKey)
     {
         var data = await _service.ExportAsync(entityKey);
@@ -52,7 +52,7 @@ public class DataExchangeController : ControllerBase
     /// 下载导入模板
     /// </summary>
     [HttpGet("template/{entityKey}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.DataToolView)]
     public async Task<IActionResult> Template(string entityKey)
     {
         var data = await _service.GenerateTemplateAsync(entityKey);
@@ -66,7 +66,7 @@ public class DataExchangeController : ControllerBase
     /// 预览导入结果（不写入数据库）
     /// </summary>
     [HttpPost("preview/{entityKey}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.DataToolView)]
     public async Task<ActionResult<ApiResponse<ImportPreviewResult>>> Preview(
         string entityKey, IFormFile file)
     {
@@ -85,7 +85,7 @@ public class DataExchangeController : ControllerBase
     /// 确认导入
     /// </summary>
     [HttpPost("import/{entityKey}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.DataToolEdit)]
     public async Task<ActionResult<ApiResponse<ImportResult>>> Import(
         string entityKey, IFormFile file)
     {
@@ -107,7 +107,7 @@ public class DataExchangeController : ControllerBase
     /// 一键修复所有系统计算字段
     /// </summary>
     [HttpPost("fix-all-system-fields")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.DataToolDelete)]
     public async Task<ActionResult<ApiResponse<DataFixReport>>> FixAllSystemFields()
     {
         var report = await _service.FixAllSystemFieldsAsync();

@@ -31,7 +31,7 @@ public class QualityProcessTrackingController : ControllerBase
 
     /// <summary>分页查询质量过程跟踪数据</summary>
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<QualityProcessTrackingDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -60,7 +60,7 @@ public class QualityProcessTrackingController : ControllerBase
 
     /// <summary>获取筛选上下文（各列去重值）</summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -69,7 +69,7 @@ public class QualityProcessTrackingController : ControllerBase
 
     /// <summary>批量打印选中记录（PDF 文件）</summary>
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] QualityProcessTrackingPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -81,7 +81,7 @@ public class QualityProcessTrackingController : ControllerBase
 
     /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintAllFile([FromBody] QualityProcessTrackingPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo, request.Filters);
@@ -90,7 +90,7 @@ public class QualityProcessTrackingController : ControllerBase
 
     /// <summary>全量刷新所有物化行（聚合口径/唯一键变更后的存量重算）</summary>
     [HttpPost("refresh-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<int>>> RefreshAll()
     {
         await _service.RefreshAllAsync();

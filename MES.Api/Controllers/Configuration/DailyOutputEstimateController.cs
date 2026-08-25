@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
+using MES.Shared.Constants;
 using MES.Core.DTOs.Configuration;
 using MES.Core.Interfaces.Configuration;
 using System.Text.Json;
@@ -20,6 +21,7 @@ public class DailyOutputEstimateController : ControllerBase
     }
 
     [HttpGet("list")]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<PagedResult<DailyOutputEstimateDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -45,6 +47,7 @@ public class DailyOutputEstimateController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<DailyOutputEstimateDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -54,6 +57,7 @@ public class DailyOutputEstimateController : ControllerBase
     }
 
     [HttpPost("save")]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Save([FromBody] DailyOutputEstimateDto dto)
     {
         var result = await _service.SaveAsync(dto);
@@ -61,6 +65,7 @@ public class DailyOutputEstimateController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = Roles.Policies.ConfigurationDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         var result = await _service.DeleteAsync(id);
@@ -68,6 +73,7 @@ public class DailyOutputEstimateController : ControllerBase
     }
 
     [HttpGet("all")]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<List<DailyOutputEstimateDto>>>> GetAll()
     {
         var result = await _service.GetAllAsync();

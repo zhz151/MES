@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Interfaces.Scheduling;
+using MES.Shared.Constants;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Scheduling;
@@ -21,6 +22,7 @@ public class WorkOrderScheduleController : ControllerBase
     }
 
     [HttpGet("list")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderScheduleDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -39,6 +41,7 @@ public class WorkOrderScheduleController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -46,6 +49,7 @@ public class WorkOrderScheduleController : ControllerBase
     }
 
     [HttpPost("save-plan")]
+    [Authorize(Roles = Roles.Policies.SchedulingEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> SavePlan([FromBody] SaveWorkOrderPlanRequest request)
     {
         var result = await _service.SavePlanAsync(request);
@@ -53,6 +57,7 @@ public class WorkOrderScheduleController : ControllerBase
     }
 
     [HttpPost("plan-all")]
+    [Authorize(Roles = Roles.Policies.SchedulingEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> PlanAll([FromBody] QueryParams query)
     {
         var result = await _service.PlanScheduleAllAsync(query);
@@ -60,6 +65,7 @@ public class WorkOrderScheduleController : ControllerBase
     }
 
     [HttpPost("plan-adjustment-keep")]
+    [Authorize(Roles = Roles.Policies.SchedulingEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> PlanAdjustmentKeep([FromBody] QueryParams query)
     {
         var result = await _service.PlanScheduleKeepAdjustmentAsync(query);
@@ -67,6 +73,7 @@ public class WorkOrderScheduleController : ControllerBase
     }
 
     [HttpPost("print-file")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> PrintFile([FromBody] WorkOrderSchedulePrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);

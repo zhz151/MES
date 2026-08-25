@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
 using MES.Core.DTOs.Configuration;
 using MES.Core.Interfaces.Configuration;
+using MES.Shared.Constants;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Configuration;
@@ -27,6 +28,7 @@ public class ConfigParameterController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -34,6 +36,7 @@ public class ConfigParameterController : ControllerBase
     }
 
     [HttpGet("list")]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ConfigParameterDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -52,6 +55,7 @@ public class ConfigParameterController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<ConfigParameterDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -61,6 +65,7 @@ public class ConfigParameterController : ControllerBase
     }
 
     [HttpPost("save")]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Save([FromBody] ConfigParameterDto dto)
     {
         var result = await _service.SaveAsync(dto);
@@ -68,6 +73,7 @@ public class ConfigParameterController : ControllerBase
     }
 
     [HttpPost("delete/{id}")]
+    [Authorize(Roles = Roles.Policies.ConfigurationDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         var result = await _service.DeleteAsync(id);

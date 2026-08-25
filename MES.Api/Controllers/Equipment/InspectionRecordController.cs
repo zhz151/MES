@@ -27,7 +27,7 @@ public class InspectionRecordController : ControllerBase
 
     /// <summary>分页查询点检记录</summary>
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<PagedResult<InspectionRecordListDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -56,7 +56,7 @@ public class InspectionRecordController : ControllerBase
 
     /// <summary>获取所有点检记录（无分页）</summary>
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<List<InspectionRecordListDto>>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -65,7 +65,7 @@ public class InspectionRecordController : ControllerBase
 
     /// <summary>根据 ID 获取点检记录</summary>
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<InspectionRecordListDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -76,7 +76,7 @@ public class InspectionRecordController : ControllerBase
 
     /// <summary>创建点检记录</summary>
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<InspectionRecordListDto>>> Create([FromBody] CreateInspectionRecordRequest request)
     {
         if (!ModelState.IsValid)
@@ -87,7 +87,7 @@ public class InspectionRecordController : ControllerBase
 
     /// <summary>批量创建点检记录</summary>
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<List<InspectionRecordListDto>>>> BatchCreate([FromBody] List<CreateInspectionRecordRequest> requests)
     {
         if (!ModelState.IsValid)
@@ -100,7 +100,7 @@ public class InspectionRecordController : ControllerBase
 
     /// <summary>更新点检记录</summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<InspectionRecordListDto>>> Update(int id, [FromBody] UpdateInspectionRequest request)
     {
         if (!ModelState.IsValid)
@@ -111,7 +111,7 @@ public class InspectionRecordController : ControllerBase
 
     /// <summary>删除点检记录</summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -124,7 +124,7 @@ public class InspectionRecordController : ControllerBase
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -135,7 +135,7 @@ public class InspectionRecordController : ControllerBase
     /// 批量打印点检记录
     /// </summary>
     [HttpPost("print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] InspectionRecordPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -150,7 +150,7 @@ public class InspectionRecordController : ControllerBase
     /// 按筛选条件打印全部点检记录
     /// </summary>
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] InspectionRecordPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -169,7 +169,7 @@ public class InspectionRecordController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] InspectionRecordPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -180,7 +180,7 @@ public class InspectionRecordController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<IActionResult> PrintAllFile([FromBody] InspectionRecordPrintAllRequest request)
     {
         if (!ModelState.IsValid)

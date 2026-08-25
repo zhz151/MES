@@ -18,7 +18,7 @@ public class GrainSizeTestController : ControllerBase
     public GrainSizeTestController(IGrainSizeTestService service) => _service = service;
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<GrainSizeTestDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -27,7 +27,7 @@ public class GrainSizeTestController : ControllerBase
     }
 
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<GrainSizeTestDto>>>> GetAll(
         [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null, [FromQuery] string? sortBy = null,
@@ -54,7 +54,7 @@ public class GrainSizeTestController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<GrainSizeTestDto>>> Create([FromBody] CreateGrainSizeTestRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<GrainSizeTestDto>.Fail("请求参数无效"));
@@ -63,7 +63,7 @@ public class GrainSizeTestController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<GrainSizeTestDto>>> Update(int id, [FromBody] UpdateGrainSizeTestRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<GrainSizeTestDto>.Fail("请求参数无效"));
@@ -72,7 +72,7 @@ public class GrainSizeTestController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -80,7 +80,7 @@ public class GrainSizeTestController : ControllerBase
     }
 
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<List<GrainSizeTestDto>>>> BatchCreate([FromBody] List<CreateGrainSizeTestRequest> requests)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<List<GrainSizeTestDto>>.Fail("请求参数无效"));
@@ -90,7 +90,7 @@ public class GrainSizeTestController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -98,7 +98,7 @@ public class GrainSizeTestController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] GrainSizeTestPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -108,7 +108,7 @@ public class GrainSizeTestController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintAllFile([FromBody] GrainSizeTestPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo);

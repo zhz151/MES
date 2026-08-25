@@ -29,7 +29,7 @@ public class CertificateController : ControllerBase
     /// 分页查询质保书列表
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<CertificateDto>>>> GetAll(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -58,7 +58,7 @@ public class CertificateController : ControllerBase
     /// 获取质保书详情
     /// </summary>
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<CertificateDetailDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -71,7 +71,7 @@ public class CertificateController : ControllerBase
     /// 创建质保书
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<CertificateDetailDto>>> Create(
         [FromBody] CertificateCreateRequest request)
     {
@@ -85,7 +85,7 @@ public class CertificateController : ControllerBase
     /// 更新质保书
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<CertificateDetailDto>>> Update(
         int id, [FromBody] CertificateUpdateRequest request)
     {
@@ -99,7 +99,7 @@ public class CertificateController : ControllerBase
     /// 删除质保书
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -110,7 +110,7 @@ public class CertificateController : ControllerBase
     /// 自动填充检验数据 — 根据炉号+生产批号查询化学分析/成品检验/拉伸检验
     /// </summary>
     [HttpPost("auto-fill")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<List<CertificateItemDto>>>> AutoFill(
         [FromBody] AutoFillInspectionRequest request)
     {
@@ -124,7 +124,7 @@ public class CertificateController : ControllerBase
     /// 获取筛选上下文
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -135,7 +135,7 @@ public class CertificateController : ControllerBase
     /// 获取下一个质保书编号
     /// </summary>
     [HttpGet("next-no")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<string>>> GetNextCertificateNo(
         [FromQuery] string orderNo)
     {
@@ -149,7 +149,7 @@ public class CertificateController : ControllerBase
     /// 打印 PDF：按 Id 集合（详情页单张 / 列表页选中或全部）生成质量证明书 PDF
     /// </summary>
     [HttpPost("print-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintFile([FromBody] CertificatePrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request);

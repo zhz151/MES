@@ -21,7 +21,7 @@ public class WarehouseController : ControllerBase
     }
 
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<PagedResult<WarehouseDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -41,7 +41,7 @@ public class WarehouseController : ControllerBase
     }
 
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<List<WarehouseDto>>>> GetAll([FromQuery] bool onlyActive = true)
     {
         var result = await _service.GetAllAsync(onlyActive);
@@ -49,7 +49,7 @@ public class WarehouseController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<WarehouseDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -57,7 +57,7 @@ public class WarehouseController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseEdit)]
     public async Task<ActionResult<ApiResponse<WarehouseDto>>> Create([FromBody] CreateWarehouseRequest request)
     {
         if (!ModelState.IsValid)
@@ -68,7 +68,7 @@ public class WarehouseController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseEdit)]
     public async Task<ActionResult<ApiResponse<WarehouseDto>>> Update(int id, [FromBody] UpdateWarehouseRequest request)
     {
         if (!ModelState.IsValid)
@@ -79,7 +79,7 @@ public class WarehouseController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -87,7 +87,7 @@ public class WarehouseController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.WarehouseDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         await _service.DeleteAsync(id);

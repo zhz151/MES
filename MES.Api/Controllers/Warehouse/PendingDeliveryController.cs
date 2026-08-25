@@ -25,7 +25,7 @@ public class PendingDeliveryController : ControllerBase
     /// 获取待发货订单成品列表（无分页，用于质保书创建页引用）
     /// </summary>
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Policies.QualityRead},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.PendingDeliveryView)]
     public async Task<ActionResult<ApiResponse<List<PendingDeliveryItemDto>>>> GetPendingItems(
         [FromQuery] string? orderNo = null,
         [FromQuery] string? productStandard = null,
@@ -39,7 +39,7 @@ public class PendingDeliveryController : ControllerBase
     /// 分页查询待发货订单成品（用于列表页）
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<PagedResult<PendingDeliveryItemDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -77,7 +77,7 @@ public class PendingDeliveryController : ControllerBase
     /// 获取质保书头选择项 — DISTINCT (订单号+客户名称+产品标准+交货状态)
     /// </summary>
     [HttpGet("header-options")]
-    [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Policies.QualityRead},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.PendingDeliveryView)]
     public async Task<ActionResult<ApiResponse<List<CertificateHeaderOptionDto>>>> GetHeaderOptions()
     {
         var result = await _service.GetHeaderOptionsAsync();
@@ -88,7 +88,7 @@ public class PendingDeliveryController : ControllerBase
     /// 获取筛选上下文（各列的 DISTINCT 值，用于 ExcelFilter）
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -99,7 +99,7 @@ public class PendingDeliveryController : ControllerBase
     /// 打印选中行
     /// </summary>
     [HttpPost("print-file")]
-    [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintFile([FromBody] PendingDeliveryPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
@@ -110,7 +110,7 @@ public class PendingDeliveryController : ControllerBase
     /// 打印全部（按当前筛选条件）
     /// </summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Policies.WarehouseRead},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintAllFile([FromBody] PendingDeliveryPrintRequest request)
     {
         var pdfBytes = await _service.PrintAllFileAsync(request.Title, request.Items, request.Columns);

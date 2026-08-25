@@ -18,7 +18,7 @@ public class MetallographicTestController : ControllerBase
     public MetallographicTestController(IMetallographicTestService service) => _service = service;
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<MetallographicTestDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -27,7 +27,7 @@ public class MetallographicTestController : ControllerBase
     }
 
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<MetallographicTestDto>>>> GetAll(
         [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null, [FromQuery] string? sortBy = null,
@@ -54,7 +54,7 @@ public class MetallographicTestController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<MetallographicTestDto>>> Create([FromBody] CreateMetallographicTestRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<MetallographicTestDto>.Fail("请求参数无效"));
@@ -63,7 +63,7 @@ public class MetallographicTestController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<MetallographicTestDto>>> Update(int id, [FromBody] UpdateMetallographicTestRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<MetallographicTestDto>.Fail("请求参数无效"));
@@ -72,7 +72,7 @@ public class MetallographicTestController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -80,7 +80,7 @@ public class MetallographicTestController : ControllerBase
     }
 
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<List<MetallographicTestDto>>>> BatchCreate([FromBody] List<CreateMetallographicTestRequest> requests)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<List<MetallographicTestDto>>.Fail("请求参数无效"));
@@ -90,7 +90,7 @@ public class MetallographicTestController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -98,7 +98,7 @@ public class MetallographicTestController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] MetallographicTestPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -108,7 +108,7 @@ public class MetallographicTestController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintAllFile([FromBody] MetallographicTestPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo);

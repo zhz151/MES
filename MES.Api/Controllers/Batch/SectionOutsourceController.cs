@@ -31,7 +31,7 @@ public class SectionOutsourceController : ControllerBase
     /// 根据ID列表获取委外记录（用于批量回收）
     /// </summary>
     [HttpGet("by-ids")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<SectionOutsourceDto>>>> GetByIds(
         [FromQuery] string ids)
     {
@@ -45,7 +45,7 @@ public class SectionOutsourceController : ControllerBase
     /// 跨批次分页查询委外发出记录
     /// </summary>
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PagedResult<SectionOutsourceDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -82,7 +82,7 @@ public class SectionOutsourceController : ControllerBase
     /// 创建委外发出
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<SectionOutsourceDto>>> Create([FromBody] CreateSectionOutsourceRequest request)
     {
         if (!ModelState.IsValid)
@@ -95,7 +95,7 @@ public class SectionOutsourceController : ControllerBase
     /// 批量创建委外发出
     /// </summary>
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<List<SectionOutsourceDto>>>> BatchCreate(
         [FromBody] List<CreateSectionOutsourceRequest> requests)
     {
@@ -111,7 +111,7 @@ public class SectionOutsourceController : ControllerBase
     /// 更新委外发出（内联编辑）
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse<SectionOutsourceDto>>> Update(int id, [FromBody] UpdateSectionOutsourceRequest request)
     {
         if (!ModelState.IsValid)
@@ -124,7 +124,7 @@ public class SectionOutsourceController : ControllerBase
     /// 删除委外发出
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.BatchDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -137,7 +137,7 @@ public class SectionOutsourceController : ControllerBase
     /// 获取指定委外发出的回收明细
     /// </summary>
     [HttpGet("{outsourceId}/recoveries")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<OutsourceRecoveryDto>>>> GetRecoveries(int outsourceId)
     {
         var result = await _service.GetRecoveriesAsync(outsourceId);
@@ -148,7 +148,7 @@ public class SectionOutsourceController : ControllerBase
     /// 跨批次分页查询回收记录
     /// </summary>
     [HttpGet("recoveries/list")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PagedResult<OutsourceRecoveryDto>>>> GetRecoveriesPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -181,7 +181,7 @@ public class SectionOutsourceController : ControllerBase
     /// 创建委外回收
     /// </summary>
     [HttpPost("recovery")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<OutsourceRecoveryDto>>> CreateRecovery(
         [FromBody] CreateOutsourceRecoveryRequest request)
     {
@@ -195,7 +195,7 @@ public class SectionOutsourceController : ControllerBase
     /// 批量创建委外回收
     /// </summary>
     [HttpPost("recoveries/batch")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<List<OutsourceRecoveryDto>>>> BatchCreateRecoveries(
         [FromBody] List<CreateOutsourceRecoveryRequest> requests)
     {
@@ -211,7 +211,7 @@ public class SectionOutsourceController : ControllerBase
     /// 更新委外回收
     /// </summary>
     [HttpPut("recovery/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse<OutsourceRecoveryDto>>> UpdateRecovery(int id, [FromBody] UpdateOutsourceRecoveryRequest request)
     {
         if (!ModelState.IsValid)
@@ -224,7 +224,7 @@ public class SectionOutsourceController : ControllerBase
     /// 删除委外回收
     /// </summary>
     [HttpDelete("recovery/{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.BatchDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteRecovery(int id)
     {
         await _service.DeleteRecoveryAsync(id);
@@ -237,7 +237,7 @@ public class SectionOutsourceController : ControllerBase
     /// 批量打印委外发出（选中）
     /// </summary>
     [HttpPost("print-selected")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintSelected([FromBody] SectionOutsourcePrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -252,7 +252,7 @@ public class SectionOutsourceController : ControllerBase
     /// 按筛选条件打印全部委外发出
     /// </summary>
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] SectionOutsourcePrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -270,7 +270,7 @@ public class SectionOutsourceController : ControllerBase
     /// 批量打印回收记录（选中）
     /// </summary>
     [HttpPost("recoveries/print-selected")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintRecoverySelected([FromBody] RecoveryPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -285,7 +285,7 @@ public class SectionOutsourceController : ControllerBase
     /// 按筛选条件打印全部回收记录
     /// </summary>
     [HttpPost("recoveries/print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintRecoveryAll([FromBody] RecoveryPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -298,7 +298,7 @@ public class SectionOutsourceController : ControllerBase
     }
 
     [HttpPost("print-selected-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintSelectedFile([FromBody] SectionOutsourcePrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -309,7 +309,7 @@ public class SectionOutsourceController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintAllFile([FromBody] SectionOutsourcePrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -323,7 +323,7 @@ public class SectionOutsourceController : ControllerBase
     }
 
     [HttpPost("recoveries/print-selected-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintRecoverySelectedFile([FromBody] RecoveryPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -334,7 +334,7 @@ public class SectionOutsourceController : ControllerBase
     }
 
     [HttpPost("recoveries/print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintRecoveryAllFile([FromBody] RecoveryPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -351,7 +351,7 @@ public class SectionOutsourceController : ControllerBase
     /// 获取委外回收筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("recoveries/filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetRecoveryFilterContexts()
     {
         var result = await _service.GetOutsourceRecoveryFilterContextsAsync();
@@ -362,7 +362,7 @@ public class SectionOutsourceController : ControllerBase
     /// 根据批次号和工段名查询待回收的委外记录
     /// </summary>
     [HttpGet("pending-by-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<List<SectionOutsourceDto>>>> GetPendingByBatch(
         [FromQuery] string batchNo, [FromQuery] string sectionName)
     {
@@ -376,7 +376,7 @@ public class SectionOutsourceController : ControllerBase
     /// 获取工段委外发出筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -387,7 +387,7 @@ public class SectionOutsourceController : ControllerBase
     /// 模糊搜索委外单位（用于 MudAutocomplete）
     /// </summary>
     [HttpGet("vendors")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<List<string>>>> SearchVendors([FromQuery] string? keyword)
     {
         var result = await _service.SearchVendorsAsync(keyword);
@@ -400,7 +400,7 @@ public class SectionOutsourceController : ControllerBase
     /// 月度委外数据汇总（不含厂内单位）：发/回/退按 (委外单位 × 工段) 按月聚合 + 合计行
     /// </summary>
     [HttpGet("monthly-summary")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<SectionOutsourceMonthlyRowDto>>>> GetMonthlySummary()
     {
         var result = await _service.GetMonthlyOutsourceAsync();
@@ -411,7 +411,7 @@ public class SectionOutsourceController : ControllerBase
     /// 获取厂内单位集合（IsInternal=true 的委外单位，用于实时委外在产/月度委外数据过滤）
     /// </summary>
     [HttpGet("internal-vendors")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<string>>>> GetInternalVendors()
     {
         var result = await _service.GetInternalVendorsAsync();

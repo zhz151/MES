@@ -29,7 +29,7 @@ public class ChemicalCompositionController : ControllerBase
     /// 查询所有牌号化学成分（分页）
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ChemicalCompositionDto>>>> GetAll(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -60,7 +60,7 @@ public class ChemicalCompositionController : ControllerBase
     /// 获取所有牌号化学成分（无分页）
     /// </summary>
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<List<ChemicalCompositionDto>>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -71,7 +71,7 @@ public class ChemicalCompositionController : ControllerBase
     /// 批量创建牌号化学成分
     /// </summary>
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<List<ChemicalCompositionDto>>>> BatchCreate(
         [FromBody] List<CreateChemicalCompositionRequest> requests)
     {
@@ -87,7 +87,7 @@ public class ChemicalCompositionController : ControllerBase
     /// 更新牌号化学成分
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<ChemicalCompositionDto>>> Update(
         int id, [FromBody] UpdateChemicalCompositionRequest request)
     {
@@ -101,7 +101,7 @@ public class ChemicalCompositionController : ControllerBase
     /// 删除牌号化学成分
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -112,7 +112,7 @@ public class ChemicalCompositionController : ControllerBase
     /// 获取筛选上下文（各列的 DISTINCT 值）
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -123,7 +123,7 @@ public class ChemicalCompositionController : ControllerBase
     /// 下载Excel导入模板
     /// </summary>
     [HttpGet("template")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> DownloadTemplate()
     {
         var data = await _service.GenerateTemplateAsync();
@@ -134,7 +134,7 @@ public class ChemicalCompositionController : ControllerBase
     /// 预览Excel导入结果（不写入数据库）
     /// </summary>
     [HttpPost("preview")]
-    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<ImportPreviewResult>>> Preview(IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -152,7 +152,7 @@ public class ChemicalCompositionController : ControllerBase
     /// 上传Excel导入牌号化学成分
     /// </summary>
     [HttpPost("import")]
-    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<ImportResult>>> Import(IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -171,7 +171,7 @@ public class ChemicalCompositionController : ControllerBase
 
     /// <summary>批量打印选中记录（PDF 文件）</summary>
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] ChemicalCompositionPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -182,7 +182,7 @@ public class ChemicalCompositionController : ControllerBase
 
     /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> PrintAllFile([FromBody] ChemicalCompositionPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);

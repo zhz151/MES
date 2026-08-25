@@ -29,7 +29,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 获取批次的检验到料记录
     /// </summary>
     [HttpGet("{batchId}")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<MaterialReceiveCheckDto>>> GetMaterialReceiveCheck(int batchId)
     {
         var result = await _service.GetMaterialReceiveCheckAsync(batchId);
@@ -42,7 +42,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 创建检验到料（批次完成标志）
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<MaterialReceiveCheckDto>>> CreateMaterialReceiveCheck(
         [FromBody] CreateMaterialReceiveCheckRequest request)
     {
@@ -56,7 +56,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 更新检验到料
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<MaterialReceiveCheckDto>>> UpdateMaterialReceiveCheck(
         int id, [FromBody] UpdateMaterialReceiveCheckRequest request)
     {
@@ -70,7 +70,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 删除检验到料
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize(Roles = Roles.Policies.QualityDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteMaterialReceiveCheck(int id)
     {
         await _service.DeleteMaterialReceiveCheckAsync(id);
@@ -81,7 +81,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 跨批次查询所有检验到料记录（分页）
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<MaterialReceiveCheckDto>>>> GetAllMaterialReceiveChecks(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -107,7 +107,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 获取所有检验到料记录列表（不含分页）
     /// </summary>
     [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ApiResponse<List<MaterialReceiveCheckDto>>> GetAllMaterialReceiveCheckList()
     {
         var result = await _service.GetAllMaterialReceiveCheckListAsync();
@@ -118,7 +118,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 实时健康汇总（按当前筛选条件统计异常记录数）
     /// </summary>
     [HttpGet("health-summary")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<MaterialCheckHealthSummaryDto>>> GetMaterialCheckHealthSummary(
         [FromQuery] string? keyword = null,
         [FromQuery] DateTime? receiveDateFrom = null,
@@ -139,7 +139,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 获取待检验到料批次（成品检验阶段且未创建检验到料记录）
     /// </summary>
     [HttpGet("pending")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<List<PendingMaterialCheckDto>>>> GetPendingMaterialChecks()
     {
         var result = await _service.GetPendingMaterialChecksAsync();
@@ -150,7 +150,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 批量创建检验到料
     /// </summary>
     [HttpPost("batch")]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<List<MaterialReceiveCheckDto>>>> BatchCreateMaterialReceiveChecks(
         [FromBody] List<CreateMaterialReceiveCheckRequest> requests)
     {
@@ -166,7 +166,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 获取检验到料筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -179,7 +179,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 批量打印检验到料
     /// </summary>
     [HttpPost("print-batch")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintMaterialCheckBatch([FromBody] MaterialCheckPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -193,7 +193,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 按筛选条件打印全部检验到料
     /// </summary>
     [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintMaterialCheckAll([FromBody] MaterialCheckPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -207,7 +207,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 批量打印检验到料（直接返回 PDF 文件）
     /// </summary>
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintMaterialCheckBatchFile([FromBody] MaterialCheckPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -220,7 +220,7 @@ public class MaterialReceiveCheckController : ControllerBase
     /// 按筛选条件打印全部检验到料（直接返回 PDF 文件）
     /// </summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintMaterialCheckAllFile([FromBody] MaterialCheckPrintAllRequest request)
     {
         if (!ModelState.IsValid)

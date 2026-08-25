@@ -31,7 +31,7 @@ public class PicklingController : ControllerBase
     /// 跨批次分页查询入缸记录
     /// </summary>
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PagedResult<PicklingInRecordDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -68,7 +68,7 @@ public class PicklingController : ControllerBase
     /// 创建入缸记录
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<PicklingInRecordDto>>> Create([FromBody] CreatePicklingInRecordRequest request)
     {
         if (!ModelState.IsValid)
@@ -81,7 +81,7 @@ public class PicklingController : ControllerBase
     /// 批量创建入缸记录
     /// </summary>
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<List<PicklingInRecordDto>>>> BatchCreate(
         [FromBody] List<CreatePicklingInRecordRequest> requests)
     {
@@ -97,7 +97,7 @@ public class PicklingController : ControllerBase
     /// 更新入缸记录（内联编辑）
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse<PicklingInRecordDto>>> Update(int id, [FromBody] UpdatePicklingInRecordRequest request)
     {
         if (!ModelState.IsValid)
@@ -110,7 +110,7 @@ public class PicklingController : ControllerBase
     /// 删除入缸记录
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.BatchDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -123,7 +123,7 @@ public class PicklingController : ControllerBase
     /// 按批次号查询入缸记录（用于出缸扫码时选择关联的入缸记录）
     /// </summary>
     [HttpGet("by-batch/{batchNo}")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<List<PicklingInRecordDto>>>> GetByBatch(string batchNo)
     {
         var result = await _service.GetByBatchAsync(batchNo);
@@ -136,7 +136,7 @@ public class PicklingController : ControllerBase
     /// 获取指定入缸的完工记录
     /// </summary>
     [HttpGet("{picklingInRecordId}/out-record")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PicklingOutRecordDto?>>> GetOutRecordByInId(int picklingInRecordId)
     {
         var result = await _service.GetOutRecordByInIdAsync(picklingInRecordId);
@@ -147,7 +147,7 @@ public class PicklingController : ControllerBase
     /// 跨批次分页查询完工记录
     /// </summary>
     [HttpGet("out-records/list")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PagedResult<PicklingOutRecordDto>>>> GetOutRecordsPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -180,7 +180,7 @@ public class PicklingController : ControllerBase
     /// 创建完工记录（自动更新入缸状态为 Completed）
     /// </summary>
     [HttpPost("out-record")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<PicklingOutRecordDto>>> CreateOutRecord(
         [FromBody] CreatePicklingOutRecordRequest request)
     {
@@ -194,7 +194,7 @@ public class PicklingController : ControllerBase
     /// 更新完工记录
     /// </summary>
     [HttpPut("out-record/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse<PicklingOutRecordDto>>> UpdateOutRecord(int id, [FromBody] UpdatePicklingOutRecordRequest request)
     {
         if (!ModelState.IsValid)
@@ -207,7 +207,7 @@ public class PicklingController : ControllerBase
     /// 删除完工记录
     /// </summary>
     [HttpDelete("out-record/{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.BatchDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteOutRecord(int id)
     {
         await _service.DeleteOutRecordAsync(id);
@@ -220,7 +220,7 @@ public class PicklingController : ControllerBase
     /// 批量打印入缸记录（选中）
     /// </summary>
     [HttpPost("print-selected")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintSelected([FromBody] PicklingInRecordPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -235,7 +235,7 @@ public class PicklingController : ControllerBase
     /// 按筛选条件打印全部入缸记录
     /// </summary>
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] PicklingInRecordPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -253,7 +253,7 @@ public class PicklingController : ControllerBase
     /// 批量打印入缸记录（选中，直接返回 PDF 文件）
     /// </summary>
     [HttpPost("print-selected-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintSelectedFile([FromBody] PicklingInRecordPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -267,7 +267,7 @@ public class PicklingController : ControllerBase
     /// 按筛选条件打印全部入缸记录（直接返回 PDF 文件）
     /// </summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintAllFile([FromBody] PicklingInRecordPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -286,7 +286,7 @@ public class PicklingController : ControllerBase
     /// 批量打印完工记录（选中，直接返回 PDF 文件）
     /// </summary>
     [HttpPost("out-records/print-selected-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintOutSelectedFile([FromBody] PicklingOutRecordPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -300,7 +300,7 @@ public class PicklingController : ControllerBase
     /// 按筛选条件打印全部完工记录（直接返回 PDF 文件）
     /// </summary>
     [HttpPost("out-records/print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintOutAllFile([FromBody] PicklingOutRecordPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -318,7 +318,7 @@ public class PicklingController : ControllerBase
     /// 获取入缸记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -329,7 +329,7 @@ public class PicklingController : ControllerBase
     /// 获取完工记录筛选上下文
     /// </summary>
     [HttpGet("out-records/filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetOutRecordFilterContexts()
     {
         var result = await _service.GetOutRecordFilterContextsAsync();

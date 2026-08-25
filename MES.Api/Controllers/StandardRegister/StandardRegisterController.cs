@@ -20,6 +20,7 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpGet("list")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<PagedResult<StandardRegisterDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -41,6 +42,7 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<StandardRegisterDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -50,6 +52,7 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpPost("save")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<int>>> Save([FromBody] StandardRegisterDto dto)
     {
         var result = await _service.SaveAsync(dto);
@@ -57,6 +60,7 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpPost("delete/{id}")]
+    [Authorize(Roles = Roles.Policies.StandardDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         var result = await _service.DeleteAsync(id);
@@ -64,6 +68,7 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpGet("all")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<List<StandardRegisterDto>>>> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -74,6 +79,7 @@ public class StandardRegisterController : ControllerBase
     /// 根据标准号解析标准名称，用于前端自动填充
     /// </summary>
     [HttpGet("resolve-name")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<string?>>> ResolveName([FromQuery] string? standardNo)
     {
         if (string.IsNullOrWhiteSpace(standardNo))
@@ -83,6 +89,7 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -92,6 +99,7 @@ public class StandardRegisterController : ControllerBase
     // ========== 子项目 ==========
 
     [HttpGet("{id}/items")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<List<StandardRegisterItemDto>>>> GetItems(int id)
     {
         var result = await _service.GetItemsAsync(id);
@@ -99,6 +107,7 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpPost("item/save")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<int>>> SaveItem([FromBody] StandardRegisterItemDto dto)
     {
         var result = await _service.SaveItemAsync(dto);
@@ -106,6 +115,7 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpPost("item/delete/{id}")]
+    [Authorize(Roles = Roles.Policies.StandardDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> DeleteItem(int id)
     {
         var result = await _service.DeleteItemAsync(id);
@@ -113,6 +123,7 @@ public class StandardRegisterController : ControllerBase
     }
 
     [HttpPost("cleanup-orphaned-items")]
+    [Authorize(Roles = Roles.Policies.StandardDelete)]
     public async Task<ActionResult<ApiResponse<int>>> CleanupOrphanedItems()
     {
         var count = await _service.CleanupOrphanedItemsAsync();
@@ -123,6 +134,7 @@ public class StandardRegisterController : ControllerBase
 
     /// <summary>批量打印选中记录（PDF 文件）</summary>
     [HttpPost("print-batch-file")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] StandardRegisterPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -133,6 +145,7 @@ public class StandardRegisterController : ControllerBase
 
     /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
     [HttpPost("print-all-file")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> PrintAllFile([FromBody] StandardRegisterPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);

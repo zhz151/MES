@@ -1,7 +1,12 @@
-@* 用户创建/编辑弹窗 *@
+@* 用户创建/编辑弹窗：14 主菜单 × 3 档（无/查/查增改/查增改删）+ Admin 隐式全权开关
+   纯一级模型（2026-08-26 用户决策，取消全部二级菜单权限）*@
 @namespace MES.Blazor.Shared
 @using MES.Core.DTOs.Auth
+@using MES.Core.Models
+@using MES.Blazor.Helpers
+@using MES.Blazor.Services
 @inject ISnackbar Snackbar
+@inject UserService UserService
 
 <MudDialog>
     <TitleContent>
@@ -11,20 +16,20 @@
         <MudForm @ref="_form" Validation="@(new { })">
             @if (IsCreate)
             {
-                <MudTextField @bind-Value="_email"
-                              Label="邮箱"
+                <MudTextField @bind-Value="_userName"
+                              Label="用户名"
                               Variant="Variant.Outlined"
                               Required="true"
-                              RequiredError="邮箱不能为空"
+                              RequiredError="用户名不能为空"
                               Class="mb-3" />
-                <MudTextField @bind-Value="_userName"
-                              Label="用户名（留空则使用邮箱）"
+                <MudTextField @bind-Value="_email"
+                              Label="邮箱（选填）"
                               Variant="Variant.Outlined"
                               Class="mb-3" />
                 <MudTextField @bind-Value="_password"
-                              Label="密码"
+                              Label="密码（6 位以上，无需复杂）"
                               Variant="Variant.Outlined"
-                              InputType="InputType.Password"
+                              InputType="InputType.Text"
                               Required="true"
                               RequiredError="密码不能为空"
                               Class="mb-3" />
@@ -33,23 +38,73 @@
                           Label="姓名"
                           Variant="Variant.Outlined"
                           Class="mb-3" />
+            <MudTextField @bind-Value="_remark"
+                          Label="用户备注（账号用途/岗位说明，如：成品检验员-张三）"
+                          Variant="Variant.Outlined"
+                          Lines="2"
+                          Class="mb-3" />
             <MudSwitch @bind-Value="_isActive"
                        Label="启用"
                        Color="Color.Success"
                        Class="mb-3" />
 
-            <MudText Typo="Typo.subtitle2" Class="mb-2">角色分配</MudText>
-            <MudPaper Elevation="0" Class="pa-3" Style="border: 1px solid #e0e0e0; max-height: 300px; overflow-y: auto;">
-                @foreach (var role in AllRoles)
+            @if (IsCreate)
+            {
+                <MudPaper Elevation="0" Class="pa-3 mb-3" Style="border: 1px dashed #e0e0e0;">
+                    <div class="d-flex align-center" Style="gap: 8px;">
+                        <MudText Typo="Typo.subtitle2" Style="flex-shrink: 0;">复制参考用户权限</MudText>
+                        <MudSelect T="string"
+                                   Value="_selectedReferenceUserId"
+                                   ValueChanged="@(v => _selectedReferenceUserId = v)"
+                                   Variant="Variant.Outlined"
+                                   Dense="true"
+                                   Label="选择参考用户（其权限将作为新用户初始权限）"
+                                   Style="flex: 1;">
+                            @foreach (var u in _referenceUsers)
+                            {
+                                <MudSelectItem Value="@u.Id">@u.UserName@(string.IsNullOrWhiteSpace(u.FullName) ? "" : $"（{u.FullName}）")</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.ContentPaste"
+                                   Disabled="@(string.IsNullOrEmpty(_selectedReferenceUserId) || _isFillingReference)"
+                                   OnClick="ApplyReferenceUser">
+                            一键填充
+                        </MudButton>
+                    </div>
+                    <MudText Typo="Typo.caption" Class="mt-1 text-secondary">填充后新用户权限与参考用户完全相同，可微调；参考用户若为超级管理员，将一并复制管理员身份。</MudText>
+                </MudPaper>
+            }
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">角色分配（14 主菜单 × 3 档）</MudText>
+            <MudPaper Elevation="0" Class="pa-3" Style="border: 1px solid #e0e0e0; max-height: 420px; overflow-y: auto;">
+                @foreach (var menu in UserRoleDisplayHelper.MenuTiers)
                 {
-                    <div class="d-flex align-center mb-1">
-                        <MudCheckBox @bind-Value="_selectedRoles[role]"
-                                     Dense="true"
-                                     Color="Color.Primary"
-                                     Disabled="@(role == "Admin" && !IsCreate && _originalIsAdmin)" />
-                        <MudText Typo="Typo.body2" Class="ml-1">@GetRoleDisplayName(role)</MudText>
+                    <div class="d-flex align-center mb-1" Style="min-height: 40px;">
+                        <div Style="width: 120px; flex-shrink: 0; text-align: right; padding-right: 12px;">
+                            <MudText Typo="Typo.body2">@menu.DisplayName</MudText>
+                        </div>
+                        <MudSelect T="string"
+                                   Value="@_tierByMenu[menu.Prefix]"
+                                   ValueChanged="@(v => OnTierChanged(menu.Prefix, v))"
+                                   Variant="Variant.Outlined"
+                                   Dense="true"
+                                   Style="width: 200px; flex-shrink: 0; margin: 0;">
+                            @foreach (var tier in UserRoleDisplayHelper.TierOptions)
+                            {
+                                <MudSelectItem Value="@tier">@UserRoleDisplayHelper.GetTierDisplayName(tier)</MudSelectItem>
+                            }
+                        </MudSelect>
                     </div>
                 }
+                <MudDivider Class="my-2" />
+                <div class="d-flex align-center">
+                    <MudSwitch @bind-Value="_isAdmin"
+                               Label="超级管理员（隐式全权，可操作所有菜单）"
+                               Color="Color.Error"
+                               Disabled="@(!IsCreate && _originalIsAdmin)" />
+                </div>
             </MudPaper>
 
             @if (!string.IsNullOrEmpty(_errorMessage))
@@ -73,7 +128,6 @@
     [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
 
     [Parameter] public string Title { get; set; } = "";
-    [Parameter] public List<string> AllRoles { get; set; } = new();
 
     // 创建模式传递 CreateUserRequest，编辑模式传递 UpdateUserRequest
     [Parameter] public object? Model { get; set; }
@@ -88,47 +142,104 @@
     private string _userName = "";
     private string _password = "";
     private string _fullName = "";
+    private string _remark = "";
     private bool _isActive = true;
-    private Dictionary<string, bool> _selectedRoles = new();
+
+    // 角色分配：每菜单档位（None/Viewer/Editor/Full）+ Admin 隐式全权开关
+    private Dictionary<string, string> _tierByMenu = new();
+    private bool _isAdmin;
     private bool _originalIsAdmin;
 
-    private static readonly Dictionary<string, string> RoleDisplayNames = new()
+    // 参考用户复制：新建时可选一个老用户，其权限作为新用户初始权限（复用 GetPagedAsync 返回的 UserDto.Roles）
+    private List<UserDto> _referenceUsers = new();
+    private string _selectedReferenceUserId = "";
+    private bool _isFillingReference;
+
+    protected override async Task OnInitializedAsync()
     {
-        ["Admin"] = "超级管理员",
-        ["OrderDirector"] = "订单主任", ["OrderStaff"] = "订单专员",
-        ["WorkOrderDirector"] = "工单主任", ["WorkOrderStaff"] = "工单专员",
-        ["BatchDirector"] = "批次主任", ["BatchStaff"] = "批次专员",
-        ["QualityDirector"] = "质检主任", ["QualityStaff"] = "质检专员",
-        ["EquipmentDirector"] = "设备主任", ["EquipmentStaff"] = "设备专员",
-        ["WarehouseDirector"] = "仓库主任", ["WarehouseStaff"] = "仓库专员",
-        ["MaterialDirector"] = "物料主任", ["MaterialStaff"] = "物料专员",
-    };
-
-    private static string GetRoleDisplayName(string role) =>
-        RoleDisplayNames.TryGetValue(role, out var name) ? name : role;
-
-    protected override void OnInitialized()
-    {
-        _selectedRoles = AllRoles.ToDictionary(r => r, r => false);
-
+        var roles = new List<string>();
         if (IsCreate && Model is CreateUserRequest createModel)
         {
-            _email = createModel.Email;
+            _email = createModel.Email ?? "";
             _userName = createModel.UserName ?? "";
+            _password = "123456";
             _fullName = createModel.FullName ?? "";
-            foreach (var role in createModel.Roles)
-                if (_selectedRoles.ContainsKey(role))
-                    _selectedRoles[role] = true;
+            _remark = createModel.Remark ?? "";
+            roles = createModel.Roles;
         }
         else if (!IsCreate && Model is UpdateUserRequest updateModel)
         {
             _fullName = updateModel.FullName ?? "";
+            _remark = updateModel.Remark ?? "";
             _isActive = updateModel.IsActive;
-            _originalIsAdmin = updateModel.Roles.Contains("Admin");
-            foreach (var role in updateModel.Roles)
-                if (_selectedRoles.ContainsKey(role))
-                    _selectedRoles[role] = true;
+            roles = updateModel.Roles;
         }
+
+        var parsed = UserRoleDisplayHelper.ParseRoles(roles);
+        // 新建用户：9 业务域菜单默认「查」，其余系统菜单默认「无」
+        _tierByMenu = IsCreate ? UserRoleDisplayHelper.GetDefaultTiers() : parsed.TierByMenu;
+        _isAdmin = parsed.IsAdmin;
+        _originalIsAdmin = parsed.IsAdmin;
+
+        // 新建模式加载参考用户列表（供复制权限）
+        if (IsCreate)
+            await LoadReferenceUsersAsync();
+    }
+
+    /// <summary>加载参考用户列表（全量，最多 5000）</summary>
+    private async Task LoadReferenceUsersAsync()
+    {
+        try
+        {
+            var result = await UserService.GetPagedAsync(new QueryParams
+            {
+                PageIndex = 1,
+                PageSize = 5000,
+                SortBy = "username",
+                IsDescending = false
+            });
+            if (result.Success && result.Data != null)
+                _referenceUsers = result.Data.Items;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载参考用户失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    /// <summary>一键填充：将参考用户的权限整体覆盖当前设置（含 Admin 身份，用户可手动调整）</summary>
+    private void ApplyReferenceUser()
+    {
+        var refUser = _referenceUsers.FirstOrDefault(u => u.Id == _selectedReferenceUserId);
+        if (refUser == null) return;
+        _isFillingReference = true;
+        try
+        {
+            var parsed = UserRoleDisplayHelper.ParseRoles(refUser.Roles);
+            _tierByMenu = parsed.TierByMenu;
+            _isAdmin = parsed.IsAdmin;
+            _errorMessage = "";
+            StateHasChanged();
+            if (parsed.IsAdmin)
+                Snackbar.Add($"已复制「{refUser.UserName}」的权限（含超级管理员身份，请确认）", Severity.Warning);
+            else
+                Snackbar.Add($"已复制「{refUser.UserName}」的权限，可微调", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"复制失败: {ex.Message}";
+        }
+        finally
+        {
+            _isFillingReference = false;
+        }
+    }
+
+    /// <summary>一级档位变更：同步字典</summary>
+    private void OnTierChanged(string prefix, string tier)
+    {
+        _tierByMenu[prefix] = tier;
+        StateHasChanged();
     }
 
     private void Cancel() => MudDialog.Cancel();
@@ -136,9 +247,9 @@
     private async Task Save()
     {
         // 验证
-        if (IsCreate && string.IsNullOrWhiteSpace(_email))
+        if (IsCreate && string.IsNullOrWhiteSpace(_userName))
         {
-            _errorMessage = "邮箱不能为空";
+            _errorMessage = "用户名不能为空";
             await Task.CompletedTask;
             return;
         }
@@ -154,16 +265,17 @@
 
         try
         {
-            var selectedRoles = _selectedRoles.Where(kv => kv.Value).Select(kv => kv.Key).ToList();
+            var selectedRoles = UserRoleDisplayHelper.BuildRoles(_tierByMenu, _isAdmin);
 
             if (IsCreate)
             {
                 var request = new CreateUserRequest
                 {
-                    Email = _email.Trim(),
+                    UserName = _userName.Trim(),
+                    Email = string.IsNullOrWhiteSpace(_email) ? null : _email.Trim(),
                     Password = _password,
                     FullName = string.IsNullOrWhiteSpace(_fullName) ? null : _fullName.Trim(),
-                    UserName = string.IsNullOrWhiteSpace(_userName) ? null : _userName.Trim(),
+                    Remark = string.IsNullOrWhiteSpace(_remark) ? null : _remark.Trim(),
                     Roles = selectedRoles
                 };
                 MudDialog.Close(DialogResult.Ok(request));
@@ -173,6 +285,7 @@
                 var request = new UpdateUserRequest
                 {
                     FullName = string.IsNullOrWhiteSpace(_fullName) ? null : _fullName.Trim(),
+                    Remark = string.IsNullOrWhiteSpace(_remark) ? null : _remark.Trim(),
                     IsActive = _isActive,
                     Roles = selectedRoles
                 };

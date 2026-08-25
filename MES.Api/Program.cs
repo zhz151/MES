@@ -88,7 +88,16 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSetting
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString, o => o.CommandTimeout(120)));
 
-builder.Services.AddIdentity<AppUser, IdentityRole>()
+// 密码策略：仅要求 6 位以上，无需大小写/数字/特殊字符（现场录入员使用简单密码）
+builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
+    {
+        options.Password.RequiredLength = 6;
+        options.Password.RequiredUniqueChars = 0;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireDigit = false;
+    })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 

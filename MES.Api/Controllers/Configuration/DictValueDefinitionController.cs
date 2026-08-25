@@ -21,7 +21,7 @@ public class DictValueDefinitionController : ControllerBase
     }
 
     [HttpGet("list")]
-    [Authorize(Roles = Roles.Policies.ConfigurationRead)]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<PagedResult<DictValueDefinitionDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -57,7 +57,7 @@ public class DictValueDefinitionController : ControllerBase
 
     /// <summary>列筛选上下文：可筛列的 DISTINCT 值，供前端 ExcelFilter 下拉加载</summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = Roles.Policies.ConfigurationRead)]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -66,7 +66,7 @@ public class DictValueDefinitionController : ControllerBase
 
     /// <summary>恢复默认：为该 DictKey 生成静态兜底（DictValueDefaults）中缺失的默认行，返回新增行数</summary>
     [HttpPost("restore-defaults")]
-    [Authorize(Roles = Roles.Policies.ConfigurationWrite)]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse<int>>> RestoreDefaults([FromQuery] string? key)
     {
         var result = await _service.RestoreDefaultsAsync(key ?? string.Empty);
@@ -74,7 +74,7 @@ public class DictValueDefinitionController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = Roles.Policies.ConfigurationRead)]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<DictValueDefinitionDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -84,7 +84,7 @@ public class DictValueDefinitionController : ControllerBase
     }
 
     [HttpPost("save")]
-    [Authorize(Roles = Roles.Policies.ConfigurationWrite)]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Save([FromBody] DictValueDefinitionDto dto)
     {
         var result = await _service.SaveAsync(dto);
@@ -92,7 +92,7 @@ public class DictValueDefinitionController : ControllerBase
     }
 
     [HttpPost("delete/{id}")]
-    [Authorize(Roles = Roles.Policies.ConfigurationWrite)]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         var result = await _service.DeleteAsync(id);

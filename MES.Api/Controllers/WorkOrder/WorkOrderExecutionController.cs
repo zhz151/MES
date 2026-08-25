@@ -24,7 +24,7 @@ public class WorkOrderExecutionController : ControllerBase
     /// 分页查询工单执行状况列表
     /// </summary>
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderExecutionSummaryDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -56,7 +56,7 @@ public class WorkOrderExecutionController : ControllerBase
     /// 全量刷新所有工单的执行状况汇总
     /// </summary>
     [HttpPost("refresh-all")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<WorkOrderExecutionRefreshResultDto>>> RefreshAll()
     {
         var result = await _service.RefreshAllAsync();
@@ -67,7 +67,7 @@ public class WorkOrderExecutionController : ControllerBase
     /// 获取工单执行看板聚合数据
     /// </summary>
     [HttpGet("dashboard-summary")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<WorkOrderExecutionDashboardItem>>>> GetDashboardSummary()
     {
         var result = await _service.GetDashboardSummaryAsync();
@@ -78,7 +78,7 @@ public class WorkOrderExecutionController : ControllerBase
     /// 获取筛选上下文（各列的筛选项列表）
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -89,7 +89,7 @@ public class WorkOrderExecutionController : ControllerBase
     /// 打印选中行
     /// </summary>
     [HttpPost("print-file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintFile([FromBody] WorkOrderExecutionPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
@@ -100,7 +100,7 @@ public class WorkOrderExecutionController : ControllerBase
     /// 打印全部（按筛选条件）
     /// </summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintAllFile([FromBody] WorkOrderExecutionPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.SignDateFrom, request.SignDateTo, request.DeliveryDateStart, request.DeliveryDateEnd, request.Columns);

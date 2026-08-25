@@ -12,7 +12,7 @@ namespace MES.Api.Controllers.WorkOrder;
 /// </summary>
 [ApiController]
 [Route("api/notification")]
-[Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+[Authorize(Roles = Roles.Policies.WorkOrderView)]
 public class NotificationController : ControllerBase
 {
     private readonly INotificationService _notificationService;

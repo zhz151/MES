@@ -29,7 +29,7 @@ public class ProcessInspectionController : ControllerBase
     /// 跨批次查询所有过程检验记录（分页）
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ProcessInspectionDto>>>> GetAll(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -62,7 +62,7 @@ public class ProcessInspectionController : ControllerBase
     /// 获取所有过程检验记录（无分页）
     /// </summary>
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ApiResponse<List<ProcessInspectionDto>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -73,7 +73,7 @@ public class ProcessInspectionController : ControllerBase
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -84,7 +84,7 @@ public class ProcessInspectionController : ControllerBase
     /// 批量创建过程检验记录
     /// </summary>
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<List<ProcessInspectionDto>>>> BatchCreate(
         [FromBody] List<CreateProcessInspectionRequest> requests)
     {
@@ -100,7 +100,7 @@ public class ProcessInspectionController : ControllerBase
     /// 更新过程检验记录
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<ProcessInspectionDto>>> Update(
         int id, [FromBody] UpdateProcessInspectionRequest request)
     {
@@ -114,7 +114,7 @@ public class ProcessInspectionController : ControllerBase
     /// 删除过程检验记录
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -123,7 +123,7 @@ public class ProcessInspectionController : ControllerBase
 
     /// <summary>批量打印选中记录（PDF 文件）</summary>
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] ProcessInspectionPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -134,7 +134,7 @@ public class ProcessInspectionController : ControllerBase
 
     /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintAllFile([FromBody] ProcessInspectionPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo);

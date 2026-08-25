@@ -23,7 +23,7 @@ public class RepairOrderController : ControllerBase
     }
 
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<PagedResult<RepairOrderListDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -51,7 +51,7 @@ public class RepairOrderController : ControllerBase
     }
 
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<List<RepairOrderListDto>>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -59,7 +59,7 @@ public class RepairOrderController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<RepairOrderListDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -67,7 +67,7 @@ public class RepairOrderController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<RepairOrderListDto>>> Create([FromBody] CreateRepairOrderRequest request)
     {
         if (!ModelState.IsValid)
@@ -77,7 +77,7 @@ public class RepairOrderController : ControllerBase
     }
 
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<List<RepairOrderListDto>>>> CreateBatch([FromBody] List<CreateRepairOrderRequest> requests)
     {
         if (!ModelState.IsValid)
@@ -89,7 +89,7 @@ public class RepairOrderController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<RepairOrderListDto>>> Update(int id, [FromBody] UpdateRepairOrderRequest request)
     {
         if (!ModelState.IsValid)
@@ -99,7 +99,7 @@ public class RepairOrderController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -107,7 +107,7 @@ public class RepairOrderController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -118,7 +118,7 @@ public class RepairOrderController : ControllerBase
     /// 批量打印维修工单
     /// </summary>
     [HttpPost("print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] RepairOrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -133,7 +133,7 @@ public class RepairOrderController : ControllerBase
     /// 按筛选条件打印全部维修工单
     /// </summary>
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] RepairOrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -156,7 +156,7 @@ public class RepairOrderController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] RepairOrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -167,7 +167,7 @@ public class RepairOrderController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<IActionResult> PrintAllFile([FromBody] RepairOrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -192,7 +192,7 @@ public class RepairOrderController : ControllerBase
     /// 获取指定设备的待处理维修工单
     /// </summary>
     [HttpGet("by-equipment/{equipmentId}")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<List<RepairOrderListDto>>>> GetPendingByEquipment(int equipmentId)
     {
         var result = await _service.GetPendingByEquipmentAsync(equipmentId);
@@ -203,7 +203,7 @@ public class RepairOrderController : ControllerBase
     /// 开始维修
     /// </summary>
     [HttpPut("{id}/start")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<RepairOrderListDto>>> StartRepair(int id, [FromBody] StartRepairRequest request)
     {
         if (!ModelState.IsValid)
@@ -216,7 +216,7 @@ public class RepairOrderController : ControllerBase
     /// 完成维修
     /// </summary>
     [HttpPut("{id}/complete")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<RepairOrderListDto>>> CompleteRepair(int id, [FromBody] CompleteRepairRequest request)
     {
         if (!ModelState.IsValid)

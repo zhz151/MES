@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.Interfaces.Scheduling;
+using MES.Shared.Constants;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Scheduling;
@@ -20,6 +21,7 @@ public class BatchPlanController : ControllerBase
     }
 
     [HttpGet("list")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<PagedResult<BatchPlanDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -45,6 +47,7 @@ public class BatchPlanController : ControllerBase
     }
 
     [HttpGet("all")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<List<BatchPlanDto>>>> GetAll(
         [FromQuery] string? sectionTab = null)
     {
@@ -53,6 +56,7 @@ public class BatchPlanController : ControllerBase
     }
 
     [HttpGet("summary")]
+    [Authorize(Roles = Roles.Policies.BatchPlanSummaryView)]
     public async Task<ActionResult<ApiResponse<List<BatchPlanSummaryRowDto>>>> GetSummary()
     {
         var result = await _service.GetSummaryAsync();
@@ -60,6 +64,7 @@ public class BatchPlanController : ControllerBase
     }
 
     [HttpGet("monthly-summary")]
+    [Authorize(Roles = Roles.Policies.BatchPlanSummaryView)]
     public async Task<ActionResult<ApiResponse<List<BatchPlanMonthlySummaryRowDto>>>> GetMonthlySummary()
     {
         var result = await _service.GetMonthlySummaryAsync();
@@ -67,6 +72,7 @@ public class BatchPlanController : ControllerBase
     }
 
     [HttpGet("outsource-pending")]
+    [Authorize(Roles = Roles.Policies.BatchPlanSummaryView)]
     public async Task<ActionResult<ApiResponse<BatchPlanOutsourcePendingDto>>> GetOutsourcePending()
     {
         var result = await _service.GetOutsourcePendingAsync();
@@ -74,6 +80,7 @@ public class BatchPlanController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -81,6 +88,7 @@ public class BatchPlanController : ControllerBase
     }
 
     [HttpPost("print-file")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> PrintFile([FromBody] BatchPlanPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);

@@ -166,6 +166,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
             entity.Property(e => e.FullName).HasMaxLength(100);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.LastLoginAt);
+            entity.Property(e => e.Remark).HasMaxLength(200);
         });
 
         // ========== 订单上下文 ==========

@@ -21,7 +21,7 @@ public class ProcessDefinitionController : ControllerBase
     }
 
     [HttpGet("list")]
-    [Authorize(Roles = Roles.Policies.ConfigurationRead)]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ProcessDefinitionDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -56,7 +56,7 @@ public class ProcessDefinitionController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = Roles.Policies.ConfigurationRead)]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<ProcessDefinitionDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -66,7 +66,7 @@ public class ProcessDefinitionController : ControllerBase
     }
 
     [HttpPost("save")]
-    [Authorize(Roles = Roles.Policies.ConfigurationWrite)]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Save([FromBody] ProcessDefinitionDto dto)
     {
         var result = await _service.SaveAsync(dto);
@@ -74,7 +74,7 @@ public class ProcessDefinitionController : ControllerBase
     }
 
     [HttpPost("delete/{id}")]
-    [Authorize(Roles = Roles.Policies.ConfigurationWrite)]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         var result = await _service.DeleteAsync(id);

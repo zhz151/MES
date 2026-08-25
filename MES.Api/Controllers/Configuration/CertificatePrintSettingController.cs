@@ -24,7 +24,7 @@ public class CertificatePrintSettingController : ControllerBase
 
     /// <summary>全量配置（「打印设置」对话框加载），按 Key 升序</summary>
     [HttpGet("all")]
-    [Authorize(Roles = Roles.Policies.QualityRead)]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<List<CertificatePrintSettingDto>>>> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -33,7 +33,7 @@ public class CertificatePrintSettingController : ControllerBase
 
     /// <summary>批量新增/更新（锚点 Key），返回写入行数</summary>
     [HttpPost("save-all")]
-    [Authorize(Roles = Roles.Policies.QualityWrite)]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<int>>> SaveAll([FromBody] List<CertificatePrintSettingDto> items)
     {
         var result = await _service.SaveAllAsync(items);

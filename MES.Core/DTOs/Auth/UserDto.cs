@@ -6,6 +6,7 @@ public class UserDto
     public string UserName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? FullName { get; set; }
+    public string? Remark { get; set; }
     public bool IsActive { get; set; }
     public List<string> Roles { get; set; } = new();
     public DateTime? LastLoginAt { get; set; }
@@ -14,9 +15,11 @@ public class UserDto
 
 public class CreateUserRequest
 {
-    public string Email { get; set; } = string.Empty;
+    // 邮箱选填（用户名为主标识）
+    public string? Email { get; set; }
     public string Password { get; set; } = string.Empty;
     public string? FullName { get; set; }
+    public string? Remark { get; set; }
     public List<string> Roles { get; set; } = new();
     public string? UserName { get; set; }
 }
@@ -24,6 +27,7 @@ public class CreateUserRequest
 public class UpdateUserRequest
 {
     public string? FullName { get; set; }
+    public string? Remark { get; set; }
     public bool IsActive { get; set; } = true;
     public List<string> Roles { get; set; } = new();
 }

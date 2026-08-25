@@ -22,6 +22,7 @@ public class SectionFlowAnalysisController : ControllerBase
 
     /// <summary>获取生产段流转量分析数据</summary>
     [HttpGet]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<List<SectionFlowAnalysisDto>>>> GetAnalysis()
     {
         var result = await _service.GetAnalysisAsync();
@@ -29,6 +30,7 @@ public class SectionFlowAnalysisController : ControllerBase
     }
 
     [HttpPost("print-file")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> PrintFile([FromBody] SectionFlowAnalysisPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
@@ -37,7 +39,7 @@ public class SectionFlowAnalysisController : ControllerBase
 
     /// <summary>更新段落分类设置</summary>
     [HttpPut("setting")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.SchedulingEdit)]
     public async Task<ActionResult<ApiResponse>> UpdateSetting([FromBody] SectionFlowSettingUpdateDto dto)
     {
         var success = await _service.UpdateSettingAsync(dto);

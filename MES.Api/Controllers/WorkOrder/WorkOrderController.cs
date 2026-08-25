@@ -31,7 +31,7 @@ public class WorkOrderController : ControllerBase
     #region 工单首页（订单状态监控）
 
     [HttpGet("order-status")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<PagedResult<OrderWorkOrderStatusDto>>>> GetOrderWorkOrderStatus(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -91,7 +91,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpGet("order-status-all")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<OrderWorkOrderStatusDto>>>> GetAllOrderStatusList()
     {
         var result = await _workOrderService.GetAllOrderStatusListAsync();
@@ -99,7 +99,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpGet("pending-orders")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<WorkOrderListItemDto>>>> GetPendingOrders()
     {
         var result = await _workOrderService.GetPendingOrdersAsync();
@@ -111,7 +111,7 @@ public class WorkOrderController : ControllerBase
     #region 工单生成
 
     [HttpGet("items-for-generation")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<OrderItemForWorkOrderDto>>>> GetOrderItemsForWorkOrder(
         [FromQuery] string salesOrderNo)
     {
@@ -123,7 +123,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPost("generate")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<List<GeneratedWorkOrderDto>>>> GenerateWorkOrders(
         [FromBody] CreateWorkOrderRequest request)
     {
@@ -139,7 +139,7 @@ public class WorkOrderController : ControllerBase
     #region 工单管理
 
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderListItemDto>>>> GetList(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -191,7 +191,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpGet("list-with-plans")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderListDto>>>> GetListWithPlans(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -245,7 +245,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<WorkOrderDetailDto>>> GetById(int id)
     {
         var result = await _workOrderService.GetByIdAsync(id);
@@ -253,7 +253,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpGet("by-workorder-no/{workOrderNo}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<WorkOrderDetailDto>>> GetByWorkOrderNo(string workOrderNo)
     {
         if (string.IsNullOrWhiteSpace(workOrderNo))
@@ -263,7 +263,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpGet("by-order/{salesOrderNo}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<WorkOrderListItemDto>>>> GetBySalesOrderNo(string salesOrderNo)
     {
         if (string.IsNullOrWhiteSpace(salesOrderNo))
@@ -274,7 +274,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPut("{id}/status")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<UpdateWorkOrderStatusResponseDto>>> UpdateStatus(
         int id, [FromBody] UpdateWorkOrderStatusRequest request)
     {
@@ -286,7 +286,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _workOrderService.DeleteAsync(id);
@@ -294,7 +294,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPost("{id}/soft-delete")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse>> SoftDelete(int id)
     {
         await _workOrderService.SoftDeleteAsync(id);
@@ -302,7 +302,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpGet("{id}/print")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrder(int id)
     {
         var bytes = await _workOrderService.PrintWorkOrderAsync(id);
@@ -311,7 +311,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpGet("order-print")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrdersByOrder(
         [FromQuery] string salesOrderNo)
     {
@@ -324,7 +324,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPost("order-print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrdersByOrderBatch(
         [FromBody] string[] salesOrderNos)
     {
@@ -337,7 +337,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPost("order-print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrdersByOrderAll(
         [FromBody] WorkOrderQueryParams query)
     {
@@ -347,7 +347,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPost("{id}/print-file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintWorkOrderFile(int id)
     {
         var bytes = await _workOrderService.PrintWorkOrderAsync(id);
@@ -355,7 +355,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPost("order-print-file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintWorkOrdersByOrderFile([FromBody] string salesOrderNo)
     {
         if (string.IsNullOrWhiteSpace(salesOrderNo))
@@ -366,7 +366,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPost("order-print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintWorkOrdersByOrderBatchFile([FromBody] string[] salesOrderNos)
     {
         if (salesOrderNos == null || salesOrderNos.Length == 0)
@@ -377,7 +377,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPost("order-print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintWorkOrdersByOrderAllFile([FromBody] WorkOrderQueryParams query)
     {
         var bytes = await _workOrderService.PrintWorkOrdersByOrderAllAsync(query);
@@ -389,7 +389,7 @@ public class WorkOrderController : ControllerBase
     #region 定时任务接口
 
     [HttpPost("check-all-order-change")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse>> CheckAllOrderChange()
     {
         await _workOrderService.CheckAllOrdersChangeAsync();
@@ -397,7 +397,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpPost("refresh-material-plan-readmodel")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse>> RefreshMaterialPlanReadModel()
     {
         await _workOrderService.RefreshMaterialPlanReadModelAsync();
@@ -407,7 +407,7 @@ public class WorkOrderController : ControllerBase
     // ========== 筛选上下文 ==========
 
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetWorkOrderFilterContexts()
     {
         var result = await _workOrderService.GetFilterContextsAsync();
@@ -415,7 +415,7 @@ public class WorkOrderController : ControllerBase
     }
 
     [HttpGet("list-all")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<WorkOrderListDto>>>> GetAllList()
     {
         var result = await _workOrderService.GetAllListAsync();
@@ -430,7 +430,7 @@ public class WorkOrderController : ControllerBase
     /// 获取工单操作日志
     /// </summary>
     [HttpGet("{id}/operation-logs")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<OperationLogDto>>>> GetOperationLogs(int id)
     {
         var result = await _operationLogService.GetLogsAsync("WorkOrder", id);
@@ -442,7 +442,7 @@ public class WorkOrderController : ControllerBase
     #region 工单-订单关系
 
     [HttpGet("order-relation/{salesOrderNo}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<OrderWorkOrderRelationDto>>> GetOrderWorkOrderRelation(
         string salesOrderNo)
     {

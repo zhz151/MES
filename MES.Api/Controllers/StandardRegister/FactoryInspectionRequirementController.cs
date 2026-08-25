@@ -19,6 +19,7 @@ public class FactoryInspectionRequirementController : ControllerBase
         => _service = service;
 
     [HttpGet("list")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<PagedResult<FactoryInspectionRequirementDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 10,
@@ -49,6 +50,7 @@ public class FactoryInspectionRequirementController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<FactoryInspectionRequirementDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -56,7 +58,7 @@ public class FactoryInspectionRequirementController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Directors.Standard}")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<FactoryInspectionRequirementDto>>> Create([FromBody] CreateFactoryInspectionRequirementRequest request)
     {
         var result = await _service.CreateAsync(request);
@@ -64,7 +66,7 @@ public class FactoryInspectionRequirementController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Directors.Standard}")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<FactoryInspectionRequirementDto>>> Update(int id, [FromBody] UpdateFactoryInspectionRequirementRequest request)
     {
         var result = await _service.UpdateAsync(id, request);
@@ -72,7 +74,7 @@ public class FactoryInspectionRequirementController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.StandardDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -80,6 +82,7 @@ public class FactoryInspectionRequirementController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -90,6 +93,7 @@ public class FactoryInspectionRequirementController : ControllerBase
 
     /// <summary>批量打印选中记录（PDF 文件）</summary>
     [HttpPost("print-batch-file")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] FactoryInspectionRequirementPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -100,6 +104,7 @@ public class FactoryInspectionRequirementController : ControllerBase
 
     /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
     [HttpPost("print-all-file")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> PrintAllFile([FromBody] FactoryInspectionRequirementPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);

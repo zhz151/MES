@@ -18,7 +18,7 @@ public class GradeChemicalCompositionController : ControllerBase
     public GradeChemicalCompositionController(IGradeChemicalCompositionService service) => _service = service;
 
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<PagedResult<GradeChemicalCompositionDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null, [FromQuery] string? sortBy = null,
@@ -35,7 +35,7 @@ public class GradeChemicalCompositionController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<GradeChemicalCompositionDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -43,7 +43,7 @@ public class GradeChemicalCompositionController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<GradeChemicalCompositionDto>>> Create([FromBody] CreateGradeChemicalCompositionRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<GradeChemicalCompositionDto>.Fail("请求参数无效"));
@@ -52,7 +52,7 @@ public class GradeChemicalCompositionController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<GradeChemicalCompositionDto>>> Update(int id, [FromBody] UpdateGradeChemicalCompositionRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<GradeChemicalCompositionDto>.Fail("请求参数无效"));
@@ -61,7 +61,7 @@ public class GradeChemicalCompositionController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.StandardDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -69,7 +69,7 @@ public class GradeChemicalCompositionController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -80,7 +80,7 @@ public class GradeChemicalCompositionController : ControllerBase
 
     /// <summary>批量打印选中记录（PDF 文件）</summary>
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] GradeChemicalCompositionPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -91,7 +91,7 @@ public class GradeChemicalCompositionController : ControllerBase
 
     /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> PrintAllFile([FromBody] GradeChemicalCompositionPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);

@@ -10,7 +10,7 @@ namespace MES.Api.Controllers.WorkOrder;
 
 [ApiController]
 [Route("api/order-demand-adjustment")]
-[Authorize(Roles = Roles.Policies.WorkOrderRead)]
+[Authorize(Roles = Roles.Policies.WorkOrderView)]
 public class OrderDemandAdjustmentController : ControllerBase
 {
     private readonly IOrderDemandAdjustmentService _service;
@@ -43,7 +43,7 @@ public class OrderDemandAdjustmentController : ControllerBase
     }
 
     [HttpPost("save")]
-    [Authorize(Roles = Roles.Policies.WorkOrderWrite)]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> SaveUrging(
         [FromBody] SaveUrgingRequest request)
     {

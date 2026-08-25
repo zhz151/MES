@@ -4,66 +4,157 @@ public static class Roles
 {
     public const string Admin = "Admin";
 
-    public static class Directors
-    {
-        public const string Order = "OrderDirector";
-        public const string WorkOrder = "WorkOrderDirector";
-        public const string Batch = "BatchDirector";
-        public const string Quality = "QualityDirector";
-        public const string Equipment = "EquipmentDirector";
-        public const string Warehouse = "WarehouseDirector";
-        public const string Material = "MaterialDirector";
-        public const string Standard = "StandardDirector";
-    }
+    // ======================================================================
+    // 角色模型：14 主菜单 × 3 档（Viewer=查 / Editor=查增改 / Full=查增改删）+ Admin（隐式全权）
+    // 纯一级模型：每个主菜单一个档位，角色 = {菜单前缀}{档位}，共 43 个。
+    // 2026-08-26 用户决策：取消全部二级菜单权限，回到纯一级。
+    // ======================================================================
 
-    public static class Staffs
+    /// <summary>
+    /// 14 主菜单 × 3 档角色名（存储于 AspNetRoles / JWT claim）
+    /// </summary>
+    public static class Menus
     {
-        public const string Order = "OrderStaff";
-        public const string WorkOrder = "WorkOrderStaff";
-        public const string Batch = "BatchStaff";
-        public const string Quality = "QualityStaff";
-        public const string Equipment = "EquipmentStaff";
-        public const string Warehouse = "WarehouseStaff";
-        public const string Material = "MaterialStaff";
-        public const string Standard = "StandardStaff";
+        // 订单管理
+        public const string OrderViewer = "OrderViewer";
+        public const string OrderEditor = "OrderEditor";
+        public const string OrderFull = "OrderFull";
+        // 工单管理
+        public const string WorkOrderViewer = "WorkOrderViewer";
+        public const string WorkOrderEditor = "WorkOrderEditor";
+        public const string WorkOrderFull = "WorkOrderFull";
+        // 计划排程（独立三档）
+        public const string SchedulingViewer = "SchedulingViewer";
+        public const string SchedulingEditor = "SchedulingEditor";
+        public const string SchedulingFull = "SchedulingFull";
+        // 批次管理
+        public const string BatchViewer = "BatchViewer";
+        public const string BatchEditor = "BatchEditor";
+        public const string BatchFull = "BatchFull";
+        // 质量管理
+        public const string QualityViewer = "QualityViewer";
+        public const string QualityEditor = "QualityEditor";
+        public const string QualityFull = "QualityFull";
+        // 物料管理
+        public const string MaterialViewer = "MaterialViewer";
+        public const string MaterialEditor = "MaterialEditor";
+        public const string MaterialFull = "MaterialFull";
+        // 仓库管理
+        public const string WarehouseViewer = "WarehouseViewer";
+        public const string WarehouseEditor = "WarehouseEditor";
+        public const string WarehouseFull = "WarehouseFull";
+        // 设备管理
+        public const string EquipmentViewer = "EquipmentViewer";
+        public const string EquipmentEditor = "EquipmentEditor";
+        public const string EquipmentFull = "EquipmentFull";
+        // 生产标准
+        public const string StandardViewer = "StandardViewer";
+        public const string StandardEditor = "StandardEditor";
+        public const string StandardFull = "StandardFull";
+        // 报表系统
+        public const string ReportViewer = "ReportViewer";
+        public const string ReportEditor = "ReportEditor";
+        public const string ReportFull = "ReportFull";
+        // 数据工具
+        public const string DataToolViewer = "DataToolViewer";
+        public const string DataToolEditor = "DataToolEditor";
+        public const string DataToolFull = "DataToolFull";
+        // 扫码管理（独立三档）
+        public const string ScanViewer = "ScanViewer";
+        public const string ScanEditor = "ScanEditor";
+        public const string ScanFull = "ScanFull";
+        // 参数表
+        public const string ConfigurationViewer = "ConfigurationViewer";
+        public const string ConfigurationEditor = "ConfigurationEditor";
+        public const string ConfigurationFull = "ConfigurationFull";
+        // 用户管理
+        public const string UserViewer = "UserViewer";
+        public const string UserEditor = "UserEditor";
+        public const string UserFull = "UserFull";
     }
 
     /// <summary>
-    /// 常用角色组合策略 — 统一管理 [Authorize(Roles = "...")] 中的字符串，
-    /// 避免 70+ 处硬编码。格式为 "Staff,DomainDirector,Admin"（读）或 "DomainDirector,Admin"（写）。
+    /// 常用角色组合策略 — 统一管理 [Authorize(Roles = "...")] 中的字符串。
+    /// 三档模型：View（查）/ Edit（查增改，含审批/刷新）/ Delete（查增改删）。
+    /// Admin 隐式全权，所有策略尾部固定 ",Admin"。
+    /// 6 个报表数据域（Order/WorkOrder/Batch/Quality/Material/Warehouse/Scheduling）端点读含 Report 角色，
+    /// 菜单门控用 XxxMenu（不含 Report 角色），避免报表用户看到数据域菜单。
     /// </summary>
     public static class Policies
     {
-        public const string BatchRead = "BatchStaff,BatchDirector,Admin";
-        public const string BatchWrite = "BatchDirector,Admin";
+        // ========== 报表数据域（端点读含 Report 角色） ==========
 
-        public const string WorkOrderRead = "WorkOrderStaff,WorkOrderDirector,Admin";
-        public const string WorkOrderWrite = "WorkOrderDirector,Admin";
+        public const string OrderView = "OrderViewer,OrderEditor,OrderFull,ReportViewer,ReportEditor,ReportFull,Admin";
+        public const string OrderEdit = "OrderEditor,OrderFull,Admin";
+        public const string OrderDelete = "OrderFull,Admin";
+        public const string OrderMenu = "OrderViewer,OrderEditor,OrderFull,Admin";
 
-        public const string OrderRead = "OrderStaff,OrderDirector,Admin";
-        public const string OrderWrite = "OrderDirector,Admin";
+        public const string WorkOrderView = "WorkOrderViewer,WorkOrderEditor,WorkOrderFull,ReportViewer,ReportEditor,ReportFull,Admin";
+        public const string WorkOrderEdit = "WorkOrderEditor,WorkOrderFull,Admin";
+        public const string WorkOrderDelete = "WorkOrderFull,Admin";
+        public const string WorkOrderMenu = "WorkOrderViewer,WorkOrderEditor,WorkOrderFull,Admin";
 
-        public const string MaterialRead = "MaterialStaff,MaterialDirector,Admin";
-        public const string MaterialWrite = "MaterialDirector,Admin";
+        public const string BatchView = "BatchViewer,BatchEditor,BatchFull,ReportViewer,ReportEditor,ReportFull,Admin";
+        public const string BatchEdit = "BatchEditor,BatchFull,Admin";
+        public const string BatchDelete = "BatchFull,Admin";
+        public const string BatchMenu = "BatchViewer,BatchEditor,BatchFull,Admin";
 
-        public const string EquipmentRead = "EquipmentStaff,EquipmentDirector,Admin";
-        public const string EquipmentWrite = "EquipmentDirector,Admin";
+        public const string QualityView = "QualityViewer,QualityEditor,QualityFull,ReportViewer,ReportEditor,ReportFull,Admin";
+        public const string QualityEdit = "QualityEditor,QualityFull,Admin";
+        public const string QualityDelete = "QualityFull,Admin";
+        public const string QualityMenu = "QualityViewer,QualityEditor,QualityFull,Admin";
 
-        public const string QualityRead = "QualityStaff,QualityDirector,Admin";
-        public const string QualityWrite = "QualityDirector,Admin";
+        public const string MaterialView = "MaterialViewer,MaterialEditor,MaterialFull,ReportViewer,ReportEditor,ReportFull,Admin";
+        public const string MaterialEdit = "MaterialEditor,MaterialFull,Admin";
+        public const string MaterialDelete = "MaterialFull,Admin";
+        public const string MaterialMenu = "MaterialViewer,MaterialEditor,MaterialFull,Admin";
 
-        public const string WarehouseRead = "WarehouseStaff,WarehouseDirector,Admin";
+        public const string WarehouseView = "WarehouseViewer,WarehouseEditor,WarehouseFull,ReportViewer,ReportEditor,ReportFull,Admin";
+        public const string WarehouseEdit = "WarehouseEditor,WarehouseFull,Admin";
+        public const string WarehouseDelete = "WarehouseFull,Admin";
+        public const string WarehouseMenu = "WarehouseViewer,WarehouseEditor,WarehouseFull,Admin";
 
-        public const string AdminOnly = "Admin";
+        public const string SchedulingView = "SchedulingViewer,SchedulingEditor,SchedulingFull,ReportViewer,ReportEditor,ReportFull,Admin";
+        public const string SchedulingEdit = "SchedulingEditor,SchedulingFull,Admin";
+        public const string SchedulingDelete = "SchedulingFull,Admin";
+        public const string SchedulingMenu = "SchedulingViewer,SchedulingEditor,SchedulingFull,Admin";
 
-        public const string ConfigurationRead = "Admin";
-        public const string ConfigurationWrite = "Admin";
+        // ========== 非报表数据域（端点读不含 Report 角色） ==========
 
-        public const string StandardRead = "StandardStaff,StandardDirector,Admin";
-        public const string StandardWrite = "StandardDirector,Admin";
+        public const string EquipmentView = "EquipmentViewer,EquipmentEditor,EquipmentFull,Admin";
+        public const string EquipmentEdit = "EquipmentEditor,EquipmentFull,Admin";
+        public const string EquipmentDelete = "EquipmentFull,Admin";
 
-        /// <summary>报表系统总览页可见：Admin + 订单/工单/批次/物料/仓库/质量 6 Director + 质检员（覆盖全部数据源端点角色，无 403）</summary>
-        public const string ReportOverview = "OrderDirector,WorkOrderDirector,BatchDirector,MaterialDirector,WarehouseDirector,QualityDirector,QualityStaff,Admin";
+        public const string StandardView = "StandardViewer,StandardEditor,StandardFull,Admin";
+        public const string StandardEdit = "StandardEditor,StandardFull,Admin";
+        public const string StandardDelete = "StandardFull,Admin";
+
+        public const string ConfigurationView = "ConfigurationViewer,ConfigurationEditor,ConfigurationFull,Admin";
+        public const string ConfigurationEdit = "ConfigurationEditor,ConfigurationFull,Admin";
+        public const string ConfigurationDelete = "ConfigurationFull,Admin";
+
+        // ========== 独立菜单 ==========
+        public const string ReportView = "ReportViewer,ReportEditor,ReportFull,Admin";
+        public const string ReportEdit = "ReportEditor,ReportFull,Admin";
+        public const string ReportDelete = "ReportFull,Admin";
+
+        public const string DataToolView = "DataToolViewer,DataToolEditor,DataToolFull,Admin";
+        public const string DataToolEdit = "DataToolEditor,DataToolFull,Admin";
+        public const string DataToolDelete = "DataToolFull,Admin";
+
+        public const string ScanView = "ScanViewer,ScanEditor,ScanFull,Admin";
+        public const string ScanEdit = "ScanEditor,ScanFull,Admin";
+        public const string ScanDelete = "ScanFull,Admin";
+
+        public const string UserView = "UserViewer,UserEditor,UserFull,Admin";
+        public const string UserEdit = "UserEditor,UserFull,Admin";
+        public const string UserDelete = "UserFull,Admin";
+
+        // ========== 跨域组合 ==========
+        /// <summary>待出库通知（仓库 + 质量 数据源并集，仓库页可见）</summary>
+        public const string PendingDeliveryView = "WarehouseViewer,WarehouseEditor,WarehouseFull,QualityViewer,QualityEditor,QualityFull,Admin";
+        /// <summary>批次计划汇总/月度/委外在产（批次域生产记录+工段委外页 + 排程批次计划页 + 报表总览）</summary>
+        public const string BatchPlanSummaryView = "BatchViewer,BatchEditor,BatchFull,SchedulingViewer,SchedulingEditor,SchedulingFull,ReportViewer,ReportEditor,ReportFull,Admin";
     }
 
     public static string[] GetAllRoles()
@@ -71,10 +162,34 @@ public static class Roles
         return new[]
         {
             Admin,
-            Directors.Order, Directors.WorkOrder, Directors.Batch, Directors.Quality,
-            Directors.Equipment, Directors.Warehouse, Directors.Material, Directors.Standard,
-            Staffs.Order, Staffs.WorkOrder, Staffs.Batch, Staffs.Quality,
-            Staffs.Equipment, Staffs.Warehouse, Staffs.Material, Staffs.Standard
+            // 订单管理
+            Menus.OrderViewer, Menus.OrderEditor, Menus.OrderFull,
+            // 工单管理
+            Menus.WorkOrderViewer, Menus.WorkOrderEditor, Menus.WorkOrderFull,
+            // 计划排程
+            Menus.SchedulingViewer, Menus.SchedulingEditor, Menus.SchedulingFull,
+            // 批次管理
+            Menus.BatchViewer, Menus.BatchEditor, Menus.BatchFull,
+            // 质量管理
+            Menus.QualityViewer, Menus.QualityEditor, Menus.QualityFull,
+            // 物料管理
+            Menus.MaterialViewer, Menus.MaterialEditor, Menus.MaterialFull,
+            // 仓库管理
+            Menus.WarehouseViewer, Menus.WarehouseEditor, Menus.WarehouseFull,
+            // 设备管理
+            Menus.EquipmentViewer, Menus.EquipmentEditor, Menus.EquipmentFull,
+            // 生产标准
+            Menus.StandardViewer, Menus.StandardEditor, Menus.StandardFull,
+            // 报表系统
+            Menus.ReportViewer, Menus.ReportEditor, Menus.ReportFull,
+            // 数据工具
+            Menus.DataToolViewer, Menus.DataToolEditor, Menus.DataToolFull,
+            // 扫码管理
+            Menus.ScanViewer, Menus.ScanEditor, Menus.ScanFull,
+            // 参数表
+            Menus.ConfigurationViewer, Menus.ConfigurationEditor, Menus.ConfigurationFull,
+            // 用户管理
+            Menus.UserViewer, Menus.UserEditor, Menus.UserFull,
         };
     }
 }

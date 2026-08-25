@@ -24,7 +24,7 @@ public class ProcessCardStyleDefinitionController : ControllerBase
 
     /// <summary>全量配置（格式设置面板「打印版式」Tab 加载），按 Key 升序</summary>
     [HttpGet("all")]
-    [Authorize(Roles = Roles.Policies.ConfigurationRead)]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<List<ProcessCardStyleDefinitionDto>>>> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -33,7 +33,7 @@ public class ProcessCardStyleDefinitionController : ControllerBase
 
     /// <summary>批量新增/更新（锚点 Key），返回写入行数</summary>
     [HttpPost("save-all")]
-    [Authorize(Roles = Roles.Policies.ConfigurationWrite)]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse<int>>> SaveAll([FromBody] List<ProcessCardStyleDefinitionDto> items)
     {
         var result = await _service.SaveAllAsync(items);

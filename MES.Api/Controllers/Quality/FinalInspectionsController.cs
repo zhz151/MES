@@ -29,7 +29,7 @@ public class FinalInspectionsController : ControllerBase
     /// 获取成品检验详情
     /// </summary>
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<FinalInspectionDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -42,7 +42,7 @@ public class FinalInspectionsController : ControllerBase
     /// 分页查询成品检验记录
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<FinalInspectionDto>>>> GetAll(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -75,7 +75,7 @@ public class FinalInspectionsController : ControllerBase
     /// 实时健康汇总（按当前筛选条件统计成检类型与成检到料不符的生产编号）
     /// </summary>
     [HttpGet("health-summary")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<FinalInspectionHealthSummaryDto>>> GetHealthSummary(
         [FromQuery] string? keyword = null,
         [FromQuery] DateTime? inspectionDateFrom = null,
@@ -99,7 +99,7 @@ public class FinalInspectionsController : ControllerBase
     /// 近日成检量汇总（按检验项目统计前6日/前3日/今日检验重量）
     /// </summary>
     [HttpGet("summary")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<List<FinalInspectionSummaryRowDto>>>> GetSummary()
     {
         var result = await _service.GetRecentSummaryAsync();
@@ -110,7 +110,7 @@ public class FinalInspectionsController : ControllerBase
     /// 月度成检量汇总（按检验项目统计本年 1月~12月各月检验重量）
     /// </summary>
     [HttpGet("monthly-summary")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<List<FinalInspectionMonthlySummaryRowDto>>>> GetMonthlySummary()
     {
         var result = await _service.GetMonthlySummaryAsync();
@@ -121,7 +121,7 @@ public class FinalInspectionsController : ControllerBase
     /// 获取所有成品检验记录（无分页）
     /// </summary>
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ApiResponse<List<FinalInspectionDto>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -132,7 +132,7 @@ public class FinalInspectionsController : ControllerBase
     /// 创建成品检验记录
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<FinalInspectionDto>>> Create(
         [FromBody] CreateFinalInspectionRequest request)
     {
@@ -146,7 +146,7 @@ public class FinalInspectionsController : ControllerBase
     /// 更新成品检验记录
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<FinalInspectionDto>>> Update(
         int id, [FromBody] UpdateFinalInspectionRequest request)
     {
@@ -160,7 +160,7 @@ public class FinalInspectionsController : ControllerBase
     /// 删除成品检验记录
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -171,7 +171,7 @@ public class FinalInspectionsController : ControllerBase
     /// 批量创建成品检验记录
     /// </summary>
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<List<FinalInspectionDto>>>> BatchCreate(
         [FromBody] List<CreateFinalInspectionRequest> requests)
     {
@@ -187,7 +187,7 @@ public class FinalInspectionsController : ControllerBase
     /// 获取筛选上下文（各列的 DISTINCT 值）
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -198,7 +198,7 @@ public class FinalInspectionsController : ControllerBase
     /// 根据生产编号调取批次关联信息
     /// </summary>
     [HttpGet("lookup-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<BatchLookupResultDto?>>> LookupBatch(
         [FromQuery] string batchNo)
     {
@@ -210,7 +210,7 @@ public class FinalInspectionsController : ControllerBase
 
     /// <summary>批量打印选中记录（PDF 文件）</summary>
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] FinalInspectionPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -221,7 +221,7 @@ public class FinalInspectionsController : ControllerBase
 
     /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintAllFile([FromBody] FinalInspectionPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo, request.Filters);

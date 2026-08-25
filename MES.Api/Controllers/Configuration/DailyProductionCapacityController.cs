@@ -21,7 +21,7 @@ public class DailyProductionCapacityController : ControllerBase
     }
 
     [HttpGet("list")]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<PagedResult<DailyProductionCapacityDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -47,7 +47,7 @@ public class DailyProductionCapacityController : ControllerBase
     }
 
     [HttpGet("all")]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<List<DailyProductionCapacityDto>>>> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -55,7 +55,7 @@ public class DailyProductionCapacityController : ControllerBase
     }
 
     [HttpPost("save")]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Save([FromBody] DailyProductionCapacityDto dto)
     {
         var result = await _service.SaveAsync(dto);
@@ -63,7 +63,7 @@ public class DailyProductionCapacityController : ControllerBase
     }
 
     [HttpPost("delete/{id}")]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         var result = await _service.DeleteAsync(id);

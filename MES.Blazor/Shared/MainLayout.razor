@@ -36,16 +36,16 @@
             <!-- 首页 -->
             <MudNavLink Href="/" Match="NavLinkMatch.All">首页</MudNavLink>
 
-            <!-- 订单模块 -->
-            <AuthorizeView Roles="@Roles.Policies.OrderRead">
+            <!-- 订单模块（二级各自选档位） -->
+            <AuthorizeView Roles="@Roles.Policies.OrderMenu">
                 <MudNavGroup Title="订单管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/orders">订单列表</MudNavLink>
                     <MudNavLink Href="/customers">客户管理</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 
-            <!-- 工单模块 -->
-            <AuthorizeView Roles="@Roles.Policies.WorkOrderRead">
+            <!-- 工单模块（二级各自选档位） -->
+            <AuthorizeView Roles="@Roles.Policies.WorkOrderMenu">
                 <MudNavGroup Title="工单管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/workorders">工单首页</MudNavLink>
                     <MudNavLink Href="/material-plan-overview">用料计划总览</MudNavLink>
@@ -55,18 +55,20 @@
                 </MudNavGroup>
             </AuthorizeView>
 
-            <!-- 计划排程 -->
-            <MudNavGroup Title="计划排程" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                <MudNavLink Href="/plan-overview">订单负荷总量</MudNavLink>
-                <MudNavLink Href="/raw-material-lock-plan">原锁计划</MudNavLink>
-                <MudNavLink Href="/scheduling-plans">工单排程</MudNavLink>
-                <MudNavLink Href="/cold-roll-plans">冷轧排程</MudNavLink>
-                <MudNavLink Href="/batch-plans">批次计划</MudNavLink>
-                <MudNavLink Href="/final-inspection-plan">成检计划</MudNavLink>
-            </MudNavGroup>
+            <!-- 计划排程（二级各自选档位） -->
+            <AuthorizeView Roles="@Roles.Policies.SchedulingMenu">
+                <MudNavGroup Title="计划排程" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                    <MudNavLink Href="/plan-overview">订单负荷总量</MudNavLink>
+                    <MudNavLink Href="/raw-material-lock-plan">原锁计划</MudNavLink>
+                    <MudNavLink Href="/scheduling-plans">工单排程</MudNavLink>
+                    <MudNavLink Href="/cold-roll-plans">冷轧排程</MudNavLink>
+                    <MudNavLink Href="/batch-plans">批次计划</MudNavLink>
+                    <MudNavLink Href="/final-inspection-plan">成检计划</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
 
-            <!-- 批次模块 -->
-            <AuthorizeView Roles="@Roles.Policies.BatchRead">
+            <!-- 批次模块（二级各自选档位） -->
+            <AuthorizeView Roles="@Roles.Policies.BatchMenu">
                 <MudNavGroup Title="批次管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/batches">批次首页</MudNavLink>
                     <MudNavLink Href="/production-records">生产记录</MudNavLink>
@@ -76,46 +78,52 @@
                 </MudNavGroup>
             </AuthorizeView>
 
-            <!-- 质量模块 -->
-            <AuthorizeView Roles="@Roles.Policies.QualityRead">
+            <!-- 质量模块（二级各自选档位） -->
+            <AuthorizeView Roles="@Roles.Policies.QualityMenu">
                 <MudNavGroup Title="质量管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/quality/process-inspection">过程检验</MudNavLink>
                     <MudNavLink Href="/quality/material-receive-checks">成检到料</MudNavLink>
                     <MudNavLink Href="/quality/final-inspection">成品检验</MudNavLink>
                     <MudNavLink Href="/quality/process-tracking">成检追踪</MudNavLink>
                     <MudNavLink Href="/quality/ncr">不合格报告</MudNavLink>
-                    <MudNavGroup Title="炉号/化学" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                        <MudNavLink Href="/quality/furnace">炉号登记</MudNavLink>
-                    </MudNavGroup>
-                    <MudNavGroup Title="理化检测" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                        <MudNavLink Href="/quality/chemical-analysis">化学检验</MudNavLink>
-                        <MudNavLink Href="/quality/hardness-test">硬度检验</MudNavLink>
-                        <MudNavLink Href="/quality/grain-size-test">晶粒度检验</MudNavLink>
-                        <MudNavLink Href="/quality/pitting-corrosion-test">点腐蚀检验</MudNavLink>
-                        <MudNavLink Href="/quality/intergranular-corrosion-test">晶间腐蚀检验</MudNavLink>
-                        <MudNavLink Href="/quality/tensile-test">室温拉伸检验</MudNavLink>
-                        <MudNavLink Href="/quality/metallographic-test">金相检验</MudNavLink>
-                        <MudNavLink Href="/quality/flattening-test">压扁检验</MudNavLink>
-                        <MudNavLink Href="/quality/flaring-test">扩口检验</MudNavLink>
-                    </MudNavGroup>
+                    
+                        <MudNavGroup Title="炉号/化学" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                            <MudNavLink Href="/quality/furnace">炉号登记</MudNavLink>
+                        </MudNavGroup>
+                    
+                    
+                        <MudNavGroup Title="理化检测" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                            <MudNavLink Href="/quality/chemical-analysis">化学检验</MudNavLink>
+                            <MudNavLink Href="/quality/hardness-test">硬度检验</MudNavLink>
+                            <MudNavLink Href="/quality/grain-size-test">晶粒度检验</MudNavLink>
+                            <MudNavLink Href="/quality/pitting-corrosion-test">点腐蚀检验</MudNavLink>
+                            <MudNavLink Href="/quality/intergranular-corrosion-test">晶间腐蚀检验</MudNavLink>
+                            <MudNavLink Href="/quality/tensile-test">室温拉伸检验</MudNavLink>
+                            <MudNavLink Href="/quality/metallographic-test">金相检验</MudNavLink>
+                            <MudNavLink Href="/quality/flattening-test">压扁检验</MudNavLink>
+                            <MudNavLink Href="/quality/flaring-test">扩口检验</MudNavLink>
+                        </MudNavGroup>
+                    
                     <MudNavLink Href="/quality/certificates">质量证明书</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 
-            <!-- 物料模块 -->
-            <AuthorizeView Roles="@Roles.Policies.MaterialRead">
+            <!-- 物料模块（二级各自选档位） -->
+            <AuthorizeView Roles="@Roles.Policies.MaterialMenu">
                 <MudNavGroup Title="物料管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/purchase-orders">采购订单</MudNavLink>
-                    <MudNavGroup Title="圆棒穿孔" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                        <MudNavLink Href="/subcontract-orders">圆棒穿孔</MudNavLink>
-                        <MudNavLink Href="/subcontract-return-items">子项查询</MudNavLink>
-                    </MudNavGroup>
+                    
+                        <MudNavGroup Title="圆棒穿孔" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                            <MudNavLink Href="/subcontract-orders">圆棒穿孔</MudNavLink>
+                            <MudNavLink Href="/subcontract-return-items">子项查询</MudNavLink>
+                        </MudNavGroup>
+                    
                     <MudNavLink Href="/suppliers">供应商管理</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 
-            <!-- 仓库模块 -->
-            <AuthorizeView Roles="@Roles.Policies.WarehouseRead">
+            <!-- 仓库模块（二级菜单权限：6 个子项各自门控，Admin 恒显示） -->
+            <AuthorizeView Roles="@Roles.Policies.WarehouseMenu">
                 <MudNavGroup Title="仓库管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/warehouse/raw">原料库</MudNavLink>
                     <MudNavLink Href="/warehouse/fg">成品库</MudNavLink>
@@ -126,8 +134,8 @@
                 </MudNavGroup>
             </AuthorizeView>
 
-            <!-- 设备模块 -->
-            <AuthorizeView Roles="@Roles.Policies.EquipmentRead">
+            <!-- 设备模块（二级各自选档位） -->
+            <AuthorizeView Roles="@Roles.Policies.EquipmentView">
                 <MudNavGroup Title="设备管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/equipment">设备台账</MudNavLink>
                     <MudNavLink Href="/repair-orders">维修工单</MudNavLink>
@@ -136,8 +144,8 @@
                 </MudNavGroup>
             </AuthorizeView>
 
-            <!-- 生产标准 -->
-            <AuthorizeView Roles="@Roles.Policies.StandardRead">
+            <!-- 生产标准（二级各自选档位） -->
+            <AuthorizeView Roles="@Roles.Policies.StandardView">
                 <MudNavGroup Title="生产标准" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/standard-registers">标准号列表</MudNavLink>
                     <MudNavLink Href="/standard-inspection-requirements">标准号检验项要求</MudNavLink>
@@ -152,25 +160,29 @@
             </AuthorizeView>
 
             <!-- 报表系统 -->
-            <AuthorizeView Roles="@Roles.Policies.ReportOverview">
+            <AuthorizeView Roles="@Roles.Policies.ReportView">
                 <MudNavGroup Title="报表系统" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/reports/overview">报表总览</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 
             <!-- 数据工具 -->
-            <MudNavLink Href="/data-exchange">数据工具</MudNavLink>
+            <AuthorizeView Roles="@Roles.Policies.DataToolView">
+                <MudNavLink Href="/data-exchange">数据工具</MudNavLink>
+            </AuthorizeView>
 
             <!-- 扫码管理 -->
             <MudNavGroup Title="扫码管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                 <MudNavLink Href="/mobile-report">扫码报工</MudNavLink>
                 <MudNavLink Href="/equipment-scan">设备扫码</MudNavLink>
-                <MudNavLink Href="/workstations">工位管理</MudNavLink>
-                <MudNavLink Href="/employees">员工管理</MudNavLink>
+                <AuthorizeView Roles="@Roles.Policies.ScanView">
+                    <MudNavLink Href="/workstations">工位管理</MudNavLink>
+                    <MudNavLink Href="/employees">员工管理</MudNavLink>
+                </AuthorizeView>
             </MudNavGroup>
 
-            <!-- 参数表 -->
-            <AuthorizeView Roles="@Roles.Policies.ConfigurationRead">
+            <!-- 参数表（二级各自选档位） -->
+            <AuthorizeView Roles="@Roles.Policies.ConfigurationView">
                 <MudNavGroup Title="参数表" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/process-definitions">工序组定义(批次/工艺)</MudNavLink>
                     <MudNavLink Href="/standard-work-days">工段工量天数(排程/用料)</MudNavLink>
@@ -189,7 +201,7 @@
             </AuthorizeView>
 
             <!-- 用户管理 -->
-            <AuthorizeView Roles="@Roles.Policies.AdminOnly">
+            <AuthorizeView Roles="@Roles.Policies.UserView">
                 <MudNavLink Href="/admin/users">用户管理</MudNavLink>
             </AuthorizeView>
         </MudNavMenu>
@@ -293,4 +305,5 @@
             Navigation.NavigateTo("/", true);
         }
     }
+
 }

@@ -32,7 +32,7 @@ public class BatchController : ControllerBase
     // ========== 批次 CRUD ==========
 
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ProductionBatchListDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -78,7 +78,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<ProductionBatchListDto>>>> GetAllList()
     {
         var result = await _service.GetAllBatchListAsync();
@@ -86,7 +86,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<ProductionBatchDetailDto>>> GetById(int id)
     {
         try
@@ -101,7 +101,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpGet("by-batch-no/{batchNo}")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<ProductionBatchDetailDto>>> GetByBatchNo(string batchNo)
     {
         try
@@ -116,7 +116,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse<ProductionBatchListDto>>> Create([FromBody] CreateProductionBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -126,7 +126,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse<ProductionBatchDetailDto>>> Update(int id, [FromBody] UpdateProductionBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -136,7 +136,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPut("{id}/status")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse>> UpdateStatus(int id, [FromBody] UpdateBatchStatusRequest request)
     {
         if (!ModelState.IsValid)
@@ -146,7 +146,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.BatchDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -154,7 +154,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPost("{id}/save-all")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse<SaveBatchResponse>>> SaveAll(int id, [FromBody] SaveBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -166,7 +166,7 @@ public class BatchController : ControllerBase
     // ========== 工序组 ==========
 
     [HttpGet("{batchId}/records")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<ProcessGroupDto>>>> GetProcessGroups(int batchId)
     {
         var result = await _service.GetProcessGroupsAsync(batchId);
@@ -174,7 +174,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPost("{batchId}/records")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse<ProcessGroupDto>>> AddProcessGroup(int batchId, [FromBody] CreateProcessGroupRequest request)
     {
         if (!ModelState.IsValid)
@@ -184,7 +184,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpDelete("records/{recordId}")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteProcessGroup(int recordId)
     {
         await _service.DeleteProcessGroupAsync(recordId);
@@ -194,7 +194,7 @@ public class BatchController : ControllerBase
     // ========== 查询 ==========
 
     [HttpGet("available-batches")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<AvailableBatchDto>>>> GetAvailableBatches()
     {
         var result = await _service.GetAvailableBatchesAsync();
@@ -204,7 +204,7 @@ public class BatchController : ControllerBase
     // ========== 复制上个工序组 ==========
 
     [HttpGet("last-process-groups")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<CreateProcessGroupRequest>>>> GetLastBatchProcessGroups()
     {
         var result = await _service.GetLastBatchProcessGroupsAsync();
@@ -214,7 +214,7 @@ public class BatchController : ControllerBase
     // ========== 编号生成 ==========
 
     [HttpGet("next-batch-no")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> GetNextBatchNo()
     {
         var result = await _service.GetNextBatchNoAsync();
@@ -224,7 +224,7 @@ public class BatchController : ControllerBase
     // ========== 缺陷率预警 ==========
 
     [HttpGet("defect-rate-alerts")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<DefectRateBatchDto>>>> GetDefectRateAlerts()
     {
         var result = await _service.GetDefectRateAlertsAsync();
@@ -234,7 +234,7 @@ public class BatchController : ControllerBase
     // ========== 成检到料强制完成通知 ==========
 
     [HttpGet("forced-completed-inspection-batches")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<ForcedCompletedInspectionBatchDto>>>> GetForcedCompletedInspectionBatches()
     {
         var result = await _service.GetForcedCompletedInspectionBatchesAsync();
@@ -244,7 +244,7 @@ public class BatchController : ControllerBase
     // ========== 工单号验证 ==========
 
     [HttpGet("verify-workorders")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<BatchWorkOrderMismatchDto>>>> VerifyWorkOrderNos()
     {
         var result = await _service.VerifyWorkOrderNosAsync();
@@ -254,7 +254,7 @@ public class BatchController : ControllerBase
     // ========== 批次跟踪可视化 ==========
 
     [HttpGet("{id}/tracking")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<BatchTrackingVisualDto>>> GetTrackingVisual(int id)
     {
         try
@@ -271,7 +271,7 @@ public class BatchController : ControllerBase
     // ========== 相邻批次导航 ==========
 
     [HttpGet("{id}/adjacent")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<AdjacentBatchDto>>> GetAdjacentBatch(int id)
     {
         var result = await _service.GetAdjacentBatchAsync(id);
@@ -281,7 +281,7 @@ public class BatchController : ControllerBase
     // ========== 按批次号调取工序组（用于前端快速复制） ==========
 
     [HttpGet("{batchNo}/process-groups")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<CreateProcessGroupRequest>>>> GetProcessGroupsByBatchNo(string batchNo)
     {
         try
@@ -300,7 +300,7 @@ public class BatchController : ControllerBase
     // ========== 操作日志 ==========
 
     [HttpGet("{id}/operation-logs")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<OperationLogDto>>>> GetOperationLogs(int id)
     {
         var result = await _operationLogService.GetLogsAsync("Batch", id);
@@ -310,7 +310,7 @@ public class BatchController : ControllerBase
     // ========== 筛选上下文 ==========
 
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -320,7 +320,7 @@ public class BatchController : ControllerBase
     // ========== 打印 ==========
 
     [HttpGet("{id}/print")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch(int id)
     {
         var pdfBytes = await _service.PrintBatchAsync(id);
@@ -329,7 +329,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatchAll([FromBody] BatchPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -340,7 +340,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPost("print-selected")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatchSelected([FromBody] BatchPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
@@ -351,7 +351,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPost("print-process-card")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintProcessCard([FromBody] ProcessCardPrintRequest request)
     {
         if (!ModelState.IsValid)
@@ -362,7 +362,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] PrintBatchFileRequest request)
     {
         if (!ModelState.IsValid)
@@ -372,7 +372,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintBatchAllFile([FromBody] BatchPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -382,7 +382,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPost("print-selected-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintBatchSelectedFile([FromBody] BatchPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
@@ -392,7 +392,7 @@ public class BatchController : ControllerBase
     }
 
     [HttpPost("print-process-card-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintProcessCardFile([FromBody] ProcessCardPrintRequest request)
     {
         if (!ModelState.IsValid)

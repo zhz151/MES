@@ -24,7 +24,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<PagedResult<PurchaseOrderDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -62,7 +62,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<List<PurchaseOrderDto>>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -70,7 +70,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -78,7 +78,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialEdit)]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Create([FromBody] CreatePurchaseOrderRequest request)
     {
         if (!ModelState.IsValid)
@@ -88,7 +88,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialEdit)]
     public async Task<ActionResult<ApiResponse<List<PurchaseOrderDto>>>> CreateBatch([FromBody] List<CreatePurchaseOrderRequest> requests)
     {
         if (!ModelState.IsValid)
@@ -100,7 +100,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialEdit)]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> Update(int id, [FromBody] UpdatePurchaseOrderRequest request)
     {
         if (!ModelState.IsValid)
@@ -111,7 +111,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpPost("sync-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialEdit)]
     public async Task<ActionResult<ApiResponse>> SyncAll()
     {
         await _service.SyncAllAsync();
@@ -119,7 +119,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpPost("{id}/sync")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialEdit)]
     public async Task<ActionResult<ApiResponse>> SyncSingle(int id)
     {
         await _service.SyncSingleAsync(id);
@@ -127,7 +127,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpPut("{id}/status")]
-    [Authorize(Roles = $"{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialEdit)]
     public async Task<ActionResult<ApiResponse>> UpdateStatus(int id, [FromBody] UpdateOrderStatusRequest request)
     {
         if (!ModelState.IsValid)
@@ -137,7 +137,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         var isAdmin = User.IsInRole(Roles.Admin);
@@ -146,7 +146,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -154,7 +154,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpGet("procurement-status")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<List<ProcurementStatusDto>>>> GetProcurementStatus()
     {
         var result = await _service.GetProcurementStatusAsync();
@@ -162,7 +162,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpGet("mismatched-orders")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<List<OrderMismatchInfo>>>> GetMismatchedOrders()
     {
         var result = await _service.GetMismatchedPurchaseOrdersAsync();
@@ -172,7 +172,7 @@ public class PurchaseOrderController : ControllerBase
     // ========== 采购首页汇总（荒管/成品，isFinished=true 成品） ==========
 
     [HttpGet("summary/pending")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<List<PurchasePendingDto>>>> GetPurchasePending([FromQuery] bool isFinished = false)
     {
         var result = await _service.GetPurchasePendingAsync(isFinished);
@@ -180,7 +180,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpGet("summary/in-progress")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<PurchaseInProgressResultDto>>> GetPurchaseInProgress([FromQuery] bool isFinished = false)
     {
         var result = await _service.GetPurchaseInProgressAsync(isFinished);
@@ -188,7 +188,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpGet("summary/monthly")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<PurchaseMonthlyResultDto>>> GetPurchaseMonthly([FromQuery] bool isFinished = false)
     {
         var result = await _service.GetPurchaseMonthlyAsync(isFinished);
@@ -198,7 +198,7 @@ public class PurchaseOrderController : ControllerBase
     // ========== 打印 ==========
 
     [HttpPost("print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderBatch([FromBody] OrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -210,7 +210,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<IActionResult> PrintOrderBatchFile([FromBody] OrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -221,7 +221,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderAll([FromBody] OrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -233,7 +233,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<IActionResult> PrintOrderAllFile([FromBody] OrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -244,7 +244,7 @@ public class PurchaseOrderController : ControllerBase
     }
 
     [HttpGet("plan-detail")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<PlanDetailDto>>> GetPlanDetail(
         [FromQuery] string workOrderNo, [FromQuery] string materialCategory)
     {

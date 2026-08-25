@@ -30,7 +30,7 @@ public class CustomerController : ControllerBase
     /// 分页查询客户列表
     /// </summary>
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<PagedResult<CustomerProfileDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -64,7 +64,7 @@ public class CustomerController : ControllerBase
     /// 获取所有客户列表（无分页，供客户端筛选排序）
     /// </summary>
     [HttpGet("list-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<List<CustomerProfileDto>>>> GetAllList()
     {
         var result = await _customerService.GetAllListAsync();
@@ -75,7 +75,7 @@ public class CustomerController : ControllerBase
     /// 根据ID获取客户详情
     /// </summary>
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<CustomerProfileDto>>> GetById(int id)
     {
         var result = await _customerService.GetByIdAsync(id);
@@ -86,7 +86,7 @@ public class CustomerController : ControllerBase
     /// 创建客户
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderEdit)]
     public async Task<ActionResult<ApiResponse<CustomerProfileDto>>> Create([FromBody] CreateCustomerRequest request)
     {
         if (!ModelState.IsValid)
@@ -102,7 +102,7 @@ public class CustomerController : ControllerBase
     /// 更新客户
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderEdit)]
     public async Task<ActionResult<ApiResponse<CustomerProfileDto>>> Update(int id, [FromBody] UpdateCustomerRequest request)
     {
         if (!ModelState.IsValid)
@@ -118,7 +118,7 @@ public class CustomerController : ControllerBase
     /// 获取客户下拉列表（轻量，仅含级联选择所需字段）
     /// </summary>
     [HttpGet("select-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<List<CustomerSelectDto>>>> GetSelectList()
     {
         var result = await _customerService.GetSelectListAsync();
@@ -129,7 +129,7 @@ public class CustomerController : ControllerBase
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _customerService.GetFilterContextsAsync();
@@ -142,7 +142,7 @@ public class CustomerController : ControllerBase
     /// 批量打印客户
     /// </summary>
     [HttpPost("print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintCustomerBatch([FromBody] OrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -157,7 +157,7 @@ public class CustomerController : ControllerBase
     /// 按筛选条件打印全部客户
     /// </summary>
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintCustomerAll([FromBody] OrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -172,7 +172,7 @@ public class CustomerController : ControllerBase
     /// 批量打印客户（直接返回 PDF 文件）
     /// </summary>
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] OrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -186,7 +186,7 @@ public class CustomerController : ControllerBase
     /// 按筛选条件打印全部客户（直接返回 PDF 文件）
     /// </summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<IActionResult> PrintAllFile([FromBody] OrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -200,7 +200,7 @@ public class CustomerController : ControllerBase
     /// 删除客户（物理删除）
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.OrderDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _customerService.DeleteAsync(id);

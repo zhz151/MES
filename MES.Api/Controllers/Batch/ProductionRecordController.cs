@@ -31,7 +31,7 @@ public class ProductionRecordController : ControllerBase
     /// 获取批次的生产记录列表（分页）
     /// </summary>
     [HttpGet("{batchId}/records")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ProductionRecordDto>>>> GetProductionRecords(
         int batchId,
         [FromQuery] int pageIndex = 1,
@@ -54,7 +54,7 @@ public class ProductionRecordController : ControllerBase
     /// 创建内部生产记录
     /// </summary>
     [HttpPost("record")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<ProductionRecordDto>>> CreateProductionRecord(
         [FromBody] CreateProductionRecordRequest request)
     {
@@ -68,7 +68,7 @@ public class ProductionRecordController : ControllerBase
     /// 批量创建内部生产记录
     /// </summary>
     [HttpPost("records/batch")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<List<ProductionRecordDto>>>> BatchCreateProductionRecords(
         [FromBody] List<CreateProductionRecordRequest> requests)
     {
@@ -84,7 +84,7 @@ public class ProductionRecordController : ControllerBase
     /// 删除内部生产记录
     /// </summary>
     [HttpDelete("record/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteProductionRecord(int id)
     {
         await _service.DeleteProductionRecordAsync(id);
@@ -95,7 +95,7 @@ public class ProductionRecordController : ControllerBase
     /// 更新内部生产记录
     /// </summary>
     [HttpPut("record/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse<ProductionRecordDto>>> UpdateProductionRecord(
         int id, [FromBody] UpdateProductionRecordRequest request)
     {
@@ -111,7 +111,7 @@ public class ProductionRecordController : ControllerBase
     /// 获取批次的工段委外列表（分页）
     /// </summary>
     [HttpGet("{batchId}/outsources")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PagedResult<SectionOutsourceDto>>>> GetSectionOutsources(
         int batchId,
         [FromQuery] int pageIndex = 1,
@@ -127,7 +127,7 @@ public class ProductionRecordController : ControllerBase
     /// 刷新批次跟踪字段
     /// </summary>
     [HttpPost("{batchId}/refresh-tracking")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchEdit)]
     public async Task<ActionResult<ApiResponse>> RefreshBatchTracking(int batchId)
     {
         await _service.RefreshBatchTrackingFieldsAsync(batchId);
@@ -140,7 +140,7 @@ public class ProductionRecordController : ControllerBase
     /// 跨批次查询所有内部生产记录（分页）
     /// </summary>
     [HttpGet("all/records")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ProductionRecordDto>>>> GetAllProductionRecords(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -166,7 +166,7 @@ public class ProductionRecordController : ControllerBase
     /// 获取生产记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("all/filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -177,7 +177,7 @@ public class ProductionRecordController : ControllerBase
     /// 获取所有内部生产记录列表（不含分页，用于 ProductionRecords 页面）
     /// </summary>
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ApiResponse<List<ProductionRecordDto>>> GetAllProductionRecordList()
     {
         var result = await _service.GetAllProductionRecordListAsync();
@@ -188,7 +188,7 @@ public class ProductionRecordController : ControllerBase
     /// 跨批次查询所有工段委外记录（分页）
     /// </summary>
     [HttpGet("all/outsources")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PagedResult<SectionOutsourceDto>>>> GetAllSectionOutsources(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -210,7 +210,7 @@ public class ProductionRecordController : ControllerBase
     /// 跨批次查询所有委外回收记录（分页）
     /// </summary>
     [HttpGet("all/recoveries")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<PagedResult<OutsourceRecoveryDto>>>> GetAllOutsourceRecoveries(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -232,7 +232,7 @@ public class ProductionRecordController : ControllerBase
     /// 获取所有工段委外记录列表（不含分页，用于 SectionOutsources 页面）
     /// </summary>
     [HttpGet("section-outsources/all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ApiResponse<List<SectionOutsourceDto>>> GetAllSectionOutsourceList()
     {
         var result = await _service.GetAllSectionOutsourceListAsync();
@@ -243,7 +243,7 @@ public class ProductionRecordController : ControllerBase
     /// 获取所有委外回收记录列表（不含分页，用于 OutsourceRecoveries 页面）
     /// </summary>
     [HttpGet("outsource-recoveries/all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ApiResponse<List<OutsourceRecoveryDto>>> GetAllOutsourceRecoveryList()
     {
         var result = await _service.GetAllOutsourceRecoveryListAsync();
@@ -254,7 +254,7 @@ public class ProductionRecordController : ControllerBase
     /// 批量打印生产记录
     /// </summary>
     [HttpPost("print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintProductionRecordBatch([FromBody] ProductionRecordPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -268,7 +268,7 @@ public class ProductionRecordController : ControllerBase
     /// 按筛选条件打印全部生产记录
     /// </summary>
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintProductionRecordAll([FromBody] ProductionRecordPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -279,7 +279,7 @@ public class ProductionRecordController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintProductionRecordBatchFile([FromBody] ProductionRecordPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -289,7 +289,7 @@ public class ProductionRecordController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Batch},{Roles.Directors.Batch},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintProductionRecordAllFile([FromBody] ProductionRecordPrintAllRequest request)
     {
         if (!ModelState.IsValid)

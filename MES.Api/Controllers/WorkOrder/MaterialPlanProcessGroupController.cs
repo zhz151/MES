@@ -27,7 +27,7 @@ public class MaterialPlanProcessGroupController : ControllerBase
     /// 获取指定用料计划的工序组列表
     /// </summary>
     [HttpGet("{planId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<MaterialPlanProcessGroupDto>>>> GetByPlan(
         int planType, int planId)
     {
@@ -39,7 +39,7 @@ public class MaterialPlanProcessGroupController : ControllerBase
     /// 保存用料计划工序组（全量替换）
     /// </summary>
     [HttpPost("{planId}/save")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Save(
         int planType, int planId, [FromBody] List<SavePlanProcessGroupItem> items)
     {

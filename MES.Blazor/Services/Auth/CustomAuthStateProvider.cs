@@ -50,12 +50,25 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
             var payload = jwt.Split('.')[1];
             var jsonBytes = ParseBase64WithoutPadding(payload);
             var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
-            return keyValuePairs?.Select(kvp =>
+            return keyValuePairs?.SelectMany(kvp =>
             {
-                // JWT 使用短名 "role"，Blazor 的 IsInRole 需要 ClaimTypes.Role
-                if (kvp.Key == "role")
-                    return new Claim(ClaimTypes.Role, kvp.Value?.ToString() ?? string.Empty);
-                return new Claim(kvp.Key, kvp.Value?.ToString() ?? string.Empty);
+                // JWT 角色 claim 可能以短名 "role"/"roles"，也可能以完整 URI（ClaimTypes.Role，
+                // 即 http://schemas.microsoft.com/ws/2008/06/identity/claims/role）出现——
+                // 后端 JwtService 用 new Claim(ClaimTypes.Role, role) 生成且序列化时不映射短名。
+                // 多角色时值为数组，须逐元素展开为多条 Role claim，Blazor 的 IsInRole 才能精确匹配；
+                // 否则 kvp.Value.ToString() 输出 JsonElement 原文（JSON 数组字符串）导致菜单门控静默失效。
+                if (kvp.Key is "role" or "roles" || kvp.Key == ClaimTypes.Role)
+                {
+                    if (kvp.Value is JsonElement { ValueKind: JsonValueKind.Array } arr)
+                    {
+                        return arr.EnumerateArray()
+                                  .Select(e => e.ValueKind == JsonValueKind.String ? e.GetString() : e.ToString())
+                                  .Where(s => !string.IsNullOrEmpty(s))
+                                  .Select(s => new Claim(ClaimTypes.Role, s!));
+                    }
+                    return new[] { new Claim(ClaimTypes.Role, kvp.Value?.ToString() ?? string.Empty) };
+                }
+                return new[] { new Claim(kvp.Key, kvp.Value?.ToString() ?? string.Empty) };
             })
                    ?? new List<Claim>();
         }
@@ -67,6 +80,10 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
 
     private static byte[] ParseBase64WithoutPadding(string base64)
     {
+        // JWT 使用 base64url 编码（- 和 _ 代替 + 和 /），Convert.FromBase64String 只接受标准 base64。
+        // 必须先转回标准字符，否则 payload 含 -/_ 时（角色数组、UUID 等长 payload 几乎必然命中）
+        // 会抛 FormatException，被上层 catch 吞掉后返回空 claims，导致角色丢失、菜单门控全灭。
+        base64 = base64.Replace('-', '+').Replace('_', '/');
         switch (base64.Length % 4)
         {
             case 2: base64 += "=="; break;

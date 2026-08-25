@@ -23,7 +23,7 @@ public class MaintenanceOrderController : ControllerBase
     }
 
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<PagedResult<MaintenanceOrderListDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -51,7 +51,7 @@ public class MaintenanceOrderController : ControllerBase
     }
 
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<List<MaintenanceOrderListDto>>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -59,7 +59,7 @@ public class MaintenanceOrderController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<MaintenanceOrderListDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -67,7 +67,7 @@ public class MaintenanceOrderController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<MaintenanceOrderListDto>>> Create([FromBody] CreateMaintenanceOrderRequest request)
     {
         if (!ModelState.IsValid)
@@ -77,7 +77,7 @@ public class MaintenanceOrderController : ControllerBase
     }
 
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<List<MaintenanceOrderListDto>>>> CreateBatch([FromBody] List<CreateMaintenanceOrderRequest> requests)
     {
         if (!ModelState.IsValid)
@@ -89,7 +89,7 @@ public class MaintenanceOrderController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentEdit)]
     public async Task<ActionResult<ApiResponse<MaintenanceOrderListDto>>> Update(int id, [FromBody] UpdateMaintenanceRequest request)
     {
         if (!ModelState.IsValid)
@@ -99,7 +99,7 @@ public class MaintenanceOrderController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -107,7 +107,7 @@ public class MaintenanceOrderController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -118,7 +118,7 @@ public class MaintenanceOrderController : ControllerBase
     /// 批量打印保养工单
     /// </summary>
     [HttpPost("print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] MaintenanceOrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -133,7 +133,7 @@ public class MaintenanceOrderController : ControllerBase
     /// 按筛选条件打印全部保养工单
     /// </summary>
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] MaintenanceOrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -152,7 +152,7 @@ public class MaintenanceOrderController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] MaintenanceOrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -163,7 +163,7 @@ public class MaintenanceOrderController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Equipment},{Roles.Directors.Equipment},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<IActionResult> PrintAllFile([FromBody] MaintenanceOrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)

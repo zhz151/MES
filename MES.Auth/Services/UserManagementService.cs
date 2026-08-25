@@ -34,7 +34,7 @@ public class UserManagementService : IUserManagementService
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             var kw = keyword.Trim();
-            query = query.Where(u => u.UserName!.Contains(kw) || u.Email!.Contains(kw) || (u.FullName ?? "").Contains(kw));
+            query = query.Where(u => u.UserName!.Contains(kw) || (u.Email ?? "").Contains(kw) || (u.FullName ?? "").Contains(kw) || (u.Remark ?? "").Contains(kw));
         }
 
         var totalCount = await query.CountAsync();
@@ -46,6 +46,7 @@ public class UserManagementService : IUserManagementService
             "username" => isDescending ? query.OrderByDescending(u => u.UserName) : query.OrderBy(u => u.UserName),
             "email" => isDescending ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
             "fullname" => isDescending ? query.OrderByDescending(u => u.FullName) : query.OrderBy(u => u.FullName),
+            "remark" => isDescending ? query.OrderByDescending(u => u.Remark) : query.OrderBy(u => u.Remark),
             "isactive" => isDescending ? query.OrderByDescending(u => u.IsActive) : query.OrderBy(u => u.IsActive),
             "lastloginat" => isDescending ? query.OrderByDescending(u => u.LastLoginAt) : query.OrderBy(u => u.LastLoginAt),
             _ => isDescending ? query.OrderByDescending(u => u.Email) : query.OrderBy(u => u.Email),
@@ -66,6 +67,7 @@ public class UserManagementService : IUserManagementService
                 UserName = user.UserName ?? "",
                 Email = user.Email ?? "",
                 FullName = user.FullName,
+                Remark = user.Remark,
                 IsActive = user.IsActive,
                 Roles = roles.ToList(),
                 LastLoginAt = user.LastLoginAt
@@ -83,21 +85,29 @@ public class UserManagementService : IUserManagementService
 
     public async Task<ApiResponse<UserDto>> CreateAsync(CreateUserRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Email))
-            return ApiResponse<UserDto>.Fail("邮箱不能为空");
+        if (string.IsNullOrWhiteSpace(request.UserName))
+            return ApiResponse<UserDto>.Fail("用户名不能为空");
         if (string.IsNullOrWhiteSpace(request.Password))
             return ApiResponse<UserDto>.Fail("密码不能为空");
 
-        var existingUser = await _userManager.FindByEmailAsync(request.Email.Trim());
-        if (existingUser != null)
-            return ApiResponse<UserDto>.Fail("该邮箱已被注册");
+        // 用户名为主标识（必填唯一）；邮箱选填（若填写则需唯一）
+        var userName = request.UserName.Trim();
+        var existingByName = await _userManager.FindByNameAsync(userName);
+        if (existingByName != null)
+            return ApiResponse<UserDto>.Fail("该用户名已被注册");
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            var existingByEmail = await _userManager.FindByEmailAsync(request.Email.Trim());
+            if (existingByEmail != null)
+                return ApiResponse<UserDto>.Fail("该邮箱已被注册");
+        }
 
-        var userName = string.IsNullOrWhiteSpace(request.UserName) ? request.Email.Trim() : request.UserName.Trim();
         var user = new AppUser
         {
             UserName = userName,
-            Email = request.Email.Trim(),
+            Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
             FullName = request.FullName?.Trim(),
+            Remark = request.Remark?.Trim(),
             IsActive = true,
             EmailConfirmed = true
         };
@@ -123,6 +133,7 @@ public class UserManagementService : IUserManagementService
             UserName = user.UserName ?? "",
             Email = user.Email ?? "",
             FullName = user.FullName,
+            Remark = user.Remark,
             IsActive = user.IsActive,
             Roles = request.Roles.ToList(),
         };
@@ -136,6 +147,7 @@ public class UserManagementService : IUserManagementService
             return ApiResponse<UserDto>.Fail("用户不存在");
 
         user.FullName = request.FullName?.Trim();
+        user.Remark = request.Remark?.Trim();
         user.IsActive = request.IsActive;
 
         var updateResult = await _userManager.UpdateAsync(user);
@@ -164,6 +176,7 @@ public class UserManagementService : IUserManagementService
             UserName = user.UserName ?? "",
             Email = user.Email ?? "",
             FullName = user.FullName,
+            Remark = user.Remark,
             IsActive = user.IsActive,
             Roles = request.Roles.ToList(),
             LastLoginAt = user.LastLoginAt

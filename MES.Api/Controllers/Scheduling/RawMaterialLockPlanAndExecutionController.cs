@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Interfaces.Scheduling;
+using MES.Shared.Constants;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Scheduling;
@@ -21,6 +22,7 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     }
 
     [HttpGet("list")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<PagedResult<RawMaterialLockPlanAndExecutionDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -39,6 +41,7 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     }
 
     [HttpPost("set-pre-execute-flags")]
+    [Authorize(Roles = Roles.Policies.SchedulingEdit)]
     public async Task<ActionResult<ApiResponse<SetPreExecuteFlagsResult>>> SetPreExecuteFlags([FromBody] SetPreExecuteFlagsRequest request)
     {
         var result = await _service.SetPreExecuteFlagsAsync(request.WorkOrderIds, request.IsPreInput, request.BudgetInputDate);
@@ -46,6 +49,7 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     }
 
     [HttpPost("print")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<string>>> Print([FromBody] RawMaterialLockPlanPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
@@ -53,6 +57,7 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     }
 
     [HttpPost("print-file")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> PrintFile([FromBody] RawMaterialLockPlanPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
@@ -60,6 +65,7 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     }
 
     [HttpGet("pending-summary")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<RawMaterialLockPendingSummaryDto>>> GetPendingSummary()
     {
         var result = await _service.GetPendingSummaryAsync();

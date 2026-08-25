@@ -29,7 +29,7 @@ public class FurnaceRegistrationController : ControllerBase
     /// 获取来料炉号登记详情
     /// </summary>
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<FurnaceRegistrationDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -42,7 +42,7 @@ public class FurnaceRegistrationController : ControllerBase
     /// 获取所有来料炉号登记（无分页）
     /// </summary>
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ApiResponse<List<FurnaceRegistrationDto>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -53,7 +53,7 @@ public class FurnaceRegistrationController : ControllerBase
     /// 查询所有来料炉号登记（分页）
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<FurnaceRegistrationDto>>>> GetAll(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -88,7 +88,7 @@ public class FurnaceRegistrationController : ControllerBase
     /// 批量创建来料炉号登记
     /// </summary>
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<List<FurnaceRegistrationDto>>>> BatchCreate(
         [FromBody] List<CreateFurnaceRegistrationRequest> requests)
     {
@@ -104,7 +104,7 @@ public class FurnaceRegistrationController : ControllerBase
     /// 更新来料炉号登记
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<FurnaceRegistrationDto>>> Update(
         int id, [FromBody] UpdateFurnaceRegistrationRequest request)
     {
@@ -118,7 +118,7 @@ public class FurnaceRegistrationController : ControllerBase
     /// 获取筛选上下文（各列的 DISTINCT 值）
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -129,7 +129,7 @@ public class FurnaceRegistrationController : ControllerBase
     /// 根据登记牌号查询关联工厂牌号
     /// </summary>
     [HttpGet("lookup-grade")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<string?>>> LookupPlantGrade(
         [FromQuery] string registeredGrade)
     {
@@ -143,7 +143,7 @@ public class FurnaceRegistrationController : ControllerBase
     /// 删除来料炉号登记
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -152,7 +152,7 @@ public class FurnaceRegistrationController : ControllerBase
 
     /// <summary>批量打印选中记录（PDF 文件）</summary>
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] FurnaceRegistrationPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -163,7 +163,7 @@ public class FurnaceRegistrationController : ControllerBase
 
     /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintAllFile([FromBody] FurnaceRegistrationPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.IncomingDateFrom, request.IncomingDateTo);

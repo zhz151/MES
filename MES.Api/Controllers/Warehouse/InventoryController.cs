@@ -27,7 +27,7 @@ public class InventoryController : ControllerBase
     /// 分页查询库存列表
     /// </summary>
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<PagedResult<InventoryBatchDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -94,7 +94,7 @@ public class InventoryController : ControllerBase
     /// 全量查询库存批次（无分页，供前端 Items 模式使用）
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<List<InventoryBatchDto>>>> GetAll(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -161,7 +161,7 @@ public class InventoryController : ControllerBase
     /// 获取批次详情
     /// </summary>
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<InventoryBatchDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -172,7 +172,7 @@ public class InventoryController : ControllerBase
     /// 批量入库
     /// </summary>
     [HttpPost("batch-inbound")]
-    [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseEdit)]
     public async Task<ActionResult<ApiResponse<BatchInboundResult>>> BatchInbound([FromBody] BatchInboundRequest request)
     {
         if (!ModelState.IsValid)
@@ -186,7 +186,7 @@ public class InventoryController : ControllerBase
     /// 入库
     /// </summary>
     [HttpPost("inbound")]
-    [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseEdit)]
     public async Task<ActionResult<ApiResponse<InventoryBatchDto>>> Inbound([FromBody] CreateInboundRequest request)
     {
         if (!ModelState.IsValid)
@@ -200,7 +200,7 @@ public class InventoryController : ControllerBase
     /// 出库
     /// </summary>
     [HttpPost("outbound")]
-    [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseEdit)]
     public async Task<ActionResult<ApiResponse<OutboundRecordDto>>> Outbound([FromBody] CreateOutboundRequest request)
     {
         if (!ModelState.IsValid)
@@ -214,7 +214,7 @@ public class InventoryController : ControllerBase
     /// 批量出库
     /// </summary>
     [HttpPost("batch-outbound")]
-    [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseEdit)]
     public async Task<ActionResult<ApiResponse<BatchOutboundResult>>> BatchOutbound([FromBody] BatchOutboundRequest request)
     {
         if (!ModelState.IsValid)
@@ -228,7 +228,7 @@ public class InventoryController : ControllerBase
     /// 查询出库记录
     /// </summary>
     [HttpGet("outbound-records")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<PagedResult<OutboundRecordDto>>>> GetOutboundRecords(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -267,7 +267,7 @@ public class InventoryController : ControllerBase
     /// 更新入库批次
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseEdit)]
     public async Task<ActionResult<ApiResponse<InventoryBatchDto>>> UpdateInventoryBatch(int id, [FromBody] UpdateInventoryBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -281,7 +281,7 @@ public class InventoryController : ControllerBase
     /// 物理删除入库批次（仅管理员/主任）
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> HardDeleteInventoryBatch(int id)
     {
         await _service.HardDeleteInventoryBatchAsync(id);
@@ -292,7 +292,7 @@ public class InventoryController : ControllerBase
     /// 更新出库记录
     /// </summary>
     [HttpPut("outbound-records/{id:long}")]
-    [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseEdit)]
     public async Task<ActionResult<ApiResponse<OutboundRecordDto>>> UpdateOutboundRecord(long id, [FromBody] UpdateOutboundRecordRequest request)
     {
         if (!ModelState.IsValid)
@@ -306,7 +306,7 @@ public class InventoryController : ControllerBase
     /// 物理删除出库记录（仅管理员/主任）
     /// </summary>
     [HttpDelete("outbound-records/{id:long}")]
-    [Authorize(Roles = $"{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> HardDeleteOutboundRecord(long id)
     {
         await _service.HardDeleteOutboundRecordAsync(id);
@@ -317,7 +317,7 @@ public class InventoryController : ControllerBase
     /// 验证来源单号
     /// </summary>
     [HttpPost("validate-source-order")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseEdit)]
     public async Task<ActionResult<ApiResponse<SourceOrderValidationResult>>> ValidateSourceOrder(
         [FromBody] SourceOrderValidationRequest request)
     {
@@ -332,7 +332,7 @@ public class InventoryController : ControllerBase
     /// 验证生产批号（检验入库自动填充）
     /// </summary>
     [HttpPost("validate-production-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseEdit)]
     public async Task<ActionResult<ApiResponse<SourceOrderValidationResult>>> ValidateProductionBatch(
         [FromBody] ProductionBatchValidationRequest request)
     {
@@ -347,7 +347,7 @@ public class InventoryController : ControllerBase
     /// 验证仓库内入库数据中的工单号是否在工单管理上下文中存在
     /// </summary>
     [HttpGet("validate-workorder-nos/{warehouseId}")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<List<string>>>> ValidateWorkOrderNos(int warehouseId)
     {
         var result = await _service.ValidateWarehouseWorkOrderNosAsync(warehouseId);
@@ -358,7 +358,7 @@ public class InventoryController : ControllerBase
     /// 获取入库批次中工单号不存在的批次列表（实时扫描）
     /// </summary>
     [HttpGet("mismatched-batches")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<List<BatchWorkOrderMismatchDto>>>> GetMismatchedBatches(
         [FromQuery] int? warehouseId = null)
     {
@@ -370,7 +370,7 @@ public class InventoryController : ControllerBase
     /// 获取仓库入库批次中引用的所有工单号（用于过滤工单变更通知）
     /// </summary>
     [HttpGet("workorder-nos/{warehouseId}")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<List<string>>>> GetWorkOrderNos(int warehouseId)
     {
         var result = await _service.GetDistinctWorkOrderNosByWarehouseAsync(warehouseId);
@@ -381,7 +381,7 @@ public class InventoryController : ControllerBase
     /// 月度库存变化汇总（行=材料，列=期初+12月入/出/结+合计；结存为真实全口径，入/出按来源/类型 5 分）
     /// </summary>
     [HttpGet("monthly-stock-summary")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<MonthlyStockSummaryResultDto>>> GetMonthlyStockSummary()
     {
         var result = await _service.GetMonthlyStockSummaryAsync();
@@ -394,7 +394,7 @@ public class InventoryController : ControllerBase
     /// 打印全部库存/入库记录
     /// </summary>
     [HttpPost("print-inventory-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintInventoryAll([FromBody] InventoryPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -405,7 +405,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("print-inventory-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintInventoryAllFile([FromBody] InventoryPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -419,7 +419,7 @@ public class InventoryController : ControllerBase
     /// 打印选中库存/入库记录
     /// </summary>
     [HttpPost("print-inventory-selected")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintInventorySelected([FromBody] InventoryPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
@@ -430,7 +430,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("print-inventory-selected-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintInventorySelectedFile([FromBody] InventoryPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
@@ -441,7 +441,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("print-stock-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintStockAllFile([FromBody] InventoryPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -452,7 +452,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("print-stock-selected-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintStockSelectedFile([FromBody] InventoryPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
@@ -463,7 +463,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("print-inbound-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintInboundAllFile([FromBody] InventoryPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -474,7 +474,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("print-inbound-selected-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintInboundSelectedFile([FromBody] InventoryPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
@@ -488,7 +488,7 @@ public class InventoryController : ControllerBase
     /// 打印全部出库记录
     /// </summary>
     [HttpPost("print-outbound-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintOutboundAll([FromBody] OutboundPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -499,7 +499,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("print-outbound-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintOutboundAllFile([FromBody] OutboundPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -513,7 +513,7 @@ public class InventoryController : ControllerBase
     /// 打印选中出库记录
     /// </summary>
     [HttpPost("print-outbound-selected")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintOutboundSelected([FromBody] OutboundPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
@@ -524,7 +524,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("print-outbound-selected-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<IActionResult> PrintOutboundSelectedFile([FromBody] OutboundPrintSelectedRequest request)
     {
         if (!ModelState.IsValid)
@@ -540,7 +540,7 @@ public class InventoryController : ControllerBase
     /// 获取出库记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("outbound-filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetOutboundFilterContexts()
     {
         var result = await _service.GetOutboundFilterContextsAsync();
@@ -551,7 +551,7 @@ public class InventoryController : ControllerBase
     /// 获取库存批次筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("inventory-filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetInventoryFilterContexts()
     {
         var result = await _service.GetInventoryFilterContextsAsync();

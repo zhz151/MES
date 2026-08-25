@@ -21,6 +21,7 @@ public class SectionParagraphFlowAnalysisController : ControllerBase
 
     /// <summary>获取生产段落流转量分析数据</summary>
     [HttpGet]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<List<SectionParagraphFlowAnalysisDto>>>> GetAnalysis()
     {
         var result = await _service.GetAnalysisAsync();
@@ -28,6 +29,7 @@ public class SectionParagraphFlowAnalysisController : ControllerBase
     }
 
     [HttpPost("print-file")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> PrintFile([FromBody] SectionParagraphFlowAnalysisPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);

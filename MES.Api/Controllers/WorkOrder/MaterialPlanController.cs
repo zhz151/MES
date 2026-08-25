@@ -26,7 +26,7 @@ public class MaterialPlanController : ControllerBase
     #region 原料采购计划
 
     [HttpGet("semi/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<PurchaseSemiPlanDto>>>> GetSemiPlans(int workOrderId)
     {
         var result = await _materialPlanService.GetSemiPlansAsync(workOrderId);
@@ -34,7 +34,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("semi/detail/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<PurchaseSemiPlanDto>>> GetSemiPlanById(int id)
     {
         var result = await _materialPlanService.GetSemiPlanByIdAsync(id);
@@ -42,7 +42,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("semi")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<PurchaseSemiPlanDto>>> CreateSemiPlan(
         [FromBody] CreatePurchaseSemiPlanRequest request)
     {
@@ -54,7 +54,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPut("semi/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<PurchaseSemiPlanDto>>> UpdateSemiPlan(
         int id, [FromBody] CreatePurchaseSemiPlanRequest request)
     {
@@ -66,7 +66,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpDelete("semi/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteSemiPlan(int id)
     {
         await _materialPlanService.DeleteSemiPlanAsync(id);
@@ -78,7 +78,7 @@ public class MaterialPlanController : ControllerBase
     #region 成品采购计划
 
     [HttpGet("finished/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<PurchaseFinishedPlanDto>>>> GetFinishedPlans(int workOrderId)
     {
         var result = await _materialPlanService.GetFinishedPlansAsync(workOrderId);
@@ -86,7 +86,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("finished/detail/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<PurchaseFinishedPlanDto>>> GetFinishedPlanById(int id)
     {
         var result = await _materialPlanService.GetFinishedPlanByIdAsync(id);
@@ -94,7 +94,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("finished")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<PurchaseFinishedPlanDto>>> CreateFinishedPlan(
         [FromBody] CreatePurchaseFinishedPlanRequest request)
     {
@@ -106,7 +106,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("finished/batch")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<List<PurchaseFinishedPlanDto>>>> CreateFinishedPlanBatch(
         [FromBody] List<CreatePurchaseFinishedPlanRequest> requests)
     {
@@ -120,7 +120,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPut("finished/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<PurchaseFinishedPlanDto>>> UpdateFinishedPlan(
         int id, [FromBody] CreatePurchaseFinishedPlanRequest request)
     {
@@ -129,7 +129,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpDelete("finished/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteFinishedPlan(int id)
     {
         await _materialPlanService.DeleteFinishedPlanAsync(id);
@@ -141,7 +141,7 @@ public class MaterialPlanController : ControllerBase
     #region 库存使用计划
 
     [HttpGet("inventory/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<InventoryPlanDto>>>> GetInventoryPlans(int workOrderId)
     {
         var result = await _materialPlanService.GetInventoryPlansAsync(workOrderId);
@@ -149,7 +149,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("rework/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<InventoryPlanDto>>>> GetReworkPlans(int workOrderId)
     {
         var result = await _materialPlanService.GetReworkPlansAsync(workOrderId);
@@ -157,7 +157,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("inventory/available/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<AvailableInventoryBatchDto>>>> GetAvailableInventory(
         int workOrderId, [FromQuery] int? excludePlanId = null)
     {
@@ -166,7 +166,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("rework-inventory/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<AvailableInventoryBatchDto>>>> GetAvailableReworkInventory(
         int workOrderId, [FromQuery] ReworkType reworkType, [FromQuery] int? excludePlanId = null)
     {
@@ -175,7 +175,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("inventory")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<InventoryPlanDto>>> CreateInventoryPlan(
         [FromBody] CreateInventoryPlanRequest request)
     {
@@ -187,7 +187,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("inventory/batch")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<List<InventoryPlanDto>>>> CreateInventoryPlanBatch(
         [FromBody] List<CreateInventoryPlanRequest> requests)
     {
@@ -201,7 +201,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("inventory/plan/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<InventoryPlanDto>>> GetInventoryPlanById(int id)
     {
         var result = await _materialPlanService.GetInventoryPlanByIdAsync(id);
@@ -209,7 +209,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPut("inventory/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<InventoryPlanDto>>> UpdateInventoryPlan(
         int id, [FromBody] CreateInventoryPlanRequest request)
     {
@@ -218,7 +218,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpDelete("inventory/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteInventoryPlan(int id)
     {
         await _materialPlanService.DeleteInventoryPlanAsync(id);
@@ -230,7 +230,7 @@ public class MaterialPlanController : ControllerBase
     #region 在产改制计划
 
     [HttpGet("in-process-rework/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<InProcessReworkPlanDto>>>> GetInProcessReworkPlans(int workOrderId)
     {
         var result = await _materialPlanService.GetInProcessReworkPlansAsync(workOrderId);
@@ -238,7 +238,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("in-process-rework")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<InProcessReworkPlanDto>>> CreateInProcessReworkPlan(
         [FromBody] CreateInProcessReworkPlanRequest request)
     {
@@ -250,7 +250,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPut("in-process-rework/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<InProcessReworkPlanDto>>> UpdateInProcessReworkPlan(
         int id, [FromBody] CreateInProcessReworkPlanRequest request)
     {
@@ -262,7 +262,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpDelete("in-process-rework/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteInProcessReworkPlan(int id)
     {
         await _materialPlanService.DeleteInProcessReworkPlanAsync(id);
@@ -270,7 +270,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("in-process-batches/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<AvailableInProcessBatchDto>>>> GetAvailableInProcessBatches(
         int workOrderId, [FromQuery] int? excludePlanId = null)
     {
@@ -282,7 +282,7 @@ public class MaterialPlanController : ControllerBase
     /// 获取所有待处理的在产改制计划（批次上下文通知使用）
     /// </summary>
     [HttpGet("pending-inprocess-rework")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<PendingPlanBatchDto>>>> GetPendingInProcessReworkPlans()
     {
         var result = await _materialPlanService.GetPendingInProcessReworkPlansAsync();
@@ -294,7 +294,7 @@ public class MaterialPlanController : ControllerBase
     #region 在产主工单计划
 
     [HttpGet("in-main-work-order/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<InMainWorkOrderPlanDto>>>> GetInMainWorkOrderPlans(int workOrderId)
     {
         var result = await _materialPlanService.GetInMainWorkOrderPlansAsync(workOrderId);
@@ -302,7 +302,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("in-main-work-order")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<InMainWorkOrderPlanDto>>> CreateInMainWorkOrderPlan(
         [FromBody] CreateInMainWorkOrderPlanRequest request)
     {
@@ -314,7 +314,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPut("in-main-work-order/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<InMainWorkOrderPlanDto>>> UpdateInMainWorkOrderPlan(
         int id, [FromBody] CreateInMainWorkOrderPlanRequest request)
     {
@@ -326,7 +326,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpDelete("in-main-work-order/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteInMainWorkOrderPlan(int id)
     {
         await _materialPlanService.DeleteInMainWorkOrderPlanAsync(id);
@@ -334,7 +334,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("main-work-order-batches/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<AvailableMainWorkOrderBatchDto>>>> GetAvailableMainWorkOrderBatches(
         int workOrderId, [FromQuery] int? excludePlanId = null)
     {
@@ -346,7 +346,7 @@ public class MaterialPlanController : ControllerBase
     /// 获取所有待处理的在产主工单计划（批次上下文通知使用）
     /// </summary>
     [HttpGet("pending-in-main-work-order")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<PendingPlanBatchDto>>>> GetPendingInMainWorkOrderPlans()
     {
         var result = await _materialPlanService.GetPendingInMainWorkOrderPlansAsync();
@@ -358,7 +358,7 @@ public class MaterialPlanController : ControllerBase
     #region 圆棒穿孔计划
 
     [HttpGet("piercing/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<RoundBarPiercingPlanDto>>>> GetPiercingPlans(int workOrderId)
     {
         var result = await _materialPlanService.GetPiercingPlansAsync(workOrderId);
@@ -366,7 +366,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("piercing/detail/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<RoundBarPiercingPlanDto>>> GetPiercingPlanById(int id)
     {
         var result = await _materialPlanService.GetPiercingPlanByIdAsync(id);
@@ -374,7 +374,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("piercing")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<RoundBarPiercingPlanDto>>> CreatePiercingPlan(
         [FromBody] CreateRoundBarPiercingPlanRequest request)
     {
@@ -386,7 +386,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPut("piercing/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<RoundBarPiercingPlanDto>>> UpdatePiercingPlan(
         int id, [FromBody] UpdateRoundBarPiercingPlanRequest request)
     {
@@ -398,7 +398,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpDelete("piercing/{id}")]
-    [Authorize(Roles = $"{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderDelete)]
     public async Task<ActionResult<ApiResponse>> DeletePiercingPlan(int id)
     {
         await _materialPlanService.DeletePiercingPlanAsync(id);
@@ -410,7 +410,7 @@ public class MaterialPlanController : ControllerBase
     #region 用料测算
 
     [HttpPost("calculate")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse<MaterialCalculateResult>>> Calculate(
         [FromBody] MaterialCalculateRequest request)
     {
@@ -426,7 +426,7 @@ public class MaterialPlanController : ControllerBase
     #region 计划状态
 
     [HttpGet("summary/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<WorkOrderMaterialPlanDto>>> GetSummary(int workOrderId)
     {
         var result = await _materialPlanService.GetWorkOrderMaterialPlanAsync(workOrderId);
@@ -434,7 +434,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("refresh-status/{workOrderId}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
     public async Task<ActionResult<ApiResponse>> RefreshStatus(int workOrderId)
     {
         await _materialPlanService.UpdateMaterialPlanStatusAsync(workOrderId);
@@ -446,7 +446,7 @@ public class MaterialPlanController : ControllerBase
     #region 打印
 
     [HttpGet("print/semi/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintSemiPlan(int id)
     {
         var bytes = await _materialPlanService.PrintSemiPlanAsync(id);
@@ -455,7 +455,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("print/finished/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintFinishedPlan(int id)
     {
         var bytes = await _materialPlanService.PrintFinishedPlanAsync(id);
@@ -464,7 +464,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("print/inventory/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintInventoryPlan(int id)
     {
         var bytes = await _materialPlanService.PrintInventoryPlanAsync(id);
@@ -473,7 +473,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("print/rework/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintReworkPlan(int id)
     {
         var bytes = await _materialPlanService.PrintReworkPlanAsync(id);
@@ -482,7 +482,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("print/piercing/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintPiercingPlan(int id)
     {
         var bytes = await _materialPlanService.PrintPiercingPlanAsync(id);
@@ -491,7 +491,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("print/in-process-rework/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintInProcessReworkPlan(int id)
     {
         var bytes = await _materialPlanService.PrintInProcessReworkPlanAsync(id);
@@ -500,7 +500,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("print/batch")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] MaterialPlanBatchPrintRequest request)
     {
         if (!ModelState.IsValid)
@@ -523,7 +523,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("print/semi/{id}/file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintSemiPlanFile(int id)
     {
         var bytes = await _materialPlanService.PrintSemiPlanAsync(id);
@@ -531,7 +531,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("print/finished/{id}/file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintFinishedPlanFile(int id)
     {
         var bytes = await _materialPlanService.PrintFinishedPlanAsync(id);
@@ -539,7 +539,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("print/inventory/{id}/file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintInventoryPlanFile(int id)
     {
         var bytes = await _materialPlanService.PrintInventoryPlanAsync(id);
@@ -547,7 +547,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("print/rework/{id}/file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintReworkPlanFile(int id)
     {
         var bytes = await _materialPlanService.PrintReworkPlanAsync(id);
@@ -555,7 +555,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("print/piercing/{id}/file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintPiercingPlanFile(int id)
     {
         var bytes = await _materialPlanService.PrintPiercingPlanAsync(id);
@@ -563,7 +563,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("print/in-process-rework/{id}/file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintInProcessReworkPlanFile(int id)
     {
         var bytes = await _materialPlanService.PrintInProcessReworkPlanAsync(id);
@@ -571,7 +571,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpGet("print/in-main-work-order/{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintInMainWorkOrderPlan(int id)
     {
         var bytes = await _materialPlanService.PrintInMainWorkOrderPlanAsync(id);
@@ -580,7 +580,7 @@ public class MaterialPlanController : ControllerBase
     }
 
     [HttpPost("print/in-main-work-order/{id}/file")]
-    [Authorize(Roles = $"{Roles.Staffs.WorkOrder},{Roles.Directors.WorkOrder},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintInMainWorkOrderPlanFile(int id)
     {
         var bytes = await _materialPlanService.PrintInMainWorkOrderPlanAsync(id);
@@ -595,7 +595,7 @@ public class MaterialPlanController : ControllerBase
     /// 获取指定仓库中存在未出库用料计划的批次列表
     /// </summary>
     [HttpGet("pending-batches/{warehouseId}")]
-    [Authorize(Roles = $"{Roles.Staffs.Warehouse},{Roles.Directors.Warehouse},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
     public async Task<ActionResult<ApiResponse<List<PendingPlanBatchDto>>>> GetPendingPlanBatches(int warehouseId)
     {
         var result = await _materialPlanService.GetPendingPlanBatchesByWarehouseAsync(warehouseId);

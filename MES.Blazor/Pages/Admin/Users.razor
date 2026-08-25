@@ -8,7 +8,7 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
-@attribute [Authorize(Roles = Roles.Admin)]
+@attribute [Authorize(Roles = Roles.Policies.UserView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -82,6 +82,13 @@
                             </span>
                         </div>
                     </MudTh>
+                    <MudTh>
+                        <div style="display:inline-flex; align-items:center; gap:4px;">
+                            <span @onclick='() => ToggleSort("Remark")' style="cursor:pointer" class="th-label">
+                                用户备注 @if (sortColumn == "Remark") {@(sortDescending ? " ▼" : " ▲")}
+                            </span>
+                        </div>
+                    </MudTh>
                     <MudTh>角色</MudTh>
                     <MudTh>
                         <div style="display:inline-flex; align-items:center; gap:4px;">
@@ -102,14 +109,10 @@
                 <RowTemplate Context="item">
                     <MudTd DataLabel="序号">@((_currentPage - 1) * _pageSize + _pageItems.IndexOf(item) + 1)</MudTd>
                     <MudTd DataLabel="用户名">@item.UserName</MudTd>
-                    <MudTd DataLabel="邮箱">@item.Email</MudTd>
+                    <MudTd DataLabel="邮箱">@(string.IsNullOrWhiteSpace(item.Email) ? "-" : item.Email)</MudTd>
                     <MudTd DataLabel="姓名">@item.FullName</MudTd>
-                    <MudTd DataLabel="角色">
-                        @foreach (var role in item.Roles)
-                        {
-                            <MudChip Size="Size.Small" Color="Color.Primary" Class="mr-1">@GetRoleDisplayName(role)</MudChip>
-                        }
-                    </MudTd>
+                    <MudTd DataLabel="用户备注">@(string.IsNullOrWhiteSpace(item.Remark) ? "-" : item.Remark)</MudTd>
+                    <MudTd DataLabel="角色">@(item.Roles.Contains(Roles.Admin) ? "超级管理员" : "-")</MudTd>
                     <MudTd DataLabel="状态">
                         <MudChip Size="Size.Small" Color="@(item.IsActive ? Color.Success : Color.Error)">
                             @(item.IsActive ? "启用" : "停用")
@@ -123,10 +126,12 @@
                         <MudIconButton Icon="@Icons.Material.Filled.LockReset" Size="Size.Small"
                                        Color="Color.Warning" Title="重置密码"
                                        OnClick="@(() => OpenResetPasswordDialog(item))" />
+                        <AuthorizeView Roles="@Roles.Policies.UserDelete">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
                                        Color="Color.Error" Title="删除"
                                        Disabled="@(item.Roles.Contains("Admin"))"
                                        OnClick="@(() => DeleteItem(item))" />
+                        </AuthorizeView>
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
@@ -140,20 +145,3 @@
     </MudCard>
 </MudContainer>
 
-@* ========== 角色中文映射字典（用于前端显示）========== *@
-@code {
-    private static readonly Dictionary<string, string> RoleDisplayNames = new()
-    {
-        ["Admin"] = "超级管理员",
-        ["OrderDirector"] = "订单主任", ["OrderStaff"] = "订单专员",
-        ["WorkOrderDirector"] = "工单主任", ["WorkOrderStaff"] = "工单专员",
-        ["BatchDirector"] = "批次主任", ["BatchStaff"] = "批次专员",
-        ["QualityDirector"] = "质检主任", ["QualityStaff"] = "质检专员",
-        ["EquipmentDirector"] = "设备主任", ["EquipmentStaff"] = "设备专员",
-        ["WarehouseDirector"] = "仓库主任", ["WarehouseStaff"] = "仓库专员",
-        ["MaterialDirector"] = "物料主任", ["MaterialStaff"] = "物料专员",
-    };
-
-    private static string GetRoleDisplayName(string role) =>
-        RoleDisplayNames.TryGetValue(role, out var name) ? name : role;
-}

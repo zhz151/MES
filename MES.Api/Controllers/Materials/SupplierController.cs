@@ -24,7 +24,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<PagedResult<SupplierProfileDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -52,7 +52,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<List<SupplierProfileDto>>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -60,7 +60,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<SupplierProfileDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -68,7 +68,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialEdit)]
     public async Task<ActionResult<ApiResponse<SupplierProfileDto>>> Create([FromBody] CreateSupplierRequest request)
     {
         if (!ModelState.IsValid)
@@ -78,7 +78,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialEdit)]
     public async Task<ActionResult<ApiResponse<List<SupplierProfileDto>>>> CreateBatch([FromBody] List<CreateSupplierRequest> requests)
     {
         if (!ModelState.IsValid)
@@ -90,7 +90,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialEdit)]
     public async Task<ActionResult<ApiResponse<SupplierProfileDto>>> Update(int id, [FromBody] UpdateSupplierRequest request)
     {
         if (!ModelState.IsValid)
@@ -100,7 +100,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.MaterialDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -113,7 +113,7 @@ public class SupplierController : ControllerBase
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -123,7 +123,7 @@ public class SupplierController : ControllerBase
     // ========== 打印 ==========
 
     [HttpPost("print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintSupplierBatch([FromBody] OrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -135,7 +135,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<IActionResult> PrintSupplierBatchFile([FromBody] OrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -146,7 +146,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpPost("print-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintSupplierAll([FromBody] OrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -158,7 +158,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<IActionResult> PrintSupplierAllFile([FromBody] OrderPrintAllRequest request)
     {
         if (!ModelState.IsValid)
@@ -169,7 +169,7 @@ public class SupplierController : ControllerBase
     }
 
     [HttpGet("active")]
-    [Authorize(Roles = $"{Roles.Staffs.Material},{Roles.Directors.Material},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<List<SupplierProfileDto>>>> GetActive()
     {
         var result = await _service.GetActiveAsync();

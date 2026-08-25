@@ -28,7 +28,7 @@ public class ProductRequirementController : ControllerBase
     /// </summary>
     /// <param name="itemId">订单项次ID</param>
     [HttpGet]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<ProductRequirementDto>>> Get(int itemId)
     {
         var result = await _service.GetByOrderItemIdAsync(itemId);
@@ -46,7 +46,7 @@ public class ProductRequirementController : ControllerBase
     /// <param name="itemId">订单项次ID</param>
     /// <param name="request">产品要求请求</param>
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderEdit)]
     public async Task<ActionResult<ApiResponse<ProductRequirementDto>>> CreateOrUpdate(
         int itemId,
         [FromBody] CreateProductRequirementRequest request)
@@ -65,7 +65,7 @@ public class ProductRequirementController : ControllerBase
     /// </summary>
     /// <param name="orderId">订单ID</param>
     [HttpGet("~/api/order/{orderId}/requirements")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<List<ProductRequirementDto>>>> GetByOrderId(int orderId)
     {
         var result = await _service.GetByOrderIdAsync(orderId);
@@ -77,7 +77,7 @@ public class ProductRequirementController : ControllerBase
     /// </summary>
     /// <param name="standardNo">标准号</param>
     [HttpGet("~/api/order/{orderId}/requirements/defaults")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<ProductRequirementDefaultsDto>>> GetDefaults(string? standardNo)
     {
         var result = await _service.GetDefaultRequirementsByStandardNoAsync(standardNo);
@@ -90,7 +90,7 @@ public class ProductRequirementController : ControllerBase
     /// <param name="salesOrderNo">销售订单号（结合项次序号唯一定位订单项次）</param>
     /// <param name="orderItemIds">逗号分隔的订单项次序号列表（OrderItemIds 存的是 Sequence，非 OrderItem.Id）</param>
     [HttpGet("~/api/order/requirements/quality-remark")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<string>>> GetQualityRemark(string? salesOrderNo, string? orderItemIds)
     {
         var result = await _service.GetQualityRemarkByOrderItemIdsAsync(salesOrderNo, orderItemIds);

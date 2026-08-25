@@ -1,6 +1,7 @@
 using MES.Core.DTOs.Scheduling;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Models;
+using MES.Shared.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -25,6 +26,7 @@ public class ColdRollPlanController : ControllerBase
     /// 获取冷轧计划看板数据
     /// </summary>
     [HttpGet("plan")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> GetPlan([FromQuery] string? sectionFilter)
     {
         var data = await _coldRollPlanService.GetPlanAsync(sectionFilter);
@@ -35,6 +37,7 @@ public class ColdRollPlanController : ControllerBase
     /// 获取冷轧排程汇总（分档与主列表统一：在轧/待轧 各分 总量/特急/急/余量）
     /// </summary>
     [HttpGet("summary")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> GetScheduleSummary([FromQuery] string? sectionFilter, [FromQuery] int? maxDiff)
     {
         var data = await _coldRollPlanService.GetScheduleSummaryAsync(sectionFilter, maxDiff);
@@ -45,6 +48,7 @@ public class ColdRollPlanController : ControllerBase
     /// 获取冷轧排程排机估算（按轧机类型聚合：冷轧5060/冷轧2030/冷轧三辊/冷拔）
     /// </summary>
     [HttpGet("machine-estimate")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> GetMachineEstimate()
     {
         var data = await _coldRollPlanService.GetMachineEstimateAsync();
@@ -55,6 +59,7 @@ public class ColdRollPlanController : ControllerBase
     /// 获取冷轧排程建议（半自动）：机台类型组级 特急锁定 → 流转保底 → 产能平衡 三步决策
     /// </summary>
     [HttpGet("suggestion")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> GetScheduleSuggestion()
     {
         var data = await _coldRollPlanService.GetScheduleSuggestionAsync();

@@ -29,7 +29,7 @@ public class ChemicalAnalysisController : ControllerBase
     /// 获取化学分析详情
     /// </summary>
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<ChemicalAnalysisDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -42,7 +42,7 @@ public class ChemicalAnalysisController : ControllerBase
     /// 分页查询化学分析记录
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ChemicalAnalysisDto>>>> GetAll(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -75,7 +75,7 @@ public class ChemicalAnalysisController : ControllerBase
     /// 创建化学分析记录
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<ChemicalAnalysisDto>>> Create(
         [FromBody] CreateChemicalAnalysisRequest request)
     {
@@ -89,7 +89,7 @@ public class ChemicalAnalysisController : ControllerBase
     /// 更新化学分析记录
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<ChemicalAnalysisDto>>> Update(
         int id, [FromBody] UpdateChemicalAnalysisRequest request)
     {
@@ -103,7 +103,7 @@ public class ChemicalAnalysisController : ControllerBase
     /// 删除化学分析记录
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -114,7 +114,7 @@ public class ChemicalAnalysisController : ControllerBase
     /// 批量创建化学分析记录
     /// </summary>
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<List<ChemicalAnalysisDto>>>> BatchCreate(
         [FromBody] List<CreateChemicalAnalysisRequest> requests)
     {
@@ -130,7 +130,7 @@ public class ChemicalAnalysisController : ControllerBase
     /// 获取筛选上下文（各列的 DISTINCT 值）
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -139,7 +139,7 @@ public class ChemicalAnalysisController : ControllerBase
 
     /// <summary>批量打印选中记录（PDF 文件）</summary>
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] ChemicalAnalysisPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -150,7 +150,7 @@ public class ChemicalAnalysisController : ControllerBase
 
     /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintAllFile([FromBody] ChemicalAnalysisPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo);

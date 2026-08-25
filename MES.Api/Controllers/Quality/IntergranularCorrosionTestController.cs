@@ -18,7 +18,7 @@ public class IntergranularCorrosionTestController : ControllerBase
     public IntergranularCorrosionTestController(IIntergranularCorrosionTestService service) => _service = service;
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<IntergranularCorrosionTestDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -27,7 +27,7 @@ public class IntergranularCorrosionTestController : ControllerBase
     }
 
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<PagedResult<IntergranularCorrosionTestDto>>>> GetAll(
         [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 20,
         [FromQuery] string? keyword = null, [FromQuery] string? sortBy = null,
@@ -54,7 +54,7 @@ public class IntergranularCorrosionTestController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<IntergranularCorrosionTestDto>>> Create([FromBody] CreateIntergranularCorrosionTestRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<IntergranularCorrosionTestDto>.Fail("请求参数无效"));
@@ -63,7 +63,7 @@ public class IntergranularCorrosionTestController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<IntergranularCorrosionTestDto>>> Update(int id, [FromBody] UpdateIntergranularCorrosionTestRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<IntergranularCorrosionTestDto>.Fail("请求参数无效"));
@@ -72,7 +72,7 @@ public class IntergranularCorrosionTestController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -80,7 +80,7 @@ public class IntergranularCorrosionTestController : ControllerBase
     }
 
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<List<IntergranularCorrosionTestDto>>>> BatchCreate([FromBody] List<CreateIntergranularCorrosionTestRequest> requests)
     {
         if (!ModelState.IsValid) return BadRequest(ApiResponse<List<IntergranularCorrosionTestDto>>.Fail("请求参数无效"));
@@ -90,7 +90,7 @@ public class IntergranularCorrosionTestController : ControllerBase
     }
 
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -98,7 +98,7 @@ public class IntergranularCorrosionTestController : ControllerBase
     }
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] IntergranularCorrosionTestPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -108,7 +108,7 @@ public class IntergranularCorrosionTestController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Quality},{Roles.Directors.Quality},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
     public async Task<IActionResult> PrintAllFile([FromBody] IntergranularCorrosionTestPrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo);

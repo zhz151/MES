@@ -29,7 +29,7 @@ public class ChemicalValidationRuleController : ControllerBase
     /// 获取牌号验证规则详情
     /// </summary>
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<ChemicalValidationRuleDto>>> GetById(int id)
     {
         var item = await _service.GetByIdAsync(id);
@@ -42,7 +42,7 @@ public class ChemicalValidationRuleController : ControllerBase
     /// 查询所有牌号验证规则（分页）
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ChemicalValidationRuleDto>>>> GetAll(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -73,7 +73,7 @@ public class ChemicalValidationRuleController : ControllerBase
     /// 获取所有牌号验证规则（无分页）
     /// </summary>
     [HttpGet("all-list")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ApiResponse<List<ChemicalValidationRuleDto>>> GetAllList()
     {
         var result = await _service.GetAllListAsync();
@@ -84,7 +84,7 @@ public class ChemicalValidationRuleController : ControllerBase
     /// 获取筛选上下文（各列的 DISTINCT 值）
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -95,7 +95,7 @@ public class ChemicalValidationRuleController : ControllerBase
     /// 根据工厂牌号获取验证规则
     /// </summary>
     [HttpGet("by-plant-grade")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<ActionResult<ApiResponse<ChemicalValidationRuleDto?>>> GetByPlantGrade(
         [FromQuery] string plantGrade)
     {
@@ -107,7 +107,7 @@ public class ChemicalValidationRuleController : ControllerBase
     /// 批量创建牌号验证规则
     /// </summary>
     [HttpPost("batch")]
-    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<List<ChemicalValidationRuleDto>>>> BatchCreate(
         [FromBody] List<CreateChemicalValidationRuleRequest> requests)
     {
@@ -123,7 +123,7 @@ public class ChemicalValidationRuleController : ControllerBase
     /// 更新牌号验证规则
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardEdit)]
     public async Task<ActionResult<ApiResponse<ChemicalValidationRuleDto>>> Update(
         int id, [FromBody] UpdateChemicalValidationRuleRequest request)
     {
@@ -137,7 +137,7 @@ public class ChemicalValidationRuleController : ControllerBase
     /// 删除牌号验证规则
     /// </summary>
     [HttpDelete("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -146,7 +146,7 @@ public class ChemicalValidationRuleController : ControllerBase
 
     /// <summary>批量打印选中记录（PDF 文件）</summary>
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] ChemicalValidationRulePrintBatchRequest request)
     {
         if (request.Ids.Length == 0)
@@ -157,7 +157,7 @@ public class ChemicalValidationRuleController : ControllerBase
 
     /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Standard},{Roles.Directors.Standard},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.StandardView)]
     public async Task<IActionResult> PrintAllFile([FromBody] ChemicalValidationRulePrintAllRequest request)
     {
         var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);

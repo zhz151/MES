@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
 using MES.Core.DTOs.Configuration;
 using MES.Core.Interfaces.Configuration;
+using MES.Shared.Constants;
 using System.Text.Json;
 
 namespace MES.Api.Controllers.Configuration;
@@ -22,6 +23,7 @@ public class StandardWorkDayController : ControllerBase
     }
 
     [HttpGet("list")]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<PagedResult<StandardWorkDayDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -56,6 +58,7 @@ public class StandardWorkDayController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<StandardWorkDayDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -65,6 +68,7 @@ public class StandardWorkDayController : ControllerBase
     }
 
     [HttpPost("save")]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Save([FromBody] StandardWorkDayDto dto)
     {
         var result = await _service.SaveAsync(dto);
@@ -72,6 +76,7 @@ public class StandardWorkDayController : ControllerBase
     }
 
     [HttpPost("delete/{id}")]
+    [Authorize(Roles = Roles.Policies.ConfigurationDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         var result = await _service.DeleteAsync(id);

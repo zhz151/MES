@@ -28,7 +28,7 @@ public class OrderController : ControllerBase
     #region 订单管理
 
     [HttpGet("list")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<PagedResult<SalesOrderListDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -55,7 +55,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpGet("list-all")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<List<SalesOrderListDto>>>> GetAllList()
     {
         var result = await _orderService.GetAllListAsync();
@@ -66,7 +66,7 @@ public class OrderController : ControllerBase
     /// 订单接单·出库及现负荷汇总（本年按月：接单量/出库量/库存完工/库存未完工）
     /// </summary>
     [HttpGet("in-out-summary")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<OrderInOutSummaryDto>>> GetInOutSummary([FromQuery] int year)
     {
         if (year < 2000 || year > 2100)
@@ -79,7 +79,7 @@ public class OrderController : ControllerBase
     /// 订单交期预估（业务总况两小表：订单完成预估 / 延期交货订单预估）
     /// </summary>
     [HttpGet("delivery-estimate")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<OrderDeliveryEstimateDto>>> GetDeliveryEstimate()
     {
         var result = await _orderService.GetDeliveryEstimateAsync();
@@ -87,7 +87,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<SalesOrderDetailDto>>> GetById(int id)
     {
         var result = await _orderService.GetByIdAsync(id);
@@ -95,7 +95,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpGet("by-number/{orderNo}")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<int?>>> GetIdByOrderNumber(string orderNo)
     {
         var id = await _orderService.GetIdByOrderNumberAsync(orderNo);
@@ -103,7 +103,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderEdit)]
     public async Task<ActionResult<ApiResponse<SalesOrderListDto>>> Create([FromBody] CreateSalesOrderRequest request)
     {
         if (!ModelState.IsValid)
@@ -114,7 +114,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderEdit)]
     public async Task<ActionResult<ApiResponse<SalesOrderListDto>>> Update(int id, [FromBody] UpdateSalesOrderRequest request)
     {
         if (!ModelState.IsValid)
@@ -125,7 +125,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = Roles.Admin)]
+    [Authorize(Roles = Roles.Policies.OrderDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _orderService.DeleteAsync(id);
@@ -137,7 +137,7 @@ public class OrderController : ControllerBase
     #region 项次管理
 
     [HttpPost("{id}/items")]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderEdit)]
     public async Task<ActionResult<ApiResponse<OrderItemDto>>> AddItem(int id, [FromBody] AddOrderItemRequest request)
     {
         if (!ModelState.IsValid)
@@ -148,7 +148,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpPut("{id}/items/{itemId}")]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderEdit)]
     public async Task<ActionResult<ApiResponse<OrderItemDto>>> UpdateItem(int id, int itemId, [FromBody] UpdateOrderItemRequest request)
     {
         if (!ModelState.IsValid)
@@ -159,7 +159,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpDelete("{id}/items/{itemId}")]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteItem(int id, int itemId)
     {
         await _orderService.DeleteItemAsync(id, itemId);
@@ -167,7 +167,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpPost("{id}/save-all")]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderEdit)]
     public async Task<ActionResult<ApiResponse<SaveAllOrderResponse>>> SaveAll(int id, [FromBody] SaveAllOrderRequest request)
     {
         if (!ModelState.IsValid)
@@ -182,7 +182,7 @@ public class OrderController : ControllerBase
     #region 打印
 
     [HttpPost("print-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<IActionResult> PrintFile([FromBody] OrderPrintBatchRequest request)
     {
         var pdfBytes = await _orderService.PrintOrderBatchAsync(request.Ids);
@@ -190,7 +190,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpGet("{id}/print")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrder(int id)
     {
         var pdfBytes = await _orderService.PrintOrderAsync(id);
@@ -199,7 +199,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpPost("print-all-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<IActionResult> PrintAllFile([FromBody] OrderPrintAllRequest request)
     {
         var pdfBytes = await _orderService.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.DateFrom, request.DateTo);
@@ -207,7 +207,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpPost("print-batch")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderBatch([FromBody] OrderPrintBatchRequest request)
     {
         if (!ModelState.IsValid)
@@ -219,7 +219,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpGet("{orderId}/requirements/print")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<string>>> PrintOrderRequirements(int orderId)
     {
         var pdfBytes = await _orderService.PrintOrderRequirementsAsync(orderId);
@@ -228,7 +228,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpPost("{orderId}/requirements/print-file")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<IActionResult> PrintOrderRequirementsFile(int orderId)
     {
         var pdfBytes = await _orderService.PrintOrderRequirementsAsync(orderId);
@@ -243,7 +243,7 @@ public class OrderController : ControllerBase
     /// 刷新全部订单读模型（从源表重新聚合 OrderListSummary）
     /// </summary>
     [HttpPost("refresh")]
-    [Authorize(Roles = $"{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderEdit)]
     public async Task<ActionResult<ApiResponse>> Refresh()
     {
         await _orderService.RefreshAllAsync();
@@ -258,7 +258,7 @@ public class OrderController : ControllerBase
     /// 获取订单操作日志
     /// </summary>
     [HttpGet("{id}/operation-logs")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<List<OperationLogDto>>>> GetOperationLogs(int id)
     {
         var result = await _operationLogService.GetLogsAsync("Order", id);
@@ -273,7 +273,7 @@ public class OrderController : ControllerBase
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = $"{Roles.Staffs.Order},{Roles.Directors.Order},{Roles.Admin}")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _orderService.GetFilterContextsAsync();

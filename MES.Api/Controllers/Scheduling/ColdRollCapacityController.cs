@@ -1,6 +1,7 @@
 using MES.Core.DTOs.Scheduling;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Models;
+using MES.Shared.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,6 +24,7 @@ public class ColdRollCapacityController : ControllerBase
 
     /// <summary>获取全部产能配置</summary>
     [HttpGet("all")]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<IActionResult> GetAll()
     {
         var data = await _service.GetAllAsync();
@@ -31,6 +33,7 @@ public class ColdRollCapacityController : ControllerBase
 
     /// <summary>分页查询产能配置</summary>
     [HttpGet("list")]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<IActionResult> GetPaged([FromQuery] QueryParams query)
     {
         var data = await _service.GetPagedAsync(query);
@@ -39,6 +42,7 @@ public class ColdRollCapacityController : ControllerBase
 
     /// <summary>保存产能配置（手工调整机台/日产能，反向同步排程小表已存在维度）</summary>
     [HttpPost("save")]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<IActionResult> Save([FromBody] ColdRollCapacityDto dto)
     {
         await _service.SaveAsync(dto);

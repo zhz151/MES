@@ -21,7 +21,7 @@ public class SectionFlowCategorySettingsController : ControllerBase
 
     /// <summary>获取所有设置</summary>
     [HttpGet]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<List<SectionFlowCategorySettingDto>>>> GetSettings()
     {
         var result = await _service.GetSettingsAsync();
@@ -30,7 +30,7 @@ public class SectionFlowCategorySettingsController : ControllerBase
 
     /// <summary>新增类别</summary>
     [HttpPost]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse>> CreateSetting([FromBody] SectionFlowCategorySettingDto dto)
     {
         var success = await _service.CreateSettingAsync(dto);
@@ -41,7 +41,7 @@ public class SectionFlowCategorySettingsController : ControllerBase
 
     /// <summary>删除类别（级联删组合归类行）</summary>
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteSetting(int id)
     {
         var success = await _service.DeleteSettingAsync(id);
@@ -52,7 +52,7 @@ public class SectionFlowCategorySettingsController : ControllerBase
 
     /// <summary>更新类别字段</summary>
     [HttpPut]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse>> SaveSetting([FromBody] SectionFlowCategorySettingDto dto)
     {
         var success = await _service.SaveSettingAsync(dto);

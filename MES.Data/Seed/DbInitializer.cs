@@ -52,12 +52,15 @@ public static class DbInitializer
         }
 
         // ========== 2. Initialize Admin Account ==========
-        var adminUser = await userManager.FindByEmailAsync("admin@mes.com");
+        // 用户名用 Roles.Admin（"Admin"），不与邮箱混淆；邮箱 admin@mes.com 仅作为登录兜底
+        // 兼容存量库：旧种子曾用 UserName="admin@mes.com"，故按邮箱二次查找避免重复创建
+        var adminUser = await userManager.FindByNameAsync(Roles.Admin)
+            ?? await userManager.FindByEmailAsync("admin@mes.com");
         if (adminUser == null)
         {
             adminUser = new AppUser
             {
-                UserName = "admin@mes.com",
+                UserName = Roles.Admin,
                 Email = "admin@mes.com",
                 FullName = "System Administrator",
                 EmailConfirmed = true,

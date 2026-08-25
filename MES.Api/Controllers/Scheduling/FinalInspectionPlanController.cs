@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.Interfaces.Scheduling;
+using MES.Shared.Constants;
 
 namespace MES.Api.Controllers.Scheduling;
 
@@ -19,6 +20,7 @@ public class FinalInspectionPlanController : ControllerBase
     }
 
     [HttpGet("kanban")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<List<FinalInspectionPlanDto>>>> GetKanban()
     {
         var result = await _service.GetKanbanAsync();
@@ -26,6 +28,7 @@ public class FinalInspectionPlanController : ControllerBase
     }
 
     [HttpGet("summary")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<ActionResult<ApiResponse<List<FinalInspectionPlanSummaryRowDto>>>> GetSummary()
     {
         var result = await _service.GetSummaryAsync();
@@ -33,6 +36,7 @@ public class FinalInspectionPlanController : ControllerBase
     }
 
     [HttpPost("print-file")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> PrintFile([FromBody] FinalInspectionPlanPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);

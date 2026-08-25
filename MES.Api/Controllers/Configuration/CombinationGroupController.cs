@@ -21,7 +21,7 @@ public class CombinationGroupController : ControllerBase
 
     /// <summary>获取全部组合归类</summary>
     [HttpGet("list")]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationView)]
     public async Task<ActionResult<ApiResponse<List<CombinationGroupDto>>>> GetList()
     {
         var result = await _service.GetListAsync();
@@ -30,7 +30,7 @@ public class CombinationGroupController : ControllerBase
 
     /// <summary>新增或更新组合归类</summary>
     [HttpPost("save")]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationEdit)]
     public async Task<ActionResult<ApiResponse>> Save([FromBody] CombinationGroupDto dto)
     {
         var success = await _service.SaveAsync(dto);
@@ -41,7 +41,7 @@ public class CombinationGroupController : ControllerBase
 
     /// <summary>删除组合归类</summary>
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = Roles.Policies.AdminOnly)]
+    [Authorize(Roles = Roles.Policies.ConfigurationDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         var success = await _service.DeleteAsync(id);

@@ -32,6 +32,7 @@
             <MudDivider Style="background: #333; margin: 4px 0;" />
 
             <MudExpansionPanels>
+                <AuthorizeView Roles="@Roles.Policies.OrderMenu">
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">订单管理</div></TitleContent>
                     <ChildContent>
@@ -42,7 +43,9 @@
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
+                </AuthorizeView>
 
+                <AuthorizeView Roles="@Roles.Policies.WorkOrderMenu">
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">工单管理</div></TitleContent>
                     <ChildContent>
@@ -55,21 +58,25 @@
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
+                </AuthorizeView>
 
-                <MudExpansionPanel Style="background: transparent; color: #ccc;">
-                    <TitleContent><div style="padding: 10px 16px; color: #ccc;">计划排程</div></TitleContent>
-                    <ChildContent>
-                        <div style="padding-left: 16px;">
-                            <MudNavLink Href="/plan-overview" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">订单负荷总量</MudNavLink>
-                            <MudNavLink Href="/raw-material-lock-plan" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">原锁计划</MudNavLink>
-                            <MudNavLink Href="/scheduling-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工单排程</MudNavLink>
-                            <MudNavLink Href="/cold-roll-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">冷轧排程</MudNavLink>
-                            <MudNavLink Href="/batch-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">批次计划</MudNavLink>
-                            <MudNavLink Href="/final-inspection-plan" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成检计划</MudNavLink>
-                        </div>
-                    </ChildContent>
-                </MudExpansionPanel>
+                <AuthorizeView Roles="@Roles.Policies.SchedulingMenu">
+                    <MudExpansionPanel Style="background: transparent; color: #ccc;">
+                        <TitleContent><div style="padding: 10px 16px; color: #ccc;">计划排程</div></TitleContent>
+                        <ChildContent>
+                            <div style="padding-left: 16px;">
+                                <MudNavLink Href="/plan-overview" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">订单负荷总量</MudNavLink>
+                                <MudNavLink Href="/raw-material-lock-plan" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">原锁计划</MudNavLink>
+                                <MudNavLink Href="/scheduling-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工单排程</MudNavLink>
+                                <MudNavLink Href="/cold-roll-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">冷轧排程</MudNavLink>
+                                <MudNavLink Href="/batch-plans" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">批次计划</MudNavLink>
+                                <MudNavLink Href="/final-inspection-plan" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">成检计划</MudNavLink>
+                            </div>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                </AuthorizeView>
 
+                <AuthorizeView Roles="@Roles.Policies.BatchMenu">
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">批次管理</div></TitleContent>
                     <ChildContent>
@@ -82,7 +89,9 @@
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
+                </AuthorizeView>
 
+                <AuthorizeView Roles="@Roles.Policies.QualityMenu">
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">质量管理</div></TitleContent>
                     <ChildContent>
@@ -94,36 +103,44 @@
                         <!-- 不合格报告（二级）-->
                         <MudNavLink Href="/quality/ncr" Style="color: #ccc; padding: 10px 24px;" OnClick="CloseDrawer">不合格报告</MudNavLink>
                         <!-- 炉号/化学 三级嵌套 -->
-                        <MudExpansionPanel Style="background: transparent; color: #999;" Class="ml-4">
-                            <TitleContent><div style="padding: 8px 16px; font-size: 0.9rem;">炉号/化学</div></TitleContent>
-                            <ChildContent>
-                                <div style="padding-left: 32px;">
-                                    <MudNavLink Href="/quality/furnace" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">炉号登记</MudNavLink>
-                                </div>
-                            </ChildContent>
-                        </MudExpansionPanel>
+                        
+                            <MudExpansionPanel Style="background: transparent; color: #999;" Class="ml-4">
+                                <TitleContent><div style="padding: 8px 16px; font-size: 0.9rem;">炉号/化学</div></TitleContent>
+                                <ChildContent>
+                                    <div style="padding-left: 32px;">
+                                        <MudNavLink Href="/quality/furnace" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">炉号登记</MudNavLink>
+                                    </div>
+                                </ChildContent>
+                            </MudExpansionPanel>
+                        
                     </ChildContent>
                 </MudExpansionPanel>
+                </AuthorizeView>
 
+                <AuthorizeView Roles="@Roles.Policies.MaterialMenu">
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">物料管理</div></TitleContent>
                     <ChildContent>
                         <div style="padding-left: 16px;">
                             <MudNavLink Href="/purchase-orders" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">采购订单</MudNavLink>
-                            <MudExpansionPanel Style="background: transparent; color: #999;" Class="ml-4">
-                                <TitleContent><div style="padding: 8px 16px; font-size: 0.9rem;">圆棒穿孔</div></TitleContent>
-                                <ChildContent>
-                                    <div style="padding-left: 32px;">
-                                        <MudNavLink Href="/subcontract-orders" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">圆棒穿孔</MudNavLink>
-                                        <MudNavLink Href="/subcontract-return-items" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">子项查询</MudNavLink>
-                                    </div>
-                                </ChildContent>
-                            </MudExpansionPanel>
+                            
+                                <MudExpansionPanel Style="background: transparent; color: #999;" Class="ml-4">
+                                    <TitleContent><div style="padding: 8px 16px; font-size: 0.9rem;">圆棒穿孔</div></TitleContent>
+                                    <ChildContent>
+                                        <div style="padding-left: 32px;">
+                                            <MudNavLink Href="/subcontract-orders" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">圆棒穿孔</MudNavLink>
+                                            <MudNavLink Href="/subcontract-return-items" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">子项查询</MudNavLink>
+                                        </div>
+                                    </ChildContent>
+                                </MudExpansionPanel>
+                            
                             <MudNavLink Href="/suppliers" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">供应商管理</MudNavLink>
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
+                </AuthorizeView>
 
+                <AuthorizeView Roles="@Roles.Policies.WarehouseMenu">
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">仓库管理</div></TitleContent>
                     <ChildContent>
@@ -133,10 +150,13 @@
                             <MudNavLink Href="/warehouse/wip" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">在制品库</MudNavLink>
                             <MudNavLink Href="/warehouse/defect" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">次品库</MudNavLink>
                             <MudNavLink Href="/warehouse/monthly-stock" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">物料进出存报表</MudNavLink>
+                            <MudNavLink Href="/warehouse/pending-delivery" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">待发货项</MudNavLink>
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
+                </AuthorizeView>
 
+                <AuthorizeView Roles="@Roles.Policies.EquipmentView">
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">设备管理</div></TitleContent>
                     <ChildContent>
@@ -148,7 +168,9 @@
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
+                </AuthorizeView>
 
+                <AuthorizeView Roles="@Roles.Policies.StandardView">
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">生产标准</div></TitleContent>
                     <ChildContent>
@@ -165,7 +187,9 @@
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
+                </AuthorizeView>
 
+                <AuthorizeView Roles="@Roles.Policies.ConfigurationView">
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">参数表</div></TitleContent>
                     <ChildContent>
@@ -186,25 +210,32 @@
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
+                </AuthorizeView>
 
                 <MudDivider Style="background: #333; margin: 4px 0;" />
 
-                <AuthorizeView Roles="@Roles.Policies.ReportOverview">
+                <AuthorizeView Roles="@Roles.Policies.ReportView">
                     <MudNavLink Href="/reports/overview" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">报表总览</MudNavLink>
                 </AuthorizeView>
-                <MudNavLink Href="/data-exchange" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">数据工具</MudNavLink>
+                <AuthorizeView Roles="@Roles.Policies.DataToolView">
+                    <MudNavLink Href="/data-exchange" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">数据工具</MudNavLink>
+                </AuthorizeView>
                 <MudExpansionPanel Style="background: transparent; color: #ccc;">
                     <TitleContent><div style="padding: 10px 16px; color: #ccc;">扫码管理</div></TitleContent>
                     <ChildContent>
                         <div style="padding-left: 16px;">
                             <MudNavLink Href="/mobile-report" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">扫码报工</MudNavLink>
                             <MudNavLink Href="/equipment-scan" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">设备扫码</MudNavLink>
-                            <MudNavLink Href="/workstations" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工位管理</MudNavLink>
-                            <MudNavLink Href="/employees" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">员工管理</MudNavLink>
+                            <AuthorizeView Roles="@Roles.Policies.ScanView">
+                                <MudNavLink Href="/workstations" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">工位管理</MudNavLink>
+                                <MudNavLink Href="/employees" Style="color: #999; padding: 8px 16px;" OnClick="CloseDrawer">员工管理</MudNavLink>
+                            </AuthorizeView>
                         </div>
                     </ChildContent>
                 </MudExpansionPanel>
+                <AuthorizeView Roles="@Roles.Policies.UserView">
                 <MudNavLink Href="/admin/users" Style="color: #ccc; padding: 10px 16px;" OnClick="CloseDrawer">用户管理</MudNavLink>
+                </AuthorizeView>
             </MudExpansionPanels>
 
             <div style="border-top: 1px solid #333; padding: 16px; margin-top: 8px;">

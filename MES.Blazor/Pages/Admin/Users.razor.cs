@@ -17,31 +17,26 @@ public partial class Users
     private int _currentPage = 1;
     private int _pageSize = 10;
     private string _searchKeyword = string.Empty;
+    private int _loadVersion;
+    private bool _resetToFirstPage;
 
     private string sortColumn = "CreatedTime";
     private bool sortDescending = true;
-
-    // ========== 所有可选角色列表（用于创建/编辑弹窗的复选框）==========
-    private static readonly List<string> AllRoles = new()
-    {
-        "Admin",
-        "OrderDirector", "OrderStaff",
-        "WorkOrderDirector", "WorkOrderStaff",
-        "BatchDirector", "BatchStaff",
-        "QualityDirector", "QualityStaff",
-        "EquipmentDirector", "EquipmentStaff",
-        "WarehouseDirector", "WarehouseStaff",
-        "MaterialDirector", "MaterialStaff",
-        "StandardDirector", "StandardStaff",
-    };
 
     // ========== 服务端数据加载 ==========
 
     private async Task<TableData<UserDto>> LoadDataFromServer(TableState state)
     {
         _pageSize = state.PageSize;
+        var version = ++_loadVersion;
         try
         {
+            if (_resetToFirstPage)
+            {
+                state.Page = 0;
+                _resetToFirstPage = false;
+            }
+
             var query = new QueryParams
             {
                 PageIndex = state.Page + 1,
@@ -52,6 +47,11 @@ public partial class Users
             };
 
             var result = await UserService.GetPagedAsync(query);
+
+            // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
+            if (version != _loadVersion)
+                return new TableData<UserDto> { Items = _pageItems, TotalItems = _totalCount };
+
             if (result.Success && result.Data != null)
             {
                 _pageItems = result.Data.Items;
@@ -95,6 +95,7 @@ public partial class Users
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
+        _resetToFirstPage = true;
         if (table != null) await table.ReloadServerData();
     }
 
@@ -107,7 +108,6 @@ public partial class Users
         {
             ["Title"] = "新建用户",
             ["Model"] = model,
-            ["AllRoles"] = AllRoles,
             ["IsCreate"] = true,
         };
         var dialog = DialogService.Show<UserEditDialog>("新建用户", parameters, new DialogOptions
@@ -146,6 +146,7 @@ public partial class Users
         var model = new UpdateUserRequest
         {
             FullName = item.FullName,
+            Remark = item.Remark,
             IsActive = item.IsActive,
             Roles = item.Roles.ToList()
         };
@@ -153,7 +154,6 @@ public partial class Users
         {
             ["Title"] = "编辑用户",
             ["Model"] = model,
-            ["AllRoles"] = AllRoles,
             ["IsCreate"] = false,
         };
         var dialog = DialogService.Show<UserEditDialog>("编辑用户", parameters, new DialogOptions
