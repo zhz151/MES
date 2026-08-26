@@ -5,6 +5,7 @@ using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces.Order;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Models;
 using MES.Data;
@@ -24,6 +25,7 @@ public class InventoryService : IInventoryService
     private readonly IInventorySyncService _syncService;
     private readonly ILogger<InventoryService> _logger;
     private readonly IMemoryCache _cache;
+    private readonly IPendingDeliveryQueryService _pendingDeliveryQueryService;
 
     // ========== DTO 映射辅助 ==========
 
@@ -102,7 +104,8 @@ public class InventoryService : IInventoryService
         IOutboundWriteService outboundWriteService,
         IInventorySyncService syncService,
         ILogger<InventoryService> logger,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IPendingDeliveryQueryService pendingDeliveryQueryService)
     {
         _context = context;
         _batchWriteService = batchWriteService;
@@ -110,6 +113,7 @@ public class InventoryService : IInventoryService
         _syncService = syncService;
         _logger = logger;
         _cache = cache;
+        _pendingDeliveryQueryService = pendingDeliveryQueryService;
     }
 
     // ========== 入库批次查询 ==========
@@ -377,28 +381,28 @@ public class InventoryService : IInventoryService
     public async Task<InventoryBatchDto> InboundAsync(CreateInboundRequest request)
     {
         var result = await _batchWriteService.InboundAsync(request);
-        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        await _pendingDeliveryQueryService.InvalidateCachesAsync();
         return result;
     }
 
     public async Task<BatchInboundResult> BatchInboundAsync(BatchInboundRequest request)
     {
         var result = await _batchWriteService.BatchInboundAsync(request);
-        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        await _pendingDeliveryQueryService.InvalidateCachesAsync();
         return result;
     }
 
     public async Task<InventoryBatchDto> UpdateInventoryBatchAsync(int id, UpdateInventoryBatchRequest request)
     {
         var result = await _batchWriteService.UpdateInventoryBatchAsync(id, request);
-        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        await _pendingDeliveryQueryService.InvalidateCachesAsync();
         return result;
     }
 
     public async Task HardDeleteInventoryBatchAsync(int id)
     {
         await _batchWriteService.HardDeleteInventoryBatchAsync(id);
-        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        await _pendingDeliveryQueryService.InvalidateCachesAsync();
     }
 
     // ========== 出库操作 ==========
@@ -406,14 +410,14 @@ public class InventoryService : IInventoryService
     public async Task<OutboundRecordDto> OutboundAsync(CreateOutboundRequest request)
     {
         var result = await _outboundWriteService.OutboundAsync(request);
-        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        await _pendingDeliveryQueryService.InvalidateCachesAsync();
         return result;
     }
 
     public async Task<BatchOutboundResult> BatchOutboundAsync(BatchOutboundRequest request)
     {
         var result = await _outboundWriteService.BatchOutboundAsync(request);
-        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        await _pendingDeliveryQueryService.InvalidateCachesAsync();
         return result;
     }
 
@@ -539,14 +543,14 @@ public class InventoryService : IInventoryService
     public async Task<OutboundRecordDto> UpdateOutboundRecordAsync(long id, UpdateOutboundRecordRequest request)
     {
         var result = await _outboundWriteService.UpdateOutboundRecordAsync(id, request);
-        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        await _pendingDeliveryQueryService.InvalidateCachesAsync();
         return result;
     }
 
     public async Task HardDeleteOutboundRecordAsync(long id)
     {
         await _outboundWriteService.HardDeleteOutboundRecordAsync(id);
-        _cache.Remove(PendingDeliveryQueryService.CacheKey);
+        await _pendingDeliveryQueryService.InvalidateCachesAsync();
     }
 
     // ========== 来源单验证与同步 ==========

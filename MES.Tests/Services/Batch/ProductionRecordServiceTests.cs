@@ -2410,4 +2410,26 @@ public class ProductionRecordServiceTests : TestBase
         var refreshed = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.Id == batch.Id);
         refreshed.CurrentSectionCompleted.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task BatchUpdateBatchTrackingAsync_空集合_直接返回不抛异常()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        // 空集合触发新增的空集保护（防分片前空集也走一遍空查询），应直接返回
+        await svc.BatchUpdateBatchTrackingAsync(new List<int>());
+    }
+
+    [Fact]
+    public async Task BatchUpdateBatchTrackingAsync_超过1000批次_分片处理不抛异常()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        // 传 1005 个不存在的批次 ID（跨过 1000 分片边界）：分片循环正常执行，
+        // batchDict 为空快速返回，验证 Chunk 分片后查询不因大 IN 列表抛异常
+        var fakeIds = Enumerable.Range(900_000, 1005).ToList();
+        await svc.BatchUpdateBatchTrackingAsync(fakeIds);
+    }
 }

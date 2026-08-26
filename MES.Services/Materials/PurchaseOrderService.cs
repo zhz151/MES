@@ -83,6 +83,18 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
     }
 
+    /// <summary>
+    /// 来源工单号变更后新旧都刷新，避免旧工单读模型残留
+    /// </summary>
+    private async Task TryRefreshExecutionSummaryBothAsync(string? oldSourceWorkOrderNo, string? newSourceWorkOrderNo)
+    {
+        var nos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(oldSourceWorkOrderNo)) nos.Add(oldSourceWorkOrderNo);
+        if (!string.IsNullOrWhiteSpace(newSourceWorkOrderNo)) nos.Add(newSourceWorkOrderNo);
+        foreach (var no in nos)
+            await TryRefreshExecutionSummaryAsync(no);
+    }
+
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
     {
         if (!_configMaps.TryGetValue(category, out var map))
@@ -589,6 +601,9 @@ public class PurchaseOrderService : IPurchaseOrderService
             .FirstOrDefaultAsync(p => p.Id == id);
         if (entity == null) throw new BusinessException("采购单不存在");
 
+        // 来源工单号变更时，旧工单读模型也需刷新（G4~G10 可用余量等）
+        var oldSourceWorkOrderNo = entity.SourceWorkOrderNo;
+
         // 管理员可无视状态编辑任何采购单
         if (isAdmin)
         {
@@ -604,7 +619,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             await _context.SaveChangesAsync();
 
             var dto = ToDto(entity);
-            await TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
+            await TryRefreshExecutionSummaryBothAsync(oldSourceWorkOrderNo, entity.SourceWorkOrderNo);
             return dto;
         }
 
@@ -640,7 +655,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         await _context.SaveChangesAsync();
 
         var dto2 = ToDto(entity);
-        await TryRefreshExecutionSummaryAsync(entity.SourceWorkOrderNo);
+        await TryRefreshExecutionSummaryBothAsync(oldSourceWorkOrderNo, entity.SourceWorkOrderNo);
         return dto2;
     }
 

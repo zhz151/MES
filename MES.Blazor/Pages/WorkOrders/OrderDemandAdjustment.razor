@@ -1,4 +1,4 @@
-@page "/order-demand-adjustment"
+@page "/workorders-demand-adjustment"
 @using MES.Blazor.Services
 @using MES.Core.Models
 @using MES.Blazor.Helpers
@@ -79,7 +79,7 @@
             </MudGrid>
 
             <!-- 数据表格 -->
-            <div id="order-demand-adjustment-list-table">
+            <div id="workorders-demand-adjustment-list-table">
             @{
                 var _groupHeaders = GetGroupHeaders();
                 var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40;

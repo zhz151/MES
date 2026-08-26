@@ -140,12 +140,12 @@ public class QueryParams
     public DateTime? ReportDateTo { get; set; }
 
     /// <summary>
-    /// 入库日期范围筛选-开始（仅待发货项使用）
+    /// 入库日期范围筛选-开始（仅订单成品(实时库存)使用，原「待发货项」）
     /// </summary>
     public DateTime? InboundDateFrom { get; set; }
 
     /// <summary>
-    /// 入库日期范围筛选-结束（仅待发货项使用）
+    /// 入库日期范围筛选-结束（仅订单成品(实时库存)使用，原「待发货项」）
     /// </summary>
     public DateTime? InboundDateTo { get; set; }
 

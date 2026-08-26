@@ -29,6 +29,7 @@ using MES.Data;
 using MES.Data.Entities.Configuration;
 using MES.Core.Exceptions;
 using MES.Services.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MES.Services.Configuration;
 
@@ -38,10 +39,48 @@ namespace MES.Services.Configuration;
 public class DailyOutputEstimateService : IDailyOutputEstimateService
 {
     private readonly AppDbContext _context;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public DailyOutputEstimateService(AppDbContext context)
+    public DailyOutputEstimateService(AppDbContext context, IServiceScopeFactory scopeFactory)
     {
         _context = context;
+        _scopeFactory = scopeFactory;
+    }
+
+    /// <summary>
+    /// 日产估算为全局配置，变更影响所有工单的产能工量/剩余工量/紧急性，
+    /// 保存/删除后全量刷新执行读模型（级联订单读模型）与用料计划总览读模型。
+    ///
+    /// ⚠️ 不能直接注入 IWorkOrderExecutionService / IWorkOrderListSummaryRefreshService：
+    /// 二者均依赖 IDailyOutputEstimateService（循环），故经 IServiceScopeFactory 运行时懒解析
+    /// （与本仓库 WorkOrderExecutionService 解析 IOrderService 的模式一致）。
+    /// 不抛异常，避免影响配置保存主流程。
+    /// </summary>
+    private async Task RefreshReadModelsAsync()
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var workOrderExecutionService = scope.ServiceProvider.GetRequiredService<IWorkOrderExecutionService>();
+            await workOrderExecutionService.RefreshAllAsync();
+
+            var listSummaryService = scope.ServiceProvider.GetRequiredService<IWorkOrderListSummaryRefreshService>();
+            var salesOrderNos = await _context.WorkOrders
+                .AsNoTracking()
+                .Select(wo => wo.SalesOrderNo)
+                .Distinct()
+                .ToListAsync();
+            foreach (var soNo in salesOrderNos)
+            {
+                if (!string.IsNullOrWhiteSpace(soNo))
+                    await listSummaryService.RefreshBySalesOrderAsync(soNo);
+            }
+        }
+        catch (Exception ex)
+        {
+            // 全局配置改动属低频操作，刷新失败不影响保存结果
+            System.Diagnostics.Debug.WriteLine($"读模型刷新失败: {ex.Message}");
+        }
     }
 
     public async Task<PagedResult<DailyOutputEstimateDto>> GetPagedAsync(QueryParams query)
@@ -114,7 +153,9 @@ public class DailyOutputEstimateService : IDailyOutputEstimateService
             };
             _context.Set<DailyOutputEstimate>().Add(entity);
         }
-        return await _context.SaveChangesAsync() > 0;
+        var saved = await _context.SaveChangesAsync() > 0;
+        if (saved) await RefreshReadModelsAsync();
+        return saved;
     }
 
     public async Task<bool> DeleteAsync(int id)
@@ -122,7 +163,9 @@ public class DailyOutputEstimateService : IDailyOutputEstimateService
         var entity = await _context.Set<DailyOutputEstimate>().FindAsync(id)
             ?? throw new BusinessException("日产估算配置不存在");
         _context.Set<DailyOutputEstimate>().Remove(entity);
-        return await _context.SaveChangesAsync() > 0;
+        var saved = await _context.SaveChangesAsync() > 0;
+        if (saved) await RefreshReadModelsAsync();
+        return saved;
     }
 
     public async Task<List<DailyOutputEstimateDto>> GetAllAsync()

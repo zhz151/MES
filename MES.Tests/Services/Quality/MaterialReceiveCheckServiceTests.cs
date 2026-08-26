@@ -261,6 +261,37 @@ public class MaterialReceiveCheckServiceTests : TestBase
     }
 
     [Fact]
+    public async Task DeleteMaterialReceiveCheckAsync_删除后重推导批次物化行()
+    {
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx);
+        var qptMock = new Mock<IQualityProcessTrackingService>();
+        var wesMock = new Mock<IWorkOrderExecutionService>();
+        var prMock = new Mock<IProductionRecordService>();
+        var svc = new MaterialReceiveCheckService(ctx, qptMock.Object, wesMock.Object, prMock.Object,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<MaterialReceiveCheckService>.Instance,
+            new MemoryCache(new MemoryCacheOptions()));
+
+        var created = await svc.CreateMaterialReceiveCheckAsync(new CreateMaterialReceiveCheckRequest
+        {
+            BatchNo = "BATCH001",
+            ReceiveDate = DateTime.Today
+        });
+
+        // 清空创建期的调用计数，仅统计删除期的刷新
+        qptMock.Invocations.Clear();
+        prMock.Invocations.Clear();
+        wesMock.Invocations.Clear();
+
+        await svc.DeleteMaterialReceiveCheckAsync(created.Id);
+
+        // 删除后整批重推导剩余到料的物化行（成检类型/检验状态可能随最深检验节点变化）
+        qptMock.Verify(m => m.RefreshByProductionBatchIdAsync(It.IsAny<int>()), Times.Once);
+        prMock.Verify(m => m.RefreshBatchTrackingFieldsAsync(It.IsAny<int>()), Times.Once);
+        wesMock.Verify(m => m.RefreshByWorkOrderNosAsync(It.IsAny<List<string>>()), Times.Once);
+    }
+
+    [Fact]
     public async Task GetAllMaterialReceiveChecksAsync_工艺卡新增更深检验节点_标记成检类型过期()
     {
         var ctx = CreateDbContext();

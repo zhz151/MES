@@ -2,12 +2,12 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs.Quality;
-using MES.Core.DTOs.Warehouse;
-using MES.Core.Interfaces.Warehouse;
+using MES.Core.DTOs.Order;
+using MES.Core.Interfaces.Order;
 using MES.Core.Models;
 using MES.Shared.Constants;
 
-namespace MES.Api.Controllers.Warehouse;
+namespace MES.Api.Controllers.Order;
 
 [ApiController]
 [Route("api/pending-delivery")]
@@ -39,7 +39,7 @@ public class PendingDeliveryController : ControllerBase
     /// 分页查询待发货订单成品（用于列表页）
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = Roles.Policies.WarehouseView)]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<PagedResult<PendingDeliveryItemDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -88,7 +88,7 @@ public class PendingDeliveryController : ControllerBase
     /// 获取筛选上下文（各列的 DISTINCT 值，用于 ExcelFilter）
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = Roles.Policies.WarehouseView)]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _service.GetFilterContextsAsync();
@@ -99,21 +99,21 @@ public class PendingDeliveryController : ControllerBase
     /// 打印选中行
     /// </summary>
     [HttpPost("print-file")]
-    [Authorize(Roles = Roles.Policies.WarehouseView)]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<IActionResult> PrintFile([FromBody] PendingDeliveryPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
-        return File(pdfBytes, "application/pdf", "待发货订单成品.pdf");
+        return File(pdfBytes, "application/pdf", "订单成品(实时库存).pdf");
     }
 
     /// <summary>
     /// 打印全部（按当前筛选条件）
     /// </summary>
     [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.WarehouseView)]
+    [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<IActionResult> PrintAllFile([FromBody] PendingDeliveryPrintRequest request)
     {
         var pdfBytes = await _service.PrintAllFileAsync(request.Title, request.Items, request.Columns);
-        return File(pdfBytes, "application/pdf", "待发货订单成品-全部.pdf");
+        return File(pdfBytes, "application/pdf", "订单成品(实时库存)-全部.pdf");
     }
 }

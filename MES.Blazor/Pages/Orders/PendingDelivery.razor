@@ -1,4 +1,4 @@
-@page "/warehouse/pending-delivery"
+@page "/orders/pending-delivery"
 @using System.Text.Json
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Components
@@ -7,7 +7,7 @@
 @using MES.Blazor.Services
 @using MES.Blazor.Shared
 @using MES.Core.Models
-@using MES.Core.DTOs.Warehouse
+@using MES.Core.DTOs.Order
 @inject PendingDeliveryService PendingSvc
 @inject PageStateService PageState
 @inject NavigationManager Navigation
@@ -16,7 +16,7 @@
 @inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
-@attribute [Authorize(Roles = Roles.Policies.WarehouseView)]
+@attribute [Authorize(Roles = Roles.Policies.OrderView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -24,7 +24,7 @@
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.Inventory2" Class="mr-2" Color="Color.Primary" />
-                    待发货订单成品
+                    订单成品(实时库存)
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>

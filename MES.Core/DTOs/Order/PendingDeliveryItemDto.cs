@@ -1,7 +1,7 @@
 using MES.Core.Enums;
 using MES.Core.Helpers;
 
-namespace MES.Core.DTOs.Warehouse;
+namespace MES.Core.DTOs.Order;
 
 /// <summary>
 /// 待发货订单成品 DTO — 成品库中可发货的库存项

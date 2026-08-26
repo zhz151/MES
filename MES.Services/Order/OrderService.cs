@@ -46,6 +46,7 @@ using MES.Data.Entities.Order;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MES.Services.Order;
 
@@ -59,8 +60,9 @@ public class OrderService : IOrderService
     private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly IOperationLogService _operationLogService;
     private readonly IMemoryCache _cache;
+    private readonly IServiceScopeFactory? _scopeFactory;
 
-    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, IOperationLogService operationLogService, IMemoryCache cache, IWorkOrderService? workOrderService = null, IWorkOrderListSummaryRefreshService? listSummaryService = null)
+    public OrderService(AppDbContext context, ILogger<OrderService> logger, INotificationService notificationService, IConfigParameterService configService, IOperationLogService operationLogService, IMemoryCache cache, IWorkOrderService? workOrderService = null, IWorkOrderListSummaryRefreshService? listSummaryService = null, IServiceScopeFactory? scopeFactory = null)
     {
         _context = context;
         _logger = logger;
@@ -70,6 +72,7 @@ public class OrderService : IOrderService
         _listSummaryService = listSummaryService;
         _operationLogService = operationLogService;
         _cache = cache;
+        _scopeFactory = scopeFactory;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -614,6 +617,50 @@ public class OrderService : IOrderService
         };
     }
 
+    /// <summary>
+    /// 订单头变更（客户/业务员/终端客户/签单日期/订单号）影响工单执行状况 G1 客户快照
+    /// 与用料计划总览（产能工量），在 OrderListSummary 刷新后连带刷新。
+    /// </summary>
+    private async Task RefreshExecutionAndListSummaryAsync(string? oldOrderNumber, string orderNumber)
+    {
+        try
+        {
+            // 工单执行状况按工单号刷新（订单号变更时新旧都刷，WorkOrders.SalesOrderNo 可能仍指向旧号）
+            var woNos = await _context.WorkOrders
+                .AsNoTracking()
+                .Where(w => w.SalesOrderNo == orderNumber
+                    || (oldOrderNumber != null && w.SalesOrderNo == oldOrderNumber))
+                .Select(w => w.WorkOrderNo)
+                .ToListAsync();
+            if (_scopeFactory != null)
+            {
+                using var scope = _scopeFactory.CreateScope();
+                if (woNos.Count > 0)
+                {
+                    var execService = scope.ServiceProvider.GetRequiredService<IWorkOrderExecutionService>();
+                    await execService.RefreshByWorkOrderNosAsync(woNos);
+                }
+
+                // 订单头（客户/业务员/终端客户）变更影响待发货 DTO 客户快照，失效全部缓存
+                var pendingDelivery = scope.ServiceProvider.GetRequiredService<IPendingDeliveryQueryService>();
+                await pendingDelivery.InvalidateCachesAsync();
+            }
+
+            // 用料计划总览按订单号刷新（新旧都刷）
+            if (_listSummaryService != null)
+            {
+                if (!string.IsNullOrEmpty(orderNumber))
+                    await _listSummaryService.RefreshBySalesOrderAsync(orderNumber);
+                if (oldOrderNumber != null && !string.Equals(oldOrderNumber, orderNumber, StringComparison.OrdinalIgnoreCase))
+                    await _listSummaryService.RefreshBySalesOrderAsync(oldOrderNumber);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "订单头变更读模型刷新失败（不影响主流程）: OrderNumber={OrderNumber}", orderNumber);
+        }
+    }
+
     public async Task<SalesOrderListDto> UpdateAsync(int id, UpdateSalesOrderRequest request)
     {
         var salesOrder = await _context.SalesOrders
@@ -621,6 +668,8 @@ public class OrderService : IOrderService
 
         if (salesOrder == null)
             throw new BusinessException("订单不存在");
+
+        var oldOrderNumber = salesOrder.OrderNumber;
 
         if (!string.IsNullOrEmpty(request.OrderNumber) && request.OrderNumber != salesOrder.OrderNumber)
         {
@@ -663,6 +712,7 @@ public class OrderService : IOrderService
         }
 
         await RefreshByOrderIdAsync(salesOrder.Id);
+        await RefreshExecutionAndListSummaryAsync(oldOrderNumber, salesOrder.OrderNumber);
 
         // 记录变更日志
         var updateChanges = new List<string>();

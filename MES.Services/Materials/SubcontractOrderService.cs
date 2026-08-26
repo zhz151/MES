@@ -453,6 +453,13 @@ public class SubcontractOrderService : ISubcontractOrderService
             .Include(s => s.ReturnItems)
             .FirstOrDefaultAsync(s => s.Id == id);
         if (entity == null) throw new BusinessException("委外单不存在");
+
+        // 明细来源工单号变更时，旧工单读模型也需刷新
+        var oldSourceWorkOrderNos = entity.ReturnItems
+            .Select(r => r.SourceWorkOrderNo)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         if (entity.Status == SubcontractOrderStatus.Completed)
         {
             // 已完成：仅允许修改明细中的来源工单号
@@ -556,6 +563,17 @@ public class SubcontractOrderService : ISubcontractOrderService
 
         foreach (var ri in entity.ReturnItems)
             await TryRefreshExecutionSummaryAsync(ri.SourceWorkOrderNo);
+
+        // 明细来源工单号变更后，旧工单也刷新（避免读模型残留）
+        var newSourceWorkOrderNos = entity.ReturnItems
+            .Select(r => r.SourceWorkOrderNo)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var oldNo in oldSourceWorkOrderNos)
+        {
+            if (!newSourceWorkOrderNos.Contains(oldNo))
+                await TryRefreshExecutionSummaryAsync(oldNo);
+        }
 
         return dto;
     }

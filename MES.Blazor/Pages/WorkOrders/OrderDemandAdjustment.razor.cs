@@ -436,14 +436,14 @@ public partial class OrderDemandAdjustment
         // 分组标题栏：测量实际列宽 + 同步滚动
         try
         {
-            await JS.InvokeVoidAsync("initGroupHeaders", "#order-demand-adjustment-list-table");
+            await JS.InvokeVoidAsync("initGroupHeaders", "#workorders-demand-adjustment-list-table");
         }
         catch { }
 
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
-            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#order-demand-adjustment-list-table"))
+            if (!await JS.InvokeAsync<bool>("enableTableArrowNav", "#workorders-demand-adjustment-list-table"))
                 _isArrowNavSetup = false;
         }
     }
@@ -552,7 +552,7 @@ public partial class OrderDemandAdjustment
         _allColumns = GetAllColumnDefs();
 
         // 恢复排序/筛选/列显隐状态
-        var savedState = await PageState.LoadAsync("order-demand-adjustment");
+        var savedState = await PageState.LoadAsync("workorders-demand-adjustment");
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "ScheduleStage";
@@ -964,7 +964,7 @@ public partial class OrderDemandAdjustment
             PageIndex = _currentPageIndex,
             Extras = extras
         };
-        await PageState.SaveAsync("order-demand-adjustment", state);
+        await PageState.SaveAsync("workorders-demand-adjustment", state);
     }
 
     private void ComputePageSums()

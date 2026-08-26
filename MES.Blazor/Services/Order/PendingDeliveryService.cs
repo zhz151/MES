@@ -1,5 +1,5 @@
 using System.Text.Json;
-using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.Order;
 using MES.Core.Models;
 using MES.Shared.Constants;
 
@@ -33,7 +33,7 @@ public class PendingDeliveryService
             var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
             var response = await _http.GetFromJsonAsync<ApiResponse<List<PendingDeliveryItemDto>>>(
                 $"{BaseUrl}/list{queryString}");
-            return response ?? ApiResponse<List<PendingDeliveryItemDto>>.Fail("获取待发货项失败");
+            return response ?? ApiResponse<List<PendingDeliveryItemDto>>.Fail("获取订单成品(实时库存)失败");
         }
         catch (Exception ex)
         {
@@ -62,7 +62,7 @@ public class PendingDeliveryService
                 url += $"&inboundDateTo={inboundDateTo.Value:yyyy-MM-dd}";
 
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<PendingDeliveryItemDto>>>(url);
-            return response ?? ApiResponse<PagedResult<PendingDeliveryItemDto>>.Fail("获取待发货项列表失败");
+            return response ?? ApiResponse<PagedResult<PendingDeliveryItemDto>>.Fail("获取订单成品(实时库存)列表失败");
         }
         catch (Exception ex)
         {

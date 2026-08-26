@@ -39,6 +39,7 @@ builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductRequirementService>();
 builder.Services.AddScoped<OrderDemandAdjustmentService>();
+builder.Services.AddScoped<PendingDeliveryService>();
 
 // ========== 生产标准上下文 ==========
 builder.Services.AddScoped<GradeMappingService>();
@@ -61,7 +62,6 @@ builder.Services.AddScoped<WorkOrderExecutionService>();
 // ========== 仓库上下文 ==========
 builder.Services.AddScoped<WarehouseService>();
 builder.Services.AddScoped<InventoryService>();
-builder.Services.AddScoped<PendingDeliveryService>();
 
 // ========== 批次上下文 ==========
 builder.Services.AddScoped<BatchService>();

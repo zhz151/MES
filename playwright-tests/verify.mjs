@@ -33,7 +33,7 @@ const LIST_PAGES = [
   { url: '/workorders',         name: '工单列表',         module: 'WorkOrders', hasPrint: true, hasSearch: true },
   { url: '/workorder-execution',name: '工单执行概览',     module: 'WorkOrders', hasPrint: false, hasSearch: true },
   { url: '/material-plan-overview', name: '用料计划概览', module: 'WorkOrders', hasPrint: false, hasSearch: true },
-  { url: '/order-demand-adjustment', name: '订单需求调整', module: 'WorkOrders', hasPrint: false, hasSearch: true },
+  { url: '/workorders-demand-adjustment', name: '工单需求调整', module: 'WorkOrders', hasPrint: false, hasSearch: true },
 
   // ---- 计划排程 ----
   { url: '/batch-plans',        name: '批次计划',         module: 'Scheduling', hasPrint: false, hasSearch: true },
@@ -85,7 +85,7 @@ const LIST_PAGES = [
   { url: '/warehouse',          name: '库存查询',         module: 'Warehouse', hasPrint: true, hasSearch: true },
   { url: '/warehouse/inbound-history', name: '入库历史',  module: 'Warehouse', hasPrint: true, hasSearch: true },
   { url: '/warehouse/outbound-history', name: '出库历史', module: 'Warehouse', hasPrint: true, hasSearch: true },
-  { url: '/warehouse/pending-delivery', name: '待发货',   module: 'Warehouse', hasPrint: true, hasSearch: true },
+  { url: '/orders/pending-delivery', name: '订单成品(实时库存)', module: 'Orders', hasPrint: true, hasSearch: true },
 
   // ---- 生产标准 ----
   { url: '/standard-registers', name: '标准号管理',       module: 'StandardRegister', hasPrint: true, hasSearch: true },

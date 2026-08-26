@@ -69,8 +69,9 @@ public class BatchService : IBatchService
     private readonly IProcessCardColumnDefinitionService _processCardColumnDefinitionService;
     private readonly IProcessCardStyleDefinitionService _processCardStyleDefinitionService;
     private readonly IMemoryCache _cache;
+    private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
 
-    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IFinalInspectionService finalInspectionService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, ISectionNameDisplayService sectionNameDisplay, IProcessDefinitionService processDefService, IProcessCardColumnDefinitionService processCardColumnDefinitionService, IProcessCardStyleDefinitionService processCardStyleDefinitionService, IMemoryCache cache)
+    public BatchService(AppDbContext context, ILogger<BatchService> logger, IProductionRecordService productionRecordService, IFinalInspectionService finalInspectionService, IConfigParameterService configService, IWorkOrderExecutionService workOrderExecutionService, IMaterialPlanService materialPlanService, IOperationLogService operationLogService, IQualityProcessTrackingService qualityProcessTracking, INotificationService notificationService, ISectionNameDisplayService sectionNameDisplay, IProcessDefinitionService processDefService, IProcessCardColumnDefinitionService processCardColumnDefinitionService, IProcessCardStyleDefinitionService processCardStyleDefinitionService, IMemoryCache cache, IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
         _logger = logger;
@@ -87,6 +88,7 @@ public class BatchService : IBatchService
         _processCardColumnDefinitionService = processCardColumnDefinitionService;
         _processCardStyleDefinitionService = processCardStyleDefinitionService;
         _cache = cache;
+        _listSummaryService = listSummaryService;
     }
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
@@ -99,6 +101,22 @@ public class BatchService : IBatchService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: WorkOrderNo={WorkOrderNo}", workOrderNo);
+        }
+    }
+
+    /// <summary>
+    /// 用料计划总览读模型刷新（批次完成/有效量/状态变更后，其产能工量依赖完成批次有效产出与执行读模型档位）
+    /// </summary>
+    private async Task TryRefreshListSummaryAsync(string? salesOrderNo)
+    {
+        if (_listSummaryService == null || string.IsNullOrWhiteSpace(salesOrderNo)) return;
+        try
+        {
+            await _listSummaryService.RefreshBySalesOrderAsync(salesOrderNo);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "用料计划总览刷新失败（不影响主流程）: SalesOrderNo={SalesOrderNo}", salesOrderNo);
         }
     }
 
@@ -809,6 +827,7 @@ public class BatchService : IBatchService
         await _operationLogService.AddLogAsync("Batch",entity.Id, "创建", $"工单号={entity.WorkOrderNo}, 生产类型={entity.ProductionType}, 制造物品={entity.ManufacturingItem}, 制成倍数={entity.ProductionRatio}, 有效支数={entity.CurrentValidQty}, 有效重量={entity.CurrentValidWeight?.ToString("G29")}kg");
 
         await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        await TryRefreshListSummaryAsync(entity.SalesOrderNo);
 
         return new ProductionBatchListDto
         {
@@ -1046,6 +1065,12 @@ public class BatchService : IBatchService
             && !string.Equals(oldWorkOrderNo, entity.WorkOrderNo, StringComparison.OrdinalIgnoreCase))
             await TryRefreshExecutionSummaryAsync(oldWorkOrderNo);
 
+        await TryRefreshListSummaryAsync(entity.SalesOrderNo);
+        // 订单号变更时旧订单的用料总览行须一并重算（产能工量/主号聚合）
+        if (!string.IsNullOrEmpty(oldSalesOrderNo)
+            && !string.Equals(oldSalesOrderNo, entity.SalesOrderNo, StringComparison.OrdinalIgnoreCase))
+            await TryRefreshListSummaryAsync(oldSalesOrderNo);
+
         return dto;
     }
 
@@ -1126,6 +1151,9 @@ public class BatchService : IBatchService
             _logger.LogInformation("更新批次状态 {BatchNo} → {Status}", entity.BatchNo, newStatus);
             await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
         }
+
+        // 状态变化（完成/暂停/恢复/强制完成）影响执行读模型档位与完成批次产出，用料总览产能工量随之重算
+        await TryRefreshListSummaryAsync(entity.SalesOrderNo);
     }
 
     public async Task DeleteAsync(int id)
@@ -1187,6 +1215,7 @@ public class BatchService : IBatchService
         _logger.LogInformation("删除生产批次 {BatchNo} (Id={Id})", entity.BatchNo, id);
 
         await TryRefreshExecutionSummaryAsync(entity.WorkOrderNo);
+        await TryRefreshListSummaryAsync(entity.SalesOrderNo);
     }
 
     public async Task<SaveBatchResponse> SaveAllAsync(int id, SaveBatchRequest request)
@@ -1647,6 +1676,12 @@ public class BatchService : IBatchService
         if (!string.IsNullOrEmpty(oldWorkOrderNo)
             && !string.Equals(oldWorkOrderNo, entity.WorkOrderNo, StringComparison.OrdinalIgnoreCase))
             await TryRefreshExecutionSummaryAsync(oldWorkOrderNo);
+
+        // 用料计划总览产能工量依赖完成批次有效产出与执行读模型档位，批次变更后一并重算
+        await TryRefreshListSummaryAsync(entity.SalesOrderNo);
+        if (!string.IsNullOrEmpty(oldSalesOrderNo)
+            && !string.Equals(oldSalesOrderNo, entity.SalesOrderNo, StringComparison.OrdinalIgnoreCase))
+            await TryRefreshListSummaryAsync(oldSalesOrderNo);
 
         // 刷新质量过程跟踪（批次字段变更同步到物化读模型）
         await TryRefreshQualityProcessTrackingAsync(id);

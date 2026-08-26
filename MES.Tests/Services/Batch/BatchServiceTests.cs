@@ -57,7 +57,7 @@ public class BatchServiceTests : TestBase
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    private BatchService CreateService(AppDbContext ctx, Mock<IProductionRecordService>? prodRecordMock = null, Mock<IFinalInspectionService>? finalInspectionMock = null, Mock<IWorkOrderExecutionService>? workOrderExecMock = null, Mock<IProcessCardColumnDefinitionService>? pccMock = null)
+    private BatchService CreateService(AppDbContext ctx, Mock<IProductionRecordService>? prodRecordMock = null, Mock<IFinalInspectionService>? finalInspectionMock = null, Mock<IWorkOrderExecutionService>? workOrderExecMock = null, Mock<IProcessCardColumnDefinitionService>? pccMock = null, Mock<IWorkOrderListSummaryRefreshService>? listSummaryMock = null)
     {
         var loggerMock = new Mock<ILogger<BatchService>>();
         prodRecordMock ??= new Mock<IProductionRecordService>();
@@ -70,7 +70,8 @@ public class BatchServiceTests : TestBase
         var qptMock = new Mock<IQualityProcessTrackingService>();
         pccMock ??= CreateProcessCardColumnDefinitionServiceMock();
         var styleMock = CreateProcessCardStyleDefinitionServiceMock();
-        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, finalInspectionMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new Mock<IOperationLogService>().Object, qptMock.Object, new Mock<INotificationService>().Object, new Mock<ISectionNameDisplayService>().Object, CreateProcessDefinitionServiceMock(), pccMock.Object, styleMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        listSummaryMock ??= new Mock<IWorkOrderListSummaryRefreshService>();
+        return new BatchService(ctx, loggerMock.Object, prodRecordMock.Object, finalInspectionMock.Object, configMock.Object, workOrderExecMock.Object, materialPlanMock.Object, new Mock<IOperationLogService>().Object, qptMock.Object, new Mock<INotificationService>().Object, new Mock<ISectionNameDisplayService>().Object, CreateProcessDefinitionServiceMock(), pccMock.Object, styleMock.Object, new MemoryCache(new MemoryCacheOptions()), listSummaryMock.Object);
     }
 
     /// <summary>工艺卡列布局配置服务 mock：默认返回空配置映射（打印合并时请求列全部走兜底）</summary>
@@ -250,6 +251,42 @@ public class BatchServiceTests : TestBase
         detail.SalesOrderNo.Should().NotBeNullOrEmpty();
         detail.PlantGrade.Should().NotBeNullOrEmpty();
         detail.Specification.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task CreateAsync_带工单_刷新用料计划总览()
+    {
+        var ctx = CreateDbContext();
+        var workOrderNo = await SeedWorkOrderAsync(ctx);
+        var listSummaryMock = new Mock<IWorkOrderListSummaryRefreshService>();
+        var svc = CreateService(ctx, listSummaryMock: listSummaryMock);
+
+        await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            WorkOrderNo = workOrderNo,
+            TagNo = "TAG-WO-LS-001",
+            ProductionType = ProductionType.RoughTube,
+            ManufacturingItem = MaterialType.OrderFinished,
+            PlantGrade = "20#",
+            Specification = "219×8",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
+            MaterialName = PipeManufacturingType.SeamlessPipe,
+            LengthStatus = LengthStatus.NonFixed,
+            TotalWeight = 1000m,
+            ProductionRatio = 1,
+            SourcePlantGrade = "20#",
+            SourceSpecification = "219×8",
+            SourceLengthStatus = LengthStatus.NonFixed,
+            InputWeight = 1200m,
+            InputQuantity = 100,
+            SettlementMethod = SettlementMethod.Theoretical,
+            StandardCode = "GB/T 8163",
+            TechnicalRequirements = RequirementType.Normal
+        });
+
+        // 带工单批次创建后，按订单号刷新用料计划总览（产能工量依赖批次）
+        listSummaryMock.Verify(x => x.RefreshBySalesOrderAsync(It.IsAny<string>()), Times.Once);
     }
 
     [Fact]

@@ -284,6 +284,9 @@ public static class EnumHelper
         Register<CutDoubtType>(("QuantityMismatch", "疑问-数量"),
                                 ("MissingRecords", "疑问-缺少"),
                                 ("Normal", "正常"));
+
+        Register<CutLengthMatchType>(("FullMatch", "完全匹配"),
+                                     ("MainNoMatch", "主号匹配"));
     }
 
     private static void Register<T>(params (string value, string display)[] mappings) where T : Enum

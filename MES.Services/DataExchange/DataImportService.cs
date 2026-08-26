@@ -1,34 +1,23 @@
 using System.Collections;
-using System.Data;
 using System.Data.Common;
+using System.Linq.Expressions;
 using System.Reflection;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using OfficeOpenXml;
 using MES.Core.Constants;
-using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
 using MES.Core.Interfaces.DataExchange;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
-using MES.Data.Entities.Auth;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Configuration;
-using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Order;
-using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Quality;
-using MES.Data.Entities.Scheduling;
-using MES.Data.Entities.Warehouse;
-using MES.Data.Entities.WorkOrder;
-using MES.Services.Extensions;
-using MES.Services.Helpers;
-using MES.Shared.Constants;
 
 namespace MES.Services.DataExchange;
 
@@ -73,84 +62,6 @@ public class DataImportService : IDataImportService
         _logger = logger;
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
     }
-
-    #region 模板
-
-    /// <summary>
-    /// 生成导入模板（含1行示例数据）
-    /// </summary>
-    public async Task<byte[]> GenerateTemplateAsync(string entityKey)
-    {
-        if (!DataExchangeRegistry.Registry.TryGetValue(entityKey, out var def))
-            throw new BusinessException($"不支持的实体类型: {entityKey}");
-
-        // 模板含主键 ID 列（与"下载数据"列完全一致）：ID 留空即新增，填写 ID 则按 ID 覆盖
-        var importColumns = def.Columns;
-
-        using var package = new ExcelPackage();
-        var sheet = package.Workbook.Worksheets.Add(def.DisplayName);
-
-        // 表头
-        for (int i = 0; i < importColumns.Count; i++)
-            sheet.Cells[1, i + 1].Value = importColumns[i].Header;
-        sheet.Cells[1, 1, 1, importColumns.Count].Style.Font.Bold = true;
-
-        // 系统字段标记为灰色底色
-        for (int i = 0; i < importColumns.Count; i++)
-        {
-            if (importColumns[i].IsSystem)
-                sheet.Cells[1, i + 1].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-        }
-
-        // 示例数据行（尽量提供示例值）
-        var sampleRow = 2;
-        var fkReverseCache = await BuildFkReverseCacheForExportAsync(def);
-        var orderItemExportCache = await BuildOrderItemExportCacheAsync(def);
-        foreach (var colDef in importColumns)
-        {
-            if (colDef.IsSystem) continue;
-            if (colDef.EnumType != null)
-            {
-                if (!colDef.EnumType.IsEnum)
-                    throw new BusinessException($"列 '{colDef.Header}' 的枚举类型 '{colDef.EnumType.FullName}' 无效");
-                var values = Enum.GetValues(colDef.EnumType);
-                if (values.Length > 0)
-                    sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = EnumHelper.GetDisplayName(colDef.EnumType, values.GetValue(0)!);
-            }
-            else if (colDef.IsFkColumn)
-            {
-                // FK列：从缓存中取第一个示例值
-                var fkSample = GetFkSampleValue(colDef, fkReverseCache);
-                if (fkSample != null)
-                    sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = fkSample;
-            }
-            else if (colDef.PropertyType == typeof(DateTime) || colDef.PropertyType == typeof(DateTime?))
-            {
-                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = DateTime.Today.ToString("yyyy-MM-dd");
-            }
-            else if (colDef.PropertyType == typeof(bool) || colDef.PropertyType == typeof(bool?))
-            {
-                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = "是";
-            }
-            else if (colDef.PropertyType == typeof(int) || colDef.PropertyType == typeof(int?))
-            {
-                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = 1;
-            }
-            else if (colDef.PropertyType == typeof(decimal) || colDef.PropertyType == typeof(decimal?))
-            {
-                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = "0.00";
-            }
-            else if (!colDef.IsFkColumn)
-            {
-                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = colDef.Header;
-            }
-        }
-
-        sheet.Cells[1, 1, 2, def.Columns.Count].AutoFitColumns();
-        return await package.GetAsByteArrayAsync();
-    }
-
-    #endregion
 
     #region 预览
 
@@ -197,25 +108,53 @@ public class DataImportService : IDataImportService
                 }
             }
 
+            // 验证复合键FK列（FkRequiresJoin）：与导入共用同一解析逻辑，解析失败记为行错误（避免预览"通过"而导入静默留空）
+            // 仅收集复合键FK的解析失败，常规FK已在上面验证过，避免重复报错
+            ResolveForeignKeys(def, row, fkCache, BuildPropertyCache(def), out var unresolvedFk);
+            foreach (var header in unresolvedFk.Where(h => def.Columns.Any(c => c.Header == h && c.FkRequiresJoin)))
+            {
+                var fkCol = def.Columns.FirstOrDefault(c => c.Header == header);
+                var fkEntityName = fkCol != null && DataExchangeRegistry.Registry.TryGetValue(fkCol.FkEntityKey!, out var fkDef2)
+                    ? fkDef2.DisplayName
+                    : fkCol?.FkEntityKey ?? "";
+                errors.Add($"{header} 的值在 {fkEntityName} 中找不到对应的引用记录");
+            }
+
             // 判定该行将被如何处理
             var rowKey = GetRowKey(def, row);
+            var idCol = def.Columns.FirstOrDefault(c => c.Property == "Id");
+            var hasId = idCol != null
+                && row.Values.TryGetValue(idCol.Header, out var idVal)
+                && !string.IsNullOrWhiteSpace(idVal);
+
             string rowAction;
+            string? actionNote;
             if (rowKey == null)
             {
+                // 新增：分三类说明原因，让「无ID将新增」对重复风险可见
                 rowAction = "新增";
+                if (def.KeyColumn == null && def.CompositeKeyColumns == null)
+                    actionNote = "该实体无业务键，无ID上传将新增记录（重复上传会重复插入）";
+                else if (hasId)
+                    actionNote = "带ID但ID在库中不存在，将新增记录";
+                else
+                    actionNote = "无ID且业务键为空，将新增记录";
             }
             else if (existingKeys.Contains(rowKey))
             {
                 rowAction = "覆盖";
+                actionNote = rowKey.StartsWith("__ID__:") ? "按ID覆盖" : "按业务键覆盖（无ID）";
             }
             else if (rowKey.StartsWith("__ID__:"))
             {
                 rowAction = "ID不存在";
+                actionNote = "ID在库中不存在，无法覆盖";
                 errors.Add($"ID 为 {rowKey[7..]} 的记录在数据库中不存在");
             }
             else
             {
                 rowAction = "新增";
+                actionNote = hasId ? "带ID但ID在库中不存在，将新增记录" : "无ID且业务键未命中，将新增记录";
             }
 
             result.RowResults.Add(new ImportRowResult
@@ -226,6 +165,8 @@ public class DataImportService : IDataImportService
                 IsDuplicate = rowKey != null && existingKeys.Contains(rowKey),
                 IsValid = errors.Count == 0,
                 RowAction = rowAction,
+                HasId = hasId,
+                ActionNote = actionNote,
                 Data = row,
             });
         }
@@ -268,8 +209,9 @@ public class DataImportService : IDataImportService
         {
             try
             {
-                // 1. 禁用所有外键约束
-                await DisableAllConstraintsAsync(dbTransaction?.Connection!, dbTransaction!);
+                // 1. 禁用所有外键约束（非关系型提供程序如 InMemory 无 dbTransaction，跳过）
+                if (dbTransaction != null)
+                    await DisableAllConstraintsAsync(dbTransaction.Connection!, dbTransaction!);
 
                 // 2. 逐行累积到DbContext（不逐行保存）
                 // 跟踪批次内已分配的系统编码，避免重复
@@ -293,9 +235,9 @@ public class DataImportService : IDataImportService
                             .Select(bn => batchLookup.GetValueOrDefault(bn))
                             .Where(id => id > 0)
                             .ToList();
-                        var existing = await _context.Set<ProcessGroup>()
-                            .Where(pg => batchIds.Contains(pg.ProductionBatchId))
-                            .ToListAsync();
+                        // 分批 IN 查询，避免 SQL Server 2100 参数上限（超大导入文件）
+                        var existing = await QueryByIdsChunkedAsync(
+                            _context.Set<ProcessGroup>(), batchIds, pg => pg.ProductionBatchId);
 
                         if (existing.Count > 0)
                         {
@@ -303,32 +245,24 @@ public class DataImportService : IDataImportService
                             var existingIds = existing.Select(e => e.Id).ToList();
                             var referencedIds = new HashSet<int>();
 
-                            var prodRefs = await _context.Set<ProductionRecord>()
-                                .Where(r => existingIds.Contains(r.ProcessGroupId))
-                                .Select(r => r.ProcessGroupId)
-                                .Distinct()
-                                .ToListAsync();
+                            var prodRefs = (await QueryByIdsChunkedAsync(
+                                    _context.Set<ProductionRecord>(), existingIds, r => r.ProcessGroupId))
+                                .Select(r => r.ProcessGroupId).Distinct();
                             foreach (var id in prodRefs) referencedIds.Add(id);
 
-                            var soRefs = await _context.Set<SectionOutsource>()
-                                .Where(s => existingIds.Contains(s.ProcessGroupId))
-                                .Select(s => s.ProcessGroupId)
-                                .Distinct()
-                                .ToListAsync();
+                            var soRefs = (await QueryByIdsChunkedAsync(
+                                    _context.Set<SectionOutsource>(), existingIds, s => s.ProcessGroupId))
+                                .Select(s => s.ProcessGroupId).Distinct();
                             foreach (var id in soRefs) referencedIds.Add(id);
 
-                            var piRefs = await _context.Set<ProcessInspection>()
-                                .Where(p => existingIds.Contains(p.ProcessGroupId))
-                                .Select(p => p.ProcessGroupId)
-                                .Distinct()
-                                .ToListAsync();
+                            var piRefs = (await QueryByIdsChunkedAsync(
+                                    _context.Set<ProcessInspection>(), existingIds, p => p.ProcessGroupId))
+                                .Select(p => p.ProcessGroupId).Distinct();
                             foreach (var id in piRefs) referencedIds.Add(id);
 
-                            var pkRefs = await _context.Set<PicklingInRecord>()
-                                .Where(p => existingIds.Contains(p.ProcessGroupId))
-                                .Select(p => p.ProcessGroupId)
-                                .Distinct()
-                                .ToListAsync();
+                            var pkRefs = (await QueryByIdsChunkedAsync(
+                                    _context.Set<PicklingInRecord>(), existingIds, p => p.ProcessGroupId))
+                                .Select(p => p.ProcessGroupId).Distinct();
                             foreach (var id in pkRefs) referencedIds.Add(id);
 
                             // 有引用的工序组：保留ID，按 (ProductionBatchId, SequenceNumber) 索引
@@ -422,15 +356,13 @@ public class DataImportService : IDataImportService
                             .Select(no => salesOrderLookup.GetValueOrDefault(no))
                             .Where(id => id > 0)
                             .ToList();
-                        var existing = await _context.Set<OrderItem>()
-                            .Where(oi => salesOrderIds.Contains(oi.SalesOrderId))
-                            .ToListAsync();
+                        var existing = await QueryByIdsChunkedAsync(
+                            _context.Set<OrderItem>(), salesOrderIds, oi => oi.SalesOrderId);
                         if (existing.Count > 0)
                         {
                             var existingOiIds = existing.Select(oi => oi.Id).ToList();
-                            var existingPr = await _context.Set<ProductRequirement>()
-                                .Where(pr => existingOiIds.Contains(pr.OrderItemId))
-                                .ToListAsync();
+                            var existingPr = await QueryByIdsChunkedAsync(
+                                _context.Set<ProductRequirement>(), existingOiIds, pr => pr.OrderItemId);
                             if (existingPr.Count > 0)
                             {
                                 _context.Set<ProductRequirement>().RemoveRange(existingPr);
@@ -468,9 +400,8 @@ public class DataImportService : IDataImportService
                             .ToList();
 
                         // 删除已有技术要求，再重新导入
-                        var existing = await _context.Set<ProductRequirement>()
-                            .Where(pr => orderItemIds.Contains(pr.OrderItemId))
-                            .ToListAsync();
+                        var existing = await QueryByIdsChunkedAsync(
+                            _context.Set<ProductRequirement>(), orderItemIds, pr => pr.OrderItemId);
                         if (existing.Count > 0)
                         {
                             _context.Set<ProductRequirement>().RemoveRange(existing);
@@ -500,9 +431,8 @@ public class DataImportService : IDataImportService
                             .ToList();
 
                         // 删除关联委外单下已有的退货项，再重新导入
-                        var existing = await _context.Set<SubcontractReturnItem>()
-                            .Where(sri => subOrderIds.Contains(sri.SubcontractOrderId))
-                            .ToListAsync();
+                        var existing = await QueryByIdsChunkedAsync(
+                            _context.Set<SubcontractReturnItem>(), subOrderIds, sri => sri.SubcontractOrderId);
                         if (existing.Count > 0)
                         {
                             _context.Set<SubcontractReturnItem>().RemoveRange(existing);
@@ -531,9 +461,8 @@ public class DataImportService : IDataImportService
                             .ToList();
 
                         // 删除已有检验到料记录，再重新导入
-                        var existing = await _context.Set<MaterialReceiveCheck>()
-                            .Where(m => batchIds.Contains(m.ProductionBatchId))
-                            .ToListAsync();
+                        var existing = await QueryByIdsChunkedAsync(
+                            _context.Set<MaterialReceiveCheck>(), batchIds, m => m.ProductionBatchId);
                         if (existing.Count > 0)
                         {
                             _context.Set<MaterialReceiveCheck>().RemoveRange(existing);
@@ -567,8 +496,10 @@ public class DataImportService : IDataImportService
                 // 3. 批量保存所有累积的变更
                 await _context.SaveChangesAsync();
 
-                // 4. 启用并验证所有外键约束
-                var checkErrors = await EnableAndCheckConstraintsAsync(dbTransaction?.Connection!, dbTransaction!);
+                // 4. 启用并验证所有外键约束（非关系型提供程序如 InMemory 无 dbTransaction，跳过）
+                var checkErrors = new List<string>();
+                if (dbTransaction != null)
+                    checkErrors = await EnableAndCheckConstraintsAsync(dbTransaction.Connection!, dbTransaction!);
                 if (checkErrors.Count > 0)
                 {
                     throw new BusinessException("外键约束验证失败，共 " + checkErrors.Count + " 个错误");
@@ -835,136 +766,6 @@ public class DataImportService : IDataImportService
         return cache;
     }
 
-    /// <summary>
-    /// 构建FK反向缓存（用于导出时解析外键列的显示值）
-    /// 映射：FkEntityKey → { fkId → 业务主键值 }
-    /// </summary>
-    private async Task<Dictionary<string, Dictionary<int, string>>> BuildFkReverseCacheForExportAsync(EntityDef def)
-    {
-        var cache = new Dictionary<string, Dictionary<int, string>>();
-
-        foreach (var colDef in def.Columns.Where(c => c.IsFkColumn && !c.FkRequiresJoin))
-        {
-            if (colDef.FkEntityKey == null || !DataExchangeRegistry.Registry.TryGetValue(colDef.FkEntityKey, out var fkDef))
-                continue;
-            if (cache.ContainsKey(colDef.FkEntityKey)) continue;
-
-            var fkData = await QueryAllAsync(fkDef.Type);
-            var lookup = new Dictionary<int, string>();
-            var idProp = fkDef.Type.GetProperty("Id");
-            var targetProp = fkDef.Type.GetProperty(colDef.FkLookupProperty!);
-
-            if (idProp != null && targetProp != null)
-            {
-                foreach (var item in fkData)
-                {
-                    var id = (int)idProp.GetValue(item)!;
-                    var val = targetProp.GetValue(item)?.ToString();
-                    if (val != null && !lookup.ContainsKey(id))
-                        lookup[id] = val;
-                }
-            }
-
-            cache[colDef.FkEntityKey] = lookup;
-        }
-
-        // 特殊处理：ProcessGroup 反向缓存（用于导出时解析 ProcessGroupId → SequenceNumber）
-        if (def.Columns.Any(c => c.FkEntityKey == "ProcessGroup"))
-        {
-            var processGroups = await _context.Set<ProcessGroup>()
-                .Include(pg => pg.ProductionBatch)
-                .ToListAsync();
-
-            var pgReverseLookup = new Dictionary<int, string>();
-            foreach (var pg in processGroups)
-            {
-                var key = $"{pg.ProductionBatch.BatchNo}|{pg.SequenceNumber}";
-                if (!pgReverseLookup.ContainsKey(pg.Id))
-                    pgReverseLookup[pg.Id] = key;
-            }
-
-            cache["ProcessGroup"] = pgReverseLookup;
-        }
-
-        // 特殊处理：SectionOutsource 反向缓存（用于导出时解析 SectionOutsourceId → BatchNo,SectionName,Vendor）
-        if (def.Columns.Any(c => c.FkEntityKey == "SectionOutsource"))
-        {
-            var sectionOutsources = await _context.Set<SectionOutsource>()
-                .Include(so => so.ProductionBatch)
-                .ToListAsync();
-
-            var soReverseLookup = new Dictionary<int, string>();
-            foreach (var so in sectionOutsources)
-            {
-                var key = $"{so.ProductionBatch.BatchNo}|{so.SectionName}|{so.OutsourceVendor}";
-                if (!soReverseLookup.ContainsKey(so.Id))
-                    soReverseLookup[so.Id] = key;
-            }
-
-            cache["SectionOutsource"] = soReverseLookup;
-        }
-
-        // 特殊处理：PicklingInRecord 反向缓存（用于导出时解析 PicklingInRecordId → BatchNo,SectionName）
-        if (def.Columns.Any(c => c.FkEntityKey == "PicklingInRecord"))
-        {
-            var picklingInRecords = await _context.Set<PicklingInRecord>()
-                .Include(p => p.ProductionBatch)
-                .ToListAsync();
-
-            var pkReverseLookup = new Dictionary<int, string>();
-            foreach (var p in picklingInRecords)
-            {
-                var key = $"{p.ProductionBatch.BatchNo}|{p.SectionName}";
-                if (!pkReverseLookup.ContainsKey(p.Id))
-                    pkReverseLookup[p.Id] = key;
-            }
-
-            cache["PicklingInRecord"] = pkReverseLookup;
-        }
-
-        return cache;
-    }
-
-    /// <summary>
-    /// 构建 OrderItem 复合键缓存（用于 ProductRequirement 导出时的 FK 解析）
-    /// 映射：OrderItem.Id → { OrderNumber, Sequence }
-    /// </summary>
-    private async Task<Dictionary<int, (string orderNo, int sequence)>> BuildOrderItemExportCacheAsync(EntityDef def)
-    {
-        var cache = new Dictionary<int, (string, int)>();
-
-        if (def.Columns.Any(c => c.FkRequiresJoin && c.FkEntityKey == "OrderItem"))
-        {
-            var orderItems = await _context.Set<OrderItem>()
-                .Include(oi => oi.SalesOrder)
-                .ToListAsync();
-
-            foreach (var oi in orderItems)
-            {
-                var orderNo = oi.SalesOrder?.OrderNumber ?? "";
-                cache[oi.Id] = (orderNo, oi.Sequence);
-            }
-        }
-
-        return cache;
-    }
-
-    /// <summary>
-    /// 获取 FK 列的示例值（模板用）
-    /// </summary>
-    private static string? GetFkSampleValue(ColumnDef colDef,
-        Dictionary<string, Dictionary<int, string>> fkReverseCache)
-    {
-        if (colDef.FkEntityKey == null) return null;
-
-        if (fkReverseCache.TryGetValue(colDef.FkEntityKey, out var lookup) && lookup.Count > 0)
-        {
-            return lookup.First().Value;
-        }
-
-        return null;
-    }
-
     private async Task<HashSet<string>> LoadExistingKeysAsync(EntityDef def)
     {
         var keyProps = GetKeyProperties(def);
@@ -1140,185 +941,217 @@ public class DataImportService : IDataImportService
         if (existingEntity == null && rowKey != null && rowKey.StartsWith("__ID__:"))
             throw new BusinessException($"ID 为 {rowKey[7..]} 的记录在数据库中不存在，无法覆盖");
 
-        object entity;
-        if (existingEntity != null)
-        {
-            entity = existingEntity;
-        }
-        else
-        {
-            entity = Activator.CreateInstance(entityType)!;
+        var isOverwrite = existingEntity != null;
 
-            // 自动生成系统编码（如 SupplierCode → SU0001）
-            foreach (var sysCol in def.Columns.Where(c => c.IsSystem && c.Property != null && DataExchangeRegistry.CodePrefixMap.ContainsKey(c.Property)))
+        try
+        {
+            object entity;
+            if (existingEntity != null)
             {
-                if (sysCol.Property != null && propertyCache.TryGetValue(sysCol.Property, out var codeProp) && codeProp.CanWrite)
+                entity = existingEntity;
+            }
+            else
+            {
+                entity = Activator.CreateInstance(entityType)!;
+
+                // 自动生成系统编码（如 SupplierCode → SU0001）
+                foreach (var sysCol in def.Columns.Where(c => c.IsSystem && c.Property != null && DataExchangeRegistry.CodePrefixMap.ContainsKey(c.Property)))
                 {
-                    var prefix = DataExchangeRegistry.CodePrefixMap[sysCol.Property];
+                    if (sysCol.Property != null && propertyCache.TryGetValue(sysCol.Property, out var codeProp) && codeProp.CanWrite)
+                    {
+                        var prefix = DataExchangeRegistry.CodePrefixMap[sysCol.Property];
 
-                    // 查询数据库中所有已有编码
-                    var dbCodes = await ((IQueryable)dbSet).Cast<BaseEntity>()
-                        .Select(e => EF.Property<string>(e, sysCol.Property))
-                        .ToListAsync();
+                        // 查询数据库中所有已有编码
+                        var dbCodes = await ((IQueryable)dbSet).Cast<BaseEntity>()
+                            .Select(e => EF.Property<string>(e, sysCol.Property))
+                            .ToListAsync();
 
-                    // 合并批次内已分配的编码
-                    var allCodes = dbCodes.Concat(pendingCodes[sysCol.Property]).ToList();
+                        // 合并批次内已分配的编码
+                        var allCodes = dbCodes.Concat(pendingCodes[sysCol.Property]).ToList();
 
-                    // 计算下一个可用编码
-                    var matchingCodes = allCodes.Where(c => c.StartsWith(prefix) && c.Length == 6)
-                        .OrderByDescending(c => c)
-                        .ToList();
-                    var maxCode = matchingCodes.FirstOrDefault();
-                    var newCode = maxCode == null
-                        ? $"{prefix}0001"
-                        : $"{prefix}{int.Parse(maxCode[2..]) + 1:D4}";
+                        // 计算下一个可用编码
+                        var matchingCodes = allCodes.Where(c => c.StartsWith(prefix) && c.Length == 6)
+                            .OrderByDescending(c => c)
+                            .ToList();
+                        var maxCode = matchingCodes.FirstOrDefault();
+                        var newCode = maxCode == null
+                            ? $"{prefix}0001"
+                            : $"{prefix}{int.Parse(maxCode[2..]) + 1:D4}";
 
-                    pendingCodes[sysCol.Property].Add(newCode);
-                    codeProp.SetValue(entity, newCode);
+                        pendingCodes[sysCol.Property].Add(newCode);
+                        codeProp.SetValue(entity, newCode);
+                    }
+                }
+                // 更新缓存，避免同批次内重复行再次创建新实体
+                if (rowKey != null)
+                {
+                    existingCache[rowKey] = entity;
                 }
             }
-            // 更新缓存，避免同批次内重复行再次创建新实体
-            if (existingEntity == null && rowKey != null)
+
+            // 设置审计字段
+            var now = DateTimeOffset.Now;
+            if (entity is BaseEntity be)
             {
-                existingCache[rowKey] = entity;
-            }
-        }
-
-        // 设置审计字段
-        var now = DateTimeOffset.Now;
-        if (entity is BaseEntity be)
-        {
-            if (existingEntity == null)
-            {
-                be.CreatedTime = now;
-                be.CreatedBy = userName ?? "system";
-            }
-            be.UpdatedTime = now;
-            be.UpdatedBy = userName ?? "system";
-
-        }
-
-        // 设置属性值
-        foreach (var colDef in def.Columns)
-        {
-            if (colDef.IsSystem || colDef.IsFkColumn) continue;
-
-            if (!row.Values.TryGetValue(colDef.Header, out var cellValue))
-                continue;
-
-            if (string.IsNullOrWhiteSpace(cellValue))
-            {
-                if (colDef.Property != null && propertyCache.TryGetValue(colDef.Property, out var nullProp))
+                if (existingEntity == null)
                 {
-                    if (nullProp.PropertyType.IsGenericType &&
-                        nullProp.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                    be.CreatedTime = now;
+                    be.CreatedBy = userName ?? "system";
+                }
+                be.UpdatedTime = now;
+                be.UpdatedBy = userName ?? "system";
+            }
+
+            // 【先校验再应用】解析FK列（纯计算不写实体）：返回待写入属性值 + 未解析列；未解析立即报错，避免覆盖行污染已跟踪实体
+            var fkWrites = ResolveForeignKeys(def, row, fkCache, propertyCache, out var unresolvedFk);
+            if (unresolvedFk.Count > 0)
+            {
+                var fkNames = string.Join("、", unresolvedFk);
+                throw new BusinessException($"外键解析失败，在数据库中找不到对应的引用记录: {fkNames}");
+            }
+
+            // 【收集-再应用】非FK列：先全部转换，任何失败都不触碰实体（覆盖行避免污染已跟踪实体）
+            var pendingSets = new List<(PropertyInfo Prop, object? Value)>();
+            foreach (var colDef in def.Columns)
+            {
+                if (colDef.IsSystem || colDef.IsFkColumn) continue;
+
+                if (!row.Values.TryGetValue(colDef.Header, out var cellValue))
+                    continue;
+
+                if (colDef.Property == null || !propertyCache.TryGetValue(colDef.Property, out var prop))
+                    continue;
+
+                object? value;
+                if (string.IsNullOrWhiteSpace(cellValue))
+                {
+                    if (prop.PropertyType.IsGenericType &&
+                        prop.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
                     {
-                        nullProp.SetValue(entity, null);
+                        value = null;
                     }
-                    else if (nullProp.PropertyType == typeof(string))
+                    else if (prop.PropertyType == typeof(string))
                     {
                         // 非可空 string 字段空值时设为空字符串
-                        nullProp.SetValue(entity, "");
+                        value = "";
+                    }
+                    else
+                    {
+                        // 非可空非字符串字段空值不处理
+                        continue;
                     }
                 }
-                continue;
+                else
+                {
+                    value = ConvertValue(cellValue, prop.PropertyType, colDef);
+
+                    // 特殊处理：WorkOrder.OrderItemIds → 将"订单号|项次号"解析回内部ID
+                    if (colDef.Property == "OrderItemIds")
+                    {
+                        value = await ResolveOrderItemIdsForImportAsync(cellValue);
+                    }
+
+                    // 特殊处理：SectionName 存储改英文 Key（Excel 中文 → Key；未知值原样保留，防置 NULL）
+                    if (colDef.Property == "SectionName" && value is string sectionName)
+                    {
+                        value = SectionKeys.ToKey(sectionName) ?? sectionName;
+                    }
+
+                    // 特殊处理：ProcessName/ProcessGroupName 存储改英文 Key（Excel 中文 → Key；未知值原样保留，如 ColdRoll90 不在 ProcessKeys）
+                    if ((colDef.Property == "ProcessName" || colDef.Property == "ProcessGroupName") && value is string processName)
+                    {
+                        value = ProcessKeys.ToKey(processName) ?? processName;
+                    }
+
+                    // 特殊处理：CurrentGroupName/NextProcess 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
+                    if ((colDef.Property == "CurrentGroupName" || colDef.Property == "NextProcess") && value is string currentProcessName)
+                    {
+                        value = ProcessKeys.ToKey(currentProcessName) ?? currentProcessName;
+                    }
+
+                    // 特殊处理：CurrentSectionName/NextSectionName 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
+                    if ((colDef.Property == "CurrentSectionName" || colDef.Property == "NextSectionName") && value is string currentSectionName)
+                    {
+                        value = SectionKeys.ToKey(currentSectionName) ?? currentSectionName;
+                    }
+
+                    // 特殊处理：ProductStatus 存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
+                    if (colDef.Property == "ProductStatus" && value is string productStatus)
+                    {
+                        value = ResolveDictValueKey(DictValueDefaults.ProductStatus, productStatus)
+                            ?? ProductStatuses.ToKey(productStatus) ?? productStatus;
+                    }
+
+                    // 特殊处理：LiabilityType 存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
+                    if (colDef.Property == "LiabilityType" && value is string liabilityType)
+                    {
+                        value = ResolveDictValueKey(DictValueDefaults.LiabilityTypeKey, liabilityType)
+                            ?? LiabilityTypeKeys.ToKey(liabilityType) ?? liabilityType;
+                    }
+
+                    // 特殊处理：NCR ResponsibilityCategory 存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
+                    if (colDef.Property == "ResponsibilityCategory" && value is string responsibilityCategory)
+                    {
+                        value = ResolveDictValueKey(DictValueDefaults.NcrResponsibilityKey, responsibilityCategory)
+                            ?? NcrResponsibilityKeys.ToKey(responsibilityCategory) ?? responsibilityCategory;
+                    }
+
+                    // 特殊处理：字典/Key 字段（string 属性但存英文 Key/枚举名）Excel 中文 → 英文 Key；未识别的原样保留
+                    if (value is string dictValue)
+                    {
+                        value = DataExchangeValueHelper.ToKey(colDef.Property, dictValue) ?? dictValue;
+                    }
+                }
+
+                pendingSets.Add((prop, value));
             }
 
-            if (colDef.Property == null || !propertyCache.TryGetValue(colDef.Property, out var prop))
-                continue;
+            // 全部转换通过后统一写入非FK列
+            foreach (var (prop, value) in pendingSets)
+                prop.SetValue(entity, value);
 
-            var value = ConvertValue(cellValue, prop.PropertyType, colDef);
+            // 应用FK列解析结果
+            foreach (var (prop, value) in fkWrites)
+                prop.SetValue(entity, value);
 
-            // 特殊处理：WorkOrder.OrderItemIds → 将"订单号|项次号"解析回内部ID
-            if (colDef.Property == "OrderItemIds")
+            // 添加新实体到DbContext
+            if (existingEntity == null)
             {
-                value = await ResolveOrderItemIdsForImportAsync(cellValue);
+                var addMethod = dbSet.GetType().GetMethod("Add");
+                addMethod?.Invoke(dbSet, new[] { entity });
             }
-
-            // 特殊处理：SectionName 存储改英文 Key（Excel 中文 → Key；未知值原样保留，防置 NULL）
-            if (colDef.Property == "SectionName" && value is string sectionName)
-            {
-                value = SectionKeys.ToKey(sectionName) ?? sectionName;
-            }
-
-            // 特殊处理：ProcessName/ProcessGroupName 存储改英文 Key（Excel 中文 → Key；未知值原样保留，如 ColdRoll90 不在 ProcessKeys）
-            if ((colDef.Property == "ProcessName" || colDef.Property == "ProcessGroupName") && value is string processName)
-            {
-                value = ProcessKeys.ToKey(processName) ?? processName;
-            }
-
-            // 特殊处理：CurrentGroupName/NextProcess 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
-            if ((colDef.Property == "CurrentGroupName" || colDef.Property == "NextProcess") && value is string currentProcessName)
-            {
-                value = ProcessKeys.ToKey(currentProcessName) ?? currentProcessName;
-            }
-
-            // 特殊处理：CurrentSectionName/NextSectionName 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
-            if ((colDef.Property == "CurrentSectionName" || colDef.Property == "NextSectionName") && value is string currentSectionName)
-            {
-                value = SectionKeys.ToKey(currentSectionName) ?? currentSectionName;
-            }
-
-            // 特殊处理：ProductStatus 存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
-            if (colDef.Property == "ProductStatus" && value is string productStatus)
-            {
-                value = ResolveDictValueKey(DictValueDefaults.ProductStatus, productStatus)
-                    ?? ProductStatuses.ToKey(productStatus) ?? productStatus;
-            }
-
-            // 特殊处理：LiabilityType 存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
-            if (colDef.Property == "LiabilityType" && value is string liabilityType)
-            {
-                value = ResolveDictValueKey(DictValueDefaults.LiabilityTypeKey, liabilityType)
-                    ?? LiabilityTypeKeys.ToKey(liabilityType) ?? liabilityType;
-            }
-
-            // 特殊处理：NCR ResponsibilityCategory 存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
-            if (colDef.Property == "ResponsibilityCategory" && value is string responsibilityCategory)
-            {
-                value = ResolveDictValueKey(DictValueDefaults.NcrResponsibilityKey, responsibilityCategory)
-                    ?? NcrResponsibilityKeys.ToKey(responsibilityCategory) ?? responsibilityCategory;
-            }
-
-            prop.SetValue(entity, value);
+            // 注意：不在此处SaveChanges，由ImportAsync批量保存
+            return true;
         }
-
-        // 解析FK列
-        ResolveForeignKeys(def, row, fkCache, entity, propertyCache);
-
-        // 验证FK列：用户提供了值但FK查找失败的列，记录为行错误
-        // 此处逻辑与 PreviewAsync 保持一致：通过 fkCache 直接校验，不依赖 FkTargetProperty
-        var unresolvedFkColumns = new List<string>();
-        foreach (var colDef in def.Columns.Where(c => c.IsFkColumn && c.FkEntityKey != null && !c.FkRequiresJoin))
+        catch
         {
-            if (!row.Values.TryGetValue(colDef.Header, out var fkCellValue) || string.IsNullOrWhiteSpace(fkCellValue))
-                continue;
-
-            if (!fkCache.TryGetValue(colDef.FkEntityKey!, out var lookup) || !lookup.ContainsKey(fkCellValue))
+            // 覆盖行失败：回滚该实体已跟踪的局部修改，避免被批量 SaveChanges 固化（导入事务整体回滚前先清理行级污染）
+            if (isOverwrite && existingEntity != null)
             {
-                unresolvedFkColumns.Add(colDef.Header);
+                try
+                {
+                    await _context.Entry(existingEntity).ReloadAsync();
+                }
+                catch
+                {
+                    // Reload 失败（如实体已被外部删除）时忽略，交由整体事务回滚兜底
+                }
             }
+            throw;
         }
-        if (unresolvedFkColumns.Count > 0)
-        {
-            var fkNames = string.Join("、", unresolvedFkColumns);
-            throw new BusinessException($"外键解析失败，在数据库中找不到对应的引用记录: {fkNames}");
-        }
-
-        // 添加新实体到DbContext
-        if (existingEntity == null)
-        {
-            var addMethod = dbSet.GetType().GetMethod("Add");
-            addMethod?.Invoke(dbSet, new[] { entity });
-        }
-        // 注意：不在此处SaveChanges，由ImportAsync批量保存
-        return true;
     }
 
-    private void ResolveForeignKeys(EntityDef def, ImportRowData row,
-        Dictionary<string, Dictionary<string, int>> fkCache, object entity,
-        Dictionary<string, PropertyInfo> propertyCache)
+    /// <summary>
+    /// 解析FK列（含复合键），返回待写入的属性值列表 + 未解析列。
+    /// 纯计算不直接写实体：导入时先校验未解析列（失败即抛）再统一应用；预览时仅取未解析列做校验，避免覆盖行污染已跟踪实体。
+    /// </summary>
+    private List<(PropertyInfo Prop, object? Value)> ResolveForeignKeys(EntityDef def, ImportRowData row,
+        Dictionary<string, Dictionary<string, int>> fkCache, Dictionary<string, PropertyInfo> propertyCache,
+        out List<string> unresolved)
     {
+        var writes = new List<(PropertyInfo Prop, object? Value)>();
+        unresolved = new List<string>();
+
         foreach (var colDef in def.Columns.Where(c => c.IsFkColumn))
         {
             if (!row.Values.TryGetValue(colDef.Header, out var cellValue) || string.IsNullOrWhiteSpace(cellValue))
@@ -1333,17 +1166,17 @@ public class DataImportService : IDataImportService
                 var seq = row.Values.GetValueOrDefault("项次号", "");
                 var compositeKey = $"{orderNo}|{seq}";
 
+                var resolved = false;
                 if (fkCache.TryGetValue("OrderItem", out var oiCache) && oiCache.TryGetValue(compositeKey, out var oiId))
                 {
-                    if (colDef.FkTargetProperty != null && propertyCache.TryGetValue(colDef.FkTargetProperty, out var oiProp))
-                        oiProp.SetValue(entity, oiId);
+                    AddFkWrite(writes, propertyCache, colDef.FkTargetProperty, oiId);
+                    resolved = true;
                 }
                 // FK列同时有属性名时，将源文本值也写入实体属性（用于覆盖导入匹配）
                 if (colDef.Property != null && propertyCache.TryGetValue(colDef.Property, out var valProp))
-                {
-                    var convertedValue = ConvertValue(cellValue, valProp.PropertyType, colDef);
-                    valProp.SetValue(entity, convertedValue);
-                }
+                    writes.Add((valProp, ConvertValue(cellValue, valProp.PropertyType, colDef)));
+
+                if (!resolved) unresolved.Add(colDef.Header);
                 continue;
             }
 
@@ -1351,6 +1184,7 @@ public class DataImportService : IDataImportService
             // 实体有 SectionName 属性（ProductionRecord/SectionOutsource/ProcessInspection）→ 按"批次号+工序名称+制造规格+工段名称"匹配
             if (colDef.FkRequiresJoin && colDef.FkEntityKey == "ProcessGroup")
             {
+                var pgResolved = false;
                 if (propertyCache.ContainsKey("SectionName"))
                 {
                     var batchNo = row.Values.GetValueOrDefault("批次号", "");
@@ -1358,7 +1192,6 @@ public class DataImportService : IDataImportService
                     var processName = ProcessKeys.ToKey(row.Values.GetValueOrDefault("工序名称", ""));
                     var manufacturingSpec = row.Values.GetValueOrDefault("制造规格", "");
                     var sectionName = row.Values.GetValueOrDefault("工段名称", "");
-                    var resolved = false;
                     if (!string.IsNullOrWhiteSpace(batchNo) && !string.IsNullOrWhiteSpace(sectionName))
                     {
                         var compositeKey = $"{batchNo}|{processName}|{manufacturingSpec}|{sectionName}";
@@ -1367,24 +1200,22 @@ public class DataImportService : IDataImportService
                             fkCache.TryGetValue("ProcessGroupSeqBySection", out var seqCache) &&
                             seqCache.TryGetValue(compositeKey, out var seqNum))
                         {
-                            if (propertyCache.TryGetValue("ProcessGroupId", out var pgProp))
-                                pgProp.SetValue(entity, pgId);
-                            if (propertyCache.TryGetValue("SequenceNumber", out var seqProp))
-                                seqProp.SetValue(entity, seqNum);
-                            resolved = true;
+                            AddFkWrite(writes, propertyCache, "ProcessGroupId", pgId);
+                            AddFkWrite(writes, propertyCache, "SequenceNumber", seqNum);
+                            pgResolved = true;
                         }
                     }
                     // 回退：按 BatchNo|SequenceNumber（组内序号）简单键查找
                     // 当工序名称/制造规格在 Excel 与数据库不完全一致时，直接用批次号+组内序号定位
-                    if (!resolved && !string.IsNullOrWhiteSpace(batchNo) && !string.IsNullOrWhiteSpace(cellValue))
+                    if (!pgResolved && !string.IsNullOrWhiteSpace(batchNo) && !string.IsNullOrWhiteSpace(cellValue))
                     {
                         var simpleKey = $"{batchNo}|{cellValue}";
                         if (fkCache.TryGetValue("ProcessGroup", out var pgCache) && pgCache.TryGetValue(simpleKey, out var pgId))
                         {
-                            if (colDef.FkTargetProperty != null && propertyCache.TryGetValue(colDef.FkTargetProperty, out var pgProp))
-                                pgProp.SetValue(entity, pgId);
-                            if (int.TryParse(cellValue, out var seqNum) && propertyCache.TryGetValue("SequenceNumber", out var seqProp))
-                                seqProp.SetValue(entity, seqNum);
+                            AddFkWrite(writes, propertyCache, colDef.FkTargetProperty, pgId);
+                            if (int.TryParse(cellValue, out var seqNum))
+                                AddFkWrite(writes, propertyCache, "SequenceNumber", seqNum);
+                            pgResolved = true;
                         }
                     }
                 }
@@ -1396,12 +1227,14 @@ public class DataImportService : IDataImportService
                     var compositeKey = $"{batchNo}|{seq}";
                     if (fkCache.TryGetValue("ProcessGroup", out var pgCache) && pgCache.TryGetValue(compositeKey, out var pgId))
                     {
-                        if (colDef.FkTargetProperty != null && propertyCache.TryGetValue(colDef.FkTargetProperty, out var pgProp))
-                            pgProp.SetValue(entity, pgId);
-                        if (int.TryParse(seq, out var seqNum) && propertyCache.TryGetValue("SequenceNumber", out var seqProp))
-                            seqProp.SetValue(entity, seqNum);
+                        AddFkWrite(writes, propertyCache, colDef.FkTargetProperty, pgId);
+                        if (int.TryParse(seq, out var seqNum))
+                            AddFkWrite(writes, propertyCache, "SequenceNumber", seqNum);
+                        pgResolved = true;
                     }
                 }
+
+                if (!pgResolved) unresolved.Add(colDef.Header);
                 continue;
             }
 
@@ -1414,8 +1247,11 @@ public class DataImportService : IDataImportService
 
                 if (fkCache.TryGetValue("PicklingInRecord", out var pkCache) && pkCache.TryGetValue(compositeKey, out var pkId))
                 {
-                    if (colDef.FkTargetProperty != null && propertyCache.TryGetValue(colDef.FkTargetProperty, out var pkProp))
-                        pkProp.SetValue(entity, pkId);
+                    AddFkWrite(writes, propertyCache, colDef.FkTargetProperty, pkId);
+                }
+                else
+                {
+                    unresolved.Add(colDef.Header);
                 }
                 continue;
             }
@@ -1430,25 +1266,56 @@ public class DataImportService : IDataImportService
 
                 if (fkCache.TryGetValue("SectionOutsource", out var soCache) && soCache.TryGetValue(compositeKey, out var soId))
                 {
-                    if (colDef.FkTargetProperty != null && propertyCache.TryGetValue(colDef.FkTargetProperty, out var soProp))
-                        soProp.SetValue(entity, soId);
+                    AddFkWrite(writes, propertyCache, colDef.FkTargetProperty, soId);
+                }
+                else
+                {
+                    unresolved.Add(colDef.Header);
                 }
                 continue;
             }
 
             // 常规FK解析
+            var resolvedRegular = false;
             if (fkCache.TryGetValue(colDef.FkEntityKey, out var lookup) && lookup.TryGetValue(cellValue, out var fkId))
             {
-                if (colDef.FkTargetProperty != null && propertyCache.TryGetValue(colDef.FkTargetProperty, out var fkProp))
-                    fkProp.SetValue(entity, fkId);
+                AddFkWrite(writes, propertyCache, colDef.FkTargetProperty, fkId);
+                resolvedRegular = true;
                 // FK列同时有属性名时，将源文本值也写入实体属性
                 if (colDef.Property != null && propertyCache.TryGetValue(colDef.Property, out var valProp))
-                {
-                    var convertedValue = ConvertValue(cellValue, valProp.PropertyType, colDef);
-                    valProp.SetValue(entity, convertedValue);
-                }
+                    writes.Add((valProp, ConvertValue(cellValue, valProp.PropertyType, colDef)));
             }
+            if (!resolvedRegular) unresolved.Add(colDef.Header);
         }
+
+        return writes;
+    }
+
+    private static void AddFkWrite(List<(PropertyInfo Prop, object? Value)> writes,
+        Dictionary<string, PropertyInfo> propertyCache, string? propName, object value)
+    {
+        if (propName != null && propertyCache.TryGetValue(propName, out var prop))
+            writes.Add((prop, value));
+    }
+
+    /// <summary>
+    /// 分批 IN 查询：将 int 主键集合按 1000 分片执行，避免 SQL Server 2100 参数上限（超大导入文件的特殊前置清理块）
+    /// </summary>
+    private async Task<List<T>> QueryByIdsChunkedAsync<T>(
+        IQueryable<T> source, IReadOnlyCollection<int> ids, Expression<Func<T, int>> idSelector) where T : class
+    {
+        if (ids.Count == 0) return new List<T>();
+        var containsMethod = typeof(List<int>).GetMethod(nameof(List<int>.Contains), new[] { typeof(int) })!;
+        var results = new List<T>();
+        foreach (var chunk in ids.Chunk(1000))
+        {
+            var chunkList = chunk.ToList();
+            var predicate = Expression.Lambda<Func<T, bool>>(
+                Expression.Call(Expression.Constant(chunkList, typeof(List<int>)), containsMethod, idSelector.Body),
+                idSelector.Parameters[0]);
+            results.AddRange(await source.Where(predicate).ToListAsync());
+        }
+        return results;
     }
 
     private object ConvertValue(string value, Type targetType, ColumnDef colDef)

@@ -48,14 +48,14 @@ namespace MES.Tests.Services;
 /// </summary>
 public class PurchaseOrderServiceTests : TestBase
 {
-    private PurchaseOrderService CreateService(AppDbContext ctx)
+    private PurchaseOrderService CreateService(AppDbContext ctx, Mock<IWorkOrderExecutionService>? woExecMock = null)
     {
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
+        woExecMock ??= new Mock<IWorkOrderExecutionService>();
         var loggerMock = new Mock<ILogger<PurchaseOrderService>>();
-        return new PurchaseOrderService(ctx, configMock.Object, workOrderExecMock.Object, loggerMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        return new PurchaseOrderService(ctx, configMock.Object, woExecMock.Object, loggerMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "测试供应商")
@@ -363,6 +363,28 @@ public class PurchaseOrderServiceTests : TestBase
 
         // Completed 订单允许编辑，不会抛出异常
         await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_来源工单号变更_新旧工单都刷新执行读模型()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid, status: PurchaseOrderStatus.Completed);
+        order.SourceWorkOrderNo = "OLD-WO-001";
+        await ctx.SaveChangesAsync();
+
+        var woExecMock = new Mock<IWorkOrderExecutionService>();
+        var svc = CreateService(ctx, woExecMock);
+
+        var result = await svc.UpdateAsync(order.Id, new UpdatePurchaseOrderRequest
+        {
+            SourceWorkOrderNo = "NEW-WO-001"
+        });
+
+        result.SourceWorkOrderNo.Should().Be("NEW-WO-001");
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("OLD-WO-001"))), Times.Once);
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("NEW-WO-001"))), Times.Once);
     }
 
     // ========== SyncAllAsync / SyncSingleAsync ==========

@@ -49,16 +49,58 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
     private readonly IStandardWorkDayService _standardWorkDayService;
     private readonly IStandardWorkDayDeliveryStateService _deliveryStateService;
     private readonly IConfigParameterService _configService;
+    private readonly IWorkOrderExecutionService? _workOrderExecutionService;
+    private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
 
     public MaterialPlanProcessGroupService(AppDbContext context,
         IStandardWorkDayService standardWorkDayService,
         IStandardWorkDayDeliveryStateService deliveryStateService,
-        IConfigParameterService configService)
+        IConfigParameterService configService,
+        IWorkOrderExecutionService? workOrderExecutionService = null,
+        IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
         _standardWorkDayService = standardWorkDayService;
         _deliveryStateService = deliveryStateService;
         _configService = configService;
+        _workOrderExecutionService = workOrderExecutionService;
+        _listSummaryService = listSummaryService;
+    }
+
+    /// <summary>
+    /// 工序组/StandardCycle 保存成功后，刷新所属工单的执行读模型与用料计划总览读模型。
+    /// 不抛异常，避免影响保存主流程。
+    /// </summary>
+    private async Task RefreshReadModelsAsync(int planType, int planId)
+    {
+        try
+        {
+            int? workOrderId = planType switch
+            {
+                1 => await _context.PurchaseSemiPlans.Where(p => p.Id == planId).Select(p => (int?)p.WorkOrderId).FirstOrDefaultAsync(),
+                3 => await _context.InventoryPlans.Where(p => p.Id == planId).Select(p => (int?)p.WorkOrderId).FirstOrDefaultAsync(),
+                4 => await _context.RoundBarPiercingPlans.Where(p => p.Id == planId).Select(p => (int?)p.WorkOrderId).FirstOrDefaultAsync(),
+                6 => await _context.InProcessReworkPlans.Where(p => p.Id == planId).Select(p => (int?)p.WorkOrderId).FirstOrDefaultAsync(),
+                7 => await _context.InMainWorkOrderPlans.Where(p => p.Id == planId).Select(p => (int?)p.WorkOrderId).FirstOrDefaultAsync(),
+                _ => null
+            };
+            if (workOrderId == null) return;
+
+            var wo = await _context.WorkOrders
+                .AsNoTracking()
+                .FirstOrDefaultAsync(w => w.Id == workOrderId.Value);
+            if (wo == null) return;
+
+            if (_workOrderExecutionService != null && !string.IsNullOrWhiteSpace(wo.WorkOrderNo))
+                await _workOrderExecutionService.RefreshByWorkOrderNosAsync(new List<string> { wo.WorkOrderNo });
+
+            if (_listSummaryService != null && !string.IsNullOrWhiteSpace(wo.SalesOrderNo))
+                await _listSummaryService.RefreshBySalesOrderAsync(wo.SalesOrderNo);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"工序组保存读模型刷新失败: {ex.Message}");
+        }
     }
 
     private static readonly Expression<Func<SemiPlanProcessGroup, MaterialPlanProcessGroupDto>> SemiToDtoExpr = e => new MaterialPlanProcessGroupDto
@@ -500,6 +542,8 @@ public class MaterialPlanProcessGroupService : IMaterialPlanProcessGroupService
             await transaction.RollbackAsync();
             throw;
         }
+
+        await RefreshReadModelsAsync(planType, planId);
     }
 
     /// <summary>

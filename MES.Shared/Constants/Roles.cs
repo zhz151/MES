@@ -151,8 +151,8 @@ public static class Roles
         public const string UserDelete = "UserFull,Admin";
 
         // ========== 跨域组合 ==========
-        /// <summary>待出库通知（仓库 + 质量 数据源并集，仓库页可见）</summary>
-        public const string PendingDeliveryView = "WarehouseViewer,WarehouseEditor,WarehouseFull,QualityViewer,QualityEditor,QualityFull,Admin";
+        /// <summary>订单成品(实时库存)（订单 + 质量 数据源并集；list/header-options 供质保书创建页 Quality 角色调用）</summary>
+        public const string PendingDeliveryView = "OrderViewer,OrderEditor,OrderFull,QualityViewer,QualityEditor,QualityFull,Admin";
         /// <summary>批次计划汇总/月度/委外在产（批次域生产记录+工段委外页 + 排程批次计划页 + 报表总览）</summary>
         public const string BatchPlanSummaryView = "BatchViewer,BatchEditor,BatchFull,SchedulingViewer,SchedulingEditor,SchedulingFull,ReportViewer,ReportEditor,ReportFull,Admin";
     }

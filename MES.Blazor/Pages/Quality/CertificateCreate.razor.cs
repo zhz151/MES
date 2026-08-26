@@ -4,7 +4,7 @@ using MudBlazor;
 using MES.Blazor.Services;
 using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
-using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.Order;
 using MES.Core.Enums;
 using MES.Core.Models;
 

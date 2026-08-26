@@ -7,6 +7,7 @@ using MES.Data.Entities;
 using MES.Services.DataFix;
 using MES.Tests.Tests;
 using MES.Data.Entities.Batch;
+using MES.Data.Entities.Order;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Quality;
 using MES.Core.Interfaces.Batch;
@@ -470,5 +471,79 @@ public class DataFixServiceTests : TestBase
             It.Is<List<int>>(ids => ids.Contains(batch.Id))), Times.Once);
         purchaseMock.Verify(x => x.SyncAllAsync(), Times.Once);
         subcontractMock.Verify(x => x.SyncAllAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task FixSalesOrderSnapshotsAsync_仅实际修改字段计数且EndCustomer被填充()
+    {
+        var ctx = CreateDbContext();
+
+        // SO-A：CustomerName/Salesman 有值、EndCustomer 空 → 仅需补 EndCustomer
+        var soA = new SalesOrder
+        {
+            OrderNumber = "SO-A",
+            SignDate = DateTime.Today,
+            Status = Core.Enums.SalesOrderStatus.Confirmed,
+            RowVersion = new byte[8],
+            CustomerName = "客户A",
+            Salesman = "业务A",
+            EndCustomer = null,
+        };
+        // SO-B：三字段均非空 → 不进修复列表，不应被触碰
+        var soB = new SalesOrder
+        {
+            OrderNumber = "SO-B",
+            SignDate = DateTime.Today,
+            Status = Core.Enums.SalesOrderStatus.Confirmed,
+            RowVersion = new byte[8],
+            CustomerName = "客户B",
+            Salesman = "业务B",
+            EndCustomer = "终端B",
+        };
+        ctx.SalesOrders.AddRange(soA, soB);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var report = await svc.FixAllAsync();
+
+        report.SalesOrderSnapshotFixed.Should().Be(1);
+
+        var fixedA = await ctx.SalesOrders.FirstAsync(so => so.OrderNumber == "SO-A");
+        fixedA.EndCustomer.Should().Be("未知客户");
+        // 原有非空字段不被覆盖
+        fixedA.CustomerName.Should().Be("客户A");
+        fixedA.Salesman.Should().Be("业务A");
+
+        var untouchedB = await ctx.SalesOrders.FirstAsync(so => so.OrderNumber == "SO-B");
+        untouchedB.CustomerName.Should().Be("客户B");
+        untouchedB.EndCustomer.Should().Be("终端B");
+    }
+
+    [Fact]
+    public async Task FixSequenceNumbersAsync_孤儿记录_不抛异常并跳过()
+    {
+        var ctx = CreateDbContext();
+
+        // 孤儿生产记录：ProductionBatchId 指向不存在的批次（导入禁 FK 约束时可能产生）
+        var orphan = new ProductionRecord
+        {
+            ProductionBatchId = 999999,
+            ProcessGroupId = 999999,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 0,
+            CreatedBy = "tester",
+        };
+        ctx.Set<ProductionRecord>().Add(orphan);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var report = await svc.FixAllAsync();
+
+        // 孤儿被跳过：不抛异常、不计入修复
+        report.SequenceNumbersFixed.Should().Be(0);
+        var stillThere = await ctx.Set<ProductionRecord>().FirstAsync();
+        stillThere.SequenceNumber.Should().Be(0);
     }
 }

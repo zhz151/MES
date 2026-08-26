@@ -154,7 +154,7 @@ const PAGES = [
   { name: 'WarehouseOutbound',  path: '/warehouse/outbound',        type: 'LIST' },
   { name: 'InboundHistory',     path: '/warehouse/inbound-history',  type: 'LIST' },
   { name: 'OutboundHistory',    path: '/warehouse/outbound-history', type: 'LIST' },
-  { name: 'PendingDelivery',    path: '/warehouse/pending-delivery', type: 'LIST' },
+  { name: 'PendingDelivery',    path: '/orders/pending-delivery', type: 'LIST' },
 
   // ================ WorkOrders ================
   { name: 'WorkOrders',              path: '/workorders',                     type: 'LIST' },
@@ -162,7 +162,7 @@ const PAGES = [
   { name: 'WorkOrderGenerate',       path: '/workorders/generate',           type: 'SPECIAL' },
   { name: 'WorkOrderOverview',       path: '/workorder-overview',            type: 'LIST' },
   { name: 'WorkOrderRelation',       path: '/workorders/relation',           type: 'LIST' },
-  { name: 'OrderDemandAdjustment',   path: '/order-demand-adjustment',       type: 'LIST' },
+  { name: 'OrderDemandAdjustment',   path: '/workorders-demand-adjustment',  type: 'LIST' },
   { name: 'MaterialPlanOverview',    path: '/material-plan-overview',         type: 'LIST' },
 
   // ================ Reports ================

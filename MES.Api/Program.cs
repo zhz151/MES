@@ -172,6 +172,7 @@ builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
 // Register order service
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IPendingDeliveryQueryService, PendingDeliveryQueryService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 // Register auxiliary services
 builder.Services.AddScoped<ICustomerService, CustomerService>();
@@ -205,7 +206,6 @@ builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IInventoryBatchWriteService, InventoryBatchWriteService>();
 builder.Services.AddScoped<IOutboundWriteService, OutboundWriteService>();
 builder.Services.AddScoped<IInventorySyncService, InventorySyncService>();
-builder.Services.AddScoped<IPendingDeliveryQueryService, PendingDeliveryQueryService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 
 // Register batch context services

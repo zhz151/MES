@@ -9,9 +9,7 @@ using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
 using MES.Data;
 using MES.Data.Entities.Order;
-using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Batch;
-using MES.Services.Helpers;
 using MES.Core.Helpers;
 
 namespace MES.Services.DataExchange;
@@ -165,6 +163,11 @@ public class DataExportService : IDataExportService
                     // ResponsibilityCategory 存储为英文 Key（NCR 责任类别字典），导出显示中文（配置表优先，兜底 NcrResponsibilityKeys）
                     sheet.Cells[row, col + 1].Value = DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, responsibilityCategory) ?? responsibilityCategory;
                 }
+                else if (colDef.Property != null && value is string dictKeyValue)
+                {
+                    // 字典/Key 字段（string 属性但存英文 Key/枚举名）：DataSource/UsageMode/ProcessType/Module/InspectionItems → 中文；未识别的原样
+                    sheet.Cells[row, col + 1].Value = DataExchangeValueHelper.ToDisplay(colDef.Property, dictKeyValue) ?? value;
+                }
                 else
                 {
                     sheet.Cells[row, col + 1].Value = value.ToString();
@@ -244,6 +247,18 @@ public class DataExportService : IDataExportService
             else if (colDef.PropertyType == typeof(decimal) || colDef.PropertyType == typeof(decimal?))
             {
                 sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = "0.00";
+            }
+            else if (colDef.Property is "UsageMode" or "ProcessType" or "Module" or "InspectionItems")
+            {
+                // 字典/Key 字段模板示例给中文，与导出显示一致（DataSource 为 isSystem 已在上面跳过）
+                sheet.Cells[sampleRow, importColumns.IndexOf(colDef) + 1].Value = colDef.Property switch
+                {
+                    "UsageMode" => "全部",
+                    "ProcessType" => "穿孔",
+                    "Module" => "订单",
+                    "InspectionItems" => "超声波,涡流",
+                    _ => colDef.Header
+                };
             }
             else if (!colDef.IsFkColumn)
             {

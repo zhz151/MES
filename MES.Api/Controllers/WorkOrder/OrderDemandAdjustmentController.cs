@@ -9,7 +9,7 @@ using System.Text.Json;
 namespace MES.Api.Controllers.WorkOrder;
 
 [ApiController]
-[Route("api/order-demand-adjustment")]
+[Route("api/workorder-demand-adjustment")]
 [Authorize(Roles = Roles.Policies.WorkOrderView)]
 public class OrderDemandAdjustmentController : ControllerBase
 {

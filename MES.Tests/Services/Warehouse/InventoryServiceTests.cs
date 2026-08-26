@@ -9,6 +9,7 @@ using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.Order;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Models;
 using MES.Services.Warehouse;
@@ -42,12 +43,13 @@ public class InventoryServiceTests : TestBase
         prMock ??= new Mock<IProductionRecordService>();
         var notifMock = new Mock<INotificationService>();
         fixedLenMock ??= new Mock<IFixedLengthWorkOrderService>();
+        var pendingDeliveryMock = new Mock<IPendingDeliveryQueryService>();
 
         var batchWrite = new InventoryBatchWriteService(ctx, woExecMock.Object, qualityMock.Object, prMock.Object, syncMock.Object, notifMock.Object, fixedLenMock.Object, loggerBatch.Object);
         var outboundWrite = new OutboundWriteService(ctx, woExecMock.Object, loggerOutbound.Object);
         var syncService = new InventorySyncService(ctx, configMock.Object, woExecMock.Object, loggerSync.Object, new MemoryCache(new MemoryCacheOptions()));
 
-        return new InventoryService(ctx, batchWrite, outboundWrite, syncService, loggerMain.Object, new MemoryCache(new MemoryCacheOptions()));
+        return new InventoryService(ctx, batchWrite, outboundWrite, syncService, loggerMain.Object, new MemoryCache(new MemoryCacheOptions()), pendingDeliveryMock.Object);
     }
 
     // ========== 入库 ==========

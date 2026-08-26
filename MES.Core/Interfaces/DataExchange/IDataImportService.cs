@@ -8,11 +8,6 @@ namespace MES.Core.Interfaces.DataExchange;
 public interface IDataImportService
 {
     /// <summary>
-    /// 生成导入模板（含示例行）
-    /// </summary>
-    Task<byte[]> GenerateTemplateAsync(string entityKey);
-
-    /// <summary>
     /// 预览导入结果（验证但不写入数据库）
     /// </summary>
     Task<ImportPreviewResult> PreviewAsync(string entityKey, byte[] fileData, string? userName);

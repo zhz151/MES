@@ -39,6 +39,10 @@ public class ImportRowResult
     public bool IsValid { get; set; }
     /// <summary>该行将被如何处理：新增 / 覆盖 / ID不存在</summary>
     public string RowAction { get; set; } = "新增";
+    /// <summary>该行是否携带了 ID 列的值（有 ID 且命中则按 ID 覆盖）</summary>
+    public bool HasId { get; set; }
+    /// <summary>该行的处理说明（覆盖通道 / 新增原因），供预览界面展示</summary>
+    public string? ActionNote { get; set; }
     public ImportRowData? Data { get; set; }
 }
 

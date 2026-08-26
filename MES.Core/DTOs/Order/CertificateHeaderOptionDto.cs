@@ -1,6 +1,6 @@
 using MES.Core.Enums;
 
-namespace MES.Core.DTOs.Warehouse;
+namespace MES.Core.DTOs.Order;
 
 /// <summary>
 /// 质保书头选择项 — 待发货数据中 DISTINCT (订单号+客户名称+产品标准+交货状态)

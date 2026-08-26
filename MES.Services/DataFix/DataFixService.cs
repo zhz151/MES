@@ -3,30 +3,16 @@ using MES.Core.Enums;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
-using MES.Core.Interfaces.Equipment;
-using MES.Core.Interfaces.Infrastructure;
 using MES.Core.Interfaces.Materials;
-using MES.Core.Interfaces.Order;
-using MES.Core.Interfaces.StandardRegister;
-using MES.Core.Interfaces.Quality;
-using MES.Core.Interfaces.Scheduling;
-using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
-using MES.Data.Entities.WorkOrder;
-using MES.Data.Entities.Warehouse;
-using MES.Data.Entities.Scheduling;
-using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Order;
-using MES.Data.Entities.Materials;
-using MES.Data.Entities.Auth;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Quality;
 using MES.Services.Extensions;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace MES.Services.DataFix;
 
@@ -127,6 +113,9 @@ public class DataFixService : IDataFixService
             .ToListAsync();
         foreach (var rec in records)
         {
+            // 孤儿记录（批次外键指向已删/不存在的批次，导入禁 FK 约束时可能产生）跳过，避免 NRE
+            if (rec.ProductionBatch == null) continue;
+
             var key = $"{rec.ProductionBatch.BatchNo}|{rec.ProcessName}|{rec.ManufacturingSpec ?? ""}";
             if (pgLookup.TryGetValue(key, out var pg))
             {
@@ -157,6 +146,9 @@ public class DataFixService : IDataFixService
             .ToListAsync();
         foreach (var insp in inspections)
         {
+            // 孤儿记录跳过，避免 NRE
+            if (insp.ProductionBatch == null) continue;
+
             var key = $"{insp.ProductionBatch.BatchNo}|{insp.ProcessName}|{insp.ManufacturingSpec ?? ""}";
             if (pgLookup.TryGetValue(key, out var pg))
             {
@@ -185,6 +177,9 @@ public class DataFixService : IDataFixService
             .ToListAsync();
         foreach (var os in outsources)
         {
+            // 孤儿记录跳过，避免 NRE
+            if (os.ProductionBatch == null) continue;
+
             var key = $"{os.ProductionBatch.BatchNo}|{os.ProcessName}|{os.ManufacturingSpec ?? ""}";
             if (pgLookup.TryGetValue(key, out var pg))
             {
@@ -350,9 +345,7 @@ public class DataFixService : IDataFixService
         return fixedCount;
     }
 
-    // ==================== 工具方法 ====================
-
-    // ==================== 8. 刷新工单汇总读模型（用料计划字段） ====================
+    // ==================== 7. 刷新工单汇总读模型（用料计划字段） ====================
 
     private async Task FixWorkOrderSummariesAsync()
     {
@@ -361,7 +354,7 @@ public class DataFixService : IDataFixService
         _logger.LogInformation("工单执行状况汇总刷新完成");
     }
 
-    // ==================== 9. 修复订单客户快照字段 ====================
+    // ==================== 8. 修复订单客户快照字段 ====================
 
     private async Task<int> FixSalesOrderSnapshotsAsync()
     {
@@ -373,13 +366,27 @@ public class DataFixService : IDataFixService
         foreach (var so in salesOrders)
         {
             // CustomerId FK 已移除，快照字段已独立维护，此修复脚本保留骨架以备手动处理
+            bool changed = false;
             if (string.IsNullOrEmpty(so.CustomerName))
+            {
                 so.CustomerName = "未知客户";
+                changed = true;
+            }
 
             if (string.IsNullOrEmpty(so.Salesman))
+            {
                 so.Salesman = "未知";
+                changed = true;
+            }
 
-            fixedCount++;
+            if (string.IsNullOrEmpty(so.EndCustomer))
+            {
+                so.EndCustomer = "未知客户";
+                changed = true;
+            }
+
+            // 仅实际修改的订单才计数，避免报告虚高
+            if (changed) fixedCount++;
         }
 
         if (fixedCount > 0)

@@ -1064,8 +1064,15 @@ public class ProductionRecordService : IProductionRecordService
 
     public async Task BatchUpdateBatchTrackingAsync(ICollection<int> batchIds)
     {
-        await BatchUpdateTrackingFromRecordsAsync(batchIds);
-        await TryRefreshExecutionSummaryByBatchIdsAsync(batchIds);
+        if (batchIds.Count == 0) return;
+
+        // 分片处理：防止单条 SQL 的 IN 参数超过 SQL Server 2100 参数上限（一键修复等全量场景）
+        // 强制完成分支内部已分片，此处对活跃批次主路径统一兜底；正常单批次/小批量走单片路径行为不变
+        foreach (var chunk in batchIds.Chunk(1000))
+        {
+            await BatchUpdateTrackingFromRecordsAsync(chunk);
+            await TryRefreshExecutionSummaryByBatchIdsAsync(chunk);
+        }
     }
 
     /// <summary>

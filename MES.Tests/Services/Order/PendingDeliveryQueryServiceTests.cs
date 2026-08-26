@@ -5,7 +5,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.WorkOrder;
-using MES.Services.Warehouse;
+using MES.Services.Order;
 using MES.Tests.Tests;
 
 namespace MES.Tests.Services;
@@ -119,5 +119,27 @@ public class PendingDeliveryQueryServiceTests : TestBase
 
         contexts.Should().ContainKey("WorkOrderAttention");
         contexts["WorkOrderAttention"].Should().Contain("2");
+    }
+
+    [Fact]
+    public async Task InvalidateCachesAsync_清空缓存并可重建()
+    {
+        var ctx = CreateDbContext();
+        await SeedFinishedBatchAsync(ctx, "PD-005", workOrderNo: "G001-05");
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var svc = new PendingDeliveryQueryService(ctx, cache);
+
+        // 首次查询填充 C0 缓存
+        var before = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 10 });
+        before.Items.Should().ContainSingle();
+        cache.Get(PendingDeliveryQueryService.CacheKey).Should().NotBeNull();
+
+        // 失效后 C0 清空
+        await svc.InvalidateCachesAsync();
+        cache.Get(PendingDeliveryQueryService.CacheKey).Should().BeNull();
+
+        // 再查可重建
+        var after = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 10 });
+        after.Items.Should().ContainSingle();
     }
 }

@@ -68,7 +68,7 @@ public static class DataExchangeRegistry
         {
             new("供应商编码", "SupplierCode", isSystem: true),
             new("供应商名称", "SupplierName"),
-            new("物料分类", "MaterialCategory", typeof(string), isRequired: false),
+            new("物料分类", "MaterialCategory", typeof(MES.Core.Enums.MaterialType), isEnum: true, isRequired: false),
             new("联系人", "ContactPerson", typeof(string), isRequired: false),
             new("联系电话", "ContactPhone", typeof(string), isRequired: false),
             new("地址", "Address", typeof(string), isRequired: false),
@@ -96,8 +96,13 @@ public static class DataExchangeRegistry
             new("保养周期(天)", "MaintCycleDays", typeof(int), isRequired: false),
             new("本次保养日起始", "CurrentMaintStartDate", typeof(DateTime?), isRequired: false),
             new("最近维修日期", "LastRepairDate", typeof(DateTime?), isRequired: false),
+            new("最近点检日期", "LastInspectionDate", typeof(DateTime?), isRequired: false, isSystem: true),
+            new("最近保养日期", "LastMaintDate", typeof(DateTime?), isRequired: false, isSystem: true),
             new("生命周期", "LifecycleStatus", typeof(Core.Enums.LifecycleStatus), isEnum: true),
             new("作用类型", "UsageType", typeof(Core.Enums.UsageType), isEnum: true),
+            new("运行状态", "RunningStatus", typeof(Core.Enums.RunningStatus), isEnum: true, isSystem: true),
+            new("点检状况", "InspectionStatus", typeof(Core.Enums.EquipmentTaskStatus), isEnum: true, isSystem: true),
+            new("保养状况", "MaintStatus", typeof(Core.Enums.EquipmentTaskStatus), isEnum: true, isSystem: true),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
@@ -106,8 +111,10 @@ public static class DataExchangeRegistry
         {
             new("订单号", "OrderNumber"),
             new("签订日期", "SignDate", typeof(DateTime)),
-            new("客户编码", null!) { IsFkColumn = true, FkEntityKey = "CustomerProfile", FkLookupProperty = "CustomerCode", FkTargetProperty = "CustomerId" },
             new("状态", "Status", typeof(Core.Enums.SalesOrderStatus), isEnum: true),
+            new("客户名称", "CustomerName"),
+            new("业务员", "Salesman"),
+            new("最终用户", "EndCustomer", typeof(string), isRequired: false),
             new("最后项次变更时间", "LastItemChangeTime", typeof(DateTimeOffset?), isRequired: false, isSystem: true),
         }),
 
@@ -127,6 +134,8 @@ public static class DataExchangeRegistry
             new("维修结束时间", "RepairEndTime", typeof(DateTime?), isRequired: false),
             new("维修内容", "RepairContent", typeof(string), isRequired: false),
             new("备件更换", "SparePartUsed", typeof(string), isRequired: false),
+            new("维修类别", "RepairCategory", typeof(string), isRequired: false),
+            new("辅助维修人", "OtherRepairPersons", typeof(string), isRequired: false),
         }),
 
         ["MaintenanceOrder"] = new EntityDef("设备-保养工单", "设备-保养工单", typeof(Data.Entities.Equipment.MaintenanceOrder), 2, "MaintOrderNo", new List<ColumnDef>
@@ -157,7 +166,7 @@ public static class DataExchangeRegistry
             new("交货日期", "DeliveryDate", typeof(DateTime)),
             new("延期罚款", "DelayPenalty", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("结算方式", "SettlementMethod", typeof(Core.Enums.SettlementMethod), isEnum: true),
-            new("物料名称", "MaterialName", typeof(Core.Enums.PipeManufacturingType), isEnum: true),
+            new("物料名称", "PipeManufacturingType", typeof(Core.Enums.PipeManufacturingType), isEnum: true),
             new("产品标准编码", "StandardNo"),
             new("交货状态", "DeliveryState", typeof(Core.Enums.DeliveryState), isEnum: true),
             new("标准牌号", "StandardGrade"),
@@ -231,7 +240,7 @@ public static class DataExchangeRegistry
             new("最终用户", "EndCustomer", typeof(string), isRequired: false),
             new("交货日期", "DeliveryDate", typeof(DateTime)),
             new("延期罚款", "DelayPenalty", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
-            new("物料名称", "MaterialName", typeof(Core.Enums.PipeManufacturingType), isEnum: true),
+            new("物料名称", "PipeManufacturingType", typeof(Core.Enums.PipeManufacturingType), isEnum: true),
             new("结算方式", "SettlementMethod", typeof(Core.Enums.SettlementMethod), isEnum: true),
             new("产品标准编码", "StandardCode"),
             new("交货状态", "DeliveryState", typeof(Core.Enums.DeliveryState), isEnum: true),
@@ -256,7 +265,7 @@ public static class DataExchangeRegistry
         }),
 
         // === 第5批：工单-需求调整（依赖工单） ===
-        ["OrderDemandAdjustment"] = new EntityDef("订单-需求调整", "订单-需求调整",
+        ["OrderDemandAdjustment"] = new EntityDef("工单-需求调整", "工单-需求调整",
             typeof(MES.Data.Entities.WorkOrder.OrderDemandAdjustment), 5, null, new List<ColumnDef>
         {
             new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
@@ -333,6 +342,7 @@ public static class DataExchangeRegistry
             new("领料重量(kg)", "InputWeight", typeof(decimal?), isRequired: false),
             new("投料类型", "InputType", typeof(Core.Enums.BatchInputType), isEnum: true, isRequired: false),
             new("源生产编号", "SourceProductionNo", typeof(string), isRequired: false),
+            new("投料备注", "SourceRemark", typeof(string), isRequired: false),
             new("现有效支数", "CurrentValidQty", typeof(int?), isRequired: false),
             new("现有效重量(kg)", "CurrentValidWeight", typeof(int?), isRequired: false),
             // 系统跟踪字段
@@ -344,11 +354,19 @@ public static class DataExchangeRegistry
             new("理论成品支", "TheoreticalOutputQty", typeof(int?), isRequired: false, isSystem: true),
             new("理论成品重", "TheoreticalOutputWeight", typeof(int?), isRequired: false, isSystem: true),
             new("理论单支重", "TheoreticalUnitWeight", typeof(decimal?), isRequired: false, isSystem: true),
+            new("产品单支量(kg/支)", "ProductUnitWeight", typeof(decimal?), isRequired: false, isSystem: true),
             // 成切跟踪（系统派生，仅导出不导入）
             new("成切需求", "CutRequirement", typeof(bool), isRequired: false, isSystem: true),
             new("成切执行", "CutExecution", typeof(bool?), isRequired: false, isSystem: true),
             new("成切支数", "CutQuantity", typeof(int?), isRequired: false, isSystem: true),
-            new("成切存疑", "CutDoubt", typeof(CutDoubtType?), isRequired: false, isSystem: true),
+            new("成切存疑", "CutDoubt", typeof(CutDoubtType?), isEnum: true, isRequired: false, isSystem: true),
+            new("成检附加", "InspectionStage", typeof(MES.Core.Enums.InspectionType), isEnum: true, isRequired: false, isSystem: true),
+            new("过程检合格支", "ProcessInspectionQualifiedQty", typeof(int?), isRequired: false, isSystem: true),
+            new("过程检合格量(kg)", "ProcessInspectionQualifiedWeight", typeof(decimal?), isRequired: false, isSystem: true),
+            new("过程检理论成品支", "ProcessInspectionTheoreticalQty", typeof(int?), isRequired: false, isSystem: true),
+            new("过程检需调整", "ProcessInspectionNeedAdjust", typeof(bool?), isRequired: false, isSystem: true),
+            new("过程检返整量(kg)", "ProcessInspectionReworkWeight", typeof(int?), isRequired: false, isSystem: true),
+            new("过程检次品量(kg)", "ProcessInspectionScrapWeight", typeof(int?), isRequired: false, isSystem: true),
         }),
 
         ["PurchaseOrder"] = new EntityDef("物料-采购订单", "物料-采购订单", typeof(MES.Data.Entities.Materials.PurchaseOrder), 7, "OrderNo", new List<ColumnDef>
@@ -358,7 +376,7 @@ public static class DataExchangeRegistry
             new("下单日期", "OrderDate", typeof(DateTime)),
             new("状态", "Status", typeof(MES.Core.Enums.PurchaseOrderStatus), isEnum: true),
             new("强制完成", "IsForceCompleted", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
-            new("物料分类", "MaterialCategory"),
+            new("物料分类", "MaterialCategory", typeof(MES.Core.Enums.MaterialType), isEnum: true),
             new("厂内钢种", "PlantGrade"),
             new("名义规格", "Specification"),
             new("单支重量(kg)", "UnitWeight", typeof(decimal?), isRequired: false),
@@ -391,7 +409,6 @@ public static class DataExchangeRegistry
             new("发出支数", "OutQuantity", typeof(int)),
             new("发出重量(kg)", "OutWeight", typeof(decimal)),
             new("收回截止日期", "ReturnDeadline", typeof(DateTime?), isRequired: false),
-            new("来源工单号", "SourceWorkOrderNo", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
             // Service 维护字段
             new("已收回支数", "InQuantity", typeof(int?), isRequired: false, isSystem: true),
@@ -402,7 +419,7 @@ public static class DataExchangeRegistry
         {
             new("委外单号", "OrderNo") { IsFkColumn = true, FkEntityKey = "SubcontractOrder", FkLookupProperty = "OrderNo", FkTargetProperty = "SubcontractOrderId" },
             new("行号", "Sequence", typeof(int)),
-            new("物料分类", "MaterialCategory"),
+            new("物料分类", "MaterialCategory", typeof(MES.Core.Enums.MaterialType), isEnum: true),
             new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
             new("加工规格", "ProcessSpecification"),
             new("单重(kg)", "UnitWeight", typeof(decimal?), isRequired: false),
@@ -486,6 +503,8 @@ public static class DataExchangeRegistry
             new("成品断切长度(mm)", "FinishedCutLength", typeof(decimal?), isRequired: false),
             new("切后支数", "PostCutQuantity", typeof(int?), isRequired: false),
             new("平头数", "FaceCutCount", typeof(int?), isRequired: false),
+            new("预成切", "IsPreCut", typeof(bool?), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("定尺切割匹配", "CutLengthMatchType", typeof(MES.Core.Enums.CutLengthMatchType), isEnum: true, isRequired: false, isSystem: true),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }),
@@ -500,12 +519,15 @@ public static class DataExchangeRegistry
             new("委外规格", "OutsourceSpec", typeof(string), isRequired: false),
             new("制造规格", "ManufacturingSpec"),
             new("工段名称", "SectionName"),
+            new("执行序号", "SequenceNumber", typeof(int), isRequired: false),
             new("委外单位", "OutsourceVendor"),
             new("发出日期", "SendOutDate", typeof(DateTime)),
             new("发出支数", "SendQuantity", typeof(int?), isRequired: false),
             new("发出重量(kg)", "SendWeight", typeof(decimal?)),
             new("要求收回日期", "ExpectedReturnDate", typeof(DateTime?), isRequired: false),
             new("是否紧急", "IsUrgent", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("是否厂内", "IsInternal", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("产类", "ProductStatus", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("状态", "Status", typeof(MES.Core.Enums.SectionOutsourceStatus), isEnum: true),
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
@@ -530,16 +552,10 @@ public static class DataExchangeRegistry
         {
             new("批次号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
             new("到料日期", "ReceiveDate", typeof(DateTime)),
-            // 批次冗余字段
-            new("制造物品", "ManufacturingItem", typeof(MES.Core.Enums.MaterialType), isEnum: true, isRequired: false),
-            new("挂牌号", "TagNo", typeof(string), isRequired: false),
-            new("工单号", "WorkOrderNo", typeof(string), isRequired: false),
-            new("订单号", "SalesOrderNo", typeof(string), isRequired: false),
-            new("来料单位", "SourceUnit", typeof(string), isRequired: false),
-            new("炉号", "FurnaceNo", typeof(string), isRequired: false),
-            new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
-            new("规格", "Specification", typeof(string), isRequired: false),
-            new("生产类型", "ProductionType", typeof(MES.Core.Enums.ProductionType), isEnum: true, isRequired: false),
+            new("工序序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
+            new("工序名称", "ProcessName"),
+            new("执行序号", "SequenceNumber", typeof(int), isRequired: false),
+            new("成检类型", "InspectionType", typeof(MES.Core.Enums.InspectionType), isEnum: true, isRequired: false),
             new("强制完成", "IsForceCompleted", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("班次", "Shift", typeof(MES.Core.Enums.ShiftType), isEnum: true, isRequired: false),
             new("确认人", "Checker", typeof(string), isRequired: false),
@@ -557,10 +573,12 @@ public static class DataExchangeRegistry
             new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
             new("制造规格", "ManufacturingSpec"),
             new("工段名称", "SectionName"),
+            new("执行序号", "SequenceNumber", typeof(int), isRequired: false),
             new("检验日期", "InspectionDate", typeof(DateTime)),
             new("设备名称", "EquipmentName", typeof(string), isRequired: false),
             new("检验员", "Inspector", typeof(string), isRequired: false),
             new("班次", "Shift", typeof(MES.Core.Enums.ShiftType), isEnum: true, isRequired: false),
+            new("产类", "ProductStatus", typeof(string), isRequired: false),
             new("检验支数", "Quantity", typeof(int?), isRequired: false),
             new("检验重量(kg)", "Weight", typeof(decimal?), isRequired: false),
             new("检验项目", "InspectionItem", typeof(MES.Core.Enums.InspectionItem), isEnum: true, isRequired: false),
@@ -572,6 +590,9 @@ public static class DataExchangeRegistry
             new("不合格入库支数", "DefectWarehouseQuantity", typeof(int?), isRequired: false),
             new("不合格报废支数", "DefectScrapQuantity", typeof(int?), isRequired: false),
             new("不合格描述", "DefectDescription", typeof(string), isRequired: false),
+            new("理论返整重(kg)", "TheoreticalReworkWeight", typeof(int?), isRequired: false, isSystem: true),
+            new("理论入库重(kg)", "TheoreticalWarehouseWeight", typeof(int?), isRequired: false, isSystem: true),
+            new("理论报废重(kg)", "TheoreticalScrapWeight", typeof(int?), isRequired: false, isSystem: true),
             new("来料单位", "SourceUnit", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
@@ -580,16 +601,9 @@ public static class DataExchangeRegistry
         ["FinalInspection"] = new EntityDef("质量-成品检验", "质量-成品检验", typeof(MES.Data.Entities.Quality.FinalInspection), 8, null, new List<ColumnDef>
         {
             new("生产编号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
-            new("挂牌号", "TagNo", typeof(string), isRequired: false),
-            new("物料名称", "MaterialName", typeof(string), isRequired: false),
-            new("关联工单号", "WorkOrderNo", typeof(string), isRequired: false),
-            new("关联订单号", "SalesOrderNo", typeof(string), isRequired: false),
-            new("来料单位", "SourceUnit", typeof(string), isRequired: false),
-            new("炉号", "FurnaceNo", typeof(string), isRequired: false),
-            new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
-            new("规格", "Specification", typeof(string), isRequired: false),
             new("定尺长度", "FixedLength", typeof(string), isRequired: false),
             new("非定尺长度范围", "NonFixedLengthRange", typeof(string), isRequired: false),
+            new("定尺切割匹配", "CutLengthMatchType", typeof(MES.Core.Enums.CutLengthMatchType), isEnum: true, isRequired: false, isSystem: true),
             new("成检类型", "InspectionType", typeof(MES.Core.Enums.InspectionType), isEnum: true, isRequired: false),
             new("检验项目", "InspectionItem", typeof(MES.Core.Enums.InspectionItem), isEnum: true),
             new("检验日期", "InspectionDate", typeof(DateTime)),
@@ -808,6 +822,7 @@ public static class DataExchangeRegistry
             new("制造规格", "ManufacturingSpec", typeof(string), isRequired: false),
             new("工段名称", "SectionName"),
             new("组内序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
+            new("执行序号", "SequenceNumber", typeof(int), isRequired: false),
             new("入缸日期", "InDate", typeof(DateTime)),
             new("状态", "Status", typeof(MES.Core.Enums.PicklingStatus), isEnum: true),
             new("设备名称", "EquipmentName", typeof(string), isRequired: false),
@@ -826,6 +841,21 @@ public static class DataExchangeRegistry
         {
             new("入缸批次号", null!) { IsFkColumn = true, FkEntityKey = "PicklingInRecord", FkLookupProperty = "BatchNo", FkTargetProperty = "PicklingInRecordId", FkRequiresJoin = true },
             new("入缸工段", null!) { IsFkColumn = true, FkEntityKey = "PicklingInRecord", FkLookupProperty = "SectionName", FkTargetProperty = "PicklingInRecordId", FkRequiresJoin = true },
+            // 系统回写快照（由入缸记录复制），仅导出不导入，防手工写入与 FK 解析结果不一致
+            new("生产批次ID", "ProductionBatchId", typeof(int), isSystem: true, isRequired: false),
+            new("批次号", "BatchNo", typeof(string), isRequired: false),
+            new("制造规格", "ManufacturingSpec", typeof(string), isRequired: false),
+            new("工段名称", "SectionName"),
+            new("设备名称", "EquipmentName", typeof(string), isRequired: false),
+            new("操作人", "Operator", typeof(string), isRequired: false),
+            // 班次与入缸记录一致：string 属性存 ShiftType 枚举名，导出/导入走 EnumHelper 中文转换
+            new("班次", "Shift", typeof(MES.Core.Enums.ShiftType), isEnum: true, isRequired: false),
+            new("加工支数", "Quantity", typeof(int?), isRequired: false),
+            new("加工重量(kg)", "Weight", typeof(decimal?), isRequired: false),
+            new("产类", "ProductStatus", typeof(string), isRequired: false),
+            new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
+            new("工序名称", "ProcessName", typeof(string), isRequired: false),
+            new("挂牌号", "TagNo", typeof(string), isRequired: false),
             new("完工日期", "CompleteDate", typeof(DateTime)),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
@@ -854,6 +884,7 @@ public static class DataExchangeRegistry
             new("长度状态", "LengthStatus", typeof(MES.Core.Enums.LengthStatus), isEnum: true, isRequired: false),
             new("最小长度(mm)", "MinLength", typeof(decimal?), isRequired: false),
             new("最大长度(mm)", "MaxLength", typeof(decimal?), isRequired: false),
+            new("定尺切割匹配", "CutLengthMatchType", typeof(MES.Core.Enums.CutLengthMatchType), isEnum: true, isRequired: false, isSystem: true),
             new("入库支数", "InitialQuantity", typeof(int)),
             new("入库重量(kg)", "InitialWeight", typeof(decimal)),
             new("理论单支重(kg)", "UnitWeight", typeof(decimal?), isRequired: false),
@@ -872,9 +903,11 @@ public static class DataExchangeRegistry
             new("次品备注", "DefectRemark", typeof(string), isRequired: false),
             new("工单号", "WorkOrderNo", typeof(string), isRequired: false),
             new("订单号", "SalesOrderNo", typeof(string), isRequired: false),
+            new("主号", "ProductionMainNo", typeof(string), isRequired: false),
             new("是否关联工单", "IsLinkedToWorkOrder", typeof(bool)),
             new("项次ID", "OrderItemIds", typeof(string), isRequired: false),
             new("来源单号", "SourceOrderNo", typeof(string), isRequired: false),
+            new("来源序号", "SourceOrderSequence", typeof(int?), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
@@ -882,6 +915,8 @@ public static class DataExchangeRegistry
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "InventoryBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "InventoryBatchId" },
             new("出库类型", "OutboundType", typeof(MES.Core.Enums.OutboundType), isEnum: true),
+            new("仓库批次号", "BatchNo", typeof(string), isRequired: false),
+            new("出库工单号", "WorkOrderNo", typeof(string), isRequired: false),
             new("退货-原仓库批", "ReturnSourceBatchNo", typeof(string), isRequired: false),
             new("委外-穿孔号", "SourceOrderNo", typeof(string), isRequired: false),
             new("目标单位", "TargetCompany", typeof(string), isRequired: false),
@@ -923,6 +958,9 @@ public static class DataExchangeRegistry
             new("成材率(%)", "YieldRate", typeof(decimal)),
             new("投料制成倍", "InputMultiple", typeof(int)),
             new("正品率(%)", "QualifiedRate", typeof(decimal)),
+            new("密度(g/cm³)", "Density", typeof(decimal?), isRequired: false, isSystem: true),
+            new("成品单重(kg/支)", "UnitWeight", typeof(decimal?), isRequired: false, isSystem: true),
+            new("原料单重(kg/支)", "RawUnitWeight", typeof(decimal?), isRequired: false, isSystem: true),
             new("原料类型", "RawMaterialType", typeof(MES.Core.Enums.MaterialType), isEnum: true),
             new("工厂牌号", "PlantGrade"),
             new("原料规格", "RawMaterialSpec"),
@@ -1101,6 +1139,9 @@ public static class DataExchangeRegistry
             new("成材率(%)", "YieldRate", typeof(decimal)),
             new("投料制成倍", "InputMultiple", typeof(int)),
             new("正品率(%)", "QualifiedRate", typeof(decimal)),
+            new("密度(g/cm³)", "Density", typeof(decimal?), isRequired: false, isSystem: true),
+            new("成品单重(kg/支)", "UnitWeight", typeof(decimal?), isRequired: false, isSystem: true),
+            new("原料单重(kg/支)", "RawUnitWeight", typeof(decimal?), isRequired: false, isSystem: true),
             new("原料类型", "RawMaterialType", typeof(MES.Core.Enums.MaterialType), isEnum: true),
             new("工厂牌号", "PlantGrade"),
             new("圆棒规格", "RoundBarSpec"),
@@ -1241,10 +1282,6 @@ public static class DataExchangeRegistry
             new("工厂牌号", "PlantGrade"),
             new("规格", "Specification"),
             new("长度状态", "LengthStatus", typeof(MES.Core.Enums.LengthStatus), isEnum: true),
-            new("批次总支数", "TotalBatchQuantity", typeof(int)),
-            new("批次总重量", "TotalBatchWeight", typeof(decimal)),
-            new("现有有效原料支数", "CurrentValidQty", typeof(int?), isRequired: false),
-            new("现有有效原料重量", "CurrentValidWeight", typeof(decimal?), isRequired: false),
             new("投料制成倍", "InputMultiple", typeof(int)),
             new("使用支数", "UsedQuantity", typeof(int?), isRequired: false),
             new("使用重量", "UsedWeight", typeof(decimal)),
@@ -1293,18 +1330,19 @@ public static class DataExchangeRegistry
             new(SectionDefs.Extra2, "Extra2", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "InProcessReworkPlanId", "SequenceNumber" }),
 
-        ["Workstation"] = new EntityDef("工位管理", "工位管理", typeof(MES.Data.Entities.Configuration.Workstation), 1, "Code", new List<ColumnDef>
+        ["Workstation"] = new EntityDef("扫码-工位管理", "扫码-工位管理", typeof(MES.Data.Entities.Configuration.Workstation), 1, "Code", new List<ColumnDef>
         {
             new("工位编码", "Code"),
             new("工位名称", "Name", typeof(string), isRequired: false),
             new("设备名称", "EquipmentName", typeof(string), isRequired: false),
             new("工段", "SectionName", typeof(string), isRequired: true),
-            new("报工模板类型", "ReportType", typeof(string), isRequired: true),
+            new("报工模板类型", "ReportType", typeof(Core.Enums.ReportTemplateType), isEnum: true, isRequired: true),
             new("组类", "GroupNames", typeof(string), isRequired: false),
+            new("成品检验项目", "InspectionItem", typeof(Core.Enums.InspectionItem), isEnum: true, isRequired: false),
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
 
-        ["Employee"] = new EntityDef("员工管理", "员工管理", typeof(MES.Data.Entities.Configuration.Employee), 1, "Code", new List<ColumnDef>
+        ["Employee"] = new EntityDef("扫码-员工管理", "扫码-员工管理", typeof(MES.Data.Entities.Configuration.Employee), 1, "Code", new List<ColumnDef>
         {
             new("工号", "Code"),
             new("姓名", "Name"),
@@ -1314,11 +1352,15 @@ public static class DataExchangeRegistry
             new("工资结算模式", "SalaryMode", typeof(string), isRequired: false),
             new("工资结算备注", "SalaryRemark", typeof(string), isRequired: false),
             new("组类", "GroupName", typeof(string), isRequired: false),
+            new("工段", "SectionName", typeof(string), isRequired: false),
+            new("成检项目资质", "InspectionItems", typeof(string), isRequired: false),
+            new("过程检验操作人", "ProcessInspectionItems", typeof(bool?), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("成检到料确认人", "MaterialReceiveCheckItems", typeof(bool?), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
 
         // === 系统参数(全局参数)（独立配置表） ===
-        ["ConfigParameter"] = new EntityDef("系统参数(全局参数)", "系统参数(全局参数)", typeof(MES.Data.Entities.Configuration.ConfigParameter), 1, null, new List<ColumnDef>
+        ["ConfigParameter"] = new EntityDef("系统-系统参数(全局参数)", "系统-系统参数(全局参数)", typeof(MES.Data.Entities.Configuration.ConfigParameter), 1, null, new List<ColumnDef>
         {
             new("英文分类代码", "Category"),
             new("分类及用途", "CategoryDisplay", typeof(string), isRequired: false),
@@ -1481,16 +1523,19 @@ public static class DataExchangeRegistry
         }),
 
         // === 工段工量天数(排程/用料)（独立配置表） ===
-        ["StandardWorkDay"] = new EntityDef("工段工量天数(排程/用料)", "工段工量天数(排程/用料)", typeof(MES.Data.Entities.Configuration.StandardWorkDay), 1, null, new List<ColumnDef>
+        ["StandardWorkDay"] = new EntityDef("配置-工段工量天数(排程/用料)", "配置-工段工量天数(排程/用料)", typeof(MES.Data.Entities.Configuration.StandardWorkDay), 1, null, new List<ColumnDef>
         {
             new("工段名称", "SectionName"),
+            new("稳定Key", "SectionKey", typeof(string), isRequired: false),
+            new("显示顺序", "DisplayOrder", typeof(int), isRequired: false),
+            new("是否启用", "IsEnabled", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("牌号前缀", "PlantGradePrefix", typeof(string), isRequired: false),
             new("标准天数", "StandardDays", typeof(double)),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
         // === 交货状态附加天数(排程/用料)（独立配置表） ===
-        ["StandardWorkDayDeliveryState"] = new EntityDef("交货状态附加天数(排程/用料)", "交货状态附加天数(排程/用料)", typeof(MES.Data.Entities.Configuration.StandardWorkDayDeliveryState), 1, null, new List<ColumnDef>
+        ["StandardWorkDayDeliveryState"] = new EntityDef("配置-交货状态附加天数(排程/用料)", "配置-交货状态附加天数(排程/用料)", typeof(MES.Data.Entities.Configuration.StandardWorkDayDeliveryState), 1, null, new List<ColumnDef>
         {
             new("交货状态", "DeliveryState", typeof(MES.Core.Enums.DeliveryState), isEnum: true),
             new("附加天数", "ExtraDays", typeof(double)),
@@ -1499,7 +1544,7 @@ public static class DataExchangeRegistry
         }),
 
         // === 规格日产预估(工单执行)（独立配置表） ===
-        ["DailyOutputEstimate"] = new EntityDef("规格日产预估(工单执行)", "规格日产预估(工单执行)", typeof(MES.Data.Entities.Configuration.DailyOutputEstimate), 1, null, new List<ColumnDef>
+        ["DailyOutputEstimate"] = new EntityDef("配置-规格日产预估(工单执行)", "配置-规格日产预估(工单执行)", typeof(MES.Data.Entities.Configuration.DailyOutputEstimate), 1, null, new List<ColumnDef>
         {
             new("最小外径(mm)", "MinOuterDiameter", typeof(decimal)),
             new("日产能力(吨)", "DailyOutputTons", typeof(decimal)),
@@ -1507,7 +1552,7 @@ public static class DataExchangeRegistry
         }),
 
         // === 重点工段日产(生产总览)（独立配置表） ===
-        ["DailyProductionCapacity"] = new EntityDef("重点工段日产(生产总览)", "重点工段日产(生产总览)", typeof(MES.Data.Entities.Configuration.DailyProductionCapacity), 1, null, new List<ColumnDef>
+        ["DailyProductionCapacity"] = new EntityDef("配置-重点工段日产(生产总览)", "配置-重点工段日产(生产总览)", typeof(MES.Data.Entities.Configuration.DailyProductionCapacity), 1, null, new List<ColumnDef>
         {
             new("工序名称", "ProcessName"),
             new("日产能力(吨/天)", "DailyCapacity", typeof(decimal)),
@@ -1515,9 +1560,10 @@ public static class DataExchangeRegistry
         }),
 
         // === 流转类别日产配置(流转分析)（独立配置表，流转类别唯一；组合明细由组合归类表 CombinationGroups 承载，另行管理） ===
-        ["SectionFlowCategorySetting"] = new EntityDef("流转类别日产配置(流转分析)", "流转类别日产配置(流转分析)", typeof(MES.Data.Entities.Configuration.SectionFlowCategorySetting), 1, "CategoryName", new List<ColumnDef>
+        ["SectionFlowCategorySetting"] = new EntityDef("配置-流转类别日产配置(流转分析)", "配置-流转类别日产配置(流转分析)", typeof(MES.Data.Entities.Configuration.SectionFlowCategorySetting), 1, "CategoryName", new List<ColumnDef>
         {
             new("流转类别", "CategoryName"),
+            new("显示顺序", "DisplayOrder", typeof(int), isRequired: false),
             new("日产设定", "DailyProductionTarget", typeof(decimal), isRequired: false),
             new("偏少天数值", "LowerLimitDays", typeof(decimal), isRequired: false),
             new("过多天数值", "UpperLimitDays", typeof(decimal), isRequired: false),
@@ -1525,9 +1571,10 @@ public static class DataExchangeRegistry
         }),
 
         // === 段落日产配置(段落流转)（独立配置表，段落类别唯一；组合明细由组合归类表「归属段落」承载，另行管理） ===
-        ["SectionParagraphConfig"] = new EntityDef("段落日产配置(段落流转)", "段落日产配置(段落流转)", typeof(MES.Data.Entities.Configuration.SectionParagraphConfig), 1, "ParagraphName", new List<ColumnDef>
+        ["SectionParagraphConfig"] = new EntityDef("配置-段落日产配置(段落流转)", "配置-段落日产配置(段落流转)", typeof(MES.Data.Entities.Configuration.SectionParagraphConfig), 1, "ParagraphName", new List<ColumnDef>
         {
             new("段落类别", "ParagraphName"),
+            new("显示顺序", "DisplayOrder", typeof(int), isRequired: false),
             new("日流转设定", "DailyFlowTarget", typeof(decimal), isRequired: false),
             new("偏少天数值", "LowerLimitDays", typeof(decimal), isRequired: false),
             new("过多天数值", "UpperLimitDays", typeof(decimal), isRequired: false),
@@ -1535,7 +1582,7 @@ public static class DataExchangeRegistry
         }),
 
         // === 组合段落归类(段落流转)表（工序组×工段×产类三维唯一归属；第4列归属流转类别由用户导出Excel填中文后上传建立FK，第5列归属段落=中文段落名直接存储） ===
-        ["CombinationGroup"] = new EntityDef("组合段落归类(段落流转)", "组合段落归类(段落流转)", typeof(MES.Data.Entities.Configuration.CombinationGroup), 1, null, new List<ColumnDef>
+        ["CombinationGroup"] = new EntityDef("配置-组合段落归类(段落流转)", "配置-组合段落归类(段落流转)", typeof(MES.Data.Entities.Configuration.CombinationGroup), 1, null, new List<ColumnDef>
         {
             new("工序组", "ProcessGroupName"),
             new("工段", "SectionName"),
@@ -1564,6 +1611,25 @@ public static class DataExchangeRegistry
         "StandardWorkDay", "StandardWorkDayDeliveryState", "DailyOutputEstimate", "DailyProductionCapacity", "SectionFlowCategorySetting", "SectionParagraphConfig", "CombinationGroup",
     };
 
+    /// <summary>
+    /// 上下文归类顺序（数据工具「选择数据类型」下拉按此排序显示）：
+    /// 订单 → 工单 → 批次 → 质量 → 物料 → 仓库 → 设备 → 标准 → 配置 → 扫码 → 系统
+    /// </summary>
+    public static readonly List<string> ContextOrder = new()
+    {
+        "订单", "工单", "批次", "质量", "物料", "仓库", "设备", "标准", "配置", "扫码", "系统"
+    };
+
+    /// <summary>
+    /// 从 DisplayName 前缀解析上下文归类（命名规则「上下文-实体名」），前缀不在 ContextOrder 时归为「其他」排最后
+    /// </summary>
+    public static string GetContext(string displayName)
+    {
+        var dashIdx = displayName.IndexOf('-');
+        var ctx = dashIdx > 0 ? displayName[..dashIdx] : displayName;
+        return ContextOrder.Contains(ctx) ? ctx : "其他";
+    }
+
     public static List<MES.Core.Interfaces.DataExchange.EntityInfo> GetEntities()
     {
         var result = EntityOrder
@@ -1572,7 +1638,15 @@ public static class DataExchangeRegistry
             {
                 Key = k,
                 Name = Registry[k].DisplayName,
-            }).ToList();
+                Context = GetContext(Registry[k].DisplayName),
+            })
+            .OrderBy(x =>
+            {
+                var idx = ContextOrder.IndexOf(x.Context);
+                return idx < 0 ? int.MaxValue : idx;
+            })
+            .ThenBy(x => x.Name, StringComparer.Ordinal)
+            .ToList();
         return result;
     }
 

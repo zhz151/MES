@@ -23,8 +23,13 @@ public class EntityDef
         KeyColumn = keyColumn;
         CompositeKeyColumns = compositeKeyColumns;
         // 统一补充主键 ID 系统列：覆盖模式按 ID 精确匹配（有 ID 行更新，无 ID 行新增）
+        // ID 列类型取实体实际主键类型（默认为 int；OutboundRecord 等使用 long/bigint 需适配，防大 ID 溢出）
         if (!columns.Any(c => c.Property == "Id"))
-            columns.Insert(0, new ColumnDef("ID", "Id", typeof(int), isRequired: false, isSystem: true));
+        {
+            var idProp = type.GetProperty("Id");
+            var idType = idProp?.PropertyType ?? typeof(int);
+            columns.Insert(0, new ColumnDef("ID", "Id", idType, isRequired: false, isSystem: true));
+        }
         Columns = columns;
     }
 }

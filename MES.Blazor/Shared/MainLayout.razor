@@ -41,6 +41,7 @@
                 <MudNavGroup Title="订单管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/orders">订单列表</MudNavLink>
                     <MudNavLink Href="/customers">客户管理</MudNavLink>
+                    <MudNavLink Href="/orders/pending-delivery">订单成品(在库)</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 
@@ -49,7 +50,7 @@
                 <MudNavGroup Title="工单管理" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
                     <MudNavLink Href="/workorders">工单首页</MudNavLink>
                     <MudNavLink Href="/material-plan-overview">用料计划总览</MudNavLink>
-                    <MudNavLink Href="/order-demand-adjustment">工单需求调整</MudNavLink>
+                    <MudNavLink Href="/workorders-demand-adjustment">工单需求调整</MudNavLink>
                     <MudNavLink Href="/workorder-execution">工单执行状况</MudNavLink>
                     <MudNavLink Href="/fixed-length-work-order-view">定尺工单定尺数据</MudNavLink>
                 </MudNavGroup>
@@ -130,7 +131,6 @@
                     <MudNavLink Href="/warehouse/wip">在制品库</MudNavLink>
                     <MudNavLink Href="/warehouse/defect">次品库</MudNavLink>
                     <MudNavLink Href="/warehouse/monthly-stock">物料进出存报表</MudNavLink>
-                    <MudNavLink Href="/warehouse/pending-delivery">待发货项</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 

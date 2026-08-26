@@ -103,7 +103,7 @@ const CONTROLLERS = [
   // ========== Work Orders (4 controllers, 3 端点) ==========
   { name: 'WorkOrder',                     route: 'api/workorder',            listPath: 'list',      fcPath: 'filter-contexts' },
   { name: 'WorkOrderExecution',            route: 'api/workorder-execution',  listPath: 'list',      fcPath: 'filter-contexts' },
-  { name: 'OrderDemandAdjustment',         route: 'api/order-demand-adjustment', listPath: 'list',  fcPath: 'filter-contexts' },
+  { name: 'OrderDemandAdjustment',         route: 'api/workorder-demand-adjustment', listPath: 'list',  fcPath: 'filter-contexts' },
   { name: 'Notification',                  route: 'api/notification',         listPath: 'list' },
   // MaterialPlan 无标准列表端点（参数化路由）
 ];

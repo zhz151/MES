@@ -496,7 +496,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         // 重新计算批次跟踪字段（NextSectionName/Status/CurrentExecDate 等回退到删除前的状态）
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(batchId);
 
-        // 删除物化行
+        // 删除本到料对应的物化行（RefreshByProductionBatchIdAsync 只重推导剩余到料，孤儿行须先显式删）
         var existingQpt = await _context.QualityProcessTrackings
             .FirstOrDefaultAsync(q => q.MaterialReceiveCheckId == id);
         if (existingQpt != null)
@@ -505,8 +505,24 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             await _context.SaveChangesAsync();
         }
 
+        // 删除后重推导批次剩余到料对应的物化行
+        // （剩余到料的成检类型/检验状态可能因「最深检验节点」变化而调整，须整批重算）
+        await TryRefreshQualityProcessTrackingByBatchAsync(batchId);
+
         var batch = await _context.ProductionBatches.FindAsync(batchId);
         await TryRefreshExecutionSummaryAsync(batch?.WorkOrderNo);
+    }
+
+    private async Task TryRefreshQualityProcessTrackingByBatchAsync(int productionBatchId)
+    {
+        try
+        {
+            await _qualityProcessTracking.RefreshByProductionBatchIdAsync(productionBatchId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "质量过程跟踪批次重推导失败（不影响主流程）: BatchId={BatchId}", productionBatchId);
+        }
     }
 
     public async Task<PagedResult<MaterialReceiveCheckDto>> GetAllMaterialReceiveChecksAsync(QueryParams query)

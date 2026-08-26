@@ -9,6 +9,9 @@ public class EntityInfo
 {
     public string Key { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>上下文归类（由 DisplayName 前缀解析，如「订单」「扫码」）</summary>
+    public string Context { get; set; } = string.Empty;
 }
 
 /// <summary>

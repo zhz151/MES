@@ -6,7 +6,7 @@ using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
-using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.Order;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
@@ -16,7 +16,7 @@ using MES.Core.Helpers;
 using System.Text.Json;
 using MES.Shared.Constants;
 
-namespace MES.Blazor.Pages.Warehouse;
+namespace MES.Blazor.Pages.Orders;
 
 public partial class PendingDelivery
 {
@@ -65,7 +65,7 @@ public partial class PendingDelivery
         new() { Key = "salesorderno",       Label = "订单号",     SortKey = "SalesOrderNo",    FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "productionmainno",   Label = "主号",       SortKey = "ProductionMainNo",FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "workorderno",        Label = "工单号",     SortKey = "WorkOrderNo",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 订单关联" },
-        new() { Key = "workorderattention", Label = "工单关注",   SortKey = "WorkOrderAttention", FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "① 订单关联" },
+        new() { Key = "workorderattention", Label = "执行关注",   SortKey = "WorkOrderAttention", FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "salesman",           Label = "业务员",     SortKey = "Salesman",        FilterType = "string", Width = "60",  GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "customername",       Label = "客户名称",   SortKey = "CustomerName",    FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "endcustomer",        Label = "最终客户",   SortKey = "EndCustomer",     FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
@@ -177,7 +177,7 @@ public partial class PendingDelivery
         if (_pageItems.Count == 0) return;
         var props = typeof(PendingDeliveryItemDto)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
-            .ToDictionary(p => p.Name, p => p);
+            .ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
         foreach (var col in _visibleColumns.Where(c => _summableColumnKeys.Contains(c.Key)))
         {
             if (!props.TryGetValue(col.Key, out var prop)) continue;
@@ -192,7 +192,7 @@ public partial class PendingDelivery
                 else if (type == typeof(decimal))
                 {
                     var sum = _pageItems.Sum(item => (decimal)(prop.GetValue(item) ?? 0m));
-                    _pageSums[col.Key] = ((int)sum).ToString();
+                    _pageSums[col.Key] = sum.ToString("G29");
                 }
                 else if (type == typeof(int?))
                 {
@@ -202,7 +202,7 @@ public partial class PendingDelivery
                 else if (type == typeof(decimal?))
                 {
                     var sum = _pageItems.Sum(item => (decimal?)(prop.GetValue(item)) ?? 0m);
-                    _pageSums[col.Key] = ((int)sum).ToString();
+                    _pageSums[col.Key] = sum.ToString("G29");
                 }
             }
             catch { }
@@ -486,7 +486,7 @@ public partial class PendingDelivery
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("warehouse_pending_delivery", null, _allColumns);
+        await ColumnPrefs.SaveAsync("orders_pending_delivery", null, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -573,7 +573,7 @@ public partial class PendingDelivery
 
             var request = new
             {
-                title = "待发货订单成品",
+                title = "订单成品(实时库存)",
                 items = allItems,
                 columns = GetPrintColumnDefs()
             };
@@ -609,7 +609,7 @@ public partial class PendingDelivery
 
             var request = new
             {
-                title = "待发货订单成品",
+                title = "订单成品(实时库存)",
                 items = selectedItems,
                 columns = GetPrintColumnDefs()
             };
@@ -668,7 +668,19 @@ public partial class PendingDelivery
                 builder.AddContent(0, item.WorkOrderNo ?? "-");
                 break;
             case "workorderattention":
-                builder.AddContent(0, IntStatusDisplayHelper.GetScheduleStageText(item.WorkOrderAttention));
+                // 执行关注（档位数字 → 中文 MudChip 彩色，样式同订单列表「执行关注」列）
+                if (item.WorkOrderAttention is int attentionStage)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Size", Size.Small);
+                    builder.AddAttribute(2, "Color", DisplayHelper.GetScheduleStageColor(attentionStage));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, IntStatusDisplayHelper.GetScheduleStageText(attentionStage))));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, "-");
+                }
                 break;
             case "productionbatchno":
                 builder.AddContent(0, item.ProductionBatchNo ?? "-");
@@ -717,7 +729,7 @@ public partial class PendingDelivery
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("warehouse_pending_delivery", null);
+        var saved = await ColumnPrefs.LoadAsync("orders_pending_delivery", null);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -741,7 +753,7 @@ public partial class PendingDelivery
             _allColumns = reordered;
         }
 
-        var savedState = await PageState.LoadAsync("warehouse_pending_delivery");
+        var savedState = await PageState.LoadAsync("orders_pending_delivery");
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "inventorybatchno";
@@ -807,6 +819,6 @@ public partial class PendingDelivery
             PageIndex = _currentPage,
             Extras = extras
         };
-        await PageState.SaveAsync("warehouse_pending_delivery", state);
+        await PageState.SaveAsync("orders_pending_delivery", state);
     }
 }

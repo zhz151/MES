@@ -48,14 +48,14 @@ namespace MES.Tests.Services;
 /// </summary>
 public class SubcontractOrderServiceTests : TestBase
 {
-    private SubcontractOrderService CreateService(AppDbContext ctx)
+    private SubcontractOrderService CreateService(AppDbContext ctx, Mock<IWorkOrderExecutionService>? woExecMock = null)
     {
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
+        woExecMock ??= new Mock<IWorkOrderExecutionService>();
         var loggerMock = new Mock<ILogger<SubcontractOrderService>>();
-        return new SubcontractOrderService(ctx, new Mock<IPurchaseOrderService>().Object, configMock.Object, workOrderExecMock.Object, loggerMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        return new SubcontractOrderService(ctx, new Mock<IPurchaseOrderService>().Object, configMock.Object, woExecMock.Object, loggerMock.Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<int> SeedSupplierAsync(AppDbContext ctx, string name = "委外供应商")
@@ -370,6 +370,37 @@ public class SubcontractOrderServiceTests : TestBase
         // 验证主表字段未被修改（仍为种子数据的值）
         var updated = await ctx.SubcontractOrders.FirstAsync(s => s.Id == order.Id);
         updated.ProcessType.Should().Be("Piercing", because: "已完成状态下主表字段不应被修改");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_明细来源工单号变更_新旧工单都刷新执行读模型()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid, status: SubcontractOrderStatus.Completed);
+        order.ReturnItems.Single().SourceWorkOrderNo = "OLD-WO-001";
+        await ctx.SaveChangesAsync();
+
+        var woExecMock = new Mock<IWorkOrderExecutionService>();
+        var svc = CreateService(ctx, woExecMock);
+
+        await svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
+        {
+            SupplierId = sid,
+            ProcessType = "Piercing",
+            OutMaterialCategory = MaterialType.RoundBar,
+            OutPlantGrade = "304",
+            OutSpecification = "273*10",
+            OutQuantity = 200,
+            OutWeight = 2000m,
+            ReturnItems = new List<MES.Core.DTOs.Materials.CreateReturnItemRequest>
+            {
+                new() { SourceWorkOrderNo = "NEW-WO-001" }
+            }
+        });
+
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("OLD-WO-001"))), Times.Once);
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("NEW-WO-001"))), Times.Once);
     }
 
     // ========== SyncAllAsync / SyncSingleAsync ==========

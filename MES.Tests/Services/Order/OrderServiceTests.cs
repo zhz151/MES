@@ -15,8 +15,10 @@ using MES.Core.Constants;
 using WorkOrderEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 using WorkOrderExecutionSummaryEntity = MES.Data.Entities.WorkOrder.WorkOrderExecutionSummary;
 using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.Order;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 using OrderListSummaryEntity = MES.Data.Entities.Order.OrderListSummary;
 using Moq;
 using Microsoft.Extensions.Caching.Memory;
@@ -28,14 +30,30 @@ namespace MES.Tests.Services;
 /// </summary>
 public class OrderServiceTests : TestBase
 {
-    private OrderService CreateService(AppDbContext ctx, INotificationService? notificationMock = null)
+    private OrderService CreateService(AppDbContext ctx, INotificationService? notificationMock = null,
+        Mock<IWorkOrderExecutionService>? woExecMock = null,
+        Mock<IWorkOrderListSummaryRefreshService>? listSummaryMock = null,
+        Mock<IPendingDeliveryQueryService>? pendingDeliveryMock = null)
     {
         var loggerMock = new Mock<ILogger<OrderService>>();
         notificationMock ??= Mock.Of<INotificationService>();
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
-        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
+        woExecMock ??= new Mock<IWorkOrderExecutionService>();
+        listSummaryMock ??= new Mock<IWorkOrderListSummaryRefreshService>();
+        pendingDeliveryMock ??= new Mock<IPendingDeliveryQueryService>();
+
+        // 真实 ServiceProvider 供 OrderService 经 scope 解析执行读模型/待发货缓存服务
+        var services = new ServiceCollection();
+        services.AddSingleton(woExecMock.Object);
+        services.AddSingleton(listSummaryMock.Object);
+        services.AddSingleton(pendingDeliveryMock.Object);
+        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+
+        return new OrderService(ctx, loggerMock.Object, notificationMock, configMock.Object,
+            new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()),
+            workOrderService: null, listSummaryService: listSummaryMock.Object, scopeFactory: scopeFactory);
     }
 
     [Fact]
@@ -135,6 +153,33 @@ public class OrderServiceTests : TestBase
         });
 
         updated.Status.Should().Be(SalesOrderStatus.Confirmed);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_订单头客户变更_刷新执行读模型与用料总览与待发货缓存()
+    {
+        var ctx = CreateDbContext();
+        var cust = await SeedCustomerAsync(ctx);
+        var sr = await SeedRegisterAsync(ctx);
+        var gm = await SeedGradeMappingAsync(ctx);
+
+        var woExecMock = new Mock<IWorkOrderExecutionService>();
+        var listSummaryMock = new Mock<IWorkOrderListSummaryRefreshService>();
+        var pendingDeliveryMock = new Mock<IPendingDeliveryQueryService>();
+        var svc = CreateService(ctx, woExecMock: woExecMock, listSummaryMock: listSummaryMock, pendingDeliveryMock: pendingDeliveryMock);
+
+        var order = await svc.CreateAsync(CreateSampleOrderRequest(cust.Id, gm.StandardGrade));
+        await SeedWorkOrderForFinishedAsync(ctx, order.OrderNumber, "WO-ORD-001");
+
+        await svc.UpdateAsync(order.Id, new UpdateSalesOrderRequest
+        {
+            CustomerName = "新客户",
+            RowVersion = new byte[8]
+        });
+
+        woExecMock.Verify(x => x.RefreshByWorkOrderNosAsync(It.Is<List<string>>(l => l.Contains("WO-ORD-001"))), Times.Once);
+        listSummaryMock.Verify(x => x.RefreshBySalesOrderAsync(order.OrderNumber), Times.Once);
+        pendingDeliveryMock.Verify(x => x.InvalidateCachesAsync(), Times.Once);
     }
 
     [Fact]

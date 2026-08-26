@@ -31,6 +31,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
     private readonly IInventorySyncService _syncService;
     private readonly INotificationService _notificationService;
     private readonly IFixedLengthWorkOrderService _fixedLengthWorkOrderService;
+    private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private static readonly SemaphoreSlim _batchNoLock = new(1, 1);
 
     private static InventoryBatchDto BatchToDto(InventoryBatch b) => new()
@@ -179,7 +180,8 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         IInventorySyncService syncService,
         INotificationService notificationService,
         IFixedLengthWorkOrderService fixedLengthWorkOrderService,
-        ILogger<InventoryBatchWriteService> logger)
+        ILogger<InventoryBatchWriteService> logger,
+        IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
         _workOrderExecutionService = workOrderExecutionService;
@@ -189,6 +191,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         _notificationService = notificationService;
         _fixedLengthWorkOrderService = fixedLengthWorkOrderService;
         _logger = logger;
+        _listSummaryService = listSummaryService;
     }
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
@@ -214,6 +217,19 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "质量过程跟踪刷新失败（不影响主流程）: BatchNo={BatchNo}", batchNo);
+        }
+    }
+
+    private async Task TryRefreshListSummaryAsync(string? salesOrderNo)
+    {
+        if (_listSummaryService == null || string.IsNullOrWhiteSpace(salesOrderNo)) return;
+        try
+        {
+            await _listSummaryService.RefreshBySalesOrderAsync(salesOrderNo);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "用料计划总览刷新失败（不影响主流程）: SalesOrderNo={SalesOrderNo}", salesOrderNo);
         }
     }
 
@@ -286,6 +302,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                 return;
             }
 
+            var completed = false;
             if (batch.Status == BatchStatus.InFinalInspection)
             {
                 // 首笔入库：成检 → 完成
@@ -294,6 +311,7 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                 await _context.Entry(batch).ReloadAsync();
                 batch.Status = BatchStatus.Completed;
                 await _context.SaveChangesAsync();
+                completed = true;
             }
             else if (batch.Status == BatchStatus.InProgress
                      && batch.ManufacturingItem == MaterialType.Surplus.ToString())
@@ -303,11 +321,19 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
                 await _context.Entry(batch).ReloadAsync();
                 batch.Status = BatchStatus.Completed;
                 await _context.SaveChangesAsync();
+                completed = true;
             }
             else
             {
                 _logger.LogDebug("入库跳过完成推进，批次 {BatchNo} 状态={Status} 物品={Item}",
                     productionBatchNo, batch.Status, batch.ManufacturingItem);
+            }
+
+            if (completed)
+            {
+                // 批次完成推进后：按生产批次自身工单号/订单号刷新，避免入库批次 WorkOrderNo 缺失导致的漏刷
+                await TryRefreshExecutionSummaryAsync(batch.WorkOrderNo);
+                await TryRefreshListSummaryAsync(batch.SalesOrderNo);
             }
         }
         catch (Exception ex)

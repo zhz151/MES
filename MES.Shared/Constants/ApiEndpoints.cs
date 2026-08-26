@@ -18,12 +18,13 @@ public static class ApiEndpoints
 
     // ===== Order 订单 =====
     public const string Order = "api/order";
-    public const string OrderDemandAdjustment = "api/order-demand-adjustment";
     public const string Customer = "api/customer";
 
     // ===== WorkOrder 工单 =====
     public const string WorkOrder = "api/workorder";
     public const string WorkOrderExecution = "api/workorder-execution";
+    // 工单需求调整（实体/服务/Controller 均属 WorkOrder 上下文）
+    public const string OrderDemandAdjustment = "api/workorder-demand-adjustment";
     public const string FixedLengthWorkOrder = "api/fixed-length-work-order";
     public const string MaterialPlan = "api/material-plan";
     public const string Notification = "api/notification";

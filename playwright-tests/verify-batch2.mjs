@@ -46,7 +46,7 @@ const RETEST_PAGES = [
   // ---- Warehouse 失败的 ----
   { url: '/warehouse', name: '库存查询', module: 'Warehouse', hasPrint: true },
   { url: '/warehouse/outbound-history', name: '出库历史', module: 'Warehouse', hasPrint: true },
-  { url: '/warehouse/pending-delivery', name: '待发货', module: 'Warehouse', hasPrint: true },
+  { url: '/orders/pending-delivery', name: '订单成品(实时库存)', module: 'Orders', hasPrint: true },
 
   // ---- Reports ----
   { url: '/reports/overview', name: '报表总览', module: 'Reports', hasPrint: true },

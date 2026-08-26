@@ -1,16 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using MES.Core.Constants;
-using MES.Core.DTOs.Warehouse;
+using MES.Core.DTOs.Order;
 using MES.Core.Enums;
 using MES.Core.Helpers;
-using MES.Core.Interfaces.Warehouse;
+using MES.Core.Interfaces.Order;
 using MES.Core.Models;
 using MES.Data;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 
-namespace MES.Services.Warehouse;
+namespace MES.Services.Order;
 
 /// <summary>
 /// 待发货订单成品查询服务 — 实时 JOIN 查询
@@ -20,10 +20,29 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
     private readonly AppDbContext _context;
     private readonly IMemoryCache _cache;
 
+    /// <summary>
+    /// 已创建的 C2 引用数据缓存键跟踪（键为动态复合键，失效时需逐一移除）
+    /// </summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _trackedReferenceKeys = new();
+
     public PendingDeliveryQueryService(AppDbContext context, IMemoryCache cache)
     {
         _context = context;
         _cache = cache;
+    }
+
+    /// <summary>
+    /// 失效全部待发货缓存（C0 已组装 DTO / C1 库存批次原始实体 / C2 引用数据）。
+    /// 出入库、订单头变更等写操作后调用，避免存量库存批次与客户快照过期。
+    /// </summary>
+    public Task InvalidateCachesAsync()
+    {
+        _cache.Remove(CacheKey);
+        _cache.Remove(InventoryBatchCacheKey);
+        foreach (var key in _trackedReferenceKeys.Keys)
+            _cache.Remove(key);
+        _trackedReferenceKeys.Clear();
+        return Task.CompletedTask;
     }
 
     public async Task<List<PendingDeliveryItemDto>> GetPendingItemsAsync(
@@ -281,6 +300,9 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         List<string> orderNos, List<string> woNos, List<string> batchNosForHeat, List<int> batchSequences)
     {
         var cacheKey = ComputeReferenceCacheKey(orderNos, woNos, batchNosForHeat, batchSequences);
+
+        // 跟踪已创建的 C2 键，供 InvalidateCachesAsync 全量失效
+        _trackedReferenceKeys.TryAdd(cacheKey, 0);
 
         return await _cache.GetOrCreateAsync(cacheKey, async entry =>
         {

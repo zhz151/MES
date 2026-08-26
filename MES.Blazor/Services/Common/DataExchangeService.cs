@@ -94,6 +94,9 @@ public class EntityInfo
 {
     public string Key { get; set; } = "";
     public string Name { get; set; } = "";
+
+    /// <summary>上下文归类（由 DisplayName 前缀解析，如「订单」「扫码」）</summary>
+    public string Context { get; set; } = "";
 }
 
 public class ImportPreviewResult
@@ -116,6 +119,10 @@ public class ImportRowResult
     public bool IsDuplicate { get; set; }
     public bool IsValid { get; set; }
     public string RowAction { get; set; } = "新增";
+    /// <summary>该行是否携带了 ID 列的值（有 ID 且命中则按 ID 覆盖）</summary>
+    public bool HasId { get; set; }
+    /// <summary>该行的处理说明（覆盖通道 / 新增原因），供预览界面展示</summary>
+    public string? ActionNote { get; set; }
 }
 
 public class ImportResult

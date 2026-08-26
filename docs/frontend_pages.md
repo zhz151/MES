@@ -36,8 +36,8 @@
 ### 2.1 订单上下文
 
 ```
-路由前缀: /orders, /customers
-菜单: 订单管理 → [订单列表, 客户管理]
+路由前缀: /orders, /customers, /orders/pending-delivery
+菜单: 订单管理 → [订单列表, 客户管理, 订单成品(实时库存)]
 
 ┌─ 订单管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -49,16 +49,19 @@
 │  Customers.razor       /customers           [列表页]       │
 │  CustomerCreate.razor  /customers/create    [创建页]       │
 │                                                           │
-│  列表页: Orders, Customers                                │
+│  PendingDelivery.razor  /orders/pending-delivery [列表页]  │
+│                                                           │
+│  列表页: Orders, Customers, PendingDelivery               │
 │                                                           │
 │  2026-06-21 变更：产品标准(Standards)已删除；牌号对照(GradeMappings)移至生产标准菜单│
+│  2026-08-26 变更：待发货项自仓库上下文迁入订单上下文（页面/控制器/服务/DTO），更名「订单成品(实时库存)」│
 └───────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 工单上下文
 
 ```
-路由前缀: /workorders, /material-plan-overview, /workorder-overview, /workorder-execution, /order-demand-adjustment, /fixed-length-work-order-view
+路由前缀: /workorders, /material-plan-overview, /workorder-overview, /workorder-execution, /workorders-demand-adjustment, /fixed-length-work-order-view
 菜单: 工单管理 → [工单首页, 用料计划总览, 工单总览, 工单需求调整, 工单执行状况, 定尺工单定尺数据]
 
 ┌─ 工单管理 ───────────────────────────────────────────────┐
@@ -85,7 +88,7 @@
 │                                                           │
 │  WorkOrderExecution.razor         /workorder-execution            [列表页]  │
 │                                                           │
-│  OrderDemandAdjustment.razor      /order-demand-adjustment        [列表页]  │
+│  OrderDemandAdjustment.razor      /workorders-demand-adjustment        [列表页]  │
 │                                                           │
 │  FixedLengthWorkOrderView.razor   /fixed-length-work-order-view  [列表页]  │
 │                                                           │
@@ -257,9 +260,10 @@
 
 ```
 路由前缀: /warehouse, /warehouse/{Code}, /warehouse/inbound, /warehouse/outbound,
-         /warehouse/inbound-history, /warehouse/outbound-history, /warehouse/pending-delivery
-菜单: 仓库管理 → [原料库, 成品库, 在制品库, 次品库, 物料进出存报表, 待发货项]
-      （2026-08-23 在制品库移至次品库上方；物料进出存报表并入仓库管理，位于次品库之下；报表系统已删除）
+         /warehouse/inbound-history, /warehouse/outbound-history
+菜单: 仓库管理 → [原料库, 成品库, 在制品库, 次品库, 物料进出存报表]
+      （2026-08-23 在制品库移至次品库上方；物料进出存报表并入仓库管理，位于次品库之下；报表系统已删除；
+       2026-08-26 待发货项迁出至订单管理，更名「订单成品(实时库存)」）
 
 ┌─ 仓库管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -272,8 +276,6 @@
 │                                                           │
 │  WarehouseOutbound.razor      /warehouse/outbound [功能页]   │
 │                                                           │
-│  PendingDelivery.razor        /warehouse/pending-delivery [列表页]│
-│                                                           │
 │  InboundHistory.razor         /warehouse/inbound-history      [列表页]│
 │  InboundHistory.razor         /warehouse/inbound-history/{Code}[列表页(复用)]│
 │                                                           │
@@ -283,8 +285,7 @@
 │  报表页: MonthlyStock（原生 table，4 报表切换：入库/出库/库存/物料进出存；入库按来源展开、出库按类型展开（含物料汇总合并列）；行=库房×物料类型，库房+物料类型双层合并单元格，无合计行；当前月之后月份单元格留空，「实时结存/实时数据」=截至当前月合计，三值格「入/出,[结]」如 80/15,[65]；打印横向 A4 撑满页宽）│
 │  ※ API: InventoryController (api/inventory/monthly-stock-summary) │
 │                                                           │
-│  列表页: WarehouseInventory, PendingDelivery,                 │
-│          InboundHistory, OutboundHistory                      │
+│  列表页: WarehouseInventory, InboundHistory, OutboundHistory  │
 │  注: Code参数路由复用同一页面文件，仅查询时区分仓库类型       │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -489,7 +490,7 @@
 | 29 | WorkOrderExecution.razor | /workorder-execution | 工单 | | ✅ 已过规范检查。列分组14组(G1-G14) + 复选框选择列 + 打印选中+打印全部 + 分组标题栏 + 底部聚合行 |
 | 30 | QualityProcessTracking.razor | /quality/process-tracking | 质量 | | 只读列表 |
 | 31 | Ncrs.razor | /quality/ncr | 质量 | | 列表页+分页汇总 |
-| 32 | OrderDemandAdjustment.razor | /order-demand-adjustment | 工单 | ✅ | 内联编辑催单/分批/暂停开关及调整备注 |
+| 32 | OrderDemandAdjustment.razor | /workorders-demand-adjustment | 工单 | ✅ | 内联编辑催单/分批/暂停开关及调整备注 |
 | 33 | RawMaterialLockPlanAndExecution.razor | /raw-material-lock-plan | 计划排程 | ✅ | G15 预执行 MudSwitch 内联编辑 + BudgetInputDate 日期输入（LEFT JOIN 实时查询，无计划安排按钮）；右上角「待投料量汇总」按钮展开汇总卡片（待投料+成购两矩阵表 + 理论待投料截日，可打印） |
 | 34 | StandardWorkDays.razor | /standard-work-days | 配置 | ✅ | 查改一体表 |
 | 35 | StandardWorkDayDeliveryStates.razor | /standard-work-day-delivery-states | 配置 | ✅ | 查改一体表 |
@@ -521,7 +522,7 @@
 | 61 | FlaringTests.razor | /quality/flaring-test | 质量 | | 理化检测-扩口检验 |
 | 62 | DailyProductionCapacities.razor | /daily-production-capacities | 配置 | ✅ | 查改一体表，仿ConfigParameters模式 |
 | 64 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页（打印选中/打印全部 + 打印设置对话框：打印版式/字段布局） |
-| 65 | PendingDelivery.razor | /warehouse/pending-delivery | 仓库 | | 待发货项列表页（订单关联组含「工单关注」列：取工单执行状况读模型主号-关注档位，按工单号关联） |
+| 65 | PendingDelivery.razor | /orders/pending-delivery | 订单 | | 订单成品(实时库存)列表页（原仓库「待发货项」，2026-08-26 迁入订单上下文；订单关联组含「工单关注」列：取工单执行状况读模型主号-关注档位，按工单号关联） |
 | 66 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选；字段两组分组（一、委外信息12列含下单日期/要求到货日/委外备注、二、执行状态6列含退货量/属强制完成）；执行状态4档（已发出/部分收回/已完成/超量到货，MudChip与采购订单一致） |
 | 67 | FixedLengthWorkOrderView.razor | /fixed-length-work-order-view | 工单 | | 定尺工单联通视图，主号级按长度实时聚合 + 分组标题栏 + 分页汇总（可汇总列：G1需求支数/G3切后支数/G4到料·成切·非成切·次品·合格·合格盈缺/G5入库·入库盈缺，G6主号级聚合不参与求和） |
 | 68 | SectionParagraphConfigSettings.razor | /section-paragraph-config-settings | 配置 | ✅ | 段落日产配置，查改一体表 |
@@ -574,6 +575,8 @@
 ---
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
+>
+> **最后更新：2026-08-26（V28）** — 待发货项迁移：自仓库上下文迁入订单上下文（§2.1 新增 PendingDelivery，§2.7 移除），更名「订单成品(实时库存)」，路由改 `/orders/pending-delivery`，页面/控制器/服务/DTO 全部迁至 Orders 命名空间，权限跟随订单角色（OrderView），API 路径保持 `api/pending-delivery`；#65 行同步
 >
 > **最后更新：2026-08-23（V27）** — 产量报表删除：报表系统上下文消亡（后端 ReportController/ReportService/ReportPrintHelper/DailyProductionReportDto、前端 ProductionOutput.razor + ReportService 全删，菜单「报表系统」组移除，页面清单移除 #63，报表系统小节并入仓库上下文）
 >
